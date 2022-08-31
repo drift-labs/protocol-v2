@@ -16,6 +16,7 @@ use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_PAYMENT_PRECISION, ONE_HOUR,
 };
 use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
+use crate::math::helpers::on_the_hour_update;
 use crate::math::oracle;
 use crate::math_error;
 use crate::state::events::{FundingPaymentRecord, FundingRateRecord};
@@ -135,9 +136,6 @@ pub fn update_funding_rate(
     funding_paused: bool,
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<bool> {
-    let time_since_last_update = now
-        .checked_sub(market.amm.last_funding_rate_ts)
-        .ok_or_else(math_error!())?;
     let mark_price = match precomputed_mark_price {
         Some(mark_price) => mark_price,
         None => market.amm.mark_price()?,
@@ -149,52 +147,17 @@ pub fn update_funding_rate(
         guard_rails,
         Some(mark_price),
     )?;
-    // round next update time to be available on the hour
-    let mut next_update_wait = market.amm.funding_period;
-    if market.amm.funding_period > 1 {
-        let last_update_delay = market
-            .amm
-            .last_funding_rate_ts
-            .rem_euclid(market.amm.funding_period);
-        if last_update_delay != 0 {
-            let max_delay_for_next_period = market
-                .amm
-                .funding_period
-                .checked_div(3)
-                .ok_or_else(math_error!())?;
 
-            let two_funding_periods = market
-                .amm
-                .funding_period
-                .checked_mul(2)
-                .ok_or_else(math_error!())?;
+    let time_until_next_update = on_the_hour_update(
+        now,
+        market.amm.last_funding_rate_ts,
+        market.amm.funding_period,
+    )?;
 
-            if last_update_delay > max_delay_for_next_period {
-                // too late for on the hour next period, delay to following period
-                next_update_wait = two_funding_periods
-                    .checked_sub(last_update_delay)
-                    .ok_or_else(math_error!())?;
-            } else {
-                // allow update on the hour
-                next_update_wait = market
-                    .amm
-                    .funding_period
-                    .checked_sub(last_update_delay)
-                    .ok_or_else(math_error!())?;
-            }
+    let valid_funding_update =
+        !funding_paused && !block_funding_rate_update && (time_until_next_update == 0);
 
-            if next_update_wait > two_funding_periods {
-                next_update_wait = next_update_wait
-                    .checked_sub(market.amm.funding_period)
-                    .ok_or_else(math_error!())?;
-            }
-        }
-    }
-
-    let skip_funding_update =
-        !funding_paused && !block_funding_rate_update && time_since_last_update >= next_update_wait;
-
-    if skip_funding_update {
+    if valid_funding_update {
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
         let oracle_price_twap = amm::update_oracle_price_twap(
             &mut market.amm,
@@ -279,18 +242,25 @@ pub fn update_funding_rate(
         market.amm.last_funding_rate_long = funding_rate_long;
         market.amm.last_funding_rate_short = funding_rate_short;
         market.amm.last_funding_rate_ts = now;
-        market.amm.net_revenue_since_last_funding = 0;
 
         emit!(FundingRateRecord {
             ts: now,
             record_id: get_then_update_id!(market, next_funding_rate_record_id),
             market_index,
             funding_rate,
+            funding_rate_long,
+            funding_rate_short,
             cumulative_funding_rate_long: market.amm.cumulative_funding_rate_long,
             cumulative_funding_rate_short: market.amm.cumulative_funding_rate_short,
             mark_price_twap: mid_price_twap,
             oracle_price_twap,
+            period_revenue: market.amm.net_revenue_since_last_funding,
+            net_base_asset_amount: market.amm.net_base_asset_amount,
+            net_unsettled_lp_base_asset_amount: market.amm.net_unsettled_lp_base_asset_amount,
+
         });
+
+        market.amm.net_revenue_since_last_funding = 0;
     } else {
         return Ok(false);
     }

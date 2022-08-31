@@ -2028,6 +2028,7 @@ pub mod resolve_perp_bankruptcy {
             &bank_map,
             &mut oracle_map,
             now,
+            0,
         )
         .unwrap();
 
@@ -2232,6 +2233,7 @@ pub mod resolve_borrow_bankruptcy {
             &bank_map,
             &mut oracle_map,
             now,
+            0,
         )
         .unwrap();
 

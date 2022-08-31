@@ -16,7 +16,6 @@ import {
 	MARK_PRICE_PRECISION,
 	getTokenAmount,
 	BankBalanceType,
-	isVariant,
 } from '../sdk/src';
 
 import {
@@ -29,8 +28,9 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolAssetBank,
 } from './testHelpers';
+import { isVariant, ONE } from '../sdk';
 
-describe('liquidate borrow', () => {
+describe('liquidate borrow w/ social loss', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
@@ -130,7 +130,7 @@ describe('liquidate borrow', () => {
 	});
 
 	it('liquidate', async () => {
-		await setFeedPrice(anchor.workspace.Pyth, 190, solOracle);
+		await setFeedPrice(anchor.workspace.Pyth, 200, solOracle);
 		const bankBefore = clearingHouse.getBankAccount(0);
 		const bank1Before = clearingHouse.getBankAccount(1);
 
@@ -155,24 +155,13 @@ describe('liquidate borrow', () => {
 				.logMessages
 		);
 
-		assert(!clearingHouse.getUserAccount().beingLiquidated); // out of liq territory
+		assert(clearingHouse.getUserAccount().beingLiquidated);
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
+		assert(clearingHouse.getUserAccount().bankBalances[0].balance.eq(ZERO));
 		assert(
-			isVariant(
-				clearingHouse.getUserAccount().bankBalances[0].balanceType,
-				'deposit'
-			)
+			clearingHouse.getUserAccount().bankBalances[1].balance.eq(new BN(2))
 		);
-		assert(clearingHouse.getUserAccount().bankBalances[0].balance.gt(ZERO));
-		// assert(
-		// 	clearingHouse.getUserAccount().bankBalances[1].balance.gt(new BN(2))
-		// );
-		// assert(
-		// 	isVariant(
-		// 		clearingHouse.getUserAccount().bankBalances[0].balanceType,
-		// 		'borrow'
-		// 	)
-		// );
+
 		console.log(
 			clearingHouse.getUserAccount().bankBalances[0].balance.toString()
 		);
@@ -185,27 +174,17 @@ describe('liquidate borrow', () => {
 			liquidationRecord.liquidateBorrow.assetPrice.eq(MARK_PRICE_PRECISION)
 		);
 		assert(liquidationRecord.liquidateBorrow.assetBankIndex.eq(ZERO));
-		console.log(liquidationRecord.liquidateBorrow.assetTransfer.toString());
-
-		// todo, why?
 		assert(
-			liquidationRecord.liquidateBorrow.assetTransfer.lt(new BN(66904819))
-		);
-		assert(
-			liquidationRecord.liquidateBorrow.assetTransfer.gt(new BN(64904819))
+			liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(100000000))
 		);
 		assert(
 			liquidationRecord.liquidateBorrow.liabilityPrice.eq(
-				new BN(190).mul(MARK_PRICE_PRECISION)
+				new BN(200).mul(MARK_PRICE_PRECISION)
 			)
 		);
 		assert(liquidationRecord.liquidateBorrow.liabilityBankIndex.eq(new BN(1)));
-		console.log(liquidationRecord.liquidateBorrow.liabilityTransfer.toString());
 		assert(
-			liquidationRecord.liquidateBorrow.liabilityTransfer.lt(new BN(347871052))
-		);
-		assert(
-			liquidationRecord.liquidateBorrow.liabilityTransfer.gt(new BN(345871052))
+			liquidationRecord.liquidateBorrow.liabilityTransfer.eq(new BN(500000000))
 		);
 		await clearingHouse.fetchAccounts();
 		const bank = clearingHouse.getBankAccount(0);
@@ -271,17 +250,198 @@ describe('liquidate borrow', () => {
 			).toString()
 		);
 
+		const borrowDecrease = getTokenAmount(
+			bank1Before.borrowBalance,
+			bank1Before,
+			BankBalanceType.BORROW
+		).sub(getTokenAmount(bank1.borrowBalance, bank1, BankBalanceType.BORROW));
+
+		const newDepositAmount = getTokenAmount(
+			bank1Before.depositBalance,
+			bank1Before,
+			BankBalanceType.DEPOSIT
+		).sub(borrowDecrease);
+
+		const currentDepositAmount = getTokenAmount(
+			bank1.depositBalance,
+			bank1,
+			BankBalanceType.DEPOSIT
+		);
+
+		const interestOfUpdate = currentDepositAmount.sub(newDepositAmount);
+		console.log('interestOfUpdate:', interestOfUpdate.toString());
+		assert(interestOfUpdate.gt(ZERO));
+		assert(interestOfUpdate.lt(new BN(10000)));
+	});
+
+	it('resolve bankruptcy', async () => {
+		const bankBefore = clearingHouse.getBankAccount(0);
+		const bank1Before = clearingHouse.getBankAccount(1);
+
+		const bankCumulativeDepositInterestBefore =
+			clearingHouse.getBankAccount(1).cumulativeDepositInterest;
+
+		await liquidatorClearingHouse.resolveBorrowBankruptcy(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			new BN(1)
+		);
+
+		await clearingHouse.fetchAccounts();
+
+		assert(!clearingHouse.getUserAccount().beingLiquidated);
+		assert(!clearingHouse.getUserAccount().bankrupt);
+		assert(clearingHouse.getUserAccount().bankBalances[1].balance.eq(ZERO));
+
+		const bankruptcyRecord =
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+		assert(isVariant(bankruptcyRecord.liquidationType, 'borrowBankruptcy'));
+		console.log(bankruptcyRecord.borrowBankruptcy);
+		assert(bankruptcyRecord.borrowBankruptcy.bankIndex.eq(ONE));
+		assert(bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(2000)));
+		const bank = clearingHouse.getBankAccount(1);
+		assert(
+			bank.cumulativeDepositInterest.eq(
+				bankCumulativeDepositInterestBefore.sub(
+					bankruptcyRecord.borrowBankruptcy.cumulativeDepositInterestDelta
+				)
+			)
+		);
+
+		await clearingHouse.fetchAccounts();
+		const bank0 = clearingHouse.getBankAccount(0);
+		const bank1 = clearingHouse.getBankAccount(1);
+
+		console.log(
+			'usdc borrows in bank:',
+			getTokenAmount(
+				bankBefore.borrowBalance,
+				bankBefore,
+				BankBalanceType.BORROW
+			).toString(),
+			'->',
+			getTokenAmount(
+				bank0.borrowBalance,
+				bank0,
+				BankBalanceType.BORROW
+			).toString()
+		);
+
+		console.log(
+			'usdc deposits in bank:',
+			getTokenAmount(
+				bankBefore.depositBalance,
+				bankBefore,
+				BankBalanceType.DEPOSIT
+			).toString(),
+			'->',
+			getTokenAmount(
+				bank0.depositBalance,
+				bank0,
+				BankBalanceType.DEPOSIT
+			).toString()
+		);
+
+		console.log(
+			'sol borrows in bank:',
+			getTokenAmount(
+				bank1Before.borrowBalance,
+				bank1Before,
+				BankBalanceType.BORROW
+			).toString(),
+			'->',
+			getTokenAmount(
+				bank1.borrowBalance,
+				bank1,
+				BankBalanceType.BORROW
+			).toString()
+		);
+
+		console.log(
+			'sol deposits in bank:',
+			getTokenAmount(
+				bank1Before.depositBalance,
+				bank1Before,
+				BankBalanceType.DEPOSIT
+			).toString(),
+			'->',
+			getTokenAmount(
+				bank1.depositBalance,
+				bank1,
+				BankBalanceType.DEPOSIT
+			).toString()
+		);
+
+		const netBalance0Before = bankBefore.depositBalance.sub(
+			bankBefore.borrowBalance
+		);
+		const netBalance0After = bank0.depositBalance.sub(bank0.borrowBalance);
+
+		console.log(
+			'netBalance usd:',
+			netBalance0Before.toString(),
+			'->',
+			netBalance0After.toString()
+		);
+
+		console.log(
+			'cumulative deposit interest usd:',
+			bankBefore.cumulativeDepositInterest.toString(),
+			'->',
+			bank0.cumulativeDepositInterest.toString()
+		);
+		console.log(
+			'cumulative borrow interest usd:',
+			bankBefore.cumulativeBorrowInterest.toString(),
+			'->',
+			bank0.cumulativeBorrowInterest.toString()
+		);
+
+		assert(netBalance0Before.eq(netBalance0After));
+
 		const netBalanceBefore = bank1Before.depositBalance.sub(
 			bank1Before.borrowBalance
 		);
 		const netBalanceAfter = bank1.depositBalance.sub(bank1.borrowBalance);
 
 		console.log(
-			'netBalance:',
+			'netBalance sol:',
 			netBalanceBefore.toString(),
 			'->',
 			netBalanceAfter.toString()
 		);
-		assert(netBalanceBefore.eq(netBalanceAfter));
+
+		console.log(
+			'cumulative deposit interest sol:',
+			bank1Before.cumulativeDepositInterest.toString(),
+			'->',
+			bank1.cumulativeDepositInterest.toString()
+		);
+		console.log(
+			'cumulative borrow interest sol:',
+			bank1Before.cumulativeBorrowInterest.toString(),
+			'->',
+			bank1.cumulativeBorrowInterest.toString()
+		);
+
+		// no usd balance or interest changes
+		assert(
+			bankBefore.cumulativeBorrowInterest.eq(bank0.cumulativeBorrowInterest)
+		);
+		assert(
+			bankBefore.cumulativeDepositInterest.eq(bank0.cumulativeDepositInterest)
+		);
+		assert(netBalance0Before.eq(netBalance0After));
+
+		// sol deposit interest goes down changes (due to social loss)
+		assert(
+			bank1Before.cumulativeBorrowInterest.eq(bank1.cumulativeBorrowInterest)
+		);
+		assert(
+			bank1Before.cumulativeDepositInterest.gt(bank1.cumulativeDepositInterest)
+		);
+
+		// sol net balances goes up by socialized (borrow has been forgiven)
+		assert(netBalanceBefore.lt(netBalanceAfter));
 	});
 });

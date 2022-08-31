@@ -62,10 +62,16 @@ pub struct FundingRateRecord {
     pub record_id: u64,
     pub market_index: u64,
     pub funding_rate: i128,
+    pub funding_rate_long: i128,
+    pub funding_rate_short: i128,
     pub cumulative_funding_rate_long: i128,
     pub cumulative_funding_rate_short: i128,
     pub oracle_price_twap: i128,
     pub mark_price_twap: u128,
+    pub period_revenue: i64,
+    pub net_base_asset_amount: i128,
+    pub net_unsettled_lp_base_asset_amount: i128,
+
 }
 
 #[event]
@@ -232,6 +238,7 @@ pub struct LiquidatePerpPnlForDepositRecord {
 pub struct PerpBankruptcyRecord {
     pub market_index: u64,
     pub pnl: i128,
+    pub if_payment: u128,
     pub cumulative_funding_rate_delta: i128,
 }
 
@@ -239,6 +246,7 @@ pub struct PerpBankruptcyRecord {
 pub struct BorrowBankruptcyRecord {
     pub bank_index: u64,
     pub borrow_amount: u128,
+    pub if_payment: u128,
     pub cumulative_deposit_interest_delta: u128,
 }
 
@@ -253,6 +261,52 @@ pub struct SettlePnlRecord {
     pub quote_asset_amount_after: i128,
     pub quote_entry_amount: i128,
     pub settle_price: i128,
+}
+
+#[event]
+#[derive(Default)]
+pub struct InsuranceFundRecord {
+    pub ts: i64,
+    pub bank_index: u64,
+    pub user_if_factor: u32,
+    pub total_if_factor: u32,
+    pub bank_vault_amount_before: u64,
+    pub insurance_vault_amount_before: u64,
+    pub total_if_shares_before: u128,
+    pub total_if_shares_after: u128,
+    pub amount: u64,
+}
+
+#[event]
+#[derive(Default)]
+pub struct InsuranceFundStakeRecord {
+    pub ts: i64,
+    pub user_authority: Pubkey,
+    pub action: StakeAction,
+    pub amount: u64,
+    pub bank_index: u64,
+
+    pub insurance_vault_amount_before: u64,
+    pub if_shares_before: u128,
+    pub user_if_shares_before: u128,
+    pub total_if_shares_before: u128,
+    pub if_shares_after: u128,
+    pub user_if_shares_after: u128,
+    pub total_if_shares_after: u128,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+pub enum StakeAction {
+    Stake,
+    UnstakeRequest,
+    UnstakeCancelRequest,
+    Unstake,
+}
+
+impl Default for StakeAction {
+    fn default() -> Self {
+        StakeAction::Stake
+    }
 }
 
 pub fn emit_stack<T: AnchorSerialize + Discriminator, const N: usize>(event: T) {
