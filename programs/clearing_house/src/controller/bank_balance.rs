@@ -829,7 +829,7 @@ mod test {
             get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap();
         let borrow_tokens_5 =
             get_token_amount(bank.borrow_balance, &bank, &BankBalanceType::Borrow).unwrap();
-        let if_tokens_5 =
+        let _if_tokens_5 =
             get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Deposit).unwrap();
 
         assert_eq!(bank.borrow_token_twap, 789501);
@@ -1055,7 +1055,7 @@ mod test {
         .unwrap();
 
         if_balance_2 = if_balance_2 + settle_amount;
-        // assert_eq!(if_tokens_3 - (settle_amount as u128), 766877481557);
+        assert_eq!(if_balance_2, 459485011994);
         assert_eq!(if_tokens_3 - (settle_amount as u128), 766877482398); // w/ update interest for settle_bank_to_if
 
         assert_eq!(settle_amount, 459485011994);

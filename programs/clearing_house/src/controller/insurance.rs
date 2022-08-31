@@ -5,7 +5,7 @@ use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::math::bank_balance::get_token_amount;
 use crate::math::bank_balance::validate_bank_amounts;
-use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128, cast_to_u32, cast_to_u64};
+use crate::math::casting::{cast_to_i64, cast_to_u128, cast_to_u32, cast_to_u64};
 use crate::math::constants::{
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_NUMERATOR,

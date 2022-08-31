@@ -264,7 +264,7 @@ mod test {
 
             ..InsuranceFundStake::default()
         };
-        let amount = QUOTE_PRECISION as u64; // $1
+        let _amount = QUOTE_PRECISION as u64; // $1
         let mut bank = Bank {
             deposit_balance: 0,
             cumulative_deposit_interest: 1111 * BANK_CUMULATIVE_INTEREST_PRECISION / 1000,
@@ -274,26 +274,26 @@ mod test {
             ..Bank::default()
         };
 
-        let mut if_balance = (1000 * QUOTE_PRECISION) as u64;
+        let if_balance = (1000 * QUOTE_PRECISION) as u64;
 
         // unchanged balance
         let lost_shares = calculate_if_shares_lost(&if_stake, &bank, if_balance).unwrap();
         assert_eq!(lost_shares, 0);
 
-        let mut if_balance = if_balance + (100 * QUOTE_PRECISION) as u64;
+        let if_balance = if_balance + (100 * QUOTE_PRECISION) as u64;
         bank.total_if_shares = bank.total_if_shares + (100 * QUOTE_PRECISION);
         bank.user_if_shares = bank.user_if_shares + (100 * QUOTE_PRECISION);
         let lost_shares = calculate_if_shares_lost(&if_stake, &bank, if_balance).unwrap();
         assert_eq!(lost_shares, 0); // giving up $5 of gains
 
-        let mut if_balance = if_balance - (100 * QUOTE_PRECISION) as u64;
+        let if_balance = if_balance - (100 * QUOTE_PRECISION) as u64;
         bank.total_if_shares = bank.total_if_shares - (100 * QUOTE_PRECISION);
         bank.user_if_shares = bank.user_if_shares - (100 * QUOTE_PRECISION);
         let lost_shares = calculate_if_shares_lost(&if_stake, &bank, if_balance).unwrap();
         assert_eq!(lost_shares, 0); // giving up $5 of gains
 
         // take back gain
-        let mut if_balance = (1100 * QUOTE_PRECISION) as u64;
+        let if_balance = (1100 * QUOTE_PRECISION) as u64;
         let lost_shares = calculate_if_shares_lost(&if_stake, &bank, if_balance).unwrap();
         assert_eq!(lost_shares, 10_000_000); // giving up $10 of gains
 
@@ -304,12 +304,12 @@ mod test {
         if_stake.last_withdraw_request_value = (100 * QUOTE_PRECISION - 1) as u64;
 
         // take back gain and total_if_shares alter w/o user alter
-        let mut if_balance = (2100 * QUOTE_PRECISION) as u64;
+        let if_balance = (2100 * QUOTE_PRECISION) as u64;
         bank.total_if_shares = bank.total_if_shares * 2;
         let lost_shares = calculate_if_shares_lost(&if_stake, &bank, if_balance).unwrap();
         assert_eq!(lost_shares, 5_000_000); // giving up $5 of gains
 
-        let mut if_balance = (2100 * QUOTE_PRECISION * 10) as u64;
+        let if_balance = (2100 * QUOTE_PRECISION * 10) as u64;
 
         let expected_gain_if_no_loss = if_balance * 100 / 2000;
         assert_eq!(expected_gain_if_no_loss, 1050_000_000);

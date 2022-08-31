@@ -314,15 +314,17 @@ pub fn validate_bank_balances(bank: &Bank) -> ClearingHouseResult<u64> {
         &BankBalanceType::Deposit,
     )?)?;
 
+    let depositors_claim = depositors_amount - borrowers_amount;
+
     validate!(
         revenue_amount <= depositors_amount,
         ErrorCode::DefaultError,
-        "revenue_amount={} greater or equal to the depositors_amount={}",
+        "revenue_amount={} greater or equal to the depositors_amount={} (depositors_claim={}, bank.deposit_balance={})",
         revenue_amount,
-        depositors_amount
+        depositors_amount,
+        depositors_claim,
+        bank.deposit_balance
     )?;
-
-    let depositors_claim = depositors_amount - borrowers_amount;
 
     Ok(depositors_claim)
 }
