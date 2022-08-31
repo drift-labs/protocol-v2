@@ -30,6 +30,7 @@ export * from './factory/oracleClient';
 export * from './factory/bigNum';
 export * from './events/types';
 export * from './events/eventSubscriber';
+export * from './events/fetchLogs';
 export * from './math/auction';
 export * from './math/conversion';
 export * from './math/funding';
