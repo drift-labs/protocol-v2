@@ -4455,7 +4455,7 @@
             "name": "None"
           },
           {
-            "name": "BreachedMarginRequirement"
+            "name": "InsufficientFreeCollateral"
           },
           {
             "name": "OraclePriceBreachedLimitPrice"
@@ -4791,6 +4791,16 @@
           "index": false
         },
         {
+          "name": "fundingRateLong",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "fundingRateShort",
+          "type": "i128",
+          "index": false
+        },
+        {
           "name": "cumulativeFundingRateLong",
           "type": "i128",
           "index": false
@@ -4808,6 +4818,21 @@
         {
           "name": "markPriceTwap",
           "type": "u128",
+          "index": false
+        },
+        {
+          "name": "periodRevenue",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "netBaseAssetAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "netUnsettledLpBaseAssetAmount",
+          "type": "i128",
           "index": false
         }
       ]
