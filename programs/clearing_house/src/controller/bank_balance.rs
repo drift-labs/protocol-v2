@@ -409,9 +409,9 @@ mod test {
         // .50 * .2 = .1
         assert_eq!(bank.deposit_token_twap, 500000);
         assert_eq!(user.bank_balances[0].balance, 1000000);
-        assert_eq!(bank.deposit_balance,   1000000);
-        assert_eq!(bank.borrow_balance,          0);
-        assert_eq!((amount / 2),            500000);
+        assert_eq!(bank.deposit_balance, 1000000);
+        assert_eq!(bank.borrow_balance, 0);
+        assert_eq!((amount / 2), 500000);
         update_bank_balances_with_limits(
             (amount / 2) as u128,
             &BankBalanceType::Borrow,
@@ -421,8 +421,8 @@ mod test {
         .unwrap();
         assert_eq!(user.bank_balances[0].balance, 499999);
         assert_eq!(bank.deposit_token_twap, 500000);
-        assert_eq!(bank.deposit_balance,    499999);
-        assert_eq!(bank.borrow_balance,          0);
+        assert_eq!(bank.deposit_balance, 499999);
+        assert_eq!(bank.borrow_balance, 0);
 
         // .50 * .2 = .1
         update_bank_balances_with_limits(
