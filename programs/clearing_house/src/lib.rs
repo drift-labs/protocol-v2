@@ -1644,10 +1644,7 @@ pub mod clearing_house {
             ErrorCode::UserCantLiquidateThemself
         )?;
 
-        validate!(
-            bank_index == 0,
-            ErrorCode::InvalidBankAccount
-        )?;
+        validate!(bank_index == 0, ErrorCode::InvalidBankAccount)?;
 
         let user = &mut load_mut!(ctx.accounts.user)?;
         let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
@@ -2987,9 +2984,9 @@ pub mod clearing_house {
         )?;
 
         let n_shares = math::insurance::staked_amount_to_shares(
-            amount, 
+            amount,
             bank.total_if_shares,
-            ctx.accounts.insurance_fund_vault.amount
+            ctx.accounts.insurance_fund_vault.amount,
         )?;
 
         validate!(
@@ -3002,7 +2999,6 @@ pub mod clearing_house {
             insurance_fund_stake.if_shares >= n_shares,
             ErrorCode::InsufficientLPTokens
         )?;
-
 
         controller::insurance::request_remove_insurance_fund_stake(
             n_shares,

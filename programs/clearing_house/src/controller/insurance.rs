@@ -5,7 +5,7 @@ use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::math::bank_balance::get_token_amount;
 use crate::math::bank_balance::validate_bank_amounts;
-use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u32, cast_to_u64, cast_to_i64};
+use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128, cast_to_u32, cast_to_u64};
 use crate::math::constants::{
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_NUMERATOR,
@@ -819,7 +819,10 @@ mod test {
         )
         .unwrap();
         assert_eq!(if_stake.last_withdraw_request_shares, 33333333333);
-        assert_eq!(if_stake.last_withdraw_request_value, expected_amount_returned);
+        assert_eq!(
+            if_stake.last_withdraw_request_value,
+            expected_amount_returned
+        );
         assert_eq!(expected_amount_returned, o);
         assert_eq!(o, 31578947368);
 
@@ -925,7 +928,7 @@ mod test {
         .unwrap();
         let value_at_req = if_stake.last_withdraw_request_value;
         assert_eq!(value_at_req, 107692722239);
-        assert_eq!( o , 107692722239);
+        assert_eq!(o, 107692722239);
 
         // not enough time for withdraw
         assert!(remove_insurance_fund_stake(
