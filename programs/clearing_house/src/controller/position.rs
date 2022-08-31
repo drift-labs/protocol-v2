@@ -522,8 +522,8 @@ pub fn update_position_with_base_asset_amount(
     position_index: usize,
     mark_price_before: u128,
     now: i64,
-    maker_limit_price: Option<u128>,
-) -> ClearingHouseResult<(bool, u128, u128, i128)> {
+    fill_price: Option<u128>,
+) -> ClearingHouseResult<(bool, u128, i128, i128)> {
     let swap_direction = match direction {
         PositionDirection::Long => SwapDirection::Remove,
         PositionDirection::Short => SwapDirection::Add,
@@ -537,12 +537,12 @@ pub fn update_position_with_base_asset_amount(
         Some(mark_price_before),
     )?;
 
-    let (quote_asset_amount, quote_asset_amount_surplus) = match maker_limit_price {
-        Some(limit_price) => calculate_quote_asset_amount_surplus(
+    let (quote_asset_amount, quote_asset_amount_surplus) = match fill_price {
+        Some(fill_price) => calculate_quote_asset_amount_surplus(
             swap_direction,
             quote_asset_swapped,
             base_asset_amount,
-            limit_price,
+            fill_price,
         )?,
         None => (quote_asset_swapped, quote_asset_amount_surplus),
     };
@@ -577,20 +577,20 @@ fn calculate_quote_asset_amount_surplus(
     swap_direction: SwapDirection,
     quote_asset_swapped: u128,
     base_asset_amount: u128,
-    limit_price: u128,
-) -> ClearingHouseResult<(u128, u128)> {
+    fill_price: u128,
+) -> ClearingHouseResult<(u128, i128)> {
     let quote_asset_amount = calculate_quote_asset_amount_for_maker_order(
         base_asset_amount,
-        limit_price,
+        fill_price,
         swap_direction,
     )?;
 
     let quote_asset_amount_surplus = match swap_direction {
-        SwapDirection::Remove => quote_asset_amount
-            .checked_sub(quote_asset_swapped)
+        SwapDirection::Remove => cast_to_i128(quote_asset_amount)?
+            .checked_sub(cast_to_i128(quote_asset_swapped)?)
             .ok_or_else(math_error!())?,
-        SwapDirection::Add => quote_asset_swapped
-            .checked_sub(quote_asset_amount)
+        SwapDirection::Add => cast_to_i128(quote_asset_swapped)?
+            .checked_sub(cast_to_i128(quote_asset_amount)?)
             .ok_or_else(math_error!())?,
     };
 

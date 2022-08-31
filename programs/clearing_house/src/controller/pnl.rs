@@ -68,7 +68,7 @@ pub fn settle_pnl(
     let user_unsettled_pnl: i128 =
         user.positions[position_index].get_unsettled_pnl(oracle_price)?;
 
-    let pnl_to_settle_with_user = update_pool_balances(market, bank, user_unsettled_pnl)?;
+    let pnl_to_settle_with_user = update_pool_balances(market, bank, user_unsettled_pnl, now)?;
     if user_unsettled_pnl == 0 {
         msg!("User has no unsettled pnl for market {}", market_index);
         return Ok(());

@@ -86,11 +86,11 @@ pub fn limit_price_satisfied(
 
 pub fn calculate_quote_asset_amount_for_maker_order(
     base_asset_amount: u128,
-    limit_price: u128,
+    fill_price: u128,
     swap_direction: SwapDirection,
 ) -> ClearingHouseResult<u128> {
     let mut quote_asset_amount = base_asset_amount
-        .checked_mul(limit_price)
+        .checked_mul(fill_price)
         .ok_or_else(math_error!())?
         .div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO);
 

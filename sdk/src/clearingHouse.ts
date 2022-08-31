@@ -40,6 +40,7 @@ import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
 	getClearingHouseStateAccountPublicKey,
+	getInsuranceFundStakeAccountPublicKey,
 	getMarketPublicKey,
 	getUserAccountPublicKey,
 	getUserAccountPublicKeySync,
@@ -2175,6 +2176,7 @@ export class ClearingHouse {
 	public async resolvePerpBankruptcy(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
+		bankIndex: BN,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
@@ -2182,6 +2184,7 @@ export class ClearingHouse {
 				await this.getResolvePerpBankruptcyIx(
 					userAccountPublicKey,
 					userAccount,
+					bankIndex,
 					marketIndex
 				)
 			),
@@ -2194,24 +2197,36 @@ export class ClearingHouse {
 	public async getResolvePerpBankruptcyIx(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
+		bankIndex: BN,
 		marketIndex: BN
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			writableMarketIndex: marketIndex,
+			writableBankIndexes: [bankIndex],
 			counterPartyUserAccount: userAccount,
 		});
 
-		return await this.program.instruction.resolvePerpBankruptcy(marketIndex, {
-			accounts: {
-				state: await this.getStatePublicKey(),
-				authority: this.wallet.publicKey,
-				user: userAccountPublicKey,
-				liquidator: liquidatorPublicKey,
-			},
-			remainingAccounts: remainingAccounts,
-		});
+		const bank = this.getBankAccount(bankIndex);
+
+		return await this.program.instruction.resolvePerpBankruptcy(
+			bankIndex,
+			marketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					authority: this.wallet.publicKey,
+					user: userAccountPublicKey,
+					liquidator: liquidatorPublicKey,
+					bankVault: bank.vault,
+					insuranceFundVault: bank.insuranceFundVault,
+					insuranceFundVaultAuthority: bank.insuranceFundVaultAuthority,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+				remainingAccounts: remainingAccounts,
+			}
+		);
 	}
 
 	public async resolveBorrowBankruptcy(
@@ -2245,12 +2260,18 @@ export class ClearingHouse {
 			counterPartyUserAccount: userAccount,
 		});
 
+		const bank = this.getBankAccount(bankIndex);
+
 		return await this.program.instruction.resolveBorrowBankruptcy(bankIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				authority: this.wallet.publicKey,
 				user: userAccountPublicKey,
 				liquidator: liquidatorPublicKey,
+				bankVault: bank.vault,
+				insuranceFundVault: bank.insuranceFundVault,
+				insuranceFundVaultAuthority: bank.insuranceFundVaultAuthority,
+				tokenProgram: TOKEN_PROGRAM_ID,
 			},
 			remainingAccounts: remainingAccounts,
 		});
@@ -2479,5 +2500,192 @@ export class ClearingHouse {
 		const oracleData = this.getOraclePriceDataAndSlot(oracleKey).data;
 
 		return oracleData;
+	}
+
+	public async initializeInsuranceFundStake(
+		bankIndex: BN
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(await this.getInitializeInsuranceFundStakeIx(bankIndex)),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getInitializeInsuranceFundStakeIx(
+		bankIndex: BN
+	): Promise<TransactionInstruction> {
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			bankIndex
+		);
+
+		return await this.program.instruction.initializeInsuranceFundStake(
+			bankIndex,
+			{
+				accounts: {
+					insuranceFundStake: ifStakeAccountPublicKey,
+					bank: this.getBankAccount(bankIndex).pubkey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+					payer: this.wallet.publicKey,
+					rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
+	public async addInsuranceFundStake(
+		bankIndex: BN,
+		amount: BN,
+		collateralAccountPublicKey: PublicKey
+	): Promise<TransactionSignature> {
+		const bank = this.getBankAccount(bankIndex);
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			bankIndex
+		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: bankIndex,
+		});
+
+		return await this.program.rpc.addInsuranceFundStake(bankIndex, amount, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				bank: bank.pubkey,
+				insuranceFundStake: ifStakeAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+				insuranceFundVault: bank.insuranceFundVault,
+				userTokenAccount: collateralAccountPublicKey,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async requestRemoveInsuranceFundStake(
+		bankIndex: BN,
+		amount: BN
+	): Promise<TransactionSignature> {
+		const bank = this.getBankAccount(bankIndex);
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			bankIndex
+		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: bankIndex,
+		});
+
+		return await this.program.rpc.requestRemoveInsuranceFundStake(
+			bankIndex,
+			amount,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					bank: bank.pubkey,
+					insuranceFundStake: ifStakeAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+					insuranceFundVault: bank.insuranceFundVault,
+					// userTokenAccount: collateralAccountPublicKey,
+					// tokenProgram: TOKEN_PROGRAM_ID,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
+	public async cancelRequestRemoveInsuranceFundStake(
+		bankIndex: BN
+	): Promise<TransactionSignature> {
+		const bank = this.getBankAccount(bankIndex);
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			bankIndex
+		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: bankIndex,
+		});
+
+		return await this.program.rpc.cancelRequestRemoveInsuranceFundStake(
+			bankIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					bank: bank.pubkey,
+					insuranceFundStake: ifStakeAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+					insuranceFundVault: bank.insuranceFundVault,
+					// userTokenAccount: collateralAccountPublicKey,
+					// tokenProgram: TOKEN_PROGRAM_ID,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
+	public async removeInsuranceFundStake(
+		bankIndex: BN,
+		collateralAccountPublicKey: PublicKey
+	): Promise<TransactionSignature> {
+		const bank = this.getBankAccount(bankIndex);
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			bankIndex
+		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: bankIndex,
+		});
+
+		return await this.program.rpc.removeInsuranceFundStake(bankIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				bank: bank.pubkey,
+				insuranceFundStake: ifStakeAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+				insuranceFundVault: bank.insuranceFundVault,
+				insuranceFundVaultAuthority: bank.insuranceFundVaultAuthority,
+				userTokenAccount: collateralAccountPublicKey,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async settleRevenueToInsuranceFund(
+		bankIndex: BN
+	): Promise<TransactionSignature> {
+		const bank = this.getBankAccount(bankIndex);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: bankIndex,
+		});
+
+		return await this.program.rpc.settleRevenueToInsuranceFund(bankIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				bank: bank.pubkey,
+				bankVault: bank.vault,
+				bankVaultAuthority: bank.vaultAuthority,
+				insuranceFundVault: bank.insuranceFundVault,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+			remainingAccounts,
+		});
 	}
 }

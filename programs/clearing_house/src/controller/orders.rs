@@ -50,6 +50,9 @@ use std::ops::{Deref, DerefMut};
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod amm_jit_tests;
+
 pub fn place_order(
     state: &State,
     user: &AccountLoader<User>,
@@ -879,6 +882,8 @@ fn fulfill_order(
                 referrer_stats,
                 fee_structure,
                 &mut order_records,
+                None,
+                None,
             )?,
             FulfillmentMethod::Match => fulfill_order_with_match(
                 market.deref_mut(),
@@ -890,11 +895,13 @@ fn fulfill_order(
                 maker_stats.as_deref_mut().unwrap(),
                 maker_order_index.unwrap(),
                 maker_key.unwrap(),
-                filler.as_deref_mut(),
-                filler_stats.as_deref_mut(),
+                filler,
+                filler_stats,
                 filler_key,
                 referrer,
                 referrer_stats,
+                mark_price_before,
+                valid_oracle_price,
                 now,
                 slot,
                 fee_structure,
@@ -1073,29 +1080,44 @@ pub fn fulfill_order_with_amm(
     referrer_stats: &mut Option<&mut UserStats>,
     fee_structure: &FeeStructure,
     order_records: &mut Vec<OrderRecord>,
+    override_base_asset_amount: Option<u128>,
+    override_fill_price: Option<u128>, // todo probs dont need this since its the user_limit_price / current auction time
 ) -> ClearingHouseResult<(u128, bool)> {
     // Determine the base asset amount the market can fill
-    let base_asset_amount = calculate_base_asset_amount_for_amm_to_fulfill(
-        &user.orders[order_index],
-        market,
-        valid_oracle_price,
-        slot,
-    )?;
+    let (base_asset_amount, fill_price) = match override_base_asset_amount {
+        Some(override_base_asset_amount) => (override_base_asset_amount, override_fill_price),
+        None => {
+            let fill_price = if user.orders[order_index].post_only {
+                Some(user.orders[order_index].get_limit_price(
+                    &market.amm,
+                    valid_oracle_price,
+                    slot,
+                )?)
+            } else {
+                None
+            };
+
+            (
+                calculate_base_asset_amount_for_amm_to_fulfill(
+                    &user.orders[order_index],
+                    market,
+                    valid_oracle_price,
+                    slot,
+                )?,
+                fill_price,
+            )
+        }
+    };
 
     if base_asset_amount == 0 {
-        msg!("Amm cant fulfill order");
+        // if is an actual swap (and not amm jit order) then msg!
+        if override_base_asset_amount.is_none() {
+            msg!("Amm cant fulfill order");
+        }
         return Ok((0, false));
     }
 
-    let (order_post_only,) = get_struct_values!(user.orders[order_index], post_only);
-
     let position_index = get_position_index(&user.positions, market.market_index)?;
-
-    let maker_limit_price = if order_post_only {
-        Some(user.orders[order_index].get_limit_price(&market.amm, valid_oracle_price, slot)?)
-    } else {
-        None
-    };
 
     let (order_post_only, order_ts, order_direction) =
         get_struct_values!(user.orders[order_index], post_only, ts, direction);
@@ -1109,7 +1131,7 @@ pub fn fulfill_order_with_amm(
             position_index,
             mark_price_before,
             now,
-            maker_limit_price,
+            fill_price,
         )?;
 
     let reward_referrer = referrer.is_some()
@@ -1159,9 +1181,7 @@ pub fn fulfill_order_with_amm(
         .total_exchange_fee
         .checked_add(user_fee)
         .ok_or_else(math_error!())?;
-    market.amm.total_mm_fee = market
-        .amm
-        .total_mm_fee
+    market.amm.total_mm_fee = cast_to_i128(market.amm.total_mm_fee)?
         .checked_add(quote_asset_amount_surplus)
         .ok_or_else(math_error!())?;
     market.amm.total_fee_minus_distributions = market
@@ -1296,11 +1316,13 @@ pub fn fulfill_order_with_match(
     maker_stats: &mut UserStats,
     maker_order_index: usize,
     maker_key: &Pubkey,
-    filler: Option<&mut User>,
-    filler_stats: Option<&mut UserStats>,
+    filler: &mut Option<&mut User>,
+    filler_stats: &mut Option<&mut UserStats>,
     filler_key: &Pubkey,
     referrer: &mut Option<&mut User>,
     referrer_stats: &mut Option<&mut UserStats>,
+    mark_price_before: u128,
+    valid_oracle_price: Option<i128>,
     now: i64,
     slot: u64,
     fee_structure: &FeeStructure,
@@ -1332,7 +1354,7 @@ pub fn fulfill_order_with_match(
         return Ok((0_u128, false));
     }
 
-    let (base_asset_amount, quote_asset_amount) = calculate_fill_for_matched_orders(
+    let (base_asset_amount, _) = calculate_fill_for_matched_orders(
         maker_base_asset_amount,
         maker_price,
         taker_base_asset_amount,
@@ -1342,13 +1364,64 @@ pub fn fulfill_order_with_match(
         return Ok((0_u128, false));
     }
 
+    let amm_wants_to_make = match taker.orders[taker_order_index].direction {
+        PositionDirection::Long => market.amm.net_base_asset_amount < 0,
+        PositionDirection::Short => market.amm.net_base_asset_amount > 0,
+    };
+
+    let base_asset_amount_left_to_fill = if amm_wants_to_make && market.amm.amm_jit_is_active() {
+        let jit_base_asset_amount =
+            crate::math::amm_jit::calculate_jit_base_asset_amount(market, base_asset_amount)?;
+
+        if jit_base_asset_amount > 0 {
+            let (base_asset_amount_filled_by_amm, _) = fulfill_order_with_amm(
+                taker,
+                taker_stats,
+                taker_order_index,
+                market,
+                oracle_map,
+                mark_price_before,
+                now,
+                slot,
+                valid_oracle_price,
+                taker_key,
+                filler_key,
+                filler,
+                filler_stats,
+                &mut None,
+                &mut None,
+                fee_structure,
+                order_records,
+                Some(jit_base_asset_amount),
+                Some(taker_price), // current auction price
+            )?;
+
+            base_asset_amount
+                .checked_sub(base_asset_amount_filled_by_amm)
+                .ok_or_else(math_error!())?
+        } else {
+            base_asset_amount
+        }
+    } else {
+        base_asset_amount
+    };
+
+    let taker_base_asset_amount =
+        taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
+
+    let (_, quote_asset_amount) = calculate_fill_for_matched_orders(
+        base_asset_amount_left_to_fill,
+        maker_price,
+        taker_base_asset_amount,
+    )?;
+
     let maker_position_index = get_position_index(
         &maker.positions,
         maker.orders[maker_order_index].market_index,
     )?;
 
     let maker_position_delta = get_position_delta_for_fill(
-        base_asset_amount,
+        base_asset_amount_left_to_fill,
         quote_asset_amount,
         maker.orders[maker_order_index].direction,
     )?;
@@ -1367,7 +1440,7 @@ pub fn fulfill_order_with_match(
     )?;
 
     let taker_position_delta = get_position_delta_for_fill(
-        base_asset_amount,
+        base_asset_amount_left_to_fill,
         quote_asset_amount,
         taker.orders[taker_order_index].direction,
     )?;
@@ -1416,7 +1489,7 @@ pub fn fulfill_order_with_match(
     market.amm.total_fee = market
         .amm
         .total_fee
-        .checked_add(fee_to_market)
+        .checked_add(cast_to_i128(fee_to_market)?)
         .ok_or_else(math_error!())?;
     market.amm.total_fee_minus_distributions = market
         .amm
@@ -1474,6 +1547,7 @@ pub fn fulfill_order_with_match(
         )?;
 
         filler_stats
+            .as_mut()
             .unwrap()
             .update_filler_volume(cast(quote_asset_amount)?, now)?;
     }
@@ -1492,7 +1566,7 @@ pub fn fulfill_order_with_match(
     update_order_after_fill(
         &mut taker.orders[taker_order_index],
         market.amm.base_asset_amount_step_size,
-        base_asset_amount,
+        base_asset_amount_left_to_fill,
         quote_asset_amount,
         cast(taker_fee)?,
     )?;
@@ -1500,13 +1574,13 @@ pub fn fulfill_order_with_match(
     decrease_open_bids_and_asks(
         &mut taker.positions[taker_position_index],
         &taker.orders[taker_order_index].direction,
-        base_asset_amount,
+        base_asset_amount_left_to_fill,
     )?;
 
     update_order_after_fill(
         &mut maker.orders[maker_order_index],
         market.amm.base_asset_amount_step_size,
-        base_asset_amount,
+        base_asset_amount_left_to_fill,
         quote_asset_amount,
         -cast(maker_rebate)?,
     )?;
@@ -1514,7 +1588,7 @@ pub fn fulfill_order_with_match(
     decrease_open_bids_and_asks(
         &mut maker.positions[maker_position_index],
         &maker.orders[maker_order_index].direction,
-        base_asset_amount,
+        base_asset_amount_left_to_fill,
     )?;
 
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
@@ -1532,7 +1606,7 @@ pub fn fulfill_order_with_match(
         filler: *filler_key,
         fill_record_id,
         market_index: market.market_index,
-        base_asset_amount_filled: base_asset_amount,
+        base_asset_amount_filled: base_asset_amount_left_to_fill,
         quote_asset_amount_filled: quote_asset_amount,
         filler_reward,
         taker_fee,
