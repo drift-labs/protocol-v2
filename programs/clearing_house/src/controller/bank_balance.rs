@@ -110,63 +110,12 @@ pub fn update_bank_cumulative_interest(bank: &mut Bank, now: i64) -> ClearingHou
 }
 
 pub fn update_revenue_pool_balances(
-    mut token_amount: u128,
+    token_amount: u128,
     update_direction: &BankBalanceType,
     bank: &mut Bank,
 ) -> ClearingHouseResult {
     let mut bank_balance = bank.revenue_pool;
-
-    let increase_user_existing_balance = update_direction == bank_balance.balance_type();
-    if increase_user_existing_balance {
-        let balance_delta = get_bank_balance(token_amount, bank, update_direction)?;
-        bank_balance.increase_balance(balance_delta)?;
-        increase_bank_balance(balance_delta, bank, update_direction)?;
-    } else {
-        let current_token_amount =
-            get_token_amount(bank_balance.balance(), bank, bank_balance.balance_type())?;
-
-        let reduce_user_existing_balance = current_token_amount != 0;
-        if reduce_user_existing_balance {
-            // determine how much to reduce balance based on size of current token amount
-            let (token_delta, balance_delta) = if current_token_amount > token_amount {
-                let balance_delta =
-                    get_bank_balance(token_amount, bank, bank_balance.balance_type())?;
-                (token_amount, balance_delta)
-            } else {
-                (current_token_amount, bank_balance.balance())
-            };
-
-            decrease_bank_balance(balance_delta, bank, bank_balance.balance_type())?;
-            bank_balance.decrease_balance(balance_delta)?;
-            token_amount = token_amount
-                .checked_sub(token_delta)
-                .ok_or_else(math_error!())?;
-        }
-
-        if token_amount > 0 {
-            bank_balance.update_balance_type(*update_direction)?;
-            let balance_delta = get_bank_balance(token_amount, bank, update_direction)?;
-            bank_balance.increase_balance(balance_delta)?;
-            increase_bank_balance(balance_delta, bank, update_direction)?;
-        }
-    }
-
-    if let BankBalanceType::Borrow = update_direction {
-        let deposit_token_amount =
-            get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)?;
-
-        let borrow_token_amount =
-            get_token_amount(bank.borrow_balance, bank, &BankBalanceType::Borrow)?;
-
-        validate!(
-            deposit_token_amount >= borrow_token_amount,
-            ErrorCode::BankInsufficientDeposits,
-            "Bank has insufficent deposits to complete withdraw ({} < {})",
-            deposit_token_amount,
-            borrow_token_amount
-        )?;
-    }
-
+    update_bank_balances(token_amount, update_direction, bank, &mut bank_balance)?;
     bank.revenue_pool = bank_balance;
 
     Ok(())
