@@ -114,8 +114,8 @@ pub struct OrderActionRecord {
 
     pub referrer: Option<Pubkey>,
 
-    pub fill_base_asset_amount: Option<u128>,
-    pub fill_quote_asset_amount: Option<u64>,
+    pub base_asset_amount_filled: Option<u128>,
+    pub quote_asset_amount_filled: Option<u64>,
     pub taker_pnl: Option<i64>,
     pub maker_pnl: Option<i64>,
     pub taker_fee: Option<u64>,
@@ -125,12 +125,14 @@ pub struct OrderActionRecord {
     pub quote_asset_amount_surplus: Option<i64>,
 
     pub taker: Option<Pubkey>,
+    pub taker_order_id: Option<u64>,
     pub taker_order_base_asset_amount: Option<u128>,
     pub taker_order_base_asset_amount_filled: Option<u128>,
     pub taker_order_quote_asset_amount_filled: Option<u64>,
     pub taker_order_fee: Option<i64>,
 
     pub maker: Option<Pubkey>,
+    pub maker_order_id: Option<u64>,
     pub maker_order_base_asset_amount: Option<u128>,
     pub maker_order_base_asset_amount_filled: Option<u128>,
     pub maker_order_quote_asset_amount_filled: Option<u64>,
@@ -175,8 +177,8 @@ pub fn get_order_action_record(
         },
         fill_record_id,
         referrer,
-        fill_base_asset_amount,
-        fill_quote_asset_amount: match fill_quote_asset_amount {
+        base_asset_amount_filled: fill_base_asset_amount,
+        quote_asset_amount_filled: match fill_quote_asset_amount {
             Some(fill_quote_asset_amount) => Some(cast(fill_quote_asset_amount)?),
             None => None,
         },
@@ -201,6 +203,7 @@ pub fn get_order_action_record(
             None => None,
         },
         taker,
+        taker_order_id: taker_order.map(|order| order.order_id),
         taker_order_base_asset_amount: taker_order.map(|order| order.base_asset_amount),
         taker_order_base_asset_amount_filled: taker_order
             .map(|order| order.base_asset_amount_filled),
@@ -217,6 +220,7 @@ pub fn get_order_action_record(
             None => None,
         },
         maker,
+        maker_order_id: maker_order.map(|order| order.order_id),
         maker_order_base_asset_amount: maker_order.map(|order| order.base_asset_amount),
         maker_order_base_asset_amount_filled: maker_order
             .map(|order| order.base_asset_amount_filled),
