@@ -73,7 +73,6 @@ pub struct FundingRateRecord {
     pub period_revenue: i64,
     pub net_base_asset_amount: i128,
     pub net_unsettled_lp_base_asset_amount: i128,
-
 }
 
 #[event]
@@ -258,7 +257,7 @@ pub enum OrderAction {
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum OrderActionExplanation {
     None,
-    BreachedMarginRequirement,
+    InsufficientFreeCollateral,
     OraclePriceBreachedLimitPrice,
     MarketOrderFilledToLimitPrice,
     MarketOrderAuctionExpired,

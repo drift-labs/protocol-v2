@@ -40,9 +40,8 @@ use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::*;
 use crate::state::user::User;
-use crate::state::user::{MarketPosition, Order, OrderStatus, OrderType, UserStats};
+use crate::state::user::{Order, OrderStatus, OrderType, UserStats};
 use crate::validate;
-use std::alloc::{alloc_zeroed, Layout};
 use std::cell::RefMut;
 use std::cmp::{max, min};
 use std::ops::{Deref, DerefMut};
@@ -822,33 +821,43 @@ fn fulfill_order(
     let market_index = user.orders[user_order_index].market_index;
 
     let position_index = get_position_index(&user.positions, market_index)?;
-    let worst_case_base_asset_amount_before =
-        user.positions[position_index].worst_case_base_asset_amount()?;
+    let order_direction = user.orders[user_order_index].direction;
+    let position_base_asset_amount_before = user.positions[position_index].base_asset_amount;
+    let risk_decreasing = is_order_risk_decreasing(
+        &order_direction,
+        user.orders[user_order_index].get_base_asset_amount_unfilled()?,
+        position_base_asset_amount_before,
+    )?;
 
-    let user_checkpoint = checkpoint_user(user, user_stats, market_index, Some(user_order_index))?;
-    let maker_checkpoint = if let Some(maker) = maker {
-        let maker_order_index = maker_order_index.ok_or(ErrorCode::MakerOrderNotFound)?;
-        Some(checkpoint_user(
-            maker,
-            maker_stats.as_mut().unwrap(),
-            market_index,
-            Some(maker_order_index),
-        )?)
-    } else {
-        None
-    };
-    let filler_checkpoint = if let Some(filler) = filler {
-        Some(checkpoint_user(
+    let free_collateral = calculate_free_collateral(user, market_map, bank_map, oracle_map)?;
+    let market = market_map.get_ref(&market_index)?;
+    let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+    let max_base_asset_amount = calculate_max_fill_for_order(
+        &user.orders[user_order_index],
+        &market,
+        oracle_price_data,
+        slot,
+        risk_decreasing,
+        free_collateral,
+    )?;
+    drop(market);
+
+    if max_base_asset_amount == 0 {
+        cancel_risk_increasing_order(
+            user,
+            user_order_index,
+            user_key,
             filler,
-            filler_stats.as_mut().unwrap(),
-            market_index,
-            None,
-        )?)
-    } else {
-        None
-    };
+            filler_key,
+            market_map,
+            oracle_map,
+            fee_structure,
+            now,
+            slot,
+        )?;
 
-    let market_checkpoint = clone(market_map.get_ref(&market_index)?.deref());
+        return Ok((0, false, true));
+    }
 
     let fulfillment_methods =
         determine_fulfillment_methods(&user.orders[user_order_index], maker.is_some(), slot)?;
@@ -858,17 +867,22 @@ fn fulfill_order(
     }
 
     let mut base_asset_amount = 0_u128;
-    let mut potentially_risk_increasing = false;
+    let mut quote_asset_amount = 0_u128;
     let mut order_records: Vec<OrderActionRecord> = vec![];
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
             break;
         }
 
+        let max_base_asset_amount = max_base_asset_amount
+            .checked_sub(base_asset_amount)
+            .ok_or_else(math_error!())?;
+
         let mut market = market_map.get_ref_mut(&market_index)?;
 
-        let (_base_asset_amount, _potentially_risk_increasing) = match fulfillment_method {
+        let (_base_asset_amount, _quote_asset_amount) = match fulfillment_method {
             FulfillmentMethod::AMM => fulfill_order_with_amm(
+                max_base_asset_amount,
                 user,
                 user_stats,
                 user_order_index,
@@ -895,6 +909,7 @@ fn fulfill_order(
                 user_stats,
                 user_order_index,
                 user_key,
+                max_base_asset_amount,
                 maker.as_deref_mut().unwrap(),
                 maker_stats.as_deref_mut().unwrap(),
                 maker_order_index.unwrap(),
@@ -914,159 +929,80 @@ fn fulfill_order(
             )?,
         };
 
-        potentially_risk_increasing = potentially_risk_increasing || _potentially_risk_increasing;
         base_asset_amount = base_asset_amount
             .checked_add(_base_asset_amount)
             .ok_or_else(math_error!())?;
+        quote_asset_amount = quote_asset_amount
+            .checked_add(_quote_asset_amount)
+            .ok_or_else(math_error!())?;
+    }
+
+    for order_record in order_records {
+        emit!(order_record)
     }
 
     let mut updated_user_state = base_asset_amount != 0;
 
-    let worst_case_base_asset_amount_after =
-        user.positions[position_index].worst_case_base_asset_amount()?;
-
-    // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
-    let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
-        < worst_case_base_asset_amount_before.unsigned_abs();
-
-    let meets_initial_margin_requirement =
-        meets_initial_margin_requirement(user, market_map, bank_map, oracle_map)?;
-
-    if meets_initial_margin_requirement || risk_decreasing {
-        for order_record in order_records {
-            emit!(order_record)
-        }
-    } else {
-        updated_user_state = true;
-
-        revert_to_checkpoint(user, user_stats, user_checkpoint)?;
-        if let Some(maker) = maker {
-            revert_to_checkpoint(
-                maker,
-                maker_stats.as_mut().unwrap(),
-                maker_checkpoint.unwrap(),
-            )?;
-        }
-        if let Some(filler) = filler {
-            revert_to_checkpoint(
-                filler,
-                filler_stats.as_mut().unwrap(),
-                filler_checkpoint.unwrap(),
-            )?;
-        }
-        {
-            let mut market = market_map.get_ref_mut(&market_index)?;
-            *market = *market_checkpoint;
-        }
-
-        base_asset_amount = 0;
-        potentially_risk_increasing = false;
-
-        let filler_reward = {
-            let mut market = market_map.get_ref_mut(&market_index)?;
-            pay_keeper_flat_reward(
-                user,
-                filler.as_deref_mut(),
-                market.deref_mut(),
-                fee_structure.cancel_order_fee,
-            )?
-        };
-
-        cancel_order(
-            user_order_index,
-            user,
-            user_key,
-            market_map,
-            oracle_map,
-            now,
-            slot,
-            OrderActionExplanation::BreachedMarginRequirement,
-            Some(filler_key),
-            filler_reward,
-            false,
-        )?
+    // temp check to make sure max fill logic is working as intended
+    let free_collateral = calculate_free_collateral(user, market_map, bank_map, oracle_map)?;
+    if free_collateral < 0 {
+        msg!(
+            "fulfill_order lead to negative free collateral {}",
+            free_collateral
+        );
+        return Err(ErrorCode::InsufficientCollateral);
     }
 
-    Ok((
-        base_asset_amount,
-        potentially_risk_increasing,
-        updated_user_state,
-    ))
+    let position_base_asset_amount_after = user.positions[position_index].base_asset_amount;
+    let risk_increasing = position_base_asset_amount_before == 0
+        || position_base_asset_amount_before.signum() == position_base_asset_amount_after.signum()
+        || position_base_asset_amount_before.abs() < position_base_asset_amount_after.abs();
+
+    Ok((base_asset_amount, risk_increasing, updated_user_state))
 }
 
-struct UserCheckpoint {
-    pub order_index: Option<usize>,
-    pub order: Option<Box<Order>>,
-    pub position_index: usize,
-    pub position: Box<MarketPosition>,
-    pub user_stats: Box<UserStats>,
-}
-
-fn checkpoint_user(
+fn cancel_risk_increasing_order(
     user: &mut User,
-    user_stats: &mut UserStats,
-    market_index: u64,
-    order_index: Option<usize>,
-) -> ClearingHouseResult<UserCheckpoint> {
-    let order = if let Some(order_index) = order_index {
-        let mut order = unsafe {
-            let layout = Layout::new::<Order>();
-            let raw_allocation = alloc_zeroed(layout) as *mut Order;
-            Box::from_raw(raw_allocation)
-        };
-        *order = user.orders[order_index];
-        Some(order)
-    } else {
-        None
-    };
-
-    let position_index = get_position_index(&user.positions, market_index)
-        .or_else(|_| add_new_position(&mut user.positions, market_index))?;
-    let mut position = unsafe {
-        let layout = Layout::new::<MarketPosition>();
-        let raw_allocation = alloc_zeroed(layout) as *mut MarketPosition;
-        Box::from_raw(raw_allocation)
-    };
-    *position = user.positions[position_index];
-    let mut stats = unsafe {
-        let layout = Layout::new::<UserStats>();
-        let raw_allocation = alloc_zeroed(layout) as *mut UserStats;
-        Box::from_raw(raw_allocation)
-    };
-    *stats = *user_stats;
-    Ok(UserCheckpoint {
-        order_index,
-        order,
-        position_index,
-        position,
-        user_stats: stats,
-    })
-}
-
-fn clone<T: Copy>(original: &T) -> Box<T> {
-    let mut clone = unsafe {
-        let layout = Layout::new::<T>();
-        let raw_allocation = alloc_zeroed(layout) as *mut T;
-        Box::from_raw(raw_allocation)
-    };
-    *clone = *original;
-    clone
-}
-
-fn revert_to_checkpoint(
-    user: &mut User,
-    user_stats: &mut UserStats,
-    checkpoint: UserCheckpoint,
+    user_order_index: usize,
+    user_key: &Pubkey,
+    filler: &mut Option<&mut User>,
+    filler_key: &Pubkey,
+    market_map: &MarketMap,
+    oracle_map: &mut OracleMap,
+    fee_structure: &FeeStructure,
+    now: i64,
+    slot: u64,
 ) -> ClearingHouseResult {
-    *user_stats = *checkpoint.user_stats;
-    user.positions[checkpoint.position_index] = *checkpoint.position;
-    if let Some(order) = checkpoint.order {
-        user.orders[checkpoint.order_index.unwrap()] = *order;
-    }
+    let market_index = user.orders[user_order_index].market_index;
+    let filler_reward = {
+        let mut market = market_map.get_ref_mut(&market_index)?;
+        pay_keeper_flat_reward(
+            user,
+            filler.as_deref_mut(),
+            market.deref_mut(),
+            fee_structure.cancel_order_fee,
+        )?
+    };
+
+    cancel_order(
+        user_order_index,
+        user,
+        user_key,
+        market_map,
+        oracle_map,
+        now,
+        slot,
+        OrderActionExplanation::InsufficientFreeCollateral,
+        Some(filler_key),
+        filler_reward,
+        false,
+    )?;
+
     Ok(())
 }
 
 pub fn fulfill_order_with_amm(
+    max_base_amount: u128,
     user: &mut User,
     user_stats: &mut UserStats,
     order_index: usize,
@@ -1086,7 +1022,7 @@ pub fn fulfill_order_with_amm(
     order_records: &mut Vec<OrderActionRecord>,
     override_base_asset_amount: Option<u128>,
     override_fill_price: Option<u128>, // todo probs dont need this since its the user_limit_price / current auction time
-) -> ClearingHouseResult<(u128, bool)> {
+) -> ClearingHouseResult<(u128, u128)> {
     // Determine the base asset amount the market can fill
     let (base_asset_amount, fill_price) = match override_base_asset_amount {
         Some(override_base_asset_amount) => (override_base_asset_amount, override_fill_price),
@@ -1113,12 +1049,14 @@ pub fn fulfill_order_with_amm(
         }
     };
 
+    let base_asset_amount = base_asset_amount.min(max_base_amount);
+
     if base_asset_amount == 0 {
         // if is an actual swap (and not amm jit order) then msg!
         if override_base_asset_amount.is_none() {
             msg!("Amm cant fulfill order");
         }
-        return Ok((0, false));
+        return Ok((0, 0));
     }
 
     let position_index = get_position_index(&user.positions, market.market_index)?;
@@ -1126,7 +1064,7 @@ pub fn fulfill_order_with_amm(
     let (order_post_only, order_ts, order_direction) =
         get_struct_values!(user.orders[order_index], post_only, ts, direction);
 
-    let (potentially_risk_increasing, quote_asset_amount, quote_asset_amount_surplus, mut pnl) =
+    let (quote_asset_amount, quote_asset_amount_surplus, mut pnl) =
         controller::position::update_position_with_base_asset_amount(
             base_asset_amount,
             order_direction,
@@ -1307,7 +1245,7 @@ pub fn fulfill_order_with_amm(
         market_position.open_orders -= 1;
     }
 
-    Ok((base_asset_amount, potentially_risk_increasing))
+    Ok((base_asset_amount, quote_asset_amount))
 }
 
 pub fn fulfill_order_with_match(
@@ -1316,6 +1254,7 @@ pub fn fulfill_order_with_match(
     taker_stats: &mut UserStats,
     taker_order_index: usize,
     taker_key: &Pubkey,
+    taker_max_base_amount: u128,
     maker: &mut User,
     maker_stats: &mut UserStats,
     maker_order_index: usize,
@@ -1332,19 +1271,20 @@ pub fn fulfill_order_with_match(
     fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
     order_records: &mut Vec<OrderActionRecord>,
-) -> ClearingHouseResult<(u128, bool)> {
+) -> ClearingHouseResult<(u128, u128)> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
         &taker.orders[taker_order_index],
     ) {
-        return Ok((0_u128, false));
+        return Ok((0_u128, 0_u128));
     }
 
     let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
     let taker_price =
         taker.orders[taker_order_index].get_limit_price(&market.amm, Some(oracle_price), slot)?;
-    let taker_base_asset_amount =
-        taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
+    let taker_base_asset_amount = taker.orders[taker_order_index]
+        .get_base_asset_amount_unfilled()?
+        .min(taker_max_base_amount);
 
     let maker_price =
         maker.orders[maker_order_index].get_limit_price(&market.amm, Some(oracle_price), slot)?;
@@ -1355,7 +1295,7 @@ pub fn fulfill_order_with_match(
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
     if !orders_cross {
-        return Ok((0_u128, false));
+        return Ok((0_u128, 0_u128));
     }
 
     let (base_asset_amount, _) = calculate_fill_for_matched_orders(
@@ -1365,7 +1305,7 @@ pub fn fulfill_order_with_match(
     )?;
 
     if base_asset_amount == 0 {
-        return Ok((0_u128, false));
+        return Ok((0_u128, 0_u128));
     }
 
     let amm_wants_to_make = match taker.orders[taker_order_index].direction {
@@ -1373,32 +1313,37 @@ pub fn fulfill_order_with_match(
         PositionDirection::Short => market.amm.net_base_asset_amount > 0,
     };
 
+    let mut total_quote_asset_amount = 0_u128;
     let base_asset_amount_left_to_fill = if amm_wants_to_make && market.amm.amm_jit_is_active() {
         let jit_base_asset_amount =
             crate::math::amm_jit::calculate_jit_base_asset_amount(market, base_asset_amount)?;
 
         if jit_base_asset_amount > 0 {
-            let (base_asset_amount_filled_by_amm, _) = fulfill_order_with_amm(
-                taker,
-                taker_stats,
-                taker_order_index,
-                market,
-                oracle_map,
-                mark_price_before,
-                now,
-                slot,
-                valid_oracle_price,
-                taker_key,
-                filler_key,
-                filler,
-                filler_stats,
-                &mut None,
-                &mut None,
-                fee_structure,
-                order_records,
-                Some(jit_base_asset_amount),
-                Some(taker_price), // current auction price
-            )?;
+            let (base_asset_amount_filled_by_amm, quote_asset_amount_filled_by_amm) =
+                fulfill_order_with_amm(
+                    jit_base_asset_amount,
+                    taker,
+                    taker_stats,
+                    taker_order_index,
+                    market,
+                    oracle_map,
+                    mark_price_before,
+                    now,
+                    slot,
+                    valid_oracle_price,
+                    taker_key,
+                    filler_key,
+                    filler,
+                    filler_stats,
+                    &mut None,
+                    &mut None,
+                    fee_structure,
+                    order_records,
+                    Some(jit_base_asset_amount),
+                    Some(taker_price), // current auction price
+                )?;
+
+            total_quote_asset_amount = quote_asset_amount_filled_by_amm;
 
             base_asset_amount
                 .checked_sub(base_asset_amount_filled_by_amm)
@@ -1418,6 +1363,10 @@ pub fn fulfill_order_with_match(
         maker_price,
         taker_base_asset_amount,
     )?;
+
+    total_quote_asset_amount = total_quote_asset_amount
+        .checked_add(quote_asset_amount)
+        .ok_or_else(math_error!())?;
 
     let maker_position_index = get_position_index(
         &maker.positions,
@@ -1638,7 +1587,7 @@ pub fn fulfill_order_with_match(
         market_position.open_orders -= 1;
     }
 
-    Ok((base_asset_amount, false))
+    Ok((base_asset_amount, total_quote_asset_amount))
 }
 
 pub fn update_order_after_fill(
