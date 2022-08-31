@@ -62,10 +62,13 @@ pub struct FundingRateRecord {
     pub record_id: u64,
     pub market_index: u64,
     pub funding_rate: i128,
+    pub funding_rate_long: i128,
+    pub funding_rate_short: i128,
     pub cumulative_funding_rate_long: i128,
     pub cumulative_funding_rate_short: i128,
     pub oracle_price_twap: i128,
     pub mark_price_twap: u128,
+    pub period_revenue: i64,
 }
 
 #[event]

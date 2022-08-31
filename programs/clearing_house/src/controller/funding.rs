@@ -242,18 +242,22 @@ pub fn update_funding_rate(
         market.amm.last_funding_rate_long = funding_rate_long;
         market.amm.last_funding_rate_short = funding_rate_short;
         market.amm.last_funding_rate_ts = now;
-        market.amm.net_revenue_since_last_funding = 0;
 
         emit!(FundingRateRecord {
             ts: now,
             record_id: get_then_update_id!(market, next_funding_rate_record_id),
             market_index,
             funding_rate,
+            funding_rate_long,
+            funding_rate_short,
             cumulative_funding_rate_long: market.amm.cumulative_funding_rate_long,
             cumulative_funding_rate_short: market.amm.cumulative_funding_rate_short,
             mark_price_twap: mid_price_twap,
             oracle_price_twap,
+            period_revenue: market.amm.net_revenue_since_last_funding,
         });
+
+        market.amm.net_revenue_since_last_funding = 0;
     } else {
         return Ok(false);
     }

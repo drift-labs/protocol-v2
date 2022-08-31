@@ -577,7 +577,6 @@ mod test {
         assert_eq!(bank.total_if_shares, 0);
         assert_eq!(bank.user_if_shares, 0);
 
-
         add_insurance_fund_stake(
             amount,
             if_balance,

@@ -156,10 +156,13 @@ export type FundingRateRecord = {
 	recordId: BN;
 	marketIndex: BN;
 	fundingRate: BN;
+	fundingRateLong: BN;
+	fundingRateShort: BN;
 	cumulativeFundingRateLong: BN;
 	cumulativeFundingRateShort: BN;
 	oraclePriceTwap: BN;
 	markPriceTwap: BN;
+	periodRevenue: BN;
 };
 
 export type FundingPaymentRecord = {
