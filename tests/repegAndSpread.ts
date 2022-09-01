@@ -428,7 +428,41 @@ describe('repeg and spread amm', () => {
 		console.log(bAR1.toString(), '==', market.amm.baseAssetReserve.toString());
 		assert(bAR1.eq(market.amm.baseAssetReserve));
 
+		await clearingHouse.fetchAccounts();
+		console.log(
+			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.toString()
+		);
+		console.log(
+			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toString()
+		);
+		assert(
+			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toString() ==
+				'-1931600000000'
+		);
+		assert(
+			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.toString() ==
+				'4229493402'
+		); // $4229.49
+
 		await clearingHouse.closePosition(new BN(0));
+		await clearingHouse.fetchAccounts();
+		console.log(
+			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.toString()
+		);
+		assert(
+			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toString() ==
+				'0'
+		);
+		assert(
+			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.toString() ==
+				'203455312'
+		); // $203.45
+
+		assert(
+			clearingHouse.getUserAccount().positions[0].quoteEntryAmount.toString() ==
+				'0'
+		);
+
 		console.log(
 			'getBankAssetValue:',
 			clearingHouseUser.getBankAssetValue().toString()
@@ -441,18 +475,41 @@ describe('repeg and spread amm', () => {
 			BankBalanceType.DEPOSIT
 		);
 
+		const pnlPoolBalance0 = getTokenAmount(
+			market.pnlPool.balance,
+			bankAccount0,
+			BankBalanceType.DEPOSIT
+		);
+
 		console.log('usdcAmount:', usdcAmount.toString());
 		console.log(
 			'getBankAssetValue:',
 			clearingHouseUser.getBankAssetValue().toString()
 		);
 		console.log('feePoolBalance0:', feePoolBalance0.toString());
+		console.log('pnlPoolBalance0:', pnlPoolBalance0.toString());
 
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
 			marketIndex
 		);
+		await clearingHouse.fetchAccounts();
+		console.log(
+			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.toString()
+		);
+		console.log(
+			clearingHouse.getUserAccount().positions[0].quoteEntryAmount.toString()
+		);
+		assert(
+			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.toString() ==
+				'157582183'
+		); // $157.58
+		assert(
+			clearingHouse.getUserAccount().positions[0].quoteEntryAmount.toString() ==
+				'0'
+		);
+
 		await depositToFeePoolFromIF(157.476328, clearingHouse, userUSDCAccount);
 
 		const market1 = clearingHouse.getMarketAccount(0);
@@ -461,12 +518,18 @@ describe('repeg and spread amm', () => {
 			market1.amm.totalFeeMinusDistributions.toString()
 		);
 
-		assert(market1.amm.totalFeeMinusDistributions.lt(ZERO));
+		assert(market1.amm.totalFeeMinusDistributions.gt(ZERO));
 
 		const bankAccount = clearingHouse.getBankAccount(0);
 
 		const feePoolBalance = getTokenAmount(
 			market1.amm.feePool.balance,
+			bankAccount,
+			BankBalanceType.DEPOSIT
+		);
+
+		const pnlPoolBalance = getTokenAmount(
+			market1.pnlPool.balance,
 			bankAccount,
 			BankBalanceType.DEPOSIT
 		);
@@ -477,10 +540,9 @@ describe('repeg and spread amm', () => {
 			clearingHouseUser.getBankAssetValue().toString()
 		);
 		console.log('feePoolBalance:', feePoolBalance.toString());
+		console.log('pnlPoolBalance:', pnlPoolBalance.toString());
 
-		assert(
-			clearingHouseUser.getBankAssetValue().eq(usdcAmount.add(new BN(50001000)))
-		);
+		assert(clearingHouseUser.getBankAssetValue().eq(new BN('10045873129'))); // remainder is of debt is for fees for revenue pool
 		await clearingHouseUser.unsubscribe();
 	});
 
@@ -694,13 +756,6 @@ describe('repeg and spread amm', () => {
 
 		console.log(allUserCollateral.toString());
 
-		assert(allUserCollateral == 60207.477328);
-		assert(pnlPoolBalance == 0);
-		assert(feePoolBalance == 0);
-		assert(allUserUnsettledPnl == 599.427405);
-		assert(usdcDepositBalance == 60207.477328);
-		assert(sinceStartTFMD == -601.216949);
-
 		console.log(
 			'sum all money:',
 			allUserCollateral,
@@ -715,6 +770,14 @@ describe('repeg and spread amm', () => {
 			'==',
 			usdcDepositBalance - usdcBorrowBalance
 		);
+
+		// assert(allUserCollateral == 60207.477328); // old way for fee -> pnl pool
+		assert(allUserCollateral == 60115.507665);
+		assert(pnlPoolBalance == 0);
+		assert(feePoolBalance == 91.969663);
+		assert(allUserUnsettledPnl == 673.8094719999999);
+		assert(usdcDepositBalance == 60207.477328);
+		assert(sinceStartTFMD == -583.629353);
 
 		assert(
 			Math.abs(
