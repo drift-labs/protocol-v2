@@ -18,7 +18,7 @@ import {
 	getSwapDirection,
 } from './amm';
 
-import { calculateMarginBaseAssetValue } from './margin';
+import { calculateBaseAssetValueWithOracle } from './margin';
 
 /**
  * calculateBaseAssetValue
@@ -99,7 +99,7 @@ export function calculatePositionPNL(
 		return marketPosition.quoteAssetAmount;
 	}
 
-	const baseAssetValue = calculateMarginBaseAssetValue(
+	const baseAssetValue = calculateBaseAssetValueWithOracle(
 		market,
 		marketPosition,
 		oraclePriceData

@@ -206,7 +206,7 @@ describe('referrer', () => {
 
 		await eventSubscriber.awaitTx(txSig);
 
-		const eventRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const eventRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert(eventRecord.referrer.equals(provider.wallet.publicKey));
 		assert(eventRecord.takerFee.eq(new BN(95000)));
 		assert(eventRecord.referrerReward.eq(new BN(5000)));

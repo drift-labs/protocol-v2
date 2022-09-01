@@ -5,6 +5,7 @@ import {
 	FundingRateRecord,
 	LiquidationRecord,
 	NewUserRecord,
+	OrderActionRecord,
 	OrderRecord,
 	SettlePnlRecord,
 	LPRecord,
@@ -29,6 +30,7 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 		'FundingPaymentRecord',
 		'LiquidationRecord',
 		'OrderRecord',
+		'OrderActionRecord',
 		'FundingRateRecord',
 		'NewUserRecord',
 		'SettlePnlRecord',
@@ -65,6 +67,7 @@ export type EventMap = {
 	LiquidationRecord: Event<LiquidationRecord>;
 	FundingRateRecord: Event<FundingRateRecord>;
 	OrderRecord: Event<OrderRecord>;
+	OrderActionRecord: Event<OrderActionRecord>;
 	SettlePnlRecord: Event<SettlePnlRecord>;
 	NewUserRecord: Event<NewUserRecord>;
 	LPRecord: Event<LPRecord>;
@@ -89,7 +92,7 @@ export type logProviderCallback = (
 
 export interface LogProvider {
 	isSubscribed(): boolean;
-	subscribe(callback: logProviderCallback): boolean;
+	subscribe(callback: logProviderCallback, skipHistory?: boolean): boolean;
 	unsubscribe(): Promise<boolean>;
 }
 

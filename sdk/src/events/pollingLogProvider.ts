@@ -13,6 +13,7 @@ export class PollingLogProvider implements LogProvider {
 	private intervalId: NodeJS.Timer;
 	private mostRecentSeenTx?: TransactionSignature;
 	private mutex: number;
+	private firstFetch = true;
 
 	public constructor(
 		private connection: Connection,
@@ -23,7 +24,10 @@ export class PollingLogProvider implements LogProvider {
 		this.finality = commitment === 'finalized' ? 'finalized' : 'confirmed';
 	}
 
-	public subscribe(callback: logProviderCallback): boolean {
+	public subscribe(
+		callback: logProviderCallback,
+		skipHistory?: boolean
+	): boolean {
 		if (this.intervalId) {
 			return true;
 		}
@@ -40,8 +44,12 @@ export class PollingLogProvider implements LogProvider {
 					this.programId,
 					this.finality,
 					undefined,
-					this.mostRecentSeenTx
+					this.mostRecentSeenTx,
+					// If skipping history, only fetch one log back, not the maximum amount available
+					skipHistory && this.firstFetch ? 1 : undefined
 				);
+
+				this.firstFetch = false;
 
 				if (response === undefined) {
 					return;
