@@ -57,7 +57,6 @@ pub fn settle_lp_position(
         .checked_add(lp_metrics.base_asset_amount)
         .ok_or_else(math_error!())?;
 
-    
     crate::controller::validate::validate_market_account(&market)?;
     crate::controller::validate::validate_position_account(position, &market)?;
 
@@ -208,7 +207,7 @@ mod test {
                 quote_asset_amount: 10,
                 ..MarketPosition::default()
             },
-            peg_multiplier: 1, 
+            peg_multiplier: 1,
             user_lp_shares: 100 * AMM_RESERVE_PRECISION,
             base_asset_amount_step_size: 1,
             ..AMM::default_test()

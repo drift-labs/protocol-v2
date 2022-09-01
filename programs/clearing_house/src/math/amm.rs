@@ -1824,8 +1824,8 @@ mod test {
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 10) as i128,
             ..Market::default()
         };
-        let (t_price, _t_qar, _t_bar) = calculate_terminal_price_and_reserves(&market).unwrap();
-        market.amm.terminal_quote_asset_reserve = _t_qar;
+        // let (t_price, _t_qar, _t_bar) = calculate_terminal_price_and_reserves(&market).unwrap();
+        // market.amm.terminal_quote_asset_reserve = _t_qar;
 
         let mut position = MarketPosition {
             lp_shares: AMM_RESERVE_PRECISION,
