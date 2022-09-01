@@ -224,11 +224,13 @@ export class ClearingHouse {
 	 *	Forces the accountSubscriber to fetch account updates from rpc
 	 */
 	public async fetchAccounts(): Promise<void> {
-		await Promise.all(
-			[...this.users.values()]
-				.map((user) => user.fetchAccounts())
-				.concat(this.accountSubscriber.fetch())
-		);
+		const promises = [...this.users.values()]
+			.map((user) => user.fetchAccounts())
+			.concat(this.accountSubscriber.fetch());
+		if (this.userStats) {
+			promises.concat(this.userStats.fetchAccounts());
+		}
+		await Promise.all(promises);
 	}
 
 	public async unsubscribe(): Promise<void> {
@@ -1764,7 +1766,9 @@ export class ClearingHouse {
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccounts({
+		// todo merge this with getRemainingAccounts
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
+			counterPartyUserAccount: takerInfo.takerUserAccount,
 			writableMarketIndex: orderParams.marketIndex,
 		});
 
@@ -1985,9 +1989,9 @@ export class ClearingHouse {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForLiquidation({
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			writableMarketIndex: marketIndex,
-			userAccount,
+			counterPartyUserAccount: userAccount,
 		});
 
 		return await this.program.instruction.liquidatePerp(
@@ -2039,8 +2043,8 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForLiquidation({
-			userAccount,
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
+			counterPartyUserAccount: userAccount,
 			writableBankIndexes: [liabilityBankIndex, assetBankIndex],
 		});
 
@@ -2092,8 +2096,8 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForLiquidation({
-			userAccount,
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
+			counterPartyUserAccount: userAccount,
 			writableMarketIndex: perpMarketIndex,
 			writableBankIndexes: [liabilityBankIndex],
 		});
@@ -2146,8 +2150,8 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForLiquidation({
-			userAccount,
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
+			counterPartyUserAccount: userAccount,
 			writableMarketIndex: perpMarketIndex,
 			writableBankIndexes: [assetBankIndex],
 		});
@@ -2194,9 +2198,9 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForLiquidation({
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			writableMarketIndex: marketIndex,
-			userAccount,
+			counterPartyUserAccount: userAccount,
 		});
 
 		return await this.program.instruction.resolvePerpBankruptcy(marketIndex, {
@@ -2236,9 +2240,9 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForLiquidation({
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			writableBankIndexes: [bankIndex],
-			userAccount,
+			counterPartyUserAccount: userAccount,
 		});
 
 		return await this.program.instruction.resolveBorrowBankruptcy(bankIndex, {
@@ -2252,17 +2256,17 @@ export class ClearingHouse {
 		});
 	}
 
-	getRemainingAccountsForLiquidation(params: {
-		userAccount: UserAccount;
+	getRemainingAccountsWithCounterparty(params: {
+		counterPartyUserAccount: UserAccount;
 		writableMarketIndex?: BN;
 		writableBankIndexes?: BN[];
 	}): AccountMeta[] {
-		const liquidateeUserAccount = params.userAccount;
+		const counterPartyUserAccount = params.counterPartyUserAccount;
 
 		const oracleAccountMap = new Map<string, AccountMeta>();
 		const bankAccountMap = new Map<number, AccountMeta>();
 		const marketAccountMap = new Map<number, AccountMeta>();
-		for (const bankBalance of liquidateeUserAccount.bankBalances) {
+		for (const bankBalance of counterPartyUserAccount.bankBalances) {
 			if (!bankBalance.balance.eq(ZERO)) {
 				const bankAccount = this.getBankAccount(bankBalance.bankIndex);
 				bankAccountMap.set(bankBalance.bankIndex.toNumber(), {
@@ -2280,7 +2284,7 @@ export class ClearingHouse {
 				}
 			}
 		}
-		for (const position of liquidateeUserAccount.positions) {
+		for (const position of counterPartyUserAccount.positions) {
 			if (!positionIsAvailable(position)) {
 				const market = this.getMarketAccount(position.marketIndex);
 				marketAccountMap.set(position.marketIndex.toNumber(), {

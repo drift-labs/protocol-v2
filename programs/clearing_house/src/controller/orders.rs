@@ -6,7 +6,7 @@ use crate::controller;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
-    update_position_and_market, update_quote_asset_amount, update_user_and_market_position,
+    update_amm_and_lp_market_position, update_position_and_market, update_quote_asset_amount,
     PositionDirection,
 };
 use crate::error::ClearingHouseResult;
@@ -1100,22 +1100,17 @@ pub fn fulfill_order_with_amm(
     let (order_post_only, order_ts, order_direction) =
         get_struct_values!(user.orders[order_index], post_only, ts, direction);
 
-    let (
-        potentially_risk_increasing,
-        _,
-        quote_asset_amount,
-        quote_asset_amount_surplus,
-        position_delta,
-    ) = controller::position::swap_base_asset_position_delta(
-        base_asset_amount,
-        order_direction,
-        market,
-        user,
-        position_index,
-        mark_price_before,
-        now,
-        maker_limit_price,
-    )?;
+    let (potentially_risk_increasing, quote_asset_amount, quote_asset_amount_surplus, mut pnl) =
+        controller::position::update_position_with_base_asset_amount(
+            base_asset_amount,
+            order_direction,
+            market,
+            user,
+            position_index,
+            mark_price_before,
+            now,
+            maker_limit_price,
+        )?;
 
     let reward_referrer = referrer.is_some()
         && referrer_stats.is_some()
@@ -1131,6 +1126,7 @@ pub fn fulfill_order_with_amm(
         filler_reward,
         referee_discount,
         referrer_reward,
+        fee_to_market_for_lp,
         ..
     } = fees::calculate_fee_for_order_fulfill_against_amm(
         quote_asset_amount,
@@ -1143,17 +1139,13 @@ pub fn fulfill_order_with_amm(
         order_post_only,
     )?;
 
-    let market_position_unsettled_pnl_delta = cast_to_i128(user_fee)?
-        .checked_sub(cast_to_i128(filler_reward)?)
-        .ok_or_else(math_error!())?
-        .checked_sub(cast_to_i128(referrer_reward)?)
-        .ok_or_else(math_error!())?;
+    let user_position_delta =
+        get_position_delta_for_fill(base_asset_amount, quote_asset_amount, order_direction)?;
 
-    let mut pnl = update_user_and_market_position(
-        &mut user.positions[position_index],
+    update_amm_and_lp_market_position(
         market,
-        &position_delta,
-        market_position_unsettled_pnl_delta,
+        &user_position_delta,
+        cast_to_i128(fee_to_market_for_lp)?,
     )?;
 
     // Increment the clearing house's total fee variables
@@ -1403,6 +1395,7 @@ pub fn fulfill_order_with_match(
         filler_reward,
         referrer_reward,
         referee_discount,
+        ..
     } = fees::calculate_fee_for_fulfillment_with_match(
         quote_asset_amount,
         fee_structure,
