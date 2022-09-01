@@ -62,23 +62,14 @@ pub mod clearing_house {
     use crate::state::insurance_fund_stake::InsuranceFundStake;
 
     pub fn initialize(ctx: Context<Initialize>, admin_controls_prices: bool) -> Result<()> {
-        let insurance_account_key = ctx.accounts.insurance_vault.to_account_info().key;
-        let (insurance_account_authority, insurance_account_nonce) =
-            Pubkey::find_program_address(&[insurance_account_key.as_ref()], ctx.program_id);
-
-        // clearing house must be authority of insurance vault
-        if ctx.accounts.insurance_vault.owner != insurance_account_authority {
-            return Err(ErrorCode::InvalidInsuranceFundAuthority.into());
-        }
+        let (clearing_house_signer, clearing_house_signer_nonce) =
+            Pubkey::find_program_address(&[b"clearing_house_signer".as_ref()], ctx.program_id);
 
         **ctx.accounts.state = State {
             admin: *ctx.accounts.admin.key,
             funding_paused: false,
             exchange_paused: false,
             admin_controls_prices,
-            insurance_vault: *insurance_account_key,
-            insurance_vault_authority: insurance_account_authority,
-            insurance_vault_nonce: insurance_account_nonce,
             margin_ratio_initial: 2000, // unit is 20% (+2 decimal places)
             margin_ratio_partial: 625,
             margin_ratio_maintenance: 500,
@@ -100,6 +91,8 @@ pub mod clearing_house {
             min_auction_duration: 10,
             max_auction_duration: 60,
             liquidation_margin_buffer_ratio: 50, // 2%
+            signer: clearing_house_signer,
+            signer_nonce: clearing_house_signer_nonce,
             padding0: 0,
             padding1: 0,
         };
@@ -123,30 +116,13 @@ pub mod clearing_house {
         let state = &mut ctx.accounts.state;
         let bank_pubkey = ctx.accounts.bank.key();
 
-        let (vault_authority, vault_authority_nonce) = Pubkey::find_program_address(
-            &[
-                b"bank_vault_authority".as_ref(),
-                state.number_of_banks.to_le_bytes().as_ref(),
-            ],
-            ctx.program_id,
-        );
-
         // clearing house must be authority of collateral vault
-        if ctx.accounts.bank_vault.owner != vault_authority {
+        if ctx.accounts.bank_vault.owner != state.signer {
             return Err(ErrorCode::InvalidBankAuthority.into());
         }
 
-        let (insurance_fund_vault_authority, insurance_fund_vault_authority_nonce) =
-            Pubkey::find_program_address(
-                &[
-                    b"insurance_fund_vault_authority".as_ref(),
-                    state.number_of_banks.to_le_bytes().as_ref(),
-                ],
-                ctx.program_id,
-            );
-
         // clearing house must be authority of collateral vault
-        if ctx.accounts.insurance_fund_vault.owner != insurance_fund_vault_authority {
+        if ctx.accounts.insurance_fund_vault.owner != state.signer {
             return Err(ErrorCode::InvalidInsuranceFundAuthority.into());
         }
 
@@ -263,11 +239,7 @@ pub mod clearing_house {
             oracle_source,
             mint: ctx.accounts.bank_mint.key(),
             vault: *ctx.accounts.bank_vault.to_account_info().key,
-            vault_authority,
-            vault_authority_nonce,
             insurance_fund_vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
-            insurance_fund_vault_authority,
-            insurance_fund_vault_authority_nonce,
             revenue_pool: PoolBalance { balance: 0 },
             total_if_factor: 0,
             user_if_factor: 0,
@@ -589,6 +561,7 @@ pub mod clearing_house {
         let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
+        let state = &ctx.accounts.state;
 
         validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
 
@@ -642,13 +615,12 @@ pub mod clearing_house {
         user.being_liquidated = false;
 
         let bank = bank_map.get_ref(&bank_index)?;
-        controller::token::send_from_bank_vault(
+        controller::token::send_from_program_vault(
             &ctx.accounts.token_program,
             &ctx.accounts.bank_vault,
             &ctx.accounts.user_token_account,
-            &ctx.accounts.bank_vault_authority,
-            bank_index,
-            bank.vault_authority_nonce,
+            &ctx.accounts.clearing_house_signer,
+            state.signer_nonce,
             amount,
         )?;
 
@@ -1640,6 +1612,7 @@ pub mod clearing_house {
 
         let user = &mut load_mut!(ctx.accounts.user)?;
         let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
+        let state = &ctx.accounts.state;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
@@ -1673,13 +1646,12 @@ pub mod clearing_house {
             )?;
 
             let bank = bank_map.get_quote_asset_bank_mut()?;
-            controller::token::send_from_staked_insurance_fund_vault(
+            controller::token::send_from_program_vault(
                 &ctx.accounts.token_program,
                 &ctx.accounts.insurance_fund_vault,
                 &ctx.accounts.bank_vault,
-                &ctx.accounts.insurance_fund_vault_authority,
-                bank.bank_index,
-                bank.insurance_fund_vault_authority_nonce,
+                &ctx.accounts.clearing_house_signer,
+                state.signer_nonce,
                 pay_from_insurance,
             )?;
 
@@ -1738,13 +1710,12 @@ pub mod clearing_house {
 
         if pay_from_insurance > 0 {
             let bank = bank_map.get_quote_asset_bank_mut()?;
-            controller::token::send_from_staked_insurance_fund_vault(
+            controller::token::send_from_program_vault(
                 &ctx.accounts.token_program,
                 &ctx.accounts.insurance_fund_vault,
                 &ctx.accounts.bank_vault,
-                &ctx.accounts.insurance_fund_vault_authority,
-                bank.bank_index,
-                bank.insurance_fund_vault_authority_nonce,
+                &ctx.accounts.clearing_house_signer,
+                ctx.accounts.state.signer_nonce,
                 pay_from_insurance,
             )?;
 
@@ -1771,123 +1742,6 @@ pub mod clearing_house {
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
         controller::amm::move_price(&mut market.amm, base_asset_reserve, quote_asset_reserve)?;
-        Ok(())
-    }
-
-    #[access_control(
-        market_initialized(&ctx.accounts.market)
-    )]
-    pub fn withdraw_from_market_to_insurance_vault(
-        ctx: Context<WithdrawFromMarketToInsuranceVault>,
-        amount: u64,
-    ) -> Result<()> {
-        let market = &mut load_mut!(ctx.accounts.market)?;
-
-        // A portion of fees must always remain in protocol to be used to keep markets optimal
-        let max_withdraw = market
-            .amm
-            .total_exchange_fee
-            .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR)
-            .ok_or_else(math_error!())?
-            .checked_div(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR)
-            .ok_or_else(math_error!())?
-            .checked_sub(market.amm.total_fee_withdrawn)
-            .ok_or_else(math_error!())?;
-
-        let bank = &mut load_mut!(ctx.accounts.bank)?;
-
-        let amm_fee_pool_token_amount =
-            get_token_amount(market.amm.fee_pool.balance, bank, &BankBalanceType::Deposit)?;
-
-        if cast_to_u128(amount)? > max_withdraw {
-            msg!("withdraw size exceeds max_withdraw: {:?}", max_withdraw);
-            return Err(ErrorCode::AdminWithdrawTooLarge.into());
-        }
-
-        if cast_to_u128(amount)? > amm_fee_pool_token_amount {
-            msg!(
-                "withdraw size exceeds amm_fee_pool_token_amount: {:?}",
-                amm_fee_pool_token_amount
-            );
-            return Err(ErrorCode::AdminWithdrawTooLarge.into());
-        }
-
-        controller::token::send_from_bank_vault(
-            &ctx.accounts.token_program,
-            &ctx.accounts.bank_vault,
-            &ctx.accounts.recipient,
-            &ctx.accounts.bank_vault_authority,
-            0,
-            bank.vault_authority_nonce,
-            amount,
-        )?;
-
-        controller::bank_balance::update_bank_balances(
-            cast_to_u128(amount)?,
-            &BankBalanceType::Borrow,
-            bank,
-            &mut market.amm.fee_pool,
-        )?;
-
-        market.amm.total_fee_withdrawn = market
-            .amm
-            .total_fee_withdrawn
-            .checked_add(cast(amount)?)
-            .ok_or_else(math_error!())?;
-
-        Ok(())
-    }
-
-    pub fn withdraw_from_insurance_vault(
-        ctx: Context<WithdrawFromInsuranceVault>,
-        amount: u64,
-    ) -> Result<()> {
-        controller::token::send_from_insurance_vault(
-            &ctx.accounts.token_program,
-            &ctx.accounts.insurance_vault,
-            &ctx.accounts.recipient,
-            &ctx.accounts.insurance_vault_authority,
-            ctx.accounts.state.insurance_vault_nonce,
-            amount,
-        )?;
-        Ok(())
-    }
-
-    #[access_control(
-        market_initialized(&ctx.accounts.market)
-    )]
-    pub fn withdraw_from_insurance_vault_to_market(
-        ctx: Context<WithdrawFromInsuranceVaultToMarket>,
-        amount: u64,
-    ) -> Result<()> {
-        let market = &mut load_mut!(ctx.accounts.market)?;
-
-        // The admin can move fees from the insurance fund back to the protocol so that money in
-        // the insurance fund can be used to make market more optimal
-        // 100% goes to user fee pool (symmetric funding, repeg, and k adjustments)
-        market.amm.total_fee_minus_distributions = market
-            .amm
-            .total_fee_minus_distributions
-            .checked_add(cast(amount)?)
-            .ok_or_else(math_error!())?;
-
-        let bank = &mut load_mut!(ctx.accounts.bank)?;
-
-        controller::bank_balance::update_bank_balances(
-            cast_to_u128(amount)?,
-            &BankBalanceType::Deposit,
-            bank,
-            &mut market.amm.fee_pool,
-        )?;
-
-        controller::token::send_from_insurance_vault(
-            &ctx.accounts.token_program,
-            &ctx.accounts.insurance_vault,
-            &ctx.accounts.bank_vault,
-            &ctx.accounts.insurance_vault_authority,
-            ctx.accounts.state.insurance_vault_nonce,
-            amount,
-        )?;
         Ok(())
     }
 
@@ -2861,6 +2715,7 @@ pub mod clearing_house {
         ctx: Context<SettleRevenueToInsuranceFund>,
         bank_index: u64,
     ) -> Result<()> {
+        let state = &ctx.accounts.state;
         let bank = &mut load_mut!(ctx.accounts.bank)?;
 
         let bank_vault_amount = ctx.accounts.bank_vault.amount;
@@ -2889,13 +2744,12 @@ pub mod clearing_house {
             now,
         )?;
 
-        controller::token::send_from_bank_vault(
+        controller::token::send_from_program_vault(
             &ctx.accounts.token_program,
             &ctx.accounts.bank_vault,
             &ctx.accounts.insurance_fund_vault,
-            &ctx.accounts.bank_vault_authority,
-            bank_index,
-            bank.vault_authority_nonce,
+            &ctx.accounts.clearing_house_signer,
+            state.signer_nonce,
             token_amount as u64,
         )?;
 
@@ -3046,6 +2900,7 @@ pub mod clearing_house {
         let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
         let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let bank = &mut load_mut!(ctx.accounts.bank)?;
+        let state = &ctx.accounts.state;
 
         validate!(
             insurance_fund_stake.bank_index == bank_index,
@@ -3061,13 +2916,12 @@ pub mod clearing_house {
             now,
         )?;
 
-        controller::token::send_from_staked_insurance_fund_vault(
+        controller::token::send_from_program_vault(
             &ctx.accounts.token_program,
             &ctx.accounts.insurance_fund_vault,
             &ctx.accounts.user_token_account,
-            &ctx.accounts.insurance_fund_vault_authority,
-            bank_index,
-            bank.insurance_fund_vault_authority_nonce,
+            &ctx.accounts.clearing_house_signer,
+            state.signer_nonce,
             amount,
         )?;
 

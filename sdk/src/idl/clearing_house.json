@@ -21,16 +21,6 @@
           "isSigner": false
         },
         {
-          "name": "insuranceVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceVaultAuthority",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "rent",
           "isMut": false,
           "isSigner": false
@@ -72,17 +62,12 @@
           "isSigner": false
         },
         {
-          "name": "bankVaultAuthority",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "insuranceFundVault",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "insuranceFundVaultAuthority",
+          "name": "clearingHouseSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -316,8 +301,8 @@
           "isSigner": false
         },
         {
-          "name": "bankVaultAuthority",
-          "isMut": true,
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -974,8 +959,8 @@
           "isSigner": false
         },
         {
-          "name": "insuranceFundVaultAuthority",
-          "isMut": true,
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -1029,8 +1014,8 @@
           "isSigner": false
         },
         {
-          "name": "insuranceFundVaultAuthority",
-          "isMut": true,
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -1073,149 +1058,6 @@
         {
           "name": "quoteAssetReserve",
           "type": "u128"
-        }
-      ]
-    },
-    {
-      "name": "withdrawFromMarketToInsuranceVault",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "bank",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "bankVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "bankVaultAuthority",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "market",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "recipient",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "amount",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "withdrawFromInsuranceVault",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "insuranceVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceVaultAuthority",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "recipient",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "amount",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "withdrawFromInsuranceVaultToMarket",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "market",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "insuranceVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceVaultAuthority",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "bank",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "bankVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "amount",
-          "type": "u64"
         }
       ]
     },
@@ -2414,8 +2256,8 @@
           "isSigner": false
         },
         {
-          "name": "bankVaultAuthority",
-          "isMut": true,
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -2566,6 +2408,11 @@
       "name": "removeInsuranceFundStake",
       "accounts": [
         {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "bank",
           "isMut": false,
           "isSigner": false
@@ -2591,8 +2438,8 @@
           "isSigner": false
         },
         {
-          "name": "insuranceFundVaultAuthority",
-          "isMut": true,
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -2647,24 +2494,8 @@
             "type": "publicKey"
           },
           {
-            "name": "vaultAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "vaultAuthorityNonce",
-            "type": "u8"
-          },
-          {
             "name": "insuranceFundVault",
             "type": "publicKey"
-          },
-          {
-            "name": "insuranceFundVaultAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "insuranceFundVaultAuthorityNonce",
-            "type": "u8"
           },
           {
             "name": "revenuePool",
@@ -2973,18 +2804,6 @@
             "type": "bool"
           },
           {
-            "name": "insuranceVault",
-            "type": "publicKey"
-          },
-          {
-            "name": "insuranceVaultAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "insuranceVaultNonce",
-            "type": "u8"
-          },
-          {
             "name": "marginRatioInitial",
             "type": "u128"
           },
@@ -3070,6 +2889,14 @@
           },
           {
             "name": "liquidationMarginBufferRatio",
+            "type": "u8"
+          },
+          {
+            "name": "signer",
+            "type": "publicKey"
+          },
+          {
+            "name": "signerNonce",
             "type": "u8"
           },
           {
