@@ -249,7 +249,7 @@ describe('amm spread: market order', () => {
 		);
 		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert.ok(
@@ -342,7 +342,7 @@ describe('amm spread: market order', () => {
 		const unrealizedPnl = clearingHouseUser.getUnrealizedPNL();
 		console.log('unrealized pnl', unrealizedPnl.toString());
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert.ok(orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount));
@@ -736,7 +736,7 @@ describe('amm spread: market order', () => {
 		);
 		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount)); //todo
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert.ok(

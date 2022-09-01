@@ -5,6 +5,7 @@ import {
 	getLimitOrderParams,
 	isVariant,
 	OracleSource,
+	QUOTE_ASSET_BANK_INDEX,
 	ZERO,
 } from '../sdk';
 import { assert } from 'chai';
@@ -242,6 +243,7 @@ describe('liquidate perp', () => {
 		await liquidatorClearingHouse.resolvePerpBankruptcy(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
+			QUOTE_ASSET_BANK_INDEX,
 			new BN(0)
 		);
 
