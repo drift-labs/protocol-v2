@@ -1546,6 +1546,7 @@ pub mod fulfill_order {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
+                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1704,6 +1705,8 @@ pub mod fulfill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 base_asset_amount_step_size: 1,
+                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1877,6 +1880,8 @@ pub mod fulfill_order {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
+                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2000,6 +2005,7 @@ pub mod fulfill_order {
                 max_slippage_ratio: 10,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
+                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2140,6 +2146,7 @@ pub mod fulfill_order {
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(*market_after.deref(), expected_market_after);
+
     }
 
     #[test]
@@ -2299,8 +2306,9 @@ pub mod fulfill_order {
             ..User::default()
         };
 
-        let now = 0_i64;
-        let slot = 0_u64;
+        // random
+        let now = 0; //80080880_i64;
+        let slot = 0; //7893275_u64;
 
         let fee_structure = get_fee_structure();
 
@@ -2385,6 +2393,12 @@ pub mod fulfill_order {
         assert_eq!(market_after.amm.total_fee, 10000);
         assert_eq!(market_after.amm.total_fee_minus_distributions, 10000);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 10000);
+
+        assert_eq!(market_after.amm.last_mark_price_twap_ts, 0);
+        assert_eq!(market_after.amm.last_ask_price_twap, 0);
+        assert_eq!(market_after.amm.last_bid_price_twap, 0);
+        assert_eq!(market_after.amm.last_mark_price_twap, 0);
+        assert_eq!(market_after.amm.last_mark_price_twap_5min, 0);
     }
 }
 
@@ -2447,6 +2461,7 @@ pub mod fill_order {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
+                last_oracle_price: oracle_price.agg.price as i128,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
