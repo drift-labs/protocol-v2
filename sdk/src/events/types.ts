@@ -89,7 +89,7 @@ export type logProviderCallback = (
 
 export interface LogProvider {
 	isSubscribed(): boolean;
-	subscribe(callback: logProviderCallback): boolean;
+	subscribe(callback: logProviderCallback, skipHistory?: boolean): boolean;
 	unsubscribe(): Promise<boolean>;
 }
 
