@@ -151,14 +151,14 @@ export type CurveRecord = {
 export type LPRecord = {
 	ts: BN;
 	user: PublicKey;
-	liquidityType: LiquidityType;
+	action: LPAction;
 	nShares: BN;
 	marketIndex: BN;
 	deltaBaseAssetAmount: BN;
 	deltaQuoteAssetAmount: BN;
 };
 
-export class LiquidityType {
+export class LPAction {
 	static readonly ADD_LIQUIDITY = { addLiquidity: {} };
 	static readonly REMOVE_LIQUIDITY = { removeLiquidity: {} };
 	static readonly SETTLE_LIQUIDITY = { settleLiquidity: {} };

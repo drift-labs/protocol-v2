@@ -280,7 +280,7 @@ describe('liquidity providing', () => {
 
 		const addLiquidityRecord: LPRecord =
 			eventSubscriber.getEventsArray('LPRecord')[0];
-		assert(isVariant(addLiquidityRecord.liquidityType, 'addLiquidity'));
+		assert(isVariant(addLiquidityRecord.action, 'addLiquidity'));
 		assert(addLiquidityRecord.nShares.eq(lpAmount));
 		assert(addLiquidityRecord.marketIndex.eq(ZERO));
 		assert(
@@ -367,7 +367,7 @@ describe('liquidity providing', () => {
 
 		const settleLiquidityRecord: LPRecord =
 			eventSubscriber.getEventsArray('LPRecord')[0];
-		assert(isVariant(settleLiquidityRecord.liquidityType, 'settleLiquidity'));
+		assert(isVariant(settleLiquidityRecord.action, 'settleLiquidity'));
 		assert(settleLiquidityRecord.marketIndex.eq(ZERO));
 		assert(
 			settleLiquidityRecord.user.equals(
@@ -442,7 +442,7 @@ describe('liquidity providing', () => {
 
 		const removeLiquidityRecord: LPRecord =
 			eventSubscriber.getEventsArray('LPRecord')[0];
-		assert(isVariant(removeLiquidityRecord.liquidityType, 'removeLiquidity'));
+		assert(isVariant(removeLiquidityRecord.action, 'removeLiquidity'));
 		assert(removeLiquidityRecord.nShares.eq(lpAmount));
 		assert(removeLiquidityRecord.marketIndex.eq(ZERO));
 		assert(
@@ -816,7 +816,7 @@ describe('liquidity providing', () => {
 
 		const removeLiquidityRecord: LPRecord =
 			eventSubscriber.getEventsArray('LPRecord')[0];
-		assert(isVariant(removeLiquidityRecord.liquidityType, 'removeLiquidity'));
+		assert(isVariant(removeLiquidityRecord.action, 'removeLiquidity'));
 		assert(
 			removeLiquidityRecord.deltaBaseAssetAmount.eq(
 				lpPosition.baseAssetAmount.sub(position3.baseAssetAmount)

@@ -4483,7 +4483,7 @@
       }
     },
     {
-      "name": "LiquidityType",
+      "name": "LPAction",
       "type": {
         "kind": "enum",
         "variants": [
@@ -5208,9 +5208,9 @@
           "index": false
         },
         {
-          "name": "liquidityType",
+          "name": "action",
           "type": {
-            "defined": "LiquidityType"
+            "defined": "LPAction"
           },
           "index": false
         },
