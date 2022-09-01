@@ -1296,6 +1296,7 @@ pub fn calculate_max_base_asset_amount_fillable(
 mod test {
     use super::*;
     use crate::controller::amm::update_spreads;
+    use crate::controller::lp::mint_lp_shares;
     use crate::controller::lp::settle_lp_position;
     use crate::math::constants::{MARK_PRICE_PRECISION, QUOTE_PRECISION_I128};
     use crate::state::user::MarketPosition;
@@ -1807,17 +1808,11 @@ mod test {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 terminal_quote_asset_reserve: 999900009999000 * AMM_RESERVE_PRECISION,
-                sqrt_k: 101 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50_000_000,
                 net_base_asset_amount: (AMM_RESERVE_PRECISION / 10) as i128,
                 base_asset_amount_step_size: 3,
-                user_lp_shares: AMM_RESERVE_PRECISION,
                 max_spread: 1000,
-                market_position_per_lp: MarketPosition {
-                    base_asset_amount: 1,
-                    quote_asset_amount: -QUOTE_PRECISION_I128,
-                    ..MarketPosition::default()
-                },
                 ..AMM::default_test()
             },
             margin_ratio_initial: 1000,
@@ -1828,7 +1823,14 @@ mod test {
         // market.amm.terminal_quote_asset_reserve = _t_qar;
 
         let mut position = MarketPosition {
-            lp_shares: AMM_RESERVE_PRECISION,
+            ..MarketPosition::default()
+        };
+
+        mint_lp_shares(&mut position, &mut market, AMM_RESERVE_PRECISION, 0).unwrap();
+
+        market.amm.market_position_per_lp = MarketPosition {
+            base_asset_amount: 1,
+            quote_asset_amount: -QUOTE_PRECISION_I128,
             ..MarketPosition::default()
         };
 
@@ -1854,8 +1856,8 @@ mod test {
         // new terminal reserves are balanced, terminal price = peg)
         // assert_eq!(t_qar, 999900009999000);
         // assert_eq!(t_bar, 1000100000000000);
-        assert_eq!(t_price, 499001498002497); //
-                                              // assert_eq!(update_k_up.sqrt_k, 101 * AMM_RESERVE_PRECISION);
+        // assert_eq!(t_price, 499001498002497); //
+        // assert_eq!(update_k_up.sqrt_k, 101 * AMM_RESERVE_PRECISION);
 
         let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
         assert_eq!(

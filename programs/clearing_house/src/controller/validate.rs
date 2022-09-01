@@ -70,11 +70,10 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
         market.amm.user_lp_shares,
     )?;
 
-    let invariant_sqrt_u192 = crate::bn::U192::from(market.amm.sqrt_k - market.amm.user_lp_shares);
+    let invariant_sqrt_u192 = crate::bn::U192::from(market.amm.sqrt_k);
     let invariant = invariant_sqrt_u192
         .checked_mul(invariant_sqrt_u192)
         .ok_or_else(math_error!())?;
-
     let quote_asset_reserve = invariant
         .checked_div(crate::bn::U192::from(market.amm.base_asset_reserve))
         .ok_or_else(math_error!())?
