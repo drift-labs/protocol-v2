@@ -1605,7 +1605,7 @@ pub mod amm_jit {
             };
             println!("mark: {} bid ask: {} {}", mark, bid, ask);
 
-            let (_, _, _quote_asset_amount_surplus, _) =
+            let (_, _quote_asset_amount_surplus, _) =
                 crate::controller::position::update_position_with_base_asset_amount(
                     baa / 2, // amm takes on half
                     PositionDirection::Long,
@@ -1871,7 +1871,7 @@ pub mod amm_jit {
             };
             println!("mark: {} bid ask: {} {}", mark, bid, ask);
 
-            let (_, _, _quote_asset_amount_surplus, _) =
+            let (_, _quote_asset_amount_surplus, _) =
                 crate::controller::position::update_position_with_base_asset_amount(
                     baa / 2, // amm takes on half
                     PositionDirection::Short,

@@ -117,7 +117,7 @@ describe('clearing_house', () => {
 		);
 		await printTxLogs(connection, txSig);
 
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9947387)));
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9947386)));
 		assert(
 			clearingHouse
 				.getUserStats()
@@ -145,13 +145,9 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(48004)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(48004)));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderRecord.fillRecordId.eq(new BN(1)));
-		assert.ok(
-			JSON.stringify(orderRecord.takerOrder.direction) ===
-				JSON.stringify(PositionDirection.LONG)
-		);
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(480000000000000)));
 		assert.ok(orderRecord.quoteAssetAmountFilled.eq(new BN(48004609)));
 		assert.ok(orderRecord.marketIndex.eq(marketIndex));
@@ -188,7 +184,7 @@ describe('clearing_house', () => {
 				.positions[0].baseAssetAmount.eq(new BN(240000000000000))
 		);
 
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9926840)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9926838)));
 		assert(
 			clearingHouse
 				.getUserStats()
@@ -205,14 +201,10 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(72007)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(72007)));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderRecord.fillRecordId.eq(new BN(2)));
-		assert.ok(
-			JSON.stringify(orderRecord.takerOrder.direction) ===
-				JSON.stringify(PositionDirection.SHORT)
-		);
 		console.log(orderRecord.baseAssetAmountFilled.toNumber());
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(240000000000000)));
 		assert.ok(orderRecord.quoteAssetAmountFilled.eq(new BN(24003456)));
@@ -234,7 +226,7 @@ describe('clearing_house', () => {
 			marketIndex
 		);
 
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9878840)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9878837)));
 		assert(
 			clearingHouse
 				.getUserStats()
@@ -263,14 +255,10 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(120007)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120007)));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderRecord.fillRecordId.eq(new BN(3)));
-		assert.ok(
-			JSON.stringify(orderRecord.takerOrder.direction) ===
-				JSON.stringify(PositionDirection.SHORT)
-		);
 		console.log(orderRecord.baseAssetAmountFilled.toNumber());
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(480000000000000)));
 		console.log(orderRecord.quoteAssetAmountFilled.toString());
@@ -301,7 +289,7 @@ describe('clearing_house', () => {
 			clearingHouse.getUserAccount().positions[0].baseAssetAmount.eq(new BN(0))
 		);
 
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9855993)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9855989)));
 		assert(
 			clearingHouse
 				.getUserStats()
@@ -314,14 +302,10 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(144005)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(144005)));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderRecord.fillRecordId.eq(new BN(4)));
-		assert.ok(
-			JSON.stringify(orderRecord.takerOrder.direction) ===
-				JSON.stringify(PositionDirection.LONG)
-		);
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(240000000000000)));
 		assert.ok(orderRecord.quoteAssetAmountFilled.eq(new BN(23998849)));
 		assert.ok(orderRecord.marketIndex.eq(new BN(0)));

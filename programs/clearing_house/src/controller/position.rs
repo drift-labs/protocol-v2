@@ -523,7 +523,7 @@ pub fn update_position_with_base_asset_amount(
     mark_price_before: u128,
     now: i64,
     fill_price: Option<u128>,
-) -> ClearingHouseResult<(bool, u128, i128, i128)> {
+) -> ClearingHouseResult<(u128, i128, i128)> {
     let swap_direction = match direction {
         PositionDirection::Long => SwapDirection::Remove,
         PositionDirection::Short => SwapDirection::Add,
@@ -559,18 +559,7 @@ pub fn update_position_with_base_asset_amount(
         .checked_add(position_delta.base_asset_amount)
         .ok_or_else(math_error!())?;
 
-    let base_asset_amount_before = user.positions[position_index].base_asset_amount;
-
-    let potentially_risk_increasing = base_asset_amount_before == 0
-        || base_asset_amount_before.signum() == position_delta.base_asset_amount.signum()
-        || base_asset_amount_before.abs() < position_delta.base_asset_amount.abs();
-
-    Ok((
-        potentially_risk_increasing,
-        quote_asset_amount,
-        quote_asset_amount_surplus,
-        pnl,
-    ))
+    Ok((quote_asset_amount, quote_asset_amount_surplus, pnl))
 }
 
 fn calculate_quote_asset_amount_surplus(

@@ -46,7 +46,7 @@ import {
 	calculateLiabilityWeight,
 } from './math/bankBalance';
 import {
-	calculateMarginBaseAssetValue,
+	calculateBaseAssetValueWithOracle,
 	calculateWorstCaseBaseAssetAmount,
 } from './math/margin';
 import { OraclePriceData } from './oracles/types';
@@ -568,8 +568,7 @@ export class ClearingHouseUser {
 				const market = this.clearingHouse.getMarketAccount(
 					marketPosition.marketIndex
 				);
-
-				const posVal = calculateMarginBaseAssetValue(
+				const posVal = calculateBaseAssetValueWithOracle(
 					market,
 					marketPosition,
 					this.getOracleDataForMarket(market.marketIndex)
@@ -594,7 +593,11 @@ export class ClearingHouseUser {
 		const market = this.clearingHouse.getMarketAccount(
 			userPosition.marketIndex
 		);
-		return calculateMarginBaseAssetValue(market, userPosition, oraclePriceData);
+		return calculateBaseAssetValueWithOracle(
+			market,
+			userPosition,
+			oraclePriceData
+		);
 	}
 
 	public getPositionSide(
@@ -645,7 +648,7 @@ export class ClearingHouseUser {
 				oraclePriceData
 			);
 		} else {
-			baseAssetValue = calculateMarginBaseAssetValue(
+			baseAssetValue = calculateBaseAssetValueWithOracle(
 				market,
 				position,
 				oraclePriceData
@@ -819,7 +822,7 @@ export class ClearingHouseUser {
 			proposedMarketPosition.marketIndex
 		);
 
-		const proposedMarketPositionValue = calculateMarginBaseAssetValue(
+		const proposedMarketPositionValue = calculateBaseAssetValueWithOracle(
 			market,
 			proposedMarketPosition,
 			this.getOracleDataForMarket(market.marketIndex)
@@ -836,7 +839,7 @@ export class ClearingHouseUser {
 						const market = this.clearingHouse.getMarketAccount(
 							position.marketIndex
 						);
-						const positionValue = calculateMarginBaseAssetValue(
+						const positionValue = calculateBaseAssetValueWithOracle(
 							market,
 							position,
 							this.getOracleDataForMarket(market.marketIndex)

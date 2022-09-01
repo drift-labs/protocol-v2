@@ -231,12 +231,9 @@ pub fn calculate_perp_position_value_and_pnl(
         *market_position
     };
 
-    let oracle_price_for_upnl =
-        calculate_oracle_price_for_perp_margin(&market_position, market, oracle_price_data)?;
-
     let (_, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
         &market_position,
-        oracle_price_for_upnl,
+        oracle_price_data.price,
     )?;
 
     let total_unrealized_pnl = unrealized_funding
@@ -424,6 +421,25 @@ pub fn meets_maintenance_margin_requirement(
     )?;
 
     Ok(total_collateral >= cast_to_i128(margin_requirement)?)
+}
+
+pub fn calculate_free_collateral(
+    user: &User,
+    market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
+) -> ClearingHouseResult<i128> {
+    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
+        user,
+        market_map,
+        MarginRequirementType::Initial,
+        bank_map,
+        oracle_map,
+    )?;
+
+    total_collateral
+        .checked_sub(cast_to_i128(margin_requirement)?)
+        .ok_or_else(math_error!())
 }
 
 #[cfg(test)]
@@ -668,11 +684,6 @@ mod test {
         // sqrt of oracle price = 149
         market.unrealized_imf_factor = market.imf_factor;
 
-        let oracle_price_for_margin =
-            calculate_oracle_price_for_perp_margin(&market_position, &market, &oracle_price_data)
-                .unwrap();
-        assert_eq!(oracle_price_for_margin, 220500000000000);
-
         let uaw = market
             .get_unrealized_asset_weight(position_unrealized_pnl, MarginRequirementType::Initial)
             .unwrap();
@@ -690,23 +701,18 @@ mod test {
         // assert!(upnl < position_unrealized_pnl); // margin system discounts
 
         assert!(pmr > 0);
-        assert_eq!(pmr, 13880655737);
+        assert_eq!(pmr, 13867100409);
 
         oracle_price_data.price = (21050 * MARK_PRICE_PRECISION) as i128; // lower by $1000 (in favor of user)
         oracle_price_data.confidence = MARK_PRICE_PRECISION;
 
-        let oracle_price_for_margin_2 =
-            calculate_oracle_price_for_perp_margin(&market_position, &market, &oracle_price_data)
-                .unwrap();
-        assert_eq!(oracle_price_for_margin_2, 210510000000000);
-
         let (_, position_unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
             &market_position,
-            oracle_price_for_margin_2,
+            oracle_price_data.price,
         )
         .unwrap();
 
-        assert_eq!(position_unrealized_pnl, 24276639345); // $24.276k
+        assert_eq!(position_unrealized_pnl, 24282786886); // $24.276k
 
         assert_eq!(
             market
@@ -724,7 +730,7 @@ mod test {
             market
                 .get_unrealized_asset_weight(position_unrealized_pnl * 100, margin_requirement_type)
                 .unwrap(),
-            43
+            42
         );
         assert_eq!(
             market
@@ -755,7 +761,7 @@ mod test {
                 .unwrap(),
             0 // todo want to reduce to zero once sufficiently sized?
         );
-        assert_eq!(position_unrealized_pnl * 800000, 19421311476000000); // 1.9 billion
+        assert_eq!(position_unrealized_pnl * 800000, 19426229508800000); // 1.9 billion
 
         let (pmr_2, upnl_2) = calculate_perp_position_value_and_pnl(
             &market_position,
@@ -770,12 +776,12 @@ mod test {
             .unwrap();
         assert_eq!(uaw_2, 95);
 
-        assert_eq!(upnl_2, 23062807377);
+        assert_eq!(upnl_2, 23068647541);
         assert!(upnl_2 > upnl);
         assert!(pmr_2 > 0);
-        assert_eq!(pmr_2, 13251147540); //$12940.5737702000
+        assert_eq!(pmr_2, 13238206966); //$13251.147540
         assert!(pmr > pmr_2);
-        assert_eq!(pmr - pmr_2, 629508197);
+        assert_eq!(pmr - pmr_2, 628893443);
         //-6.1475409835 * 1000 / 10 = 614.75
     }
 

@@ -404,13 +404,17 @@ pub fn settle_revenue_to_insurance_fund(
 
     let depositors_claim = cast_to_u128(validate_bank_amounts(bank, bank_vault_amount)?)?;
 
-    let token_amount = get_token_amount(
+    let mut token_amount = get_token_amount(
         bank.revenue_pool.balance,
         bank,
         &BankBalanceType::Deposit,
         // bank.revenue_pool.balance_type(),
-    )?
-    .min(depositors_claim);
+    )?;
+
+    if depositors_claim < token_amount {
+        // only allow half of withdraw available when utilization is high
+        token_amount = depositors_claim.checked_div(2).ok_or_else(math_error!())?;
+    }
 
     let insurance_fund_token_amount = cast_to_u64(get_proportion_u128(
         token_amount,

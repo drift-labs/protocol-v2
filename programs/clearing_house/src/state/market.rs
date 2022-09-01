@@ -69,7 +69,7 @@ impl Market {
                     self.imf_factor,
                     self.margin_ratio_initial as u128,
                     MARGIN_PRECISION,
-                )? + 1,
+                )?,
             ),
             MarginRequirementType::Maintenance => self.margin_ratio_maintenance as u128,
         };
