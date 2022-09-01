@@ -2818,7 +2818,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn settle_revenue_to_insurance_fund<'info>(
+    pub fn settle_revenue_to_insurance_fund(
         ctx: Context<SettleRevenueToInsuranceFund>,
         bank_index: u64,
     ) -> Result<()> {
@@ -2867,7 +2867,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn add_insurance_fund_stake<'info>(
+    pub fn add_insurance_fund_stake(
         ctx: Context<AddInsuranceFundStake>,
         bank_index: u64,
         amount: u64,
@@ -2914,7 +2914,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn request_remove_insurance_fund_stake<'info>(
+    pub fn request_remove_insurance_fund_stake(
         ctx: Context<RequestRemoveInsuranceFundStake>,
         bank_index: u64,
         amount: u64,
@@ -2965,7 +2965,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn cancel_request_remove_insurance_fund_stake<'info>(
+    pub fn cancel_request_remove_insurance_fund_stake(
         ctx: Context<RequestRemoveInsuranceFundStake>,
         bank_index: u64,
     ) -> Result<()> {
@@ -2998,7 +2998,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn remove_insurance_fund_stake<'info>(
+    pub fn remove_insurance_fund_stake(
         ctx: Context<RemoveInsuranceFundStake>,
         bank_index: u64,
     ) -> Result<()> {

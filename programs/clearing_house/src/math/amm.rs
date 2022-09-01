@@ -616,25 +616,23 @@ pub fn calculate_quote_asset_amount_swapped(
     Ok(quote_asset_amount)
 }
 
-pub fn calculate_terminal_price_and_reserves(
-    market: &Market,
-) -> ClearingHouseResult<(u128, u128, u128)> {
-    let swap_direction = if market.amm.net_base_asset_amount > 0 {
+pub fn calculate_terminal_price_and_reserves(amm: &AMM) -> ClearingHouseResult<(u128, u128, u128)> {
+    let swap_direction = if amm.net_base_asset_amount > 0 {
         SwapDirection::Add
     } else {
         SwapDirection::Remove
     };
     let (new_quote_asset_amount, new_base_asset_amount) = calculate_swap_output(
-        market.amm.net_base_asset_amount.unsigned_abs(),
-        market.amm.base_asset_reserve,
+        amm.net_base_asset_amount.unsigned_abs(),
+        amm.base_asset_reserve,
         swap_direction,
-        market.amm.sqrt_k,
+        amm.sqrt_k,
     )?;
 
     let terminal_price = calculate_price(
         new_quote_asset_amount,
         new_base_asset_amount,
-        market.amm.peg_multiplier,
+        amm.peg_multiplier,
     )?;
 
     Ok((
@@ -1701,7 +1699,7 @@ mod test {
         let update_k_up =
             get_update_k_result(&market, bn::U192::from(501 * AMM_RESERVE_PRECISION), true)
                 .unwrap();
-        let (t_price, t_qar, t_bar) = calculate_terminal_price_and_reserves(&market).unwrap();
+        let (t_price, t_qar, t_bar) = calculate_terminal_price_and_reserves(&market.amm).unwrap();
 
         // new terminal reserves are balanced, terminal price = peg)
         assert_eq!(t_qar, 500 * AMM_RESERVE_PRECISION);
@@ -1718,7 +1716,8 @@ mod test {
         assert!(cost > 0);
         assert_eq!(cost, 29448);
 
-        let (t_price2, t_qar2, t_bar2) = calculate_terminal_price_and_reserves(&market).unwrap();
+        let (t_price2, t_qar2, t_bar2) =
+            calculate_terminal_price_and_reserves(&market.amm).unwrap();
         // since users are net short, new terminal price lower after increasing k
         assert!(t_price2 < t_price);
         // new terminal reserves are unbalanced with quote below base (lower terminal price)
@@ -1820,7 +1819,7 @@ mod test {
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 10) as i128,
             ..Market::default()
         };
-        // let (t_price, _t_qar, _t_bar) = calculate_terminal_price_and_reserves(&market).unwrap();
+        // let (t_price, _t_qar, _t_bar) = calculate_terminal_price_and_reserves(&market.amm).unwrap();
         // market.amm.terminal_quote_asset_reserve = _t_qar;
 
         let mut position = MarketPosition {
@@ -1852,7 +1851,7 @@ mod test {
         let update_k_up =
             get_update_k_result(&market, bn::U192::from(102 * AMM_RESERVE_PRECISION), false)
                 .unwrap();
-        let (t_price, _t_qar, _t_bar) = calculate_terminal_price_and_reserves(&market).unwrap();
+        let (t_price, _t_qar, _t_bar) = calculate_terminal_price_and_reserves(&market.amm).unwrap();
 
         // new terminal reserves are balanced, terminal price = peg)
         // assert_eq!(t_qar, 999900009999000);

@@ -105,27 +105,28 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
             ErrorCode::DefaultError,
             "ask reserves out of wack"
         )?;
-
-        // ?
-        validate!(
-            market.amm.long_spread > 0 && market.amm.short_spread > 0,
-            ErrorCode::DefaultError,
-            "base spread > 0 without long/short_spread > 0: {} {}",
-            market.amm.long_spread,
-            market.amm.short_spread
-        )?;
-    } else {
-        // ?
-        validate!(
-            market.amm.long_spread == 0 && market.amm.short_spread == 0,
-            ErrorCode::DefaultError,
-            "base spread == 0 without long/short_spread == 0: {} {}",
-            market.amm.long_spread,
-            market.amm.short_spread
-        )?;
     }
 
+    validate!(
+        market.amm.long_spread + market.amm.short_spread >= market.amm.base_spread as u128,
+        ErrorCode::DefaultError,
+        "long_spread + short_spread < base_spread: {} + {} < {}",
+        market.amm.long_spread,
+        market.amm.short_spread,
+        market.amm.base_spread
+    )?;
+
+    validate!(
+        market.amm.long_spread + market.amm.short_spread <= market.amm.max_spread as u128,
+        ErrorCode::DefaultError,
+        "long_spread + short_spread > max_spread: {} + {} < {}",
+        market.amm.long_spread,
+        market.amm.short_spread,
+        market.amm.max_spread
+    )?;
+
     if market.amm.net_base_asset_amount > 0 {
+        // users are long = removed base and added quote = qar increased
         // bid quote/base < reserve q/b
         validate!(
             market.amm.terminal_quote_asset_reserve < market.amm.quote_asset_reserve,

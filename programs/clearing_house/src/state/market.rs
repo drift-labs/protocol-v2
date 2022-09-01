@@ -272,7 +272,7 @@ impl AMM {
             max_base_asset_reserve: u128::MAX,
             min_base_asset_reserve: 0,
             terminal_quote_asset_reserve: default_reserves,
-            peg_multiplier: 1 * crate::math::constants::PEG_PRECISION,
+            peg_multiplier: crate::math::constants::PEG_PRECISION,
             max_spread: 1000,
             ..AMM::default()
         }

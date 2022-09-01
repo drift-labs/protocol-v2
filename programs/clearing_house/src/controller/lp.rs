@@ -51,7 +51,7 @@ pub fn mint_lp_shares(
     let new_sqrt_k = sqrt_k.checked_add(n_shares).ok_or_else(math_error!())?;
     let new_sqrt_k_u192 = U192::from(new_sqrt_k);
 
-    let update_k_result = get_update_k_result(&market, new_sqrt_k_u192, true)?;
+    let update_k_result = get_update_k_result(market, new_sqrt_k_u192, true)?;
     update_k(market, &update_k_result)?;
 
     market.amm.user_lp_shares = market
@@ -60,8 +60,8 @@ pub fn mint_lp_shares(
         .checked_add(n_shares)
         .ok_or_else(math_error!())?;
 
-    crate::controller::validate::validate_market_account(&market)?;
-    crate::controller::validate::validate_position_account(position, &market)?;
+    crate::controller::validate::validate_market_account(market)?;
+    crate::controller::validate::validate_position_account(position, market)?;
 
     Ok(())
 }
@@ -108,8 +108,8 @@ pub fn settle_lp_position(
         .checked_add(lp_metrics.base_asset_amount)
         .ok_or_else(math_error!())?;
 
-    crate::controller::validate::validate_market_account(&market)?;
-    crate::controller::validate::validate_position_account(position, &market)?;
+    crate::controller::validate::validate_market_account(market)?;
+    crate::controller::validate::validate_position_account(position, market)?;
 
     Ok(())
 }
@@ -181,8 +181,8 @@ pub fn burn_lp_shares(
     let update_k_result = get_update_k_result(market, new_sqrt_k_u192, false)?;
     update_k(market, &update_k_result)?;
 
-    crate::controller::validate::validate_market_account(&market)?;
-    crate::controller::validate::validate_position_account(position, &market)?;
+    crate::controller::validate::validate_market_account(market)?;
+    crate::controller::validate::validate_position_account(position, market)?;
 
     Ok(())
 }
