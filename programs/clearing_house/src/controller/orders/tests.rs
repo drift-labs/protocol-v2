@@ -2584,6 +2584,8 @@ pub mod fill_order {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
+                last_oracle_price_twap: oracle_price.twap as i128,
+                max_spread: 1000,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,

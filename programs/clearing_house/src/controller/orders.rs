@@ -653,6 +653,8 @@ pub fn fill_order(
             state.funding_paused,
             Some(mark_price_before),
         )?;
+
+        controller::validate::validate_market_account(market)?;
     }
 
     Ok((base_asset_amount, updated_user_state))
@@ -941,7 +943,7 @@ fn fulfill_order(
         emit!(order_record)
     }
 
-    let mut updated_user_state = base_asset_amount != 0;
+    let updated_user_state = base_asset_amount != 0;
 
     // temp check to make sure max fill logic is working as intended
     let free_collateral = calculate_free_collateral(user, market_map, bank_map, oracle_map)?;
