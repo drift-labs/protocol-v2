@@ -362,7 +362,6 @@ pub fn update_mark_twap(
 
     let mid_twap = bid_twap.checked_add(ask_twap).ok_or_else(math_error!())? / 2;
 
-
     // update std stat
     update_amm_mark_std(amm, now, trade_price, amm.last_mark_price_twap)?;
 
@@ -597,20 +596,10 @@ pub fn update_amm_mark_std(
             .ok_or_else(math_error!())?,
     ))?;
 
-    let price_change = cast_to_i128(
-        price
-    )?
-    .checked_sub(cast_to_i128(ewma)?)
-    .ok_or_else(math_error!())?;
+    let price_change = cast_to_i128(price)?
+        .checked_sub(cast_to_i128(ewma)?)
+        .ok_or_else(math_error!())?;
 
-    msg!(
-        "ewma={}: {} {} / {} {}",
-        ewma,
-        since_last,
-        ONE_HOUR_I128,
-        amm.mark_std,
-        price_change
-    );
     amm.mark_std = calculate_rolling_sum(
         amm.mark_std,
         cast_to_u64(price_change.unsigned_abs())?,
@@ -1931,7 +1920,7 @@ mod test {
         }
         assert_eq!(now, 1656696720);
         assert_eq!(px, 319866586000);
-        assert_eq!(amm.mark_std, 132809001); 
+        assert_eq!(amm.mark_std, 132809001);
 
         // sol price looking thinkg
         let mut px: u128 = 319_366_586_000;

@@ -2284,7 +2284,6 @@ pub mod fulfill_order {
 
         // Leave small free collateral left
         assert_eq!(free_collateral, 38292523); // $38.292523
-
     }
 
     #[test]
