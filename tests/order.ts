@@ -299,9 +299,8 @@ describe('orders', () => {
 		assert(position.openBids.eq(baseAssetAmount));
 		assert(position.openAsks.eq(ZERO));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert(orderRecord.ts.gt(ZERO));
-		assert(orderRecord.takerOrder.orderId.eq(expectedOrderId));
 		assert(enumsAreEqual(orderRecord.action, OrderAction.PLACE));
 		assert(
 			orderRecord.taker.equals(
@@ -331,10 +330,10 @@ describe('orders', () => {
 		assert(position.openBids.eq(ZERO));
 		assert(position.openAsks.eq(ZERO));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		const expectedOrderId = new BN(1);
 		assert(orderRecord.ts.gt(ZERO));
-		assert(orderRecord.takerOrder.orderId.eq(expectedOrderId));
+		assert(orderRecord.takerOrderId.eq(expectedOrderId));
 		assert(enumsAreEqual(orderRecord.action, OrderAction.CANCEL));
 		assert(
 			orderRecord.taker.equals(
@@ -441,7 +440,7 @@ describe('orders', () => {
 		//  );
 		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert.ok(
 			orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount.abs())
@@ -451,7 +450,7 @@ describe('orders', () => {
 		const expectedFee = new BN(1000);
 		assert(orderRecord.ts.gt(ZERO));
 		assert(orderRecord.takerFee.eq(expectedFee));
-		assert(orderRecord.takerOrder.fee.eq(expectedFee));
+		assert(orderRecord.takerOrderFee.eq(expectedFee));
 		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
 		assert(
 			orderRecord.taker.equals(
@@ -579,7 +578,7 @@ describe('orders', () => {
 		const expectedQuoteAssetAmount = new BN(0);
 		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		const expectedTradeQuoteAssetAmount = new BN(1000002);
@@ -596,7 +595,7 @@ describe('orders', () => {
 		const expectedOrderId = new BN(3);
 		const expectedFillRecordId = new BN(2);
 		assert(orderRecord.ts.gt(ZERO));
-		assert(orderRecord.takerOrder.orderId.eq(expectedOrderId));
+		assert(orderRecord.takerOrderId.eq(expectedOrderId));
 		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
 		assert(
 			orderRecord.taker.equals(
@@ -629,7 +628,7 @@ describe('orders', () => {
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
-		const order = clearingHouseUser.getUserAccount().orders[0];
+		let order = clearingHouseUser.getUserAccount().orders[0];
 		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
 			order,
 			market,
@@ -649,29 +648,24 @@ describe('orders', () => {
 		console.log(amountToFill);
 
 		const orderId = new BN(4);
-		try {
-			await clearingHouseUser.fetchAccounts();
-			const order = clearingHouseUser.getOrder(orderId);
-			console.log(order);
-			await fillerClearingHouse.fillOrder(
-				userAccountPublicKey,
-				clearingHouseUser.getUserAccount(),
-				order
-			);
-			const order2 = clearingHouseUser.getOrder(orderId);
-			console.log(order2);
 
-			await clearingHouse.cancelOrder(orderId);
-		} catch (e) {
-			await clearingHouse.cancelOrder(orderId);
+		await clearingHouseUser.fetchAccounts();
+		const baseAssetAmountBefore =
+			clearingHouseUser.getUserPosition(marketIndex).baseAssetAmount;
+		order = clearingHouseUser.getOrder(orderId);
+		console.log(order);
+		await fillerClearingHouse.fillOrder(
+			userAccountPublicKey,
+			clearingHouseUser.getUserAccount(),
+			order
+		);
+		const order2 = clearingHouseUser.getOrder(orderId);
+		console.log(order2);
 
-			await clearingHouseUser.fetchAccounts();
-			assert(clearingHouseUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
-			assert(clearingHouseUser.getUserPosition(marketIndex).openBids.eq(ZERO));
-			return;
-		}
-
-		assert(false);
+		await clearingHouse.cancelOrder(orderId);
+		const baseAssetAmountAfter =
+			clearingHouseUser.getUserPosition(marketIndex).baseAssetAmount;
+		assert(baseAssetAmountBefore.eq(baseAssetAmountAfter));
 	});
 
 	it('Partial fill limit short order', async () => {
@@ -819,6 +813,7 @@ describe('orders', () => {
 			direction,
 			baseAssetAmount,
 			price: limitPrice,
+			userOrderId: 1,
 		});
 
 		await clearingHouse.placeOrder(orderParams);
@@ -862,8 +857,18 @@ describe('orders', () => {
 		await clearingHouseUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		assert(clearingHouseUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
+		assert(
+			clearingHouseUser
+				.getUserPosition(marketIndex)
+				.openAsks.eq(new BN(-235562920000000))
+		);
 		assert(clearingHouseUser.getUserPosition(marketIndex).openBids.eq(ZERO));
+		assert(
+			clearingHouseUser
+				.getUserPosition(marketIndex)
+				.baseAssetAmount.eq(new BN(-42654310000000))
+		);
+		clearingHouse.cancelOrderByUserId(1);
 
 		const order1 = clearingHouseUser.getUserAccount().orders[0];
 		const newMarket1 = clearingHouse.getMarketAccount(marketIndex);
@@ -1079,6 +1084,7 @@ describe('orders', () => {
 			direction,
 			baseAssetAmount,
 			price: limitPrice,
+			userOrderId: 1,
 		});
 		await clearingHouse.placeOrder(orderParams);
 
@@ -1144,7 +1150,23 @@ describe('orders', () => {
 		);
 
 		assert(clearingHouseUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
-		assert(clearingHouseUser.getUserPosition(marketIndex).openBids.eq(ZERO));
+		assert(
+			clearingHouseUser
+				.getUserPosition(marketIndex)
+				.openBids.eq(new BN(247927980000000))
+		);
+		assert(
+			clearingHouseUser
+				.getUserPosition(marketIndex)
+				.openBids.eq(new BN(247927980000000))
+		);
+		assert(
+			clearingHouseUser
+				.getUserPosition(marketIndex)
+				.baseAssetAmount.eq(new BN(129191120000000))
+		);
+
+		await clearingHouse.cancelOrderByUserId(1);
 	});
 
 	it('When in Max leverage long, fill limit short order to flip to max leverage short', async () => {
@@ -1780,7 +1802,7 @@ describe('orders', () => {
 		await clearingHouseUser.fetchAccounts();
 		console.log('2');
 
-		let orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		let orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
 		assert(
 			isVariant(clearingHouseUser.getUserAccount().orders[0].status, 'init')
@@ -1805,17 +1827,10 @@ describe('orders', () => {
 		}
 		console.log('4');
 
-		await clearingHouse.settlePNL(
-			await clearingHouse.getUserAccountPublicKey(),
-			clearingHouse.getUserAccount(),
-			marketIndex
-		);
-		console.log('5');
-
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 
-		orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
 		assert(
 			isVariant(clearingHouseUser.getUserAccount().orders[0].status, 'init')

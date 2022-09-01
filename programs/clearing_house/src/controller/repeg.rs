@@ -20,7 +20,7 @@ use crate::math::bn;
 use crate::math::constants::{
     K_BPS_UPDATE_SCALE, ONE_HOUR_I128, QUOTE_ASSET_BANK_INDEX, QUOTE_PRECISION,
 };
-use crate::state::bank::{Bank, BankBalanceType};
+use crate::state::bank::{BankBalanceType};
 use crate::state::state::{OracleGuardRails, State};
 use crate::validate;
 use anchor_lang::prelude::AccountInfo;
@@ -41,7 +41,7 @@ pub fn repeg(
         return Err(ErrorCode::InvalidRepegRedundant);
     }
     let (terminal_price_before, _terminal_quote_reserves, _terminal_base_reserves) =
-        amm::calculate_terminal_price_and_reserves(market)?;
+        amm::calculate_terminal_price_and_reserves(&market.amm)?;
 
     let (repegged_market, adjustment_cost) = repeg::adjust_peg_cost(market, new_peg_candidate)?;
 

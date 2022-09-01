@@ -5,6 +5,7 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::ClearingHouseResult;
+use crate::math::bank_balance::get_token_amount;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION,
 };
@@ -13,6 +14,7 @@ use crate::math::margin::{
     MarginRequirementType,
 };
 use crate::math_error;
+use crate::state::market::PoolBalance;
 use crate::state::oracle::OracleSource;
 use solana_program::msg;
 
@@ -28,12 +30,28 @@ pub struct Bank {
     pub vault: Pubkey,
     pub vault_authority: Pubkey,
     pub vault_authority_nonce: u8,
+    pub insurance_fund_vault: Pubkey,
+    pub insurance_fund_vault_authority: Pubkey,
+    pub insurance_fund_vault_authority_nonce: u8,
+    pub revenue_pool: PoolBalance,
+
+    pub total_if_factor: u32, // percentage of interest for total insurance
+    pub user_if_factor: u32,  // percentage of interest for user staked insurance
+
+    pub total_if_shares: u128,
+    pub user_if_shares: u128,
+    pub if_shares_base: u128, // exponent for lp shares (for rebasing)
+    pub insurance_withdraw_escrow_period: i64,
+    pub last_revenue_settle_ts: i64,
+    pub revenue_settle_period: i64,
+
     pub decimals: u8,
     pub optimal_utilization: u128,
     pub optimal_borrow_rate: u128,
     pub max_borrow_rate: u128,
     pub deposit_balance: u128,
     pub borrow_balance: u128,
+
     pub deposit_token_twap: u128, // 24 hour twap
     pub borrow_token_twap: u128,  // 24 hour twap
     pub utilization_twap: u128,   // 24 hour twap
@@ -41,12 +59,15 @@ pub struct Bank {
     pub cumulative_borrow_interest: u128,
     pub last_interest_ts: u64,
     pub last_twap_ts: u64,
+
     pub initial_asset_weight: u128,
     pub maintenance_asset_weight: u128,
     pub initial_liability_weight: u128,
     pub maintenance_liability_weight: u128,
     pub imf_factor: u128,
+
     pub liquidation_fee: u128,
+    pub liquidation_if_factor: u32, // percentage of liquidation transfer for total insurance
     pub withdraw_guard_threshold: u128, // no withdraw limits/guards when bank deposits below this threshold
 }
 
@@ -112,6 +133,18 @@ impl Bank {
                 .checked_sub(self.liquidation_fee)
                 .ok_or_else(math_error!()),
         }
+    }
+
+    pub fn get_available_deposits(&self) -> ClearingHouseResult<u128> {
+        let deposit_token_amount =
+            get_token_amount(self.deposit_balance, self, &BankBalanceType::Deposit)?;
+
+        let borrow_token_amount =
+            get_token_amount(self.borrow_balance, self, &BankBalanceType::Borrow)?;
+
+        deposit_token_amount
+            .checked_sub(borrow_token_amount)
+            .ok_or_else(math_error!())
     }
 }
 

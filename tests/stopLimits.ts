@@ -13,12 +13,10 @@ import {
 	PositionDirection,
 	ClearingHouseUser,
 	Wallet,
-	OrderRecord,
 	OrderAction,
 	getMarketOrderParams,
 	OrderTriggerCondition,
 	OrderStatus,
-	OrderType,
 	getTriggerLimitOrderParams,
 	EventSubscriber,
 } from '../sdk/src';
@@ -272,7 +270,7 @@ describe('stop limit', () => {
 		const expectedQuoteAssetAmount = new BN(0);
 		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		const expectedTradeQuoteAssetAmount = new BN(1000002);
@@ -283,11 +281,8 @@ describe('stop limit', () => {
 		const expectedOrderId = new BN(2);
 		const expectedFillRecordId = new BN(2);
 		assert(orderRecord.ts.gt(ZERO));
-		assert(orderRecord.takerOrder.orderId.eq(expectedOrderId));
+		assert(orderRecord.takerOrderId.eq(expectedOrderId));
 		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
-		assert(
-			enumsAreEqual(orderRecord.takerOrder.orderType, OrderType.TRIGGER_LIMIT)
-		);
 		assert(
 			orderRecord.taker.equals(
 				await clearingHouseUser.getUserAccountPublicKey()
@@ -361,17 +356,13 @@ describe('stop limit', () => {
 		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
 		const expectedTradeQuoteAssetAmount = new BN(999999);
-		const orderRecord: OrderRecord =
-			eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		const expectedOrderId = new BN(4);
 		const expectedFillRecord = new BN(4);
 		assert(orderRecord.ts.gt(ZERO));
-		assert(orderRecord.takerOrder.orderId.eq(expectedOrderId));
+		assert(orderRecord.takerOrderId.eq(expectedOrderId));
 		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
-		assert(
-			enumsAreEqual(orderRecord.takerOrder.orderType, OrderType.TRIGGER_LIMIT)
-		);
 		assert(
 			orderRecord.taker.equals(
 				await clearingHouseUser.getUserAccountPublicKey()

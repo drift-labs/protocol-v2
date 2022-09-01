@@ -1,14 +1,18 @@
+import { Program } from '@project-serum/anchor';
 import {
 	Connection,
 	Finality,
 	PublicKey,
 	TransactionSignature,
 } from '@solana/web3.js';
+import { WrappedEvents } from './types';
 
 type Log = { txSig: TransactionSignature; slot: number; logs: string[] };
 type FetchLogsResponse = {
 	earliestTx: string;
 	mostRecentTx: string;
+	earliestSlot: number;
+	mostRecentSlot: number;
 	transactionLogs: Log[];
 };
 
@@ -17,19 +21,21 @@ export async function fetchLogs(
 	programId: PublicKey,
 	finality: Finality,
 	beforeTx?: TransactionSignature,
-	untilTx?: TransactionSignature
-): Promise<FetchLogsResponse | undefined> {
+	untilTx?: TransactionSignature,
+	limit?: number
+): Promise<FetchLogsResponse> {
 	const signatures = await connection.getSignaturesForAddress(
 		programId,
 		{
 			before: beforeTx,
 			until: untilTx,
+			limit,
 		},
 		finality
 	);
 
 	const sortedSignatures = signatures.sort((a, b) =>
-		a.slot < b.slot ? -1 : 1
+		a.slot === b.slot ? 0 : a.slot < b.slot ? -1 : 1
 	);
 
 	const filteredSignatures = sortedSignatures.filter(
@@ -61,14 +67,15 @@ export async function fetchLogs(
 		)
 	).flat();
 
-	const earliestTx = filteredSignatures[0].signature;
-	const mostRecentTx =
-		filteredSignatures[filteredSignatures.length - 1].signature;
+	const earliest = filteredSignatures[0];
+	const mostRecent = filteredSignatures[filteredSignatures.length - 1];
 
 	return {
 		transactionLogs: transactionLogs,
-		earliestTx: earliestTx,
-		mostRecentTx: mostRecentTx,
+		earliestTx: earliest.signature,
+		mostRecentTx: mostRecent.signature,
+		earliestSlot: earliest.slot,
+		mostRecentSlot: mostRecent.slot,
 	};
 }
 
@@ -77,4 +84,24 @@ function chunk<T>(array: readonly T[], size: number): T[][] {
 		.fill(null)
 		.map((_, index) => index * size)
 		.map((begin) => array.slice(begin, begin + size));
+}
+
+export class LogParser {
+	private program: Program;
+
+	constructor(program: Program) {
+		this.program = program;
+	}
+
+	public parseEventsFromLogs(event: Log): WrappedEvents {
+		const records: WrappedEvents = [];
+		// @ts-ignore
+		this.program._events._eventParser.parseLogs(event.logs, (eventLog) => {
+			eventLog.data.txSig = event.txSig;
+			eventLog.data.slot = event.slot;
+			eventLog.data.eventType = eventLog.name;
+			records.push(eventLog.data);
+		});
+		return records;
+	}
 }

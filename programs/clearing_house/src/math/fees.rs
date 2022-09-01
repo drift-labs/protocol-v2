@@ -8,11 +8,13 @@ use num_integer::Roots;
 use solana_program::msg;
 use std::cmp::{max, min};
 
+use super::casting::cast_to_i128;
+
 pub struct FillFees {
     pub user_fee: u128,
     pub maker_rebate: u128,
-    pub fee_to_market: u128,
-    pub fee_to_market_for_lp: u128,
+    pub fee_to_market: i128,
+    pub fee_to_market_for_lp: i128,
     pub filler_reward: u128,
     pub referee_discount: u128,
     pub referrer_reward: u128,
@@ -25,18 +27,19 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
     now: i64,
     reward_filler: bool,
     reward_referrer: bool,
-    quote_asset_amount_surplus: u128,
+    quote_asset_amount_surplus: i128,
     is_post_only: bool,
 ) -> ClearingHouseResult<FillFees> {
     // if there was a quote_asset_amount_surplus, the order was a maker order and fee_to_market comes from surplus
     if is_post_only {
-        let fee = quote_asset_amount_surplus;
+        let fee = cast_to_u128(quote_asset_amount_surplus)?;
         let filler_reward: u128 = if !reward_filler {
             0
         } else {
             calculate_filler_reward(fee, order_ts, now, &fee_structure.filler_reward_structure)?
         };
-        let fee_to_market = fee.checked_sub(filler_reward).ok_or_else(math_error!())?;
+        let fee_to_market =
+            cast_to_i128(fee.checked_sub(filler_reward).ok_or_else(math_error!())?)?;
         let user_fee = 0_u128;
 
         Ok(FillFees {
@@ -71,13 +74,15 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
             calculate_filler_reward(fee, order_ts, now, &fee_structure.filler_reward_structure)?
         };
 
-        let fee_to_market = user_fee
-            .checked_sub(filler_reward)
-            .ok_or_else(math_error!())?
-            .checked_sub(referrer_reward)
-            .ok_or_else(math_error!())?
-            .checked_add(quote_asset_amount_surplus)
-            .ok_or_else(math_error!())?;
+        let fee_to_market = cast_to_i128(
+            user_fee
+                .checked_sub(filler_reward)
+                .ok_or_else(math_error!())?
+                .checked_sub(referrer_reward)
+                .ok_or_else(math_error!())?,
+        )?
+        .checked_add(quote_asset_amount_surplus)
+        .ok_or_else(math_error!())?;
 
         let fee_to_market_for_lp = fee_to_market
             .checked_sub(quote_asset_amount_surplus)
@@ -184,13 +189,16 @@ pub fn calculate_fee_for_fulfillment_with_match(
         calculate_filler_reward(fee, order_ts, now, &fee_structure.filler_reward_structure)?
     };
 
-    let fee_to_market = taker_fee
-        .checked_sub(filler_reward)
-        .ok_or_else(math_error!())?
-        .checked_sub(referrer_reward)
-        .ok_or_else(math_error!())?
-        .checked_sub(maker_rebate)
-        .ok_or_else(math_error!())?;
+    // must be non-negative
+    let fee_to_market = cast_to_i128(
+        taker_fee
+            .checked_sub(filler_reward)
+            .ok_or_else(math_error!())?
+            .checked_sub(referrer_reward)
+            .ok_or_else(math_error!())?
+            .checked_sub(maker_rebate)
+            .ok_or_else(math_error!())?,
+    )?;
 
     Ok(FillFees {
         user_fee: taker_fee,

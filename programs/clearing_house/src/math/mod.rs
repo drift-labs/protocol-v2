@@ -1,4 +1,5 @@
 pub mod amm;
+pub mod amm_jit;
 pub mod auction;
 pub mod bank_balance;
 pub mod bankruptcy;
@@ -11,6 +12,7 @@ pub mod fees;
 pub mod fulfillment;
 pub mod funding;
 pub mod helpers;
+pub mod insurance;
 pub mod liquidation;
 pub mod lp;
 pub mod margin;
