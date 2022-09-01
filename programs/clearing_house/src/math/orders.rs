@@ -341,7 +341,7 @@ pub fn calculate_max_fill_for_order(
             .ok_or_else(math_error!())?,
     };
 
-    if price_delta < 0 {
+    if price_delta <= 0 {
         return Ok(base_asset_amount_unfilled);
     }
 
