@@ -813,6 +813,7 @@ describe('orders', () => {
 			direction,
 			baseAssetAmount,
 			price: limitPrice,
+			userOrderId: 1,
 		});
 
 		await clearingHouse.placeOrder(orderParams);
@@ -856,8 +857,18 @@ describe('orders', () => {
 		await clearingHouseUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		assert(clearingHouseUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
+		assert(
+			clearingHouseUser
+				.getUserPosition(marketIndex)
+				.openAsks.eq(new BN(-235562920000000))
+		);
 		assert(clearingHouseUser.getUserPosition(marketIndex).openBids.eq(ZERO));
+		assert(
+			clearingHouseUser
+				.getUserPosition(marketIndex)
+				.baseAssetAmount.eq(new BN(-42654310000000))
+		);
+		clearingHouse.cancelOrderByUserId(1);
 
 		const order1 = clearingHouseUser.getUserAccount().orders[0];
 		const newMarket1 = clearingHouse.getMarketAccount(marketIndex);
@@ -1073,6 +1084,7 @@ describe('orders', () => {
 			direction,
 			baseAssetAmount,
 			price: limitPrice,
+			userOrderId: 1,
 		});
 		await clearingHouse.placeOrder(orderParams);
 
@@ -1138,7 +1150,23 @@ describe('orders', () => {
 		);
 
 		assert(clearingHouseUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
-		assert(clearingHouseUser.getUserPosition(marketIndex).openBids.eq(ZERO));
+		assert(
+			clearingHouseUser
+				.getUserPosition(marketIndex)
+				.openBids.eq(new BN(247927980000000))
+		);
+		assert(
+			clearingHouseUser
+				.getUserPosition(marketIndex)
+				.openBids.eq(new BN(247927980000000))
+		);
+		assert(
+			clearingHouseUser
+				.getUserPosition(marketIndex)
+				.baseAssetAmount.eq(new BN(129191120000000))
+		);
+
+		await clearingHouse.cancelOrderByUserId(1);
 	});
 
 	it('When in Max leverage long, fill limit short order to flip to max leverage short', async () => {
@@ -1798,13 +1826,6 @@ describe('orders', () => {
 			console.error(e);
 		}
 		console.log('4');
-
-		await clearingHouse.settlePNL(
-			await clearingHouse.getUserAccountPublicKey(),
-			clearingHouse.getUserAccount(),
-			marketIndex
-		);
-		console.log('5');
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
