@@ -1296,6 +1296,7 @@ pub fn calculate_max_base_asset_amount_fillable(
 mod test {
     use super::*;
     use crate::controller::amm::update_spreads;
+    use crate::controller::lp::burn_lp_shares;
     use crate::controller::lp::mint_lp_shares;
     use crate::controller::lp::settle_lp_position;
     use crate::math::constants::{MARK_PRICE_PRECISION, QUOTE_PRECISION_I128};
@@ -1849,80 +1850,63 @@ mod test {
 
         // increase k by 1%
         let update_k_up =
-            get_update_k_result(&market, bn::U192::from(101 * AMM_RESERVE_PRECISION), false)
+            get_update_k_result(&market, bn::U192::from(102 * AMM_RESERVE_PRECISION), false)
                 .unwrap();
         let (t_price, _t_qar, _t_bar) = calculate_terminal_price_and_reserves(&market).unwrap();
 
         // new terminal reserves are balanced, terminal price = peg)
         // assert_eq!(t_qar, 999900009999000);
         // assert_eq!(t_bar, 1000100000000000);
-        // assert_eq!(t_price, 499001498002497); //
-        // assert_eq!(update_k_up.sqrt_k, 101 * AMM_RESERVE_PRECISION);
+        assert_eq!(t_price, 499011369495392); //
+                                              // assert_eq!(update_k_up.sqrt_k, 101 * AMM_RESERVE_PRECISION);
 
         let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
         assert_eq!(
             market.amm.net_base_asset_amount,
             (AMM_RESERVE_PRECISION / 10) as i128
         );
-        assert_eq!(cost, 50_404); //0.05
+        assert_eq!(cost, 49406); //0.05
 
         // lp whale adds
         let lp_whale_amount = 1000 * AMM_RESERVE_PRECISION;
-
-        position.lp_shares += lp_whale_amount;
-        let update_k_lp_whale = get_update_k_result(
-            &market,
-            bn::U192::from(market.amm.sqrt_k + lp_whale_amount),
-            false,
-        )
-        .unwrap();
-        update_k(&mut market, &update_k_lp_whale).unwrap();
-        market.amm.user_lp_shares += lp_whale_amount;
+        mint_lp_shares(&mut position, &mut market, lp_whale_amount, 0).unwrap();
 
         // ensure same cost
         let update_k_up =
-            get_update_k_result(&market, bn::U192::from(1101 * AMM_RESERVE_PRECISION), false)
+            get_update_k_result(&market, bn::U192::from(1102 * AMM_RESERVE_PRECISION), false)
                 .unwrap();
         let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
         assert_eq!(
             market.amm.net_base_asset_amount,
             (AMM_RESERVE_PRECISION / 10) as i128
         );
-        assert_eq!(cost, 50_404); //0.05
+        assert_eq!(cost, 49406); //0.05
 
         let update_k_down =
             get_update_k_result(&market, bn::U192::from(1001 * AMM_RESERVE_PRECISION), false)
                 .unwrap();
         let cost = adjust_k_cost(&mut market, &update_k_down).unwrap();
-        assert_eq!(cost, -4994954591); //amm rug
+        assert_eq!(cost, -4995004995); //amm rug
 
         // lp whale removes
-        position.lp_shares -= lp_whale_amount;
-        let update_k_lp_whale = get_update_k_result(
-            &market,
-            bn::U192::from(market.amm.sqrt_k - lp_whale_amount),
-            false,
-        )
-        .unwrap();
-        update_k(&mut market, &update_k_lp_whale).unwrap();
-        market.amm.user_lp_shares -= lp_whale_amount;
+        burn_lp_shares(&mut position, &mut market, lp_whale_amount, 0).unwrap();
 
         // ensure same cost
         let update_k_up =
-            get_update_k_result(&market, bn::U192::from(101 * AMM_RESERVE_PRECISION), false)
+            get_update_k_result(&market, bn::U192::from(102 * AMM_RESERVE_PRECISION), false)
                 .unwrap();
         let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
         assert_eq!(
             market.amm.net_base_asset_amount,
             (AMM_RESERVE_PRECISION / 10) as i128
         );
-        assert_eq!(cost, 50_404); //0.05
+        assert_eq!(cost, 49406); //0.05
 
         let update_k_down =
-            get_update_k_result(&market, bn::U192::from(78 * AMM_RESERVE_PRECISION), false)
+            get_update_k_result(&market, bn::U192::from(79 * AMM_RESERVE_PRECISION), false)
                 .unwrap();
         let cost = adjust_k_cost(&mut market, &update_k_down).unwrap();
-        assert_eq!(cost, -1439676); //0.05
+        assert_eq!(cost, -1407044); //0.05
 
         // lp owns 50% of vAMM, same k
         position.lp_shares = 50 * AMM_RESERVE_PRECISION;
@@ -1933,26 +1917,27 @@ mod test {
             market.amm.net_base_asset_amount,
             (AMM_RESERVE_PRECISION / 10) as i128
         );
-        assert_eq!(cost, 195_304); //0.19
+        assert_eq!(cost, 187807); //0.19
 
         // lp owns 99% of vAMM, same k
         position.lp_shares = 99 * AMM_RESERVE_PRECISION;
         market.amm.user_lp_shares = 99 * AMM_RESERVE_PRECISION;
         let cost2 = adjust_k_cost(&mut market, &update_k_up).unwrap();
         assert!(cost2 > cost);
-        assert_eq!(cost2, 216450216); //216.45
+        assert_eq!(cost2, 76804916); //216.45
 
         // lp owns 100% of vAMM, same k
         position.lp_shares = 100 * AMM_RESERVE_PRECISION;
         market.amm.user_lp_shares = 100 * AMM_RESERVE_PRECISION;
-        let cost2 = adjust_k_cost(&mut market, &update_k_up).unwrap();
-        assert!(cost2 > cost);
-        assert_eq!(cost2, 4545454545);
+        let cost3 = adjust_k_cost(&mut market, &update_k_up).unwrap();
+        assert!(cost3 > cost);
+        assert!(cost3 > cost2);
+        assert_eq!(cost3, 216450216);
 
-        // todo: support this
-        //  market.amm.net_base_asset_amount = -(AMM_RESERVE_PRECISION as i128);
-        //  let cost2 = adjust_k_cost(&mut market, &update_k_up).unwrap();
-        //  assert!(cost2 > cost);
-        //  assert_eq!(cost2, 4545454545);
+        // //  todo: support this
+        // market.amm.net_base_asset_amount = -(AMM_RESERVE_PRECISION as i128);
+        // let cost2 = adjust_k_cost(&mut market, &update_k_up).unwrap();
+        // assert!(cost2 > cost);
+        // assert_eq!(cost2, 249999999999850000000001);
     }
 }

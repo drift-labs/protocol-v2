@@ -60,6 +60,9 @@ pub fn mint_lp_shares(
         .checked_add(n_shares)
         .ok_or_else(math_error!())?;
 
+    crate::controller::validate::validate_market_account(&market)?;
+    crate::controller::validate::validate_position_account(position, &market)?;
+
     Ok(())
 }
 
@@ -71,7 +74,6 @@ pub fn settle_lp_position(
     let n_shares_i128 = cast_to_i128(n_shares)?;
 
     let lp_metrics = calculate_settle_lp_metrics(&market.amm, position)?;
-    println!("{:#?}", lp_metrics);
 
     position.last_net_base_asset_amount_per_lp =
         market.amm.market_position_per_lp.base_asset_amount;
