@@ -28,6 +28,9 @@ use std::ops::Deref;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod delisting;
+
 pub fn settle_pnl(
     market_index: u64,
     user: &mut User,

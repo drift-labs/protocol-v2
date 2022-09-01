@@ -399,7 +399,7 @@ pub mod clearing_house {
             unrealized_initial_asset_weight: 100,     // 100%
             unrealized_maintenance_asset_weight: 100, // 100%
             unrealized_imf_factor: 0,
-            unsettled_max_imbalance: 0,
+            unrealized_max_imbalance: 0,
             liquidation_fee,
             quote_max_insurance: 0,
             quote_settled_insurance: 0,

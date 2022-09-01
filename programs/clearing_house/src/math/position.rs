@@ -84,33 +84,11 @@ pub fn calculate_base_asset_value(
         .checked_sub(amm.user_lp_shares)
         .ok_or_else(math_error!())?;
 
-    let base_asset_reserve_proportion = if amm.user_lp_shares == 0 {
-        base_asset_reserve
-    } else if amm_lp_shares < amm.user_lp_shares {
-        get_proportion_u128(base_asset_reserve, amm_lp_shares, amm.sqrt_k)?
-    } else {
-        base_asset_reserve
-            .checked_sub(get_proportion_u128(
-                base_asset_reserve,
-                amm.user_lp_shares,
-                amm.sqrt_k,
-            )?)
-            .ok_or_else(math_error!())?
-    };
+    let base_asset_reserve_proportion =
+        get_proportion_u128(base_asset_reserve, amm_lp_shares, amm.sqrt_k)?;
 
-    let quote_asset_reserve_proportion = if amm.user_lp_shares == 0 {
-        quote_asset_reserve
-    } else if amm_lp_shares < amm.user_lp_shares {
-        get_proportion_u128(quote_asset_reserve, amm_lp_shares, amm.sqrt_k)?
-    } else {
-        quote_asset_reserve
-            .checked_sub(get_proportion_u128(
-                quote_asset_reserve,
-                amm.user_lp_shares,
-                amm.sqrt_k,
-            )?)
-            .ok_or_else(math_error!())?
-    };
+    let quote_asset_reserve_proportion =
+        get_proportion_u128(quote_asset_reserve, amm_lp_shares, amm.sqrt_k)?;
 
     let (new_quote_asset_reserve, _new_base_asset_reserve) = amm::calculate_swap_output(
         base_asset_amount.unsigned_abs(),

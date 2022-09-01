@@ -270,14 +270,18 @@ pub fn settle_expired_market(
     validate!(
         market.expiry_ts <= now,
         ErrorCode::DefaultError,
-        "Market hasn't expired yet"
+        "Market hasn't expired yet (expiry={} > now{})",
+        market.expiry_ts,
+        now
     )?;
+    msg!("yo1");
 
     validate!(
         market.amm.net_unsettled_lp_base_asset_amount == 0 && market.amm.user_lp_shares == 0,
         ErrorCode::DefaultError,
         "Outstanding LP in market"
     )?;
+    msg!("yo");
 
     let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
     let fee_reserved_for_protocol = cast_to_i128(
@@ -291,6 +295,7 @@ pub fn settle_expired_market(
         .checked_sub(fee_reserved_for_protocol)
         .ok_or_else(math_error!())?
         .max(0);
+    msg!("um");
 
     let available_fee_pool = cast_to_i128(get_token_amount(
         market.amm.fee_pool.balance,
@@ -301,7 +306,12 @@ pub fn settle_expired_market(
     .ok_or_else(math_error!())?
     .max(0);
 
+    msg!("available_fee_pool:{}", available_fee_pool);
+
+    msg!("uh");
+
     let fee_pool_transfer = budget.min(available_fee_pool);
+    msg!("fee_pool_transfer:{}", fee_pool_transfer);
 
     update_bank_balances(
         fee_pool_transfer.unsigned_abs(),
@@ -317,6 +327,9 @@ pub fn settle_expired_market(
         &mut market.pnl_pool,
     )?;
 
+    msg!("hi");
+
+    msg!("budget:{}", budget);
     if budget > 0 {
         let (k_scale_numerator, k_scale_denominator) = amm::calculate_budgeted_k_scale(
             market,
@@ -346,22 +359,36 @@ pub fn settle_expired_market(
             amm::update_k(market, &update_k_result)?;
         }
     }
+    msg!("hi3");
 
     let pnl_pool_amount =
         get_token_amount(market.pnl_pool.balance, bank, &BankBalanceType::Deposit)?;
+    msg!("pnl_pool_amount:{}", pnl_pool_amount);
 
     validate!(
         10_u128.pow(bank.decimals as u32) == QUOTE_PRECISION,
         ErrorCode::DefaultError,
         "Only support bank.decimals == QUOTE_PRECISION"
     )?;
+    msg!("hi3.4");
 
     let target_settlement_price = market.amm.last_oracle_price_twap;
+    validate!(
+        target_settlement_price > 0,
+        ErrorCode::DefaultError,
+        "target_settlement_price <= 0 {}",
+        target_settlement_price
+    )?;
+    msg!("target_settlement_price:{}", target_settlement_price);
+
     let settlement_price =
         amm::calculate_settlement_price(&market.amm, target_settlement_price, pnl_pool_amount)?;
+    msg!("hi4");
 
     market.settlement_price = settlement_price;
     market.status = MarketStatus::Settlement;
+
+    msg!("settlement_price={}", settlement_price);
 
     Ok(())
 }

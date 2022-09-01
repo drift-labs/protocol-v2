@@ -75,7 +75,7 @@ pub struct Market {
     pub unrealized_initial_asset_weight: u8,
     pub unrealized_maintenance_asset_weight: u8,
     pub unrealized_imf_factor: u128,
-    pub unsettled_max_imbalance: u128,
+    pub unrealized_max_imbalance: u128,
     pub liquidation_fee: u128,
     pub quote_max_insurance: u128,
     pub quote_settled_insurance: u128,
@@ -128,13 +128,13 @@ impl Market {
             MarginRequirementType::Maintenance => self.unrealized_maintenance_asset_weight as u128,
         };
 
-        if self.unsettled_max_imbalance > 0 {
+        if self.unrealized_max_imbalance > 0 {
             let net_unsettled_pnl =
                 amm::calculate_net_user_pnl(&self.amm, self.amm.last_oracle_price)?;
-            if net_unsettled_pnl > cast_to_i128(self.unsettled_max_imbalance)? {
+            if net_unsettled_pnl > cast_to_i128(self.unrealized_max_imbalance)? {
                 msg!("net_unsettled_pnl: {:?}", net_unsettled_pnl);
                 margin_asset_weight = margin_asset_weight
-                    .checked_mul(self.unsettled_max_imbalance)
+                    .checked_mul(self.unrealized_max_imbalance)
                     .ok_or_else(math_error!())?
                     .checked_div(net_unsettled_pnl.unsigned_abs())
                     .ok_or_else(math_error!())?
