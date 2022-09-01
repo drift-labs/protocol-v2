@@ -20,7 +20,7 @@ use crate::math::bn;
 use crate::math::constants::{
     K_BPS_UPDATE_SCALE, ONE_HOUR_I128, QUOTE_ASSET_BANK_INDEX, QUOTE_PRECISION,
 };
-use crate::state::bank::{BankBalanceType};
+use crate::state::bank::BankBalanceType;
 use crate::state::state::{OracleGuardRails, State};
 use crate::validate;
 use anchor_lang::prelude::AccountInfo;
@@ -280,7 +280,11 @@ pub fn settle_expired_market(
     )?;
 
     let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
-    let fee_reserved_for_protocol = cast_to_i128(repeg::get_total_fee_lower_bound(market)?)?;
+    let fee_reserved_for_protocol = cast_to_i128(
+        repeg::get_total_fee_lower_bound(market)?
+            .checked_sub(market.amm.total_fee_withdrawn)
+            .ok_or_else(math_error!())?,
+    )?;
     let budget = market
         .amm
         .total_fee_minus_distributions

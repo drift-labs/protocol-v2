@@ -125,9 +125,7 @@ impl Market {
     ) -> ClearingHouseResult<u128> {
         let mut margin_asset_weight = match margin_type {
             MarginRequirementType::Initial => self.unrealized_initial_asset_weight as u128,
-            MarginRequirementType::Maintenance => {
-                self.unrealized_maintenance_asset_weight as u128
-            }
+            MarginRequirementType::Maintenance => self.unrealized_maintenance_asset_weight as u128,
         };
 
         if self.unsettled_max_imbalance > 0 {

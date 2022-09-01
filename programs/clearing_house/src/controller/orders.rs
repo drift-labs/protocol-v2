@@ -106,7 +106,7 @@ pub fn place_order(
 
     validate!(
         market.status != MarketStatus::Settlement,
-        ErrorCode::InvalidPositionDelta,
+        ErrorCode::DefaultError,
         "Market is in settlement mode",
     )?;
 

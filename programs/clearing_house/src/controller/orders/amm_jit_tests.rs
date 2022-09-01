@@ -21,7 +21,6 @@ fn get_user_keys() -> (Pubkey, Pubkey, Pubkey) {
 #[cfg(test)]
 pub mod amm_jit {
     use super::*;
-    use crate::state::market::{Market, AMM, MarketStatus};
     use crate::controller::orders::fulfill_order;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
@@ -33,6 +32,7 @@ pub mod amm_jit {
     };
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
+    use crate::state::market::{Market, MarketStatus, AMM};
     use crate::state::market_map::MarketMap;
     use crate::state::oracle::OracleSource;
     use crate::state::user::{OrderStatus, OrderType, User, UserBankBalance, UserStats};
