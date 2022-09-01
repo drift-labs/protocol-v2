@@ -44,6 +44,11 @@ export class Admin extends ClearingHouse {
 				this.program.programId
 			);
 
+		const [insuranceVaultPublicKey] = await PublicKey.findProgramAddress(
+			[Buffer.from(anchor.utils.bytes.utf8.encode('insurance_vault'))],
+			this.program.programId
+		);
+
 		const initializeTx = await this.program.transaction.initialize(
 			adminControlsPrices,
 			{
@@ -52,6 +57,8 @@ export class Admin extends ClearingHouse {
 					state: clearingHouseStatePublicKey,
 					quoteAssetMint: usdcMint,
 					rent: SYSVAR_RENT_PUBKEY,
+					insuranceVault: insuranceVaultPublicKey,
+					clearingHouseSigner: this.getSignerPublicKey(),
 					systemProgram: anchor.web3.SystemProgram.programId,
 					tokenProgram: TOKEN_PROGRAM_ID,
 				},

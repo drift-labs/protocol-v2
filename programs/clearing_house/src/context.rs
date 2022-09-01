@@ -21,6 +21,17 @@ pub struct Initialize<'info> {
     )]
     pub state: Box<Account<'info, State>>,
     pub quote_asset_mint: Box<Account<'info, Mint>>,
+    #[account(
+        init,
+        seeds = [b"insurance_vault".as_ref()],
+        bump,
+        payer = admin,
+        token::mint = quote_asset_mint,
+        token::authority = clearing_house_signer
+    )]
+    pub insurance_vault: Box<Account<'info, TokenAccount>>,
+    /// CHECK: checked in `initialize`
+    pub clearing_house_signer: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
@@ -244,6 +255,100 @@ pub struct TransferDeposit<'info> {
 pub struct UpdateBankCumulativeInterest<'info> {
     #[account(mut)]
     pub bank: AccountLoader<'info, Bank>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawFromMarketToInsuranceVault<'info> {
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub admin: Signer<'info>,
+    #[account(
+        seeds = [b"bank", 0_u64.to_le_bytes().as_ref()],
+        bump,
+        mut
+    )]
+    pub bank: AccountLoader<'info, Bank>,
+    #[account(
+        mut,
+        seeds = [b"bank_vault".as_ref(), 0_u64.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub bank_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        constraint = state.signer.eq(&clearing_house_signer.key())
+    )]
+    /// CHECK: withdraw fails if this isn't vault owner
+    pub clearing_house_signer: AccountInfo<'info>,
+    #[account(mut)]
+    pub market: AccountLoader<'info, Market>,
+    #[account(
+        mut,
+        token::mint = bank_vault.mint
+    )]
+    pub recipient: Box<Account<'info, TokenAccount>>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawFromInsuranceVault<'info> {
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        constraint = &state.insurance_vault.eq(&insurance_vault.key())
+    )]
+    pub insurance_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+    constraint = state.signer.eq(&clearing_house_signer.key())
+    )]
+    /// CHECK: withdraw fails if this isn't vault owner
+    pub clearing_house_signer: AccountInfo<'info>,
+    #[account(
+        mut,
+        token::mint = insurance_vault.mint
+    )]
+    pub recipient: Box<Account<'info, TokenAccount>>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawFromInsuranceVaultToMarket<'info> {
+    #[account(
+        mut,
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub market: AccountLoader<'info, Market>,
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        constraint = &state.insurance_vault.eq(&insurance_vault.key())
+    )]
+    pub insurance_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        constraint = state.signer.eq(&clearing_house_signer.key())
+    )]
+    /// CHECK: withdraw fails if this isn't vault owner
+    pub clearing_house_signer: AccountInfo<'info>,
+    #[account(
+        mut,
+        seeds = [b"bank", 0_u64.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub bank: AccountLoader<'info, Bank>,
+    #[account(
+        mut,
+        seeds = [b"bank_vault".as_ref(), 0_u64.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub bank_vault: Box<Account<'info, TokenAccount>>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]

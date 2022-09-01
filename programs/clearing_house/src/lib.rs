@@ -59,17 +59,24 @@ pub mod clearing_house {
     use crate::state::state::OrderFillerRewardStructure;
 
     use super::*;
+    use crate::error::ErrorCode::InvalidInsuranceFundAuthority;
     use crate::state::insurance_fund_stake::InsuranceFundStake;
 
     pub fn initialize(ctx: Context<Initialize>, admin_controls_prices: bool) -> Result<()> {
         let (clearing_house_signer, clearing_house_signer_nonce) =
             Pubkey::find_program_address(&[b"clearing_house_signer".as_ref()], ctx.program_id);
 
+        let insurance_vault = &ctx.accounts.insurance_vault;
+        if insurance_vault.owner != clearing_house_signer {
+            return Err(ErrorCode::InvalidInsuranceFundAuthority.into());
+        }
+
         **ctx.accounts.state = State {
             admin: *ctx.accounts.admin.key,
             funding_paused: false,
             exchange_paused: false,
             admin_controls_prices,
+            insurance_vault: insurance_vault.key(),
             margin_ratio_initial: 2000, // unit is 20% (+2 decimal places)
             margin_ratio_partial: 625,
             margin_ratio_maintenance: 500,
@@ -1742,6 +1749,122 @@ pub mod clearing_house {
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
         controller::amm::move_price(&mut market.amm, base_asset_reserve, quote_asset_reserve)?;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn withdraw_from_market_to_insurance_vault(
+        ctx: Context<WithdrawFromMarketToInsuranceVault>,
+        amount: u64,
+    ) -> Result<()> {
+        let market = &mut load_mut!(ctx.accounts.market)?;
+
+        // A portion of fees must always remain in protocol to be used to keep markets optimal
+        let max_withdraw = market
+            .amm
+            .total_exchange_fee
+            .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR)
+            .ok_or_else(math_error!())?
+            .checked_div(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR)
+            .ok_or_else(math_error!())?
+            .checked_sub(market.amm.total_fee_withdrawn)
+            .ok_or_else(math_error!())?;
+
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+
+        let amm_fee_pool_token_amount =
+            get_token_amount(market.amm.fee_pool.balance, bank, &BankBalanceType::Deposit)?;
+
+        if cast_to_u128(amount)? > max_withdraw {
+            msg!("withdraw size exceeds max_withdraw: {:?}", max_withdraw);
+            return Err(ErrorCode::AdminWithdrawTooLarge.into());
+        }
+
+        if cast_to_u128(amount)? > amm_fee_pool_token_amount {
+            msg!(
+                "withdraw size exceeds amm_fee_pool_token_amount: {:?}",
+                amm_fee_pool_token_amount
+            );
+            return Err(ErrorCode::AdminWithdrawTooLarge.into());
+        }
+
+        controller::token::send_from_program_vault(
+            &ctx.accounts.token_program,
+            &ctx.accounts.bank_vault,
+            &ctx.accounts.recipient,
+            &ctx.accounts.clearing_house_signer,
+            ctx.accounts.state.signer_nonce,
+            amount,
+        )?;
+
+        controller::bank_balance::update_bank_balances(
+            cast_to_u128(amount)?,
+            &BankBalanceType::Borrow,
+            bank,
+            &mut market.amm.fee_pool,
+        )?;
+
+        market.amm.total_fee_withdrawn = market
+            .amm
+            .total_fee_withdrawn
+            .checked_add(cast(amount)?)
+            .ok_or_else(math_error!())?;
+
+        Ok(())
+    }
+
+    pub fn withdraw_from_insurance_vault(
+        ctx: Context<WithdrawFromInsuranceVault>,
+        amount: u64,
+    ) -> Result<()> {
+        controller::token::send_from_program_vault(
+            &ctx.accounts.token_program,
+            &ctx.accounts.insurance_vault,
+            &ctx.accounts.recipient,
+            &ctx.accounts.clearing_house_signer,
+            ctx.accounts.state.signer_nonce,
+            amount,
+        )?;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn withdraw_from_insurance_vault_to_market(
+        ctx: Context<WithdrawFromInsuranceVaultToMarket>,
+        amount: u64,
+    ) -> Result<()> {
+        let market = &mut load_mut!(ctx.accounts.market)?;
+
+        // The admin can move fees from the insurance fund back to the protocol so that money in
+        // the insurance fund can be used to make market more optimal
+        // 100% goes to user fee pool (symmetric funding, repeg, and k adjustments)
+        market.amm.total_fee_minus_distributions = market
+            .amm
+            .total_fee_minus_distributions
+            .checked_add(cast(amount)?)
+            .ok_or_else(math_error!())?;
+
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+
+        controller::bank_balance::update_bank_balances(
+            cast_to_u128(amount)?,
+            &BankBalanceType::Deposit,
+            bank,
+            &mut market.amm.fee_pool,
+        )?;
+
+        controller::token::send_from_program_vault(
+            &ctx.accounts.token_program,
+            &ctx.accounts.insurance_vault,
+            &ctx.accounts.bank_vault,
+            &ctx.accounts.clearing_house_signer,
+            ctx.accounts.state.signer_nonce,
+            amount,
+        )?;
         Ok(())
     }
 
