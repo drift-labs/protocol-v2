@@ -319,8 +319,6 @@ export type StateAccount = {
 	exchangePaused: boolean;
 	adminControlsPrices: boolean;
 	insuranceVault: PublicKey;
-	insuranceVaultAuthority: PublicKey;
-	insuranceVaultNonce: number;
 	marginRatioInitial: BN;
 	marginRatioMaintenance: BN;
 	marginRatioPartial: BN;
@@ -342,6 +340,8 @@ export type StateAccount = {
 	numberOfMarkets: BN;
 	numberOfBanks: BN;
 	minOrderQuoteAssetAmount: BN;
+	signer: PublicKey;
+	signerNonce: number;
 	maxAuctionDuration: number;
 	minAuctionDuration: number;
 };
@@ -371,12 +371,8 @@ export type BankAccount = {
 	pubkey: PublicKey;
 	mint: PublicKey;
 	vault: PublicKey;
-	vaultAuthority: PublicKey;
-	vaultAuthorityNonce: number;
 
 	insuranceFundVault: PublicKey;
-	insuranceFundVaultAuthority: PublicKey;
-	insuranceFundVaultAuthorityNonce: number;
 	insuranceWithdrawEscrowPeriod: BN;
 	revenuePool: PoolBalance;
 
