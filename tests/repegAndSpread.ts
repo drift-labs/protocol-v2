@@ -208,6 +208,12 @@ describe('repeg and spread amm', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
+		const clearingHouseUser = new ClearingHouseUser({
+			clearingHouse,
+			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		});
+		await clearingHouseUser.subscribe();
+
 		await depositToFeePoolFromIF(0.001, clearingHouse, userUSDCAccount);
 
 		// await clearingHouse.placeAndFillOrder(orderParams);
@@ -337,6 +343,10 @@ describe('repeg and spread amm', () => {
 		const midPrice = (convertToNumber(bid) + convertToNumber(ask)) / 2;
 
 		console.log(convertToNumber(oraclePriceData.price), midPrice);
+		console.log(
+			'getBankAssetValue:',
+			clearingHouseUser.getBankAssetValue().toString()
+		);
 
 		try {
 			const txSig = await clearingHouse.updateAMMs([marketIndex]);
@@ -396,24 +406,55 @@ describe('repeg and spread amm', () => {
 		assert(bAR1.eq(market.amm.baseAssetReserve));
 
 		await clearingHouse.closePosition(new BN(0));
+		console.log(
+			'getBankAssetValue:',
+			clearingHouseUser.getBankAssetValue().toString()
+		);
+		const bankAccount0 = clearingHouse.getBankAccount(0);
+
+		const feePoolBalance0 = getTokenAmount(
+			market.amm.feePool.balance,
+			bankAccount0,
+			BankBalanceType.DEPOSIT
+		);
+
+		console.log('usdcAmount:', usdcAmount.toString());
+		console.log(
+			'getBankAssetValue:',
+			clearingHouseUser.getBankAssetValue().toString()
+		);
+		console.log('feePoolBalance0:', feePoolBalance0.toString());
+
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
 			marketIndex
 		);
 		await depositToFeePoolFromIF(157.476328, clearingHouse, userUSDCAccount);
+
 		const market1 = clearingHouse.getMarketAccount(0);
 		console.log(
 			'after fee pool deposit totalFeeMinusDistributions:',
 			market1.amm.totalFeeMinusDistributions.toString()
 		);
 
-		const clearingHouseUser = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
-		});
-		await clearingHouseUser.subscribe();
-		console.log(clearingHouseUser.getBankAssetValue().toString());
+		assert(market1.amm.totalFeeMinusDistributions.lt(ZERO));
+
+		const bankAccount = clearingHouse.getBankAccount(0);
+
+		const feePoolBalance = getTokenAmount(
+			market1.amm.feePool.balance,
+			bankAccount,
+			BankBalanceType.DEPOSIT
+		);
+
+		console.log('usdcAmount:', usdcAmount.toString());
+		console.log(
+			'getBankAssetValue:',
+			clearingHouseUser.getBankAssetValue().toString()
+		);
+		console.log('feePoolBalance:', feePoolBalance.toString());
+
 		assert(
 			clearingHouseUser.getBankAssetValue().eq(usdcAmount.add(new BN(50001000)))
 		);
@@ -627,6 +668,8 @@ describe('repeg and spread amm', () => {
 			market0.amm.totalFeeMinusDistributions,
 			QUOTE_PRECISION
 		);
+
+		console.log(allUserCollateral.toString());
 
 		assert(allUserCollateral == 60207.477328);
 		assert(pnlPoolBalance == 0);

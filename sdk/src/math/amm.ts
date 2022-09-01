@@ -345,7 +345,7 @@ export function calculateInventoryScale(
 
 	const totalLiquidity = BN.max(openBids.abs().add(openAsks.abs()), new BN(1));
 	const inventoryScale =
-		BN.max(netBaseAssetAmount.abs(), totalLiquidity)
+		BN.min(netBaseAssetAmount.abs(), totalLiquidity)
 			.mul(BID_ASK_SPREAD_PRECISION.mul(new BN(5)))
 			.div(totalLiquidity)
 			.toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
