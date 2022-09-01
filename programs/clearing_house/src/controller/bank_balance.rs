@@ -125,7 +125,8 @@ pub fn update_bank_balances(
 ) -> ClearingHouseResult {
     let increase_user_existing_balance = update_direction == bank_balance.balance_type();
     if increase_user_existing_balance {
-        let balance_delta = get_bank_balance(token_amount, bank, update_direction)?;
+        let round_up = bank_balance.balance_type() == &BankBalanceType::Borrow;
+        let balance_delta = get_bank_balance(token_amount, bank, update_direction, round_up)?;
         bank_balance.increase_balance(balance_delta)?;
         increase_bank_balance(balance_delta, bank, update_direction)?;
     } else {
@@ -137,7 +138,7 @@ pub fn update_bank_balances(
             // determine how much to reduce balance based on size of current token amount
             let (token_delta, balance_delta) = if current_token_amount > token_amount {
                 let balance_delta =
-                    get_bank_balance(token_amount, bank, bank_balance.balance_type())?;
+                    get_bank_balance(token_amount, bank, bank_balance.balance_type(), true)?;
                 (token_amount, balance_delta)
             } else {
                 (current_token_amount, bank_balance.balance())
@@ -152,7 +153,8 @@ pub fn update_bank_balances(
 
         if token_amount > 0 {
             bank_balance.update_balance_type(*update_direction)?;
-            let balance_delta = get_bank_balance(token_amount, bank, update_direction)?;
+            let round_up = update_direction == &BankBalanceType::Borrow;
+            let balance_delta = get_bank_balance(token_amount, bank, update_direction, round_up)?;
             bank_balance.increase_balance(balance_delta)?;
             increase_bank_balance(balance_delta, bank, update_direction)?;
         }
@@ -405,6 +407,11 @@ mod test {
         assert_eq!(bank.deposit_balance, QUOTE_PRECISION);
 
         // .50 * .2 = .1
+        assert_eq!(bank.deposit_token_twap, 500000);
+        assert_eq!(user.bank_balances[0].balance, 1000000);
+        assert_eq!(bank.deposit_balance, 1000000);
+        assert_eq!(bank.borrow_balance, 0);
+        assert_eq!((amount / 2), 500000);
         update_bank_balances_with_limits(
             (amount / 2) as u128,
             &BankBalanceType::Borrow,
@@ -412,11 +419,14 @@ mod test {
             &mut user.bank_balances[0],
         )
         .unwrap();
+        assert_eq!(user.bank_balances[0].balance, 499999);
         assert_eq!(bank.deposit_token_twap, 500000);
+        assert_eq!(bank.deposit_balance, 499999);
+        assert_eq!(bank.borrow_balance, 0);
 
         // .50 * .2 = .1
         update_bank_balances_with_limits(
-            (amount / 10) as u128,
+            ((amount / 10) - 2) as u128,
             &BankBalanceType::Borrow,
             &mut bank,
             &mut user.bank_balances[0],
@@ -1045,6 +1055,7 @@ mod test {
         let mut if_balance_2 = 0;
 
         // settle IF pool to 100% utilization boundary
+        // only half of depositors available claim was settled (to protect vault)
         assert_eq!(bank.revenue_pool.balance, 102149084835);
         let settle_amount = settle_revenue_to_insurance_fund(
             deposit_tokens_3 as u64,
@@ -1053,13 +1064,13 @@ mod test {
             now + 60,
         )
         .unwrap();
+        assert_eq!(settle_amount, 229742505997);
 
         if_balance_2 = if_balance_2 + settle_amount;
-        assert_eq!(if_balance_2, 459485011994);
-        assert_eq!(if_tokens_3 - (settle_amount as u128), 766877482398); // w/ update interest for settle_bank_to_if
+        assert_eq!(if_balance_2, 229742505997);
+        assert_eq!(if_tokens_3 - (settle_amount as u128), 996619988395); // w/ update interest for settle_bank_to_if
 
-        assert_eq!(settle_amount, 459485011994);
-        assert_eq!(bank.revenue_pool.balance, 63889301684);
+        assert_eq!(bank.revenue_pool.balance, 83024042298);
         assert_eq!(bank.utilization_twap, 965273);
 
         let deposit_tokens_4 =
@@ -1069,7 +1080,7 @@ mod test {
         let if_tokens_4 =
             get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Deposit).unwrap();
 
-        assert_eq!(deposit_tokens_4 - borrow_tokens_4, 4);
-        assert_eq!(if_tokens_4, 767091050279);
+        assert_eq!(deposit_tokens_4 - borrow_tokens_4, 229742505987);
+        assert_eq!(if_tokens_4, 996833556262);
     }
 }

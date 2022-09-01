@@ -263,15 +263,11 @@ describe('prepeg', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.gt(new BN(49750)));
 		assert.ok(market.amm.totalExchangeFee.eq(new BN(49999)));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
-		assert.ok(
-			JSON.stringify(orderRecord.takerOrder.direction) ===
-				JSON.stringify(PositionDirection.LONG)
-		);
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(497450500000000)));
 		assert.ok(orderRecord.quoteAssetAmountFilled.gt(new BN(49750001)));
-		assert.ok(orderRecord.takerOrder.marketIndex.eq(marketIndex));
+		assert.ok(orderRecord.marketIndex.eq(marketIndex));
 
 		// console.log(orderRecord);
 		console.log(market.amm.totalExchangeFee.toNumber());
@@ -456,12 +452,9 @@ describe('prepeg', () => {
 		assert(market.amm.longSpread.eq(new BN('25052')));
 		assert(market.amm.shortSpread.eq(new BN(1000)));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
-		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
-		assert.ok(
-			JSON.stringify(orderRecord.takerOrder.direction) ===
-				JSON.stringify(PositionDirection.LONG)
-		);
+		const orderActionRecord =
+			eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
 		// console.log(orderRecord);
 
 		await clearingHouse.fetchAccounts();
@@ -478,7 +471,7 @@ describe('prepeg', () => {
 			'baseASsetAmounts:',
 			position0.baseAssetAmount.toNumber(),
 			'vs',
-			orderRecord.takerOrder.baseAssetAmountFilled.toNumber(),
+			orderActionRecord.baseAssetAmountFilled.toNumber(),
 			'vs',
 			baseAssetAmount.toNumber()
 		);
@@ -487,11 +480,11 @@ describe('prepeg', () => {
 			position0.quoteAssetAmount.toNumber()
 		);
 
-		assert(orderRecord.takerOrder.baseAssetAmountFilled.eq(baseAssetAmount));
-		const recordEntryPrice = orderRecord.takerOrder.quoteAssetAmountFilled
+		assert(orderActionRecord.baseAssetAmountFilled.eq(baseAssetAmount));
+		const recordEntryPrice = orderActionRecord.quoteAssetAmountFilled
 			.mul(AMM_TO_QUOTE_PRECISION_RATIO)
 			.mul(MARK_PRICE_PRECISION)
-			.div(orderRecord.takerOrder.baseAssetAmountFilled.abs());
+			.div(orderActionRecord.baseAssetAmountFilled.abs());
 
 		console.log(
 			'entry sdk',
@@ -500,13 +493,14 @@ describe('prepeg', () => {
 			convertToNumber(recordEntryPrice)
 		);
 
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		console.log(
 			'record Auction:',
-			convertToNumber(orderRecord.takerOrder.auctionStartPrice),
+			convertToNumber(orderRecord.order.auctionStartPrice),
 			'->',
-			convertToNumber(orderRecord.takerOrder.auctionEndPrice),
+			convertToNumber(orderRecord.order.auctionEndPrice),
 			'record oracle:',
-			convertToNumber(orderRecord.oraclePrice)
+			convertToNumber(orderActionRecord.oraclePrice)
 		);
 
 		// assert.ok(
@@ -593,13 +587,9 @@ describe('prepeg', () => {
 
 		console.log(market.amm.netBaseAssetAmount.toString());
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
-		assert.ok(
-			JSON.stringify(orderRecord.takerOrder.direction) ===
-				JSON.stringify(PositionDirection.SHORT)
-		);
 		console.log(orderRecord.baseAssetAmountFilled.toNumber());
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(248725250000000)));
 		assert.ok(orderRecord.marketIndex.eq(new BN(0)));

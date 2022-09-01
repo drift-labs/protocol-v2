@@ -25,6 +25,8 @@ export class EventSubscriber {
 	private awaitTxResolver = new Map<string, () => void>();
 	private logProvider: LogProvider;
 	public eventEmitter: StrictEventEmitter<EventEmitter, EventSubscriberEvents>;
+	private lastSeenSlot: number;
+	public lastSeenTxSig: string;
 
 	public constructor(
 		private connection: Connection,
@@ -62,19 +64,22 @@ export class EventSubscriber {
 		}
 	}
 
-	public subscribe(): boolean {
-		if (this.logProvider.isSubscribed()) {
-			return true;
-		}
+	public async subscribe(): Promise<boolean> {
+		try {
+			if (this.logProvider.isSubscribed()) {
+				return true;
+			}
 
-		this.fetchPreviousTx().catch((e) => {
+			this.logProvider.subscribe((txSig, slot, logs) => {
+				this.handleTxLogs(txSig, slot, logs);
+			}, true);
+
+			return true;
+		} catch (e) {
 			console.error('Error fetching previous txs in event subscriber');
 			console.error(e);
-		});
-
-		return this.logProvider.subscribe((txSig, slot, logs) => {
-			this.handleTxLogs(txSig, slot, logs);
-		});
+			return false;
+		}
 	}
 
 	private handleTxLogs(
@@ -98,11 +103,14 @@ export class EventSubscriber {
 			this.awaitTxResolver.delete(txSig);
 		}
 
+		if (slot > this.lastSeenSlot) {
+			this.lastSeenTxSig = txSig;
+		}
 		this.txEventCache.add(txSig, wrappedEvents);
 	}
 
-	private async fetchPreviousTx(): Promise<void> {
-		if (!this.options.untilTx) {
+	public async fetchPreviousTx(fetchMax?: boolean): Promise<void> {
+		if (!this.options.untilTx && !fetchMax) {
 			return;
 		}
 

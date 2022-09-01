@@ -92,22 +92,15 @@ export function calculateOraclePriceForPerpMargin(
 	return marginPrice;
 }
 
-export function calculateMarginBaseAssetValue(
+export function calculateBaseAssetValueWithOracle(
 	market: MarketAccount,
 	marketPosition: UserPosition,
 	oraclePriceData: OraclePriceData
 ): BN {
-	const marginPrice = calculateOraclePriceForPerpMargin(
-		marketPosition,
-		market,
-		oraclePriceData
-	);
-	const baseAssetValue = marketPosition.baseAssetAmount
+	return marketPosition.baseAssetAmount
 		.abs()
-		.mul(marginPrice)
+		.mul(oraclePriceData.price)
 		.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
-
-	return baseAssetValue;
 }
 
 export function calculateWorstCaseBaseAssetAmount(

@@ -406,6 +406,7 @@ describe('idempotent curve', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
+		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
 		assert(
 			clearingHouse.getQuoteAssetTokenAmount().eq(expectedQuoteTokenAmount)
 		);
@@ -424,11 +425,11 @@ describe('idempotent curve', () => {
 	});
 
 	it('open and shrink unprofitable long twice', async () => {
-		await shrinkUnprofitableLong(2, new BN(7999959));
+		await shrinkUnprofitableLong(2, new BN(7999958));
 	});
 
 	it('open and shrink unprofitable long fource', async () => {
-		await shrinkUnprofitableLong(4, new BN(7999957));
+		await shrinkUnprofitableLong(4, new BN(7999956));
 	});
 
 	it('open and shrink profitable short twice', async () => {
@@ -440,10 +441,10 @@ describe('idempotent curve', () => {
 	});
 
 	it('open and shrink unprofitable short twice', async () => {
-		await shrinkUnrofitableShort(2, new BN(8666619));
+		await shrinkUnrofitableShort(2, new BN(8666618));
 	});
 
 	it('open and shrink unprofitable short fource', async () => {
-		await shrinkUnrofitableShort(4, new BN(8666618));
+		await shrinkUnrofitableShort(4, new BN(8666617));
 	});
 });
