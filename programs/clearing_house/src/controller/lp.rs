@@ -69,7 +69,7 @@ pub fn mint_lp_shares(
 pub fn settle_lp_position(
     position: &mut MarketPosition,
     market: &mut Market,
-) -> ClearingHouseResult<PositionDelta> {
+) -> ClearingHouseResult<(PositionDelta, i128)> {
     let n_shares = position.lp_shares;
     let n_shares_i128 = cast_to_i128(n_shares)?;
 
@@ -98,7 +98,7 @@ pub fn settle_lp_position(
         quote_asset_amount: lp_metrics.quote_asset_amount,
     };
 
-    update_position_and_market(position, market, &position_delta)?;
+    let pnl = update_position_and_market(position, market, &position_delta)?;
 
     // todo: name for this is confusing, but adding is correct as is
     // definition: net position of users in the market that has the LP as a counterparty (which have NOT settled)
@@ -111,7 +111,7 @@ pub fn settle_lp_position(
     crate::controller::validate::validate_market_account(market)?;
     crate::controller::validate::validate_position_account(position, market)?;
 
-    Ok(position_delta)
+    Ok((position_delta, pnl))
 }
 
 pub fn burn_lp_shares(
@@ -119,13 +119,13 @@ pub fn burn_lp_shares(
     market: &mut Market,
     shares_to_burn: u128,
     oracle_price: i128,
-) -> ClearingHouseResult<PositionDelta> {
+) -> ClearingHouseResult<(PositionDelta, i128)> {
     if shares_to_burn == 0 {
-        return Ok(PositionDelta::default());
+        return Ok((PositionDelta::default(), 0));
     }
 
     // settle
-    let position_delta = settle_lp_position(position, market)?;
+    let (position_delta, pnl) = settle_lp_position(position, market)?;
 
     // compute any dust
     let (base_asset_amount, _) = calculate_settled_lp_base_quote(&market.amm, position)?;
@@ -143,12 +143,6 @@ pub fn burn_lp_shares(
             .amm
             .net_unsettled_lp_base_asset_amount
             .checked_add(base_asset_amount)
-            .ok_or_else(math_error!())?;
-
-        market.amm.net_unsettled_lp_base_asset_amount = market
-            .amm
-            .net_unsettled_lp_base_asset_amount
-            .checked_sub(base_asset_amount)
             .ok_or_else(math_error!())?;
 
         let dust_base_asset_value =
@@ -191,7 +185,7 @@ pub fn burn_lp_shares(
     crate::controller::validate::validate_market_account(market)?;
     crate::controller::validate::validate_position_account(position, market)?;
 
-    Ok(position_delta)
+    Ok((position_delta, pnl))
 }
 
 #[cfg(test)]
@@ -319,10 +313,6 @@ mod test {
         let lp_shares = position.lp_shares;
         burn_lp_shares(&mut position, &mut market, lp_shares, 0).unwrap();
         assert_eq!(position.lp_shares, 0);
-        // assert_eq!(
-        //     _position.quote_asset_amount - 2,
-        //     position.quote_asset_amount
-        // );
     }
 
     #[test]

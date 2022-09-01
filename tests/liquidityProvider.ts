@@ -537,7 +537,7 @@ describe('liquidity providing', () => {
 		const trader = traderClearingHouse.getUserAccount();
 		console.log('trader size', trader.positions[0].baseAssetAmount.toString());
 
-		const [settledLPPosition, _, __] =
+		const [settledLPPosition, _, sdkPnl] =
 			clearingHouseUser.getSettledLPPosition(ZERO);
 
 		console.log('settling...');
@@ -552,6 +552,17 @@ describe('liquidity providing', () => {
 		}
 		user = await clearingHouseUser.getUserAccount();
 		const position = user.positions[0];
+
+		const settleLiquidityRecord: LPRecord =
+			eventSubscriber.getEventsArray('LPRecord')[0];
+
+		console.log(
+			'settl pnl vs sdk',
+			settleLiquidityRecord.pnl.toString(),
+			sdkPnl.toString()
+		);
+
+		assert(settleLiquidityRecord.pnl.toString() === sdkPnl.toString());
 
 		// gets a short on settle
 		console.log(
@@ -1044,6 +1055,79 @@ describe('liquidity providing', () => {
 		console.log('closing lp ...');
 		await adjustOraclePostSwap(baa, SwapDirection.ADD, market);
 		await fullClosePosition(clearingHouse, user.positions[0]);
+	});
+
+	it('settles lp with pnl', async () => {
+		console.log('adding liquidity...');
+
+		const market = clearingHouse.getMarketAccount(new BN(0));
+		const _sig = await clearingHouse.addLiquidity(
+			new BN(100 * 1e13),
+			market.marketIndex
+		);
+		await delay(lpCooldown + 1000);
+
+		let user = clearingHouseUser.getUserAccount();
+		console.log(user.positions[0].lpShares.toString());
+
+		// lp goes long
+		const tradeSize = new BN(5 * 1e13);
+		try {
+			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
+			const _txsig = await clearingHouse.openPosition(
+				PositionDirection.LONG,
+				tradeSize,
+				market.marketIndex,
+				new BN(100 * 1e13)
+			);
+			await _viewLogs(_txsig);
+		} catch (e) {
+			console.log(e);
+		}
+
+		// some user goes long (lp should get a short + pnl for closing long on settle)
+		console.log('user trading...');
+		try {
+			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
+			const _txsig = await traderClearingHouse.openPosition(
+				PositionDirection.LONG,
+				tradeSize,
+				market.marketIndex,
+				new BN(100 * 1e13)
+			);
+			await _viewLogs(_txsig);
+		} catch (e) {
+			console.log(e);
+		}
+
+		const trader = traderClearingHouse.getUserAccount();
+		console.log('trader size', trader.positions[0].baseAssetAmount.toString());
+
+		const [settledLPPosition, _, sdkPnl] =
+			clearingHouseUser.getSettledLPPosition(ZERO);
+
+		console.log('settling...');
+		try {
+			const _txsigg = await clearingHouse.settleLP(
+				await clearingHouse.getUserAccountPublicKey(),
+				ZERO
+			);
+			await _viewLogs(_txsigg);
+		} catch (e) {
+			console.log(e);
+		}
+		user = await clearingHouseUser.getUserAccount();
+		const position = user.positions[0];
+
+		const settleLiquidityRecord: LPRecord =
+			eventSubscriber.getEventsArray('LPRecord')[0];
+
+		console.log(
+			'settl pnl vs sdk',
+			settleLiquidityRecord.pnl.toString(),
+			sdkPnl.toString()
+		);
+		assert(settleLiquidityRecord.pnl.eq(sdkPnl));
 	});
 	return;
 

@@ -183,7 +183,9 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates the market position if the lp position was settled
-	 * @returns : userPosition
+	 * @returns : the settled userPosition
+	 * @returns : the dust base asset amount (ie, < stepsize)
+	 * @returns : pnl from settle
 	 */
 	public getSettledLPPosition(marketIndex: BN): [UserPosition, BN, BN] {
 		const _position = this.getUserPosition(marketIndex);
@@ -224,9 +226,6 @@ export class ClearingHouseUser {
 
 		const reaminderPerLP = remainderBaa.mul(AMM_RESERVE_PRECISION).div(nShares);
 
-		position.baseAssetAmount = position.baseAssetAmount.add(standardizedBaa);
-		position.quoteAssetAmount = position.quoteAssetAmount.add(deltaQaa);
-
 		position.lastNetBaseAssetAmountPerLp =
 			market.amm.marketPositionPerLp.baseAssetAmount.sub(reaminderPerLP);
 
@@ -254,7 +253,7 @@ export class ClearingHouseUser {
 					.mul(deltaBaa.abs())
 					.div(position.baseAssetAmount.abs())
 			);
-			pnl = position.quoteEntryAmount.sub(newQuoteEntry);
+			pnl = position.quoteEntryAmount.sub(newQuoteEntry).add(deltaQaa);
 		} else {
 			newQuoteEntry = deltaQaa.sub(
 				deltaQaa.mul(position.baseAssetAmount.abs()).div(deltaBaa.abs())
@@ -262,6 +261,8 @@ export class ClearingHouseUser {
 			pnl = position.quoteEntryAmount.add(deltaQaa.sub(newQuoteEntry));
 		}
 		position.quoteEntryAmount = newQuoteEntry;
+		position.baseAssetAmount = position.baseAssetAmount.add(standardizedBaa);
+		position.quoteAssetAmount = position.quoteAssetAmount.add(deltaQaa);
 
 		if (position.baseAssetAmount.gt(ZERO)) {
 			position.lastCumulativeFundingRate = market.amm.cumulativeFundingRateLong;

@@ -283,6 +283,7 @@ pub struct LPRecord {
     pub market_index: u64,
     pub delta_base_asset_amount: i128,
     pub delta_quote_asset_amount: i128,
+    pub pnl: i128,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]

@@ -5233,6 +5233,11 @@
           "name": "deltaQuoteAssetAmount",
           "type": "i128",
           "index": false
+        },
+        {
+          "name": "pnl",
+          "type": "i128",
+          "index": false
         }
       ]
     },

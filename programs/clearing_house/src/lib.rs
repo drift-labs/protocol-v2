@@ -10,10 +10,10 @@ use math::{amm, bn, constants::*, margin::*};
 use state::oracle::{get_oracle_price, OracleSource};
 
 use crate::math::amm::get_update_k_result;
+use crate::state::events::{LPAction, LPRecord};
 use crate::state::market::Market;
 use crate::state::user::MarketPosition;
 use crate::state::{market::AMM, state::*, user::*};
-use crate::state::events::{LPAction, LPRecord};
 
 pub mod context;
 pub mod controller;
@@ -822,7 +822,7 @@ pub mod clearing_house {
         let position_index = get_position_index(&user.positions, market_index)?;
         let position = &mut user.positions[position_index];
 
-        let position_delta = settle_lp_position(position, &mut market)?;
+        let (position_delta, pnl) = settle_lp_position(position, &mut market)?;
 
         emit!(LPRecord {
             ts: now,
@@ -831,7 +831,8 @@ pub mod clearing_house {
             market_index,
             delta_base_asset_amount: position_delta.base_asset_amount,
             delta_quote_asset_amount: position_delta.quote_asset_amount,
-            ..LPRecord::default()
+            pnl,
+            n_shares: 0
         });
 
         Ok(())
@@ -887,7 +888,7 @@ pub mod clearing_house {
         )?;
 
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-        let position_delta = burn_lp_shares(
+        let (position_delta, pnl) = burn_lp_shares(
             position,
             &mut market,
             shares_to_burn,
@@ -902,7 +903,7 @@ pub mod clearing_house {
             market_index,
             delta_base_asset_amount: position_delta.base_asset_amount,
             delta_quote_asset_amount: position_delta.quote_asset_amount,
-
+            pnl,
         });
 
         Ok(())

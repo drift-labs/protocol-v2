@@ -156,6 +156,7 @@ export type LPRecord = {
 	marketIndex: BN;
 	deltaBaseAssetAmount: BN;
 	deltaQuoteAssetAmount: BN;
+	pnl: BN;
 };
 
 export class LPAction {
