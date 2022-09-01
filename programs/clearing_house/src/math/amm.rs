@@ -1807,20 +1807,25 @@ mod test {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 terminal_quote_asset_reserve: 999900009999000 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                sqrt_k: 101 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50_000_000,
                 net_base_asset_amount: (AMM_RESERVE_PRECISION / 10) as i128,
                 base_asset_amount_step_size: 3,
                 user_lp_shares: AMM_RESERVE_PRECISION,
+                max_spread: 1000,
                 market_position_per_lp: MarketPosition {
                     base_asset_amount: 1,
                     quote_asset_amount: -QUOTE_PRECISION_I128,
                     ..MarketPosition::default()
                 },
-                ..AMM::default()
+                ..AMM::default_test()
             },
+            margin_ratio_initial: 1000,
+            base_asset_amount_long: (AMM_RESERVE_PRECISION / 10) as i128,
             ..Market::default()
         };
+        let (t_price, _t_qar, _t_bar) = calculate_terminal_price_and_reserves(&market).unwrap();
+        market.amm.terminal_quote_asset_reserve = _t_qar;
 
         let mut position = MarketPosition {
             lp_shares: AMM_RESERVE_PRECISION,

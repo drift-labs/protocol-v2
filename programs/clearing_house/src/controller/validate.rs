@@ -4,6 +4,7 @@ use crate::state::market::Market;
 use crate::state::user::MarketPosition;
 use crate::validate;
 use solana_program::msg;
+use crate::math_error;
 
 #[allow(clippy::comparison_chain)]
 pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
@@ -26,7 +27,9 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
     validate!(
         market.amm.base_asset_reserve >= market.amm.min_base_asset_reserve,
         ErrorCode::DefaultError,
-        "Market baa below min_base_asset_reserve"
+        "Market baa below min_base_asset_reserve: {} < {}",
+        market.amm.base_asset_reserve,
+        market.amm.min_base_asset_reserve,
     )?;
 
     validate!(
@@ -59,6 +62,34 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
         market.amm.quote_asset_reserve
     )?;
 
+    validate!(
+        market.amm.sqrt_k >= market.amm.user_lp_shares,
+        ErrorCode::DefaultError,
+        "market.amm.sqrt_k < market.amm.user_lp_shares: {} < {}", 
+        market.amm.sqrt_k, 
+        market.amm.user_lp_shares,
+    )?;
+ 
+    let invariant_sqrt_u192 = crate::bn::U192::from(market.amm.sqrt_k - market.amm.user_lp_shares);
+    let invariant = invariant_sqrt_u192
+        .checked_mul(invariant_sqrt_u192)
+        .ok_or_else(math_error!())?;
+
+    let quote_asset_reserve = invariant
+        .checked_div(crate::bn::U192::from(market.amm.base_asset_reserve))
+        .ok_or_else(math_error!())?
+        .try_to_u128()?;
+
+    validate!(
+        quote_asset_reserve == market.amm.quote_asset_reserve, 
+        ErrorCode::DefaultError,
+        "qar/bar/k out of wack: k={}, bar={}, qar={}, qar'={}",
+        invariant, 
+        market.amm.base_asset_reserve, 
+        market.amm.quote_asset_reserve, 
+        quote_asset_reserve
+    )?;
+
     if market.amm.base_spread > 0 {
         // bid quote/base < reserve q/b
         validate!(
@@ -74,6 +105,13 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
                 && market.amm.ask_quote_asset_reserve > market.amm.quote_asset_reserve,
             ErrorCode::DefaultError,
             "ask reserves out of wack"
+        )?;
+
+        validate!(
+            market.amm.long_spread > 0 
+                && market.amm.short_spread > 0, 
+            ErrorCode::DefaultError,
+            "base spread > 0 without long/short_spread > 0: {} {}", market.amm.long_spread, market.amm.short_spread
         )?;
     }
 

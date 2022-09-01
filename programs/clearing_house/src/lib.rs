@@ -823,9 +823,6 @@ pub mod clearing_house {
 
         settle_lp_position(position, &mut market)?;
 
-        controller::validate::validate_market_account(&market)?;
-        controller::validate::validate_position_account(position, &market)?;
-
         Ok(())
     }
 
@@ -885,9 +882,6 @@ pub mod clearing_house {
             shares_to_burn,
             oracle_price_data.price,
         )?;
-
-        controller::validate::validate_position_account(position, &market)?;
-        controller::validate::validate_market_account(&market)?;
 
         Ok(())
     }
@@ -966,12 +960,6 @@ pub mod clearing_house {
                 .user_lp_shares
                 .checked_add(n_shares)
                 .ok_or_else(math_error!())?;
-        }
-
-        {
-            let market = market_map.get_ref(&market_index)?;
-            controller::validate::validate_position_account(position, &market)?;
-            controller::validate::validate_market_account(&market)?;
         }
 
         // check margin requirements

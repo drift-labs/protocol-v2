@@ -57,6 +57,10 @@ pub fn settle_lp_position(
         .checked_add(lp_metrics.base_asset_amount)
         .ok_or_else(math_error!())?;
 
+    
+    crate::controller::validate::validate_market_account(&market)?;
+    crate::controller::validate::validate_position_account(position, &market)?;
+
     Ok(())
 }
 
@@ -127,6 +131,9 @@ pub fn burn_lp_shares(
     let update_k_result = get_update_k_result(market, new_sqrt_k_u192, false)?;
     update_k(market, &update_k_result)?;
 
+    crate::controller::validate::validate_market_account(&market)?;
+    crate::controller::validate::validate_position_account(position, &market)?;
+
     Ok(())
 }
 
@@ -140,7 +147,7 @@ mod test {
     #[test]
     fn test_full_long_settle() {
         let mut position = MarketPosition {
-            lp_shares: 100 * AMM_RESERVE_PRECISION,
+            lp_shares: AMM_RESERVE_PRECISION,
             ..MarketPosition::default()
         };
 
@@ -166,10 +173,10 @@ mod test {
 
         assert_eq!(position.last_net_base_asset_amount_per_lp, 10);
         assert_eq!(position.last_net_quote_asset_amount_per_lp, -10);
-        assert_eq!(position.base_asset_amount, 10 * 100);
-        assert_eq!(position.quote_asset_amount, -10 * 100);
+        assert_eq!(position.base_asset_amount, 10);
+        assert_eq!(position.quote_asset_amount, -10);
         assert_eq!(
-            og_market.amm.net_unsettled_lp_base_asset_amount + 10 * 100,
+            og_market.amm.net_unsettled_lp_base_asset_amount + 10,
             market.amm.net_unsettled_lp_base_asset_amount
         );
         // net baa doesnt change
@@ -183,7 +190,7 @@ mod test {
         burn_lp_shares(&mut position, &mut market, lp_shares, 0).unwrap();
         assert_eq!(position.lp_shares, 0);
         assert_eq!(
-            og_market.amm.sqrt_k - 100 * AMM_RESERVE_PRECISION,
+            og_market.amm.sqrt_k - AMM_RESERVE_PRECISION,
             market.amm.sqrt_k
         );
     }
@@ -195,16 +202,18 @@ mod test {
             ..MarketPosition::default()
         };
 
-        let amm = AMM {
+        let mut amm = AMM {
             market_position_per_lp: MarketPosition {
                 base_asset_amount: -10,
                 quote_asset_amount: 10,
                 ..MarketPosition::default()
             },
+            peg_multiplier: 1, 
             user_lp_shares: 100 * AMM_RESERVE_PRECISION,
             base_asset_amount_step_size: 1,
             ..AMM::default_test()
         };
+        amm.sqrt_k += amm.user_lp_shares;
 
         let mut market = Market {
             amm,
