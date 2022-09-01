@@ -13,3 +13,7 @@ watch_cargo = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c 
 [programs.localnet]
 clearing_house = "65sz7dRiWDRPZjiRxcTxPM7AE6VK4Nag9HEK6oBJXhJn"
 pyth = "gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s"
+
+[[test.genesis]]
+address = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin"
+program = "./deps/serum-dex/dex/target/deploy/serum_dex.so"
