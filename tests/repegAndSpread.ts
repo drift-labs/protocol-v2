@@ -34,6 +34,8 @@ import {
 	calculateUpdatedAMM,
 	calculateSpread,
 	calculateSpreadBN,
+	calculateInventoryScale,
+	calculateEffectiveLeverage,
 } from '../sdk/src';
 
 import {
@@ -347,6 +349,27 @@ describe('repeg and spread amm', () => {
 			'getBankAssetValue:',
 			clearingHouseUser.getBankAssetValue().toString()
 		);
+
+		const effectiveLeverage = calculateEffectiveLeverage(
+			prepegAMM.baseSpread,
+			prepegAMM.quoteAssetReserve,
+			prepegAMM.terminalQuoteAssetReserve,
+			prepegAMM.pegMultiplier,
+			prepegAMM.netBaseAssetAmount,
+			markPrice,
+			prepegAMM.totalFeeMinusDistributions
+		);
+		const inventoryScale = calculateInventoryScale(
+			prepegAMM.netBaseAssetAmount,
+			prepegAMM.baseAssetReserve,
+			prepegAMM.minBaseAssetReserve,
+			prepegAMM.maxBaseAssetReserve
+		);
+
+		console.log('inventoryScale:', inventoryScale);
+		console.log('effectiveLeverage:', effectiveLeverage);
+		assert(Math.min(effectiveLeverage, 5) == 5); // lol
+		assert(inventoryScale == 0.034835);
 
 		try {
 			const txSig = await clearingHouse.updateAMMs([marketIndex]);
