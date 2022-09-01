@@ -257,7 +257,6 @@ pub fn update_funding_rate(
             period_revenue: market.amm.net_revenue_since_last_funding,
             net_base_asset_amount: market.amm.net_base_asset_amount,
             net_unsettled_lp_base_asset_amount: market.amm.net_unsettled_lp_base_asset_amount,
-
         });
 
         market.amm.net_revenue_since_last_funding = 0;

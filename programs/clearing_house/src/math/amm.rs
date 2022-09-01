@@ -18,6 +18,7 @@ use crate::math_error;
 use crate::state::market::{Market, AMM};
 use crate::state::oracle::OraclePriceData;
 use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
+use crate::validate;
 use solana_program::msg;
 use std::cmp::{max, min};
 
@@ -123,6 +124,44 @@ pub fn _calculate_market_open_bids_asks(
     };
 
     Ok((max_bids, max_asks))
+}
+
+pub fn cap_to_max_spread(
+    mut long_spread: u128,
+    mut short_spread: u128,
+    max_spread: u128,
+) -> ClearingHouseResult<(u128, u128)> {
+    let total_spread = long_spread
+        .checked_add(short_spread)
+        .ok_or_else(math_error!())?;
+
+    if total_spread > max_spread {
+        if long_spread > short_spread {
+            long_spread = min(max_spread, long_spread);
+            short_spread = max_spread
+                .checked_sub(long_spread)
+                .ok_or_else(math_error!())?;
+        } else {
+            short_spread = min(max_spread, short_spread);
+            long_spread = max_spread
+                .checked_sub(short_spread)
+                .ok_or_else(math_error!())?;
+        }
+    }
+
+    let new_total_spread = long_spread
+        .checked_add(short_spread)
+        .ok_or_else(math_error!())?;
+
+    validate!(
+        new_total_spread <= max_spread,
+        ErrorCode::DefaultError,
+        "new_total_spread({}) > max_spread({})",
+        new_total_spread,
+        max_spread
+    )?;
+
+    Ok((long_spread, short_spread))
 }
 
 pub fn calculate_spread(
@@ -260,25 +299,8 @@ pub fn calculate_spread(
             .checked_div(BID_ASK_SPREAD_PRECISION)
             .ok_or_else(math_error!())?;
     }
-    let total_spread = long_spread
-        .checked_add(short_spread)
-        .ok_or_else(math_error!())?;
-
-    let max_spread = max_spread as u128;
-
-    if total_spread > max_spread {
-        if long_spread > short_spread {
-            long_spread = min(max_spread, long_spread);
-            short_spread = max_spread
-                .checked_sub(long_spread)
-                .ok_or_else(math_error!())?;
-        } else {
-            short_spread = min(max_spread, short_spread);
-            long_spread = max_spread
-                .checked_sub(short_spread)
-                .ok_or_else(math_error!())?;
-        }
-    }
+    let (long_spread, short_spread) =
+        cap_to_max_spread(long_spread, short_spread, cast_to_u128(max_spread)?)?;
 
     Ok((long_spread, short_spread))
 }
@@ -1409,6 +1431,37 @@ mod test {
     use crate::controller::lp::settle_lp_position;
     use crate::math::constants::{MARK_PRICE_PRECISION, QUOTE_PRECISION_I128};
     use crate::state::user::MarketPosition;
+
+    #[test]
+    fn max_spread_tests() {
+        let (l, s) = cap_to_max_spread(3905832905, 3582930, 1000).unwrap();
+        assert_eq!(l, 1000);
+        assert_eq!(s, 0);
+
+        let (l, s) = cap_to_max_spread(9999, 1, 1000).unwrap();
+        assert_eq!(l, 1000);
+        assert_eq!(s, 0);
+
+        let (l, s) = cap_to_max_spread(999, 1, 1000).unwrap();
+        assert_eq!(l, 999);
+        assert_eq!(s, 1);
+
+        let (l, s) = cap_to_max_spread(444, 222, 1000).unwrap();
+        assert_eq!(l, 444);
+        assert_eq!(s, 222);
+
+        let (l, s) = cap_to_max_spread(150, 2221, 1000).unwrap();
+        assert_eq!(l, 0);
+        assert_eq!(s, 1000);
+
+        let (l, s) = cap_to_max_spread(2500 - 10, 11, 2500).unwrap();
+        assert_eq!(l, 2490);
+        assert_eq!(s, 10);
+
+        let (l, s) = cap_to_max_spread(2510, 110, 2500).unwrap();
+        assert_eq!(l, 2500);
+        assert_eq!(s, 0);
+    }
 
     #[test]
     fn calculate_spread_tests() {

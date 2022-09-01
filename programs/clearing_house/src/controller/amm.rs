@@ -504,7 +504,6 @@ pub fn update_pool_balances(
                 .checked_add(revenue_pool_transfer.unsigned_abs())
                 .ok_or_else(math_error!())?;
         }
-
     }
 
     // market pnl pool pays (what it can to) user_unsettled_pnl and pnl_to_settle_to_amm
