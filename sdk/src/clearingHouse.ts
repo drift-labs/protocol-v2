@@ -40,6 +40,7 @@ import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
 	getClearingHouseStateAccountPublicKey,
+	getInsuranceFundStakeAccountPublicKey,
 	getMarketPublicKey,
 	getUserAccountPublicKey,
 	getUserAccountPublicKeySync,
@@ -224,11 +225,13 @@ export class ClearingHouse {
 	 *	Forces the accountSubscriber to fetch account updates from rpc
 	 */
 	public async fetchAccounts(): Promise<void> {
-		await Promise.all(
-			[...this.users.values()]
-				.map((user) => user.fetchAccounts())
-				.concat(this.accountSubscriber.fetch())
-		);
+		const promises = [...this.users.values()]
+			.map((user) => user.fetchAccounts())
+			.concat(this.accountSubscriber.fetch());
+		if (this.userStats) {
+			promises.concat(this.userStats.fetchAccounts());
+		}
+		await Promise.all(promises);
 	}
 
 	public async unsubscribe(): Promise<void> {
@@ -1764,7 +1767,9 @@ export class ClearingHouse {
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccounts({
+		// todo merge this with getRemainingAccounts
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
+			counterPartyUserAccount: takerInfo.takerUserAccount,
 			writableMarketIndex: orderParams.marketIndex,
 		});
 
@@ -1985,9 +1990,9 @@ export class ClearingHouse {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForLiquidation({
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			writableMarketIndex: marketIndex,
-			userAccount,
+			counterPartyUserAccount: userAccount,
 		});
 
 		return await this.program.instruction.liquidatePerp(
@@ -2039,8 +2044,8 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForLiquidation({
-			userAccount,
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
+			counterPartyUserAccount: userAccount,
 			writableBankIndexes: [liabilityBankIndex, assetBankIndex],
 		});
 
@@ -2092,8 +2097,8 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForLiquidation({
-			userAccount,
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
+			counterPartyUserAccount: userAccount,
 			writableMarketIndex: perpMarketIndex,
 			writableBankIndexes: [liabilityBankIndex],
 		});
@@ -2146,8 +2151,8 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForLiquidation({
-			userAccount,
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
+			counterPartyUserAccount: userAccount,
 			writableMarketIndex: perpMarketIndex,
 			writableBankIndexes: [assetBankIndex],
 		});
@@ -2171,6 +2176,7 @@ export class ClearingHouse {
 	public async resolvePerpBankruptcy(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
+		bankIndex: BN,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
@@ -2178,6 +2184,7 @@ export class ClearingHouse {
 				await this.getResolvePerpBankruptcyIx(
 					userAccountPublicKey,
 					userAccount,
+					bankIndex,
 					marketIndex
 				)
 			),
@@ -2190,24 +2197,36 @@ export class ClearingHouse {
 	public async getResolvePerpBankruptcyIx(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
+		bankIndex: BN,
 		marketIndex: BN
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForLiquidation({
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			writableMarketIndex: marketIndex,
-			userAccount,
+			writableBankIndexes: [bankIndex],
+			counterPartyUserAccount: userAccount,
 		});
 
-		return await this.program.instruction.resolvePerpBankruptcy(marketIndex, {
-			accounts: {
-				state: await this.getStatePublicKey(),
-				authority: this.wallet.publicKey,
-				user: userAccountPublicKey,
-				liquidator: liquidatorPublicKey,
-			},
-			remainingAccounts: remainingAccounts,
-		});
+		const bank = this.getBankAccount(bankIndex);
+
+		return await this.program.instruction.resolvePerpBankruptcy(
+			bankIndex,
+			marketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					authority: this.wallet.publicKey,
+					user: userAccountPublicKey,
+					liquidator: liquidatorPublicKey,
+					bankVault: bank.vault,
+					insuranceFundVault: bank.insuranceFundVault,
+					insuranceFundVaultAuthority: bank.insuranceFundVaultAuthority,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+				remainingAccounts: remainingAccounts,
+			}
+		);
 	}
 
 	public async resolveBorrowBankruptcy(
@@ -2236,10 +2255,12 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
-		const remainingAccounts = this.getRemainingAccountsForLiquidation({
+		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			writableBankIndexes: [bankIndex],
-			userAccount,
+			counterPartyUserAccount: userAccount,
 		});
+
+		const bank = this.getBankAccount(bankIndex);
 
 		return await this.program.instruction.resolveBorrowBankruptcy(bankIndex, {
 			accounts: {
@@ -2247,22 +2268,26 @@ export class ClearingHouse {
 				authority: this.wallet.publicKey,
 				user: userAccountPublicKey,
 				liquidator: liquidatorPublicKey,
+				bankVault: bank.vault,
+				insuranceFundVault: bank.insuranceFundVault,
+				insuranceFundVaultAuthority: bank.insuranceFundVaultAuthority,
+				tokenProgram: TOKEN_PROGRAM_ID,
 			},
 			remainingAccounts: remainingAccounts,
 		});
 	}
 
-	getRemainingAccountsForLiquidation(params: {
-		userAccount: UserAccount;
+	getRemainingAccountsWithCounterparty(params: {
+		counterPartyUserAccount: UserAccount;
 		writableMarketIndex?: BN;
 		writableBankIndexes?: BN[];
 	}): AccountMeta[] {
-		const liquidateeUserAccount = params.userAccount;
+		const counterPartyUserAccount = params.counterPartyUserAccount;
 
 		const oracleAccountMap = new Map<string, AccountMeta>();
 		const bankAccountMap = new Map<number, AccountMeta>();
 		const marketAccountMap = new Map<number, AccountMeta>();
-		for (const bankBalance of liquidateeUserAccount.bankBalances) {
+		for (const bankBalance of counterPartyUserAccount.bankBalances) {
 			if (!bankBalance.balance.eq(ZERO)) {
 				const bankAccount = this.getBankAccount(bankBalance.bankIndex);
 				bankAccountMap.set(bankBalance.bankIndex.toNumber(), {
@@ -2280,7 +2305,7 @@ export class ClearingHouse {
 				}
 			}
 		}
-		for (const position of liquidateeUserAccount.positions) {
+		for (const position of counterPartyUserAccount.positions) {
 			if (!positionIsAvailable(position)) {
 				const market = this.getMarketAccount(position.marketIndex);
 				marketAccountMap.set(position.marketIndex.toNumber(), {
@@ -2475,5 +2500,192 @@ export class ClearingHouse {
 		const oracleData = this.getOraclePriceDataAndSlot(oracleKey).data;
 
 		return oracleData;
+	}
+
+	public async initializeInsuranceFundStake(
+		bankIndex: BN
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(await this.getInitializeInsuranceFundStakeIx(bankIndex)),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getInitializeInsuranceFundStakeIx(
+		bankIndex: BN
+	): Promise<TransactionInstruction> {
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			bankIndex
+		);
+
+		return await this.program.instruction.initializeInsuranceFundStake(
+			bankIndex,
+			{
+				accounts: {
+					insuranceFundStake: ifStakeAccountPublicKey,
+					bank: this.getBankAccount(bankIndex).pubkey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+					payer: this.wallet.publicKey,
+					rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
+	public async addInsuranceFundStake(
+		bankIndex: BN,
+		amount: BN,
+		collateralAccountPublicKey: PublicKey
+	): Promise<TransactionSignature> {
+		const bank = this.getBankAccount(bankIndex);
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			bankIndex
+		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: bankIndex,
+		});
+
+		return await this.program.rpc.addInsuranceFundStake(bankIndex, amount, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				bank: bank.pubkey,
+				insuranceFundStake: ifStakeAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+				insuranceFundVault: bank.insuranceFundVault,
+				userTokenAccount: collateralAccountPublicKey,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async requestRemoveInsuranceFundStake(
+		bankIndex: BN,
+		amount: BN
+	): Promise<TransactionSignature> {
+		const bank = this.getBankAccount(bankIndex);
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			bankIndex
+		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: bankIndex,
+		});
+
+		return await this.program.rpc.requestRemoveInsuranceFundStake(
+			bankIndex,
+			amount,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					bank: bank.pubkey,
+					insuranceFundStake: ifStakeAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+					insuranceFundVault: bank.insuranceFundVault,
+					// userTokenAccount: collateralAccountPublicKey,
+					// tokenProgram: TOKEN_PROGRAM_ID,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
+	public async cancelRequestRemoveInsuranceFundStake(
+		bankIndex: BN
+	): Promise<TransactionSignature> {
+		const bank = this.getBankAccount(bankIndex);
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			bankIndex
+		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: bankIndex,
+		});
+
+		return await this.program.rpc.cancelRequestRemoveInsuranceFundStake(
+			bankIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					bank: bank.pubkey,
+					insuranceFundStake: ifStakeAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+					insuranceFundVault: bank.insuranceFundVault,
+					// userTokenAccount: collateralAccountPublicKey,
+					// tokenProgram: TOKEN_PROGRAM_ID,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
+	public async removeInsuranceFundStake(
+		bankIndex: BN,
+		collateralAccountPublicKey: PublicKey
+	): Promise<TransactionSignature> {
+		const bank = this.getBankAccount(bankIndex);
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			bankIndex
+		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: bankIndex,
+		});
+
+		return await this.program.rpc.removeInsuranceFundStake(bankIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				bank: bank.pubkey,
+				insuranceFundStake: ifStakeAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+				insuranceFundVault: bank.insuranceFundVault,
+				insuranceFundVaultAuthority: bank.insuranceFundVaultAuthority,
+				userTokenAccount: collateralAccountPublicKey,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async settleRevenueToInsuranceFund(
+		bankIndex: BN
+	): Promise<TransactionSignature> {
+		const bank = this.getBankAccount(bankIndex);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			writableBankIndex: bankIndex,
+		});
+
+		return await this.program.rpc.settleRevenueToInsuranceFund(bankIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				bank: bank.pubkey,
+				bankVault: bank.vault,
+				bankVaultAuthority: bank.vaultAuthority,
+				insuranceFundVault: bank.insuranceFundVault,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+			remainingAccounts,
+		});
 	}
 }

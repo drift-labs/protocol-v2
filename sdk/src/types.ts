@@ -63,9 +63,6 @@ export class OrderAction {
 
 export class OrderActionExplanation {
 	static readonly NONE = { none: {} };
-	static readonly BREACHED_MARGIN_REQUIREMENT = {
-		breachedMarginRequirement: {},
-	};
 	static readonly ORACLE_PRICE_BREACHED_LIMIT_PRICE = {
 		oraclePriceBreachedLimitPrice: {},
 	};
@@ -161,10 +158,15 @@ export type FundingRateRecord = {
 	recordId: BN;
 	marketIndex: BN;
 	fundingRate: BN;
+	fundingRateLong: BN;
+	fundingRateShort: BN;
 	cumulativeFundingRateLong: BN;
 	cumulativeFundingRateShort: BN;
 	oraclePriceTwap: BN;
 	markPriceTwap: BN;
+	periodRevenue: BN;
+	netBaseAssetAmount: BN;
+	netUnsettledLpBaseAssetAmount: BN;
 };
 
 export type FundingPaymentRecord = {
@@ -279,27 +281,41 @@ export type SettlePnlRecord = {
 
 export type OrderRecord = {
 	ts: BN;
-	taker: PublicKey;
-	maker: PublicKey;
-	takerOrder: Order;
-	makerOrder: Order;
-	takerPnl: BN;
-	makerPnl: BN;
+	user: PublicKey;
+	order: Order;
+};
+
+export type OrderActionRecord = {
+	ts: BN;
 	action: OrderAction;
 	actionExplanation: OrderActionExplanation;
-	filler: PublicKey;
-	fillRecordId: BN;
 	marketIndex: BN;
-	baseAssetAmountFilled: BN;
-	quoteAssetAmountFilled: BN;
-	makerRebate: BN;
-	takerFee: BN;
-	fillerReward: BN;
-	quoteAssetAmountSurplus: BN;
+	filler: PublicKey | null;
+	fillerReward: BN | null;
+	fillRecordId: BN | null;
+	referrer: PublicKey | null;
+	baseAssetAmountFilled: BN | null;
+	quoteAssetAmountFilled: BN | null;
+	takerPnl: BN | null;
+	makerPnl: BN | null;
+	takerFee: BN | null;
+	makerRebate: BN | null;
+	referrerReward: BN | null;
+	refereeDiscount: BN | null;
+	quoteAssetAmountSurplus: BN | null;
+	taker: PublicKey | null;
+	takerOrderId: BN | null;
+	takerOrderBaseAssetAmount: BN | null;
+	takerOrderBaseAssetAmountFilled: BN | null;
+	takerOrderQuoteAssetAmountFilled: BN | null;
+	takerOrderFee: BN | null;
+	maker: PublicKey | null;
+	makerOrderId: BN | null;
+	makerOrderBaseAssetAmount: BN | null;
+	makerOrderBaseAssetAmountFilled: BN | null;
+	makerOrderQuoteAssetAmountFilled: BN | null;
+	makerOrderFee: BN | null;
 	oraclePrice: BN;
-	referrer: PublicKey;
-	referrerReward: BN;
-	refereeDiscount: BN;
 };
 
 export type StateAccount = {
@@ -331,6 +347,8 @@ export type StateAccount = {
 	numberOfMarkets: BN;
 	numberOfBanks: BN;
 	minOrderQuoteAssetAmount: BN;
+	maxAuctionDuration: number;
+	minAuctionDuration: number;
 };
 
 export type MarketAccount = {
@@ -360,6 +378,20 @@ export type BankAccount = {
 	vault: PublicKey;
 	vaultAuthority: PublicKey;
 	vaultAuthorityNonce: number;
+
+	insuranceFundVault: PublicKey;
+	insuranceFundVaultAuthority: PublicKey;
+	insuranceFundVaultAuthorityNonce: number;
+	insuranceWithdrawEscrowPeriod: BN;
+	revenuePool: PoolBalance;
+
+	totalIfShares: BN;
+	userIfShares: BN;
+
+	userIfFactor: BN;
+	totalIfFactor: BN;
+	liquidationIfFactor: BN;
+
 	decimals: number;
 	optimalUtilization: BN;
 	optimalBorrowRate: BN;
@@ -419,6 +451,7 @@ export type AMM = {
 	cumulativeFeePerLp: BN;
 	cumulativeNetBaseAssetAmountPerLp: BN;
 	userLpShares: BN;
+	netUnsettledLpBaseAssetAmount: BN;
 	minimumQuoteAssetTradeSize: BN;
 	baseAssetAmountStepSize: BN;
 	maxBaseAssetAmountRatio: number;
@@ -442,6 +475,7 @@ export type AMM = {
 	maxSpread: number;
 	marketPosition: UserPosition;
 	marketPositionPerLp: UserPosition;
+	ammJitIntensity: number;
 	maxBaseAssetReserve: BN;
 	minBaseAssetReserve: BN;
 };
@@ -481,6 +515,7 @@ export type UserStatsAccount = {
 	isReferrer: boolean;
 	totalReferrerReward: BN;
 	authority: PublicKey;
+	quoteAssetInsuranceFundStake: BN;
 };
 
 export type UserAccount = {
@@ -588,6 +623,7 @@ export type MakerInfo = {
 export type TakerInfo = {
 	taker: PublicKey;
 	takerStats: PublicKey;
+	takerUserAccount: UserAccount;
 	order: Order;
 };
 
@@ -660,3 +696,15 @@ export type OrderFillerRewardStructure = {
 };
 
 export type MarginCategory = 'Initial' | 'Maintenance';
+
+export type InsuranceFundStake = {
+	bankIndex: BN;
+	authority: PublicKey;
+
+	ifShares: BN;
+	ifBase: BN;
+
+	lastWithdrawRequestShares: BN;
+	lastWithdrawRequestValue: BN;
+	lastWithdrawRequestTs: BN;
+};

@@ -269,9 +269,21 @@ describe('liquidity providing', () => {
 
 	it('burn with standardized baa', async () => {
 		console.log('adding liquidity...');
+		const initMarginReq = clearingHouseUser.getInitialMarginRequirement();
+		assert(initMarginReq.eq(ZERO));
+
 		let market = clearingHouse.getMarketAccount(new BN(0));
 		const lpAmount = new BN(100 * 1e13); // 100 / (100 + 300) = 1/4
 		const _sig = await clearingHouse.addLiquidity(lpAmount, market.marketIndex);
+
+		const newInitMarginReq = clearingHouseUser.getInitialMarginRequirement();
+		console.log(initMarginReq.toString(), '->', newInitMarginReq.toString());
+		assert(newInitMarginReq.eq(new BN(8284000)));
+
+		// ensure margin calcs didnt modify user position
+		const _position = clearingHouseUser.getUserPosition(ZERO);
+		assert(_position.openAsks.eq(ZERO));
+		assert(_position.openBids.eq(ZERO));
 
 		const stepSize = new BN(1 * 1e13);
 		await clearingHouse.updateMarketBaseAssetAmountStepSize(ZERO, stepSize);
@@ -280,10 +292,14 @@ describe('liquidity providing', () => {
 		console.log('lpUser lpShares:', user.positions[0].lpShares.toString());
 		console.log('lpUser baa:', user.positions[0].baseAssetAmount.toString());
 
+		assert(user.positions[0].lpShares.eq(new BN('1000000000000000')));
+		assert(user.positions[0].baseAssetAmount.eq(ZERO));
 		// some user goes long (lp should get a short)
 		console.log('user trading...');
 
 		market = clearingHouse.getMarketAccount(new BN(0));
+		assert(market.amm.sqrtK.eq(new BN('4000000000000000')));
+
 		const tradeSize = new BN(5 * 1e13);
 
 		const [newQaa, _newBaa] = calculateAmmReservesAfterSwap(
@@ -323,6 +339,8 @@ describe('liquidity providing', () => {
 			position.quoteAssetAmount.toString()
 		);
 
+		assert(position.baseAssetAmount.eq(new BN('-50000000000000')));
+
 		await clearingHouse.fetchAccounts();
 		const marketNetBaa =
 			clearingHouse.getMarketAccount(ZERO).amm.netBaseAssetAmount;
@@ -341,6 +359,13 @@ describe('liquidity providing', () => {
 				.getMarketAccount(ZERO)
 				.amm.netBaseAssetAmount.eq(marketNetBaa)
 		);
+
+		const marketAfter = clearingHouse.getMarketAccount(ZERO);
+		assert(
+			marketAfter.amm.netUnsettledLpBaseAssetAmount.eq(new BN('-2500000000000'))
+		);
+		assert(marketAfter.amm.netBaseAssetAmount.eq(new BN('-37500000000000')));
+
 		user = clearingHouseUser.getUserAccount();
 		const lpPosition = user.positions[0];
 
@@ -391,8 +416,11 @@ describe('liquidity providing', () => {
 		);
 		// await _viewLogs(_sigg);
 
+		console.log('traderUserAccount fully closed');
+
 		const traderUserAccount2 =
 			traderClearingHouse.getUserAccount().positions[0];
+
 		console.log(
 			traderUserAccount2.lpShares.toString(),
 			traderUserAccount2.baseAssetAmount.toString(),
@@ -464,7 +492,8 @@ describe('liquidity providing', () => {
 		const trader = traderClearingHouse.getUserAccount();
 		console.log('trader size', trader.positions[0].baseAssetAmount.toString());
 
-		const [settledLPPosition, _] = clearingHouseUser.getSettledLPPosition(ZERO);
+		const [settledLPPosition, _, __] =
+			clearingHouseUser.getSettledLPPosition(ZERO);
 
 		console.log('settling...');
 		try {
@@ -1187,7 +1216,7 @@ describe('liquidity providing', () => {
 			new BN(0)
 		);
 
-		const [settledPosition, result] = clearingHouseUser.getSettledLPPosition(
+		const [settledPosition, result, _] = clearingHouseUser.getSettledLPPosition(
 			new BN(0)
 		);
 

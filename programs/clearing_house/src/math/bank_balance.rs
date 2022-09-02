@@ -7,11 +7,13 @@ use crate::math_error;
 use crate::state::bank::{Bank, BankBalanceType};
 use crate::state::oracle::OraclePriceData;
 use crate::state::user::UserBankBalance;
+use crate::validate;
 
 pub fn get_bank_balance(
     token_amount: u128,
     bank: &Bank,
     balance_type: &BankBalanceType,
+    round_up: bool,
 ) -> ClearingHouseResult<u128> {
     let precision_increase = 10_u128.pow(
         16_u8
@@ -31,7 +33,7 @@ pub fn get_bank_balance(
         .checked_div(cumulative_interest)
         .ok_or_else(math_error!())?;
 
-    if balance != 0 && balance_type == &BankBalanceType::Borrow {
+    if round_up && balance != 0 {
         balance = balance.checked_add(1).ok_or_else(math_error!())?;
     }
 
@@ -74,21 +76,36 @@ pub fn get_signed_token_amount(
     }
 }
 
+pub fn get_interest_token_amount(
+    balance: u128,
+    bank: &Bank,
+    interest: u128,
+) -> ClearingHouseResult<u128> {
+    let precision_decrease = 10_u128.pow(
+        16_u8
+            .checked_sub(bank.decimals)
+            .ok_or_else(math_error!())?
+            .into(),
+    );
+
+    let token_amount = balance
+        .checked_mul(interest)
+        .ok_or_else(math_error!())?
+        .checked_div(precision_decrease)
+        .ok_or_else(math_error!())?;
+
+    Ok(token_amount)
+}
+
 pub struct InterestAccumulated {
     pub borrow_interest: u128,
     pub deposit_interest: u128,
-    pub utilization: u128,
 }
 
-pub fn calculate_accumulated_interest(
-    bank: &Bank,
-    now: i64,
-) -> ClearingHouseResult<InterestAccumulated> {
-    let deposit_token_amount =
-        get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)?;
-    let borrow_token_amount =
-        get_token_amount(bank.borrow_balance, bank, &BankBalanceType::Borrow)?;
-
+pub fn calculate_utilization(
+    deposit_token_amount: u128,
+    borrow_token_amount: u128,
+) -> ClearingHouseResult<u128> {
     let utilization = borrow_token_amount
         .checked_mul(BANK_UTILIZATION_PRECISION)
         .ok_or_else(math_error!())?
@@ -103,11 +120,24 @@ pub fn calculate_accumulated_interest(
         })
         .unwrap();
 
+    Ok(utilization)
+}
+
+pub fn calculate_accumulated_interest(
+    bank: &Bank,
+    now: i64,
+) -> ClearingHouseResult<InterestAccumulated> {
+    let deposit_token_amount =
+        get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)?;
+    let borrow_token_amount =
+        get_token_amount(bank.borrow_balance, bank, &BankBalanceType::Borrow)?;
+
+    let utilization = calculate_utilization(deposit_token_amount, borrow_token_amount)?;
+
     if utilization == 0 {
         return Ok(InterestAccumulated {
             borrow_interest: 0,
             deposit_interest: 0,
-            utilization: 0,
         });
     }
 
@@ -193,7 +223,6 @@ pub fn calculate_accumulated_interest(
     Ok(InterestAccumulated {
         borrow_interest,
         deposit_interest,
-        utilization,
     })
 }
 
@@ -286,4 +315,62 @@ pub fn check_withdraw_limits(bank: &Bank) -> ClearingHouseResult<bool> {
     }
 
     Ok(valid_withdrawal)
+}
+
+pub fn validate_bank_balances(bank: &Bank) -> ClearingHouseResult<u64> {
+    let depositors_amount: u64 = cast(get_token_amount(
+        bank.deposit_balance,
+        bank,
+        &BankBalanceType::Deposit,
+    )?)?;
+    let borrowers_amount: u64 = cast(get_token_amount(
+        bank.borrow_balance,
+        bank,
+        &BankBalanceType::Borrow,
+    )?)?;
+
+    msg!("depositors_amount={}", depositors_amount);
+    msg!("borrowers_amount={}", borrowers_amount);
+
+    validate!(
+        depositors_amount >= borrowers_amount,
+        ErrorCode::DefaultError,
+        "depositors_amount={} less than borrowers_amount={}",
+        depositors_amount,
+        borrowers_amount
+    )?;
+
+    let revenue_amount: u64 = cast(get_token_amount(
+        bank.revenue_pool.balance,
+        bank,
+        &BankBalanceType::Deposit,
+    )?)?;
+
+    let depositors_claim = depositors_amount - borrowers_amount;
+
+    validate!(
+        revenue_amount <= depositors_amount,
+        ErrorCode::DefaultError,
+        "revenue_amount={} greater or equal to the depositors_amount={} (depositors_claim={}, bank.deposit_balance={})",
+        revenue_amount,
+        depositors_amount,
+        depositors_claim,
+        bank.deposit_balance
+    )?;
+
+    Ok(depositors_claim)
+}
+
+pub fn validate_bank_amounts(bank: &Bank, bank_vault_amount: u64) -> ClearingHouseResult<u64> {
+    let depositors_claim = validate_bank_balances(bank)?;
+
+    validate!(
+        bank_vault_amount >= depositors_claim,
+        ErrorCode::DefaultError,
+        "bank vault ={} holds less than remaining depositor claims = {}",
+        bank_vault_amount,
+        depositors_claim
+    )?;
+
+    Ok(depositors_claim)
 }

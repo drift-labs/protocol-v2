@@ -92,11 +92,11 @@ pub fn limit_price_satisfied(
 
 pub fn calculate_quote_asset_amount_for_maker_order(
     base_asset_amount: u128,
-    limit_price: u128,
+    fill_price: u128,
     swap_direction: SwapDirection,
 ) -> ClearingHouseResult<u128> {
     let mut quote_asset_amount = base_asset_amount
-        .checked_mul(limit_price)
+        .checked_mul(fill_price)
         .ok_or_else(math_error!())?
         .div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO);
 
@@ -362,6 +362,32 @@ pub fn calculate_max_fill_for_spot_order(
     )?;
 
     Ok(base_asset_amount_unfilled.min(base_asset_amount_to_consume_free_collateral))
+}
+
+pub fn is_order_risk_decreasing(
+    order_direction: &PositionDirection,
+    order_base_asset_amount: u128,
+    position_base_asset_amount: i128,
+) -> ClearingHouseResult<bool> {
+    Ok(match order_direction {
+        // User is short and order is long
+        PositionDirection::Long if position_base_asset_amount < 0 => {
+            order_base_asset_amount
+                < position_base_asset_amount
+                    .unsigned_abs()
+                    .checked_mul(2)
+                    .ok_or_else(math_error!())?
+        }
+        // User is long and order is short
+        PositionDirection::Short if position_base_asset_amount > 0 => {
+            order_base_asset_amount
+                < position_base_asset_amount
+                    .unsigned_abs()
+                    .checked_mul(2)
+                    .ok_or_else(math_error!())?
+        }
+        _ => false,
+    })
 }
 
 #[cfg(test)]
@@ -771,6 +797,115 @@ mod test {
             .unwrap();
 
             assert_eq!(max_fill, 5000000000);
+        }
+    }
+
+    mod is_order_risk_increase {
+        use crate::controller::position::PositionDirection;
+        use crate::math::constants::{BASE_PRECISION, BASE_PRECISION_I128};
+        use crate::math::orders::is_order_risk_decreasing;
+
+        #[test]
+        fn no_position() {
+            let order_direction = PositionDirection::Long;
+            let order_base_asset_amount = BASE_PRECISION;
+            let existing_position = 0;
+
+            let risk_decreasing = is_order_risk_decreasing(
+                &order_direction,
+                order_base_asset_amount,
+                existing_position,
+            )
+            .unwrap();
+
+            assert!(!risk_decreasing);
+
+            let order_direction = PositionDirection::Short;
+            let risk_decreasing = is_order_risk_decreasing(
+                &order_direction,
+                order_base_asset_amount,
+                existing_position,
+            )
+            .unwrap();
+
+            assert!(!risk_decreasing);
+        }
+
+        #[test]
+        fn bid() {
+            // user long and bid
+            let order_direction = PositionDirection::Long;
+            let order_base_asset_amount = BASE_PRECISION;
+            let existing_position = BASE_PRECISION_I128;
+            let risk_decreasing = is_order_risk_decreasing(
+                &order_direction,
+                order_base_asset_amount,
+                existing_position,
+            )
+            .unwrap();
+
+            assert!(!risk_decreasing);
+
+            // user short and bid < 2 * position
+            let existing_position = -BASE_PRECISION_I128;
+            let risk_decreasing = is_order_risk_decreasing(
+                &order_direction,
+                order_base_asset_amount,
+                existing_position,
+            )
+            .unwrap();
+
+            assert!(risk_decreasing);
+
+            // user short and bid = 2 * position
+            let existing_position = -BASE_PRECISION_I128 / 2;
+            let risk_decreasing = is_order_risk_decreasing(
+                &order_direction,
+                order_base_asset_amount,
+                existing_position,
+            )
+            .unwrap();
+
+            assert!(!risk_decreasing);
+        }
+
+        #[test]
+        fn ask() {
+            // user short and ask
+            let order_direction = PositionDirection::Short;
+            let order_base_asset_amount = BASE_PRECISION;
+            let existing_position = -BASE_PRECISION_I128;
+
+            let risk_decreasing = is_order_risk_decreasing(
+                &order_direction,
+                order_base_asset_amount,
+                existing_position,
+            )
+            .unwrap();
+
+            assert!(!risk_decreasing);
+
+            // user long and ask < 2 * position
+            let existing_position = BASE_PRECISION_I128;
+            let risk_decreasing = is_order_risk_decreasing(
+                &order_direction,
+                order_base_asset_amount,
+                existing_position,
+            )
+            .unwrap();
+
+            assert!(risk_decreasing);
+
+            // user long and ask = 2 * position
+            let existing_position = BASE_PRECISION_I128 / 2;
+            let risk_decreasing = is_order_risk_decreasing(
+                &order_direction,
+                order_base_asset_amount,
+                existing_position,
+            )
+            .unwrap();
+
+            assert!(!risk_decreasing);
         }
     }
 }

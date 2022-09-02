@@ -236,12 +236,9 @@ pub fn calculate_perp_position_value_and_pnl(
         *market_position
     };
 
-    let oracle_price_for_upnl =
-        calculate_oracle_price_for_perp_margin(&market_position, market, oracle_price_data)?;
-
     let (_, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
         &market_position,
-        oracle_price_for_upnl,
+        oracle_price_data.price,
     )?;
 
     let total_unrealized_pnl = unrealized_funding
@@ -502,4 +499,496 @@ pub fn calculate_free_collateral(
     total_collateral
         .checked_sub(cast_to_i128(margin_requirement)?)
         .ok_or_else(math_error!())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::amm::calculate_swap_output;
+    use crate::controller::amm::SwapDirection;
+    use crate::math::collateral::calculate_updated_collateral;
+    use crate::math::constants::{
+        AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_IMF_PRECISION,
+        MARK_PRICE_PRECISION, QUOTE_PRECISION,
+    };
+    use crate::math::position::calculate_position_pnl;
+    use crate::state::bank::Bank;
+    use crate::state::market::{Market, AMM};
+
+    #[test]
+    fn bank_asset_weight() {
+        let mut bank = Bank {
+            initial_asset_weight: 90,
+            initial_liability_weight: 110,
+            decimals: 6,
+            imf_factor: 0,
+            ..Bank::default()
+        };
+
+        let size = 1000 * QUOTE_PRECISION;
+        let asset_weight = bank
+            .get_asset_weight(size, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(asset_weight, 90);
+
+        let lib_weight = bank
+            .get_liability_weight(size, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(lib_weight, 110);
+
+        bank.imf_factor = 10;
+        let asset_weight = bank
+            .get_asset_weight(size, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(asset_weight, 90);
+
+        let lib_weight = bank
+            .get_liability_weight(size, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(lib_weight, 110);
+
+        let same_asset_weight_diff_imf_factor = 83;
+        let asset_weight = bank
+            .get_asset_weight(size * 1_000_000, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(asset_weight, same_asset_weight_diff_imf_factor);
+
+        bank.imf_factor = 10000;
+        let asset_weight = bank
+            .get_asset_weight(size, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(asset_weight, same_asset_weight_diff_imf_factor);
+
+        let lib_weight = bank
+            .get_liability_weight(size, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(lib_weight, 140);
+
+        bank.imf_factor = BANK_IMF_PRECISION / 10;
+        let asset_weight = bank
+            .get_asset_weight(size, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(asset_weight, 26);
+
+        let lib_weight = bank
+            .get_liability_weight(size, &MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(lib_weight, 415);
+    }
+
+    #[test]
+    fn negative_margin_user_test() {
+        let bank = Bank {
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            ..Bank::default()
+        };
+
+        let user_bank_balance = UserBankBalance {
+            balance_type: BankBalanceType::Deposit,
+            balance: MARK_PRICE_PRECISION,
+            ..UserBankBalance::default()
+        };
+
+        let mut user = User { ..User::default() };
+
+        let market_position = MarketPosition {
+            market_index: 0,
+            quote_asset_amount: -(2 * QUOTE_PRECISION as i128),
+            ..MarketPosition::default()
+        };
+
+        user.bank_balances[0] = user_bank_balance;
+        user.positions[0] = market_position;
+
+        let market = Market {
+            market_index: 0,
+            amm: AMM {
+                base_asset_reserve: 5122950819670000,
+                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 22_100_000,
+                net_base_asset_amount: -(122950819670000_i128),
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            imf_factor: 1000, // 1_000/1_000_000 = .001
+            unrealized_initial_asset_weight: 100,
+            unrealized_maintenance_asset_weight: 100,
+            ..Market::default()
+        };
+
+        // btc
+        let oracle_price_data = OraclePriceData {
+            price: (22050 * MARK_PRICE_PRECISION) as i128,
+            confidence: 0,
+            delay: 2,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let (_, unrealized_pnl) = calculate_perp_position_value_and_pnl(
+            &market_position,
+            &market,
+            &oracle_price_data,
+            MarginRequirementType::Initial,
+        )
+        .unwrap();
+
+        let quote_asset_oracle_price_data = OraclePriceData {
+            price: MARK_PRICE_PRECISION as i128,
+            confidence: 1,
+            delay: 0,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let total_collateral = calculate_bank_balance_value(
+            &user_bank_balance,
+            &bank,
+            &quote_asset_oracle_price_data,
+            MarginRequirementType::Initial,
+        )
+        .unwrap();
+
+        let total_collateral_updated =
+            calculate_updated_collateral(total_collateral, unrealized_pnl).unwrap();
+
+        assert_eq!(total_collateral_updated, 0);
+
+        let total_collateral_i128 = (total_collateral as i128)
+            .checked_add(unrealized_pnl)
+            .ok_or_else(math_error!())
+            .unwrap();
+
+        assert_eq!(total_collateral_i128, -(2 * QUOTE_PRECISION as i128));
+    }
+
+    #[test]
+    fn calculate_user_equity_value_tests() {
+        let _user = User { ..User::default() };
+
+        let user_bank_balance = UserBankBalance {
+            balance_type: BankBalanceType::Deposit,
+            balance: MARK_PRICE_PRECISION,
+            ..UserBankBalance::default()
+        };
+
+        let bank = Bank {
+            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            ..Bank::default()
+        };
+
+        let mut market = Market {
+            market_index: 0,
+            amm: AMM {
+                base_asset_reserve: 5122950819670000,
+                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 22_100_000,
+                net_base_asset_amount: -(122950819670000_i128),
+                max_spread: 1000,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            imf_factor: 1000, // 1_000/1_000_000 = .001
+            unrealized_initial_asset_weight: 100,
+            unrealized_maintenance_asset_weight: 100,
+            ..Market::default()
+        };
+
+        let current_price = market.amm.mark_price().unwrap();
+        assert_eq!(current_price, 210519296000087);
+
+        market.imf_factor = 1000; // 1_000/1_000_000 = .001
+
+        // btc
+        let mut oracle_price_data = OraclePriceData {
+            price: (22050 * MARK_PRICE_PRECISION) as i128,
+            confidence: 0,
+            delay: 2,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let market_position = MarketPosition {
+            market_index: 0,
+            base_asset_amount: -(122950819670000 / 2_i128),
+            quote_asset_amount: 153688524588, // $25,000 entry price
+            ..MarketPosition::default()
+        };
+
+        let margin_requirement_type = MarginRequirementType::Initial;
+        let quote_asset_oracle_price_data = OraclePriceData {
+            price: MARK_PRICE_PRECISION as i128,
+            confidence: 1,
+            delay: 0,
+            has_sufficient_number_of_data_points: true,
+        };
+        let _bqv = calculate_bank_balance_value(
+            &user_bank_balance,
+            &bank,
+            &quote_asset_oracle_price_data,
+            margin_requirement_type,
+        )
+        .unwrap();
+
+        let position_unrealized_pnl =
+            calculate_position_pnl(&market_position, &market.amm, false).unwrap();
+
+        assert_eq!(position_unrealized_pnl, 22699050901);
+
+        // sqrt of oracle price = 149
+        market.unrealized_imf_factor = market.imf_factor;
+
+        let uaw = market
+            .get_unrealized_asset_weight(position_unrealized_pnl, MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(uaw, 95);
+
+        let (pmr, upnl) = calculate_perp_position_value_and_pnl(
+            &market_position,
+            &market,
+            &oracle_price_data,
+            MarginRequirementType::Initial,
+        )
+        .unwrap();
+
+        // assert_eq!(upnl, 17409836065);
+        // assert!(upnl < position_unrealized_pnl); // margin system discounts
+
+        assert!(pmr > 0);
+        assert_eq!(pmr, 13867100409);
+
+        oracle_price_data.price = (21050 * MARK_PRICE_PRECISION) as i128; // lower by $1000 (in favor of user)
+        oracle_price_data.confidence = MARK_PRICE_PRECISION;
+
+        let (_, position_unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
+            &market_position,
+            oracle_price_data.price,
+        )
+        .unwrap();
+
+        assert_eq!(position_unrealized_pnl, 24282786886); // $24.276k
+
+        assert_eq!(
+            market
+                .get_unrealized_asset_weight(position_unrealized_pnl, margin_requirement_type)
+                .unwrap(),
+            95
+        );
+        assert_eq!(
+            market
+                .get_unrealized_asset_weight(position_unrealized_pnl * 10, margin_requirement_type)
+                .unwrap(),
+            73
+        );
+        assert_eq!(
+            market
+                .get_unrealized_asset_weight(position_unrealized_pnl * 100, margin_requirement_type)
+                .unwrap(),
+            42
+        );
+        assert_eq!(
+            market
+                .get_unrealized_asset_weight(
+                    position_unrealized_pnl * 1000,
+                    margin_requirement_type
+                )
+                .unwrap(),
+            18
+        );
+        assert_eq!(
+            market
+                .get_unrealized_asset_weight(
+                    position_unrealized_pnl * 10000,
+                    margin_requirement_type
+                )
+                .unwrap(),
+            6
+        );
+        //nice that 18000 < 60000
+
+        assert_eq!(
+            market
+                .get_unrealized_asset_weight(
+                    position_unrealized_pnl * 800000,
+                    margin_requirement_type
+                )
+                .unwrap(),
+            0 // todo want to reduce to zero once sufficiently sized?
+        );
+        assert_eq!(position_unrealized_pnl * 800000, 19426229508800000); // 1.9 billion
+
+        let (pmr_2, upnl_2) = calculate_perp_position_value_and_pnl(
+            &market_position,
+            &market,
+            &oracle_price_data,
+            MarginRequirementType::Initial,
+        )
+        .unwrap();
+
+        let uaw_2 = market
+            .get_unrealized_asset_weight(upnl_2, MarginRequirementType::Initial)
+            .unwrap();
+        assert_eq!(uaw_2, 95);
+
+        assert_eq!(upnl_2, 23068647541);
+        assert!(upnl_2 > upnl);
+        assert!(pmr_2 > 0);
+        assert_eq!(pmr_2, 13238206966); //$13251.147540
+        assert!(pmr > pmr_2);
+        assert_eq!(pmr - pmr_2, 628893443);
+        //-6.1475409835 * 1000 / 10 = 614.75
+    }
+
+    #[test]
+    fn test_nroot() {
+        let ans = (0).nth_root(2);
+        assert_eq!(ans, 0);
+    }
+
+    #[test]
+    fn test_lp_user_short() {
+        let mut market = Market {
+            market_index: 0,
+            amm: AMM {
+                base_asset_reserve: 110 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 110 * AMM_RESERVE_PRECISION,
+                sqrt_k: 110 * AMM_RESERVE_PRECISION,
+                user_lp_shares: 5 * AMM_RESERVE_PRECISION,
+                ..AMM::default_test()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            imf_factor: 1000, // 1_000/1_000_000 = .001
+            unrealized_initial_asset_weight: 100,
+            unrealized_maintenance_asset_weight: 100,
+            ..Market::default()
+        };
+        // balanced max/min
+        market.amm.max_base_asset_reserve = 20 * AMM_RESERVE_PRECISION;
+        market.amm.min_base_asset_reserve = 0;
+
+        let position = MarketPosition {
+            lp_shares: market.amm.user_lp_shares,
+            ..MarketPosition::default()
+        };
+
+        let oracle_price_data = OraclePriceData {
+            price: (2 * MARK_PRICE_PRECISION) as i128,
+            confidence: 0,
+            delay: 2,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        // pmr = position margin requirement
+        let (pmr, _) = calculate_perp_position_value_and_pnl(
+            &position,
+            &market,
+            &oracle_price_data,
+            MarginRequirementType::Initial,
+        )
+        .unwrap();
+
+        // make the market unbalanced
+
+        let trade_size = 3 * AMM_RESERVE_PRECISION;
+        let (new_qar, new_bar) = calculate_swap_output(
+            trade_size,
+            market.amm.base_asset_reserve,
+            SwapDirection::Add, // user shorts
+            market.amm.sqrt_k,
+        )
+        .unwrap();
+        market.amm.quote_asset_reserve = new_qar;
+        market.amm.base_asset_reserve = new_bar;
+
+        let (pmr2, _) = calculate_perp_position_value_and_pnl(
+            &position,
+            &market,
+            &oracle_price_data,
+            MarginRequirementType::Initial,
+        )
+        .unwrap();
+
+        println!("{} > {} ?", pmr2, pmr);
+
+        // larger margin req in more unbalanced market
+        // assert_eq!(pmr, 2062000);
+        // assert_eq!(pmr2, 2481600);
+        assert!(pmr2 > pmr)
+    }
+
+    #[test]
+    fn test_lp_user_long() {
+        let mut market = Market {
+            market_index: 0,
+            amm: AMM {
+                base_asset_reserve: 110 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 110 * AMM_RESERVE_PRECISION,
+                sqrt_k: 110 * AMM_RESERVE_PRECISION,
+                user_lp_shares: 5 * AMM_RESERVE_PRECISION,
+                ..AMM::default_test()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            imf_factor: 1000, // 1_000/1_000_000 = .001
+            unrealized_initial_asset_weight: 100,
+            unrealized_maintenance_asset_weight: 100,
+            ..Market::default()
+        };
+        // balanced max/min
+        market.amm.max_base_asset_reserve = 20 * AMM_RESERVE_PRECISION;
+        market.amm.min_base_asset_reserve = 0;
+
+        let position = MarketPosition {
+            lp_shares: market.amm.user_lp_shares,
+            ..MarketPosition::default()
+        };
+
+        let oracle_price_data = OraclePriceData {
+            price: (2 * MARK_PRICE_PRECISION) as i128,
+            confidence: 0,
+            delay: 2,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let (pmr, _) = calculate_perp_position_value_and_pnl(
+            &position,
+            &market,
+            &oracle_price_data,
+            MarginRequirementType::Initial,
+        )
+        .unwrap();
+
+        // make the market unbalanced
+        println!("---");
+        let trade_size = 3 * AMM_RESERVE_PRECISION;
+        let (new_qar, new_bar) = calculate_swap_output(
+            trade_size,
+            market.amm.base_asset_reserve,
+            SwapDirection::Remove, // user longs
+            market.amm.sqrt_k,
+        )
+        .unwrap();
+        market.amm.quote_asset_reserve = new_qar;
+        market.amm.base_asset_reserve = new_bar;
+
+        let (pmr2, _) = calculate_perp_position_value_and_pnl(
+            &position,
+            &market,
+            &oracle_price_data,
+            MarginRequirementType::Initial,
+        )
+        .unwrap();
+
+        println!("{} > {} ?", pmr2, pmr);
+
+        // larger margin req in more unbalanced market
+
+        // assert!(pmr2 > pmr); //todo
+    }
 }

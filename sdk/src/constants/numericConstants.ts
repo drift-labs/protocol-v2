@@ -1,3 +1,4 @@
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { BN } from '../';
 
 export const ZERO = new BN(0);
@@ -66,3 +67,6 @@ export const BID_ASK_SPREAD_PRECISION = new BN(1000000);
 export const ONE_YEAR = new BN(31536000);
 
 export const QUOTE_ASSET_BANK_INDEX = new BN(0);
+
+export const LAMPORTS_PRECISION = new BN(LAMPORTS_PER_SOL);
+export const LAMPORTS_EXP = new BN(Math.log10(LAMPORTS_PER_SOL));

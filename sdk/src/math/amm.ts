@@ -635,12 +635,12 @@ export function calculateMaxBaseAssetAmountFillable(
 	if (isVariant(orderDirection, 'long')) {
 		maxBaseAssetAmountOnSide = BN.max(
 			ZERO,
-			amm.maxBaseAssetReserve.sub(amm.baseAssetReserve)
+			amm.baseAssetReserve.sub(amm.minBaseAssetReserve)
 		);
 	} else {
 		maxBaseAssetAmountOnSide = BN.max(
 			ZERO,
-			amm.baseAssetReserve.sub(amm.minBaseAssetReserve)
+			amm.maxBaseAssetReserve.sub(amm.baseAssetReserve)
 		);
 	}
 

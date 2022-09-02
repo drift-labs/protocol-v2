@@ -7,8 +7,8 @@ pub type ClearingHouseResult<T = ()> = std::result::Result<T, ErrorCode>;
 pub enum ErrorCode {
     #[msg("Invalid Bank Authority")]
     InvalidBankAuthority,
-    #[msg("Clearing house not insurance account owner")]
-    InvalidInsuranceAccountAuthority,
+    #[msg("Clearing house not insurance fund authority")]
+    InvalidInsuranceFundAuthority,
     #[msg("Insufficient deposit")]
     InsufficientDeposit,
     #[msg("Insufficient collateral")]
@@ -245,6 +245,8 @@ pub enum ErrorCode {
     TryingToRemoveLiquidityTooFast,
     #[msg("Invalid Bank Vault")]
     InvalidBankVault,
+    #[msg("Invalid Bank State")]
+    InvalidBankState,
 }
 
 #[macro_export]
