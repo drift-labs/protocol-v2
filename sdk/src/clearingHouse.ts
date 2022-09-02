@@ -39,6 +39,7 @@ import { TokenFaucet } from './tokenFaucet';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
+	getClearingHouseSignerPublicKey,
 	getClearingHouseStateAccountPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getMarketPublicKey,
@@ -258,6 +259,17 @@ export class ClearingHouse {
 			this.program.programId
 		);
 		return this.statePublicKey;
+	}
+
+	signerPublicKey?: PublicKey;
+	public getSignerPublicKey(): PublicKey {
+		if (this.signerPublicKey) {
+			return this.signerPublicKey;
+		}
+		this.signerPublicKey = getClearingHouseSignerPublicKey(
+			this.program.programId
+		);
+		return this.signerPublicKey;
 	}
 
 	public getStateAccount(): StateAccount {
@@ -1064,7 +1076,7 @@ export class ClearingHouse {
 					state: await this.getStatePublicKey(),
 					bank: bank.pubkey,
 					bankVault: bank.vault,
-					bankVaultAuthority: bank.vaultAuthority,
+					clearingHouseSigner: this.getSignerPublicKey(),
 					user: userAccountPublicKey,
 					userStats: this.getUserStatsAccountPublicKey(),
 					userTokenAccount: userTokenAccount,
@@ -2221,7 +2233,7 @@ export class ClearingHouse {
 					liquidator: liquidatorPublicKey,
 					bankVault: bank.vault,
 					insuranceFundVault: bank.insuranceFundVault,
-					insuranceFundVaultAuthority: bank.insuranceFundVaultAuthority,
+					clearingHouseSigner: this.getSignerPublicKey(),
 					tokenProgram: TOKEN_PROGRAM_ID,
 				},
 				remainingAccounts: remainingAccounts,
@@ -2270,7 +2282,7 @@ export class ClearingHouse {
 				liquidator: liquidatorPublicKey,
 				bankVault: bank.vault,
 				insuranceFundVault: bank.insuranceFundVault,
-				insuranceFundVaultAuthority: bank.insuranceFundVaultAuthority,
+				clearingHouseSigner: this.getSignerPublicKey(),
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
 			remainingAccounts: remainingAccounts,
@@ -2659,7 +2671,7 @@ export class ClearingHouse {
 				userStats: this.getUserStatsAccountPublicKey(),
 				authority: this.wallet.publicKey,
 				insuranceFundVault: bank.insuranceFundVault,
-				insuranceFundVaultAuthority: bank.insuranceFundVaultAuthority,
+				clearingHouseSigner: this.getSignerPublicKey(),
 				userTokenAccount: collateralAccountPublicKey,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
@@ -2681,7 +2693,7 @@ export class ClearingHouse {
 				state: await this.getStatePublicKey(),
 				bank: bank.pubkey,
 				bankVault: bank.vault,
-				bankVaultAuthority: bank.vaultAuthority,
+				clearingHouseSigner: this.getSignerPublicKey(),
 				insuranceFundVault: bank.insuranceFundVault,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
