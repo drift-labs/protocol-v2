@@ -148,6 +148,23 @@ export type CurveRecord = {
 	tradeId: BN;
 };
 
+export type LPRecord = {
+	ts: BN;
+	user: PublicKey;
+	action: LPAction;
+	nShares: BN;
+	marketIndex: BN;
+	deltaBaseAssetAmount: BN;
+	deltaQuoteAssetAmount: BN;
+	pnl: BN;
+};
+
+export class LPAction {
+	static readonly ADD_LIQUIDITY = { addLiquidity: {} };
+	static readonly REMOVE_LIQUIDITY = { removeLiquidity: {} };
+	static readonly SETTLE_LIQUIDITY = { settleLiquidity: {} };
+}
+
 export type FundingRateRecord = {
 	ts: BN;
 	recordId: BN;
@@ -216,6 +233,7 @@ export type LiquidatePerpRecord = {
 	oraclePrice: BN;
 	baseAssetAmount: BN;
 	quoteAssetAmount: BN;
+	lpShares: BN;
 	userPnl: BN;
 	liquidatorPnl: BN;
 	canceledOrdersFee: BN;

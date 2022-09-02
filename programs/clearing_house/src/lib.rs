@@ -10,6 +10,7 @@ use math::{amm, bn, constants::*, margin::*};
 use state::oracle::{get_oracle_price, OracleSource};
 
 use crate::math::amm::get_update_k_result;
+use crate::state::events::{LPAction, LPRecord};
 use crate::state::market::Market;
 use crate::state::user::MarketPosition;
 use crate::state::{market::AMM, state::*, user::*};
@@ -799,7 +800,18 @@ pub mod clearing_house {
         let position_index = get_position_index(&user.positions, market_index)?;
         let position = &mut user.positions[position_index];
 
-        settle_lp_position(position, &mut market)?;
+        let (position_delta, pnl) = settle_lp_position(position, &mut market)?;
+
+        emit!(LPRecord {
+            ts: now,
+            action: LPAction::SettleLiquidity,
+            user: user_key,
+            market_index,
+            delta_base_asset_amount: position_delta.base_asset_amount,
+            delta_quote_asset_amount: position_delta.quote_asset_amount,
+            pnl,
+            n_shares: 0
+        });
 
         Ok(())
     }
@@ -854,12 +866,23 @@ pub mod clearing_house {
         )?;
 
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-        burn_lp_shares(
+        let (position_delta, pnl) = burn_lp_shares(
             position,
             &mut market,
             shares_to_burn,
             oracle_price_data.price,
         )?;
+
+        emit!(LPRecord {
+            ts: now,
+            action: LPAction::RemoveLiquidity,
+            user: user_key,
+            n_shares: shares_to_burn,
+            market_index,
+            delta_base_asset_amount: position_delta.base_asset_amount,
+            delta_quote_asset_amount: position_delta.quote_asset_amount,
+            pnl,
+        });
 
         Ok(())
     }
@@ -894,6 +917,16 @@ pub mod clearing_house {
 
         let position_index = get_position_index(&user.positions, market_index)
             .or_else(|_| add_new_position(&mut user.positions, market_index))?;
+
+        validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+        math::liquidation::validate_user_not_being_liquidated(
+            user,
+            &market_map,
+            &bank_map,
+            &mut oracle_map,
+            ctx.accounts.state.liquidation_margin_buffer_ratio,
+        )?;
+
         let position = &mut user.positions[position_index];
 
         {
@@ -907,6 +940,15 @@ pub mod clearing_house {
             ErrorCode::InsufficientCollateral,
             "User does not meet initial margin requirement"
         )?;
+
+        emit!(LPRecord {
+            ts: now,
+            action: LPAction::AddLiquidity,
+            user: user_key,
+            n_shares,
+            market_index,
+            ..LPRecord::default()
+        });
 
         Ok(())
     }

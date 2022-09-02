@@ -67,7 +67,7 @@ pub fn get_position_index(
     }
 }
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct PositionDelta {
     pub quote_asset_amount: i128,
     pub base_asset_amount: i128,

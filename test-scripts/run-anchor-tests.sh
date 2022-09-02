@@ -5,11 +5,12 @@ if [ "$1" != "--skip-build" ]
 fi
 
 test_files=(
+      liquidityProvider.ts
+
   insuranceFundStake.ts
   liquidateBorrow.ts
   liquidateBorrowSocialLoss.ts
   referrer.ts
-  liquidityProvider.ts
   liquidatePerpPnlForDeposit.ts liquidateBorrowForPerpPnl.ts
   liquidatePerp.ts
   order.ts bankDepositWithdraw.ts prepegMarketOrderBaseAssetAmount.ts
