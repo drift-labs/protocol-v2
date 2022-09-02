@@ -20,6 +20,7 @@ import {
 	getInsuranceFundVaultPublicKey,
 	getInsuranceFundVaultAuthorityPublicKey,
 	getClearingHouseSignerPublicKey,
+	getSerumOpenOrdersPublicKey,
 } from './addresses/pda';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { ClearingHouse } from './clearingHouse';
@@ -138,6 +139,34 @@ export class Admin extends ClearingHouse {
 		});
 
 		return txSig;
+	}
+
+	public async addSerumMarket(
+		bankIndex: BN,
+		serumMarket: PublicKey,
+		serumProgram: PublicKey
+	): Promise<TransactionSignature> {
+		const serumOpenOrders = getSerumOpenOrdersPublicKey(
+			this.program.programId,
+			serumMarket
+		);
+
+		console.log(serumOpenOrders.toString());
+
+		return await this.program.rpc.addSerumMarket(bankIndex, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				baseBank: this.getBankAccount(bankIndex).pubkey,
+				quoteBank: this.getQuoteAssetBankAccount().pubkey,
+				clearingHouseSigner: this.getSignerPublicKey(),
+				serumProgram,
+				serumMarket,
+				serumOpenOrders,
+				rent: SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
 	}
 
 	public async initializeMarket(

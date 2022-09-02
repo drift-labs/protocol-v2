@@ -185,3 +185,16 @@ export function getClearingHouseSignerPublicKey(
 		programId
 	)[0];
 }
+
+export function getSerumOpenOrdersPublicKey(
+	programId: PublicKey,
+	market: PublicKey
+): PublicKey {
+	return anchor.web3.PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('serum_open_orders')),
+			market.toBuffer(),
+		],
+		programId
+	)[0];
+}

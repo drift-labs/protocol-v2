@@ -10,6 +10,7 @@ use crate::controller::position::{
     update_amm_and_lp_market_position, update_position_and_market, update_quote_asset_amount,
     PositionDirection,
 };
+use crate::controller::serum::SerumNewOrderAccounts;
 use crate::controller::user_bank_balance::{
     decrease_spot_open_bids_and_asks, increase_spot_open_bids_and_asks,
 };
@@ -32,6 +33,10 @@ use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders, do_orders_cross,
     is_maker_for_taker,
 };
+use crate::math::serum::{
+    calculate_serum_limit_price, calculate_serum_max_coin_qty,
+    calculate_serum_max_native_pc_quantity,
+};
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::math_error;
 use crate::order_validation::{validate_order, validate_spot_order};
@@ -45,12 +50,16 @@ use crate::state::market::Market;
 use crate::state::market_map::MarketMap;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
+use crate::state::serum::load_market_state;
 use crate::state::state::*;
 use crate::state::user::{AssetType, MarketPosition, Order, OrderStatus, OrderType, UserStats};
 use crate::state::user::{MarketType, User};
 use crate::validate;
+use serum_dex::instruction::{NewOrderInstructionV3, SelfTradeBehavior};
+use serum_dex::matching::Side;
 use std::cell::RefMut;
 use std::cmp::{max, min};
+use std::num::NonZeroU64;
 use std::ops::{Deref, DerefMut};
 
 #[cfg(test)]
@@ -960,7 +969,7 @@ fn fulfill_order(
         let mut market = market_map.get_ref_mut(&market_index)?;
 
         let (_base_asset_amount, _quote_asset_amount) = match fulfillment_method {
-            FulfillmentMethod::AMM => fulfill_order_with_amm(
+            FulfillmentMethod::Market => fulfill_order_with_amm(
                 user,
                 user_stats,
                 user_order_index,
@@ -2130,6 +2139,7 @@ pub fn fill_spot_order(
     maker_stats: Option<&AccountLoader<UserStats>>,
     maker_order_id: Option<u64>,
     clock: &Clock,
+    serum_new_order_accounts: SerumNewOrderAccounts,
 ) -> ClearingHouseResult<(u128, bool)> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -2216,6 +2226,7 @@ pub fn fill_spot_order(
         oracle_map,
         now,
         slot,
+        serum_new_order_accounts,
     )?;
 
     // TODO SPT check if fill should cancel order after fill
@@ -2328,6 +2339,7 @@ fn fulfill_spot_order(
     oracle_map: &mut OracleMap,
     now: i64,
     slot: u64,
+    serum_new_order_accounts: SerumNewOrderAccounts,
 ) -> ClearingHouseResult<(u128, bool)> {
     let free_collateral = calculate_free_collateral(user, market_map, bank_map, oracle_map)?;
 
@@ -2358,29 +2370,61 @@ fn fulfill_spot_order(
         return Ok((0, !risk_decreasing));
     }
 
+    let fulfillment_methods =
+        determine_fulfillment_methods(&user.orders[user_order_index], maker.is_some(), slot)?;
+
     let quote_bank = &mut bank_map.get_quote_asset_bank_mut()?;
 
     let mut order_records: Vec<OrderRecord> = vec![];
-    let base_asset_amount = fulfill_spot_order_with_match(
-        taker_max_base,
-        base_bank,
-        quote_bank,
-        user,
-        user_stats,
-        user_order_index,
-        user_key,
-        maker.as_deref_mut().unwrap(),
-        maker_stats.as_deref_mut().unwrap(),
-        maker_order_index.unwrap(),
-        maker_key.unwrap(),
-        filler.as_deref_mut(),
-        filler_stats.as_deref_mut(),
-        filler_key,
-        now,
-        slot,
-        oracle_map,
-        &mut order_records,
-    )?;
+    let mut base_asset_amount = 0_u128;
+    for fulfillment_method in fulfillment_methods.iter() {
+        if user.orders[user_order_index].status != OrderStatus::Open {
+            break;
+        }
+
+        let _base_asset_amount = match fulfillment_method {
+            FulfillmentMethod::Match => fulfill_spot_order_with_match(
+                taker_max_base,
+                base_bank,
+                quote_bank,
+                user,
+                user_stats,
+                user_order_index,
+                user_key,
+                maker.as_deref_mut().unwrap(),
+                maker_stats.as_deref_mut().unwrap(),
+                maker_order_index.unwrap(),
+                maker_key.unwrap(),
+                filler.as_deref_mut(),
+                filler_stats.as_deref_mut(),
+                filler_key,
+                now,
+                slot,
+                oracle_map,
+                &mut order_records,
+            )?,
+            FulfillmentMethod::Market => fulfill_spot_order_with_serum(
+                base_bank,
+                quote_bank,
+                user,
+                user_stats,
+                user_order_index,
+                user_key,
+                filler.as_deref_mut(),
+                filler_stats.as_deref_mut(),
+                filler_key,
+                now,
+                slot,
+                oracle_map,
+                &mut order_records,
+                &serum_new_order_accounts,
+            )?,
+        };
+
+        base_asset_amount = base_asset_amount
+            .checked_add(_base_asset_amount)
+            .ok_or_else(math_error!())?;
+    }
 
     // TODO SPOT check if order should be canceled at the end
 
@@ -2551,4 +2595,60 @@ pub fn fulfill_spot_order_with_match(
     }
 
     Ok(base_asset_amount)
+}
+
+pub fn fulfill_spot_order_with_serum(
+    base_bank: &mut Bank,
+    quote_bank: &mut Bank,
+    taker: &mut User,
+    taker_stats: &mut UserStats,
+    taker_order_index: usize,
+    taker_key: &Pubkey,
+    _filler: Option<&mut User>,
+    _filler_stats: Option<&mut UserStats>,
+    filler_key: &Pubkey,
+    now: i64,
+    slot: u64,
+    oracle_map: &mut OracleMap,
+    order_records: &mut Vec<OrderRecord>,
+    serum_new_order_accounts: &SerumNewOrderAccounts,
+) -> ClearingHouseResult<u128> {
+    let oracle_price = oracle_map.get_price_data(&base_bank.oracle)?.price;
+    let taker_price =
+        taker.orders[taker_order_index].get_limit_price(Some(oracle_price), slot, None)?;
+    let taker_base_asset_amount =
+        taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
+
+    let market_state = load_market_state(
+        serum_new_order_accounts.serum_market,
+        serum_new_order_accounts.serum_program_id.key,
+    )?;
+
+    let serum_max_coin_qty =
+        calculate_serum_max_coin_qty(taker_base_asset_amount, market_state.coin_lot_size)?;
+    let serum_limit_price = calculate_serum_limit_price(
+        taker_price,
+        market_state.pc_lot_size,
+        base_bank.decimals as u32,
+        market_state.coin_lot_size,
+    )?;
+    let serum_max_native_pc_qty = calculate_serum_max_native_pc_quantity(
+        serum_limit_price,
+        serum_max_coin_qty,
+        market_state.pc_lot_size,
+    )?;
+
+    let serum_order = NewOrderInstructionV3 {
+        side: Side::Bid,
+        limit_price: NonZeroU64::new(serum_limit_price).unwrap(),
+        max_coin_qty: NonZeroU64::new(serum_max_coin_qty).unwrap(),
+        max_native_pc_qty_including_fees: NonZeroU64::new(serum_max_native_pc_qty).unwrap(),
+        self_trade_behavior: SelfTradeBehavior::AbortTransaction,
+        order_type: serum_dex::matching::OrderType::ImmediateOrCancel,
+        client_order_id: 0,
+        limit: 10,
+        max_ts: 0,
+    };
+
+    Ok(0)
 }

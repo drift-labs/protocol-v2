@@ -24,6 +24,8 @@ import {
 	createUserWithUSDCAccount,
 	createUserWithUSDCAndWSOLAccount,
 	getTokenAmountAsBN,
+	initializeQuoteAssetBank,
+	initializeSolAssetBank,
 	mintUSDCToUser,
 	mockOracle,
 	mockUSDCMint,
@@ -40,13 +42,13 @@ import { NATIVE_MINT } from '@solana/spl-token';
 import { QUOTE_PRECISION, ZERO, ONE } from '../sdk';
 import { Market } from '@project-serum/serum';
 
-describe('test', () => {
+describe('serum spot market', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
-	let admin: Admin;
+	let clearingHouse: Admin;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -73,6 +75,29 @@ describe('test', () => {
 		await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
 		solOracle = await mockOracle(30);
+
+		marketIndexes = [];
+		bankIndexes = [new BN(0), new BN(1)];
+		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
+
+		clearingHouse = new Admin({
+			connection,
+			wallet: provider.wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
+			marketIndexes,
+			bankIndexes,
+			oracleInfos,
+		});
+
+		await clearingHouse.initialize(usdcMint.publicKey, true);
+		await clearingHouse.subscribe();
+
+		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeSolAssetBank(clearingHouse, solOracle);
 	});
 
 	it('Test', async () => {
@@ -95,5 +120,20 @@ describe('test', () => {
 		);
 
 		console.log(market);
+
+		const solBankIndex = new BN(1);
+		try {
+			const txSig = await clearingHouse.addSerumMarket(
+				new BN(1),
+				marketAPublicKey,
+				serumHelper.DEX_PID
+			);
+			console.log(txSig);
+		} catch (e) {
+			console.error(e);
+		}
+
+		// const bankAccount = clearingHouse.getBankAccount(solBankIndex);
+		// console.log(bankAccount);
 	});
 });

@@ -23,9 +23,13 @@ mod margin_validation;
 pub mod math;
 pub mod optional_accounts;
 pub mod order_validation;
+mod signer;
 pub mod state;
 #[cfg(test)]
 mod tests;
+
+use serum_dex::state::ToAlignedBytes;
+use std::convert::identity;
 
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
@@ -59,7 +63,11 @@ pub mod clearing_house {
     use crate::state::state::OrderFillerRewardStructure;
 
     use super::*;
+    use crate::controller::serum::SerumNewOrderAccounts;
     use crate::state::insurance_fund_stake::InsuranceFundStake;
+    use crate::state::serum::{load_market_state, load_open_orders};
+    use bytemuck::cast_slice;
+    use std::mem::size_of;
 
     pub fn initialize(ctx: Context<Initialize>, admin_controls_prices: bool) -> Result<()> {
         let (clearing_house_signer, clearing_house_signer_nonce) =
@@ -279,7 +287,92 @@ pub mod clearing_house {
             withdraw_guard_threshold: 0,
             order_step_size,
             next_fill_record_id: 1,
+            serum_program_id: Pubkey::default(),
+            serum_market: Pubkey::default(),
+            serum_event_queue: Pubkey::default(),
+            serum_request_queue: Pubkey::default(),
+            serum_asks: Pubkey::default(),
+            serum_bids: Pubkey::default(),
+            serum_base_vault: Pubkey::default(),
+            serum_quote_vault: Pubkey::default(),
+            serum_open_orders: Pubkey::default(),
         };
+
+        Ok(())
+    }
+
+    pub fn add_serum_market(ctx: Context<AddSerumMarket>, bank_index: u64) -> Result<()> {
+        validate!(
+            bank_index != 0,
+            ErrorCode::DefaultError,
+            "Cant add serum market to quote bank"
+        )?;
+
+        let mut base_bank = load_mut!(&ctx.accounts.base_bank)?;
+        let mut quote_bank = load_mut!(&ctx.accounts.quote_bank)?;
+
+        let serum_program_id = crate::ids::serum_program::id();
+        validate!(
+            ctx.accounts.serum_program.key() == serum_program_id,
+            ErrorCode::InvalidSerumProgram
+        )?;
+
+        let serum_market_key = ctx.accounts.serum_market.key();
+        let market_state = load_market_state(&ctx.accounts.serum_market, &serum_program_id)?;
+
+        validate!(
+            identity(market_state.coin_mint) == base_bank.mint.to_aligned_bytes(),
+            ErrorCode::InvalidSerumMarket,
+            "Invalid base mint"
+        )?;
+
+        validate!(
+            identity(market_state.pc_mint) == quote_bank.mint.to_aligned_bytes(),
+            ErrorCode::InvalidSerumMarket,
+            "Invalid base mint"
+        )?;
+
+        base_bank.serum_program_id = serum_program_id;
+        base_bank.serum_market = serum_market_key;
+        base_bank.serum_event_queue = Pubkey::new(cast_slice(&market_state.event_q));
+        base_bank.serum_request_queue = Pubkey::new(cast_slice(&market_state.req_q));
+        base_bank.serum_bids = Pubkey::new(cast_slice(&market_state.bids));
+        base_bank.serum_asks = Pubkey::new(cast_slice(&market_state.asks));
+        base_bank.serum_base_vault = Pubkey::new(cast_slice(&market_state.coin_vault));
+        base_bank.serum_quote_vault = Pubkey::new(cast_slice(&market_state.pc_vault));
+
+        drop(market_state);
+
+        let open_orders_seeds: &[&[u8]] = &[b"serum_open_orders", serum_market_key.as_ref()];
+        controller::pda::seed_and_create_pda(
+            ctx.program_id,
+            &ctx.accounts.admin.to_account_info(),
+            &Rent::get()?,
+            size_of::<serum_dex::state::OpenOrders>() + 12,
+            &serum_program_id,
+            &ctx.accounts.system_program.to_account_info(),
+            &ctx.accounts.serum_open_orders,
+            open_orders_seeds,
+        )?;
+
+        let open_orders = load_open_orders(&ctx.accounts.serum_open_orders)?;
+        validate!(
+            open_orders.account_flags == 0,
+            ErrorCode::InvalidSerumOpenOrders,
+            "Serum open orders already initialized"
+        )?;
+        drop(open_orders);
+
+        controller::serum::init_open_orders(
+            &ctx.accounts.serum_program,
+            &ctx.accounts.serum_open_orders,
+            &ctx.accounts.clearing_house_signer,
+            &ctx.accounts.serum_market,
+            &ctx.accounts.rent,
+            ctx.accounts.state.signer_nonce,
+        )?;
+
+        base_bank.serum_open_orders = ctx.accounts.serum_open_orders.key();
 
         Ok(())
     }
@@ -1337,11 +1430,6 @@ pub mod clearing_house {
                 bank.vault == ctx.accounts.base_bank_vault.key(),
                 ErrorCode::InvalidBankVault
             )?;
-
-            validate!(
-                bank.vault_authority == ctx.accounts.base_bank_vault_authority.key(),
-                ErrorCode::InvalidBankVault
-            )?;
         }
 
         let (maker, maker_stats) = match maker_order_id {
@@ -1350,6 +1438,22 @@ pub mod clearing_house {
                 (Some(user), Some(user_stats))
             }
             None => (None, None),
+        };
+
+        let serum_new_order_accounts = SerumNewOrderAccounts {
+            clearing_house_signer: &ctx.accounts.clearing_house_signer,
+            serum_program_id: &ctx.accounts.serum_program_id,
+            serum_market: &ctx.accounts.serum_market,
+            serum_request_queue: &ctx.accounts.serum_request_queue,
+            serum_event_queue: &ctx.accounts.serum_event_queue,
+            serum_bids: &ctx.accounts.serum_bids,
+            serum_asks: &ctx.accounts.serum_asks,
+            serum_base_vault: &ctx.accounts.serum_base_vault,
+            serum_quote_vault: &ctx.accounts.serum_quote_vault,
+            serum_open_orders: &ctx.accounts.serum_open_orders,
+            token_program: &ctx.accounts.token_program,
+            base_bank_vault: &ctx.accounts.base_bank_vault,
+            quote_bank_vault: &ctx.accounts.quote_bank_vault,
         };
 
         let (_, updated_user_state) = controller::orders::fill_spot_order(
@@ -1366,6 +1470,7 @@ pub mod clearing_house {
             maker_stats.as_ref(),
             maker_order_id,
             &Clock::get()?,
+            serum_new_order_accounts,
         )?;
 
         if !updated_user_state {

@@ -15,5 +15,5 @@ clearing_house = "HbUKwqFPjz9r7ZtT416AU8aaecDQMKKiDCTS3AdXnS6c"
 pyth = "gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s"
 
 [[test.genesis]]
-address = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin"
+address = "DESVgJVGajEgKGXhb6XmqDHGz3VjdgP7rEVESBgxmroY"
 program = "./deps/serum-dex/dex/target/deploy/serum_dex.so"

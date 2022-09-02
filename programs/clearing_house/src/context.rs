@@ -86,6 +86,48 @@ pub struct InitializeBank<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(bank_index: u64)]
+pub struct AddSerumMarket<'info> {
+    #[account(
+        mut,
+        seeds = [b"bank", bank_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub base_bank: AccountLoader<'info, Bank>,
+    #[account(
+        mut,
+        seeds = [b"bank", 0_u64.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub quote_bank: AccountLoader<'info, Bank>,
+    #[account(
+        mut,
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    /// CHECK: checked in `add_serum_market`
+    pub serum_program: AccountInfo<'info>,
+    /// CHECK: checked in `add_serum_market`
+    pub serum_market: AccountInfo<'info>,
+    #[account(
+        mut,
+        seeds = [b"serum_open_orders".as_ref(), serum_market.key.as_ref()],
+        bump,
+    )]
+    /// CHECK: checked in `add_serum_market`
+    pub serum_open_orders: AccountInfo<'info>,
+    #[account(
+        constraint = state.signer.eq(&clearing_house_signer.key())
+    )]
+    /// CHECK: forced clearing_house_signer
+    pub clearing_house_signer: AccountInfo<'info>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
 pub struct InitializeUserStats<'info> {
     #[account(
         init,
@@ -426,10 +468,21 @@ pub struct FillSpotOrder<'info> {
         seeds = [b"bank_vault_authority".as_ref(), 0_u64.to_le_bytes().as_ref()],
         bump,
     )]
-    /// CHECK: signer for quote vault
-    pub quote_bank_vault_authority: AccountInfo<'info>,
-    /// CHECK: checked in ix because it's based on the order market index
-    pub base_bank_vault_authority: AccountInfo<'info>,
+    #[account(
+        constraint = state.signer.eq(&clearing_house_signer.key())
+    )]
+    /// CHECK: forced clearing_house_signer
+    pub clearing_house_signer: AccountInfo<'info>,
+    pub serum_program_id: AccountInfo<'info>,
+    pub serum_market: AccountInfo<'info>,
+    pub serum_request_queue: AccountInfo<'info>,
+    pub serum_event_queue: AccountInfo<'info>,
+    pub serum_bids: AccountInfo<'info>,
+    pub serum_asks: AccountInfo<'info>,
+    pub serum_base_vault: AccountInfo<'info>,
+    pub serum_quote_vault: AccountInfo<'info>,
+    pub serum_open_orders: AccountInfo<'info>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]

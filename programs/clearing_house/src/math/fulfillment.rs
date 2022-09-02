@@ -15,7 +15,7 @@ pub fn determine_fulfillment_methods(
     }
 
     if is_auction_complete(taker_order.slot, taker_order.auction_duration, slot)? {
-        fulfillment_methods.push(FulfillmentMethod::AMM)
+        fulfillment_methods.push(FulfillmentMethod::Market)
     }
 
     Ok(fulfillment_methods)

@@ -23,5 +23,6 @@ pub mod pnl;
 pub mod position;
 pub mod quote_asset;
 pub mod repeg;
+pub mod serum;
 pub mod slippage;
 pub mod withdrawal;

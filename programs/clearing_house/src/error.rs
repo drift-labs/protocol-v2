@@ -247,6 +247,14 @@ pub enum ErrorCode {
     InvalidBankVault,
     #[msg("Invalid Bank State")]
     InvalidBankState,
+    #[msg("InvalidSerumProgram")]
+    InvalidSerumProgram,
+    #[msg("InvalidSerumMarket")]
+    InvalidSerumMarket,
+    #[msg("InvalidSerumOpenOrders")]
+    InvalidSerumOpenOrders,
+    #[msg("FailedSerumCPI")]
+    FailedSerumCPI,
 }
 
 #[macro_export]

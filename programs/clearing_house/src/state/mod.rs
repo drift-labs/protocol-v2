@@ -7,6 +7,7 @@ pub mod market;
 pub mod market_map;
 pub mod oracle;
 pub mod oracle_map;
+pub mod serum;
 #[allow(clippy::module_inception)]
 pub mod state;
 pub mod user;

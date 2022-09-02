@@ -158,6 +158,67 @@
       ]
     },
     {
+      "name": "addSerumMarket",
+      "accounts": [
+        {
+          "name": "baseBank",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "quoteBank",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "serumProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "serumMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "serumOpenOrders",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bankIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "initializeMarket",
       "accounts": [
         {
@@ -793,12 +854,7 @@
           "isSigner": false
         },
         {
-          "name": "quoteBankVaultAuthority",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "baseBankVaultAuthority",
+          "name": "clearingHouseSigner",
           "isMut": false,
           "isSigner": false
         }
@@ -2876,6 +2932,42 @@
           {
             "name": "nextFillRecordId",
             "type": "u64"
+          },
+          {
+            "name": "serumProgramId",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumMarket",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumRequestQueue",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumEventQueue",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumBids",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumAsks",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumBaseVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumQuoteVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumOpenOrders",
+            "type": "publicKey"
           }
         ]
       }
@@ -6149,6 +6241,29 @@
       "code": 6120,
       "name": "InvalidBankState",
       "msg": "Invalid Bank State"
+    },
+    {
+      "code": 6121,
+      "name": "InvalidSerumProgram",
+      "msg": "InvalidSerumProgram"
+    },
+    {
+      "code": 6122,
+      "name": "InvalidSerumMarket",
+      "msg": "InvalidSerumMarket"
+    },
+    {
+      "code": 6123,
+      "name": "InvalidSerumOpenOrders",
+      "msg": "InvalidSerumOpenOrders"
+    },
+    {
+      "code": 6124,
+      "name": "FailedSerumCPI",
+      "msg": "FailedSerumCPI"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "HbUKwqFPjz9r7ZtT416AU8aaecDQMKKiDCTS3AdXnS6c"
+  }
 }

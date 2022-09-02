@@ -66,8 +66,18 @@ pub struct Bank {
     pub liquidation_fee: u128,
     pub liquidation_if_factor: u32, // percentage of liquidation transfer for total insurance
     pub withdraw_guard_threshold: u128, // no withdraw limits/guards when bank deposits below this threshold
+
     pub order_step_size: u128,
     pub next_fill_record_id: u64,
+    pub serum_program_id: Pubkey,
+    pub serum_market: Pubkey,
+    pub serum_request_queue: Pubkey,
+    pub serum_event_queue: Pubkey,
+    pub serum_bids: Pubkey,
+    pub serum_asks: Pubkey,
+    pub serum_base_vault: Pubkey,
+    pub serum_quote_vault: Pubkey,
+    pub serum_open_orders: Pubkey,
 }
 
 impl Bank {
