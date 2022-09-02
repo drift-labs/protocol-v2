@@ -34,6 +34,7 @@ import {
 	calculateUpdatedAMM,
 	calculateSpread,
 	calculateSpreadBN,
+	isVariant,
 } from '../sdk/src';
 
 import {
@@ -46,6 +47,7 @@ import {
 	getOraclePriceData,
 	initializeQuoteAssetBank,
 	sleep,
+	printTxLogs,
 } from './testHelpers';
 
 describe('delist market sim', () => {
@@ -514,10 +516,10 @@ describe('delist market sim', () => {
 
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, btcUsd)).price;
 		console.log('new oracle price:', curPrice);
-		const oraclePriceData = await getOraclePriceData(
-			anchor.workspace.Pyth,
-			btcUsd
-		);
+		// const oraclePriceData = await getOraclePriceData(
+		// 	anchor.workspace.Pyth,
+		// 	btcUsd
+		// );
 
 		assert(market.settlementPrice.gt(ZERO));
 	});
