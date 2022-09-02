@@ -684,6 +684,8 @@ pub fn fill_order(
             state.funding_paused,
             Some(mark_price_before),
         )?;
+
+        controller::validate::validate_market_account(market)?;
     }
 
     Ok((base_asset_amount, updated_user_state))
@@ -961,7 +963,6 @@ fn fulfill_order(
         bank_map,
         oracle_map,
     )?;
-
     if total_collateral < cast_to_i128(margin_requirement)? {
         msg!(
             "taker breached maintenance requirements (margin requirement {}) (total_collateral {})",

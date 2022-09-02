@@ -61,6 +61,7 @@ pub fn unstaked_shares_to_amount(
     Ok(amount)
 }
 
+#[allow(clippy::comparison_chain)]
 pub fn log10(n: u128) -> u128 {
     if n < 10 {
         0

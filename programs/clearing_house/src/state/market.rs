@@ -81,6 +81,7 @@ impl Market {
         let amm = AMM::default_test();
         Market {
             amm,
+            margin_ratio_initial: 1000,
             ..Market::default()
         }
     }
@@ -261,7 +262,7 @@ pub struct AMM {
 
 impl AMM {
     pub fn default_test() -> Self {
-        let default_reserves = AMM_RESERVE_PRECISION;
+        let default_reserves = 100 * AMM_RESERVE_PRECISION;
         // make sure tests dont have the default sqrt_k = 0
         AMM {
             base_asset_reserve: default_reserves,
@@ -270,6 +271,9 @@ impl AMM {
             base_asset_amount_step_size: 1,
             max_base_asset_reserve: u128::MAX,
             min_base_asset_reserve: 0,
+            terminal_quote_asset_reserve: default_reserves,
+            peg_multiplier: crate::math::constants::PEG_PRECISION,
+            max_spread: 1000,
             ..AMM::default()
         }
     }

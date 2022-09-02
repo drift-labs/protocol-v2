@@ -15,7 +15,6 @@ use crate::math::constants::{MARGIN_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRE
 use crate::math::position::calculate_entry_price;
 use crate::math_error;
 use crate::state::market::Market;
-use crate::state::oracle::OraclePriceData;
 use crate::state::user::{Order, OrderStatus, OrderTriggerCondition, OrderType, User};
 
 pub fn calculate_base_asset_amount_for_amm_to_fulfill(

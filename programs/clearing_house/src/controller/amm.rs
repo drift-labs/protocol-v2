@@ -569,6 +569,9 @@ pub fn move_price(
     let (min_base_asset_reserve, max_base_asset_reserve) =
         amm::calculate_bid_ask_bounds(amm.base_asset_reserve)?;
 
+    let (_, terminal_quote_reserves, _) = amm::calculate_terminal_price_and_reserves(amm)?;
+    amm.terminal_quote_asset_reserve = terminal_quote_reserves;
+
     amm.max_base_asset_reserve = max_base_asset_reserve;
     amm.min_base_asset_reserve = min_base_asset_reserve;
 
