@@ -26,7 +26,7 @@
           "isSigner": false
         },
         {
-          "name": "insuranceVaultAuthority",
+          "name": "clearingHouseSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -72,17 +72,12 @@
           "isSigner": false
         },
         {
-          "name": "bankVaultAuthority",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "insuranceFundVault",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "insuranceFundVaultAuthority",
+          "name": "clearingHouseSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -316,8 +311,8 @@
           "isSigner": false
         },
         {
-          "name": "bankVaultAuthority",
-          "isMut": true,
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -974,8 +969,8 @@
           "isSigner": false
         },
         {
-          "name": "insuranceFundVaultAuthority",
-          "isMut": true,
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -1029,8 +1024,8 @@
           "isSigner": false
         },
         {
-          "name": "insuranceFundVaultAuthority",
-          "isMut": true,
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -1100,8 +1095,8 @@
           "isSigner": false
         },
         {
-          "name": "bankVaultAuthority",
-          "isMut": true,
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -1146,7 +1141,7 @@
           "isSigner": false
         },
         {
-          "name": "insuranceVaultAuthority",
+          "name": "clearingHouseSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -1192,7 +1187,7 @@
           "isSigner": false
         },
         {
-          "name": "insuranceVaultAuthority",
+          "name": "clearingHouseSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -2414,8 +2409,8 @@
           "isSigner": false
         },
         {
-          "name": "bankVaultAuthority",
-          "isMut": true,
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -2566,6 +2561,11 @@
       "name": "removeInsuranceFundStake",
       "accounts": [
         {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "bank",
           "isMut": false,
           "isSigner": false
@@ -2591,8 +2591,8 @@
           "isSigner": false
         },
         {
-          "name": "insuranceFundVaultAuthority",
-          "isMut": true,
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -2647,24 +2647,8 @@
             "type": "publicKey"
           },
           {
-            "name": "vaultAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "vaultAuthorityNonce",
-            "type": "u8"
-          },
-          {
             "name": "insuranceFundVault",
             "type": "publicKey"
-          },
-          {
-            "name": "insuranceFundVaultAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "insuranceFundVaultAuthorityNonce",
-            "type": "u8"
           },
           {
             "name": "revenuePool",
@@ -2977,14 +2961,6 @@
             "type": "publicKey"
           },
           {
-            "name": "insuranceVaultAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "insuranceVaultNonce",
-            "type": "u8"
-          },
-          {
             "name": "marginRatioInitial",
             "type": "u128"
           },
@@ -3070,6 +3046,14 @@
           },
           {
             "name": "liquidationMarginBufferRatio",
+            "type": "u8"
+          },
+          {
+            "name": "signer",
+            "type": "publicKey"
+          },
+          {
+            "name": "signerNonce",
             "type": "u8"
           },
           {
