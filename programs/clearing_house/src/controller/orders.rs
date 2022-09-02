@@ -1549,7 +1549,7 @@ pub fn fulfill_order_with_match(
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
     let order_action_record = get_order_action_record(
         now,
-        OrderAction::Place,
+        OrderAction::Fill,
         OrderActionExplanation::None,
         market.market_index,
         Some(*filler_key),
