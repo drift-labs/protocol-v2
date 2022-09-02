@@ -176,3 +176,12 @@ export function getInsuranceFundStakeAccountPublicKey(
 		programId
 	)[0];
 }
+
+export function getClearingHouseSignerPublicKey(
+	programId: PublicKey
+): PublicKey {
+	return anchor.web3.PublicKey.findProgramAddressSync(
+		[Buffer.from(anchor.utils.bytes.utf8.encode('clearing_house_signer'))],
+		programId
+	)[0];
+}
