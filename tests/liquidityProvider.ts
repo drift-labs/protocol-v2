@@ -8,6 +8,8 @@ import {
 	OracleSource,
 	SwapDirection,
 	Wallet,
+	isVariant,
+	LPRecord,
 } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
@@ -276,6 +278,17 @@ describe('liquidity providing', () => {
 		const lpAmount = new BN(100 * 1e13); // 100 / (100 + 300) = 1/4
 		const _sig = await clearingHouse.addLiquidity(lpAmount, market.marketIndex);
 
+		const addLiquidityRecord: LPRecord =
+			eventSubscriber.getEventsArray('LPRecord')[0];
+		assert(isVariant(addLiquidityRecord.action, 'addLiquidity'));
+		assert(addLiquidityRecord.nShares.eq(lpAmount));
+		assert(addLiquidityRecord.marketIndex.eq(ZERO));
+		assert(
+			addLiquidityRecord.user.equals(
+				await clearingHouse.getUserAccountPublicKey()
+			)
+		);
+
 		const newInitMarginReq = clearingHouseUser.getInitialMarginRequirement();
 		console.log(initMarginReq.toString(), '->', newInitMarginReq.toString());
 		assert(newInitMarginReq.eq(new BN(8284000)));
@@ -352,6 +365,16 @@ describe('liquidity providing', () => {
 		);
 		await _viewLogs(_txSig);
 
+		const settleLiquidityRecord: LPRecord =
+			eventSubscriber.getEventsArray('LPRecord')[0];
+		assert(isVariant(settleLiquidityRecord.action, 'settleLiquidity'));
+		assert(settleLiquidityRecord.marketIndex.eq(ZERO));
+		assert(
+			settleLiquidityRecord.user.equals(
+				await clearingHouse.getUserAccountPublicKey()
+			)
+		);
+
 		// net baa doesnt change on settle
 		await clearingHouse.fetchAccounts();
 		assert(
@@ -368,6 +391,15 @@ describe('liquidity providing', () => {
 
 		user = clearingHouseUser.getUserAccount();
 		const lpPosition = user.positions[0];
+
+		assert(
+			settleLiquidityRecord.deltaBaseAssetAmount.eq(lpPosition.baseAssetAmount)
+		);
+		assert(
+			settleLiquidityRecord.deltaQuoteAssetAmount.eq(
+				lpPosition.quoteAssetAmount
+			)
+		);
 
 		console.log(
 			'lp tokens, baa, qaa:',
@@ -407,6 +439,19 @@ describe('liquidity providing', () => {
 		// remove
 		console.log('removing liquidity...');
 		await clearingHouse.removeLiquidity(ZERO);
+
+		const removeLiquidityRecord: LPRecord =
+			eventSubscriber.getEventsArray('LPRecord')[0];
+		assert(isVariant(removeLiquidityRecord.action, 'removeLiquidity'));
+		assert(removeLiquidityRecord.nShares.eq(lpAmount));
+		assert(removeLiquidityRecord.marketIndex.eq(ZERO));
+		assert(
+			removeLiquidityRecord.user.equals(
+				await clearingHouse.getUserAccountPublicKey()
+			)
+		);
+		assert(removeLiquidityRecord.deltaBaseAssetAmount.eq(ZERO));
+		assert(removeLiquidityRecord.deltaQuoteAssetAmount.eq(ZERO));
 
 		console.log('closing trader ...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
@@ -492,7 +537,7 @@ describe('liquidity providing', () => {
 		const trader = traderClearingHouse.getUserAccount();
 		console.log('trader size', trader.positions[0].baseAssetAmount.toString());
 
-		const [settledLPPosition, _, __] =
+		const [settledLPPosition, _, sdkPnl] =
 			clearingHouseUser.getSettledLPPosition(ZERO);
 
 		console.log('settling...');
@@ -507,6 +552,17 @@ describe('liquidity providing', () => {
 		}
 		user = await clearingHouseUser.getUserAccount();
 		const position = user.positions[0];
+
+		const settleLiquidityRecord: LPRecord =
+			eventSubscriber.getEventsArray('LPRecord')[0];
+
+		console.log(
+			'settl pnl vs sdk',
+			settleLiquidityRecord.pnl.toString(),
+			sdkPnl.toString()
+		);
+
+		assert(settleLiquidityRecord.pnl.toString() === sdkPnl.toString());
 
 		// gets a short on settle
 		console.log(
@@ -587,6 +643,8 @@ describe('liquidity providing', () => {
 		const prevSqrtK = market.amm.sqrtK;
 		const prevbar = market.amm.baseAssetReserve;
 		const prevqar = market.amm.quoteAssetReserve;
+		const prevQaa =
+			clearingHouse.getUserAccount().positions[0].quoteAssetAmount;
 
 		console.log('adding liquidity...');
 		try {
@@ -636,6 +694,8 @@ describe('liquidity providing', () => {
 		const lpTokenAmount = user.positions[0].lpShares;
 		console.log('lp token amount:', lpTokenAmount.toString());
 		assert(lpTokenAmount.eq(ZERO));
+		// dont round down for no change
+		assert(user.positions[0].quoteAssetAmount.eq(prevQaa));
 
 		console.log('asset reserves:');
 		console.log(prevSqrtK.toString(), market.amm.sqrtK.toString());
@@ -765,9 +825,23 @@ describe('liquidity providing', () => {
 			// lpPosition.unsettledPnl.toString()
 		);
 
+		const removeLiquidityRecord: LPRecord =
+			eventSubscriber.getEventsArray('LPRecord')[0];
+		assert(isVariant(removeLiquidityRecord.action, 'removeLiquidity'));
+		assert(
+			removeLiquidityRecord.deltaBaseAssetAmount.eq(
+				lpPosition.baseAssetAmount.sub(position3.baseAssetAmount)
+			)
+		);
+		assert(
+			removeLiquidityRecord.deltaQuoteAssetAmount.eq(
+				lpPosition.quoteAssetAmount.sub(position3.quoteAssetAmount)
+			)
+		);
+
 		assert(lpTokenAmount.eq(new BN(0)));
 		assert(user.positions[0].baseAssetAmount.eq(new BN('100000000000000'))); // lp is long
-		assert(user.positions[0].quoteAssetAmount.eq(new BN(-9550786)));
+		assert(user.positions[0].quoteAssetAmount.eq(new BN(-9550783)));
 
 		console.log('closing trader ...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
@@ -848,7 +922,7 @@ describe('liquidity providing', () => {
 
 		assert(lpTokenAmount.eq(ZERO));
 		assert(user.positions[0].baseAssetAmount.eq(new BN('-100000000000000'))); // lp is short
-		assert(user.positions[0].quoteAssetAmount.eq(new BN('11940739')));
+		assert(user.positions[0].quoteAssetAmount.eq(new BN('11940743')));
 
 		console.log('closing trader...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.ADD, market);
@@ -909,7 +983,7 @@ describe('liquidity providing', () => {
 		const baa0 = position0.baseAssetAmount;
 		const qaa0 = position0.quoteAssetAmount;
 		assert(baa0.eq(ZERO));
-		assert(qaa0.eq(new BN('2237738')));
+		assert(qaa0.eq(new BN('2237742')));
 
 		console.log('user trading...');
 		const tradeSize = new BN(40 * 1e13);
@@ -954,7 +1028,7 @@ describe('liquidity providing', () => {
 		const baa = user.positions[0].baseAssetAmount;
 		const qaa = user.positions[0].quoteAssetAmount;
 		assert(baa.eq(new BN(100000000000000)));
-		assert(qaa.eq(new BN(-6860363)));
+		assert(qaa.eq(new BN(-6860358)));
 
 		console.log('removing the other half of liquidity');
 		await clearingHouse.removeLiquidity(market.marketIndex, otherHalfShares);
@@ -981,6 +1055,79 @@ describe('liquidity providing', () => {
 		console.log('closing lp ...');
 		await adjustOraclePostSwap(baa, SwapDirection.ADD, market);
 		await fullClosePosition(clearingHouse, user.positions[0]);
+	});
+
+	it('settles lp with pnl', async () => {
+		console.log('adding liquidity...');
+
+		const market = clearingHouse.getMarketAccount(new BN(0));
+		const _sig = await clearingHouse.addLiquidity(
+			new BN(100 * 1e13),
+			market.marketIndex
+		);
+		await delay(lpCooldown + 1000);
+
+		let user = clearingHouseUser.getUserAccount();
+		console.log(user.positions[0].lpShares.toString());
+
+		// lp goes long
+		const tradeSize = new BN(5 * 1e13);
+		try {
+			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
+			const _txsig = await clearingHouse.openPosition(
+				PositionDirection.LONG,
+				tradeSize,
+				market.marketIndex,
+				new BN(100 * 1e13)
+			);
+			await _viewLogs(_txsig);
+		} catch (e) {
+			console.log(e);
+		}
+
+		// some user goes long (lp should get a short + pnl for closing long on settle)
+		console.log('user trading...');
+		try {
+			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
+			const _txsig = await traderClearingHouse.openPosition(
+				PositionDirection.LONG,
+				tradeSize,
+				market.marketIndex,
+				new BN(100 * 1e13)
+			);
+			await _viewLogs(_txsig);
+		} catch (e) {
+			console.log(e);
+		}
+
+		const trader = traderClearingHouse.getUserAccount();
+		console.log('trader size', trader.positions[0].baseAssetAmount.toString());
+
+		const [settledLPPosition, _, sdkPnl] =
+			clearingHouseUser.getSettledLPPosition(ZERO);
+
+		console.log('settling...');
+		try {
+			const _txsigg = await clearingHouse.settleLP(
+				await clearingHouse.getUserAccountPublicKey(),
+				ZERO
+			);
+			await _viewLogs(_txsigg);
+		} catch (e) {
+			console.log(e);
+		}
+		user = await clearingHouseUser.getUserAccount();
+		const position = user.positions[0];
+
+		const settleLiquidityRecord: LPRecord =
+			eventSubscriber.getEventsArray('LPRecord')[0];
+
+		console.log(
+			'settl pnl vs sdk',
+			settleLiquidityRecord.pnl.toString(),
+			sdkPnl.toString()
+		);
+		assert(settleLiquidityRecord.pnl.eq(sdkPnl));
 	});
 	return;
 

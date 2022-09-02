@@ -1817,7 +1817,7 @@ pub mod delisting {
 
             // shorts lose
             assert_eq!(shorter.bank_balances[0].balance < orig_short_balance, true);
-            assert_eq!(shorter.bank_balances[0].balance,  198979000001);
+            assert_eq!(shorter.bank_balances[0].balance, 198979000001);
 
             let shorter_loss = orig_short_balance - shorter.bank_balances[0].balance;
             assert_eq!(shorter_loss, 1020_999_999); //$1020 loss
@@ -1896,7 +1896,7 @@ pub mod delisting {
         .unwrap();
 
         assert_eq!(longer.bank_balances[0].balance > 100000000, true);
-        assert_eq!(longer.bank_balances[0].balance,  21958000000);
+        assert_eq!(longer.bank_balances[0].balance, 21958000000);
 
         let mut market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.pnl_pool.balance, 62_999_997); //fee from settling
@@ -2157,7 +2157,7 @@ pub mod delisting {
             let longer_balance_before = longer.bank_balances[0].balance;
             drop(market);
 
-            // not enough pnl pool 
+            // not enough pnl pool
             assert_eq!(
                 settle_expired_position(
                     0,
@@ -2173,7 +2173,10 @@ pub mod delisting {
                 true
             );
 
-            assert_eq!(longer.bank_balances[0].balance == longer_balance_before, true);
+            assert_eq!(
+                longer.bank_balances[0].balance == longer_balance_before,
+                true
+            );
 
             let mut market = market_map.get_ref_mut(&0).unwrap();
             assert_eq!(market.pnl_pool.balance, 0);
@@ -2548,7 +2551,10 @@ pub mod delisting {
             assert_eq!(market.pnl_pool.balance, 24370250000);
             assert_eq!(longer.bank_balances[0].balance, 20000000000);
             assert_eq!(longer.positions[0].quote_asset_amount, 200000000);
-            assert_eq!(longer.positions[0].quote_asset_amount, market.amm.quote_asset_amount_long);
+            assert_eq!(
+                longer.positions[0].quote_asset_amount,
+                market.amm.quote_asset_amount_long
+            );
             drop(market);
 
             settle_expired_position(

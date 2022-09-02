@@ -26,7 +26,7 @@
           "isSigner": false
         },
         {
-          "name": "insuranceVaultAuthority",
+          "name": "clearingHouseSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -72,17 +72,12 @@
           "isSigner": false
         },
         {
-          "name": "bankVaultAuthority",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "insuranceFundVault",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "insuranceFundVaultAuthority",
+          "name": "clearingHouseSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -316,8 +311,8 @@
           "isSigner": false
         },
         {
-          "name": "bankVaultAuthority",
-          "isMut": true,
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -1021,8 +1016,8 @@
           "isSigner": false
         },
         {
-          "name": "insuranceFundVaultAuthority",
-          "isMut": true,
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -1076,8 +1071,8 @@
           "isSigner": false
         },
         {
-          "name": "insuranceFundVaultAuthority",
-          "isMut": true,
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -1173,8 +1168,8 @@
           "isSigner": false
         },
         {
-          "name": "bankVaultAuthority",
-          "isMut": true,
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -1219,7 +1214,7 @@
           "isSigner": false
         },
         {
-          "name": "insuranceVaultAuthority",
+          "name": "clearingHouseSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -1265,7 +1260,7 @@
           "isSigner": false
         },
         {
-          "name": "insuranceVaultAuthority",
+          "name": "clearingHouseSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -2487,8 +2482,8 @@
           "isSigner": false
         },
         {
-          "name": "bankVaultAuthority",
-          "isMut": true,
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -2639,6 +2634,11 @@
       "name": "removeInsuranceFundStake",
       "accounts": [
         {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "bank",
           "isMut": false,
           "isSigner": false
@@ -2664,8 +2664,8 @@
           "isSigner": false
         },
         {
-          "name": "insuranceFundVaultAuthority",
-          "isMut": true,
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -2720,24 +2720,8 @@
             "type": "publicKey"
           },
           {
-            "name": "vaultAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "vaultAuthorityNonce",
-            "type": "u8"
-          },
-          {
             "name": "insuranceFundVault",
             "type": "publicKey"
-          },
-          {
-            "name": "insuranceFundVaultAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "insuranceFundVaultAuthorityNonce",
-            "type": "u8"
           },
           {
             "name": "revenuePool",
@@ -3078,14 +3062,6 @@
             "type": "publicKey"
           },
           {
-            "name": "insuranceVaultAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "insuranceVaultNonce",
-            "type": "u8"
-          },
-          {
             "name": "marginRatioInitial",
             "type": "u128"
           },
@@ -3171,6 +3147,14 @@
           },
           {
             "name": "liquidationMarginBufferRatio",
+            "type": "u8"
+          },
+          {
+            "name": "signer",
+            "type": "publicKey"
+          },
+          {
+            "name": "signerNonce",
             "type": "u8"
           },
           {
@@ -3452,6 +3436,10 @@
           {
             "name": "quoteAssetAmount",
             "type": "i128"
+          },
+          {
+            "name": "lpShares",
+            "type": "u128"
           },
           {
             "name": "userPnl",
@@ -4580,6 +4568,23 @@
       }
     },
     {
+      "name": "LPAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "AddLiquidity"
+          },
+          {
+            "name": "RemoveLiquidity"
+          },
+          {
+            "name": "SettleLiquidity"
+          }
+        ]
+      }
+    },
+    {
       "name": "LiquidationType",
       "type": {
         "kind": "enum",
@@ -5303,6 +5308,53 @@
         },
         {
           "name": "oraclePrice",
+          "type": "i128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "LPRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "action",
+          "type": {
+            "defined": "LPAction"
+          },
+          "index": false
+        },
+        {
+          "name": "nShares",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "deltaBaseAssetAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "deltaQuoteAssetAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "pnl",
           "type": "i128",
           "index": false
         }
