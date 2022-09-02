@@ -1359,6 +1359,14 @@ pub fn calculate_settlement_price(
         amm.net_base_asset_amount
     );
 
+    let price_sign_mult = 1;
+
+    // if amm.quote_asset_amount_long > amm.quote_asset_amount_short {
+    //     1
+    // } else {
+    //     -1
+    // };
+
     let best_settlement_price = -(amm
         .quote_asset_amount_long
         .checked_add(amm.quote_asset_amount_short)
@@ -1368,7 +1376,8 @@ pub fn calculate_settlement_price(
         .checked_mul(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)
         .ok_or_else(math_error!())?
         .checked_div(amm.net_base_asset_amount)
-        .ok_or_else(math_error!())?);
+        .ok_or_else(math_error!())?)
+        * price_sign_mult;
 
     dlog!(best_settlement_price);
     dlog!(target_price);
@@ -1385,8 +1394,7 @@ pub fn calculate_settlement_price(
             .max(target_price)
             .checked_add(1)
             .ok_or_else(math_error!())?
-    }
-    .max(0);
+    };
 
     Ok(settlement_price)
 }

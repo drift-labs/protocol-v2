@@ -27,6 +27,11 @@ pub fn get_bank_balance(
         BankBalanceType::Borrow => bank.cumulative_borrow_interest,
     };
 
+    msg!(
+        "cumulative_interest: {}, {}",
+        token_amount,
+        cumulative_interest
+    );
     let mut balance = token_amount
         .checked_mul(precision_increase)
         .ok_or_else(math_error!())?

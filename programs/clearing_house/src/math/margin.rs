@@ -17,7 +17,7 @@ use crate::math::funding::calculate_funding_payment;
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::state::bank::{Bank, BankBalanceType};
 use crate::state::bank_map::BankMap;
-use crate::state::market::Market;
+use crate::state::market::{Market, MarketStatus};
 use crate::state::market_map::MarketMap;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
@@ -242,10 +242,17 @@ pub fn calculate_perp_position_value_and_pnl(
 
     let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount()?;
 
-    let worse_case_base_asset_value = calculate_base_asset_value_with_oracle_price(
-        worst_case_base_asset_amount,
-        oracle_price_data.price,
-    )?;
+    let worse_case_base_asset_value = if market.status == MarketStatus::Settlement {
+        calculate_base_asset_value_with_oracle_price(
+            worst_case_base_asset_amount,
+            market.settlement_price,
+        )?
+    } else {
+        calculate_base_asset_value_with_oracle_price(
+            worst_case_base_asset_amount,
+            oracle_price_data.price,
+        )?
+    };
 
     let margin_ratio = market.get_margin_ratio(
         worst_case_base_asset_amount.unsigned_abs(),
