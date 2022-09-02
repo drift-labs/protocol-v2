@@ -918,48 +918,9 @@ pub mod clearing_house {
             .or_else(|_| add_new_position(&mut user.positions, market_index))?;
         let position = &mut user.positions[position_index];
 
-        // update add liquidity time
-        position.last_lp_add_time = now;
-
-        let market_amm = market_map.get_ref(&market_index)?.amm;
-
-        let (sqrt_k,) = get_struct_values!(market_amm, sqrt_k);
-
-        let (net_base_asset_amount_per_lp, net_quote_asset_amount_per_lp) = get_struct_values!(
-            market_amm.market_position_per_lp,
-            base_asset_amount,
-            quote_asset_amount
-        );
-
-        if position.lp_shares > 0 {
-            let mut market = market_map.get_ref_mut(&market_index)?;
-            settle_lp_position(position, &mut market)?;
-        } else {
-            // init
-            position.last_net_base_asset_amount_per_lp = net_base_asset_amount_per_lp;
-            position.last_net_quote_asset_amount_per_lp = net_quote_asset_amount_per_lp;
-        }
-
-        // add share balance
-        position.lp_shares = position
-            .lp_shares
-            .checked_add(n_shares)
-            .ok_or_else(math_error!())?;
-
-        // update market state
-        let new_sqrt_k = sqrt_k.checked_add(n_shares).ok_or_else(math_error!())?;
-        let new_sqrt_k_u192 = bn::U192::from(new_sqrt_k);
-
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
-            let update_k_result = get_update_k_result(&market, new_sqrt_k_u192, true)?;
-            math::amm::update_k(&mut market, &update_k_result)?;
-
-            market.amm.user_lp_shares = market
-                .amm
-                .user_lp_shares
-                .checked_add(n_shares)
-                .ok_or_else(math_error!())?;
+            controller::lp::mint_lp_shares(position, &mut market, n_shares, now)?;
         }
 
         // check margin requirements
@@ -2857,7 +2818,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn settle_revenue_to_insurance_fund<'info>(
+    pub fn settle_revenue_to_insurance_fund(
         ctx: Context<SettleRevenueToInsuranceFund>,
         bank_index: u64,
     ) -> Result<()> {
@@ -2906,7 +2867,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn add_insurance_fund_stake<'info>(
+    pub fn add_insurance_fund_stake(
         ctx: Context<AddInsuranceFundStake>,
         bank_index: u64,
         amount: u64,
@@ -2953,7 +2914,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn request_remove_insurance_fund_stake<'info>(
+    pub fn request_remove_insurance_fund_stake(
         ctx: Context<RequestRemoveInsuranceFundStake>,
         bank_index: u64,
         amount: u64,
@@ -3004,7 +2965,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn cancel_request_remove_insurance_fund_stake<'info>(
+    pub fn cancel_request_remove_insurance_fund_stake(
         ctx: Context<RequestRemoveInsuranceFundStake>,
         bank_index: u64,
     ) -> Result<()> {
@@ -3037,7 +2998,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn remove_insurance_fund_stake<'info>(
+    pub fn remove_insurance_fund_stake(
         ctx: Context<RemoveInsuranceFundStake>,
         bank_index: u64,
     ) -> Result<()> {

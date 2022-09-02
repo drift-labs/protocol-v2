@@ -446,6 +446,7 @@ export type AMM = {
 	cumulativeFeePerLp: BN;
 	cumulativeNetBaseAssetAmountPerLp: BN;
 	userLpShares: BN;
+	netUnsettledLpBaseAssetAmount: BN;
 	minimumQuoteAssetTradeSize: BN;
 	baseAssetAmountStepSize: BN;
 	maxBaseAssetAmountRatio: number;
