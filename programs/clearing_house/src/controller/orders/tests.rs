@@ -99,7 +99,6 @@ pub mod fulfill_order_with_maker_order {
             &mut taker_stats,
             0,
             &taker_key,
-            BASE_PRECISION,
             &mut maker,
             &mut maker_stats,
             0,
@@ -227,7 +226,6 @@ pub mod fulfill_order_with_maker_order {
             &mut taker_stats,
             0,
             &taker_key,
-            BASE_PRECISION,
             &mut maker,
             &mut maker_stats,
             0,
@@ -355,7 +353,6 @@ pub mod fulfill_order_with_maker_order {
             &mut taker_stats,
             0,
             &taker_key,
-            BASE_PRECISION,
             &mut maker,
             &mut maker_stats,
             0,
@@ -483,7 +480,6 @@ pub mod fulfill_order_with_maker_order {
             &mut taker_stats,
             0,
             &taker_key,
-            BASE_PRECISION,
             &mut maker,
             &mut maker_stats,
             0,
@@ -611,7 +607,6 @@ pub mod fulfill_order_with_maker_order {
             &mut taker_stats,
             0,
             &taker_key,
-            BASE_PRECISION,
             &mut maker,
             &mut maker_stats,
             0,
@@ -697,7 +692,6 @@ pub mod fulfill_order_with_maker_order {
             &mut taker_stats,
             0,
             &taker_key,
-            BASE_PRECISION,
             &mut maker,
             &mut maker_stats,
             0,
@@ -784,7 +778,6 @@ pub mod fulfill_order_with_maker_order {
             &mut taker_stats,
             0,
             &taker_key,
-            BASE_PRECISION,
             &mut maker,
             &mut maker_stats,
             0,
@@ -871,7 +864,6 @@ pub mod fulfill_order_with_maker_order {
             &mut taker_stats,
             0,
             &taker_key,
-            BASE_PRECISION,
             &mut maker,
             &mut maker_stats,
             0,
@@ -958,7 +950,6 @@ pub mod fulfill_order_with_maker_order {
             &mut taker_stats,
             0,
             &taker_key,
-            BASE_PRECISION,
             &mut maker,
             &mut maker_stats,
             0,
@@ -1073,7 +1064,6 @@ pub mod fulfill_order_with_maker_order {
             &mut taker_stats,
             0,
             &taker_key,
-            100 * BASE_PRECISION,
             &mut maker,
             &mut maker_stats,
             0,
@@ -1191,7 +1181,6 @@ pub mod fulfill_order_with_maker_order {
             &mut taker_stats,
             0,
             &taker_key,
-            BASE_PRECISION,
             &mut maker,
             &mut maker_stats,
             0,
@@ -1316,7 +1305,6 @@ pub mod fulfill_order_with_maker_order {
             &mut taker_stats,
             0,
             &taker_key,
-            BASE_PRECISION,
             &mut maker,
             &mut maker_stats,
             0,
@@ -1442,7 +1430,6 @@ pub mod fulfill_order_with_maker_order {
             &mut taker_stats,
             0,
             &taker_key,
-            BASE_PRECISION,
             &mut maker,
             &mut maker_stats,
             0,
@@ -1579,6 +1566,7 @@ pub mod fulfill_order {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
         create_anchor_account_info!(bank, Bank, bank_account_info);
@@ -1734,6 +1722,7 @@ pub mod fulfill_order {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
         create_anchor_account_info!(bank, Bank, bank_account_info);
@@ -1910,6 +1899,7 @@ pub mod fulfill_order {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
         create_anchor_account_info!(bank, Bank, bank_account_info);
@@ -2000,144 +1990,9 @@ pub mod fulfill_order {
     }
 
     #[test]
-    fn taker_bid_filled_up_to_initial_margin_requirement() {
-        let mut market = Market {
-            amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
-                max_slippage_ratio: 10,
-                max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
-                base_spread: 1,
-                ..AMM::default()
-            },
-            margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
-            initialized: true,
-            ..Market::default_test()
-        };
-        create_anchor_account_info!(market, Market, market_account_info);
-        let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
-
-        let mut bank = Bank {
-            bank_index: 0,
-            oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
-            decimals: 6,
-            initial_asset_weight: BANK_WEIGHT_PRECISION,
-            ..Bank::default()
-        };
-        create_anchor_account_info!(bank, Bank, bank_account_info);
-        let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
-
-        let mut oracle_map = get_oracle_map();
-
-        let mut taker = User {
-            orders: get_orders(Order {
-                market_index: 0,
-                status: OrderStatus::Open,
-                order_type: OrderType::Market,
-                direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
-                ts: 0,
-                slot: 0,
-                auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
-                auction_duration: 0,
-                ..Order::default()
-            }),
-            positions: get_positions(MarketPosition {
-                market_index: 0,
-                open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
-                ..MarketPosition::default()
-            }),
-            bank_balances: get_bank_balances(UserBankBalance {
-                bank_index: 0,
-                balance_type: BankBalanceType::Deposit,
-                balance: BANK_INTEREST_PRECISION,
-            }),
-            ..User::default()
-        };
-
-        let mut maker = User {
-            orders: get_orders(Order {
-                market_index: 0,
-                post_only: true,
-                order_type: OrderType::Limit,
-                direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION / 2,
-                ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
-                ..Order::default()
-            }),
-            positions: get_positions(MarketPosition {
-                market_index: 0,
-                open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 / 2,
-                ..MarketPosition::default()
-            }),
-            ..User::default()
-        };
-
-        let mut filler = User::default();
-
+    fn fulfill_with_negative_free_collateral() {
         let now = 0_i64;
-        let slot = 0_u64;
-
-        let fee_structure = get_fee_structure();
-
-        let (taker_key, maker_key, filler_key) = get_user_keys();
-
-        let mut taker_stats = UserStats::default();
-        let mut maker_stats = UserStats::default();
-        let mut filler_stats = UserStats::default();
-
-        let (base_asset_amount, risk_increasing, _) = fulfill_order(
-            &mut taker,
-            0,
-            &taker_key,
-            &mut taker_stats,
-            &mut Some(&mut maker),
-            &mut Some(&mut maker_stats),
-            Some(0),
-            Some(&maker_key),
-            &mut Some(&mut filler),
-            &filler_key,
-            &mut Some(&mut filler_stats),
-            &mut None,
-            &mut None,
-            &bank_map,
-            &market_map,
-            &mut oracle_map,
-            &fee_structure,
-            0,
-            None,
-            now,
-            slot,
-        )
-        .unwrap();
-
-        assert_eq!(base_asset_amount, 82560000000);
-        assert!(risk_increasing);
-
-        let free_collateral =
-            calculate_free_collateral(&taker, &market_map, &bank_map, &mut oracle_map).unwrap();
-
-        // Leave small free collateral left
-        assert_eq!(free_collateral, 82244); // $0.082244
-    }
-
-    #[test]
-    fn taker_ask_filled_up_to_initial_margin_requirement() {
-        let now = 0_i64;
-        let slot = 0_u64;
+        let slot = 6_u64;
 
         let mut oracle_price = get_pyth_price(100, 10);
         let oracle_price_key =
@@ -2153,7 +2008,6 @@ pub mod fulfill_order {
 
         let mut market = Market {
             amm: AMM {
-                max_base_asset_reserve: 1000 * AMM_RESERVE_PRECISION,
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
@@ -2165,7 +2019,6 @@ pub mod fulfill_order {
                 max_slippage_ratio: 10,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
-                base_spread: 1,
                 oracle: oracle_price_key,
                 ..AMM::default()
             },
@@ -2174,6 +2027,9 @@ pub mod fulfill_order {
             initialized: true,
             ..Market::default_test()
         };
+        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.min_base_asset_reserve = 0;
+
         create_anchor_account_info!(market, Market, market_account_info);
         let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
 
@@ -2183,6 +2039,7 @@ pub mod fulfill_order {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
         create_anchor_account_info!(bank, Bank, bank_account_info);
@@ -2192,70 +2049,48 @@ pub mod fulfill_order {
             orders: get_orders(Order {
                 market_index: 0,
                 status: OrderStatus::Open,
-                order_type: OrderType::Limit,
-                direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                order_type: OrderType::Market,
+                direction: PositionDirection::Long,
+                base_asset_amount: 100 * BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                price: 50 * MARK_PRICE_PRECISION,
+                auction_start_price: 0,
+                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_duration: 5,
                 ..Order::default()
             }),
             positions: get_positions(MarketPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128,
+                open_bids: 100 * BASE_PRECISION_I128,
                 ..MarketPosition::default()
             }),
             bank_balances: get_bank_balances(UserBankBalance {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
-                balance: 50 * BANK_INTEREST_PRECISION,
+                balance: 1 * BANK_INTEREST_PRECISION,
             }),
             ..User::default()
         };
-
-        let mut maker = User {
-            orders: get_orders(Order {
-                market_index: 0,
-                post_only: true,
-                order_type: OrderType::Limit,
-                direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION / 2,
-                ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
-                ..Order::default()
-            }),
-            positions: get_positions(MarketPosition {
-                market_index: 0,
-                open_orders: 1,
-                open_bids: BASE_PRECISION_I128 / 2,
-                ..MarketPosition::default()
-            }),
-            ..User::default()
-        };
-
-        let mut filler = User::default();
 
         let fee_structure = get_fee_structure();
 
-        let (taker_key, maker_key, filler_key) = get_user_keys();
+        let (taker_key, _, filler_key) = get_user_keys();
 
         let mut taker_stats = UserStats::default();
-        let mut maker_stats = UserStats::default();
-        let mut filler_stats = UserStats::default();
 
-        let (base_asset_amount, risk_increasing, _) = fulfill_order(
+        let (base_asset_amount, _, _) = fulfill_order(
             &mut taker,
             0,
             &taker_key,
             &mut taker_stats,
-            &mut Some(&mut maker),
-            &mut Some(&mut maker_stats),
-            Some(0),
-            Some(&maker_key),
-            &mut Some(&mut filler),
+            &mut None,
+            &mut None,
+            None,
+            None,
+            &mut None,
             &filler_key,
-            &mut Some(&mut filler_stats),
+            &mut None,
             &mut None,
             &mut None,
             &bank_map,
@@ -2269,14 +2104,10 @@ pub mod fulfill_order {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, 8000000000000);
-        assert!(risk_increasing);
+        assert_eq!(base_asset_amount, 0);
 
-        let free_collateral =
-            calculate_free_collateral(&taker, &market_map, &bank_map, &mut oracle_map).unwrap();
-
-        // Leave small free collateral left
-        assert_eq!(free_collateral, 38292523); // $38.292523
+        assert_eq!(taker.positions[0], MarketPosition::default());
+        assert_eq!(taker.orders[0], Order::default());
     }
 
     #[test]
@@ -2332,6 +2163,7 @@ pub mod fulfill_order {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
         create_anchor_account_info!(bank, Bank, bank_account_info);
@@ -2604,6 +2436,7 @@ pub mod fill_order {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
         create_anchor_account_info!(bank, Bank, bank_account_info);
