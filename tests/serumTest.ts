@@ -128,6 +128,12 @@ describe('serum spot market', () => {
 		await takerClearingHouse.deposit(usdcAmount, new BN(0), takerUSDC);
 	});
 
+	after(async () => {
+		await takerClearingHouse.unsubscribe();
+		await makerClearingHouse.unsubscribe();
+		await eventSubscriber.unsubscribe();
+	});
+
 	it('Add Serum Market', async () => {
 		serumMarketPublicKey = await serumHelper.listMarket({
 			connection,
