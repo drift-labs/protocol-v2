@@ -465,24 +465,39 @@ pub struct FillSpotOrder<'info> {
     /// CHECK: checked in ix because it's based on the order market index
     pub base_bank_vault: Box<Account<'info, TokenAccount>>,
     #[account(
-        seeds = [b"bank_vault_authority".as_ref(), 0_u64.to_le_bytes().as_ref()],
-        bump,
-    )]
-    #[account(
         constraint = state.signer.eq(&clearing_house_signer.key())
     )]
     /// CHECK: forced clearing_house_signer
     pub clearing_house_signer: AccountInfo<'info>,
+    /// CHECK:
     pub serum_program_id: AccountInfo<'info>,
+    #[account(mut)]
+    /// CHECK:
     pub serum_market: AccountInfo<'info>,
+    #[account(mut)]
+    /// CHECK:
     pub serum_request_queue: AccountInfo<'info>,
+    #[account(mut)]
+    /// CHECK:
     pub serum_event_queue: AccountInfo<'info>,
+    #[account(mut)]
+    /// CHECK:
     pub serum_bids: AccountInfo<'info>,
+    #[account(mut)]
+    /// CHECK:
     pub serum_asks: AccountInfo<'info>,
+    #[account(mut)]
+    /// CHECK:
     pub serum_base_vault: AccountInfo<'info>,
+    #[account(mut)]
+    /// CHECK:
     pub serum_quote_vault: AccountInfo<'info>,
+    #[account(mut)]
+    /// CHECK:
     pub serum_open_orders: AccountInfo<'info>,
     pub token_program: Program<'info, Token>,
+    /// CHECK:
+    pub serum_signer: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]

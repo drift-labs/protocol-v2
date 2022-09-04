@@ -78,6 +78,8 @@ pub struct Bank {
     pub serum_base_vault: Pubkey,
     pub serum_quote_vault: Pubkey,
     pub serum_open_orders: Pubkey,
+    pub serum_signer_nonce: u64,
+    pub spot_fee_pool: PoolBalance,
 }
 
 impl Bank {

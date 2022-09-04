@@ -803,7 +803,7 @@ export async function initializeQuoteAssetBank(
 export async function initializeSolAssetBank(
 	admin: Admin,
 	solOracle: PublicKey
-): Promise<void> {
+): Promise<string> {
 	const optimalUtilization = BANK_RATE_PRECISION.div(new BN(2)); // 50% utilization
 	const optimalRate = BANK_RATE_PRECISION.mul(new BN(20)); // 2000% APR
 	const maxRate = BANK_RATE_PRECISION.mul(new BN(50)); // 5000% APR
@@ -821,7 +821,7 @@ export async function initializeSolAssetBank(
 	);
 	const bankIndex = admin.getStateAccount().numberOfBanks;
 
-	await admin.initializeBank(
+	const txSig = await admin.initializeBank(
 		NATIVE_MINT,
 		optimalUtilization,
 		optimalRate,
@@ -837,4 +837,5 @@ export async function initializeSolAssetBank(
 		bankIndex,
 		new BN(10 ** 10).mul(QUOTE_PRECISION)
 	);
+	return txSig;
 }

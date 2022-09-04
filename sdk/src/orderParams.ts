@@ -7,28 +7,26 @@ import {
 import { BN } from '@project-serum/anchor';
 
 export function getLimitOrderParams(
-	params: Omit<OptionalOrderParams, 'orderType'> & { price: BN }
+	params: Omit<OptionalOrderParams, 'orderType' | 'marketType'> & { price: BN }
 ): OptionalOrderParams {
 	return Object.assign({}, params, {
 		orderType: OrderType.LIMIT,
-		marketType: MarketType.PERP,
 	});
 }
 
 export function getTriggerMarketOrderParams(
-	params: Omit<OptionalOrderParams, 'orderType'> & {
+	params: Omit<OptionalOrderParams, 'orderType' | 'marketType'> & {
 		triggerCondition: OrderTriggerCondition;
 		triggerPrice: BN;
 	}
 ): OptionalOrderParams {
 	return Object.assign({}, params, {
 		orderType: OrderType.TRIGGER_MARKET,
-		marketType: MarketType.PERP,
 	});
 }
 
 export function getTriggerLimitOrderParams(
-	params: Omit<OptionalOrderParams, 'orderType'> & {
+	params: Omit<OptionalOrderParams, 'orderType' | 'marketType'> & {
 		triggerCondition: OrderTriggerCondition;
 		triggerPrice: BN;
 		price: BN;
@@ -36,15 +34,13 @@ export function getTriggerLimitOrderParams(
 ): OptionalOrderParams {
 	return Object.assign({}, params, {
 		orderType: OrderType.TRIGGER_LIMIT,
-		marketType: MarketType.PERP,
 	});
 }
 
 export function getMarketOrderParams(
-	params: Omit<OptionalOrderParams, 'orderType'>
+	params: Omit<OptionalOrderParams, 'orderType' | 'marketType'>
 ): OptionalOrderParams {
 	return Object.assign({}, params, {
 		orderType: OrderType.MARKET,
-		marketType: MarketType.PERP,
 	});
 }

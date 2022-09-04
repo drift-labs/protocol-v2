@@ -32,6 +32,7 @@ export * from './events/types';
 export * from './events/eventSubscriber';
 export * from './events/fetchLogs';
 export * from './math/auction';
+export * from './math/bank';
 export * from './math/conversion';
 export * from './math/funding';
 export * from './math/market';

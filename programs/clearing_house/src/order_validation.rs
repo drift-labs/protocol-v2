@@ -291,6 +291,7 @@ pub fn validate_spot_order(
     step_size: u128,
     initial_leverage_ratio: u128,
     minimum_order_value: u128,
+    base_decimals: u32,
 ) -> ClearingHouseResult {
     match order.order_type {
         OrderType::Market => validate_market_order(order, step_size)?,
@@ -301,6 +302,7 @@ pub fn validate_spot_order(
             step_size,
             initial_leverage_ratio,
             minimum_order_value,
+            base_decimals,
         )?,
         OrderType::TriggerMarket => {
             validate_trigger_market_order(order, step_size, minimum_order_value)?
@@ -320,6 +322,7 @@ fn validate_spot_limit_order(
     step_size: u128,
     initial_leverage_ratio: u128,
     minimum_order_value: u128,
+    bank_decimals: u32,
 ) -> ClearingHouseResult {
     validate_base_asset_amount(order, step_size)?;
 
@@ -356,7 +359,7 @@ fn validate_spot_limit_order(
     let approximate_market_value = limit_price
         .checked_mul(order.base_asset_amount)
         .unwrap_or(u128::MAX)
-        .div(AMM_RESERVE_PRECISION)
+        .div(10_u128.pow(bank_decimals))
         .div(MARK_PRICE_PRECISION / QUOTE_PRECISION);
 
     if approximate_market_value < minimum_order_value {

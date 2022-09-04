@@ -255,6 +255,8 @@ pub enum ErrorCode {
     InvalidSerumOpenOrders,
     #[msg("FailedSerumCPI")]
     FailedSerumCPI,
+    #[msg("FailedToFillOnSerum")]
+    FailedToFillOnSerum,
 }
 
 #[macro_export]

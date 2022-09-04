@@ -50,7 +50,7 @@ pub mod clearing_house {
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
     use crate::optional_accounts::{get_maker_and_maker_stats, get_referrer_and_referrer_stats};
     use crate::state::bank::{Bank, BankBalanceType};
-    use crate::state::bank_map::{get_writable_banks, BankMap, WritableBanks};
+    use crate::state::bank_map::{get_writable_banks, BankMap, BankSet};
     use crate::state::events::{CurveRecord, DepositRecord};
     use crate::state::events::{DepositDirection, NewUserRecord};
     use crate::state::market::{Market, PoolBalance};
@@ -246,7 +246,8 @@ pub mod clearing_house {
         let bank = &mut ctx.accounts.bank.load_init()?;
         let now = cast(Clock::get()?.unix_timestamp).or(Err(ErrorCode::UnableToCastUnixTime))?;
 
-        let order_step_size = 10_u128.pow(2 + (bank.decimals - 6) as u32); // 10 for usdc/btc, 10000 for sol
+        let decimals = ctx.accounts.bank_mint.decimals;
+        let order_step_size = 10_u128.pow(2 + (decimals - 6) as u32); // 10 for usdc/btc, 10000 for sol
         **bank = Bank {
             bank_index,
             pubkey: bank_pubkey,
@@ -296,6 +297,8 @@ pub mod clearing_house {
             serum_base_vault: Pubkey::default(),
             serum_quote_vault: Pubkey::default(),
             serum_open_orders: Pubkey::default(),
+            serum_signer_nonce: 0,
+            spot_fee_pool: PoolBalance::default(),
         };
 
         Ok(())
@@ -340,6 +343,7 @@ pub mod clearing_house {
         base_bank.serum_asks = Pubkey::new(cast_slice(&market_state.asks));
         base_bank.serum_base_vault = Pubkey::new(cast_slice(&market_state.coin_vault));
         base_bank.serum_quote_vault = Pubkey::new(cast_slice(&market_state.pc_vault));
+        base_bank.serum_signer_nonce = market_state.vault_signer_nonce;
 
         drop(market_state);
 
@@ -363,7 +367,7 @@ pub mod clearing_house {
         )?;
         drop(open_orders);
 
-        controller::serum::init_open_orders(
+        controller::serum::invoke_init_open_orders(
             &ctx.accounts.serum_program,
             &ctx.accounts.serum_open_orders,
             &ctx.accounts.clearing_house_signer,
@@ -586,11 +590,8 @@ pub mod clearing_house {
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
 
-        let _market_map = MarketMap::load(
-            &WritableBanks::new(),
-            &MarketSet::new(),
-            remaining_accounts_iter,
-        )?;
+        let _market_map =
+            MarketMap::load(&BankSet::new(), &MarketSet::new(), remaining_accounts_iter)?;
 
         if amount == 0 {
             return Err(ErrorCode::InsufficientDeposit.into());
@@ -904,7 +905,7 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let _bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+        let _bank_map = BankMap::load(&BankSet::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &get_market_set(market_index),
             &MarketSet::new(),
@@ -963,7 +964,7 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+        let bank_map = BankMap::load(&BankSet::new(), remaining_accounts_iter)?;
 
         let market_map = MarketMap::load(
             &get_market_set(market_index),
@@ -998,7 +999,7 @@ pub mod clearing_house {
     pub fn place_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+        let bank_map = BankMap::load(&BankSet::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &MarketSet::new(),
             &get_market_set(params.market_index),
@@ -1104,7 +1105,7 @@ pub mod clearing_house {
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+        let bank_map = BankMap::load(&BankSet::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &get_market_set(market_index),
             &MarketSet::new(),
@@ -1162,7 +1163,7 @@ pub mod clearing_house {
     ) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+        let bank_map = BankMap::load(&BankSet::new(), remaining_accounts_iter)?;
 
         let market_map = MarketMap::load(
             &get_market_set(params.market_index),
@@ -1251,7 +1252,7 @@ pub mod clearing_house {
     ) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+        let bank_map = BankMap::load(&BankSet::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &get_market_set(params.market_index),
             &MarketSet::new(),
@@ -1336,7 +1337,7 @@ pub mod clearing_house {
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+        BankMap::load(&BankSet::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &MarketSet::new(),
             &get_market_set(market_index),
@@ -1367,10 +1368,7 @@ pub mod clearing_house {
     pub fn place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let bank_map = BankMap::load(
-            &get_writable_banks(params.market_index),
-            remaining_accounts_iter,
-        )?;
+        let bank_map = BankMap::load(&BankSet::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &MarketSet::new(),
             &MarketSet::new(),
@@ -1382,7 +1380,7 @@ pub mod clearing_house {
             return Err(print_error!(ErrorCode::InvalidOrder)().into());
         }
 
-        controller::orders::place_order(
+        controller::orders::place_spot_order(
             &ctx.accounts.state,
             &ctx.accounts.user,
             &market_map,
@@ -1440,7 +1438,7 @@ pub mod clearing_house {
             None => (None, None),
         };
 
-        let serum_new_order_accounts = SerumNewOrderAccounts {
+        let mut serum_new_order_accounts = SerumNewOrderAccounts {
             clearing_house_signer: &ctx.accounts.clearing_house_signer,
             serum_program_id: &ctx.accounts.serum_program_id,
             serum_market: &ctx.accounts.serum_market,
@@ -1452,8 +1450,10 @@ pub mod clearing_house {
             serum_quote_vault: &ctx.accounts.serum_quote_vault,
             serum_open_orders: &ctx.accounts.serum_open_orders,
             token_program: &ctx.accounts.token_program,
-            base_bank_vault: &ctx.accounts.base_bank_vault,
-            quote_bank_vault: &ctx.accounts.quote_bank_vault,
+            base_bank_vault: &mut ctx.accounts.base_bank_vault,
+            quote_bank_vault: &mut ctx.accounts.quote_bank_vault,
+            signer_nonce: ctx.accounts.state.signer_nonce,
+            serum_signer: &ctx.accounts.serum_signer,
         };
 
         let (_, updated_user_state) = controller::orders::fill_spot_order(
@@ -1472,10 +1472,6 @@ pub mod clearing_house {
             &Clock::get()?,
             serum_new_order_accounts,
         )?;
-
-        if !updated_user_state {
-            return Err(print_error!(ErrorCode::FillOrderDidNotUpdateState)().into());
-        }
 
         Ok(())
     }
@@ -1572,7 +1568,7 @@ pub mod clearing_house {
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
-        let bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
+        let bank_map = BankMap::load(&BankSet::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &get_market_set(market_index),
             &MarketSet::new(),
@@ -1626,7 +1622,7 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
 
-        let mut writable_banks = WritableBanks::new();
+        let mut writable_banks = BankSet::new();
         writable_banks.insert(asset_bank_index);
         writable_banks.insert(liability_bank_index);
         let bank_map = BankMap::load(&writable_banks, remaining_accounts_iter)?;
@@ -1680,7 +1676,7 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
 
-        let mut writable_banks = WritableBanks::new();
+        let mut writable_banks = BankSet::new();
         writable_banks.insert(liability_bank_index);
         let bank_map = BankMap::load(&writable_banks, remaining_accounts_iter)?;
         let market_map = MarketMap::load(
@@ -1733,7 +1729,7 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
 
-        let mut writable_banks = WritableBanks::new();
+        let mut writable_banks = BankSet::new();
         writable_banks.insert(asset_bank_index);
         let bank_map = BankMap::load(&writable_banks, remaining_accounts_iter)?;
         let market_map = MarketMap::load(

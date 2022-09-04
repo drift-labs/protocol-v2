@@ -124,6 +124,7 @@ pub mod amm_jit {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -289,6 +290,7 @@ pub mod amm_jit {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -451,6 +453,7 @@ pub mod amm_jit {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -612,6 +615,7 @@ pub mod amm_jit {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -775,6 +779,7 @@ pub mod amm_jit {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -965,6 +970,7 @@ pub mod amm_jit {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -1156,6 +1162,7 @@ pub mod amm_jit {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -1348,6 +1355,7 @@ pub mod amm_jit {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -1550,6 +1558,7 @@ pub mod amm_jit {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };
@@ -1815,6 +1824,7 @@ pub mod amm_jit {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
                 balance: 100 * 100 * BANK_INTEREST_PRECISION,
+                ..UserBankBalance::default()
             }),
             ..User::default()
         };

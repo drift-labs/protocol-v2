@@ -198,3 +198,14 @@ export function getSerumOpenOrdersPublicKey(
 		programId
 	)[0];
 }
+
+export function getSerumSignerPublicKey(
+	programId: PublicKey,
+	market: PublicKey,
+	nonce: BN
+): PublicKey {
+	return anchor.web3.PublicKey.createProgramAddressSync(
+		[market.toBuffer(), nonce.toArrayLike(Buffer, 'le', 8)],
+		programId
+	);
+}

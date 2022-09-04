@@ -410,6 +410,23 @@ export type BankAccount = {
 	depositTokenTwap: BN;
 	borrowTokenTwap: BN;
 	utilizationTwap: BN;
+
+	orderStepSize: BN;
+	nextFillRecordId: BN;
+	serumProgramId: PublicKey;
+	serumMarket: PublicKey;
+	serumRequestQueue: PublicKey;
+	serumEventQueue: PublicKey;
+	serumBids: PublicKey;
+	serumAsks: PublicKey;
+	serumBaseVault: PublicKey;
+	serumQuoteVault: PublicKey;
+	serumOpenOrders: PublicKey;
+	serumSignerNonce: BN;
+	spotFeePool: {
+		balance: BN;
+		balanceType: BankBalanceType;
+	};
 };
 
 export type PoolBalance = {
@@ -536,6 +553,7 @@ export type UserBankBalance = {
 export type Order = {
 	status: OrderStatus;
 	orderType: OrderType;
+	marketType: MarketType;
 	ts: BN;
 	slot: BN;
 	orderId: BN;

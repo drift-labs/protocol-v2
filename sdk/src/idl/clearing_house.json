@@ -857,6 +857,61 @@
           "name": "clearingHouseSigner",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "serumProgramId",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "serumMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "serumRequestQueue",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "serumEventQueue",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "serumBids",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "serumAsks",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "serumBaseVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "serumQuoteVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "serumOpenOrders",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "serumSigner",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
@@ -2968,6 +3023,16 @@
           {
             "name": "serumOpenOrders",
             "type": "publicKey"
+          },
+          {
+            "name": "serumSignerNonce",
+            "type": "u64"
+          },
+          {
+            "name": "spotFeePool",
+            "type": {
+              "defined": "PoolBalance"
+            }
           }
         ]
       }
@@ -4713,7 +4778,7 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "AMM"
+            "name": "Market"
           },
           {
             "name": "Match"
@@ -6261,9 +6326,11 @@
       "code": 6124,
       "name": "FailedSerumCPI",
       "msg": "FailedSerumCPI"
+    },
+    {
+      "code": 6125,
+      "name": "FailedToFillOnSerum",
+      "msg": "FailedToFillOnSerum"
     }
-  ],
-  "metadata": {
-    "address": "HbUKwqFPjz9r7ZtT416AU8aaecDQMKKiDCTS3AdXnS6c"
-  }
+  ]
 }

@@ -16,6 +16,7 @@ import {
 	DefaultOrderParams,
 	OrderType,
 	ReferrerInfo,
+	MarketType,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -43,6 +44,7 @@ import {
 	getClearingHouseStateAccountPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getMarketPublicKey,
+	getSerumSignerPublicKey,
 	getUserAccountPublicKey,
 	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
@@ -499,6 +501,7 @@ export class ClearingHouse {
 		writableMarketIndex?: BN;
 		writableBankIndex?: BN;
 		readableMarketIndex?: BN;
+		readableBankIndex?: BN;
 	}): AccountMeta[] {
 		const userAccountAndSlot = this.getUserAccountAndSlot();
 		if (!userAccountAndSlot) {
@@ -556,7 +559,7 @@ export class ClearingHouse {
 			marketAccountMap.set(params.readableMarketIndex.toNumber(), {
 				pubkey: marketAccount.pubkey,
 				isSigner: false,
-				isWritable: true,
+				isWritable: false,
 			});
 			oracleAccountMap.set(marketAccount.amm.oracle.toString(), {
 				pubkey: marketAccount.amm.oracle,
@@ -596,6 +599,22 @@ export class ClearingHouse {
 						isWritable: false,
 					});
 				}
+			}
+		}
+
+		if (params.readableBankIndex) {
+			const bankAccount = this.getBankAccount(params.readableBankIndex);
+			bankAccountMap.set(params.readableBankIndex.toNumber(), {
+				pubkey: bankAccount.pubkey,
+				isSigner: false,
+				isWritable: false,
+			});
+			if (!bankAccount.bankIndex.eq(ZERO)) {
+				oracleAccountMap.set(bankAccount.oracle.toString(), {
+					pubkey: bankAccount.oracle,
+					isSigner: false,
+					isWritable: false,
+				});
 			}
 		}
 
@@ -1315,14 +1334,19 @@ export class ClearingHouse {
 		return txSig;
 	}
 
-	getOrderParams(optionalOrderParams: OptionalOrderParams): OrderParams {
-		return Object.assign({}, DefaultOrderParams, optionalOrderParams);
+	getOrderParams(
+		optionalOrderParams: OptionalOrderParams,
+		marketType: MarketType
+	): OrderParams {
+		return Object.assign({}, DefaultOrderParams, optionalOrderParams, {
+			marketType,
+		});
 	}
 
 	public async getPlaceOrderIx(
 		orderParams: OptionalOrderParams
 	): Promise<TransactionInstruction> {
-		orderParams = this.getOrderParams(orderParams);
+		orderParams = this.getOrderParams(orderParams, MarketType.PERP);
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
@@ -1585,6 +1609,210 @@ export class ClearingHouse {
 		});
 	}
 
+	public async placeSpotOrder(
+		orderParams: OptionalOrderParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(await this.getPlaceSpotOrderIx(orderParams)),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getPlaceSpotOrderIx(
+		orderParams: OptionalOrderParams
+	): Promise<TransactionInstruction> {
+		orderParams = this.getOrderParams(orderParams, MarketType.SPOT);
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			readableBankIndex: orderParams.marketIndex,
+		});
+
+		return await this.program.instruction.placeSpotOrder(orderParams, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async fillSpotOrder(
+		userAccountPublicKey: PublicKey,
+		user: UserAccount,
+		order?: Order,
+		makerInfo?: MakerInfo,
+		referrerInfo?: ReferrerInfo
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(
+				await this.getFillSpotOrderIx(
+					userAccountPublicKey,
+					user,
+					order,
+					makerInfo,
+					referrerInfo
+				)
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getFillSpotOrderIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		order: Order,
+		makerInfo?: MakerInfo,
+		referrerInfo?: ReferrerInfo
+	): Promise<TransactionInstruction> {
+		const userStatsPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			userAccount.authority
+		);
+
+		const fillerPublicKey = await this.getUserAccountPublicKey();
+		const fillerStatsPublicKey = this.getUserStatsAccountPublicKey();
+
+		const marketIndex = order
+			? order.marketIndex
+			: userAccount.orders.find((order) =>
+					order.orderId.eq(userAccount.nextOrderId.sub(ONE))
+			  ).marketIndex;
+
+		const oracleAccountMap = new Map<string, AccountMeta>();
+		const bankAccountMap = new Map<number, AccountMeta>();
+		const marketAccountMap = new Map<number, AccountMeta>();
+
+		for (const bankBalance of userAccount.bankBalances) {
+			if (!bankBalance.balance.eq(ZERO)) {
+				const bankAccount = this.getBankAccount(bankBalance.bankIndex);
+				bankAccountMap.set(bankBalance.bankIndex.toNumber(), {
+					pubkey: bankAccount.pubkey,
+					isSigner: false,
+					isWritable: false,
+				});
+
+				if (!bankAccount.oracle.equals(PublicKey.default)) {
+					oracleAccountMap.set(bankAccount.oracle.toString(), {
+						pubkey: bankAccount.oracle,
+						isSigner: false,
+						isWritable: false,
+					});
+				}
+			}
+		}
+
+		for (const position of userAccount.positions) {
+			if (
+				!positionIsAvailable(position) &&
+				!position.marketIndex.eq(order.marketIndex)
+			) {
+				const market = this.getMarketAccount(position.marketIndex);
+				marketAccountMap.set(position.marketIndex.toNumber(), {
+					pubkey: market.pubkey,
+					isWritable: false,
+					isSigner: false,
+				});
+				oracleAccountMap.set(market.amm.oracle.toString(), {
+					pubkey: market.amm.oracle,
+					isWritable: false,
+					isSigner: false,
+				});
+			}
+		}
+
+		const bankAccount = this.getBankAccount(marketIndex);
+		bankAccountMap.set(marketIndex.toNumber(), {
+			pubkey: bankAccount.pubkey,
+			isWritable: true,
+			isSigner: false,
+		});
+		if (!bankAccount.oracle.equals(PublicKey.default)) {
+			oracleAccountMap.set(bankAccount.oracle.toString(), {
+				pubkey: bankAccount.oracle,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
+		const quoteBankAccount = this.getQuoteAssetBankAccount();
+		bankAccountMap.set(quoteBankAccount.bankIndex.toNumber(), {
+			pubkey: quoteBankAccount.pubkey,
+			isWritable: true,
+			isSigner: false,
+		});
+
+		const remainingAccounts = [
+			...oracleAccountMap.values(),
+			...bankAccountMap.values(),
+			...marketAccountMap.values(),
+		];
+
+		if (makerInfo) {
+			remainingAccounts.push({
+				pubkey: makerInfo.maker,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: makerInfo.makerStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
+		if (referrerInfo) {
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrer,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrerStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
+		const orderId = order.orderId;
+		const makerOrderId = makerInfo ? makerInfo.order.orderId : null;
+
+		return await this.program.instruction.fillSpotOrder(orderId, makerOrderId, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				filler: fillerPublicKey,
+				fillerStats: fillerStatsPublicKey,
+				user: userAccountPublicKey,
+				userStats: userStatsPublicKey,
+				authority: this.wallet.publicKey,
+				quoteBankVault: this.getQuoteAssetBankAccount().vault,
+				baseBankVault: bankAccount.vault,
+				clearingHouseSigner: this.getSignerPublicKey(),
+				serumProgramId: bankAccount.serumProgramId,
+				serumMarket: bankAccount.serumMarket,
+				serumRequestQueue: bankAccount.serumRequestQueue,
+				serumEventQueue: bankAccount.serumEventQueue,
+				serumBids: bankAccount.serumBids,
+				serumAsks: bankAccount.serumAsks,
+				serumBaseVault: bankAccount.serumBaseVault,
+				serumQuoteVault: bankAccount.serumQuoteVault,
+				serumOpenOrders: bankAccount.serumOpenOrders,
+				tokenProgram: TOKEN_PROGRAM_ID,
+				serumSigner: getSerumSignerPublicKey(
+					bankAccount.serumProgramId,
+					bankAccount.serumMarket,
+					bankAccount.serumSignerNonce
+				),
+			},
+			remainingAccounts,
+		});
+	}
+
 	public async triggerOrder(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
@@ -1700,7 +1928,7 @@ export class ClearingHouse {
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
-		orderParams = this.getOrderParams(orderParams);
+		orderParams = this.getOrderParams(orderParams, MarketType.PERP);
 		const userStatsPublicKey = await this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
@@ -1775,7 +2003,7 @@ export class ClearingHouse {
 		takerInfo: TakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
-		orderParams = this.getOrderParams(orderParams);
+		orderParams = this.getOrderParams(orderParams, MarketType.PERP);
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 

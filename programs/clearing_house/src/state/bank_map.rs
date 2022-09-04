@@ -39,7 +39,7 @@ impl<'a> BankMap<'a> {
     }
 
     pub fn load<'b, 'c>(
-        writable_banks: &'b WritableBanks,
+        writable_banks: &'b BankSet,
         account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
     ) -> ClearingHouseResult<BankMap<'a>> {
         let mut bank_map: BankMap = BankMap(BTreeMap::new());
@@ -151,10 +151,10 @@ impl<'a> BankMap<'a> {
     }
 }
 
-pub type WritableBanks = BTreeSet<u64>;
+pub type BankSet = BTreeSet<u64>;
 
-pub fn get_writable_banks(bank_index: u64) -> WritableBanks {
-    let mut writable_markets = WritableBanks::new();
+pub fn get_writable_banks(bank_index: u64) -> BankSet {
+    let mut writable_markets = BankSet::new();
     writable_markets.insert(bank_index);
     writable_markets
 }
