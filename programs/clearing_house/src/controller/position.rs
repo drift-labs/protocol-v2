@@ -466,7 +466,12 @@ pub fn update_amm_and_lp_market_position(
         };
 
         // update per lp position
-        update_quote_asset_amount(&mut market.amm.market_position_per_lp, per_lp_fee)?;
+        market.amm.market_position_per_lp.quote_asset_amount = market
+            .amm
+            .market_position_per_lp
+            .quote_asset_amount
+            .checked_add(per_lp_fee)
+            .ok_or_else(math_error!())?;
 
         (lp_delta_base, lp_delta_quote, lp_fee)
     } else {
@@ -497,7 +502,12 @@ pub fn update_amm_and_lp_market_position(
         false,
     )?;
 
-    update_quote_asset_amount(&mut market.amm.market_position, amm_fee)?;
+    market.amm.market_position.quote_asset_amount = market
+        .amm
+        .market_position
+        .quote_asset_amount
+        .checked_add(amm_fee)
+        .ok_or_else(math_error!())?;
 
     market.amm.net_base_asset_amount = market
         .amm
@@ -588,12 +598,30 @@ fn calculate_quote_asset_amount_surplus(
 
 pub fn update_quote_asset_amount(
     position: &mut MarketPosition,
+    market: &mut Market,
     delta: i128,
 ) -> ClearingHouseResult<()> {
     position.quote_asset_amount = position
         .quote_asset_amount
         .checked_add(delta)
         .ok_or_else(math_error!())?;
+
+    match position.get_direction() {
+        PositionDirection::Long => {
+            market.amm.quote_asset_amount_long = market
+                .amm
+                .quote_asset_amount_long
+                .checked_add(delta)
+                .ok_or_else(math_error!())?
+        }
+        PositionDirection::Short => {
+            market.amm.quote_asset_amount_short = market
+                .amm
+                .quote_asset_amount_short
+                .checked_add(delta)
+                .ok_or_else(math_error!())?
+        }
+    }
 
     Ok(())
 }

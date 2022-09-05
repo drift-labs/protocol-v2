@@ -111,7 +111,13 @@ pub fn update_revenue_pool_balances(
     bank: &mut Bank,
 ) -> ClearingHouseResult {
     let mut bank_balance = bank.revenue_pool;
-    update_bank_balances(token_amount, update_direction, bank, &mut bank_balance)?;
+    update_bank_balances(
+        token_amount,
+        update_direction,
+        bank,
+        &mut bank_balance,
+        false,
+    )?;
     bank.revenue_pool = bank_balance;
 
     Ok(())
@@ -122,6 +128,7 @@ pub fn update_bank_balances(
     update_direction: &BankBalanceType,
     bank: &mut Bank,
     bank_balance: &mut dyn BankBalance,
+    force_round_up: bool,
 ) -> ClearingHouseResult {
     let increase_user_existing_balance = update_direction == bank_balance.balance_type();
     if increase_user_existing_balance {
@@ -137,8 +144,10 @@ pub fn update_bank_balances(
         if reduce_user_existing_balance {
             // determine how much to reduce balance based on size of current token amount
             let (token_delta, balance_delta) = if current_token_amount > token_amount {
+                let round_up =
+                    force_round_up || bank_balance.balance_type() == &BankBalanceType::Borrow;
                 let balance_delta =
-                    get_bank_balance(token_amount, bank, bank_balance.balance_type(), true)?;
+                    get_bank_balance(token_amount, bank, bank_balance.balance_type(), round_up)?;
                 (token_amount, balance_delta)
             } else {
                 (current_token_amount, bank_balance.balance())
@@ -185,7 +194,7 @@ pub fn update_bank_balances_with_limits(
     bank: &mut Bank,
     bank_balance: &mut dyn BankBalance,
 ) -> ClearingHouseResult {
-    update_bank_balances(token_amount, update_direction, bank, bank_balance)?;
+    update_bank_balances(token_amount, update_direction, bank, bank_balance, true)?;
 
     let valid_withdraw = check_withdraw_limits(bank)?;
 
@@ -970,6 +979,7 @@ mod test {
             &BankBalanceType::Borrow,
             &mut bank,
             &mut user.bank_balances[1],
+            false,
         )
         .unwrap();
 
@@ -1070,7 +1080,7 @@ mod test {
         assert_eq!(if_balance_2, 229742505997);
         assert_eq!(if_tokens_3 - (settle_amount as u128), 996619988395); // w/ update interest for settle_bank_to_if
 
-        assert_eq!(bank.revenue_pool.balance, 83024042298);
+        assert_eq!(bank.revenue_pool.balance, 83024042299);
         assert_eq!(bank.utilization_twap, 965273);
 
         let deposit_tokens_4 =
@@ -1080,7 +1090,7 @@ mod test {
         let if_tokens_4 =
             get_token_amount(bank.revenue_pool.balance, &bank, &BankBalanceType::Deposit).unwrap();
 
-        assert_eq!(deposit_tokens_4 - borrow_tokens_4, 229742505987);
-        assert_eq!(if_tokens_4, 996833556262);
+        assert_eq!(deposit_tokens_4 - borrow_tokens_4, 229742505999);
+        assert_eq!(if_tokens_4, 996833556274);
     }
 }

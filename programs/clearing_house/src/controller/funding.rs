@@ -29,7 +29,7 @@ use crate::state::user::User;
 pub fn settle_funding_payment(
     user: &mut User,
     user_key: &Pubkey,
-    market: &Market,
+    market: &mut Market,
     now: UnixTimestamp,
 ) -> ClearingHouseResult {
     let position_index = match get_position_index(&user.positions, market.market_index) {
@@ -72,7 +72,7 @@ pub fn settle_funding_payment(
 
         market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate;
         market_position.last_funding_rate_ts = amm.last_funding_rate_ts;
-        update_quote_asset_amount(market_position, market_funding_payment)?;
+        update_quote_asset_amount(market_position, market, market_funding_payment)?;
     }
 
     Ok(())
@@ -89,7 +89,7 @@ pub fn settle_funding_payments(
             continue;
         }
 
-        let market = &mut market_map.get_ref_mut(&market_position.market_index)?;
+        let mut market = &mut market_map.get_ref_mut(&market_position.market_index)?;
         let amm: &AMM = &market.amm;
 
         let amm_cumulative_funding_rate = if market_position.base_asset_amount > 0 {
@@ -119,7 +119,7 @@ pub fn settle_funding_payments(
 
             market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate;
             market_position.last_funding_rate_ts = amm.last_funding_rate_ts;
-            update_quote_asset_amount(market_position, market_funding_payment)?;
+            update_quote_asset_amount(market_position, &mut market, market_funding_payment)?;
         }
     }
 

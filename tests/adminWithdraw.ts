@@ -80,6 +80,12 @@ describe('admin withdraw', () => {
 			BASE_PRECISION.mul(new BN(5)),
 			marketIndex
 		);
+
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
 	});
 
 	after(async () => {

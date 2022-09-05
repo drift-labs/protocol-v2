@@ -526,6 +526,7 @@ pub mod clearing_house {
             &BankBalanceType::Deposit,
             bank,
             user_bank_balance,
+            false,
         )?;
 
         controller::token::receive(
@@ -705,6 +706,7 @@ pub mod clearing_house {
                 &BankBalanceType::Borrow,
                 bank,
                 from_user_bank_balance,
+                true,
             )?;
         }
 
@@ -747,6 +749,7 @@ pub mod clearing_house {
                 &BankBalanceType::Deposit,
                 bank,
                 to_user_bank_balance,
+                false,
             )?;
         }
 
@@ -787,13 +790,13 @@ pub mod clearing_house {
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let market_map = MarketMap::load(
-            &MarketSet::new(),
             &get_market_set(market_index),
+            &MarketSet::new(),
             remaining_accounts_iter,
         )?;
         {
-            let market = market_map.get_ref_mut(&market_index)?;
-            controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
         }
 
         let mut market = market_map.get_ref_mut(&market_index)?;
@@ -839,8 +842,8 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
         {
-            let market = market_map.get_ref_mut(&market_index)?;
-            controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
         }
 
         if shares_to_burn == 0 {
@@ -911,8 +914,8 @@ pub mod clearing_house {
         )?;
 
         {
-            let market = market_map.get_ref_mut(&market_index)?;
-            controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
         }
 
         let position_index = get_position_index(&user.positions, market_index)
@@ -1806,6 +1809,7 @@ pub mod clearing_house {
             &BankBalanceType::Borrow,
             bank,
             &mut market.amm.fee_pool,
+            false,
         )?;
 
         market.amm.total_fee_withdrawn = market
@@ -1857,6 +1861,7 @@ pub mod clearing_house {
             &BankBalanceType::Deposit,
             bank,
             &mut market.amm.fee_pool,
+            false,
         )?;
 
         controller::token::send_from_program_vault(

@@ -65,12 +65,6 @@ pub fn place_order(
     let slot = clock.slot;
     let user_key = user.key();
     let user = &mut load_mut!(user)?;
-    controller::funding::settle_funding_payment(
-        user,
-        &user_key,
-        market_map.get_ref(&params.market_index)?.deref(),
-        now,
-    )?;
 
     validate_user_not_being_liquidated(
         user,
@@ -335,13 +329,6 @@ pub fn cancel_order(
     let (order_status, order_market_index, order_direction) =
         get_struct_values!(user.orders[order_index], status, market_index, direction);
 
-    controller::funding::settle_funding_payment(
-        user,
-        user_key,
-        market_map.get_ref(&order_market_index)?.deref(),
-        now,
-    )?;
-
     validate!(order_status == OrderStatus::Open, ErrorCode::OrderNotOpen)?;
 
     let market = &market_map.get_ref(&order_market_index)?;
@@ -435,7 +422,7 @@ pub fn fill_order(
     controller::funding::settle_funding_payment(
         user,
         &user_key,
-        market_map.get_ref(&market_index)?.deref(),
+        market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
@@ -1169,7 +1156,7 @@ pub fn fulfill_order_with_amm(
 
     if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
         if let Ok(referrer_position) = referrer.force_get_position_mut(market.market_index) {
-            update_quote_asset_amount(referrer_position, cast(referrer_reward)?)?;
+            update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
 
             referrer_stats.total_referrer_reward = referrer_stats
                 .total_referrer_reward
@@ -1182,6 +1169,7 @@ pub fn fulfill_order_with_amm(
 
     controller::position::update_quote_asset_amount(
         &mut user.positions[position_index],
+        market,
         -cast(user_fee)?,
     )?;
 
@@ -1199,6 +1187,7 @@ pub fn fulfill_order_with_amm(
 
         controller::position::update_quote_asset_amount(
             &mut filler.positions[position_index],
+            market,
             cast(filler_reward)?,
         )?;
 
@@ -1472,6 +1461,7 @@ pub fn fulfill_order_with_match(
 
     controller::position::update_quote_asset_amount(
         &mut taker.positions[taker_position_index],
+        market,
         -cast(taker_fee)?,
     )?;
 
@@ -1492,6 +1482,7 @@ pub fn fulfill_order_with_match(
 
     controller::position::update_quote_asset_amount(
         &mut maker.positions[maker_position_index],
+        market,
         cast(maker_rebate)?,
     )?;
 
@@ -1511,6 +1502,7 @@ pub fn fulfill_order_with_match(
 
         controller::position::update_quote_asset_amount(
             &mut filler.positions[filler_position_index],
+            market,
             cast(filler_reward)?,
         )?;
 
@@ -1522,7 +1514,7 @@ pub fn fulfill_order_with_match(
 
     if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
         if let Ok(referrer_position) = referrer.force_get_position_mut(market.market_index) {
-            update_quote_asset_amount(referrer_position, cast(referrer_reward)?)?;
+            update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
 
             referrer_stats.total_referrer_reward = referrer_stats
                 .total_referrer_reward
@@ -1708,13 +1700,6 @@ pub fn trigger_order(
     let (order_status, market_index) =
         get_struct_values!(user.orders[order_index], status, market_index);
 
-    controller::funding::settle_funding_payment(
-        user,
-        &user_key,
-        market_map.get_ref_mut(&market_index)?.deref_mut(),
-        now,
-    )?;
-
     validate!(
         order_status == OrderStatus::Open,
         ErrorCode::OrderNotOpen,
@@ -1820,10 +1805,18 @@ pub fn pay_keeper_flat_reward(
 ) -> ClearingHouseResult<u128> {
     let filler_reward = if let Some(filler) = filler {
         let user_position = user.get_position_mut(market.market_index)?;
-        controller::position::update_quote_asset_amount(user_position, -cast(filler_reward)?)?;
+        controller::position::update_quote_asset_amount(
+            user_position,
+            market,
+            -cast(filler_reward)?,
+        )?;
 
         let filler_position = filler.force_get_position_mut(market.market_index)?;
-        controller::position::update_quote_asset_amount(filler_position, cast(filler_reward)?)?;
+        controller::position::update_quote_asset_amount(
+            filler_position,
+            market,
+            cast(filler_reward)?,
+        )?;
 
         filler_reward
     } else {
