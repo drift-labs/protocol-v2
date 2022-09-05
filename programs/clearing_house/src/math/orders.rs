@@ -564,6 +564,28 @@ mod test {
         }
 
         #[test]
+        fn bid_does_not_breach_4_99_percent_move() {
+            let market = Market {
+                margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
+                ..Market::default()
+            };
+
+            let order = Order {
+                price: 105 * MARK_PRICE_PRECISION - 1,
+                ..Order::default()
+            };
+
+            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+
+            let slot = 0;
+
+            let result =
+                order_breaches_oracle_price_limits(&market, &order, oracle_price, slot).unwrap();
+
+            assert!(!result)
+        }
+
+        #[test]
         fn bid_breaches() {
             let market = Market {
                 margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
@@ -596,6 +618,29 @@ mod test {
             let order = Order {
                 direction: PositionDirection::Short,
                 price: 99 * MARK_PRICE_PRECISION,
+                ..Order::default()
+            };
+
+            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+
+            let slot = 0;
+
+            let result =
+                order_breaches_oracle_price_limits(&market, &order, oracle_price, slot).unwrap();
+
+            assert!(!result)
+        }
+
+        #[test]
+        fn ask_does_not_breach_4_99_percent_move() {
+            let market = Market {
+                margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
+                ..Market::default()
+            };
+
+            let order = Order {
+                direction: PositionDirection::Short,
+                price: 95 * MARK_PRICE_PRECISION + 1,
                 ..Order::default()
             };
 
