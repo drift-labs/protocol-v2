@@ -2055,9 +2055,14 @@ pub mod resolve_perp_bankruptcy {
             1010 * FUNDING_RATE_PRECISION_I128;
 
         {
-            let market = market_map.get_ref(&0).unwrap();
-            settle_funding_payment(&mut affected_long_user, &Pubkey::default(), &market, now)
-                .unwrap()
+            let mut market = market_map.get_ref_mut(&0).unwrap();
+            settle_funding_payment(
+                &mut affected_long_user,
+                &Pubkey::default(),
+                &mut market,
+                now,
+            )
+            .unwrap()
         }
 
         assert_eq!(expected_affected_long_user, affected_long_user);
@@ -2082,9 +2087,14 @@ pub mod resolve_perp_bankruptcy {
             -1010 * FUNDING_RATE_PRECISION_I128;
 
         {
-            let market = market_map.get_ref(&0).unwrap();
-            settle_funding_payment(&mut affected_short_user, &Pubkey::default(), &market, now)
-                .unwrap()
+            let mut market = market_map.get_ref_mut(&0).unwrap();
+            settle_funding_payment(
+                &mut affected_short_user,
+                &Pubkey::default(),
+                &mut market,
+                now,
+            )
+            .unwrap()
         }
 
         assert_eq!(expected_affected_short_user, affected_short_user);

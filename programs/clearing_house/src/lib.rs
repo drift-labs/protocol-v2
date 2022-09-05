@@ -787,13 +787,13 @@ pub mod clearing_house {
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let market_map = MarketMap::load(
-            &MarketSet::new(),
             &get_market_set(market_index),
+            &MarketSet::new(),
             remaining_accounts_iter,
         )?;
         {
-            let market = market_map.get_ref_mut(&market_index)?;
-            controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
         }
 
         let mut market = market_map.get_ref_mut(&market_index)?;
@@ -839,8 +839,8 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
         {
-            let market = market_map.get_ref_mut(&market_index)?;
-            controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
         }
 
         if shares_to_burn == 0 {
@@ -911,8 +911,8 @@ pub mod clearing_house {
         )?;
 
         {
-            let market = market_map.get_ref_mut(&market_index)?;
-            controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
         }
 
         let position_index = get_position_index(&user.positions, market_index)
