@@ -1451,7 +1451,6 @@ pub mod fulfill_order {
         BANK_WEIGHT_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION,
         PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
     };
-    use crate::math::margin::calculate_free_collateral;
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
     use crate::state::market::{Market, AMM};
@@ -2014,7 +2013,7 @@ pub mod fulfill_order {
             bank_balances: get_bank_balances(UserBankBalance {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
-                balance: 1 * BANK_INTEREST_PRECISION,
+                balance: BANK_INTEREST_PRECISION,
             }),
             ..User::default()
         };

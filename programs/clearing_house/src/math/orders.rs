@@ -12,11 +12,9 @@ use crate::math::amm::calculate_max_base_asset_amount_fillable;
 use crate::math::auction::is_auction_complete;
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{MARGIN_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
-use crate::math::margin::MarginRequirementType;
 use crate::math::position::calculate_entry_price;
 use crate::math_error;
 use crate::state::market::Market;
-use crate::state::oracle::OraclePriceData;
 use crate::state::user::{Order, OrderStatus, OrderTriggerCondition, OrderType, User};
 
 pub fn calculate_base_asset_amount_for_amm_to_fulfill(

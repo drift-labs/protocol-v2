@@ -13,13 +13,10 @@ import { BN } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
 import {
 	getClearingHouseStateAccountPublicKeyAndNonce,
-	getBankVaultAuthorityPublicKey,
 	getBankPublicKey,
 	getBankVaultPublicKey,
 	getMarketPublicKey,
 	getInsuranceFundVaultPublicKey,
-	getInsuranceFundVaultAuthorityPublicKey,
-	getClearingHouseSignerPublicKey,
 } from './addresses/pda';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { ClearingHouse } from './clearingHouse';

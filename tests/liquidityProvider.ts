@@ -1103,8 +1103,7 @@ describe('liquidity providing', () => {
 		const trader = traderClearingHouse.getUserAccount();
 		console.log('trader size', trader.positions[0].baseAssetAmount.toString());
 
-		const [settledLPPosition, _, sdkPnl] =
-			clearingHouseUser.getSettledLPPosition(ZERO);
+		const [_, _, sdkPnl] = clearingHouseUser.getSettledLPPosition(ZERO);
 
 		console.log('settling...');
 		try {
@@ -1117,7 +1116,6 @@ describe('liquidity providing', () => {
 			console.log(e);
 		}
 		user = await clearingHouseUser.getUserAccount();
-		const position = user.positions[0];
 
 		const settleLiquidityRecord: LPRecord =
 			eventSubscriber.getEventsArray('LPRecord')[0];

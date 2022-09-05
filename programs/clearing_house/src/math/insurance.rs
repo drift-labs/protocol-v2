@@ -220,7 +220,7 @@ mod test {
 
         // $800M goes to 1e-6 of dollar
         let (expo_diff, rebase_div) =
-            calculate_rebase_info(800_000_078 * QUOTE_PRECISION, (1) as u64).unwrap();
+            calculate_rebase_info(800_000_078 * QUOTE_PRECISION, 1_u64).unwrap();
 
         assert_eq!(rebase_div, 10000000000000);
         assert_eq!(expo_diff, 13);
@@ -282,14 +282,14 @@ mod test {
         assert_eq!(lost_shares, 0);
 
         let if_balance = if_balance + (100 * QUOTE_PRECISION) as u64;
-        bank.total_if_shares = bank.total_if_shares + (100 * QUOTE_PRECISION);
-        bank.user_if_shares = bank.user_if_shares + (100 * QUOTE_PRECISION);
+        bank.total_if_shares += 100 * QUOTE_PRECISION;
+        bank.user_if_shares += 100 * QUOTE_PRECISION;
         let lost_shares = calculate_if_shares_lost(&if_stake, &bank, if_balance).unwrap();
         assert_eq!(lost_shares, 0); // giving up $5 of gains
 
         let if_balance = if_balance - (100 * QUOTE_PRECISION) as u64;
-        bank.total_if_shares = bank.total_if_shares - (100 * QUOTE_PRECISION);
-        bank.user_if_shares = bank.user_if_shares - (100 * QUOTE_PRECISION);
+        bank.total_if_shares -= 100 * QUOTE_PRECISION;
+        bank.user_if_shares -= 100 * QUOTE_PRECISION;
         let lost_shares = calculate_if_shares_lost(&if_stake, &bank, if_balance).unwrap();
         assert_eq!(lost_shares, 0); // giving up $5 of gains
 
@@ -306,14 +306,14 @@ mod test {
 
         // take back gain and total_if_shares alter w/o user alter
         let if_balance = (2100 * QUOTE_PRECISION) as u64;
-        bank.total_if_shares = bank.total_if_shares * 2;
+        bank.total_if_shares *= 2;
         let lost_shares = calculate_if_shares_lost(&if_stake, &bank, if_balance).unwrap();
         assert_eq!(lost_shares, 5_000_000); // giving up $5 of gains
 
         let if_balance = (2100 * QUOTE_PRECISION * 10) as u64;
 
         let expected_gain_if_no_loss = if_balance * 100 / 2000;
-        assert_eq!(expected_gain_if_no_loss, 1050_000_000);
+        assert_eq!(expected_gain_if_no_loss, 1_050_000_000);
         let lost_shares = calculate_if_shares_lost(&if_stake, &bank, if_balance).unwrap();
         assert_eq!(lost_shares, 90_909_092); // giving up $5 of gains
         assert_eq!(

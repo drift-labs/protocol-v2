@@ -17,7 +17,7 @@ use crate::validate;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::prelude::*;
 use solana_program::msg;
-use std::ops::{Deref, DerefMut};
+use std::ops::DerefMut;
 
 #[cfg(test)]
 mod tests;
