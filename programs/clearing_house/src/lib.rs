@@ -526,6 +526,7 @@ pub mod clearing_house {
             &BankBalanceType::Deposit,
             bank,
             user_bank_balance,
+            false,
         )?;
 
         controller::token::receive(
@@ -705,6 +706,7 @@ pub mod clearing_house {
                 &BankBalanceType::Borrow,
                 bank,
                 from_user_bank_balance,
+                true,
             )?;
         }
 
@@ -747,6 +749,7 @@ pub mod clearing_house {
                 &BankBalanceType::Deposit,
                 bank,
                 to_user_bank_balance,
+                false,
             )?;
         }
 
@@ -1806,6 +1809,7 @@ pub mod clearing_house {
             &BankBalanceType::Borrow,
             bank,
             &mut market.amm.fee_pool,
+            false,
         )?;
 
         market.amm.total_fee_withdrawn = market
@@ -1857,6 +1861,7 @@ pub mod clearing_house {
             &BankBalanceType::Deposit,
             bank,
             &mut market.amm.fee_pool,
+            false,
         )?;
 
         controller::token::send_from_program_vault(

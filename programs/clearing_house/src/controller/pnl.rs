@@ -95,6 +95,7 @@ pub fn settle_pnl(
         },
         bank,
         user.get_quote_asset_bank_balance_mut(),
+        false,
     )?;
 
     update_quote_asset_amount(

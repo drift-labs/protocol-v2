@@ -357,6 +357,7 @@ pub fn update_pool_balances(
                 &BankBalanceType::Borrow,
                 bank,
                 &mut market.amm.fee_pool,
+                false,
             )?;
 
             update_bank_balances(
@@ -364,6 +365,7 @@ pub fn update_pool_balances(
                 &BankBalanceType::Deposit,
                 bank,
                 &mut market.pnl_pool,
+                false,
             )?;
         }
 
@@ -399,6 +401,7 @@ pub fn update_pool_balances(
                     &BankBalanceType::Borrow,
                     bank,
                     &mut market.pnl_pool,
+                    false,
                 )?;
 
                 update_bank_balances(
@@ -406,6 +409,7 @@ pub fn update_pool_balances(
                     &BankBalanceType::Deposit,
                     bank,
                     &mut market.amm.fee_pool,
+                    false,
                 )?;
             }
         }
@@ -460,6 +464,7 @@ pub fn update_pool_balances(
                     &BankBalanceType::Deposit,
                     bank,
                     &mut market.amm.fee_pool,
+                    false,
                 )?;
 
                 market.amm.total_fee_minus_distributions = market
@@ -487,6 +492,7 @@ pub fn update_pool_balances(
                 &BankBalanceType::Borrow,
                 bank,
                 &mut market.amm.fee_pool,
+                false,
             )?;
 
             update_revenue_pool_balances(
@@ -525,6 +531,7 @@ pub fn update_pool_balances(
             &BankBalanceType::Deposit,
             bank,
             &mut market.amm.fee_pool,
+            false,
         )?;
         pnl_fraction_for_amm
     } else {
@@ -544,6 +551,7 @@ pub fn update_pool_balances(
         },
         bank,
         &mut market.pnl_pool,
+        false,
     )?;
 
     let _depositors_claim = validate_bank_balances(bank)?;
@@ -813,7 +821,7 @@ mod test {
             market.pnl_pool.balance_type(),
         )
         .unwrap();
-        assert_eq!(pnl_pool_token_amount, 99_000_000_000 + 1 - 987_789);
+        assert_eq!(pnl_pool_token_amount, 99_000_000_000 + 2 - 987_789);
         assert_eq!(amm_fee_pool_token_amount, 0);
     }
 
@@ -877,7 +885,7 @@ mod test {
 
         update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
 
-        assert_eq!(market.amm.fee_pool.balance, 44999999999999);
+        assert_eq!(market.amm.fee_pool.balance, 45000000000000);
         assert_eq!(market.pnl_pool.balance, 50000000000000);
         assert_eq!(bank.revenue_pool.balance, 5000000000000);
         assert_eq!(market.amm.total_fee_withdrawn, 5000000);
@@ -953,7 +961,7 @@ mod test {
         update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
 
         assert_eq!(market.amm.fee_pool.balance, 5000000);
-        assert_eq!(market.pnl_pool.balance, 94999999);
+        assert_eq!(market.pnl_pool.balance, 95000000);
         assert_eq!(bank.revenue_pool.balance, 100000000);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
         assert_eq!(market.amm.total_fee_minus_distributions, prev_tfmd);
@@ -965,13 +973,13 @@ mod test {
         assert_eq!(market.last_revenue_withdraw_ts, 0);
 
         market.max_revenue_withdraw_per_period = 100000000 * 2;
-        assert_eq!(bank.deposit_balance, 199999999);
+        assert_eq!(bank.deposit_balance, 200000000);
         assert_eq!(bank.revenue_pool.balance, 100000000);
 
         update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
 
         assert_eq!(market.amm.fee_pool.balance, 105000000);
-        assert_eq!(market.pnl_pool.balance, 94999998);
+        assert_eq!(market.pnl_pool.balance, 95000000);
         assert_eq!(bank.revenue_pool.balance, 0);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
         assert_eq!(market.amm.total_fee_minus_distributions, -9900000000);
@@ -981,25 +989,25 @@ mod test {
         let bank_vault_amount =
             get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap()
                 as u64;
-        assert_eq!(bank_vault_amount, 199999998); // total bank deposit balance unchanged during transfers
+        assert_eq!(bank_vault_amount, 200000000); // total bank deposit balance unchanged during transfers
 
         // calling multiple times doesnt effect other than fee pool -> pnl pool
         update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
         assert_eq!(market.amm.fee_pool.balance, 5000000);
-        assert_eq!(market.pnl_pool.balance, 194999997);
+        assert_eq!(market.pnl_pool.balance, 195000000);
         assert_eq!(market.amm.total_fee_minus_distributions, -9900000000);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
         assert_eq!(bank.revenue_pool.balance, 0);
 
         update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
         assert_eq!(market.amm.fee_pool.balance, 5000000);
-        assert_eq!(market.pnl_pool.balance, 194999996);
+        assert_eq!(market.pnl_pool.balance, 195000000);
         assert_eq!(market.amm.total_fee_minus_distributions, -9900000000);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
         assert_eq!(bank.revenue_pool.balance, 0);
 
         // add deposits and revenue to pool
-        assert_eq!(bank.deposit_balance, 199999996);
+        assert_eq!(bank.deposit_balance, 200000000);
         bank.revenue_pool.balance = 9900000001;
 
         let bank_backup = bank;
@@ -1011,14 +1019,14 @@ mod test {
         let bank_vault_amount =
             get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap()
                 as u64;
-        assert_eq!(bank.deposit_balance, 10099999997);
-        assert_eq!(bank_vault_amount, 10099999997);
+        assert_eq!(bank.deposit_balance, 10100000001);
+        assert_eq!(bank_vault_amount, 10100000001);
 
         update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
-        assert_eq!(bank.deposit_balance, 9799999995 + 300000000);
-        assert_eq!(bank.revenue_pool.balance, 9800000000);
+        assert_eq!(bank.deposit_balance, 10100000001);
+        assert_eq!(bank.revenue_pool.balance, 9800000001);
         assert_eq!(market.amm.fee_pool.balance, 105000000);
-        assert_eq!(market.pnl_pool.balance, 194999995);
+        assert_eq!(market.pnl_pool.balance, 195000000);
         assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
         assert_eq!(
@@ -1030,10 +1038,10 @@ mod test {
         // calling again only does fee -> pnl pool
         update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
         assert_eq!(market.amm.fee_pool.balance, 5000000);
-        assert_eq!(market.pnl_pool.balance, 294999994);
+        assert_eq!(market.pnl_pool.balance, 295000000);
         assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(bank.revenue_pool.balance, 9800000000);
+        assert_eq!(bank.revenue_pool.balance, 9800000001);
         assert_eq!(
             market.revenue_withdraw_since_last_settle,
             market.max_revenue_withdraw_per_period
@@ -1043,10 +1051,10 @@ mod test {
         // calling again does nothing
         update_pool_balances(&mut market, &mut bank, 0, now).unwrap();
         assert_eq!(market.amm.fee_pool.balance, 5000000);
-        assert_eq!(market.pnl_pool.balance, 294999993);
+        assert_eq!(market.pnl_pool.balance, 295000000);
         assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(bank.revenue_pool.balance, 9800000000);
+        assert_eq!(bank.revenue_pool.balance, 9800000001);
         assert_eq!(
             market.revenue_withdraw_since_last_settle,
             market.max_revenue_withdraw_per_period
@@ -1055,20 +1063,20 @@ mod test {
 
         // do a revenue settlement to allow up to max again
         assert_eq!(bank.last_revenue_settle_ts, 0);
-        assert_eq!(bank.deposit_balance, 9799999993 + 300000000);
+        assert_eq!(bank.deposit_balance, 10100000001);
 
         bank.total_if_factor = 1;
         let res =
             settle_revenue_to_insurance_fund(bank_vault_amount, 0, &mut bank, now + 3600).unwrap();
-        assert_eq!(res, 9800000000);
+        assert_eq!(res, 9800000001);
 
         let bank_vault_amount =
             get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap()
                 as u64;
 
-        assert_eq!(bank.deposit_balance, 299999993); // 100000000 was added to market fee/pnl pool
+        assert_eq!(bank.deposit_balance, 300000000); // 100000000 was added to market fee/pnl pool
         assert_eq!(bank.borrow_balance, 0);
-        assert_eq!(bank_vault_amount, 299999993);
+        assert_eq!(bank_vault_amount, 300000000);
 
         assert_eq!(bank.revenue_pool.balance, 0);
         assert_eq!(bank.last_revenue_settle_ts, now + 3600);
@@ -1083,7 +1091,7 @@ mod test {
         bank.deposit_balance = bank.deposit_balance + 9800000001;
 
         assert_eq!(market.amm.fee_pool.balance, 5000000);
-        assert_eq!(market.pnl_pool.balance, 294999993);
+        assert_eq!(market.pnl_pool.balance, 295000000);
         assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
         assert_eq!(bank.revenue_pool.balance, 9800000001);
@@ -1096,10 +1104,10 @@ mod test {
         assert_eq!(market.last_revenue_withdraw_ts, 33931658);
         assert_eq!(bank.last_revenue_settle_ts, 33931658);
         assert_eq!(market.amm.fee_pool.balance, 205000000);
-        assert_eq!(market.pnl_pool.balance, 294999991);
+        assert_eq!(market.pnl_pool.balance, 295000000);
         assert_eq!(market.amm.total_fee_minus_distributions, -9600000000);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(bank.revenue_pool.balance, 9600000000);
+        assert_eq!(bank.revenue_pool.balance, 9600000001);
         assert_eq!(
             market.revenue_withdraw_since_last_settle,
             market.max_revenue_withdraw_per_period

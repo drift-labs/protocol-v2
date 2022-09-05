@@ -626,6 +626,7 @@ pub fn liquidate_borrow(
             &BankBalanceType::Deposit,
             &mut liability_bank,
             user.get_bank_balance_mut(liability_bank_index).unwrap(),
+            false,
         )?;
 
         update_bank_balances(
@@ -635,6 +636,7 @@ pub fn liquidate_borrow(
             liquidator
                 .get_bank_balance_mut(liability_bank_index)
                 .unwrap(),
+            false,
         )?;
     }
 
@@ -646,6 +648,7 @@ pub fn liquidate_borrow(
             &BankBalanceType::Borrow,
             &mut asset_bank,
             user.get_bank_balance_mut(asset_bank_index).unwrap(),
+            false,
         )?;
 
         update_bank_balances(
@@ -653,6 +656,7 @@ pub fn liquidate_borrow(
             &BankBalanceType::Deposit,
             &mut asset_bank,
             liquidator.get_bank_balance_mut(asset_bank_index).unwrap(),
+            false,
         )?;
     }
 
@@ -928,6 +932,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             &BankBalanceType::Deposit,
             &mut liability_bank,
             user.get_bank_balance_mut(liability_bank_index).unwrap(),
+            false,
         )?;
 
         update_bank_balances(
@@ -937,6 +942,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             liquidator
                 .get_bank_balance_mut(liability_bank_index)
                 .unwrap(),
+            false,
         )?;
     }
 
@@ -1120,7 +1126,8 @@ pub fn liquidate_perp_pnl_for_deposit(
         validate!(
             base_asset_amount == 0,
             ErrorCode::InvalidPerpPositionToLiquidate,
-            "Cant have open perp position"
+            "Cant have open perp position (base_asset_amount: {})",
+            base_asset_amount
         )?;
 
         validate!(
@@ -1227,6 +1234,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             &BankBalanceType::Borrow,
             &mut asset_bank,
             user.get_bank_balance_mut(asset_bank_index).unwrap(),
+            false,
         )?;
 
         update_bank_balances(
@@ -1234,6 +1242,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             &BankBalanceType::Deposit,
             &mut asset_bank,
             liquidator.get_bank_balance_mut(asset_bank_index).unwrap(),
+            false,
         )?;
     }
 
@@ -1512,6 +1521,7 @@ pub fn resolve_bank_bankruptcy(
             &BankBalanceType::Deposit,
             &mut bank,
             user_bank_balance,
+            false,
         )?;
 
         bank.cumulative_deposit_interest = bank
