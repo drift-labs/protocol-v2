@@ -1,5 +1,6 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::orders::is_multiple_of_step_size;
+use crate::math::casting::cast_to_i128;
 use crate::math_error;
 use crate::state::market::Market;
 use crate::state::user::MarketPosition;
@@ -80,7 +81,7 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
         .try_to_u128()?;
 
     validate!(
-        quote_asset_reserve == market.amm.quote_asset_reserve,
+        (cast_to_i128(quote_asset_reserve)? - cast_to_i128(market.amm.quote_asset_reserve)?).abs() <= 2,
         ErrorCode::DefaultError,
         "qar/bar/k out of wack: k={}, bar={}, qar={}, qar'={}",
         invariant,
@@ -89,21 +90,30 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
         quote_asset_reserve
     )?;
 
+    // todo
     if market.amm.base_spread > 0 {
         // bid quote/base < reserve q/b
         validate!(
-            market.amm.bid_base_asset_reserve > market.amm.base_asset_reserve
-                && market.amm.bid_quote_asset_reserve < market.amm.quote_asset_reserve,
+            market.amm.bid_base_asset_reserve >= market.amm.base_asset_reserve - 3
+                && market.amm.bid_quote_asset_reserve <= market.amm.quote_asset_reserve + 3,
             ErrorCode::DefaultError,
-            "bid reserves out of wack"
+            "bid reserves out of wack {} -> {} and {} -> {}",
+            market.amm.bid_base_asset_reserve,
+            market.amm.base_asset_reserve,
+            market.amm.bid_quote_asset_reserve,
+            market.amm.quote_asset_reserve
         )?;
 
         // ask quote/base > reserve q/b
         validate!(
-            market.amm.ask_base_asset_reserve < market.amm.base_asset_reserve
-                && market.amm.ask_quote_asset_reserve > market.amm.quote_asset_reserve,
+            market.amm.ask_base_asset_reserve <= market.amm.base_asset_reserve
+                && market.amm.ask_quote_asset_reserve >= market.amm.quote_asset_reserve,
             ErrorCode::DefaultError,
-            "ask reserves out of wack"
+            "ask reserves out of wack {} -> {} and {} -> {}",
+            market.amm.ask_base_asset_reserve,
+            market.amm.base_asset_reserve,
+            market.amm.ask_quote_asset_reserve,
+            market.amm.quote_asset_reserve
         )?;
     }
 

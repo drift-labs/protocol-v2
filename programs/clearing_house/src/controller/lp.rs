@@ -150,7 +150,7 @@ pub fn burn_lp_shares(
                 .checked_add(1) // round up
                 .ok_or_else(math_error!())?;
 
-        update_quote_asset_amount(position, -cast_to_i128(dust_base_asset_value)?)?;
+        update_quote_asset_amount(position, market, -cast_to_i128(dust_base_asset_value)?)?;
     }
 
     // update last_ metrics

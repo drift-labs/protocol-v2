@@ -625,7 +625,7 @@ describe('repeg and spread amm', () => {
 			QUOTE_PRECISION
 		);
 
-		assert(allUserCollateral == 60207.47732500001);
+		assert(allUserCollateral == 60207.477328);
 		assert(pnlPoolBalance == 0);
 		assert(feePoolBalance == 0);
 		assert(allUserUnsettledPnl == 599.427406);

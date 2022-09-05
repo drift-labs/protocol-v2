@@ -10,6 +10,8 @@ import {
 	PositionDirection,
 	convertToNumber,
 	calculateTradeSlippage,
+	BulkAccountLoader,
+	Markets,
 	MARK_PRICE_PRECISION,
 	QUOTE_PRECISION,
 } from '..';
@@ -27,9 +29,11 @@ export const getTokenAddress = (
 	);
 };
 
+const cluster = 'devnet';
+
 const main = async () => {
 	// Initialize Drift SDK
-	const sdkConfig = initialize({ env: 'devnet' });
+	const sdkConfig = initialize({ env: cluster });
 
 	// Set up the Wallet and Provider
 	const privateKey = process.env.BOT_PRIVATE_KEY; // stored as an array string
@@ -63,10 +67,21 @@ const main = async () => {
 	const clearingHousePublicKey = new PublicKey(
 		sdkConfig.CLEARING_HOUSE_PROGRAM_ID
 	);
+	const bulkAccountLoader = new BulkAccountLoader(
+		connection,
+		'confirmed',
+		1000
+	);
 	const clearingHouse = new ClearingHouse({
 		connection,
 		wallet: provider.wallet,
 		programID: clearingHousePublicKey,
+		marketIndexes: Markets[cluster].map((market) => market.marketIndex),
+		bankIndexes: Banks[cluster].map((bank) => bank.bankIndex),
+		accountSubscription: {
+			type: 'polling',
+			accountLoader: bulkAccountLoader,
+		},
 	});
 	await clearingHouse.subscribe();
 
@@ -74,6 +89,10 @@ const main = async () => {
 	const user = new ClearingHouseUser({
 		clearingHouse,
 		userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		accountSubscription: {
+			type: 'polling',
+			accountLoader: bulkAccountLoader,
+		},
 	});
 
 	//// Check if clearing house account exists for the current wallet

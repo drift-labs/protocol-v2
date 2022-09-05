@@ -808,22 +808,28 @@ describe('orders', () => {
 
 		assert(baseAssetAmount.gt(amountToPrice)); // assert its a partial fill of liquidity
 
+		console.log(limitPrice.toString());
 		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
 			price: limitPrice,
-			userOrderId: 1,
 		});
 
 		await clearingHouse.placeOrder(orderParams);
 
+		const newPrice = convertToNumber(
+			limitPrice.mul(new BN(104)).div(new BN(100)),
+			MARK_PRICE_PRECISION
+		);
 		// move price to make liquidity for order @ $1.05 (5%)
-		setFeedPrice(anchor.workspace.Pyth, 1.45, solUsd);
+		setFeedPrice(anchor.workspace.Pyth, newPrice, solUsd);
 		await clearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(1.45 * MARK_PRICE_PRECISION.toNumber())
+			new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
 		);
+
+		console.log('user leverage:', convertToNumber(userLeverage0, TEN_THOUSAND));
 
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getUserAccount().orders[0];
@@ -857,18 +863,8 @@ describe('orders', () => {
 		await clearingHouseUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		assert(
-			clearingHouseUser
-				.getUserPosition(marketIndex)
-				.openAsks.eq(new BN(-235562920000000))
-		);
+		assert(clearingHouseUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
 		assert(clearingHouseUser.getUserPosition(marketIndex).openBids.eq(ZERO));
-		assert(
-			clearingHouseUser
-				.getUserPosition(marketIndex)
-				.baseAssetAmount.eq(new BN(-42654310000000))
-		);
-		clearingHouse.cancelOrderByUserId(1);
 
 		const order1 = clearingHouseUser.getUserAccount().orders[0];
 		const newMarket1 = clearingHouse.getMarketAccount(marketIndex);
@@ -887,6 +883,8 @@ describe('orders', () => {
 			convertToNumber(userLeverage, TEN_THOUSAND),
 			'\n'
 		);
+
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		// await clearingHouse.closePosition(marketIndex);
 	});
 	it('When in Max leverage short, fill limit long order to reduce to ZERO', async () => {
@@ -941,11 +939,15 @@ describe('orders', () => {
 			throw e;
 		}
 
+		const newPrice = convertToNumber(
+			limitPrice.mul(new BN(96)).div(new BN(100)),
+			MARK_PRICE_PRECISION
+		);
 		// move price to make liquidity for order @ $1.05 (5%)
-		setFeedPrice(anchor.workspace.Pyth, 1.35, solUsd);
+		setFeedPrice(anchor.workspace.Pyth, newPrice, solUsd);
 		await clearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(1.35 * MARK_PRICE_PRECISION.toNumber())
+			new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
 		);
 
 		const order = clearingHouseUser.getUserAccount().orders[0];
@@ -1084,17 +1086,20 @@ describe('orders', () => {
 			direction,
 			baseAssetAmount,
 			price: limitPrice,
-			userOrderId: 1,
 		});
 		await clearingHouse.placeOrder(orderParams);
 
 		await clearingHouseUser.fetchAccounts();
 
+		const newPrice = convertToNumber(
+			limitPrice.mul(new BN(97)).div(new BN(100)),
+			MARK_PRICE_PRECISION
+		);
 		// move price to make liquidity for order @ $1.05 (5%)
-		setFeedPrice(anchor.workspace.Pyth, 1.33, solUsd);
+		setFeedPrice(anchor.workspace.Pyth, newPrice, solUsd);
 		await clearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(1.33 * MARK_PRICE_PRECISION.toNumber())
+			new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
 		);
 
 		const order = clearingHouseUser.getUserAccount().orders[0];
@@ -1150,23 +1155,7 @@ describe('orders', () => {
 		);
 
 		assert(clearingHouseUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
-		assert(
-			clearingHouseUser
-				.getUserPosition(marketIndex)
-				.openBids.eq(new BN(247927980000000))
-		);
-		assert(
-			clearingHouseUser
-				.getUserPosition(marketIndex)
-				.openBids.eq(new BN(247927980000000))
-		);
-		assert(
-			clearingHouseUser
-				.getUserPosition(marketIndex)
-				.baseAssetAmount.eq(new BN(129191120000000))
-		);
-
-		await clearingHouse.cancelOrderByUserId(1);
+		assert(clearingHouseUser.getUserPosition(marketIndex).openBids.eq(ZERO));
 	});
 
 	it('When in Max leverage long, fill limit short order to flip to max leverage short', async () => {
@@ -1546,6 +1535,16 @@ describe('orders', () => {
 		const fillerCollateralBefore =
 			fillerClearingHouse.getQuoteAssetTokenAmount();
 
+		const newPrice = convertToNumber(
+			price.mul(new BN(96)).div(new BN(100)),
+			MARK_PRICE_PRECISION
+		);
+		setFeedPrice(anchor.workspace.Pyth, newPrice, solUsd);
+		await clearingHouse.moveAmmToPrice(
+			marketIndex,
+			new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
+		);
+
 		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
@@ -1590,121 +1589,6 @@ describe('orders', () => {
 		);
 		assert(fillerReward.eq(new BN(0)));
 
-		await clearingHouse.closePosition(marketIndex);
-	});
-
-	it('PlaceAndFill LONG Order multiple fills', async () => {
-		// todo: check order/trade account history and make sure they match expectations
-		const direction = PositionDirection.LONG;
-		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-
-		const market = clearingHouse.getMarketAccount(marketIndex);
-		const limitPrice = calculateTradeSlippage(
-			direction,
-			baseAssetAmount,
-			market,
-			'base'
-		)[2]; // set entryPrice as limit
-
-		const prePosition = clearingHouseUser.getUserPosition(marketIndex);
-		console.log(prePosition.baseAssetAmount.toString());
-		// assert(prePosition==undefined); // no existing position
-
-		const fillerCollateralBefore =
-			fillerClearingHouse.getQuoteAssetTokenAmount();
-
-		const orderParams = getLimitOrderParams({
-			marketIndex,
-			direction,
-			baseAssetAmount,
-			price: limitPrice,
-		});
-		await clearingHouse.placeAndTake(orderParams);
-
-		await clearingHouse.fetchAccounts();
-		await clearingHouseUser.fetchAccounts();
-		await fillerUser.fetchAccounts();
-
-		const postPosition = clearingHouseUser.getUserPosition(marketIndex);
-		console.log(
-			'User position: ',
-			convertToNumber(new BN(0), AMM_RESERVE_PRECISION),
-			'->',
-			convertToNumber(postPosition.baseAssetAmount, AMM_RESERVE_PRECISION)
-		);
-		assert(postPosition.baseAssetAmount.abs().gt(new BN(0)));
-
-		// fill again
-
-		const order = clearingHouseUser.getUserAccount().orders[0];
-		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
-			order,
-			market,
-			clearingHouse.getOracleDataForMarket(order.marketIndex),
-			0
-		);
-
-		console.log(convertToNumber(amountToFill, AMM_RESERVE_PRECISION));
-		const market2 = clearingHouse.getMarketAccount(marketIndex);
-
-		const markPrice2 = calculateMarkPrice(market2);
-		// move price to make liquidity for order @ $1.05 (5%)
-		setFeedPrice(anchor.workspace.Pyth, 0.7, solUsd);
-		await clearingHouse.moveAmmToPrice(
-			marketIndex,
-			new BN(0.7 * MARK_PRICE_PRECISION.toNumber())
-		);
-		const market3 = clearingHouse.getMarketAccount(marketIndex);
-
-		const markPrice3 = calculateMarkPrice(market3);
-		console.log(
-			'Market Price:',
-			convertToNumber(markPrice2),
-			'->',
-			convertToNumber(markPrice3)
-		);
-
-		await fillerClearingHouse.fillOrder(
-			userAccountPublicKey,
-			clearingHouseUser.getUserAccount(),
-			order
-		);
-
-		await fillerClearingHouse.settlePNL(
-			await fillerClearingHouse.getUserAccountPublicKey(),
-			fillerClearingHouse.getUserAccount(),
-			marketIndex
-		);
-
-		await clearingHouse.settlePNL(
-			await clearingHouse.getUserAccountPublicKey(),
-			clearingHouse.getUserAccount(),
-			marketIndex
-		);
-
-		await clearingHouseUser.fetchAccounts();
-		const postPosition2 = clearingHouseUser.getUserPosition(marketIndex);
-		console.log(
-			'Filler: User position: ',
-			convertToNumber(postPosition.baseAssetAmount, AMM_RESERVE_PRECISION),
-			'->',
-			convertToNumber(postPosition2.baseAssetAmount, AMM_RESERVE_PRECISION)
-		);
-
-		assert(postPosition2.baseAssetAmount.eq(baseAssetAmount)); // 100% filled
-
-		// other part filler reward
-		const fillerReward = fillerClearingHouse
-			.getQuoteAssetTokenAmount()
-			.sub(fillerCollateralBefore);
-		console.log(
-			'FillerReward: $',
-			convertToNumber(fillerReward, QUOTE_PRECISION),
-			convertToNumber(
-				fillerUser.getUserAccount().positions[0].quoteAssetAmount,
-				QUOTE_PRECISION
-			)
-		);
 		await clearingHouse.closePosition(marketIndex);
 	});
 
@@ -1826,6 +1710,13 @@ describe('orders', () => {
 			console.error(e);
 		}
 		console.log('4');
+
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
+		console.log('5');
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();

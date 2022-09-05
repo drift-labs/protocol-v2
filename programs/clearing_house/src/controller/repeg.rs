@@ -318,6 +318,7 @@ pub fn settle_expired_market(
         &BankBalanceType::Borrow,
         bank,
         &mut market.amm.fee_pool,
+        false,
     )?;
 
     update_bank_balances(
@@ -325,6 +326,7 @@ pub fn settle_expired_market(
         &BankBalanceType::Deposit,
         bank,
         &mut market.pnl_pool,
+        false,
     )?;
 
     msg!("hi");
