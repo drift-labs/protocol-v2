@@ -1229,10 +1229,13 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(if_balance, 10000000000001);
+        if_balance += 10_000_000_000_000;
+
         assert_eq!(bank.if_shares_base, 9);
         assert_eq!(bank.total_if_shares, 200000000000020);
         assert_eq!(bank.user_if_shares, 200000000000000);
+        assert_eq!(if_balance, 10000000000001);
+
     }
 
     #[test]

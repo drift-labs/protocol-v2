@@ -809,8 +809,8 @@ mod test {
             now + 60,
         )
         .unwrap();
-        
-        let if_balance_2 = 0;
+
+        let mut if_balance_2 = 0;
         if_balance_2 = if_balance_2 + settle_amount;
         assert_eq!(if_balance_2, 625);
         assert_eq!(if_tokens_3 - (settle_amount as u128), 1689);
