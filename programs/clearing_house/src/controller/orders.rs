@@ -26,7 +26,7 @@ use crate::math::auction::{
 };
 use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::{cast, cast_to_i128};
-use crate::math::fees::FillFees;
+use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::determine_fulfillment_methods;
 use crate::math::liquidation::validate_user_not_being_liquidated;
 use crate::math::matching::{
@@ -254,6 +254,7 @@ pub fn place_order(
         None,
         None,
         None,
+        None,
         taker,
         taker_order,
         taker_pnl,
@@ -398,6 +399,7 @@ pub fn cancel_order(
             filler_key.copied(),
             None,
             Some(filler_reward),
+            None,
             None,
             None,
             None,
@@ -566,7 +568,7 @@ pub fn fill_order(
         &user.orders[order_index],
         &mut filler.as_deref_mut(),
         &filler_key,
-        state.fee_structure.cancel_order_fee,
+        state.perp_fee_structure.cancel_order_fee,
         oracle_price,
         now,
         slot,
@@ -591,7 +593,7 @@ pub fn fill_order(
             user,
             filler.as_deref_mut(),
             market_map.get_ref_mut(&market_index)?.deref_mut(),
-            state.fee_structure.cancel_order_fee,
+            state.perp_fee_structure.cancel_order_fee,
         )?;
 
         cancel_order(
@@ -621,7 +623,7 @@ pub fn fill_order(
                 user,
                 filler.as_deref_mut(),
                 market.deref_mut(),
-                state.fee_structure.cancel_order_fee,
+                state.perp_fee_structure.cancel_order_fee,
             )?
         };
 
@@ -659,7 +661,7 @@ pub fn fill_order(
         bank_map,
         market_map,
         oracle_map,
-        &state.fee_structure,
+        &state.perp_fee_structure,
         mark_price_before,
         valid_oracle_price,
         now,
@@ -675,7 +677,7 @@ pub fn fill_order(
                 user,
                 filler.as_deref_mut(),
                 market.deref_mut(),
-                state.fee_structure.cancel_order_fee,
+                state.perp_fee_structure.cancel_order_fee,
             )?
         };
 
@@ -1319,6 +1321,7 @@ pub fn fulfill_order_with_amm(
         Some(referrer_reward),
         Some(referee_discount),
         Some(quote_asset_amount_surplus),
+        None,
         taker,
         taker_order,
         taker_pnl,
@@ -1661,6 +1664,7 @@ pub fn fulfill_order_with_match(
         Some(referrer_reward),
         Some(referee_discount),
         None,
+        None,
         Some(*taker_key),
         Some(taker.orders[taker_order_index]),
         Some(taker_pnl),
@@ -1861,7 +1865,7 @@ pub fn trigger_order(
         user,
         filler.as_deref_mut(),
         market,
-        state.fee_structure.cancel_order_fee,
+        state.perp_fee_structure.cancel_order_fee,
     )?;
 
     let order_action_record = get_order_action_record(
@@ -1876,6 +1880,7 @@ pub fn trigger_order(
         None,
         None,
         Some(filler_reward),
+        None,
         None,
         None,
         None,
@@ -2114,6 +2119,7 @@ pub fn place_spot_order(
         None,
         None,
         None,
+        None,
         taker,
         taker_order,
         taker_pnl,
@@ -2141,6 +2147,7 @@ pub fn fill_spot_order(
     maker_stats: Option<&AccountLoader<UserStats>>,
     maker_order_id: Option<u64>,
     clock: &Clock,
+    fee_structure: &FeeStructure,
     mut serum_new_order_accounts: SerumNewOrderAccounts,
 ) -> ClearingHouseResult<(u128, bool)> {
     let now = clock.unix_timestamp;
@@ -2228,6 +2235,7 @@ pub fn fill_spot_order(
         oracle_map,
         now,
         slot,
+        fee_structure,
         serum_new_order_accounts,
     )?;
 
@@ -2341,6 +2349,7 @@ fn fulfill_spot_order(
     oracle_map: &mut OracleMap,
     now: i64,
     slot: u64,
+    fee_structure: &FeeStructure,
     mut serum_new_order_accounts: SerumNewOrderAccounts,
 ) -> ClearingHouseResult<(u128, bool)> {
     let free_collateral = calculate_free_collateral(user, market_map, bank_map, oracle_map)?;
@@ -2392,6 +2401,7 @@ fn fulfill_spot_order(
                 now,
                 slot,
                 oracle_map,
+                fee_structure,
                 &mut order_records,
             )?,
             FulfillmentMethod::Market => fulfill_spot_order_with_serum(
@@ -2407,6 +2417,7 @@ fn fulfill_spot_order(
                 now,
                 slot,
                 oracle_map,
+                fee_structure,
                 &mut order_records,
                 &mut serum_new_order_accounts,
             )?,
@@ -2455,12 +2466,13 @@ pub fn fulfill_spot_order_with_match(
     maker_stats: &mut UserStats,
     maker_order_index: usize,
     maker_key: &Pubkey,
-    _filler: Option<&mut User>,
-    _filler_stats: Option<&mut UserStats>,
+    filler: Option<&mut User>,
+    filler_stats: Option<&mut UserStats>,
     filler_key: &Pubkey,
     now: i64,
     slot: u64,
     oracle_map: &mut OracleMap,
+    fee_structure: &FeeStructure,
     order_records: &mut Vec<OrderRecord>,
 ) -> ClearingHouseResult<u128> {
     if !are_orders_same_market_but_different_sides(
@@ -2475,6 +2487,7 @@ pub fn fulfill_spot_order_with_match(
         taker.orders[taker_order_index].get_limit_price(Some(oracle_price), slot, None)?;
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
+    let taker_order_ts = taker.orders[taker_order_index].ts;
 
     let maker_price =
         maker.orders[maker_order_index].get_limit_price(Some(oracle_price), slot, None)?;
@@ -2499,6 +2512,21 @@ pub fn fulfill_spot_order_with_match(
         return Ok(0_u128);
     }
 
+    let FillFees {
+        user_fee: taker_fee,
+        maker_rebate,
+        filler_reward,
+        fee_to_market,
+        ..
+    } = fees::calculate_fee_for_fulfillment_with_match(
+        quote_asset_amount,
+        fee_structure,
+        taker_order_ts,
+        now,
+        filler.is_some(),
+        false,
+    )?;
+
     update_bank_balances(
         base_asset_amount,
         &taker.orders[taker_order_index].get_bank_balance_update_direction(AssetType::Base),
@@ -2506,8 +2534,17 @@ pub fn fulfill_spot_order_with_match(
         taker.force_get_bank_balance_mut(base_bank.bank_index)?,
     )?;
 
+    let taker_quote_asset_amount_delta = match &taker.orders[taker_order_index].direction {
+        PositionDirection::Long => quote_asset_amount
+            .checked_sub(taker_fee)
+            .ok_or_else(math_error!())?,
+        PositionDirection::Short => quote_asset_amount
+            .checked_add(taker_fee)
+            .ok_or_else(math_error!())?,
+    };
+
     update_bank_balances(
-        quote_asset_amount,
+        taker_quote_asset_amount_delta,
         &taker.orders[taker_order_index].get_bank_balance_update_direction(AssetType::Quote),
         quote_bank,
         taker.get_quote_asset_bank_balance_mut(),
@@ -2522,8 +2559,17 @@ pub fn fulfill_spot_order_with_match(
         taker.force_get_bank_balance_mut(base_bank.bank_index)?,
     )?;
 
+    let maker_quote_asset_amount_delta = match &maker.orders[maker_order_index].direction {
+        PositionDirection::Long => quote_asset_amount
+            .checked_add(maker_rebate)
+            .ok_or_else(math_error!())?,
+        PositionDirection::Short => quote_asset_amount
+            .checked_sub(maker_rebate)
+            .ok_or_else(math_error!())?,
+    };
+
     update_bank_balances(
-        quote_asset_amount,
+        maker_quote_asset_amount_delta,
         &maker.orders[maker_order_index].get_bank_balance_update_direction(AssetType::Quote),
         quote_bank,
         taker.get_quote_asset_bank_balance_mut(),
@@ -2536,7 +2582,7 @@ pub fn fulfill_spot_order_with_match(
         base_bank.order_step_size,
         base_asset_amount,
         quote_asset_amount,
-        0,
+        cast_to_i128(taker_fee)?,
     )?;
 
     let taker_order_direction = taker.orders[taker_order_index].direction;
@@ -2551,7 +2597,7 @@ pub fn fulfill_spot_order_with_match(
         base_bank.order_step_size,
         base_asset_amount,
         quote_asset_amount,
-        0,
+        -cast_to_i128(maker_rebate)?,
     )?;
 
     let maker_order_direction = maker.orders[maker_order_index].direction;
@@ -2561,6 +2607,24 @@ pub fn fulfill_spot_order_with_match(
         base_asset_amount,
     )?;
 
+    if let (Some(filler), Some(filler_stats)) = (filler, filler_stats) {
+        if filler_reward > 0 {
+            update_bank_balances(
+                filler_reward,
+                &BankBalanceType::Deposit,
+                quote_bank,
+                filler.get_quote_asset_bank_balance_mut(),
+            )?;
+        }
+
+        filler_stats.update_filler_volume(cast(quote_asset_amount)?, now)?;
+    }
+
+    base_bank.total_spot_fee = base_bank
+        .total_spot_fee
+        .checked_add(cast(fee_to_market)?)
+        .ok_or_else(math_error!())?;
+
     let fill_record_id = get_then_update_id!(base_bank, next_fill_record_id);
     let order_action_record = get_order_action_record(
         now,
@@ -2569,18 +2633,15 @@ pub fn fulfill_spot_order_with_match(
         maker.orders[maker_order_index].market_index,
         Some(*filler_key),
         Some(fill_record_id),
-        Some(0),
-        if taker_stats.referrer.eq(&Pubkey::default()) {
-            None
-        } else {
-            Some(taker_stats.referrer)
-        },
+        Some(filler_reward),
+        None,
         Some(base_asset_amount),
         Some(cast(quote_asset_amount)?),
-        Some(9),
+        Some(taker_fee),
+        Some(maker_rebate),
         Some(0),
         Some(0),
-        Some(0),
+        None,
         None,
         Some(*taker_key),
         Some(taker.orders[taker_order_index]),
@@ -2616,12 +2677,13 @@ pub fn fulfill_spot_order_with_serum(
     taker_stats: &mut UserStats,
     taker_order_index: usize,
     taker_key: &Pubkey,
-    _filler: Option<&mut User>,
-    _filler_stats: Option<&mut UserStats>,
+    filler: Option<&mut User>,
+    filler_stats: Option<&mut UserStats>,
     filler_key: &Pubkey,
     now: i64,
     slot: u64,
     oracle_map: &mut OracleMap,
+    fee_structure: &FeeStructure,
     order_records: &mut Vec<OrderRecord>,
     serum_new_order_accounts: &mut SerumNewOrderAccounts,
 ) -> ClearingHouseResult<u128> {
@@ -2631,6 +2693,7 @@ pub fn fulfill_spot_order_with_serum(
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
     let order_direction = taker.orders[taker_order_index].direction;
+    let taker_order_ts = taker.orders[taker_order_index].ts;
 
     let market_state_before = load_market_state(
         serum_new_order_accounts.serum_market,
@@ -2747,6 +2810,17 @@ pub fn fulfill_spot_order_with_serum(
 
     drop(open_orders_after);
 
+    let settled_referred_rebate = unsettled_referrer_rebate_before
+        .checked_sub(unsettled_referrer_rebate_after)
+        .ok_or_else(math_error!())?;
+
+    update_bank_balances(
+        settled_referred_rebate as u128,
+        &BankBalanceType::Deposit,
+        quote_bank,
+        &mut base_bank.spot_fee_pool,
+    )?;
+
     let (base_update_direction, base_asset_amount_filled) = if base_after > base_before {
         (
             BankBalanceType::Deposit,
@@ -2772,58 +2846,72 @@ pub fn fulfill_spot_order_with_serum(
         .checked_sub(market_fees_accrued_before)
         .ok_or_else(math_error!())?;
 
-    let settled_referred_rebate = unsettled_referrer_rebate_before
-        .checked_sub(unsettled_referrer_rebate_after)
-        .ok_or_else(math_error!())?;
-
-    update_spot_fee_pool_balances(
-        settled_referred_rebate as u128,
-        &BankBalanceType::Deposit,
-        quote_bank,
-    )?;
-
-    let referrer_rebate = market_rebates_accrued_after
+    let serum_referrer_rebate = market_rebates_accrued_after
         .checked_sub(market_rebates_accrued_before)
         .ok_or_else(math_error!())?;
 
-    msg!("serum_fee {}", serum_fee);
-    msg!("referrer_rebate {}", referrer_rebate);
-    msg!("settled_referred_rebate {}", settled_referred_rebate);
+    let (quote_update_direction, quote_asset_amount_filled) = if quote_after > quote_before {
+        let quote_asset_amount_delta = quote_after
+            .checked_sub(quote_before)
+            .ok_or_else(math_error!())?
+            .checked_sub(settled_referred_rebate)
+            .ok_or_else(math_error!())?;
 
-    let taker_fee = serum_fee
-        .checked_add(referrer_rebate)
-        .ok_or_else(math_error!())?;
-
-    let (quote_update_direction, quote_asset_amount_filled, quote_bank_balance_delta) =
-        if quote_after > quote_before {
-            let quote_asset_amount_delta = quote_after
-                .checked_sub(quote_before)
+        (
+            BankBalanceType::Deposit,
+            quote_asset_amount_delta
+                .checked_add(serum_fee)
                 .ok_or_else(math_error!())?
-                .checked_sub(settled_referred_rebate)
-                .ok_or_else(math_error!())?;
+                .checked_add(serum_referrer_rebate)
+                .ok_or_else(math_error!())? as u128,
+        )
+    } else {
+        let quote_asset_amount_delta = quote_before
+            .checked_sub(quote_after)
+            .ok_or_else(math_error!())?
+            .checked_add(settled_referred_rebate)
+            .ok_or_else(math_error!())?;
 
-            (
-                BankBalanceType::Deposit,
-                quote_asset_amount_delta
-                    .checked_add(taker_fee)
-                    .ok_or_else(math_error!())? as u128,
-                quote_asset_amount_delta as u128,
-            )
-        } else {
-            let quote_asset_amount_delta = quote_before
-                .checked_sub(quote_after)
+        (
+            BankBalanceType::Borrow,
+            quote_asset_amount_delta
+                .checked_sub(serum_fee)
                 .ok_or_else(math_error!())?
-                .checked_add(settled_referred_rebate)
-                .ok_or_else(math_error!())?;
+                .checked_sub(serum_referrer_rebate)
+                .ok_or_else(math_error!())? as u128,
+        )
+    };
 
-            (
-                BankBalanceType::Borrow,
-                quote_asset_amount_delta
-                    .checked_sub(taker_fee)
-                    .ok_or_else(math_error!())? as u128,
-                quote_asset_amount_delta as u128,
-            )
-        };
+    let fee_pool_amount = get_token_amount(
+        base_bank.spot_fee_pool.balance,
+        base_bank,
+        &BankBalanceType::Deposit,
+    )?;
+
+    let SerumFillFees {
+        user_fee: taker_fee,
+        fee_to_market,
+        fee_pool_delta,
+        filler_reward,
+    } = fees::calculate_fee_for_fulfillment_with_serum(
+        quote_asset_amount_filled,
+        fee_structure,
+        taker_order_ts,
+        now,
+        filler.is_some(),
+        serum_fee as u128,
+        serum_referrer_rebate as u128,
+        fee_pool_amount,
+    )?;
+
+    let quote_bank_balance_delta = match quote_update_direction {
+        BankBalanceType::Deposit => quote_asset_amount_filled
+            .checked_sub(taker_fee)
+            .ok_or_else(math_error!())?,
+        BankBalanceType::Borrow => quote_asset_amount_filled
+            .checked_add(taker_fee)
+            .ok_or_else(math_error!())?,
+    };
 
     validate!(
         base_update_direction
@@ -2870,6 +2958,37 @@ pub fn fulfill_spot_order_with_serum(
         base_asset_amount_filled,
     )?;
 
+    if let (Some(filler), Some(filler_stats)) = (filler, filler_stats) {
+        if filler_reward > 0 {
+            update_bank_balances(
+                filler_reward,
+                &BankBalanceType::Deposit,
+                quote_bank,
+                filler.get_quote_asset_bank_balance_mut(),
+            )?;
+        }
+
+        filler_stats.update_filler_volume(cast(quote_asset_amount_filled)?, now)?;
+    }
+
+    if fee_pool_delta != 0 {
+        update_bank_balances(
+            fee_pool_delta.unsigned_abs(),
+            if fee_to_market > 0 {
+                &BankBalanceType::Deposit
+            } else {
+                &BankBalanceType::Borrow
+            },
+            quote_bank,
+            &mut base_bank.spot_fee_pool,
+        )?;
+    }
+
+    base_bank.total_spot_fee = base_bank
+        .total_spot_fee
+        .checked_add(fee_to_market)
+        .ok_or_else(math_error!())?;
+
     let fill_record_id = get_then_update_id!(base_bank, next_fill_record_id);
     let order_action_record = get_order_action_record(
         now,
@@ -2878,12 +2997,8 @@ pub fn fulfill_spot_order_with_serum(
         taker.orders[taker_order_index].market_index,
         Some(*filler_key),
         Some(fill_record_id),
-        Some(0),
-        if taker_stats.referrer.eq(&Pubkey::default()) {
-            None
-        } else {
-            Some(taker_stats.referrer)
-        },
+        Some(filler_reward),
+        None,
         Some(base_asset_amount_filled),
         Some(cast(quote_asset_amount_filled)?),
         Some(taker_fee as u128),
@@ -2891,6 +3006,7 @@ pub fn fulfill_spot_order_with_serum(
         Some(0),
         Some(0),
         None,
+        Some(serum_fee),
         Some(*taker_key),
         Some(taker.orders[taker_order_index]),
         None,

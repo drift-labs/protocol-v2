@@ -95,7 +95,8 @@ pub mod clearing_house {
             full_liquidation_penalty_percentage_denominator: 1,
             partial_liquidation_liquidator_share_denominator: 2,
             full_liquidation_liquidator_share_denominator: 20,
-            fee_structure: FeeStructure::default(),
+            perp_fee_structure: FeeStructure::default(),
+            spot_fee_structure: FeeStructure::default(),
             whitelist_mint: Pubkey::default(),
             discount_mint: Pubkey::default(),
             oracle_guard_rails: OracleGuardRails::default(),
@@ -299,6 +300,7 @@ pub mod clearing_house {
             serum_open_orders: Pubkey::default(),
             serum_signer_nonce: 0,
             spot_fee_pool: PoolBalance::default(),
+            total_spot_fee: 0,
         };
 
         Ok(())
@@ -1470,6 +1472,7 @@ pub mod clearing_house {
             maker_stats.as_ref(),
             maker_order_id,
             &Clock::get()?,
+            &ctx.accounts.state.spot_fee_structure,
             serum_new_order_accounts,
         )?;
 
@@ -1590,7 +1593,7 @@ pub mod clearing_house {
             slot,
             now,
             ctx.accounts.state.liquidation_margin_buffer_ratio,
-            ctx.accounts.state.fee_structure.cancel_order_fee,
+            ctx.accounts.state.perp_fee_structure.cancel_order_fee,
         )?;
 
         Ok(())
@@ -2767,7 +2770,7 @@ pub mod clearing_house {
     }
 
     pub fn update_fee(ctx: Context<AdminUpdateState>, fees: FeeStructure) -> Result<()> {
-        ctx.accounts.state.fee_structure = fees;
+        ctx.accounts.state.perp_fee_structure = fees;
         Ok(())
     }
 
@@ -2775,7 +2778,10 @@ pub mod clearing_house {
         ctx: Context<AdminUpdateState>,
         order_filler_reward_structure: OrderFillerRewardStructure,
     ) -> Result<()> {
-        ctx.accounts.state.fee_structure.filler_reward_structure = order_filler_reward_structure;
+        ctx.accounts
+            .state
+            .perp_fee_structure
+            .filler_reward_structure = order_filler_reward_structure;
         Ok(())
     }
 

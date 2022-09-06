@@ -335,7 +335,8 @@ export type StateAccount = {
 	fullLiquidationPenaltyPercentageDenominator: BN;
 	partialLiquidationLiquidatorShareDenominator: BN;
 	fullLiquidationLiquidatorShareDenominator: BN;
-	feeStructure: FeeStructure;
+	perpFeeStructure: FeeStructure;
+	spotFeeStructure: FeeStructure;
 	totalFee: BN;
 	totalFeeWithdrawn: BN;
 	whitelistMint: PublicKey;
@@ -427,6 +428,7 @@ export type BankAccount = {
 		balance: BN;
 		balanceType: BankBalanceType;
 	};
+	totalSpotFee: BN;
 };
 
 export type PoolBalance = {

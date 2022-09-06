@@ -213,7 +213,7 @@ describe('admin', () => {
 		const state = clearingHouse.getStateAccount();
 
 		assert(
-			JSON.stringify(newFeeStructure) === JSON.stringify(state.feeStructure)
+			JSON.stringify(newFeeStructure) === JSON.stringify(state.perpFeeStructure)
 		);
 	});
 
@@ -231,7 +231,7 @@ describe('admin', () => {
 		assert(
 			JSON.stringify(newStructure) ===
 				JSON.stringify(
-					clearingHouse.getStateAccount().feeStructure.fillerRewardStructure
+					clearingHouse.getStateAccount().perpFeeStructure.fillerRewardStructure
 				)
 		);
 	});

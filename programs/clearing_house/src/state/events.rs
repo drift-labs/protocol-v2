@@ -135,6 +135,7 @@ pub struct OrderActionRecord {
     pub taker_order_base_asset_amount_filled: Option<u128>,
     pub taker_order_quote_asset_amount_filled: Option<u64>,
     pub taker_order_fee: Option<i64>,
+    pub spot_fulfillment_method_fee: Option<u64>,
 
     pub maker: Option<Pubkey>,
     pub maker_order_id: Option<u64>,
@@ -162,6 +163,7 @@ pub fn get_order_action_record(
     referrer_reward: Option<u128>,
     referee_discount: Option<u128>,
     quote_asset_amount_surplus: Option<i128>,
+    spot_fulfillment_method_fee: Option<u64>,
     taker: Option<Pubkey>,
     taker_order: Option<Order>,
     taker_pnl: Option<i128>,
@@ -207,6 +209,7 @@ pub fn get_order_action_record(
             Some(quote_asset_amount_surplus) => Some(cast(quote_asset_amount_surplus)?),
             None => None,
         },
+        spot_fulfillment_method_fee,
         taker,
         taker_order_id: taker_order.map(|order| order.order_id),
         taker_order_base_asset_amount: taker_order.map(|order| order.base_asset_amount),

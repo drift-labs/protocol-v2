@@ -261,7 +261,7 @@ describe('serum spot market', () => {
 			takerQuoteBankBalance.balanceType
 		);
 		console.log(quoteTokenAmount.toString());
-		assert(quoteTokenAmount.eq(new BN(99959999)));
+		assert(quoteTokenAmount.eq(new BN(99899999)));
 
 		const baseTokenAmount = getTokenAmount(
 			takerBaseBankBalance.balance,
@@ -278,16 +278,19 @@ describe('serum spot market', () => {
 		assert(isVariant(orderActionRecord.action, 'fill'));
 		assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
 		assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
-		assert(orderActionRecord.takerFee.eq(new BN(40000)));
-		assert(orderActionRecord.takerOrderFee.eq(new BN(40000)));
+		assert(orderActionRecord.takerFee.eq(new BN(100000)));
+		assert(orderActionRecord.takerOrderFee.eq(new BN(100000)));
 
-		const quoteBank = takerClearingHouse.getQuoteAssetBankAccount();
-		const spotFeePool = getTokenAmount(
-			quoteBank.spotFeePool.balance,
-			quoteBank,
+		assert(makerClearingHouse.getQuoteAssetTokenAmount().eq(new BN(10000)));
+
+		const solBank = takerClearingHouse.getBankAccount(solBankIndex);
+		assert(solBank.totalSpotFee.eq(new BN(58000)));
+		const spotFeePoolAmount = getTokenAmount(
+			solBank.spotFeePool.balance,
+			takerClearingHouse.getQuoteAssetBankAccount(),
 			BankBalanceType.DEPOSIT
 		);
-		assert(spotFeePool.eq(new BN(0)));
+		assert(spotFeePoolAmount.eq(new BN(50000)));
 
 		await crankMarkets();
 	});
@@ -360,7 +363,7 @@ describe('serum spot market', () => {
 			takerQuoteBankBalance.balanceType
 		);
 		console.log(quoteTokenAmount.toString());
-		assert(quoteTokenAmount.eq(new BN(199919999)));
+		assert(quoteTokenAmount.eq(new BN(199799999)));
 
 		const baseTokenAmount = getTokenAmount(
 			takerBaseBankBalance.balance,
@@ -377,17 +380,20 @@ describe('serum spot market', () => {
 		assert(isVariant(orderActionRecord.action, 'fill'));
 		assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
 		assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
-		assert(orderActionRecord.takerOrderFee.eq(new BN(40000)));
-		assert(orderActionRecord.takerFee.eq(new BN(40000)));
+		assert(orderActionRecord.takerOrderFee.eq(new BN(100000)));
+		assert(orderActionRecord.takerFee.eq(new BN(100000)));
 
-		await takerClearingHouse.fetchAccounts();
-		const quoteBank = takerClearingHouse.getQuoteAssetBankAccount();
-		const spotFeePoolDeposit = getTokenAmount(
-			quoteBank.spotFeePool.balance,
-			quoteBank,
+		assert(makerClearingHouse.getQuoteAssetTokenAmount().eq(new BN(20000)));
+
+		const solBank = takerClearingHouse.getBankAccount(solBankIndex);
+		assert(solBank.totalSpotFee.eq(new BN(116000)));
+		const spotFeePoolAmount = getTokenAmount(
+			solBank.spotFeePool.balance,
+			takerClearingHouse.getQuoteAssetBankAccount(),
 			BankBalanceType.DEPOSIT
 		);
-		assert(spotFeePoolDeposit.eq(new BN(8000)));
+		console.log(spotFeePoolAmount.toString());
+		assert(spotFeePoolAmount.eq(new BN(108000)));
 
 		await crankMarkets();
 	});
@@ -461,7 +467,7 @@ describe('serum spot market', () => {
 			takerQuoteBankBalance.balanceType
 		);
 		console.log(quoteTokenAmount.toString());
-		assert(quoteTokenAmount.eq(new BN(99879998))); // paid ~$.12
+		assert(quoteTokenAmount.eq(new BN(99699998))); // paid ~$.30
 
 		const baseTokenAmount = getTokenAmount(
 			takerBaseBankBalance.balance,
@@ -478,16 +484,18 @@ describe('serum spot market', () => {
 		assert(isVariant(orderActionRecord.action, 'fill'));
 		assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
 		assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
-		assert(orderActionRecord.takerFee.eq(new BN(40000)));
-		assert(orderActionRecord.takerOrderFee.eq(new BN(40000)));
+		assert(orderActionRecord.takerFee.eq(new BN(100000)));
+		assert(orderActionRecord.takerOrderFee.eq(new BN(100000)));
 
-		const quoteBank = takerClearingHouse.getQuoteAssetBankAccount();
-		const spotFeePool = getTokenAmount(
-			quoteBank.spotFeePool.balance,
-			quoteBank,
+		const solBank = takerClearingHouse.getBankAccount(solBankIndex);
+		assert(solBank.totalSpotFee.eq(new BN(174000)));
+		const spotFeePoolAmount = getTokenAmount(
+			solBank.spotFeePool.balance,
+			takerClearingHouse.getQuoteAssetBankAccount(),
 			BankBalanceType.DEPOSIT
 		);
-		assert(spotFeePool.eq(new BN(16000)));
+		console.log(spotFeePoolAmount.toString());
+		assert(spotFeePoolAmount.eq(new BN(166000)));
 
 		await crankMarkets();
 	});
