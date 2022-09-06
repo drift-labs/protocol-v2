@@ -2364,6 +2364,7 @@ pub mod fill_order {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
@@ -2487,6 +2488,7 @@ pub mod fill_order {
     fn expire_order() {
         let mut market = Market {
             amm: AMM {
+                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
@@ -2498,6 +2500,8 @@ pub mod fill_order {
                 max_slippage_ratio: 100,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
+                max_base_asset_reserve: 200 * AMM_RESERVE_PRECISION,
+                min_base_asset_reserve: 50 * AMM_RESERVE_PRECISION,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,

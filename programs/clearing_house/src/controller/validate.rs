@@ -86,7 +86,7 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
         .abs();
 
     validate!(
-        rounding_diff <= 4,
+        rounding_diff <= 10,
         ErrorCode::DefaultError,
         "qar/bar/k out of wack: k={}, bar={}, qar={}, qar'={} (rounding: {})",
         invariant,
@@ -160,16 +160,20 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
         validate!(
             market.amm.terminal_quote_asset_reserve == market.amm.quote_asset_reserve,
             ErrorCode::DefaultError,
-            "terminal_quote_asset_reserve out of wack"
+            "terminal_quote_asset_reserve out of wack {}!={}",
+            market.amm.terminal_quote_asset_reserve,
+            market.amm.quote_asset_reserve
         )?;
     }
 
-    validate!(
-        (market.amm.max_spread > market.amm.base_spread as u32)
-            && (market.amm.max_spread <= market.margin_ratio_initial * 100),
-        ErrorCode::DefaultError,
-        "invalid max_spread",
-    )?;
+    if market.amm.base_spread > 0 {
+        validate!(
+            (market.amm.max_spread > market.amm.base_spread as u32)
+                && (market.amm.max_spread < market.margin_ratio_initial * 100),
+            ErrorCode::DefaultError,
+            "invalid max_spread",
+        )?;
+    }
 
     Ok(())
 }

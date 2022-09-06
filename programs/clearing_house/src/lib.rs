@@ -427,7 +427,7 @@ pub mod clearing_house {
                 base_spread: 0,
                 long_spread: 0,
                 short_spread: 0,
-                max_spread: (margin_ratio_initial * (100-5) / 2 ), // 10% below the oracle price threshold
+                max_spread: (margin_ratio_initial * (100 - 5) / 2), // 10% below the oracle price threshold
                 last_bid_price_twap: init_mark_price,
                 last_ask_price_twap: init_mark_price,
                 net_base_asset_amount: 0,

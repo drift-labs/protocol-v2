@@ -413,6 +413,12 @@ async function cappedSymFundingScenario(
 	await userAccount.fetchAccounts();
 	await userAccount2.fetchAccounts();
 
+	console.log(
+		userAccount.getTotalPositionValue().toString(),
+		',',
+		userAccount2.getTotalPositionValue().toString()
+	);
+
 	assert(userAccount.getTotalPositionValue().eq(new BN(0)));
 	assert(userAccount2.getTotalPositionValue().eq(new BN(0)));
 
