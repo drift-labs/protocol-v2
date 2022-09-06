@@ -164,6 +164,7 @@ pub fn cap_to_max_spread(
     Ok((long_spread, short_spread))
 }
 
+#[allow(clippy::comparison_chain)]
 pub fn calculate_spread(
     base_spread: u16,
     last_oracle_mark_spread_pct: i128,
@@ -1470,7 +1471,7 @@ mod test {
         let mut total_fee_minus_distributions = 0;
 
         let base_asset_reserve = AMM_RESERVE_PRECISION * 10;
-        let min_base_asset_reserve = AMM_RESERVE_PRECISION * 0;
+        let min_base_asset_reserve = 0_u128;
         let max_base_asset_reserve = AMM_RESERVE_PRECISION * 100000;
 
         let margin_ratio_initial = 2000; // 5x max leverage
@@ -1658,8 +1659,8 @@ mod test {
     #[test]
     fn calculate_spread_inventory_tests() {
         let base_spread = 1000; // .1%
-        let mut last_oracle_mark_spread_pct = 0;
-        let mut last_oracle_conf_pct = 0;
+        let last_oracle_mark_spread_pct = 0;
+        let last_oracle_conf_pct = 0;
         let quote_asset_reserve = AMM_RESERVE_PRECISION * 9;
         let mut terminal_quote_asset_reserve = AMM_RESERVE_PRECISION * 10;
         let peg_multiplier = 34000;
@@ -1718,7 +1719,7 @@ mod test {
         assert_eq!(long_spread1, 500);
         assert_eq!(short_spread1, 857);
 
-        net_base_asset_amount = net_base_asset_amount * 2;
+        net_base_asset_amount *= 2;
         let (long_spread1, short_spread1) = calculate_spread(
             base_spread,
             last_oracle_mark_spread_pct,
@@ -1759,7 +1760,7 @@ mod test {
         assert_eq!(long_spread1, 500);
         assert_eq!(short_spread1, 2619);
 
-        total_fee_minus_distributions = QUOTE_PRECISION_I128 * 1;
+        total_fee_minus_distributions = QUOTE_PRECISION_I128;
         let (long_spread1, short_spread1) = calculate_spread(
             base_spread,
             last_oracle_mark_spread_pct,
