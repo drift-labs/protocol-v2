@@ -98,15 +98,8 @@ describe('clearing_house', () => {
 
 		assert.ok(state.admin.equals(provider.wallet.publicKey));
 
-		const [expectedInsuranceAccountAuthority, expectedInsuranceAccountNonce] =
-			await anchor.web3.PublicKey.findProgramAddress(
-				[state.insuranceVault.toBuffer()],
-				clearingHouse.program.programId
-			);
-		assert.ok(
-			state.insuranceVaultAuthority.equals(expectedInsuranceAccountAuthority)
-		);
-		assert.ok(state.insuranceVaultNonce == expectedInsuranceAccountNonce);
+		const expectedSigner = clearingHouse.getSignerPublicKey();
+		assert(state.signer.equals(expectedSigner));
 
 		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
 	});
@@ -435,7 +428,7 @@ describe('clearing_house', () => {
 			user.positions[0].quoteEntryAmount.toNumber()
 		);
 		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9878839)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9878840)));
 		assert(
 			clearingHouse
 				.getUserStats()
@@ -489,7 +482,7 @@ describe('clearing_house', () => {
 		);
 		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(0)));
 		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(0)));
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9855991)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9855993)));
 		assert(
 			clearingHouse
 				.getUserStats()

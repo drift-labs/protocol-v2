@@ -28,11 +28,7 @@ pub struct Bank {
     pub oracle_source: OracleSource,
     pub mint: Pubkey,
     pub vault: Pubkey,
-    pub vault_authority: Pubkey,
-    pub vault_authority_nonce: u8,
     pub insurance_fund_vault: Pubkey,
-    pub insurance_fund_vault_authority: Pubkey,
-    pub insurance_fund_vault_authority_nonce: u8,
     pub revenue_pool: PoolBalance,
 
     pub total_if_factor: u32, // percentage of interest for total insurance

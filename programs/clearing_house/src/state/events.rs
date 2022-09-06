@@ -275,6 +275,32 @@ impl Default for OrderAction {
 
 #[event]
 #[derive(Default)]
+pub struct LPRecord {
+    pub ts: i64,
+    pub user: Pubkey,
+    pub action: LPAction,
+    pub n_shares: u128,
+    pub market_index: u64,
+    pub delta_base_asset_amount: i128,
+    pub delta_quote_asset_amount: i128,
+    pub pnl: i128,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+pub enum LPAction {
+    AddLiquidity,
+    RemoveLiquidity,
+    SettleLiquidity,
+}
+
+impl Default for LPAction {
+    fn default() -> Self {
+        LPAction::AddLiquidity
+    }
+}
+
+#[event]
+#[derive(Default)]
 pub struct LiquidationRecord {
     pub ts: i64,
     pub liquidation_type: LiquidationType,
@@ -317,6 +343,7 @@ pub struct LiquidatePerpRecord {
     pub oracle_price: i128,
     pub base_asset_amount: i128,
     pub quote_asset_amount: i128,
+    pub lp_shares: u128,
     pub user_pnl: i128,
     pub liquidator_pnl: i128,
     pub fill_record_id: u64,

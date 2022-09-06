@@ -5,14 +5,11 @@ if [ "$1" != "--skip-build" ]
 fi
 
 test_files=(
-  prepegMarketOrderBaseAssetAmount.ts
-  updateAMM.ts 
-  repegAndSpread.ts clearingHouse.ts 
+  liquidityProvider.ts
   insuranceFundStake.ts
   liquidateBorrow.ts
   liquidateBorrowSocialLoss.ts
   referrer.ts
-  liquidityProvider.ts
   liquidatePerpPnlForDeposit.ts liquidateBorrowForPerpPnl.ts
   liquidatePerp.ts
   order.ts bankDepositWithdraw.ts prepegMarketOrderBaseAssetAmount.ts
@@ -22,7 +19,7 @@ test_files=(
   marketOrder.ts triggerOrders.ts stopLimits.ts userOrderId.ts postOnly.ts
   roundInFavorBaseAsset.ts marketOrderBaseAssetAmount.ts oracleOffsetOrders.ts
   subaccounts.ts pyth.ts userAccount.ts admin.ts updateK.ts adminWithdraw.ts
-  curve.ts idempotentCurve.ts roundInFavor.ts cappedSymFunding.ts
+  curve.ts roundInFavor.ts cappedSymFunding.ts
 )
   
 for test_file in ${test_files[@]}; do

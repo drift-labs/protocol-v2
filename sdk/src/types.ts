@@ -148,6 +148,23 @@ export type CurveRecord = {
 	tradeId: BN;
 };
 
+export type LPRecord = {
+	ts: BN;
+	user: PublicKey;
+	action: LPAction;
+	nShares: BN;
+	marketIndex: BN;
+	deltaBaseAssetAmount: BN;
+	deltaQuoteAssetAmount: BN;
+	pnl: BN;
+};
+
+export class LPAction {
+	static readonly ADD_LIQUIDITY = { addLiquidity: {} };
+	static readonly REMOVE_LIQUIDITY = { removeLiquidity: {} };
+	static readonly SETTLE_LIQUIDITY = { settleLiquidity: {} };
+}
+
 export type FundingRateRecord = {
 	ts: BN;
 	recordId: BN;
@@ -216,6 +233,7 @@ export type LiquidatePerpRecord = {
 	oraclePrice: BN;
 	baseAssetAmount: BN;
 	quoteAssetAmount: BN;
+	lpShares: BN;
 	userPnl: BN;
 	liquidatorPnl: BN;
 	canceledOrdersFee: BN;
@@ -319,8 +337,6 @@ export type StateAccount = {
 	exchangePaused: boolean;
 	adminControlsPrices: boolean;
 	insuranceVault: PublicKey;
-	insuranceVaultAuthority: PublicKey;
-	insuranceVaultNonce: number;
 	marginRatioInitial: BN;
 	marginRatioMaintenance: BN;
 	marginRatioPartial: BN;
@@ -342,6 +358,8 @@ export type StateAccount = {
 	numberOfMarkets: BN;
 	numberOfBanks: BN;
 	minOrderQuoteAssetAmount: BN;
+	signer: PublicKey;
+	signerNonce: number;
 	maxAuctionDuration: number;
 	minAuctionDuration: number;
 };
@@ -371,12 +389,8 @@ export type BankAccount = {
 	pubkey: PublicKey;
 	mint: PublicKey;
 	vault: PublicKey;
-	vaultAuthority: PublicKey;
-	vaultAuthorityNonce: number;
 
 	insuranceFundVault: PublicKey;
-	insuranceFundVaultAuthority: PublicKey;
-	insuranceFundVaultAuthorityNonce: number;
 	insuranceWithdrawEscrowPeriod: BN;
 	revenuePool: PoolBalance;
 

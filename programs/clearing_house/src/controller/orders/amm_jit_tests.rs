@@ -95,6 +95,7 @@ pub mod amm_jit {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
         create_anchor_account_info!(bank, Bank, bank_account_info);
@@ -261,6 +262,7 @@ pub mod amm_jit {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
         create_anchor_account_info!(bank, Bank, bank_account_info);
@@ -424,6 +426,7 @@ pub mod amm_jit {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
         create_anchor_account_info!(bank, Bank, bank_account_info);
@@ -587,6 +590,7 @@ pub mod amm_jit {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
         create_anchor_account_info!(bank, Bank, bank_account_info);
@@ -750,6 +754,7 @@ pub mod amm_jit {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
         create_anchor_account_info!(bank, Bank, bank_account_info);
@@ -941,6 +946,7 @@ pub mod amm_jit {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
         create_anchor_account_info!(bank, Bank, bank_account_info);
@@ -1134,6 +1140,7 @@ pub mod amm_jit {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
         create_anchor_account_info!(bank, Bank, bank_account_info);
@@ -1327,6 +1334,7 @@ pub mod amm_jit {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
         create_anchor_account_info!(bank, Bank, bank_account_info);
@@ -1530,6 +1538,7 @@ pub mod amm_jit {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
         create_anchor_account_info!(bank, Bank, bank_account_info);
@@ -1796,6 +1805,7 @@ pub mod amm_jit {
             cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: BANK_WEIGHT_PRECISION,
+            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
             ..Bank::default()
         };
         create_anchor_account_info!(bank, Bank, bank_account_info);

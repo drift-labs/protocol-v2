@@ -356,9 +356,6 @@ pub fn update_mark_twap(
     )?;
 
     amm.last_ask_price_twap = ask_twap;
-    msg!("pric: {} : {}", bid_price, ask_price);
-    msg!("pric: {} : {}", bid_price, ask_price);
-    msg!("twap: {} : {}", bid_twap, ask_twap);
 
     let mid_twap = bid_twap.checked_add(ask_twap).ok_or_else(math_error!())? / 2;
 
