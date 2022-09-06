@@ -87,6 +87,43 @@ pub fn settle_lp_position(
         .checked_div(n_shares_i128)
         .ok_or_else(math_error!())?;
 
+    // account for rounding
+    let remainder_baa = remainder_base_asset_amount_per_lp
+        .checked_mul(n_shares_i128)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_RESERVE_PRECISION_I128)
+        .ok_or_else(math_error!())?;
+
+    // remainder = 50 
+    // per_lp = 10.11 (roudning down = _remainder < remainder)
+    // _remainder = 40 (you actually only will get this burn the rest)
+    // remainder_dust = 50 - 40 = burn 10 
+    
+    // remainder = -50 
+    // per_lp = -10.11 (roudning down = _remainder > remainder)
+    // _remainder = -40 (you actually only will get this burn the rest)
+    // remainder_dust = -50 - -40 = burn -10 ?
+
+    let remainder_dust = lp_metrics
+        .remainder_base_asset_amount
+        .checked_sub(remainder_baa)
+        .ok_or_else(math_error!())?;
+
+    println!("{:#?}", lp_metrics);
+    println!("remainder dust: {}", remainder_dust);
+
+    market.amm.net_unsettled_lp_base_asset_amount = market
+        .amm
+        .net_unsettled_lp_base_asset_amount
+        .checked_add(remainder_dust)
+        .ok_or_else(math_error!())?;
+
+    market.amm.net_base_asset_amount = market
+        .amm
+        .net_base_asset_amount
+        .checked_sub(remainder_dust)
+        .ok_or_else(math_error!())?;
+
     // put the remainder back into the last_ for future burns
     position.last_net_base_asset_amount_per_lp = position
         .last_net_base_asset_amount_per_lp

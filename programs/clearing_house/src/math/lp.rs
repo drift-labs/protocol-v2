@@ -30,9 +30,8 @@ pub fn calculate_settle_lp_metrics(
             amm.base_asset_amount_step_size,
         )?;
 
-    let min_baa = amm.base_asset_amount_step_size;
-
     // note: since pnl may go into the qaa of a position its not really fair to ensure qaa >= min_qaa
+    let min_baa = amm.base_asset_amount_step_size;
     let remainder_base_asset_amount = if standardized_base_asset_amount.unsigned_abs() >= min_baa {
         remainder_base_asset_amount
     } else {
