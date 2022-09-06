@@ -76,58 +76,30 @@ pub fn settle_lp_position(
     let n_shares = position.lp_shares;
     let n_shares_i128 = cast_to_i128(n_shares)?;
 
-    let lp_metrics = calculate_settle_lp_metrics(&market.amm, position)?;
+    let mut lp_metrics = calculate_settle_lp_metrics(&market.amm, position)?;
 
     position.last_net_base_asset_amount_per_lp =
         market.amm.market_position_per_lp.base_asset_amount;
     position.last_net_quote_asset_amount_per_lp =
         market.amm.market_position_per_lp.quote_asset_amount;
 
-    let remainder_base_asset_amount_per_lp = lp_metrics
-        .remainder_base_asset_amount
-        .checked_mul(AMM_RESERVE_PRECISION_I128)
-        .ok_or_else(math_error!())?
-        .checked_div(n_shares_i128)
+    position.remainder_base_asset_amount = position.remainder_base_asset_amount
+        .checked_add(lp_metrics.remainder_base_asset_amount)
         .ok_or_else(math_error!())?;
+    
+    if position.remainder_base_asset_amount.unsigned_abs() > market.amm.base_asset_amount_step_size {
+        let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
+            crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
+                position.remainder_base_asset_amount,
+                market.amm.base_asset_amount_step_size,
+            )?;
 
-    // account for rounding
-    let remainder_baa = remainder_base_asset_amount_per_lp
-        .checked_mul(n_shares_i128)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_RESERVE_PRECISION_I128)
-        .ok_or_else(math_error!())?;
-
-    let remainder_dust = lp_metrics
-        .remainder_base_asset_amount
-        .checked_sub(remainder_baa)
-        .ok_or_else(math_error!())?;
-
-    if remainder_dust != 0 {
-        market.amm.net_unsettled_lp_base_asset_amount = market
-            .amm
-            .net_unsettled_lp_base_asset_amount
-            .checked_add(remainder_dust)
-            .ok_or_else(math_error!())?;
-
-        market.amm.net_base_asset_amount = market
-            .amm
-            .net_base_asset_amount
-            .checked_sub(remainder_dust)
+        lp_metrics.base_asset_amount = lp_metrics.base_asset_amount
+            .checked_add(standardized_remainder_base_asset_amount)
             .ok_or_else(math_error!())?;
         
-        let dust_base_asset_value =
-            calculate_base_asset_value_with_oracle_price(remainder_dust, oracle_price)?
-                .checked_add(1) // round up
-                .ok_or_else(math_error!())?;
-
-        update_quote_asset_amount(position, market, -cast_to_i128(dust_base_asset_value)?)?;
+        position.remainder_base_asset_amount = remainder_base_asset_amount;
     }
-
-    // put the remainder back into the last_ for future burns
-    position.last_net_base_asset_amount_per_lp = position
-        .last_net_base_asset_amount_per_lp
-        .checked_sub(remainder_base_asset_amount_per_lp)
-        .ok_or_else(math_error!())?;
 
     let position_delta = PositionDelta {
         base_asset_amount: lp_metrics.base_asset_amount,
@@ -163,11 +135,10 @@ pub fn burn_lp_shares(
     // settle
     let (position_delta, pnl) = settle_lp_position(position, market, oracle_price)?;
 
-    // compute any dust
-    let (base_asset_amount, _) = calculate_settled_lp_base_quote(&market.amm, position)?;
-
     // update stats
-    if base_asset_amount != 0 {
+    if position.remainder_base_asset_amount != 0 {
+        let base_asset_amount = position.remainder_base_asset_amount;
+
         // user closes the dust
         market.amm.net_base_asset_amount = market
             .amm
@@ -341,7 +312,8 @@ mod test {
 
         assert_eq!(position.base_asset_amount, -9);
         assert_eq!(position.quote_asset_amount, 10);
-        assert_eq!(position.last_net_base_asset_amount_per_lp, -9);
+        assert_eq!(position.remainder_base_asset_amount, -1);
+        assert_eq!(position.last_net_base_asset_amount_per_lp, -10);
         assert_eq!(position.last_net_quote_asset_amount_per_lp, 10);
 
         // burn
@@ -377,7 +349,8 @@ mod test {
 
         assert_eq!(position.base_asset_amount, -9);
         assert_eq!(position.quote_asset_amount, 10);
-        assert_eq!(position.last_net_base_asset_amount_per_lp, -9);
+        assert_eq!(position.remainder_base_asset_amount, -1);
+        assert_eq!(position.last_net_base_asset_amount_per_lp, -10);
         assert_eq!(position.last_net_quote_asset_amount_per_lp, 10);
     }
 }

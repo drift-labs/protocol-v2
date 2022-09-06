@@ -1841,7 +1841,7 @@ mod test {
 
         assert_eq!(position.base_asset_amount, 0);
         assert_eq!(position.quote_asset_amount, -QUOTE_PRECISION_I128);
-        assert_eq!(position.last_net_base_asset_amount_per_lp, 0);
+        assert_eq!(position.last_net_base_asset_amount_per_lp, 1);
         assert_eq!(
             position.last_net_quote_asset_amount_per_lp,
             -QUOTE_PRECISION_I128
@@ -1897,7 +1897,7 @@ mod test {
         let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
         assert_eq!(
             market.amm.net_base_asset_amount,
-            (AMM_RESERVE_PRECISION / 10) as i128 - 2
+            (AMM_RESERVE_PRECISION / 10) as i128 - 1 // burned the 
         );
         assert_eq!(cost, 49406); //0.05
 
@@ -1914,7 +1914,7 @@ mod test {
         let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
         assert_eq!(
             market.amm.net_base_asset_amount,
-            (AMM_RESERVE_PRECISION / 10) as i128 - 2
+            (AMM_RESERVE_PRECISION / 10) as i128 - 1
         );
         assert_eq!(cost, 187807); //0.19
 

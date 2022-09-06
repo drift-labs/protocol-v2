@@ -194,6 +194,7 @@ pub struct MarketPosition {
 
     // lp stuff
     pub lp_shares: u128,
+    pub remainder_base_asset_amount: i128,
     pub last_net_base_asset_amount_per_lp: i128,
     pub last_net_quote_asset_amount_per_lp: i128,
     pub last_lp_add_time: i64,
