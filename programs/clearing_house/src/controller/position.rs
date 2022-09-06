@@ -430,6 +430,7 @@ pub fn update_amm_and_lp_market_position(
             AMM_RESERVE_PRECISION,
             total_lp_shares,
         )?;
+
         let per_lp_delta_quote = get_proportion_i128(
             delta.quote_asset_amount,
             AMM_RESERVE_PRECISION,

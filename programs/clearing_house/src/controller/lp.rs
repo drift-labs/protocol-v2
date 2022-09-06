@@ -78,16 +78,11 @@ pub fn settle_lp_position(
 
     let mut lp_metrics = calculate_settle_lp_metrics(&market.amm, position)?;
 
-    position.last_net_base_asset_amount_per_lp =
-        market.amm.market_position_per_lp.base_asset_amount;
-    position.last_net_quote_asset_amount_per_lp =
-        market.amm.market_position_per_lp.quote_asset_amount;
-
     position.remainder_base_asset_amount = position.remainder_base_asset_amount
         .checked_add(lp_metrics.remainder_base_asset_amount)
         .ok_or_else(math_error!())?;
     
-    if position.remainder_base_asset_amount.unsigned_abs() > market.amm.base_asset_amount_step_size {
+    if position.remainder_base_asset_amount.unsigned_abs() >= market.amm.base_asset_amount_step_size {
         let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
             crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
                 position.remainder_base_asset_amount,
@@ -115,6 +110,11 @@ pub fn settle_lp_position(
         .net_unsettled_lp_base_asset_amount
         .checked_add(lp_metrics.base_asset_amount)
         .ok_or_else(math_error!())?;
+
+    position.last_net_base_asset_amount_per_lp =
+        market.amm.market_position_per_lp.base_asset_amount;
+    position.last_net_quote_asset_amount_per_lp =
+        market.amm.market_position_per_lp.quote_asset_amount;
 
     crate::controller::validate::validate_market_account(market)?;
     crate::controller::validate::validate_position_account(position, market)?;
@@ -151,6 +151,8 @@ pub fn burn_lp_shares(
             .net_unsettled_lp_base_asset_amount
             .checked_add(base_asset_amount)
             .ok_or_else(math_error!())?;
+
+        position.remainder_base_asset_amount = 0;
 
         let dust_base_asset_value =
             calculate_base_asset_value_with_oracle_price(base_asset_amount, oracle_price)?
