@@ -252,8 +252,14 @@ pub fn order_breaches_oracle_price_limits(
                 .checked_div(oracle_price)
                 .ok_or_else(math_error!())?;
 
-            // order cant be buying if oracle price is more than 5% below limit price
-            Ok(percent_diff >= max_percent_diff)
+            if percent_diff >= max_percent_diff {
+                // order cant be buying if oracle price is more than 5% below limit price
+                msg!("Limit Price Breaches Oracle for Long: {} >> {}", order_limit_price, oracle_price);
+                return Ok(true);
+            }
+
+            Ok(false)
+
         }
         PositionDirection::Short => {
             if order_limit_price >= oracle_price {
@@ -268,8 +274,13 @@ pub fn order_breaches_oracle_price_limits(
                 .checked_div(oracle_price)
                 .ok_or_else(math_error!())?;
 
-            // order cant be buying if oracle price is more than 5% above limit price
-            Ok(percent_diff >= max_percent_diff)
+            if percent_diff >= max_percent_diff {
+                // order cant be selling if oracle price is more than 5% above limit price
+                msg!("Limit Price Breaches Oracle for Short: {} << {}", order_limit_price, oracle_price);
+                return Ok(true);
+            }
+
+            Ok(false)
         }
     }
 }

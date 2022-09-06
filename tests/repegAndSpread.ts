@@ -453,6 +453,22 @@ describe('repeg and spread amm', () => {
 			new BN(0),
 			oraclePriceData.price.mul(new BN(1045).div(new BN(1000)))
 		);
+		const userPosition = clearingHouse.getUser().getUserPosition(marketIndex);
+
+		const closeOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: userPosition.baseAssetAmount.abs(),
+			reduceOnly: true,
+			price: oraclePriceData.price.mul(new BN(1035).div(new BN(1000))),
+		});
+		const txClose = await clearingHouse.placeAndTake(closeOrderParams);
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txClose, { commitment: 'confirmed' }))
+				.meta.logMessages
+		);
+
 		await clearingHouse.fetchAccounts();
 		console.log(
 			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.toString()
@@ -674,13 +690,12 @@ describe('repeg and spread amm', () => {
 			);
 			if (!pos.baseAssetAmount.eq(ZERO)) {
 				await clearingHouses[i].closePosition(new BN(0));
+				await clearingHouses[i].settlePNL(
+					await clearingHouses[i].getUserAccountPublicKey(),
+					clearingHouses[i].getUserAccount(),
+					new BN(0)
+				);
 			}
-
-			await clearingHouses[i].settlePNL(
-				await clearingHouses[i].getUserAccountPublicKey(),
-				clearingHouses[i].getUserAccount(),
-				new BN(0)
-			);
 
 			const clearingHouseI = clearingHouses[i];
 			const clearingHouseUserI = _userAccountInfos[i];
