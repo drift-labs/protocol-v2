@@ -2347,7 +2347,7 @@ fn fulfill_spot_order(
 
     let base_bank_index = user.orders[user_order_index].market_index;
     let bank_balance_index = user.get_bank_balance_index(base_bank_index)?;
-    let base_bank = &mut bank_map.get_ref_mut(&base_bank_index)?;
+    let mut base_bank = bank_map.get_ref_mut(&base_bank_index)?;
     let token_amount = user.bank_balances[bank_balance_index].get_token_amount(&base_bank)?;
     let bank_balance_type: BankBalanceType = user.bank_balances[bank_balance_index].balance_type;
 
@@ -2357,25 +2357,15 @@ fn fulfill_spot_order(
         token_amount,
     )?;
 
-    let oracle_price_data = oracle_map.get_price_data(&base_bank.oracle)?;
-    let taker_max_base = calculate_max_fill_for_spot_order(
-        &user.orders[user_order_index],
-        base_bank,
-        oracle_price_data,
-        slot,
-        risk_decreasing,
-        free_collateral,
-    )?;
-
-    // TODO SPOT if taker_max_base is 0, cancel order
-    if taker_max_base == 0 {
+    // TODO SPOT if risk increasing order and free collateral < 0, cancel order
+    if free_collateral < 0 && !risk_decreasing {
         return Ok((0, !risk_decreasing));
     }
 
     let fulfillment_methods =
         determine_fulfillment_methods(&user.orders[user_order_index], maker.is_some(), slot)?;
 
-    let quote_bank = &mut bank_map.get_quote_asset_bank_mut()?;
+    let mut quote_bank = bank_map.get_quote_asset_bank_mut()?;
 
     let mut order_records: Vec<OrderRecord> = vec![];
     let mut base_asset_amount = 0_u128;
@@ -2386,9 +2376,8 @@ fn fulfill_spot_order(
 
         let _base_asset_amount = match fulfillment_method {
             FulfillmentMethod::Match => fulfill_spot_order_with_match(
-                taker_max_base,
-                base_bank,
-                quote_bank,
+                &mut base_bank,
+                &mut quote_bank,
                 user,
                 user_stats,
                 user_order_index,
@@ -2406,8 +2395,8 @@ fn fulfill_spot_order(
                 &mut order_records,
             )?,
             FulfillmentMethod::Market => fulfill_spot_order_with_serum(
-                base_bank,
-                quote_bank,
+                &mut base_bank,
+                &mut quote_bank,
                 user,
                 user_stats,
                 user_order_index,
@@ -2428,13 +2417,34 @@ fn fulfill_spot_order(
             .ok_or_else(math_error!())?;
     }
 
-    // TODO SPOT check if order should be canceled at the end
+    drop(base_bank);
+    drop(quote_bank);
+
+    for order_record in order_records {
+        emit!(order_record)
+    }
+
+    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
+        user,
+        market_map,
+        MarginRequirementType::Maintenance,
+        bank_map,
+        oracle_map,
+    )?;
+
+    if total_collateral < cast_to_i128(margin_requirement)? {
+        msg!(
+            "taker breached maintenance requirements (margin requirement {}) (total_collateral {})",
+            margin_requirement,
+            total_collateral
+        );
+        return Err(ErrorCode::InsufficientCollateral);
+    }
 
     Ok((base_asset_amount, base_asset_amount != 0))
 }
 
 pub fn fulfill_spot_order_with_match(
-    taker_max_base: u128,
     base_bank: &mut Bank,
     quote_bank: &mut Bank,
     taker: &mut User,
@@ -2464,7 +2474,7 @@ pub fn fulfill_spot_order_with_match(
     let taker_price =
         taker.orders[taker_order_index].get_limit_price(Some(oracle_price), slot, None)?;
     let taker_base_asset_amount =
-        taker_max_base.min(taker.orders[taker_order_index].get_base_asset_amount_unfilled()?);
+        taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
 
     let maker_price =
         maker.orders[maker_order_index].get_limit_price(Some(oracle_price), slot, None)?;
