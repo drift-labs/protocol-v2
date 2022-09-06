@@ -1,6 +1,14 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, getMarketOrderParams, ONE, OracleSource, ZERO } from '../sdk';
+import {
+	BN,
+	calculateEffectiveLeverage,
+	getMarketOrderParams,
+	ONE,
+	OracleSource,
+	ZERO,
+	calculatePrice,
+} from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -19,6 +27,7 @@ import {
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	calculateTradeAcquiredAmounts,
 	calculateSpread,
+	calculateInventoryScale,
 } from '../sdk/src';
 
 import {
@@ -324,6 +333,30 @@ describe('prepeg', () => {
 			acquiredQuoteAssetAmount.toNumber()
 		);
 		const newAmm = calculateUpdatedAMM(market0.amm, oraclePriceData);
+
+		const markPrice = calculatePrice(
+			newAmm.baseAssetReserve,
+			newAmm.quoteAssetReserve,
+			newAmm.pegMultiplier
+		);
+		const effectiveLeverage = calculateEffectiveLeverage(
+			newAmm.baseSpread,
+			newAmm.quoteAssetReserve,
+			newAmm.terminalQuoteAssetReserve,
+			newAmm.pegMultiplier,
+			newAmm.netBaseAssetAmount,
+			markPrice,
+			newAmm.totalFeeMinusDistributions
+		);
+		const inventoryScale = calculateInventoryScale(
+			newAmm.netBaseAssetAmount,
+			newAmm.baseAssetReserve,
+			newAmm.minBaseAssetReserve,
+			newAmm.maxBaseAssetReserve
+		);
+
+		console.log(inventoryScale, effectiveLeverage);
+
 		const longSpread = calculateSpread(
 			newAmm,
 			PositionDirection.LONG,
@@ -334,9 +367,13 @@ describe('prepeg', () => {
 			PositionDirection.SHORT,
 			oraclePriceData
 		);
-		console.log(longSpread, shortSpread);
+
+		console.log(newAmm.baseSpread, longSpread, shortSpread, newAmm.maxSpread);
+		assert(newAmm.maxSpread == 100000);
+		assert(inventoryScale == 0.000703);
+		assert(effectiveLeverage == 0.09895778092399404);
 		assert(shortSpread == 1000);
-		// assert(longSpread == 22781);
+		assert(longSpread.toString() == '25052.95706334619');
 
 		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 
@@ -412,7 +449,7 @@ describe('prepeg', () => {
 		console.log(market.amm.longSpread.toString());
 		console.log(market.amm.shortSpread.toString());
 
-		assert(market.amm.longSpread.eq(new BN(25035)));
+		assert(market.amm.longSpread.eq(new BN('25052')));
 		assert(market.amm.shortSpread.eq(new BN(1000)));
 
 		const orderActionRecord =

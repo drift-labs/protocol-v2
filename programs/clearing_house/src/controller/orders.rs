@@ -1108,6 +1108,13 @@ pub fn fulfill_order_with_amm(
         order_post_only,
     )?;
 
+    amm::update_amm_long_short_intensity(
+        &mut market.amm,
+        now,
+        quote_asset_amount,
+        order_direction,
+    )?;
+
     let user_position_delta =
         get_position_delta_for_fill(base_asset_amount, quote_asset_amount, order_direction)?;
 
