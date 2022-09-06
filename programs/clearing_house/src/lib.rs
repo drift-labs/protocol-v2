@@ -791,6 +791,8 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let _bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &get_market_set(market_index),
             &MarketSet::new(),
@@ -804,8 +806,9 @@ pub mod clearing_house {
         let mut market = market_map.get_ref_mut(&market_index)?;
         let position_index = get_position_index(&user.positions, market_index)?;
         let position = &mut user.positions[position_index];
-
-        let (position_delta, pnl) = settle_lp_position(position, &mut market)?;
+        
+        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?.price;
+        let (position_delta, pnl) = settle_lp_position(position, &mut market, oracle_price_data)?;
 
         emit!(LPRecord {
             ts: now,
@@ -870,12 +873,12 @@ pub mod clearing_house {
             ErrorCode::TryingToRemoveLiquidityTooFast
         )?;
 
-        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+        let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
         let (position_delta, pnl) = burn_lp_shares(
             position,
             &mut market,
             shares_to_burn,
-            oracle_price_data.price,
+            oracle_price,
         )?;
 
         emit!(LPRecord {
@@ -936,7 +939,8 @@ pub mod clearing_house {
 
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
-            controller::lp::mint_lp_shares(position, &mut market, n_shares, now)?;
+            let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+            controller::lp::mint_lp_shares(position, &mut market, n_shares, oracle_price, now)?;
         }
 
         // check margin requirements

@@ -1,5 +1,6 @@
 use crate::error::ClearingHouseResult;
 use crate::math::constants::AMM_RESERVE_PRECISION_I128;
+use crate::math::margin::calculate_oracle_price_for_perp_margin;
 use crate::math_error;
 use crate::state::market::Market;
 use crate::MarketPosition;
@@ -20,6 +21,7 @@ pub fn mint_lp_shares(
     position: &mut MarketPosition,
     market: &mut Market,
     n_shares: u128,
+    oracle_price: i128,
     now: i64,
 ) -> ClearingHouseResult<()> {
     let amm = market.amm;
@@ -30,7 +32,7 @@ pub fn mint_lp_shares(
     let (sqrt_k,) = get_struct_values!(amm, sqrt_k);
 
     if position.lp_shares > 0 {
-        settle_lp_position(position, market)?;
+        settle_lp_position(position, market, oracle_price)?;
     } else {
         let (net_base_asset_amount_per_lp, net_quote_asset_amount_per_lp) = get_struct_values!(
             amm.market_position_per_lp,
@@ -69,6 +71,7 @@ pub fn mint_lp_shares(
 pub fn settle_lp_position(
     position: &mut MarketPosition,
     market: &mut Market,
+    oracle_price: i128,
 ) -> ClearingHouseResult<(PositionDelta, i128)> {
     let n_shares = position.lp_shares;
     let n_shares_i128 = cast_to_i128(n_shares)?;
@@ -94,35 +97,31 @@ pub fn settle_lp_position(
         .checked_div(AMM_RESERVE_PRECISION_I128)
         .ok_or_else(math_error!())?;
 
-    // remainder = 50 
-    // per_lp = 10.11 (roudning down = _remainder < remainder)
-    // _remainder = 40 (you actually only will get this burn the rest)
-    // remainder_dust = 50 - 40 = burn 10 
-    
-    // remainder = -50 
-    // per_lp = -10.11 (roudning down = _remainder > remainder)
-    // _remainder = -40 (you actually only will get this burn the rest)
-    // remainder_dust = -50 - -40 = burn -10 ?
-
     let remainder_dust = lp_metrics
         .remainder_base_asset_amount
         .checked_sub(remainder_baa)
         .ok_or_else(math_error!())?;
 
-    println!("{:#?}", lp_metrics);
-    println!("remainder dust: {}", remainder_dust);
+    if remainder_dust != 0 {
+        market.amm.net_unsettled_lp_base_asset_amount = market
+            .amm
+            .net_unsettled_lp_base_asset_amount
+            .checked_add(remainder_dust)
+            .ok_or_else(math_error!())?;
 
-    market.amm.net_unsettled_lp_base_asset_amount = market
-        .amm
-        .net_unsettled_lp_base_asset_amount
-        .checked_add(remainder_dust)
-        .ok_or_else(math_error!())?;
+        market.amm.net_base_asset_amount = market
+            .amm
+            .net_base_asset_amount
+            .checked_sub(remainder_dust)
+            .ok_or_else(math_error!())?;
+        
+        let dust_base_asset_value =
+            calculate_base_asset_value_with_oracle_price(remainder_dust, oracle_price)?
+                .checked_add(1) // round up
+                .ok_or_else(math_error!())?;
 
-    market.amm.net_base_asset_amount = market
-        .amm
-        .net_base_asset_amount
-        .checked_sub(remainder_dust)
-        .ok_or_else(math_error!())?;
+        update_quote_asset_amount(position, market, -cast_to_i128(dust_base_asset_value)?)?;
+    }
 
     // put the remainder back into the last_ for future burns
     position.last_net_base_asset_amount_per_lp = position
@@ -162,7 +161,7 @@ pub fn burn_lp_shares(
     }
 
     // settle
-    let (position_delta, pnl) = settle_lp_position(position, market)?;
+    let (position_delta, pnl) = settle_lp_position(position, market, oracle_price)?;
 
     // compute any dust
     let (base_asset_amount, _) = calculate_settled_lp_base_quote(&market.amm, position)?;
@@ -249,7 +248,7 @@ mod test {
         };
         let og_market = market;
 
-        mint_lp_shares(&mut position, &mut market, AMM_RESERVE_PRECISION, 0).unwrap();
+        mint_lp_shares(&mut position, &mut market, AMM_RESERVE_PRECISION, 0, 0).unwrap();
 
         market.amm.market_position_per_lp = MarketPosition {
             base_asset_amount: 10,
@@ -257,7 +256,7 @@ mod test {
             ..MarketPosition::default()
         };
 
-        settle_lp_position(&mut position, &mut market).unwrap();
+        settle_lp_position(&mut position, &mut market, 1).unwrap();
 
         assert_eq!(position.last_net_base_asset_amount_per_lp, 10);
         assert_eq!(position.last_net_quote_asset_amount_per_lp, -10);
@@ -298,7 +297,7 @@ mod test {
             ..Market::default_test()
         };
 
-        mint_lp_shares(&mut position, &mut market, 100 * AMM_RESERVE_PRECISION, 0).unwrap();
+        mint_lp_shares(&mut position, &mut market, 100 * AMM_RESERVE_PRECISION, 0, 0).unwrap();
 
         market.amm.market_position_per_lp = MarketPosition {
             base_asset_amount: -10,
@@ -306,7 +305,7 @@ mod test {
             ..MarketPosition::default()
         };
 
-        settle_lp_position(&mut position, &mut market).unwrap();
+        settle_lp_position(&mut position, &mut market, 1).unwrap();
 
         assert_eq!(position.last_net_base_asset_amount_per_lp, -10);
         assert_eq!(position.last_net_quote_asset_amount_per_lp, 10);
@@ -330,7 +329,7 @@ mod test {
             ..Market::default_test()
         };
 
-        mint_lp_shares(&mut position, &mut market, AMM_RESERVE_PRECISION, 0).unwrap();
+        mint_lp_shares(&mut position, &mut market, AMM_RESERVE_PRECISION, 0, 1).unwrap();
 
         market.amm.market_position_per_lp = MarketPosition {
             base_asset_amount: -10,
@@ -338,7 +337,7 @@ mod test {
             ..MarketPosition::default()
         };
 
-        settle_lp_position(&mut position, &mut market).unwrap();
+        settle_lp_position(&mut position, &mut market, 1).unwrap();
 
         assert_eq!(position.base_asset_amount, -9);
         assert_eq!(position.quote_asset_amount, 10);
@@ -374,7 +373,7 @@ mod test {
             ..Market::default_test()
         };
 
-        settle_lp_position(&mut position, &mut market).unwrap();
+        settle_lp_position(&mut position, &mut market, 1).unwrap();
 
         assert_eq!(position.base_asset_amount, -9);
         assert_eq!(position.quote_asset_amount, 10);
