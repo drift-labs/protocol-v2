@@ -10,10 +10,7 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::cast;
 use crate::math::casting::cast_to_i128;
 use crate::math::margin::meets_maintenance_margin_requirement;
-use crate::math::position::{
-    calculate_base_asset_value_and_pnl_with_oracle_price,
-    calculate_base_asset_value_and_pnl_with_settlement_price,
-};
+use crate::math::position::calculate_base_asset_value_and_pnl_with_settlement_price;
 use crate::math_error;
 use crate::state::bank::BankBalanceType;
 use crate::state::bank_map::BankMap;
@@ -27,7 +24,7 @@ use crate::validate;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::prelude::*;
 use solana_program::msg;
-use std::ops::{Deref, DerefMut};
+use std::ops::DerefMut;
 
 #[cfg(test)]
 mod tests;

@@ -1,6 +1,6 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::orders::is_multiple_of_step_size;
 use crate::math::casting::cast_to_i128;
+use crate::math::orders::is_multiple_of_step_size;
 use crate::math_error;
 use crate::state::market::Market;
 use crate::state::user::MarketPosition;
@@ -80,24 +80,30 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
         .ok_or_else(math_error!())?
         .try_to_u128()?;
 
+    let rounding_diff = cast_to_i128(quote_asset_reserve)?
+        .checked_sub(cast_to_i128(market.amm.quote_asset_reserve)?)
+        .ok_or_else(math_error!())?
+        .abs();
+
     validate!(
-        (cast_to_i128(quote_asset_reserve)? - cast_to_i128(market.amm.quote_asset_reserve)?).abs() <= 2,
+        rounding_diff <= 10,
         ErrorCode::DefaultError,
-        "qar/bar/k out of wack: k={}, bar={}, qar={}, qar'={}",
+        "qar/bar/k out of wack: k={}, bar={}, qar={}, qar'={} (rounding: {})",
         invariant,
         market.amm.base_asset_reserve,
         market.amm.quote_asset_reserve,
-        quote_asset_reserve
+        quote_asset_reserve,
+        rounding_diff
     )?;
 
     // todo
     if market.amm.base_spread > 0 {
         // bid quote/base < reserve q/b
         validate!(
-            market.amm.bid_base_asset_reserve >= market.amm.base_asset_reserve - 3
-                && market.amm.bid_quote_asset_reserve <= market.amm.quote_asset_reserve + 3,
+            market.amm.bid_base_asset_reserve >= market.amm.base_asset_reserve
+                && market.amm.bid_quote_asset_reserve <= market.amm.quote_asset_reserve,
             ErrorCode::DefaultError,
-            "bid reserves out of wack {} -> {} and {} -> {}",
+            "bid reserves out of wack: {} -> {}, quote: {} -> {}",
             market.amm.bid_base_asset_reserve,
             market.amm.base_asset_reserve,
             market.amm.bid_quote_asset_reserve,
@@ -109,7 +115,7 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
             market.amm.ask_base_asset_reserve <= market.amm.base_asset_reserve
                 && market.amm.ask_quote_asset_reserve >= market.amm.quote_asset_reserve,
             ErrorCode::DefaultError,
-            "ask reserves out of wack {} -> {} and {} -> {}",
+            "ask reserves out of wack base: {} -> {}, quote: {} -> {}",
             market.amm.ask_base_asset_reserve,
             market.amm.base_asset_reserve,
             market.amm.ask_quote_asset_reserve,
@@ -155,16 +161,20 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
         validate!(
             market.amm.terminal_quote_asset_reserve == market.amm.quote_asset_reserve,
             ErrorCode::DefaultError,
-            "terminal_quote_asset_reserve out of wack"
+            "terminal_quote_asset_reserve out of wack {}!={}",
+            market.amm.terminal_quote_asset_reserve,
+            market.amm.quote_asset_reserve
         )?;
     }
 
-    validate!(
-        (market.amm.max_spread > market.amm.base_spread as u32)
-            && (market.amm.max_spread <= market.margin_ratio_initial * 100),
-        ErrorCode::DefaultError,
-        "invalid max_spread",
-    )?;
+    if market.amm.base_spread > 0 {
+        validate!(
+            (market.amm.max_spread > market.amm.base_spread as u32)
+                && (market.amm.max_spread < market.margin_ratio_initial * 100),
+            ErrorCode::DefaultError,
+            "invalid max_spread",
+        )?;
+    }
 
     Ok(())
 }

@@ -1820,7 +1820,7 @@ pub mod delisting {
             assert_eq!(shorter.bank_balances[0].balance, 198979000001);
 
             let shorter_loss = orig_short_balance - shorter.bank_balances[0].balance;
-            assert_eq!(shorter_loss, 1020_999_999); //$1020 loss
+            assert_eq!(shorter_loss, 1_020_999_999); //$1020 loss
 
             let mut market = market_map.get_ref_mut(&0).unwrap();
             assert_eq!(market.pnl_pool.balance, 2020999998); //$2020
@@ -2237,7 +2237,7 @@ pub mod delisting {
             assert_eq!(shorter.bank_balances[0].balance, 3370250001);
 
             let shorter_loss = orig_short_balance - shorter.bank_balances[0].balance;
-            assert_eq!(shorter_loss, 16629_749_999); //$16629 loss
+            assert_eq!(shorter_loss, 16_629_749_999); //$16629 loss
 
             let mut market = market_map.get_ref_mut(&0).unwrap();
             assert_eq!(market.pnl_pool.balance, 23370250000); //$23370
@@ -2488,7 +2488,7 @@ pub mod delisting {
             assert_eq!(shorter.bank_balances[0].balance, 3370250001);
 
             let shorter_loss = orig_short_balance - shorter.bank_balances[0].balance;
-            assert_eq!(shorter_loss, 16629_749_999); //$16629 loss
+            assert_eq!(shorter_loss, 16_629_749_999); //$16629 loss
 
             let mut market = market_map.get_ref_mut(&0).unwrap();
             assert_eq!(market.pnl_pool.balance, 24370250000); //$24370

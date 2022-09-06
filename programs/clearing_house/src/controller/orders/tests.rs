@@ -1452,7 +1452,6 @@ pub mod fulfill_order {
         BANK_WEIGHT_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION,
         PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
     };
-    use crate::math::margin::calculate_free_collateral;
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::BankMap;
     use crate::state::market::{Market, AMM};
@@ -1494,6 +1493,7 @@ pub mod fulfill_order {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 base_spread: 100,
+                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1653,6 +1653,8 @@ pub mod fulfill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 base_asset_amount_step_size: 1,
+                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1827,6 +1829,8 @@ pub mod fulfill_order {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
+                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1967,6 +1971,7 @@ pub mod fulfill_order {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
+                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2015,7 +2020,7 @@ pub mod fulfill_order {
             bank_balances: get_bank_balances(UserBankBalance {
                 bank_index: 0,
                 balance_type: BankBalanceType::Deposit,
-                balance: 1 * BANK_INTEREST_PRECISION,
+                balance: BANK_INTEREST_PRECISION,
             }),
             ..User::default()
         };
@@ -2215,8 +2220,9 @@ pub mod fulfill_order {
             ..User::default()
         };
 
-        let now = 0_i64;
-        let slot = 0_u64;
+        // random
+        let now = 0; //80080880_i64;
+        let slot = 0; //7893275_u64;
 
         let fee_structure = get_fee_structure();
 
@@ -2301,6 +2307,12 @@ pub mod fulfill_order {
         assert_eq!(market_after.amm.total_fee, 10000);
         assert_eq!(market_after.amm.total_fee_minus_distributions, 10000);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 10000);
+
+        assert_eq!(market_after.amm.last_mark_price_twap_ts, 0);
+        assert_eq!(market_after.amm.last_ask_price_twap, 0);
+        assert_eq!(market_after.amm.last_bid_price_twap, 0);
+        assert_eq!(market_after.amm.last_mark_price_twap, 0);
+        assert_eq!(market_after.amm.last_mark_price_twap_5min, 0);
     }
 }
 
@@ -2353,6 +2365,7 @@ pub mod fill_order {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
@@ -2365,6 +2378,7 @@ pub mod fill_order {
                 oracle: oracle_price_key,
                 last_oracle_price_twap: oracle_price.twap as i128,
                 max_spread: 1000,
+                last_oracle_price: oracle_price.agg.price as i128,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2475,6 +2489,7 @@ pub mod fill_order {
     fn expire_order() {
         let mut market = Market {
             amm: AMM {
+                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
@@ -2486,6 +2501,8 @@ pub mod fill_order {
                 max_slippage_ratio: 100,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
+                max_base_asset_reserve: 200 * AMM_RESERVE_PRECISION,
+                min_base_asset_reserve: 50 * AMM_RESERVE_PRECISION,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,

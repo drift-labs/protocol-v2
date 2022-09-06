@@ -433,7 +433,6 @@ pub fn fill_order(
         now,
     )?;
 
-
     validate!(
         order_status == OrderStatus::Open,
         ErrorCode::OrderNotOpen,
@@ -464,6 +463,12 @@ pub fn fill_order(
         let market = &mut market_map.get_ref_mut(&market_index)?;
         update_market_status(market, now)?;
         controller::validate::validate_market_account(market)?;
+        validate!(
+            ((oracle_map.slot == market.amm.last_update_slot && market.amm.last_oracle_valid)
+                || market.amm.curve_update_intensity == 0),
+            ErrorCode::AMMNotUpdatedInSameSlot,
+            "AMM must be updated in a prior instruction within same slot"
+        )?;
 
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
 
@@ -1108,6 +1113,13 @@ pub fn fulfill_order_with_amm(
         reward_referrer,
         quote_asset_amount_surplus,
         order_post_only,
+    )?;
+
+    amm::update_amm_long_short_intensity(
+        &mut market.amm,
+        now,
+        quote_asset_amount,
+        order_direction,
     )?;
 
     let user_position_delta =

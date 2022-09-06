@@ -1,5 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(unaligned_references)]
+#![allow(clippy::bool_assert_comparison)]
 
 use anchor_lang::prelude::*;
 use borsh::BorshSerialize;
@@ -434,7 +435,7 @@ pub mod clearing_house {
                 base_spread: 0,
                 long_spread: 0,
                 short_spread: 0,
-                max_spread: (margin_ratio_initial * 100),
+                max_spread: (margin_ratio_initial * (100 - 5) / 2), // 10% below the oracle price threshold
                 last_bid_price_twap: init_mark_price,
                 last_ask_price_twap: init_mark_price,
                 net_base_asset_amount: 0,
@@ -1757,7 +1758,6 @@ pub mod clearing_house {
                 ctx.accounts.insurance_fund_vault.amount
             )?;
 
-            let bank = bank_map.get_quote_asset_bank_mut()?;
             controller::token::send_from_program_vault(
                 &ctx.accounts.token_program,
                 &ctx.accounts.insurance_fund_vault,
@@ -1821,7 +1821,6 @@ pub mod clearing_house {
         )?;
 
         if pay_from_insurance > 0 {
-            let bank = bank_map.get_quote_asset_bank_mut()?;
             controller::token::send_from_program_vault(
                 &ctx.accounts.token_program,
                 &ctx.accounts.insurance_fund_vault,
@@ -2825,7 +2824,7 @@ pub mod clearing_house {
         let market = &mut load_mut!(ctx.accounts.market)?;
         validate!(
             (max_spread > market.amm.base_spread as u32)
-                && (max_spread <= market.margin_ratio_initial * 100),
+                && (max_spread <= market.margin_ratio_initial * 100 / 2),
             ErrorCode::DefaultError,
             "invalid max_spread",
         )?;
@@ -2965,7 +2964,7 @@ pub mod clearing_house {
 
     pub fn settle_revenue_to_insurance_fund(
         ctx: Context<SettleRevenueToInsuranceFund>,
-        bank_index: u64,
+        _bank_index: u64,
     ) -> Result<()> {
         let state = &ctx.accounts.state;
         let bank = &mut load_mut!(ctx.accounts.bank)?;

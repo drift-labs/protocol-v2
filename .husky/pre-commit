@@ -2,8 +2,8 @@
 . "$(dirname "$0")/_/husky.sh"
 
 cargo fmt -- --check
-cargo +nightly clippy -- -D warnings
-cargo +nightly clippy --tests -- -D warnings
+cargo +stable clippy -- -D warnings
+cargo +stable clippy --tests -- -D warnings
 cargo test --quiet
 yarn prettify
 yarn lint

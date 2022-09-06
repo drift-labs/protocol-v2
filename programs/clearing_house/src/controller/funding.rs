@@ -89,7 +89,7 @@ pub fn settle_funding_payments(
             continue;
         }
 
-        let mut market = &mut market_map.get_ref_mut(&market_position.market_index)?;
+        let market = &mut market_map.get_ref_mut(&market_position.market_index)?;
         let amm: &AMM = &market.amm;
 
         let amm_cumulative_funding_rate = if market_position.base_asset_amount > 0 {
@@ -119,7 +119,7 @@ pub fn settle_funding_payments(
 
             market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate;
             market_position.last_funding_rate_ts = amm.last_funding_rate_ts;
-            update_quote_asset_amount(market_position, &mut market, market_funding_payment)?;
+            update_quote_asset_amount(market_position, market, market_funding_payment)?;
         }
     }
 

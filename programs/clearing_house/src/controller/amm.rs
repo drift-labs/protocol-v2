@@ -214,6 +214,9 @@ pub fn update_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u
             amm.net_base_asset_amount,
             mark_price,
             amm.total_fee_minus_distributions,
+            amm.base_asset_reserve,
+            amm.min_base_asset_reserve,
+            amm.max_base_asset_reserve,
         )?
     } else {
         let half_base_spread = (amm.base_spread / 2) as u128;
@@ -228,10 +231,10 @@ pub fn update_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u
     let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
         calculate_spread_reserves(amm, PositionDirection::Short)?;
 
-    amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-    amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-    amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-    amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+    amm.ask_base_asset_reserve = new_ask_base_asset_reserve.min(amm.base_asset_reserve);
+    amm.bid_base_asset_reserve = new_bid_base_asset_reserve.max(amm.base_asset_reserve);
+    amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve.max(amm.quote_asset_reserve);
+    amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve.min(amm.quote_asset_reserve);
 
     Ok((long_spread, short_spread))
 }
@@ -905,9 +908,9 @@ mod test {
         assert_eq!(bank.revenue_pool.balance, 5000000000000);
         assert_eq!(market.amm.total_fee_withdrawn, 5000000);
 
-        assert_eq!(market.amm.fee_pool.balance < prev_fee_pool, true);
-        assert_eq!(market.pnl_pool.balance == prev_pnl_pool, true);
-        assert_eq!(bank.revenue_pool.balance > prev_rev_pool, true);
+        assert!(market.amm.fee_pool.balance < prev_fee_pool);
+        assert_eq!(market.pnl_pool.balance, prev_pnl_pool);
+        assert!(bank.revenue_pool.balance > prev_rev_pool);
     }
 
     #[test]
@@ -981,7 +984,7 @@ mod test {
         assert_eq!(market.amm.total_fee_withdrawn, 0);
         assert_eq!(market.amm.total_fee_minus_distributions, prev_tfmd);
 
-        assert_eq!(market.amm.fee_pool.balance < prev_fee_pool, true);
+        assert!(market.amm.fee_pool.balance < prev_fee_pool);
         assert_eq!(market.pnl_pool.balance > prev_pnl_pool, true);
         assert_eq!(bank.revenue_pool.balance == prev_rev_pool, true);
         assert_eq!(market.revenue_withdraw_since_last_settle, 0);
@@ -1030,7 +1033,7 @@ mod test {
         assert!(update_pool_balances(&mut market, &mut bank, 0, now).is_err()); // assert is_err if any way has revenue pool above deposit balances
         bank = bank_backup;
         market = market_backup;
-        bank.deposit_balance = bank.deposit_balance + 9900000001;
+        bank.deposit_balance += 9900000001;
         let bank_vault_amount =
             get_token_amount(bank.deposit_balance, &bank, &BankBalanceType::Deposit).unwrap()
                 as u64;
@@ -1103,7 +1106,7 @@ mod test {
         assert!(update_pool_balances(&mut market, &mut bank, 0, now + 3600).is_err()); // assert is_err if any way has revenue pool above deposit balances
         market = market_backup;
         bank = bank_backup;
-        bank.deposit_balance = bank.deposit_balance + 9800000001;
+        bank.deposit_balance += 9800000001;
 
         assert_eq!(market.amm.fee_pool.balance, 5000000);
         assert_eq!(market.pnl_pool.balance, 295000000);

@@ -798,8 +798,6 @@ mod test {
             6
         );
 
-        let mut if_balance_2 = 0;
-
         // settle IF pool to 100% utilization boundary
         assert_eq!(bank.revenue_pool.balance, 385);
         assert_eq!(bank.utilization_twap, 462007);
@@ -811,7 +809,8 @@ mod test {
             now + 60,
         )
         .unwrap();
-
+        
+        let if_balance_2 = 0;
         if_balance_2 = if_balance_2 + settle_amount;
         assert_eq!(if_balance_2, 625);
         assert_eq!(if_tokens_3 - (settle_amount as u128), 1689);
@@ -968,8 +967,8 @@ mod test {
             ..User::default()
         };
 
-        bank.user_if_factor = 900_00;
-        bank.total_if_factor = 1_000_00;
+        bank.user_if_factor = 90_000;
+        bank.total_if_factor = 100_000;
 
         assert_eq!(bank.utilization_twap, 0);
         assert_eq!(bank.deposit_balance, 1000000 * QUOTE_PRECISION);
@@ -1078,7 +1077,7 @@ mod test {
         .unwrap();
         assert_eq!(settle_amount, 229742505997);
 
-        if_balance_2 = if_balance_2 + settle_amount;
+        if_balance_2 += settle_amount;
         assert_eq!(if_balance_2, 229742505997);
         assert_eq!(if_tokens_3 - (settle_amount as u128), 996619988395); // w/ update interest for settle_bank_to_if
 

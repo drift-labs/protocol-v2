@@ -253,9 +253,9 @@ pub fn update_market_status(market: &mut Market, now: i64) -> ClearingHouseResul
 pub fn settle_expired_market(
     market_index: u64,
     market_map: &MarketMap,
-    oracle_map: &mut OracleMap,
+    _oracle_map: &mut OracleMap,
     bank_map: &BankMap,
-    state: &State,
+    _state: &State,
     clock: &Clock,
 ) -> ClearingHouseResult {
     let now = clock.unix_timestamp;
