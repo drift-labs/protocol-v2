@@ -427,7 +427,7 @@ pub mod clearing_house {
                 base_spread: 0,
                 long_spread: 0,
                 short_spread: 0,
-                max_spread: (margin_ratio_initial * 90), // 10% below the oracle price threshold
+                max_spread: (margin_ratio_initial * (100-5) / 2 ), // 10% below the oracle price threshold
                 last_bid_price_twap: init_mark_price,
                 last_ask_price_twap: init_mark_price,
                 net_base_asset_amount: 0,
@@ -2702,7 +2702,7 @@ pub mod clearing_house {
         let market = &mut load_mut!(ctx.accounts.market)?;
         validate!(
             (max_spread > market.amm.base_spread as u32)
-                && (max_spread <= market.margin_ratio_initial * 100),
+                && (max_spread <= market.margin_ratio_initial * 100 / 2),
             ErrorCode::DefaultError,
             "invalid max_spread",
         )?;
