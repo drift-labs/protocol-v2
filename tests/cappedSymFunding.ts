@@ -9,6 +9,8 @@ import {
 	mockUSDCMint,
 	setFeedPrice,
 	initializeQuoteAssetBank,
+	sleep,
+	printTxLogs,
 } from './testHelpers';
 import {
 	Admin,
@@ -189,7 +191,7 @@ async function cappedSymFundingScenario(
 	longShortSizes: Array<number>,
 	fees = 0
 ) {
-	const priceFeedAddress = await mockOracle(priceAction[1], -10);
+	const priceFeedAddress = await mockOracle(priceAction[0], -10);
 	const periodicity = new BN(0);
 
 	await clearingHouse.initializeMarket(
@@ -199,10 +201,15 @@ async function cappedSymFundingScenario(
 		periodicity,
 		new BN(priceAction[0] * PEG_PRECISION.toNumber())
 	);
+	await clearingHouse.accountSubscriber.addOracle({
+		source: OracleSource.PYTH,
+		publicKey: priceFeedAddress,
+	});
 	await clearingHouse2.accountSubscriber.addOracle({
 		source: OracleSource.PYTH,
 		publicKey: priceFeedAddress,
 	});
+	await sleep(2500);
 
 	if (fees && fees > 0) {
 		await clearingHouse.updateFundingPaused(true);
@@ -222,42 +229,76 @@ async function cappedSymFundingScenario(
 		);
 		await clearingHouse.updateFundingPaused(false);
 	}
+	await clearingHouse.fetchAccounts();
 
+	const oracleData = clearingHouse.getOracleDataForMarket(new BN(0));
 	console.log(
 		'PRICE',
 		convertToNumber(
 			calculateMarkPrice(clearingHouse.getMarketAccount(marketIndex))
-		)
+		),
+		'oracleData:',
+		convertToNumber(oracleData.price),
+		'+/-',
+		convertToNumber(oracleData.confidence)
 	);
 	await clearingHouse.updateFundingPaused(true);
-
 	await clearingHouse.fetchAccounts();
+
 	if (longShortSizes[0] !== 0) {
-		await clearingHouse.openPosition(
+		console.log('clearingHouse.openPosition');
+		const txSig = await clearingHouse.openPosition(
 			PositionDirection.LONG,
 			BASE_PRECISION.mul(new BN(longShortSizes[0])),
 			marketIndex
 		);
+		await printTxLogs(clearingHouse.connection, txSig);
 	}
 
-	console.log('clearingHouse2.openPosition');
-	await clearingHouse2.fetchAccounts();
 	// try{
 	if (longShortSizes[1] !== 0) {
+		console.log('clearingHouse2.openPosition');
 		await clearingHouse2.openPosition(
 			PositionDirection.SHORT,
 			BASE_PRECISION.mul(new BN(longShortSizes[1])),
 			marketIndex
 		);
 	}
+	await sleep(1500);
+	await clearingHouse.fetchAccounts();
+	await clearingHouse2.fetchAccounts();
+	await sleep(1500);
+
 	console.log(longShortSizes[0], longShortSizes[1]);
 	await userAccount.fetchAccounts();
+	const uA = userAccount.getUserAccount();
+	console.log(
+		'userAccount.getTotalPositionValue():',
+		userAccount.getTotalPositionValue().toString(),
+		uA.positions[0].marketIndex.toNumber(),
+		':',
+		uA.positions[0].baseAssetAmount.toString(),
+		'/',
+		uA.positions[0].quoteAssetAmount.toString()
+	);
+	await userAccount2.fetchAccounts();
+	const uA2 = userAccount2.getUserAccount();
+
+	console.log(
+		'userAccount2.getTotalPositionValue():',
+		userAccount2.getTotalPositionValue().toString(),
+		uA2.positions[0].marketIndex.toNumber(),
+		':',
+		uA2.positions[0].baseAssetAmount.toString(),
+		'/',
+		uA2.positions[0].quoteAssetAmount.toString()
+	);
+
 	if (longShortSizes[0] != 0) {
 		assert(!userAccount.getTotalPositionValue().eq(new BN(0)));
 	} else {
 		assert(userAccount.getTotalPositionValue().eq(new BN(0)));
 	}
-	await userAccount2.fetchAccounts();
 	if (longShortSizes[1] != 0) {
 		assert(!userAccount2.getTotalPositionValue().eq(new BN(0)));
 	} else {
@@ -277,7 +318,9 @@ async function cappedSymFundingScenario(
 		priceAction.slice(1)
 	);
 
-	clearingHouse.fetchAccounts();
+	await clearingHouse.fetchAccounts();
+	await clearingHouse2.fetchAccounts();
+
 	const marketNew = await clearingHouse.getMarketAccount(marketIndex);
 
 	const fundingRateLong = marketNew.amm.cumulativeFundingRateLong; //.sub(prevFRL);
@@ -335,6 +378,14 @@ async function cappedSymFundingScenario(
 	assert(!fundingRateLong.eq(new BN(0)));
 	assert(!fundingRateShort.eq(new BN(0)));
 
+	// await clearingHouse.moveAmmToPrice(
+	// 	marketIndex,
+	// 	new BN(priceAction[1] * MARK_PRICE_PRECISION.toNumber())
+	// );
+
+	setFeedPrice(anchor.workspace.Pyth, priceAction[0], priceFeedAddress);
+	await clearingHouse.updateFundingPaused(true);
+
 	assert(fundingRateShort.lte(fundingRateLong));
 	if (longShortSizes[0] !== 0) {
 		await clearingHouse.closePosition(marketIndex);
@@ -352,6 +403,18 @@ async function cappedSymFundingScenario(
 			marketIndex
 		);
 	}
+	await clearingHouse.updateFundingPaused(false);
+	setFeedPrice(anchor.workspace.Pyth, priceAction[1], priceFeedAddress);
+
+	await sleep(2000);
+
+	await clearingHouse.fetchAccounts();
+	await clearingHouse2.fetchAccounts();
+	await userAccount.fetchAccounts();
+	await userAccount2.fetchAccounts();
+
+	assert(userAccount.getTotalPositionValue().eq(new BN(0)));
+	assert(userAccount2.getTotalPositionValue().eq(new BN(0)));
 
 	return [
 		fundingRateLong,
@@ -711,10 +774,14 @@ describe('capped funding', () => {
 		//ensure it was clamped :)
 		await clearingHouse.fetchAccounts();
 		const marketNew = clearingHouse.getMarketAccount(marketIndex);
+		console.log(
+			'marketNew.amm.lastOraclePriceTwap:',
+			marketNew.amm.lastOraclePriceTwap.toString()
+		);
 		const clampedFundingRatePct = new BN(
 			(0.03 * MARK_PRICE_PRECISION.toNumber()) / 24
 		).mul(FUNDING_PAYMENT_PRECISION);
-		const clampedFundingRate = marketNew.amm.lastOraclePriceTwap
+		const clampedFundingRate = new BN(44.5 * MARK_PRICE_PRECISION.toNumber())
 			.mul(FUNDING_PAYMENT_PRECISION)
 			.div(new BN(24))
 			.div(new BN(33));
@@ -734,9 +801,11 @@ describe('capped funding', () => {
 		assert(fundingRateShort.abs().eq(fundingRateLong.abs()));
 		console.log(fundingRateShort.abs().toString());
 		console.log(clampedFundingRate.toString());
+
 		assert(
 			fundingRateShort.abs().sub(clampedFundingRate).abs().lt(new BN(1000))
 		);
+
 		assert(fundingRateLong.lt(new BN(0)));
 		assert(fundingRateShort.lt(new BN(0)));
 
@@ -801,11 +870,11 @@ describe('capped funding', () => {
 
 		//ensure it was clamped :)
 		await clearingHouse.fetchAccounts();
-		const marketNew = clearingHouse.getMarketAccount(marketIndex);
+		const _marketNew = clearingHouse.getMarketAccount(marketIndex);
 		const clampedFundingRatePct = new BN(
 			(0.03 * MARK_PRICE_PRECISION.toNumber()) / 24
 		).mul(FUNDING_PAYMENT_PRECISION);
-		const clampedFundingRate = marketNew.amm.lastOraclePriceTwap
+		const clampedFundingRate = new BN(45.1 * MARK_PRICE_PRECISION.toNumber())
 			.mul(FUNDING_PAYMENT_PRECISION)
 			.div(new BN(24))
 			.div(new BN(33));

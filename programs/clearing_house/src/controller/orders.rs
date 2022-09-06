@@ -454,6 +454,8 @@ pub fn fill_order(
     let oracle_price: i128;
     {
         let market = &mut market_map.get_ref_mut(&market_index)?;
+        controller::validate::validate_market_account(market)?;
+
         validate!(
             ((oracle_map.slot == market.amm.last_update_slot && market.amm.last_oracle_valid)
                 || market.amm.curve_update_intensity == 0),
@@ -671,8 +673,6 @@ pub fn fill_order(
             state.funding_paused,
             Some(mark_price_before),
         )?;
-
-        controller::validate::validate_market_account(market)?;
     }
 
     Ok((base_asset_amount, updated_user_state))

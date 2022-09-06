@@ -1,4 +1,5 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math::casting::cast_to_i128;
 use crate::math::orders::is_multiple_of_step_size;
 use crate::math_error;
 use crate::state::market::Market;
@@ -79,31 +80,45 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
         .ok_or_else(math_error!())?
         .try_to_u128()?;
 
+    let rounding_diff = cast_to_i128(quote_asset_reserve)?
+        .checked_sub(cast_to_i128(market.amm.quote_asset_reserve)?)
+        .ok_or_else(math_error!())?
+        .abs();
+
     validate!(
-        quote_asset_reserve == market.amm.quote_asset_reserve,
+        rounding_diff <= 4,
         ErrorCode::DefaultError,
-        "qar/bar/k out of wack: k={}, bar={}, qar={}, qar'={}",
+        "qar/bar/k out of wack: k={}, bar={}, qar={}, qar'={} (rounding: {})",
         invariant,
         market.amm.base_asset_reserve,
         market.amm.quote_asset_reserve,
-        quote_asset_reserve
+        quote_asset_reserve,
+        rounding_diff
     )?;
 
     if market.amm.base_spread > 0 {
         // bid quote/base < reserve q/b
         validate!(
-            market.amm.bid_base_asset_reserve > market.amm.base_asset_reserve
-                && market.amm.bid_quote_asset_reserve < market.amm.quote_asset_reserve,
+            market.amm.bid_base_asset_reserve >= market.amm.base_asset_reserve
+                && market.amm.bid_quote_asset_reserve <= market.amm.quote_asset_reserve,
             ErrorCode::DefaultError,
-            "bid reserves out of wack"
+            "bid reserves out of wack: {} -> {}, quote: {} -> {}",
+            market.amm.bid_base_asset_reserve,
+            market.amm.base_asset_reserve,
+            market.amm.bid_quote_asset_reserve,
+            market.amm.quote_asset_reserve
         )?;
 
         // ask quote/base > reserve q/b
         validate!(
-            market.amm.ask_base_asset_reserve < market.amm.base_asset_reserve
-                && market.amm.ask_quote_asset_reserve > market.amm.quote_asset_reserve,
+            market.amm.ask_base_asset_reserve <= market.amm.base_asset_reserve
+                && market.amm.ask_quote_asset_reserve >= market.amm.quote_asset_reserve,
             ErrorCode::DefaultError,
-            "ask reserves out of wack"
+            "ask reserves out of wack base: {} -> {}, quote: {} -> {}",
+            market.amm.ask_base_asset_reserve,
+            market.amm.base_asset_reserve,
+            market.amm.ask_quote_asset_reserve,
+            market.amm.quote_asset_reserve
         )?;
     }
 

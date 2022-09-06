@@ -226,10 +226,10 @@ pub fn update_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u
     let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
         calculate_spread_reserves(amm, PositionDirection::Short)?;
 
-    amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-    amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-    amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-    amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+    amm.ask_base_asset_reserve = new_ask_base_asset_reserve.min(amm.base_asset_reserve);
+    amm.bid_base_asset_reserve = new_bid_base_asset_reserve.max(amm.base_asset_reserve);
+    amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve.max(amm.quote_asset_reserve);
+    amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve.min(amm.quote_asset_reserve);
 
     Ok((long_spread, short_spread))
 }
