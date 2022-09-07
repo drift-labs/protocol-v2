@@ -319,8 +319,8 @@ mod test {
         settle_lp_position(&mut position, &mut market).unwrap();
 
         assert_eq!(position.base_asset_amount, -9);
-        assert_eq!(position.quote_asset_amount, 10);
-        assert_eq!(position.remainder_base_asset_amount, -1);
+        assert_eq!(position.quote_asset_amount, 9); // mint step size is by 3
+        assert_eq!(position.remainder_base_asset_amount, 0);
         assert_eq!(position.last_net_base_asset_amount_per_lp, -10);
         assert_eq!(position.last_net_quote_asset_amount_per_lp, 10);
 
