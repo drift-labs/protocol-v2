@@ -495,6 +495,6 @@ describe('delist market', () => {
 			'totalExchangeFee:',
 			marketAfter.amm.totalExchangeFee.toString()
 		);
-		assert(marketAfter.amm.feePool.balance.eq(new BN(21565)));
+		assert(marketAfter.amm.feePool.balance.eq(new BN(21566)));
 	});
 });
