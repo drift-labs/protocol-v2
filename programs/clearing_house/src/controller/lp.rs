@@ -141,6 +141,13 @@ pub fn burn_lp_shares(
     // settle
     let (position_delta, pnl) = settle_lp_position(position, market)?;
 
+    // clean up 
+    if shares_to_burn == market.amm.user_lp_shares {
+        position.remainder_base_asset_amount = position.remainder_base_asset_amount
+            .checked_add(market.amm.net_unsettled_lp_base_asset_amount)
+            .ok_or_else(math_error!())?;
+    }
+
     // update stats
     if position.remainder_base_asset_amount != 0 {
         let base_asset_amount = position.remainder_base_asset_amount;
