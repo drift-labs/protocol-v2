@@ -39,6 +39,13 @@ pub fn mint_lp_shares(
         position.last_net_quote_asset_amount_per_lp = net_quote_asset_amount_per_lp;
     }
 
+    // standardize n shares to mint
+    let n_shares =
+        crate::math::orders::standardize_base_asset_amount(
+            n_shares,
+            amm.base_asset_amount_step_size,
+        )?;
+
     // add share balance
     position.lp_shares = position
         .lp_shares
@@ -123,6 +130,13 @@ pub fn burn_lp_shares(
     if shares_to_burn == 0 {
         return Ok((PositionDelta::default(), 0));
     }
+
+    // standardize n shares to burn
+    let shares_to_burn =
+        crate::math::orders::standardize_base_asset_amount(
+            shares_to_burn,
+            market.amm.base_asset_amount_step_size,
+        )?;
 
     // settle
     let (position_delta, pnl) = settle_lp_position(position, market)?;
