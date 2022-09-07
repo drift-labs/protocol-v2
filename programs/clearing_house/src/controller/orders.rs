@@ -3,6 +3,7 @@ use solana_program::msg;
 
 use crate::context::*;
 use crate::controller;
+use crate::controller::funding::settle_funding_payment;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
@@ -454,6 +455,8 @@ pub fn fill_order(
     let oracle_price: i128;
     {
         let market = &mut market_map.get_ref_mut(&market_index)?;
+        controller::validate::validate_market_account(market)?;
+
         validate!(
             ((oracle_map.slot == market.amm.last_update_slot && market.amm.last_oracle_valid)
                 || market.amm.curve_update_intensity == 0),
@@ -671,8 +674,6 @@ pub fn fill_order(
             state.funding_paused,
             Some(mark_price_before),
         )?;
-
-        controller::validate::validate_market_account(market)?;
     }
 
     Ok((base_asset_amount, updated_user_state))
@@ -767,6 +768,14 @@ fn sanitize_maker_order<'a>(
         )?;
         return Ok((None, None, None, None));
     }
+
+    let market_index = maker.orders[maker_order_index].market_index;
+    settle_funding_payment(
+        &mut maker,
+        &maker_key,
+        market_map.get_ref_mut(&market_index)?.deref_mut(),
+        now,
+    )?;
 
     Ok((
         Some(maker),
@@ -1106,6 +1115,13 @@ pub fn fulfill_order_with_amm(
         reward_referrer,
         quote_asset_amount_surplus,
         order_post_only,
+    )?;
+
+    amm::update_amm_long_short_intensity(
+        &mut market.amm,
+        now,
+        quote_asset_amount,
+        order_direction,
     )?;
 
     let user_position_delta =

@@ -28,7 +28,7 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 	devnet: {
 		ENV: 'devnet',
 		PYTH_ORACLE_MAPPING_ADDRESS: 'BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2',
-		CLEARING_HOUSE_PROGRAM_ID: 'HbUKwqFPjz9r7ZtT416AU8aaecDQMKKiDCTS3AdXnS6c',
+		CLEARING_HOUSE_PROGRAM_ID: '3v1iEjbSSLSSYyt1pmx4UB5rqJGurmz71RibXF7X6UF3',
 		USDC_MINT_ADDRESS: '8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2',
 		MARKETS: DevnetMarkets,
 		BANKS: DevnetBanks,

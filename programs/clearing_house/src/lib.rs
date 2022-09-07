@@ -1,5 +1,4 @@
 #![allow(clippy::too_many_arguments)]
-#![allow(clippy::result_large_err)]
 #![allow(unaligned_references)]
 #![allow(clippy::bool_assert_comparison)]
 
@@ -33,7 +32,7 @@ mod tests;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("HbUKwqFPjz9r7ZtT416AU8aaecDQMKKiDCTS3AdXnS6c");
+declare_id!("3v1iEjbSSLSSYyt1pmx4UB5rqJGurmz71RibXF7X6UF3");
 
 #[program]
 pub mod clearing_house {
@@ -428,7 +427,7 @@ pub mod clearing_house {
                 base_spread: 0,
                 long_spread: 0,
                 short_spread: 0,
-                max_spread: (margin_ratio_initial * 100),
+                max_spread: (margin_ratio_initial * (100 - 5) / 2), // 10% below the oracle price threshold
                 last_bid_price_twap: init_mark_price,
                 last_ask_price_twap: init_mark_price,
                 net_base_asset_amount: 0,
@@ -2706,7 +2705,7 @@ pub mod clearing_house {
         let market = &mut load_mut!(ctx.accounts.market)?;
         validate!(
             (max_spread > market.amm.base_spread as u32)
-                && (max_spread <= market.margin_ratio_initial * 100),
+                && (max_spread <= market.margin_ratio_initial * 100 / 2),
             ErrorCode::DefaultError,
             "invalid max_spread",
         )?;
