@@ -2505,7 +2505,7 @@ pub mod delisting {
             {
                 let market = market_map.get_ref_mut(&0).unwrap();
                 let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
-                
+
                 assert_eq!(market.amm.quote_asset_amount_long, 20200000000);
                 assert_eq!(market.amm.quote_asset_amount_short, 77000000000);
 
@@ -2565,7 +2565,6 @@ pub mod delisting {
                     longer.positions[0].quote_asset_amount,
                     market.amm.quote_asset_amount_long - 20000000000
                 );
-
 
                 assert_eq!(market.amm.quote_asset_amount_long, 20200000000);
                 assert_eq!(market.amm.quote_asset_amount_short, 77000000000);
@@ -2690,7 +2689,6 @@ pub mod delisting {
             assert_eq!(market.amm.quote_asset_amount_long, 20200000000);
             assert_eq!(market.amm.quote_asset_amount_short, -23250000000);
 
-
             drop(market);
 
             settle_expired_position(
@@ -2707,7 +2705,6 @@ pub mod delisting {
             assert_eq!(longer.positions[0].quote_asset_amount, 0);
             assert_eq!(longer.positions[0].base_asset_amount, 0);
 
-
             assert_eq!(longer.bank_balances[0].balance > 100000000, true);
             assert_eq!(longer.bank_balances[0].balance, 40975950000); //$40975
 
@@ -2723,8 +2720,10 @@ pub mod delisting {
 
             assert_eq!(market.amm.quote_asset_amount_long, 20000000000);
             assert_eq!(market.amm.quote_asset_amount_short, -23250000000);
-            assert_eq!(market.amm.quote_asset_amount_long+market.amm.quote_asset_amount_short, 0);
-
+            assert_eq!(
+                market.amm.quote_asset_amount_long + market.amm.quote_asset_amount_short,
+                0
+            );
 
             drop(market);
 
