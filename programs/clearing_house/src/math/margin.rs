@@ -231,10 +231,14 @@ pub fn calculate_perp_position_value_and_pnl(
         *market_position
     };
 
-    let (_, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
-        &market_position,
-        oracle_price_data.price,
-    )?;
+    let valuation_price = if market.status == MarketStatus::Settlement {
+        market.settlement_price
+    } else {
+        oracle_price_data.price
+    };
+
+    let (_, unrealized_pnl) =
+        calculate_base_asset_value_and_pnl_with_oracle_price(&market_position, valuation_price)?;
 
     let total_unrealized_pnl = unrealized_funding
         .checked_add(unrealized_pnl)
@@ -242,17 +246,10 @@ pub fn calculate_perp_position_value_and_pnl(
 
     let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount()?;
 
-    let worse_case_base_asset_value = if market.status == MarketStatus::Settlement {
-        calculate_base_asset_value_with_oracle_price(
-            worst_case_base_asset_amount,
-            market.settlement_price,
-        )?
-    } else {
-        calculate_base_asset_value_with_oracle_price(
-            worst_case_base_asset_amount,
-            oracle_price_data.price,
-        )?
-    };
+    let worse_case_base_asset_value = calculate_base_asset_value_with_oracle_price(
+        worst_case_base_asset_amount,
+        valuation_price,
+    )?;
 
     let margin_ratio = market.get_margin_ratio(
         worst_case_base_asset_amount.unsigned_abs(),
@@ -273,6 +270,14 @@ pub fn calculate_perp_position_value_and_pnl(
         .ok_or_else(math_error!())?
         .checked_div(BANK_WEIGHT_PRECISION as i128)
         .ok_or_else(math_error!())?;
+
+    msg!(
+        "market_index: {}, {} {} {}",
+        market.market_index,
+        worse_case_base_asset_value,
+        margin_requirement,
+        unrealized_pnl
+    );
 
     Ok((margin_requirement, weighted_unrealized_pnl))
 }
@@ -332,6 +337,13 @@ pub fn calculate_margin_requirement_and_total_collateral(
             oracle_price_data,
             margin_requirement_type,
         )?;
+
+        msg!(
+            "{}, {} + {}",
+            perp_margin_requirement,
+            total_collateral,
+            weighted_pnl
+        );
 
         margin_requirement = margin_requirement
             .checked_add(perp_margin_requirement)
@@ -426,6 +438,8 @@ pub fn meets_maintenance_margin_requirement(
         bank_map,
         oracle_map,
     )?;
+
+    msg!("{} vs {}", total_collateral, margin_requirement);
 
     Ok(total_collateral >= cast_to_i128(margin_requirement)?)
 }

@@ -41,6 +41,7 @@ use crate::state::events::{
     LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord, LiquidationRecord, LiquidationType,
     OrderActionExplanation, PerpBankruptcyRecord,
 };
+use crate::state::market::MarketStatus;
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
 use crate::state::user::{User, UserStats};
@@ -185,7 +186,13 @@ pub fn liquidate_perp(
     }
 
     let market = market_map.get_ref(&market_index)?;
-    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+
+    let oracle_price = if market.status == MarketStatus::Settlement {
+        market.settlement_price
+    } else {
+        oracle_map.get_price_data(&market.amm.oracle)?.price
+    };
+
     drop(market);
 
     // burning lp shares = removing open bids/asks

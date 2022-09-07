@@ -27,6 +27,10 @@ test_files=(
       delistMarketSim.ts
   delistMarket.ts
 )
+
+test_files=(
+  delistMarketBankrupt.ts
+)
   
 for test_file in ${test_files[@]}; do
   export ANCHOR_TEST_FILE=${test_file} && anchor test --skip-build || exit 1;

@@ -1235,7 +1235,6 @@ mod test {
         assert_eq!(bank.total_if_shares, 200000000000020);
         assert_eq!(bank.user_if_shares, 200000000000000);
         assert_eq!(if_balance, 10000000000001);
-
     }
 
     #[test]

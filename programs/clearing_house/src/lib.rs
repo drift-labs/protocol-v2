@@ -45,9 +45,8 @@ pub mod clearing_house {
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::bank_balance::get_token_amount;
-    use crate::math::liquidation::validate_user_not_being_liquidated;
-
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
+    use crate::math::liquidation::validate_user_not_being_liquidated;
     use crate::optional_accounts::{get_maker_and_maker_stats, get_referrer_and_referrer_stats};
     use crate::state::bank::{Bank, BankBalanceType};
     use crate::state::bank_map::{get_writable_banks, BankMap, WritableBanks};
@@ -1472,7 +1471,8 @@ pub mod clearing_house {
 
         validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
 
-        // todo: liquidate user's open orders in market?
+        // todo: cancel all open orders in market
+
         controller::pnl::settle_expired_position(
             market_index,
             user,

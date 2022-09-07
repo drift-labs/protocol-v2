@@ -153,6 +153,11 @@ pub fn settle_expired_position(
     now: i64,
     fee_structure: &FeeStructure,
 ) -> ClearingHouseResult {
+    // cannot settle pnl this way on a user who is in liquidation territory
+    if !(meets_maintenance_margin_requirement(user, market_map, bank_map, oracle_map)?) {
+        return Err(ErrorCode::InsufficientCollateralForSettlingPNL);
+    }
+
     {
         let bank = &mut bank_map.get_quote_asset_bank_mut()?;
         update_bank_cumulative_interest(bank, now)?;
@@ -164,11 +169,6 @@ pub fn settle_expired_position(
         market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
-
-    // cannot settle pnl this way on a user who is in liquidation territory
-    if !(meets_maintenance_margin_requirement(user, market_map, bank_map, oracle_map)?) {
-        return Err(ErrorCode::InsufficientCollateralForSettlingPNL);
-    }
 
     let position_index = get_position_index(&user.positions, market_index)?;
 
@@ -253,6 +253,12 @@ pub fn settle_expired_position(
     };
 
     let _user_pnl = update_position_and_market(user_position, market, &position_delta)?;
+
+    market.amm.net_base_asset_amount = market
+        .amm
+        .net_base_asset_amount
+        .checked_add(position_delta.base_asset_amount)
+        .ok_or_else(math_error!())?;
 
     let quote_asset_amount_after = user_position.quote_asset_amount;
 
