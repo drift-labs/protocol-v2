@@ -1458,7 +1458,7 @@ pub mod clearing_house {
             serum_signer: &ctx.accounts.serum_signer,
         };
 
-        let (_, updated_user_state) = controller::orders::fill_spot_order(
+        controller::orders::fill_spot_order(
             order_id,
             &ctx.accounts.state,
             &ctx.accounts.user,

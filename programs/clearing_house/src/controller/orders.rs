@@ -589,7 +589,7 @@ pub fn fill_order(
     };
 
     if order_breaches_oracle_price {
-        let filler_reward = pay_keeper_flat_reward(
+        let filler_reward = pay_keeper_flat_reward_for_perps(
             user,
             filler.as_deref_mut(),
             market_map.get_ref_mut(&market_index)?.deref_mut(),
@@ -619,7 +619,7 @@ pub fn fill_order(
     if should_expire_order {
         let filler_reward = {
             let mut market = market_map.get_ref_mut(&market_index)?;
-            pay_keeper_flat_reward(
+            pay_keeper_flat_reward_for_perps(
                 user,
                 filler.as_deref_mut(),
                 market.deref_mut(),
@@ -673,7 +673,7 @@ pub fn fill_order(
 
         let filler_reward = {
             let mut market = market_map.get_ref_mut(&market_index)?;
-            pay_keeper_flat_reward(
+            pay_keeper_flat_reward_for_perps(
                 user,
                 filler.as_deref_mut(),
                 market.deref_mut(),
@@ -828,7 +828,7 @@ fn sanitize_maker_order<'a>(
         let filler_reward = {
             let mut market =
                 market_map.get_ref_mut(&maker.orders[maker_order_index].market_index)?;
-            pay_keeper_flat_reward(
+            pay_keeper_flat_reward_for_perps(
                 &mut maker,
                 filler.as_deref_mut(),
                 market.deref_mut(),
@@ -1071,7 +1071,7 @@ fn cancel_risk_increasing_order(
     let market_index = user.orders[user_order_index].market_index;
     let filler_reward = {
         let mut market = market_map.get_ref_mut(&market_index)?;
-        pay_keeper_flat_reward(
+        pay_keeper_flat_reward_for_perps(
             user,
             filler.as_deref_mut(),
             market.deref_mut(),
@@ -1861,7 +1861,7 @@ pub fn trigger_order(
         None
     };
 
-    let filler_reward = pay_keeper_flat_reward(
+    let filler_reward = pay_keeper_flat_reward_for_perps(
         user,
         filler.as_deref_mut(),
         market,
@@ -1898,7 +1898,7 @@ pub fn trigger_order(
     Ok(())
 }
 
-pub fn pay_keeper_flat_reward(
+pub fn pay_keeper_flat_reward_for_perps(
     user: &mut User,
     filler: Option<&mut User>,
     market: &mut Market,
@@ -1910,6 +1910,35 @@ pub fn pay_keeper_flat_reward(
 
         let filler_position = filler.force_get_position_mut(market.market_index)?;
         controller::position::update_quote_asset_amount(filler_position, cast(filler_reward)?)?;
+
+        filler_reward
+    } else {
+        0
+    };
+
+    Ok(filler_reward)
+}
+
+pub fn pay_keeper_flat_reward_for_spot(
+    user: &mut User,
+    filler: Option<&mut User>,
+    quote_bank: &mut Bank,
+    filler_reward: u128,
+) -> ClearingHouseResult<u128> {
+    let filler_reward = if let Some(filler) = filler {
+        update_bank_balances(
+            filler_reward,
+            &BankBalanceType::Deposit,
+            quote_bank,
+            filler.get_quote_asset_bank_balance_mut(),
+        )?;
+
+        update_bank_balances(
+            filler_reward,
+            &BankBalanceType::Borrow,
+            quote_bank,
+            user.get_quote_asset_bank_balance_mut(),
+        )?;
 
         filler_reward
     } else {
@@ -2149,7 +2178,7 @@ pub fn fill_spot_order(
     clock: &Clock,
     fee_structure: &FeeStructure,
     mut serum_new_order_accounts: SerumNewOrderAccounts,
-) -> ClearingHouseResult<(u128, bool)> {
+) -> ClearingHouseResult<u128> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
 
@@ -2206,17 +2235,50 @@ pub fn fill_spot_order(
     };
 
     let (mut maker, mut maker_stats, maker_key, maker_order_index) = sanitize_spot_maker_order(
+        market_map,
+        bank_map,
+        oracle_map,
         maker,
         maker_stats,
         maker_order_id,
         &user_key,
         &user.orders[order_index],
-        bank_map,
-        oracle_map,
+        &mut filler.as_deref_mut(),
+        &filler_key,
+        state.spot_fee_structure.cancel_order_fee,
+        now,
         slot,
     )?;
 
-    // TODO SPOT: pay filler to cancel old order
+    let should_expire_order =
+        should_expire_order(user, order_index, slot, state.max_auction_duration)?;
+    if should_expire_order {
+        let filler_reward = {
+            let mut quote_bank = bank_map.get_quote_asset_bank_mut()?;
+            pay_keeper_flat_reward_for_spot(
+                user,
+                filler.as_deref_mut(),
+                &mut quote_bank,
+                state.spot_fee_structure.cancel_order_fee,
+            )?
+        };
+
+        cancel_order(
+            order_index,
+            user,
+            &user_key,
+            market_map,
+            bank_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::MarketOrderAuctionExpired,
+            Some(&filler_key),
+            filler_reward,
+            false,
+        )?;
+        return Ok(0);
+    }
 
     let (base_asset_amount, mut updated_user_state) = fulfill_spot_order(
         user,
@@ -2239,26 +2301,54 @@ pub fn fill_spot_order(
         serum_new_order_accounts,
     )?;
 
-    // TODO SPT check if fill should cancel order after fill
+    if should_cancel_order_after_fulfill(user, order_index, slot)? {
+        updated_user_state = true;
 
-    if !updated_user_state {
-        return Ok((base_asset_amount, updated_user_state));
+        let filler_reward = {
+            let mut quote_bank = bank_map.get_quote_asset_bank_mut()?;
+            pay_keeper_flat_reward_for_spot(
+                user,
+                filler.as_deref_mut(),
+                &mut quote_bank,
+                state.spot_fee_structure.cancel_order_fee,
+            )?
+        };
+
+        cancel_order(
+            order_index,
+            user,
+            &user_key,
+            market_map,
+            bank_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::MarketOrderFilledToLimitPrice,
+            Some(&filler_key),
+            filler_reward,
+            false,
+        )?
     }
 
     // TODO SPOT check if we need to check oracle guardrails
 
-    Ok((base_asset_amount, updated_user_state))
+    Ok(base_asset_amount)
 }
 
 #[allow(clippy::type_complexity)]
 fn sanitize_spot_maker_order<'a>(
+    market_map: &MarketMap,
+    bank_map: &BankMap,
+    oracle_map: &mut OracleMap,
     maker: Option<&'a AccountLoader<User>>,
     maker_stats: Option<&'a AccountLoader<UserStats>>,
     maker_order_id: Option<u64>,
     taker_key: &Pubkey,
     taker_order: &Order,
-    bank_map: &BankMap,
-    oracle_map: &mut OracleMap,
+    filler: &mut Option<&mut User>,
+    filler_key: &Pubkey,
+    filler_reward: u128,
+    now: i64,
     slot: u64,
 ) -> ClearingHouseResult<(
     Option<RefMut<'a, User>>,
@@ -2320,7 +2410,31 @@ fn sanitize_spot_maker_order<'a>(
     };
 
     if breaches_oracle_price_limits {
-        // TODO SPOT filler cancels ordres breaching oracle price
+        let filler_reward = {
+            let mut quote_bank = bank_map.get_quote_asset_bank_mut()?;
+            pay_keeper_flat_reward_for_spot(
+                &mut maker,
+                filler.as_deref_mut(),
+                &mut quote_bank,
+                filler_reward,
+            )?
+        };
+
+        cancel_order(
+            maker_order_index,
+            maker.deref_mut(),
+            &maker_key,
+            market_map,
+            bank_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::OraclePriceBreachedLimitPrice,
+            Some(filler_key),
+            filler_reward,
+            false,
+        )?;
+
         return Ok((None, None, None, None));
     }
 
@@ -2356,8 +2470,8 @@ fn fulfill_spot_order(
 
     let base_bank_index = user.orders[user_order_index].market_index;
     let bank_balance_index = user.get_bank_balance_index(base_bank_index)?;
-    let mut base_bank = bank_map.get_ref_mut(&base_bank_index)?;
-    let token_amount = user.bank_balances[bank_balance_index].get_token_amount(&base_bank)?;
+    let token_amount = user.bank_balances[bank_balance_index]
+        .get_token_amount(bank_map.get_ref(&base_bank_index)?.deref())?;
     let bank_balance_type: BankBalanceType = user.bank_balances[bank_balance_index].balance_type;
 
     let risk_decreasing = is_spot_order_risk_decreasing(
@@ -2368,13 +2482,39 @@ fn fulfill_spot_order(
 
     // TODO SPOT if risk increasing order and free collateral < 0, cancel order
     if free_collateral < 0 && !risk_decreasing {
-        return Ok((0, !risk_decreasing));
+        let filler_reward = {
+            let mut quote_bank = bank_map.get_quote_asset_bank_mut()?;
+            pay_keeper_flat_reward_for_spot(
+                user,
+                filler.as_deref_mut(),
+                &mut quote_bank,
+                fee_structure.cancel_order_fee,
+            )?
+        };
+
+        cancel_order(
+            user_order_index,
+            user,
+            &user_key,
+            market_map,
+            bank_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::MarketOrderFilledToLimitPrice,
+            Some(&filler_key),
+            filler_reward,
+            false,
+        )?;
+
+        return Ok((0, true));
     }
 
     let fulfillment_methods =
         determine_fulfillment_methods(&user.orders[user_order_index], maker.is_some(), slot)?;
 
     let mut quote_bank = bank_map.get_quote_asset_bank_mut()?;
+    let mut base_bank = bank_map.get_ref_mut(&base_bank_index)?;
 
     let mut order_records: Vec<OrderRecord> = vec![];
     let mut base_asset_amount = 0_u128;

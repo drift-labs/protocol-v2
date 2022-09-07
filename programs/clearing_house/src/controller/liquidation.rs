@@ -3,7 +3,7 @@ use crate::controller::bank_balance::{
 };
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
-use crate::controller::orders::{cancel_order, pay_keeper_flat_reward};
+use crate::controller::orders::{cancel_order, pay_keeper_flat_reward_for_perps};
 use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount,
 };
@@ -161,7 +161,7 @@ pub fn liquidate_perp(
         total_collateral = total_collateral
             .checked_sub(cast(cancel_order_fee)?)
             .ok_or_else(math_error!())?;
-        pay_keeper_flat_reward(
+        pay_keeper_flat_reward_for_perps(
             user,
             Some(liquidator),
             market_map.get_ref_mut(&market_index)?.deref_mut(),
