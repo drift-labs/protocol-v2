@@ -1,4 +1,4 @@
-use crate::error::ClearingHouseResult;
+use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math_error;
 use crate::state::market::Market;
 use crate::MarketPosition;
@@ -128,9 +128,18 @@ pub fn burn_lp_shares(
     let (position_delta, pnl) = settle_lp_position(position, market)?;
 
     // clean up 
-    if shares_to_burn == market.amm.user_lp_shares {
+    if shares_to_burn == market.amm.user_lp_shares && market.amm.net_unsettled_lp_base_asset_amount != 0 {
+        crate::validate!(
+            market.amm.net_unsettled_lp_base_asset_amount.unsigned_abs() <= market.amm.base_asset_amount_step_size,
+            ErrorCode::DefaultError,
+            "unsettled baa on final burn too big rel to stepsize {}: {}",
+            market.amm.base_asset_amount_step_size,
+            market.amm.net_unsettled_lp_base_asset_amount, 
+        )?;
+
+        // sub bc lps take the opposite side of the user
         position.remainder_base_asset_amount = position.remainder_base_asset_amount
-            .checked_add(market.amm.net_unsettled_lp_base_asset_amount)
+            .checked_sub(market.amm.net_unsettled_lp_base_asset_amount)
             .ok_or_else(math_error!())?;
     }
 
@@ -227,6 +236,8 @@ mod test {
             quote_asset_amount: -10,
             ..MarketPosition::default()
         };
+        market.amm.net_unsettled_lp_base_asset_amount = -10;
+        market.base_asset_amount_short = -10;
 
         settle_lp_position(&mut position, &mut market).unwrap();
 
@@ -235,8 +246,8 @@ mod test {
         assert_eq!(position.base_asset_amount, 10);
         assert_eq!(position.quote_asset_amount, -10);
         assert_eq!(
-            og_market.amm.net_unsettled_lp_base_asset_amount + 10,
-            market.amm.net_unsettled_lp_base_asset_amount
+            market.amm.net_unsettled_lp_base_asset_amount,
+            0
         );
         // net baa doesnt change
         assert_eq!(
@@ -308,6 +319,8 @@ mod test {
             quote_asset_amount: 10,
             ..MarketPosition::default()
         };
+        market.amm.net_unsettled_lp_base_asset_amount = 10;
+        market.base_asset_amount_long = 10;
 
         settle_lp_position(&mut position, &mut market).unwrap();
 
