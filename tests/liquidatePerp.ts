@@ -5,6 +5,7 @@ import {
 	getLimitOrderParams,
 	isVariant,
 	OracleSource,
+	QUOTE_ASSET_BANK_INDEX,
 	ZERO,
 } from '../sdk';
 import { assert } from 'chai';
@@ -31,7 +32,7 @@ import {
 	initializeQuoteAssetBank,
 } from './testHelpers';
 
-describe('liquidate perp', () => {
+describe('liquidate perp and lp', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
@@ -61,6 +62,7 @@ describe('liquidate perp', () => {
 	);
 
 	const usdcAmount = new BN(10 * 10 ** 6);
+	const nLpShares = new BN(100_000);
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -113,6 +115,8 @@ describe('liquidate perp', () => {
 			new BN(0)
 		);
 
+		await clearingHouse.addLiquidity(nLpShares, ZERO);
+
 		for (let i = 0; i < 32; i++) {
 			await clearingHouse.placeOrder(
 				getLimitOrderParams({
@@ -163,6 +167,9 @@ describe('liquidate perp', () => {
 	});
 
 	it('liquidate', async () => {
+		const lpShares = clearingHouse.getUserAccount().positions[0].lpShares;
+		assert(lpShares.eq(nLpShares));
+
 		const oracle = clearingHouse.getMarketAccount(0).amm.oracle;
 		await setFeedPrice(anchor.workspace.Pyth, 0.1, oracle);
 
@@ -201,6 +208,14 @@ describe('liquidate perp', () => {
 		assert(clearingHouse.getUserAccount().beingLiquidated);
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
 
+		// try to add liq when being liquidated -- should fail
+		try {
+			await clearingHouse.addLiquidity(nLpShares, ZERO);
+			assert(false);
+		} catch (err) {
+			assert(err.message.includes('0x17d6'));
+		}
+
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(liquidationRecord.liquidationId === 1);
@@ -223,6 +238,7 @@ describe('liquidate perp', () => {
 		);
 		assert(liquidationRecord.liquidatePerp.userPnl.eq(new BN(-15750613)));
 		assert(liquidationRecord.liquidatePerp.liquidatorPnl.eq(new BN(0)));
+		assert(liquidationRecord.liquidatePerp.lpShares.eq(nLpShares));
 
 		await liquidatorClearingHouse.liquidatePerpPnlForDeposit(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -239,9 +255,19 @@ describe('liquidate perp', () => {
 				.positions[0].quoteAssetAmount.eq(new BN(-6088113))
 		);
 
+		// try to add liq when bankrupt -- should fail
+		try {
+			await clearingHouse.addLiquidity(nLpShares, ZERO);
+			assert(false);
+		} catch (err) {
+			// cant add when bankrupt
+			assert(err.message.includes('0x17de'));
+		}
+
 		await liquidatorClearingHouse.resolvePerpBankruptcy(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
+			QUOTE_ASSET_BANK_INDEX,
 			new BN(0)
 		);
 
@@ -252,6 +278,7 @@ describe('liquidate perp', () => {
 		assert(
 			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(ZERO)
 		);
+		assert(clearingHouse.getUserAccount().positions[0].lpShares.eq(ZERO));
 
 		const perpBankruptcyRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];

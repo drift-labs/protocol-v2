@@ -17,7 +17,7 @@ use crate::validate;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::prelude::*;
 use solana_program::msg;
-use std::ops::Deref;
+use std::ops::DerefMut;
 
 #[cfg(test)]
 mod tests;
@@ -42,7 +42,7 @@ pub fn settle_pnl(
     settle_funding_payment(
         user,
         user_key,
-        market_map.get_ref(&market_index)?.deref(),
+        market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
@@ -68,7 +68,7 @@ pub fn settle_pnl(
     let user_unsettled_pnl: i128 =
         user.positions[position_index].get_unsettled_pnl(oracle_price)?;
 
-    let pnl_to_settle_with_user = update_pool_balances(market, bank, user_unsettled_pnl)?;
+    let pnl_to_settle_with_user = update_pool_balances(market, bank, user_unsettled_pnl, now)?;
     if user_unsettled_pnl == 0 {
         msg!("User has no unsettled pnl for market {}", market_index);
         return Ok(());
@@ -95,10 +95,12 @@ pub fn settle_pnl(
         },
         bank,
         user.get_quote_asset_bank_balance_mut(),
+        false,
     )?;
 
     update_quote_asset_amount(
         &mut user.positions[position_index],
+        market,
         -pnl_to_settle_with_user,
     )?;
 

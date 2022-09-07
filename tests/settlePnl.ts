@@ -317,13 +317,9 @@ describe('clearing_house', () => {
 		);
 
 		await eventSubscriber.awaitTx(txSig);
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderRecord.fillRecordId.eq(new BN(1)));
-		assert.ok(
-			JSON.stringify(orderRecord.takerOrder.direction) ===
-				JSON.stringify(PositionDirection.SHORT)
-		);
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(497549506175864)));
 		assert.ok(orderRecord.quoteAssetAmountFilled.eq(new BN(49750000)));
 
@@ -450,7 +446,7 @@ describe('clearing_house', () => {
 		);
 
 		await eventSubscriber.awaitTx(txSig);
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderRecord.marketIndex.eq(new BN(0)));
 	});

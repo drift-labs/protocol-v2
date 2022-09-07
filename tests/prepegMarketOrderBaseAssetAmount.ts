@@ -1,6 +1,14 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, getMarketOrderParams, ONE, OracleSource, ZERO } from '../sdk';
+import {
+	BN,
+	calculateEffectiveLeverage,
+	getMarketOrderParams,
+	ONE,
+	OracleSource,
+	ZERO,
+	calculatePrice,
+} from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -19,6 +27,7 @@ import {
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	calculateTradeAcquiredAmounts,
 	calculateSpread,
+	calculateInventoryScale,
 } from '../sdk/src';
 
 import {
@@ -254,15 +263,11 @@ describe('prepeg', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.gt(new BN(49750)));
 		assert.ok(market.amm.totalExchangeFee.eq(new BN(49999)));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
-		assert.ok(
-			JSON.stringify(orderRecord.takerOrder.direction) ===
-				JSON.stringify(PositionDirection.LONG)
-		);
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(497450500000000)));
 		assert.ok(orderRecord.quoteAssetAmountFilled.gt(new BN(49750001)));
-		assert.ok(orderRecord.takerOrder.marketIndex.eq(marketIndex));
+		assert.ok(orderRecord.marketIndex.eq(marketIndex));
 
 		// console.log(orderRecord);
 		console.log(market.amm.totalExchangeFee.toNumber());
@@ -328,6 +333,30 @@ describe('prepeg', () => {
 			acquiredQuoteAssetAmount.toNumber()
 		);
 		const newAmm = calculateUpdatedAMM(market0.amm, oraclePriceData);
+
+		const markPrice = calculatePrice(
+			newAmm.baseAssetReserve,
+			newAmm.quoteAssetReserve,
+			newAmm.pegMultiplier
+		);
+		const effectiveLeverage = calculateEffectiveLeverage(
+			newAmm.baseSpread,
+			newAmm.quoteAssetReserve,
+			newAmm.terminalQuoteAssetReserve,
+			newAmm.pegMultiplier,
+			newAmm.netBaseAssetAmount,
+			markPrice,
+			newAmm.totalFeeMinusDistributions
+		);
+		const inventoryScale = calculateInventoryScale(
+			newAmm.netBaseAssetAmount,
+			newAmm.baseAssetReserve,
+			newAmm.minBaseAssetReserve,
+			newAmm.maxBaseAssetReserve
+		);
+
+		console.log(inventoryScale, effectiveLeverage);
+
 		const longSpread = calculateSpread(
 			newAmm,
 			PositionDirection.LONG,
@@ -338,9 +367,13 @@ describe('prepeg', () => {
 			PositionDirection.SHORT,
 			oraclePriceData
 		);
-		console.log(longSpread, shortSpread);
+
+		console.log(newAmm.baseSpread, longSpread, shortSpread, newAmm.maxSpread);
+		assert(newAmm.maxSpread == 100000 * 0.9);
+		assert(inventoryScale == 0.000703);
+		assert(effectiveLeverage == 0.09895778092399404);
 		assert(shortSpread == 1000);
-		// assert(longSpread == 22781);
+		assert(longSpread.toString() == '25052.95706334619');
 
 		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 
@@ -416,15 +449,12 @@ describe('prepeg', () => {
 		console.log(market.amm.longSpread.toString());
 		console.log(market.amm.shortSpread.toString());
 
-		assert(market.amm.longSpread.eq(new BN(25035)));
+		assert(market.amm.longSpread.eq(new BN('25052')));
 		assert(market.amm.shortSpread.eq(new BN(1000)));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
-		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
-		assert.ok(
-			JSON.stringify(orderRecord.takerOrder.direction) ===
-				JSON.stringify(PositionDirection.LONG)
-		);
+		const orderActionRecord =
+			eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
 		// console.log(orderRecord);
 
 		await clearingHouse.fetchAccounts();
@@ -441,7 +471,7 @@ describe('prepeg', () => {
 			'baseASsetAmounts:',
 			position0.baseAssetAmount.toNumber(),
 			'vs',
-			orderRecord.takerOrder.baseAssetAmountFilled.toNumber(),
+			orderActionRecord.baseAssetAmountFilled.toNumber(),
 			'vs',
 			baseAssetAmount.toNumber()
 		);
@@ -450,11 +480,11 @@ describe('prepeg', () => {
 			position0.quoteAssetAmount.toNumber()
 		);
 
-		assert(orderRecord.takerOrder.baseAssetAmountFilled.eq(baseAssetAmount));
-		const recordEntryPrice = orderRecord.takerOrder.quoteAssetAmountFilled
+		assert(orderActionRecord.baseAssetAmountFilled.eq(baseAssetAmount));
+		const recordEntryPrice = orderActionRecord.quoteAssetAmountFilled
 			.mul(AMM_TO_QUOTE_PRECISION_RATIO)
 			.mul(MARK_PRICE_PRECISION)
-			.div(orderRecord.takerOrder.baseAssetAmountFilled.abs());
+			.div(orderActionRecord.baseAssetAmountFilled.abs());
 
 		console.log(
 			'entry sdk',
@@ -463,13 +493,14 @@ describe('prepeg', () => {
 			convertToNumber(recordEntryPrice)
 		);
 
+		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
 		console.log(
 			'record Auction:',
-			convertToNumber(orderRecord.takerOrder.auctionStartPrice),
+			convertToNumber(orderRecord.order.auctionStartPrice),
 			'->',
-			convertToNumber(orderRecord.takerOrder.auctionEndPrice),
+			convertToNumber(orderRecord.order.auctionEndPrice),
 			'record oracle:',
-			convertToNumber(orderRecord.oraclePrice)
+			convertToNumber(orderActionRecord.oraclePrice)
 		);
 
 		// assert.ok(
@@ -556,13 +587,9 @@ describe('prepeg', () => {
 
 		console.log(market.amm.netBaseAssetAmount.toString());
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
-		assert.ok(
-			JSON.stringify(orderRecord.takerOrder.direction) ===
-				JSON.stringify(PositionDirection.SHORT)
-		);
 		console.log(orderRecord.baseAssetAmountFilled.toNumber());
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(248725250000000)));
 		assert.ok(orderRecord.marketIndex.eq(new BN(0)));

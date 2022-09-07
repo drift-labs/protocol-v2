@@ -182,12 +182,12 @@ describe('post only', () => {
 		const order = clearingHouseUser.getOrderByUserOrderId(1);
 
 		assert(order.postOnly);
-		await fillerClearingHouse.moveAmmPrice(
-			ammInitialBaseAssetReserve.mul(new BN(2)),
-			ammInitialQuoteAssetReserve,
-			marketIndex
+		const newOraclePrice = 0.98;
+		setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
+		await fillerClearingHouse.moveAmmToPrice(
+			marketIndex,
+			new BN(newOraclePrice * MARK_PRICE_PRECISION.toNumber())
 		);
-		await setFeedPrice(anchor.workspace.Pyth, 0.5, solUsd);
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
@@ -207,11 +207,11 @@ describe('post only', () => {
 		);
 
 		await fillerClearingHouse.fetchAccounts();
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.takerFee.eq(ZERO));
-		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(499875)));
+		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(19506)));
 
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();
@@ -238,6 +238,7 @@ describe('post only', () => {
 			marketIndexes,
 			bankIndexes,
 			oracleInfos,
+			userStats: true,
 		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -268,13 +269,13 @@ describe('post only', () => {
 		const order = clearingHouseUser.getOrderByUserOrderId(1);
 
 		assert(order.postOnly);
-		await fillerClearingHouse.moveAmmPrice(
-			ammInitialBaseAssetReserve.div(new BN(2)),
-			ammInitialQuoteAssetReserve,
-			marketIndex
-		);
 
-		await setFeedPrice(anchor.workspace.Pyth, 2, solUsd);
+		const newOraclePrice = 1.02;
+		setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
+		await fillerClearingHouse.moveAmmToPrice(
+			marketIndex,
+			new BN(newOraclePrice * MARK_PRICE_PRECISION.toNumber())
+		);
 
 		await fillerClearingHouse.fillOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
@@ -293,11 +294,11 @@ describe('post only', () => {
 		);
 
 		await fillerClearingHouse.fetchAccounts();
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.takerFee.eq(new BN(0)));
-		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(999492)));
+		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(19490)));
 
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();

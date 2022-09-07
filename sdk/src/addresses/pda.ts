@@ -129,3 +129,59 @@ export async function getBankVaultAuthorityPublicKey(
 		)
 	)[0];
 }
+
+export async function getInsuranceFundVaultPublicKey(
+	programId: PublicKey,
+	bankIndex: BN
+): Promise<PublicKey> {
+	return (
+		await anchor.web3.PublicKey.findProgramAddress(
+			[
+				Buffer.from(anchor.utils.bytes.utf8.encode('insurance_fund_vault')),
+				bankIndex.toArrayLike(Buffer, 'le', 8),
+			],
+			programId
+		)
+	)[0];
+}
+
+export async function getInsuranceFundVaultAuthorityPublicKey(
+	programId: PublicKey,
+	bankIndex: BN
+): Promise<PublicKey> {
+	return (
+		await anchor.web3.PublicKey.findProgramAddress(
+			[
+				Buffer.from(
+					anchor.utils.bytes.utf8.encode('insurance_fund_vault_authority')
+				),
+				bankIndex.toArrayLike(Buffer, 'le', 8),
+			],
+			programId
+		)
+	)[0];
+}
+
+export function getInsuranceFundStakeAccountPublicKey(
+	programId: PublicKey,
+	authority: PublicKey,
+	bankIndex: BN
+): PublicKey {
+	return anchor.web3.PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('insurance_fund_stake')),
+			authority.toBuffer(),
+			bankIndex.toArrayLike(Buffer, 'le', 8),
+		],
+		programId
+	)[0];
+}
+
+export function getClearingHouseSignerPublicKey(
+	programId: PublicKey
+): PublicKey {
+	return anchor.web3.PublicKey.findProgramAddressSync(
+		[Buffer.from(anchor.utils.bytes.utf8.encode('clearing_house_signer'))],
+		programId
+	)[0];
+}

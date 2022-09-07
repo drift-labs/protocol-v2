@@ -1,4 +1,6 @@
-use crate::controller::bank_balance::{update_bank_balances, update_bank_cumulative_interest};
+use crate::controller::bank_balance::{
+    update_bank_balances, update_bank_cumulative_interest, update_revenue_pool_balances,
+};
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
 use crate::controller::orders::{cancel_order, pay_keeper_flat_reward};
@@ -9,8 +11,13 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::get_then_update_id;
 use crate::math::bank_balance::get_token_amount;
 use crate::math::bankruptcy::is_user_bankrupt;
-use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::{BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
+use crate::math::constants::{
+    // BANK_INTEREST_PRECISION,
+    BANK_WEIGHT_PRECISION,
+    LIQUIDATION_FEE_PRECISION,
+    MARGIN_PRECISION,
+};
 use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
     calculate_base_asset_amount_to_cover_margin_shortage,
@@ -98,7 +105,7 @@ pub fn liquidate_perp(
     settle_funding_payment(
         user,
         user_key,
-        market_map.get_ref(&market_index)?.deref(),
+        market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
@@ -106,7 +113,7 @@ pub fn liquidate_perp(
     settle_funding_payment(
         liquidator,
         liquidator_key,
-        market_map.get_ref(&market_index)?.deref(),
+        market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
@@ -177,28 +184,36 @@ pub fn liquidate_perp(
         )?;
     }
 
+    let market = market_map.get_ref(&market_index)?;
+    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+    drop(market);
+
+    // burning lp shares = removing open bids/asks
+    let lp_shares = user.positions[position_index].lp_shares;
+    if lp_shares > 0 {
+        burn_lp_shares(
+            &mut user.positions[position_index],
+            market_map.get_ref_mut(&market_index)?.deref_mut(),
+            lp_shares,
+            oracle_price,
+        )?;
+    }
+
     let worst_case_base_asset_amount_after =
         user.positions[position_index].worst_case_base_asset_amount()?;
     let worse_case_base_asset_amount_delta = worst_case_base_asset_amount_before
         .checked_sub(worst_case_base_asset_amount_after)
         .ok_or_else(math_error!())?;
 
-    let (margin_ratio, oracle_price_data) = {
-        let market = &mut market_map.get_ref(&market_index)?;
-        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-        let margin_ratio = market.get_margin_ratio(
-            worst_case_base_asset_amount_before.unsigned_abs(),
-            MarginRequirementType::Maintenance,
-        )?;
-
-        (margin_ratio, oracle_price_data)
-    };
-    let oracle_price = oracle_price_data.price;
+    let margin_ratio = market_map.get_ref(&market_index)?.get_margin_ratio(
+        worst_case_base_asset_amount_before.unsigned_abs(),
+        MarginRequirementType::Maintenance,
+    )?;
 
     if worse_case_base_asset_amount_delta != 0 {
         let base_asset_value = calculate_base_asset_value_with_oracle_price(
             worse_case_base_asset_amount_delta,
-            oracle_price_data.price,
+            oracle_price,
         )?;
 
         let margin_requirement_delta = base_asset_value
@@ -227,6 +242,7 @@ pub fn liquidate_perp(
                 order_ids: canceled_order_ids,
                 oracle_price,
                 canceled_orders_fee,
+                lp_shares,
                 ..LiquidatePerpRecord::default()
             },
             ..LiquidationRecord::default()
@@ -234,17 +250,6 @@ pub fn liquidate_perp(
 
         user.being_liquidated = false;
         return Ok(());
-    }
-
-    let user_lp_shares = user.positions[position_index].lp_shares;
-    if user_lp_shares > 0 {
-        msg!("Burning lp shares");
-        burn_lp_shares(
-            &mut user.positions[position_index],
-            market_map.get_ref_mut(&market_index)?.deref_mut(),
-            user_lp_shares,
-            oracle_price,
-        )?;
     }
 
     if user.positions[position_index].base_asset_amount == 0 {
@@ -373,6 +378,7 @@ pub fn liquidate_perp(
             oracle_price,
             base_asset_amount: user_position_delta.base_asset_amount,
             quote_asset_amount: user_position_delta.quote_asset_amount,
+            lp_shares,
             user_pnl,
             liquidator_pnl,
             canceled_orders_fee,
@@ -593,14 +599,34 @@ pub fn liquidate_borrow(
         liability_price,
     )?;
 
+    let liability_transfer_for_user: u128;
     {
         let mut liability_bank = bank_map.get_ref_mut(&liability_bank_index)?;
 
+        // part liquidator liability transfer pays to insurance fund
+        // size will be eventually be 0 for sufficiently small liability size
+        let liability_transfer_for_insurance = liability_transfer
+            .checked_mul(liability_bank.liquidation_if_factor as u128)
+            .ok_or_else(math_error!())?
+            .checked_div(LIQUIDATION_FEE_PRECISION)
+            .ok_or_else(math_error!())?;
+
+        liability_transfer_for_user = liability_transfer
+            .checked_sub(liability_transfer_for_insurance)
+            .ok_or_else(math_error!())?;
+
+        update_revenue_pool_balances(
+            liability_transfer_for_insurance,
+            &BankBalanceType::Deposit,
+            &mut liability_bank,
+        )?;
+
         update_bank_balances(
-            liability_transfer,
+            liability_transfer_for_user,
             &BankBalanceType::Deposit,
             &mut liability_bank,
             user.get_bank_balance_mut(liability_bank_index).unwrap(),
+            false,
         )?;
 
         update_bank_balances(
@@ -610,6 +636,7 @@ pub fn liquidate_borrow(
             liquidator
                 .get_bank_balance_mut(liability_bank_index)
                 .unwrap(),
+            false,
         )?;
     }
 
@@ -621,6 +648,7 @@ pub fn liquidate_borrow(
             &BankBalanceType::Borrow,
             &mut asset_bank,
             user.get_bank_balance_mut(asset_bank_index).unwrap(),
+            false,
         )?;
 
         update_bank_balances(
@@ -628,10 +656,11 @@ pub fn liquidate_borrow(
             &BankBalanceType::Deposit,
             &mut asset_bank,
             liquidator.get_bank_balance_mut(asset_bank_index).unwrap(),
+            false,
         )?;
     }
 
-    if liability_transfer >= liability_transfer_to_cover_margin_shortage {
+    if liability_transfer_for_user >= liability_transfer_to_cover_margin_shortage {
         user.being_liquidated = false;
     } else {
         user.bankrupt = is_user_bankrupt(user);
@@ -735,14 +764,14 @@ pub fn liquidate_borrow_for_perp_pnl(
     settle_funding_payment(
         user,
         user_key,
-        market_map.get_ref(&market_index)?.deref(),
+        market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
     settle_funding_payment(
         liquidator,
         liquidator_key,
-        market_map.get_ref(&market_index)?.deref(),
+        market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
@@ -903,6 +932,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             &BankBalanceType::Deposit,
             &mut liability_bank,
             user.get_bank_balance_mut(liability_bank_index).unwrap(),
+            false,
         )?;
 
         update_bank_balances(
@@ -912,15 +942,21 @@ pub fn liquidate_borrow_for_perp_pnl(
             liquidator
                 .get_bank_balance_mut(liability_bank_index)
                 .unwrap(),
+            false,
         )?;
     }
 
     {
+        let mut market = market_map.get_ref_mut(&market_index)?;
         let liquidator_position = liquidator.force_get_position_mut(market_index)?;
-        update_quote_asset_amount(liquidator_position, cast_to_i128(pnl_transfer)?)?;
+        update_quote_asset_amount(
+            liquidator_position,
+            &mut market,
+            cast_to_i128(pnl_transfer)?,
+        )?;
 
         let user_position = user.get_position_mut(market_index)?;
-        update_quote_asset_amount(user_position, -cast_to_i128(pnl_transfer)?)?;
+        update_quote_asset_amount(user_position, &mut market, -cast_to_i128(pnl_transfer)?)?;
     }
 
     if liability_transfer >= liability_transfer_to_cover_margin_shortage {
@@ -1032,14 +1068,14 @@ pub fn liquidate_perp_pnl_for_deposit(
     settle_funding_payment(
         user,
         user_key,
-        market_map.get_ref(&market_index)?.deref(),
+        market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
     settle_funding_payment(
         liquidator,
         liquidator_key,
-        market_map.get_ref(&market_index)?.deref(),
+        market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
@@ -1090,7 +1126,8 @@ pub fn liquidate_perp_pnl_for_deposit(
         validate!(
             base_asset_amount == 0,
             ErrorCode::InvalidPerpPositionToLiquidate,
-            "Cant have open perp position"
+            "Cant have open perp position (base_asset_amount: {})",
+            base_asset_amount
         )?;
 
         validate!(
@@ -1197,6 +1234,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             &BankBalanceType::Borrow,
             &mut asset_bank,
             user.get_bank_balance_mut(asset_bank_index).unwrap(),
+            false,
         )?;
 
         update_bank_balances(
@@ -1204,15 +1242,21 @@ pub fn liquidate_perp_pnl_for_deposit(
             &BankBalanceType::Deposit,
             &mut asset_bank,
             liquidator.get_bank_balance_mut(asset_bank_index).unwrap(),
+            false,
         )?;
     }
 
     {
+        let mut market = market_map.get_ref_mut(&market_index)?;
         let liquidator_position = liquidator.force_get_position_mut(market_index)?;
-        update_quote_asset_amount(liquidator_position, -cast_to_i128(pnl_transfer)?)?;
+        update_quote_asset_amount(
+            liquidator_position,
+            &mut market,
+            -cast_to_i128(pnl_transfer)?,
+        )?;
 
         let user_position = user.get_position_mut(market_index)?;
-        update_quote_asset_amount(user_position, cast_to_i128(pnl_transfer)?)?;
+        update_quote_asset_amount(user_position, &mut market, cast_to_i128(pnl_transfer)?)?;
     }
 
     if pnl_transfer >= pnl_transfer_to_cover_margin_shortage {
@@ -1281,7 +1325,8 @@ pub fn resolve_perp_bankruptcy(
     bank_map: &BankMap,
     oracle_map: &mut OracleMap,
     now: i64,
-) -> ClearingHouseResult {
+    insurance_fund_vault_balance: u64,
+) -> ClearingHouseResult<u64> {
     validate!(
         user.bankrupt,
         ErrorCode::UserNotBankrupt,
@@ -1323,28 +1368,41 @@ pub fn resolve_perp_bankruptcy(
         oracle_map,
     )?;
 
+    // todo: add bank's insurance fund draw attempt here (before social loss)
+    // subtract 1 so insurance_fund_vault_balance always stays >= 1
+    let if_payment = loss.unsigned_abs().min(cast_to_u128(
+        insurance_fund_vault_balance.saturating_sub(1),
+    )?);
+
+    let loss_to_socialize = loss
+        .checked_add(cast_to_i128(if_payment)?)
+        .ok_or_else(math_error!())?;
+
     let cumulative_funding_rate_delta = calculate_funding_rate_deltas_to_resolve_bankruptcy(
-        loss,
+        loss_to_socialize,
         market_map.get_ref(&market_index)?.deref(),
     )?;
 
-    {
-        let user = user.get_position_mut(market_index).unwrap();
-        user.quote_asset_amount = 0;
+    // socialize loss
+    if loss_to_socialize < 0 {
+        {
+            let user = user.get_position_mut(market_index).unwrap();
+            user.quote_asset_amount = 0;
 
-        let mut market = market_map.get_ref_mut(&market_index)?;
+            let mut market = market_map.get_ref_mut(&market_index)?;
 
-        market.amm.cumulative_funding_rate_long = market
-            .amm
-            .cumulative_funding_rate_long
-            .checked_add(cumulative_funding_rate_delta)
-            .ok_or_else(math_error!())?;
+            market.amm.cumulative_funding_rate_long = market
+                .amm
+                .cumulative_funding_rate_long
+                .checked_add(cumulative_funding_rate_delta)
+                .ok_or_else(math_error!())?;
 
-        market.amm.cumulative_funding_rate_short = market
-            .amm
-            .cumulative_funding_rate_short
-            .checked_sub(cumulative_funding_rate_delta)
-            .ok_or_else(math_error!())?;
+            market.amm.cumulative_funding_rate_short = market
+                .amm
+                .cumulative_funding_rate_short
+                .checked_sub(cumulative_funding_rate_delta)
+                .ok_or_else(math_error!())?;
+        }
     }
 
     // exit bankruptcy
@@ -1369,13 +1427,14 @@ pub fn resolve_perp_bankruptcy(
         bankrupt: true,
         perp_bankruptcy: PerpBankruptcyRecord {
             market_index,
+            if_payment,
             pnl: loss,
             cumulative_funding_rate_delta,
         },
         ..LiquidationRecord::default()
     });
 
-    Ok(())
+    cast_to_u64(if_payment)
 }
 
 pub fn resolve_bank_bankruptcy(
@@ -1388,7 +1447,8 @@ pub fn resolve_bank_bankruptcy(
     bank_map: &BankMap,
     oracle_map: &mut OracleMap,
     now: i64,
-) -> ClearingHouseResult {
+    insurance_fund_vault_balance: u64,
+) -> ClearingHouseResult<u64> {
     validate!(
         user.bankrupt,
         ErrorCode::UserNotBankrupt,
@@ -1437,9 +1497,19 @@ pub fn resolve_bank_bankruptcy(
         )?
     };
 
+    // todo: add bank's insurance fund draw attempt here (before social loss)
+    // subtract 1 so insurance_fund_vault_balance always stays >= 1
+    let if_payment = borrow_amount.min(cast_to_u128(
+        insurance_fund_vault_balance.saturating_sub(1),
+    )?);
+
+    let loss_to_socialize = borrow_amount
+        .checked_sub(if_payment)
+        .ok_or_else(math_error!())?;
+
     let cumulative_deposit_interest_delta =
         calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(
-            borrow_amount,
+            loss_to_socialize,
             bank_map.get_ref(&bank_index)?.deref(),
         )?;
 
@@ -1451,6 +1521,7 @@ pub fn resolve_bank_bankruptcy(
             &BankBalanceType::Deposit,
             &mut bank,
             user_bank_balance,
+            false,
         )?;
 
         bank.cumulative_deposit_interest = bank
@@ -1482,10 +1553,11 @@ pub fn resolve_bank_bankruptcy(
         borrow_bankruptcy: BorrowBankruptcyRecord {
             bank_index,
             borrow_amount,
+            if_payment,
             cumulative_deposit_interest_delta,
         },
         ..LiquidationRecord::default()
     });
 
-    Ok(())
+    cast_to_u64(if_payment)
 }

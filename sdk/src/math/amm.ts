@@ -308,6 +308,51 @@ export function calculateAmmReservesAfterSwap(
 	return [newQuoteAssetReserve, newBaseAssetReserve];
 }
 
+export function calculateMarketOpenBidAsk(
+	baseAssetReserve: BN,
+	minBaseAssetReserve: BN,
+	maxBaseAssetReserve: BN
+): [BN, BN] {
+	// open orders
+	let openAsks;
+	if (maxBaseAssetReserve > baseAssetReserve) {
+		openAsks = maxBaseAssetReserve.sub(baseAssetReserve).mul(new BN(-1));
+	} else {
+		openAsks = ZERO;
+	}
+
+	let openBids;
+	if (minBaseAssetReserve < baseAssetReserve) {
+		openBids = baseAssetReserve.sub(minBaseAssetReserve);
+	} else {
+		openBids = ZERO;
+	}
+	return [openBids, openAsks];
+}
+
+export function calculateInventoryScale(
+	netBaseAssetAmount: BN,
+	baseAssetReserve: BN,
+	minBaseAssetReserve: BN,
+	maxBaseAssetReserve: BN
+): number {
+	// inventory skew
+	const [openBids, openAsks] = calculateMarketOpenBidAsk(
+		baseAssetReserve,
+		minBaseAssetReserve,
+		maxBaseAssetReserve
+	);
+
+	const totalLiquidity = BN.max(openBids.abs().add(openAsks.abs()), new BN(1));
+	const inventoryScale =
+		BN.min(netBaseAssetAmount.abs(), totalLiquidity)
+			.mul(BID_ASK_SPREAD_PRECISION.mul(new BN(5)))
+			.div(totalLiquidity)
+			.toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
+
+	return inventoryScale;
+}
+
 export function calculateEffectiveLeverage(
 	baseSpread: number,
 	quoteAssetReserve: BN,
@@ -353,7 +398,10 @@ export function calculateSpreadBN(
 	pegMultiplier: BN,
 	netBaseAssetAmount: BN,
 	markPrice: BN,
-	totalFeeMinusDistributions: BN
+	totalFeeMinusDistributions: BN,
+	baseAssetReserve: BN,
+	minBaseAssetReserve: BN,
+	maxBaseAssetReserve: BN
 ): [number, number] {
 	let longSpread = baseSpread / 2;
 	let shortSpread = baseSpread / 2;
@@ -373,6 +421,20 @@ export function calculateSpreadBN(
 	const maxTargetSpread: number = maxSpread;
 
 	const MAX_INVENTORY_SKEW = 5;
+
+	const inventoryScale = calculateInventoryScale(
+		netBaseAssetAmount,
+		baseAssetReserve,
+		minBaseAssetReserve,
+		maxBaseAssetReserve
+	);
+	const inventorySpreadScale = Math.min(MAX_INVENTORY_SKEW, 1 + inventoryScale);
+
+	if (netBaseAssetAmount.gt(ZERO)) {
+		longSpread *= inventorySpreadScale;
+	} else if (netBaseAssetAmount.lt(ZERO)) {
+		shortSpread *= inventorySpreadScale;
+	}
 
 	const effectiveLeverage = calculateEffectiveLeverage(
 		baseSpread,
@@ -447,7 +509,10 @@ export function calculateSpread(
 		amm.pegMultiplier,
 		amm.netBaseAssetAmount,
 		markPrice,
-		amm.totalFeeMinusDistributions
+		amm.totalFeeMinusDistributions,
+		amm.baseAssetReserve,
+		amm.minBaseAssetReserve,
+		amm.maxBaseAssetReserve
 	);
 
 	let spread: number;
