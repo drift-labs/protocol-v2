@@ -1,6 +1,4 @@
 use crate::error::ClearingHouseResult;
-use crate::math::constants::AMM_RESERVE_PRECISION_I128;
-use crate::math::margin::calculate_oracle_price_for_perp_margin;
 use crate::math_error;
 use crate::state::market::Market;
 use crate::MarketPosition;
@@ -12,7 +10,6 @@ use crate::get_struct_values;
 use crate::math::amm::{get_update_k_result, update_k};
 use crate::math::casting::cast_to_i128;
 use crate::math::lp::calculate_settle_lp_metrics;
-use crate::math::lp::calculate_settled_lp_base_quote;
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 
 use anchor_lang::prelude::msg;
@@ -21,7 +18,6 @@ pub fn mint_lp_shares(
     position: &mut MarketPosition,
     market: &mut Market,
     n_shares: u128,
-    oracle_price: i128,
     now: i64,
 ) -> ClearingHouseResult<()> {
     let amm = market.amm;
@@ -32,7 +28,7 @@ pub fn mint_lp_shares(
     let (sqrt_k,) = get_struct_values!(amm, sqrt_k);
 
     if position.lp_shares > 0 {
-        settle_lp_position(position, market, oracle_price)?;
+        settle_lp_position(position, market)?;
     } else {
         let (net_base_asset_amount_per_lp, net_quote_asset_amount_per_lp) = get_struct_values!(
             amm.market_position_per_lp,
@@ -71,11 +67,7 @@ pub fn mint_lp_shares(
 pub fn settle_lp_position(
     position: &mut MarketPosition,
     market: &mut Market,
-    oracle_price: i128,
 ) -> ClearingHouseResult<(PositionDelta, i128)> {
-    let n_shares = position.lp_shares;
-    let n_shares_i128 = cast_to_i128(n_shares)?;
-
     let mut lp_metrics = calculate_settle_lp_metrics(&market.amm, position)?;
 
     position.remainder_base_asset_amount = position.remainder_base_asset_amount
@@ -133,7 +125,7 @@ pub fn burn_lp_shares(
     }
 
     // settle
-    let (position_delta, pnl) = settle_lp_position(position, market, oracle_price)?;
+    let (position_delta, pnl) = settle_lp_position(position, market)?;
 
     // update stats
     if position.remainder_base_asset_amount != 0 {
@@ -221,7 +213,7 @@ mod test {
         };
         let og_market = market;
 
-        mint_lp_shares(&mut position, &mut market, AMM_RESERVE_PRECISION, 0, 0).unwrap();
+        mint_lp_shares(&mut position, &mut market, AMM_RESERVE_PRECISION, 0).unwrap();
 
         market.amm.market_position_per_lp = MarketPosition {
             base_asset_amount: 10,
@@ -229,7 +221,7 @@ mod test {
             ..MarketPosition::default()
         };
 
-        settle_lp_position(&mut position, &mut market, 1).unwrap();
+        settle_lp_position(&mut position, &mut market).unwrap();
 
         assert_eq!(position.last_net_base_asset_amount_per_lp, 10);
         assert_eq!(position.last_net_quote_asset_amount_per_lp, -10);
@@ -270,7 +262,7 @@ mod test {
             ..Market::default_test()
         };
 
-        mint_lp_shares(&mut position, &mut market, 100 * AMM_RESERVE_PRECISION, 0, 0).unwrap();
+        mint_lp_shares(&mut position, &mut market, 100 * AMM_RESERVE_PRECISION, 0).unwrap();
 
         market.amm.market_position_per_lp = MarketPosition {
             base_asset_amount: -10,
@@ -278,7 +270,7 @@ mod test {
             ..MarketPosition::default()
         };
 
-        settle_lp_position(&mut position, &mut market, 1).unwrap();
+        settle_lp_position(&mut position, &mut market).unwrap();
 
         assert_eq!(position.last_net_base_asset_amount_per_lp, -10);
         assert_eq!(position.last_net_quote_asset_amount_per_lp, 10);
@@ -302,7 +294,7 @@ mod test {
             ..Market::default_test()
         };
 
-        mint_lp_shares(&mut position, &mut market, AMM_RESERVE_PRECISION, 0, 1).unwrap();
+        mint_lp_shares(&mut position, &mut market, AMM_RESERVE_PRECISION, 0).unwrap();
 
         market.amm.market_position_per_lp = MarketPosition {
             base_asset_amount: -10,
@@ -310,7 +302,7 @@ mod test {
             ..MarketPosition::default()
         };
 
-        settle_lp_position(&mut position, &mut market, 1).unwrap();
+        settle_lp_position(&mut position, &mut market).unwrap();
 
         assert_eq!(position.base_asset_amount, -9);
         assert_eq!(position.quote_asset_amount, 10);
@@ -347,7 +339,7 @@ mod test {
             ..Market::default_test()
         };
 
-        settle_lp_position(&mut position, &mut market, 1).unwrap();
+        settle_lp_position(&mut position, &mut market).unwrap();
 
         assert_eq!(position.base_asset_amount, -9);
         assert_eq!(position.quote_asset_amount, 10);

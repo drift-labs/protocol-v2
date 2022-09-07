@@ -1826,7 +1826,7 @@ mod test {
             ..MarketPosition::default()
         };
 
-        mint_lp_shares(&mut position, &mut market, AMM_RESERVE_PRECISION, 0, 0).unwrap();
+        mint_lp_shares(&mut position, &mut market, AMM_RESERVE_PRECISION, 0).unwrap();
 
         market.amm.market_position_per_lp = MarketPosition {
             base_asset_amount: 1,
@@ -1837,7 +1837,7 @@ mod test {
         let mark_price = market.amm.mark_price().unwrap();
         update_spreads(&mut market.amm, mark_price).unwrap();
 
-        settle_lp_position(&mut position, &mut market, 1).unwrap();
+        settle_lp_position(&mut position, &mut market).unwrap();
 
         assert_eq!(position.base_asset_amount, 0);
         assert_eq!(position.quote_asset_amount, -QUOTE_PRECISION_I128);
@@ -1868,7 +1868,7 @@ mod test {
 
         // lp whale adds
         let lp_whale_amount = 1000 * AMM_RESERVE_PRECISION;
-        mint_lp_shares(&mut position, &mut market, lp_whale_amount, 0, 0).unwrap();
+        mint_lp_shares(&mut position, &mut market, lp_whale_amount, 0).unwrap();
 
         // ensure same cost
         let update_k_up =

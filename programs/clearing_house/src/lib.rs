@@ -791,13 +791,14 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let _bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &get_market_set(market_index),
             &MarketSet::new(),
             remaining_accounts_iter,
         )?;
+
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
             controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
@@ -807,8 +808,7 @@ pub mod clearing_house {
         let position_index = get_position_index(&user.positions, market_index)?;
         let position = &mut user.positions[position_index];
         
-        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?.price;
-        let (position_delta, pnl) = settle_lp_position(position, &mut market, oracle_price_data)?;
+        let (position_delta, pnl) = settle_lp_position(position, &mut market)?;
 
         emit!(LPRecord {
             ts: now,
@@ -939,8 +939,7 @@ pub mod clearing_house {
 
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
-            let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-            controller::lp::mint_lp_shares(position, &mut market, n_shares, oracle_price, now)?;
+            controller::lp::mint_lp_shares(position, &mut market, n_shares, now)?;
         }
 
         // check margin requirements
