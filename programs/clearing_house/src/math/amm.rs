@@ -2327,7 +2327,7 @@ mod test {
         let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
         assert_eq!(
             market.amm.net_base_asset_amount,
-            (AMM_RESERVE_PRECISION / 10) as i128 - 1 
+            (AMM_RESERVE_PRECISION / 10) as i128 - 1
         );
         assert_eq!(cost, 49406); //0.05
 

@@ -70,21 +70,24 @@ pub fn settle_lp_position(
 ) -> ClearingHouseResult<(PositionDelta, i128)> {
     let mut lp_metrics = calculate_settle_lp_metrics(&market.amm, position)?;
 
-    position.remainder_base_asset_amount = position.remainder_base_asset_amount
+    position.remainder_base_asset_amount = position
+        .remainder_base_asset_amount
         .checked_add(lp_metrics.remainder_base_asset_amount)
         .ok_or_else(math_error!())?;
-    
-    if position.remainder_base_asset_amount.unsigned_abs() >= market.amm.base_asset_amount_step_size {
+
+    if position.remainder_base_asset_amount.unsigned_abs() >= market.amm.base_asset_amount_step_size
+    {
         let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
             crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
                 position.remainder_base_asset_amount,
                 market.amm.base_asset_amount_step_size,
             )?;
 
-        lp_metrics.base_asset_amount = lp_metrics.base_asset_amount
+        lp_metrics.base_asset_amount = lp_metrics
+            .base_asset_amount
             .checked_add(standardized_remainder_base_asset_amount)
             .ok_or_else(math_error!())?;
-        
+
         position.remainder_base_asset_amount = remainder_base_asset_amount;
     }
 
@@ -127,8 +130,10 @@ pub fn burn_lp_shares(
     // settle
     let (position_delta, pnl) = settle_lp_position(position, market)?;
 
-    // clean up 
-    let unsettled_remainder = market.amm.net_unsettled_lp_base_asset_amount
+    // clean up
+    let unsettled_remainder = market
+        .amm
+        .net_unsettled_lp_base_asset_amount
         .checked_add(position.remainder_base_asset_amount)
         .ok_or_else(math_error!())?;
 
@@ -138,11 +143,12 @@ pub fn burn_lp_shares(
             ErrorCode::DefaultError,
             "unsettled baa on final burn too big rel to stepsize {}: {}",
             market.amm.base_asset_amount_step_size,
-            market.amm.net_unsettled_lp_base_asset_amount, 
+            market.amm.net_unsettled_lp_base_asset_amount,
         )?;
 
         // sub bc lps take the opposite side of the user
-        position.remainder_base_asset_amount = position.remainder_base_asset_amount
+        position.remainder_base_asset_amount = position
+            .remainder_base_asset_amount
             .checked_sub(unsettled_remainder)
             .ok_or_else(math_error!())?;
     }
@@ -249,10 +255,7 @@ mod test {
         assert_eq!(position.last_net_quote_asset_amount_per_lp, -10);
         assert_eq!(position.base_asset_amount, 10);
         assert_eq!(position.quote_asset_amount, -10);
-        assert_eq!(
-            market.amm.net_unsettled_lp_base_asset_amount,
-            0
-        );
+        assert_eq!(market.amm.net_unsettled_lp_base_asset_amount, 0);
         // net baa doesnt change
         assert_eq!(
             og_market.amm.net_base_asset_amount,
@@ -329,7 +332,7 @@ mod test {
         settle_lp_position(&mut position, &mut market).unwrap();
 
         assert_eq!(position.base_asset_amount, -9);
-        assert_eq!(position.quote_asset_amount, 10); 
+        assert_eq!(position.quote_asset_amount, 10);
         assert_eq!(position.remainder_base_asset_amount, -1);
         assert_eq!(position.last_net_base_asset_amount_per_lp, -10);
         assert_eq!(position.last_net_quote_asset_amount_per_lp, 10);

@@ -447,7 +447,7 @@ pub fn update_amm_and_lp_market_position(
             get_proportion_i128(lp_delta_base, AMM_RESERVE_PRECISION, user_lp_shares)?;
         let per_lp_delta_quote =
             get_proportion_i128(lp_delta_quote, AMM_RESERVE_PRECISION, user_lp_shares)?;
-        
+
         let lp_delta_base =
             get_proportion_i128(per_lp_delta_base, user_lp_shares, AMM_RESERVE_PRECISION)?;
         let lp_delta_quote =

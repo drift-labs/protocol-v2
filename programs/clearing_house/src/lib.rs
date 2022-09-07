@@ -806,7 +806,7 @@ pub mod clearing_house {
         let mut market = market_map.get_ref_mut(&market_index)?;
         let position_index = get_position_index(&user.positions, market_index)?;
         let position = &mut user.positions[position_index];
-        
+
         let (position_delta, pnl) = settle_lp_position(position, &mut market)?;
 
         emit!(LPRecord {
@@ -882,12 +882,8 @@ pub mod clearing_house {
         )?;
 
         let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-        let (position_delta, pnl) = burn_lp_shares(
-            position,
-            &mut market,
-            shares_to_burn,
-            oracle_price,
-        )?;
+        let (position_delta, pnl) =
+            burn_lp_shares(position, &mut market, shares_to_burn, oracle_price)?;
 
         emit!(LPRecord {
             ts: now,
