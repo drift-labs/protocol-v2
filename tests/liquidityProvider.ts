@@ -119,11 +119,12 @@ async function fullClosePosition(clearingHouse, userPosition) {
 	console.log('=> closing:', userPosition.baseAssetAmount.toString());
 	let position = clearingHouse.getUserAccount().positions[0];
 	let sig;
-	while (true) {
+	let flag = true;
+	while (flag) {
 		sig = await clearingHouse.closePosition(new BN(0));
 		position = clearingHouse.getUserAccount().positions[0];
 		if (position.baseAssetAmount.eq(ZERO)) {
-			break;
+			flag = false;
 		}
 	}
 
@@ -769,7 +770,7 @@ describe('liquidity providing', () => {
 		// some user goes long (lp should get a short)
 		console.log('user trading...');
 		const tradeSize = new BN(40 * 1e13);
-		const newPrice = await adjustOraclePostSwap(
+		const _newPrice = await adjustOraclePostSwap(
 			tradeSize,
 			SwapDirection.ADD,
 			market
@@ -882,7 +883,7 @@ describe('liquidity providing', () => {
 		// some user goes long (lp should get a short)
 		console.log('user trading...');
 		const tradeSize = new BN(40 * 1e13);
-		const newPrice0 = await adjustOraclePostSwap(
+		const _newPrice0 = await adjustOraclePostSwap(
 			tradeSize,
 			SwapDirection.REMOVE,
 			market
@@ -984,7 +985,7 @@ describe('liquidity providing', () => {
 
 		console.log('user trading...');
 		const tradeSize = new BN(40 * 1e13);
-		const newPrice = await adjustOraclePostSwap(
+		const _newPrice = await adjustOraclePostSwap(
 			tradeSize,
 			SwapDirection.ADD,
 			market
