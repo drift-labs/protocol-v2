@@ -3,6 +3,7 @@ use solana_program::msg;
 
 use crate::context::*;
 use crate::controller;
+use crate::controller::funding::settle_funding_payment;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
@@ -767,6 +768,14 @@ fn sanitize_maker_order<'a>(
         )?;
         return Ok((None, None, None, None));
     }
+
+    let market_index = maker.orders[maker_order_index].market_index;
+    settle_funding_payment(
+        &mut maker,
+        &maker_key,
+        market_map.get_ref_mut(&market_index)?.deref_mut(),
+        now,
+    )?;
 
     Ok((
         Some(maker),
