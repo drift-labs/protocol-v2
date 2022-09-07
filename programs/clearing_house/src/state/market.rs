@@ -157,7 +157,7 @@ impl Market {
                     self.unrealized_imf_factor,
                     margin_asset_weight,
                 )?,
-                MarginRequirementType::Maintenance => margin_asset_weight,
+                MarginRequirementType::Maintenance => self.unrealized_maintenance_asset_weight as u128,
             }
         } else {
             100
