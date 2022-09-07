@@ -850,6 +850,15 @@ pub mod clearing_house {
             controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
         }
 
+        // standardize n shares to burn
+        let shares_to_burn = {
+            let market = market_map.get_ref(&market_index)?;
+            crate::math::orders::standardize_base_asset_amount(
+                shares_to_burn,
+                market.amm.base_asset_amount_step_size,
+            )?
+        };
+
         if shares_to_burn == 0 {
             return Ok(());
         }
@@ -938,6 +947,13 @@ pub mod clearing_house {
 
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
+
+            // standardize n shares to mint
+            let n_shares = crate::math::orders::standardize_base_asset_amount(
+                n_shares,
+                market.amm.base_asset_amount_step_size,
+            )?;
+
             controller::lp::mint_lp_shares(position, &mut market, n_shares, now)?;
         }
 
