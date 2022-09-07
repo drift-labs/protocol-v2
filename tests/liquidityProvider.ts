@@ -576,12 +576,18 @@ describe('liquidity providing', () => {
 		console.log(
 			position.baseAssetAmount.toString(),
 			position.quoteAssetAmount.toString(),
-			position.quoteEntryAmount.toString()
+			position.quoteEntryAmount.toString(),
+			position.remainderBaseAssetAmount.toString()
 		);
 
 		assert(settledLPPosition.baseAssetAmount.eq(position.baseAssetAmount));
 		assert(settledLPPosition.quoteAssetAmount.eq(position.quoteAssetAmount));
 		assert(settledLPPosition.quoteEntryAmount.eq(position.quoteEntryAmount));
+		assert(
+			settledLPPosition.remainderBaseAssetAmount.eq(
+				position.remainderBaseAssetAmount
+			)
+		);
 
 		assert(position.baseAssetAmount.lt(ZERO));
 		assert(position.quoteAssetAmount.gt(ZERO));
