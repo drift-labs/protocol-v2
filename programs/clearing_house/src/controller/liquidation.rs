@@ -1398,6 +1398,12 @@ pub fn resolve_perp_bankruptcy(
 
             let mut market = market_map.get_ref_mut(&market_index)?;
 
+            market.amm.cumulative_social_loss = market
+                .amm
+                .cumulative_social_loss
+                .checked_add(loss_to_socialize)
+                .ok_or_else(math_error!())?;
+
             market.amm.cumulative_funding_rate_long = market
                 .amm
                 .cumulative_funding_rate_long

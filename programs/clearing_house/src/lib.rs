@@ -401,6 +401,7 @@ pub mod clearing_house {
                 cumulative_repeg_rebate_short: 0,
                 cumulative_funding_rate_long: 0,
                 cumulative_funding_rate_short: 0,
+                cumulative_social_loss: 0,
                 last_funding_rate: 0,
                 last_funding_rate_long: 0,
                 last_funding_rate_short: 0,

@@ -261,6 +261,7 @@ pub struct AMM {
     pub cumulative_funding_rate_short: i128,
     pub cumulative_repeg_rebate_long: u128,
     pub cumulative_repeg_rebate_short: u128,
+    pub cumulative_social_loss: i128,
 
     pub mark_std: u64,
     pub last_mark_price_twap: u128,

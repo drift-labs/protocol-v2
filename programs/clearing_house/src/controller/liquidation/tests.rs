@@ -2018,6 +2018,7 @@ pub mod resolve_perp_bankruptcy {
         let mut expected_market = market;
         expected_market.amm.cumulative_funding_rate_long = 1010 * FUNDING_RATE_PRECISION_I128;
         expected_market.amm.cumulative_funding_rate_short = -1010 * FUNDING_RATE_PRECISION_I128;
+        expected_market.amm.cumulative_social_loss = -100000000;
 
         resolve_perp_bankruptcy(
             0,

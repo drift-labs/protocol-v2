@@ -1445,6 +1445,8 @@ pub fn calculate_net_user_pnl(amm: &AMM, oracle_price: i128) -> ClearingHouseRes
         .checked_add(
             amm.quote_asset_amount_long
                 .checked_add(amm.quote_asset_amount_short)
+                .ok_or_else(math_error!())?
+                .checked_sub(amm.cumulative_social_loss)
                 .ok_or_else(math_error!())?,
         )
         .ok_or_else(math_error!())

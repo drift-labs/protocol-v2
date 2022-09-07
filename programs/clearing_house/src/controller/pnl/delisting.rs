@@ -8,7 +8,7 @@ fn get_user_keys() -> (Pubkey, Pubkey, Pubkey) {
 }
 
 #[cfg(test)]
-pub mod delisting {
+pub mod delisting_test {
     use super::*;
     // use crate::controller::orders::fill_order;
     use crate::controller::liquidation::resolve_perp_bankruptcy;
@@ -49,6 +49,7 @@ pub mod delisting {
     use crate::controller::orders::cancel_order;
     use crate::controller::pnl::settle_expired_position;
     use crate::controller::repeg::settle_expired_market;
+    use crate::math::amm::calculate_net_user_pnl;
     use crate::state::state::{
         OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails,
     };
@@ -1794,7 +1795,7 @@ pub mod delisting {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
-                quote_asset_amount_long: (QUOTE_PRECISION_I128 * 1 * 200), // longs have -$1 cost basis
+                quote_asset_amount_long: (QUOTE_PRECISION_I128 * 200), // longs have -$1 cost basis
                 quote_asset_amount_short: (QUOTE_PRECISION_I128 * 97 * 1000), // shorts have $97 cost basis
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
@@ -1855,7 +1856,7 @@ pub mod delisting {
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I128,
                 base_asset_amount: (AMM_RESERVE_PRECISION_I128 * 200),
-                quote_asset_amount: (QUOTE_PRECISION_I128 * 1 * 2000), //longs have -$1 cost basis,
+                quote_asset_amount: (QUOTE_PRECISION_I128 * 2000), //longs have -$1 cost basis,
                 ..MarketPosition::default()
             }),
             bank_balances: get_bank_balances(UserBankBalance {
@@ -1866,7 +1867,7 @@ pub mod delisting {
             ..User::default()
         };
 
-        let mut shorter = User {
+        let shorter = User {
             orders: get_orders(Order {
                 market_index: 0,
                 post_only: true,
@@ -1894,15 +1895,7 @@ pub mod delisting {
             ..User::default()
         };
 
-        // let filler = User::default();
-
-        // let fee_structure = get_fee_structure();
-
-        let (taker_key, maker_key, _filler_key) = get_user_keys();
-
-        // let mut taker_stats = UserStats::default();
-        // let mut maker_stats = UserStats::default();
-        // let mut filler_stats = UserStats::default();
+        let (taker_key, _maker_key, _filler_key) = get_user_keys();
 
         let state = State {
             oracle_guard_rails: OracleGuardRails {
@@ -2162,7 +2155,7 @@ pub mod delisting {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
-                quote_asset_amount_long: (QUOTE_PRECISION_I128 * 1 * 200), // longs have -$1 cost basis
+                quote_asset_amount_long: (QUOTE_PRECISION_I128 * 200), // longs have -$1 cost basis
                 quote_asset_amount_short: (QUOTE_PRECISION_I128 * 97 * 1000), // shorts have $97 cost basis
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
@@ -2223,7 +2216,7 @@ pub mod delisting {
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I128,
                 base_asset_amount: (AMM_RESERVE_PRECISION_I128 * 200),
-                quote_asset_amount: (QUOTE_PRECISION_I128 * 1 * 200), //longs have -$1 cost basis,
+                quote_asset_amount: (QUOTE_PRECISION_I128 * 200), //longs have -$1 cost basis,
                 ..MarketPosition::default()
             }),
             bank_balances: get_bank_balances(UserBankBalance {
@@ -2720,10 +2713,16 @@ pub mod delisting {
 
             assert_eq!(market.amm.quote_asset_amount_long, 20000000000);
             assert_eq!(market.amm.quote_asset_amount_short, -23250000000);
+
+            assert_eq!(market.amm.cumulative_social_loss, -3250000000);
+
             assert_eq!(
                 market.amm.quote_asset_amount_long + market.amm.quote_asset_amount_short,
-                0
+                market.amm.cumulative_social_loss
             );
+
+            let net_pnl = calculate_net_user_pnl(&market.amm, 0).unwrap();
+            assert_eq!(net_pnl, 0);
 
             drop(market);
 
