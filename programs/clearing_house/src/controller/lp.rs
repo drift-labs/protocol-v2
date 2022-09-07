@@ -128,9 +128,13 @@ pub fn burn_lp_shares(
     let (position_delta, pnl) = settle_lp_position(position, market)?;
 
     // clean up 
-    if shares_to_burn == market.amm.user_lp_shares && market.amm.net_unsettled_lp_base_asset_amount != 0 {
+    let unsettled_remainder = market.amm.net_unsettled_lp_base_asset_amount
+        .checked_add(position.remainder_base_asset_amount)
+        .ok_or_else(math_error!())?;
+
+    if shares_to_burn == market.amm.user_lp_shares && unsettled_remainder != 0 {
         crate::validate!(
-            market.amm.net_unsettled_lp_base_asset_amount.unsigned_abs() <= market.amm.base_asset_amount_step_size,
+            unsettled_remainder.unsigned_abs() <= market.amm.base_asset_amount_step_size,
             ErrorCode::DefaultError,
             "unsettled baa on final burn too big rel to stepsize {}: {}",
             market.amm.base_asset_amount_step_size,
@@ -139,7 +143,7 @@ pub fn burn_lp_shares(
 
         // sub bc lps take the opposite side of the user
         position.remainder_base_asset_amount = position.remainder_base_asset_amount
-            .checked_sub(market.amm.net_unsettled_lp_base_asset_amount)
+            .checked_sub(unsettled_remainder)
             .ok_or_else(math_error!())?;
     }
 
