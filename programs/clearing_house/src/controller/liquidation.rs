@@ -43,7 +43,7 @@ use crate::state::events::{
 };
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
-use crate::state::user::{User, UserStats};
+use crate::state::user::{MarketType, User, UserStats};
 use crate::validate;
 use anchor_lang::prelude::*;
 use solana_program::msg;
@@ -151,7 +151,7 @@ pub fn liquidate_perp(
     let mut canceled_order_ids: Vec<u64> = vec![];
     let mut canceled_orders_fee = 0_u128;
     for order_index in 0..user.orders.len() {
-        if !user.orders[order_index].is_open_order_for_market(market_index) {
+        if !user.orders[order_index].is_open_order_for_market(market_index, &MarketType::Perp) {
             continue;
         }
 

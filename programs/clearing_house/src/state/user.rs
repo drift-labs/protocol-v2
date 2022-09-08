@@ -490,8 +490,10 @@ impl Order {
         self.post_only && self.immediate_or_cancel
     }
 
-    pub fn is_open_order_for_market(&self, market_index: u64) -> bool {
-        self.market_index == market_index && self.status == OrderStatus::Open
+    pub fn is_open_order_for_market(&self, market_index: u64, market_type: &MarketType) -> bool {
+        self.market_index == market_index
+            && self.status == OrderStatus::Open
+            && &self.market_type == market_type
     }
 
     pub fn get_bank_balance_update_direction(&self, asset_type: AssetType) -> BankBalanceType {
