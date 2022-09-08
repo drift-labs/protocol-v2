@@ -2,11 +2,25 @@ import { AMM, OracleGuardRails } from '../types';
 import { OraclePriceData } from '../oracles/types';
 import {
 	BID_ASK_SPREAD_PRECISION,
+	MARGIN_PRECISION,
 	MARK_PRICE_PRECISION,
 	ONE,
 	ZERO,
 } from '../constants/numericConstants';
-import { BN } from '../index';
+import { BN, MarketAccount } from '../index';
+
+export function oraclePriceBands(
+	market: MarketAccount,
+	oraclePriceData: OraclePriceData
+): [BN, BN] {
+	const maxPercentDiff =
+		market.marginRatioInitial - market.marginRatioMaintenance;
+	const offset = oraclePriceData.price
+		.mul(new BN(maxPercentDiff))
+		.div(MARGIN_PRECISION);
+
+	return [oraclePriceData.price.sub(offset), oraclePriceData.price.add(offset)];
+}
 
 export function isOracleValid(
 	amm: AMM,

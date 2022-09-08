@@ -17,7 +17,6 @@ use crate::validate;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::prelude::*;
 use solana_program::msg;
-use std::ops::DerefMut;
 
 #[cfg(test)]
 mod tests;
@@ -39,12 +38,13 @@ pub fn settle_pnl(
         update_bank_cumulative_interest(bank, now)?;
     }
 
-    settle_funding_payment(
-        user,
-        user_key,
-        market_map.get_ref_mut(&market_index)?.deref_mut(),
-        now,
-    )?;
+    let mut market = market_map.get_ref_mut(&market_index)?;
+
+    crate::controller::lp::settle_lp(user, user_key, &mut market, now)?;
+
+    settle_funding_payment(user, user_key, &mut market, now)?;
+
+    drop(market);
 
     // cannot settle pnl this way on a user who is in liquidation territory
     if !(meets_maintenance_margin_requirement(user, market_map, bank_map, oracle_map)?) {
