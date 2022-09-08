@@ -326,29 +326,26 @@ pub fn update_mark_twap(
         "amm.last_oracle_price <= 0"
     )?;
 
-    // optimistically estimation of bid/ask using execution premium
-    msg!(
-        "{} vs {} {}",
-        last_oracle_price_u128,
-        base_spread_u128,
-        amm.short_spread / 2
-    );
+    // estimation of bid/ask by looking at execution premium
+
     // trade is a long
     let best_bid_estimate = if trade_price > last_oracle_price_u128 {
+        let discount = min(base_spread_u128, amm.short_spread / 2);
         last_oracle_price_u128
-            .checked_sub(min(base_spread_u128, amm.short_spread / 2))
+            .checked_sub(discount)
             .ok_or_else(math_error!())?
     } else {
-        last_oracle_price_u128
+        trade_price
     };
 
     // trade is a short
     let best_ask_estimate = if trade_price < last_oracle_price_u128 {
+        let premium = min(base_spread_u128, amm.long_spread / 2);
         last_oracle_price_u128
-            .checked_add(min(base_spread_u128, amm.long_spread / 2))
+            .checked_add(premium)
             .ok_or_else(math_error!())?
     } else {
-        last_oracle_price_u128
+        trade_price
     };
 
     let (bid_price, ask_price) = match direction {
