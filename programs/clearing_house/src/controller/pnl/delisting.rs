@@ -2554,15 +2554,10 @@ pub mod delisting_test {
                     longer.positions[0].base_asset_amount,
                     market.base_asset_amount_long
                 );
-                assert_eq!(
-                    longer.positions[0].quote_asset_amount,
-                    200000000
-                );
+                assert_eq!(longer.positions[0].quote_asset_amount, 200000000);
 
                 assert_eq!(market.amm.quote_asset_amount_long, 201000000);
                 assert_eq!(market.amm.quote_asset_amount_short, 96999000000);
-
-
 
                 // add a liq fee now
                 market.liquidation_fee = 10000;
@@ -2588,7 +2583,6 @@ pub mod delisting_test {
 
             assert_eq!(shorter.being_liquidated, true);
             assert_eq!(shorter.bankrupt, true);
-
 
             {
                 let market = market_map.get_ref_mut(&0).unwrap();
@@ -2686,10 +2680,10 @@ pub mod delisting_test {
             )
             .unwrap();
 
-            assert_eq!(liquidator.bank_balances[0].balance, 20079740000); 
+            assert_eq!(liquidator.bank_balances[0].balance, 20079740000);
             // avoid the social loss :p
             // made 79 bucks
-            
+
             assert_eq!(
                 liquidator.bank_balances[0].balance_type,
                 BankBalanceType::Deposit
@@ -2773,10 +2767,7 @@ pub mod delisting_test {
             assert_eq!(market.pnl_pool.balance, 20920260000);
             assert_eq!(longer.bank_balances[0].balance, 20000000000);
             assert_eq!(longer.positions[0].quote_asset_amount, 200000000);
-            assert_eq!(
-                longer.positions[0].quote_asset_amount,
-                200000000
-            );
+            assert_eq!(longer.positions[0].quote_asset_amount, 200000000);
 
             assert_eq!(market.amm.quote_asset_amount_long, 20000010000);
             assert_eq!(market.amm.quote_asset_amount_short, -23250000000);

@@ -1379,6 +1379,8 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
         .checked_mul(invariant_sqrt_u192)
         .ok_or_else(math_error!())?;
 
+    validate!(limit_price > 0, ErrorCode::DefaultError, "limit_price <= 0")?;
+    
     let new_base_asset_reserve_squared = invariant
         .checked_mul(U192::from(MARK_PRICE_PRECISION))
         .ok_or_else(math_error!())?
