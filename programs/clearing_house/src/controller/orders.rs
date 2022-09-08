@@ -2022,7 +2022,6 @@ pub fn place_spot_order(
         let bank_balance = &mut user.bank_balances[bank_balance_index];
         bank_balance.open_orders += 1;
 
-        msg!("bank.order_step_size {}", bank.order_step_size);
         let standardized_base_asset_amount =
             standardize_base_asset_amount(params.base_asset_amount, bank.order_step_size)?;
 
@@ -2172,6 +2171,13 @@ pub fn place_spot_order(
         oracle_price_data.price,
     )?;
     emit!(order_action_record);
+
+    let order_record = OrderRecord {
+        ts: now,
+        user: user_key,
+        order: user.orders[new_order_index],
+    };
+    emit!(order_record);
 
     Ok(())
 }
