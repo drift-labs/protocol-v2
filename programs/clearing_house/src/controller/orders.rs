@@ -4,6 +4,7 @@ use solana_program::msg;
 use crate::context::*;
 use crate::controller;
 use crate::controller::bank_balance::update_bank_balances;
+use crate::controller::funding::settle_funding_payment;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
@@ -26,6 +27,7 @@ use crate::math::auction::{
 };
 use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::{cast, cast_to_i128};
+use crate::math::constants::{MARGIN_PRECISION, MARGIN_PRECISION_TO_BANK_WEIGHT_PRECISION_RATIO};
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
@@ -83,12 +85,6 @@ pub fn place_order(
     let slot = clock.slot;
     let user_key = user.key();
     let user = &mut load_mut!(user)?;
-    controller::funding::settle_funding_payment(
-        user,
-        &user_key,
-        market_map.get_ref(&params.market_index)?.deref(),
-        now,
-    )?;
 
     validate_user_not_being_liquidated(
         user,
@@ -365,15 +361,6 @@ pub fn cancel_order(
 
     let is_perp_order = order_market_type == MarketType::Perp;
 
-    if is_perp_order {
-        controller::funding::settle_funding_payment(
-            user,
-            user_key,
-            market_map.get_ref(&order_market_index)?.deref(),
-            now,
-        )?;
-    }
-
     validate!(order_status == OrderStatus::Open, ErrorCode::OrderNotOpen)?;
 
     // When save in the record, we want the status to be canceled
@@ -492,7 +479,7 @@ pub fn fill_order(
     controller::funding::settle_funding_payment(
         user,
         &user_key,
-        market_map.get_ref(&market_index)?.deref(),
+        market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
@@ -524,6 +511,8 @@ pub fn fill_order(
     let oracle_price: i128;
     {
         let market = &mut market_map.get_ref_mut(&market_index)?;
+        controller::validate::validate_market_account(market)?;
+
         validate!(
             ((oracle_map.slot == market.amm.last_update_slot && market.amm.last_oracle_valid)
                 || market.amm.curve_update_intensity == 0),
@@ -585,7 +574,8 @@ pub fn fill_order(
             &user.orders[order_index],
             oracle_price,
             slot,
-            market.get_initial_leverage_ratio(MarginRequirementType::Initial),
+            market.margin_ratio_initial as u128,
+            market.margin_ratio_maintenance as u128,
             Some(&market.amm),
         )?
     };
@@ -750,8 +740,6 @@ pub fn fill_order(
             state.funding_paused,
             Some(mark_price_before),
         )?;
-
-        controller::validate::validate_market_account(market)?;
     }
 
     Ok((base_asset_amount, updated_user_state))
@@ -814,13 +802,13 @@ fn sanitize_maker_order<'a>(
 
     let breaches_oracle_price_limits = {
         let market = market_map.get_ref(&maker.orders[maker_order_index].market_index)?;
-        let initial_leverage_ratio =
-            market.get_initial_leverage_ratio(MarginRequirementType::Initial);
+
         order_breaches_oracle_price_limits(
             &maker.orders[maker_order_index],
             oracle_price,
             slot,
-            initial_leverage_ratio,
+            market.margin_ratio_initial as u128,
+            market.margin_ratio_maintenance as u128,
             Some(&market.amm),
         )?
     };
@@ -854,6 +842,14 @@ fn sanitize_maker_order<'a>(
         )?;
         return Ok((None, None, None, None));
     }
+
+    let market_index = maker.orders[maker_order_index].market_index;
+    settle_funding_payment(
+        &mut maker,
+        &maker_key,
+        market_map.get_ref_mut(&market_index)?.deref_mut(),
+        now,
+    )?;
 
     Ok((
         Some(maker),
@@ -1198,6 +1194,13 @@ pub fn fulfill_order_with_amm(
         order_post_only,
     )?;
 
+    amm::update_amm_long_short_intensity(
+        &mut market.amm,
+        now,
+        quote_asset_amount,
+        order_direction,
+    )?;
+
     let user_position_delta =
         get_position_delta_for_fill(base_asset_amount, quote_asset_amount, order_direction)?;
 
@@ -1246,7 +1249,7 @@ pub fn fulfill_order_with_amm(
 
     if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
         if let Ok(referrer_position) = referrer.force_get_position_mut(market.market_index) {
-            update_quote_asset_amount(referrer_position, cast(referrer_reward)?)?;
+            update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
 
             referrer_stats.total_referrer_reward = referrer_stats
                 .total_referrer_reward
@@ -1259,6 +1262,7 @@ pub fn fulfill_order_with_amm(
 
     controller::position::update_quote_asset_amount(
         &mut user.positions[position_index],
+        market,
         -cast(user_fee)?,
     )?;
 
@@ -1276,6 +1280,7 @@ pub fn fulfill_order_with_amm(
 
         controller::position::update_quote_asset_amount(
             &mut filler.positions[position_index],
+            market,
             cast(filler_reward)?,
         )?;
 
@@ -1558,6 +1563,7 @@ pub fn fulfill_order_with_match(
 
     controller::position::update_quote_asset_amount(
         &mut taker.positions[taker_position_index],
+        market,
         -cast(taker_fee)?,
     )?;
 
@@ -1578,6 +1584,7 @@ pub fn fulfill_order_with_match(
 
     controller::position::update_quote_asset_amount(
         &mut maker.positions[maker_position_index],
+        market,
         cast(maker_rebate)?,
     )?;
 
@@ -1597,6 +1604,7 @@ pub fn fulfill_order_with_match(
 
         controller::position::update_quote_asset_amount(
             &mut filler.positions[filler_position_index],
+            market,
             cast(filler_reward)?,
         )?;
 
@@ -1608,7 +1616,7 @@ pub fn fulfill_order_with_match(
 
     if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
         if let Ok(referrer_position) = referrer.force_get_position_mut(market.market_index) {
-            update_quote_asset_amount(referrer_position, cast(referrer_reward)?)?;
+            update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
 
             referrer_stats.total_referrer_reward = referrer_stats
                 .total_referrer_reward
@@ -1795,13 +1803,6 @@ pub fn trigger_order(
     let (order_status, market_index) =
         get_struct_values!(user.orders[order_index], status, market_index);
 
-    controller::funding::settle_funding_payment(
-        user,
-        &user_key,
-        market_map.get_ref_mut(&market_index)?.deref_mut(),
-        now,
-    )?;
-
     validate!(
         order_status == OrderStatus::Open,
         ErrorCode::OrderNotOpen,
@@ -1908,10 +1909,18 @@ pub fn pay_keeper_flat_reward_for_perps(
 ) -> ClearingHouseResult<u128> {
     let filler_reward = if let Some(filler) = filler {
         let user_position = user.get_position_mut(market.market_index)?;
-        controller::position::update_quote_asset_amount(user_position, -cast(filler_reward)?)?;
+        controller::position::update_quote_asset_amount(
+            user_position,
+            market,
+            -cast(filler_reward)?,
+        )?;
 
         let filler_position = filler.force_get_position_mut(market.market_index)?;
-        controller::position::update_quote_asset_amount(filler_position, cast(filler_reward)?)?;
+        controller::position::update_quote_asset_amount(
+            filler_position,
+            market,
+            cast(filler_reward)?,
+        )?;
 
         filler_reward
     } else {
@@ -1933,6 +1942,7 @@ pub fn pay_keeper_flat_reward_for_spot(
             &BankBalanceType::Deposit,
             quote_bank,
             filler.get_quote_asset_bank_balance_mut(),
+            false,
         )?;
 
         update_bank_balances(
@@ -1940,6 +1950,7 @@ pub fn pay_keeper_flat_reward_for_spot(
             &BankBalanceType::Borrow,
             quote_bank,
             user.get_quote_asset_bank_balance_mut(),
+            false,
         )?;
 
         filler_reward
@@ -2110,7 +2121,8 @@ pub fn place_spot_order(
         valid_oracle_price,
         slot,
         bank.order_step_size,
-        bank.get_initial_leverage_ratio(MarginRequirementType::Initial)?,
+        bank.get_margin_ratio(&MarginRequirementType::Initial)?,
+        bank.get_margin_ratio(&MarginRequirementType::Maintenance)?,
         state.min_order_quote_asset_amount,
         bank.decimals as u32,
     )?;
@@ -2400,13 +2412,15 @@ fn sanitize_spot_maker_order<'a>(
     let breaches_oracle_price_limits = {
         let bank = bank_map.get_ref(&maker.orders[maker_order_index].market_index)?;
         let oracle_price = oracle_map.get_price_data(&bank.oracle)?;
-        let initial_leverage_ratio =
-            bank.get_initial_leverage_ratio(MarginRequirementType::Initial)?;
+        let initial_margin_ratio = bank.get_margin_ratio(&MarginRequirementType::Initial)?;
+        let maintenance_margin_ratio =
+            bank.get_margin_ratio(&MarginRequirementType::Maintenance)?;
         order_breaches_oracle_price_limits(
             &maker.orders[maker_order_index],
             oracle_price.price,
             slot,
-            initial_leverage_ratio,
+            initial_margin_ratio,
+            maintenance_margin_ratio,
             None,
         )?
     };
@@ -2678,6 +2692,7 @@ pub fn fulfill_spot_order_with_match(
         &taker.orders[taker_order_index].get_bank_balance_update_direction(AssetType::Base),
         base_bank,
         taker.force_get_bank_balance_mut(base_bank.bank_index)?,
+        false,
     )?;
 
     let taker_quote_asset_amount_delta = match &taker.orders[taker_order_index].direction {
@@ -2694,6 +2709,7 @@ pub fn fulfill_spot_order_with_match(
         &taker.orders[taker_order_index].get_bank_balance_update_direction(AssetType::Quote),
         quote_bank,
         taker.get_quote_asset_bank_balance_mut(),
+        false,
     )?;
 
     maker_stats.update_maker_volume_30d(cast(quote_asset_amount)?, now)?;
@@ -2703,6 +2719,7 @@ pub fn fulfill_spot_order_with_match(
         &maker.orders[maker_order_index].get_bank_balance_update_direction(AssetType::Base),
         base_bank,
         taker.force_get_bank_balance_mut(base_bank.bank_index)?,
+        false,
     )?;
 
     let maker_quote_asset_amount_delta = match &maker.orders[maker_order_index].direction {
@@ -2719,6 +2736,7 @@ pub fn fulfill_spot_order_with_match(
         &maker.orders[maker_order_index].get_bank_balance_update_direction(AssetType::Quote),
         quote_bank,
         taker.get_quote_asset_bank_balance_mut(),
+        false,
     )?;
 
     taker_stats.update_taker_volume_30d(cast(quote_asset_amount)?, now)?;
@@ -2760,6 +2778,7 @@ pub fn fulfill_spot_order_with_match(
                 &BankBalanceType::Deposit,
                 quote_bank,
                 filler.get_quote_asset_bank_balance_mut(),
+                false,
             )?;
         }
 
@@ -2970,6 +2989,7 @@ pub fn fulfill_spot_order_with_serum(
         &BankBalanceType::Deposit,
         quote_bank,
         &mut base_bank.spot_fee_pool,
+        false,
     )?;
 
     let (base_update_direction, base_asset_amount_filled) = if base_after > base_before {
@@ -3076,6 +3096,7 @@ pub fn fulfill_spot_order_with_serum(
         &taker.orders[taker_order_index].get_bank_balance_update_direction(AssetType::Base),
         base_bank,
         taker.force_get_bank_balance_mut(base_bank.bank_index)?,
+        false,
     )?;
 
     validate!(
@@ -3090,6 +3111,7 @@ pub fn fulfill_spot_order_with_serum(
         &taker.orders[taker_order_index].get_bank_balance_update_direction(AssetType::Quote),
         quote_bank,
         taker.get_quote_asset_bank_balance_mut(),
+        false,
     )?;
 
     taker_stats.update_taker_volume_30d(cast(quote_asset_amount_filled)?, now)?;
@@ -3116,6 +3138,7 @@ pub fn fulfill_spot_order_with_serum(
                 &BankBalanceType::Deposit,
                 quote_bank,
                 filler.get_quote_asset_bank_balance_mut(),
+                false,
             )?;
         }
 
@@ -3132,6 +3155,7 @@ pub fn fulfill_spot_order_with_serum(
             },
             quote_bank,
             &mut base_bank.spot_fee_pool,
+            false,
         )?;
     }
 

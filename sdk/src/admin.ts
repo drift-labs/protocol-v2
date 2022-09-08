@@ -13,13 +13,10 @@ import { BN } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
 import {
 	getClearingHouseStateAccountPublicKeyAndNonce,
-	getBankVaultAuthorityPublicKey,
 	getBankPublicKey,
 	getBankVaultPublicKey,
 	getMarketPublicKey,
 	getInsuranceFundVaultPublicKey,
-	getInsuranceFundVaultAuthorityPublicKey,
-	getClearingHouseSignerPublicKey,
 	getSerumOpenOrdersPublicKey,
 	getSerumFulfillmentConfigPublicKey,
 } from './addresses/pda';
@@ -377,7 +374,7 @@ export class Admin extends ClearingHouse {
 				state: await this.getStatePublicKey(),
 				bank: bank.pubkey,
 				insuranceVault: state.insuranceVault,
-				// insuranceVaultAuthority: state.insuranceVaultAuthority,
+				clearingHouseSigner: this.getSignerPublicKey(),
 				recipient: recipient,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
@@ -401,7 +398,7 @@ export class Admin extends ClearingHouse {
 				market: marketPublicKey,
 				bank: bank.pubkey,
 				bankVault: bank.vault,
-				// bankVaultAuthority: bank.vaultAuthority,
+				clearingHouseSigner: this.getSignerPublicKey(),
 				recipient: recipient,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
@@ -421,10 +418,9 @@ export class Admin extends ClearingHouse {
 				state: await this.getStatePublicKey(),
 				market: await getMarketPublicKey(this.program.programId, marketIndex),
 				insuranceVault: state.insuranceVault,
-				// insuranceVaultAuthority: state.insuranceVaultAuthority,
+				clearingHouseSigner: this.getSignerPublicKey(),
 				bank: bank.pubkey,
 				bankVault: bank.vault,
-				// bankVaultAuthority: bank.vaultAuthority,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
 		});
@@ -841,5 +837,21 @@ export class Admin extends ClearingHouse {
 				market: this.getMarketAccount(marketIndex).pubkey,
 			},
 		});
+	}
+
+	public async updateMarketMaxRevenueWithdrawPerPeroid(
+		marketIndex: BN,
+		maxRevenueWithdrawPerPeriod: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateMarketMaxRevenueWithdrawPerPeroid(
+			maxRevenueWithdrawPerPeriod,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					market: await getMarketPublicKey(this.program.programId, marketIndex),
+				},
+			}
+		);
 	}
 }

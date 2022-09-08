@@ -267,7 +267,7 @@ mod test {
         // assert!(upnl < position_unrealized_pnl); // margin system discounts
 
         assert!(pmr > 0);
-        assert_eq!(pmr, 13880655737);
+        assert_eq!(pmr, 13867100409);
 
         oracle_price_data.price = (21050 * MARK_PRICE_PRECISION) as i128; // lower by $1000 (in favor of user)
         oracle_price_data.confidence = MARK_PRICE_PRECISION;
@@ -347,12 +347,12 @@ mod test {
             .unwrap();
         assert_eq!(uaw_2, 95);
 
-        assert_eq!(upnl_2, 23062807377);
+        assert_eq!(upnl_2, 23068647541);
         assert!(upnl_2 > upnl);
         assert!(pmr_2 > 0);
-        assert_eq!(pmr_2, 13251147540); //$12940.5737702000
+        assert_eq!(pmr_2, 13238206966); //$12940.5737702000
         assert!(pmr > pmr_2);
-        assert_eq!(pmr - pmr_2, 629508197);
+        assert_eq!(pmr - pmr_2, 628893443);
         //-6.1475409835 * 1000 / 10 = 614.75
     }
 

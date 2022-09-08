@@ -117,7 +117,8 @@ fn validate_limit_order(
             order,
             valid_oracle_price.ok_or(ErrorCode::InvalidOracle)?,
             slot,
-            market.get_initial_leverage_ratio(MarginRequirementType::Initial),
+            market.margin_ratio_initial as u128,
+            market.margin_ratio_maintenance as u128,
             Some(&market.amm),
         )?;
 
@@ -289,7 +290,8 @@ pub fn validate_spot_order(
     valid_oracle_price: Option<i128>,
     slot: u64,
     step_size: u128,
-    initial_leverage_ratio: u128,
+    margin_ratio_initial: u128,
+    margin_ratio_maintenance: u128,
     minimum_order_value: u128,
     base_decimals: u32,
 ) -> ClearingHouseResult {
@@ -300,7 +302,8 @@ pub fn validate_spot_order(
             valid_oracle_price,
             slot,
             step_size,
-            initial_leverage_ratio,
+            margin_ratio_initial,
+            margin_ratio_maintenance,
             minimum_order_value,
             base_decimals,
         )?,
@@ -320,7 +323,8 @@ fn validate_spot_limit_order(
     valid_oracle_price: Option<i128>,
     slot: u64,
     step_size: u128,
-    initial_leverage_ratio: u128,
+    margin_ratio_initial: u128,
+    margin_ratio_maintenance: u128,
     minimum_order_value: u128,
     bank_decimals: u32,
 ) -> ClearingHouseResult {
@@ -346,7 +350,8 @@ fn validate_spot_limit_order(
             order,
             valid_oracle_price.ok_or(ErrorCode::InvalidOracle)?,
             slot,
-            initial_leverage_ratio,
+            margin_ratio_initial,
+            margin_ratio_maintenance,
             None,
         )?;
 

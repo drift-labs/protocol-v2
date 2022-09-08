@@ -1,5 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(unaligned_references)]
+#![allow(clippy::bool_assert_comparison)]
 
 use anchor_lang::prelude::*;
 use borsh::BorshSerialize;
@@ -10,6 +11,7 @@ use math::{amm, bn, constants::*, margin::*};
 use state::oracle::{get_oracle_price, OracleSource};
 
 use crate::math::amm::get_update_k_result;
+use crate::state::events::{LPAction, LPRecord};
 use crate::state::market::Market;
 use crate::state::user::MarketPosition;
 use crate::state::{market::AMM, state::*, user::*};
@@ -34,7 +36,7 @@ use std::convert::identity;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("HbUKwqFPjz9r7ZtT416AU8aaecDQMKKiDCTS3AdXnS6c");
+declare_id!("3v1iEjbSSLSSYyt1pmx4UB5rqJGurmz71RibXF7X6UF3");
 
 #[program]
 pub mod clearing_house {
@@ -459,10 +461,13 @@ pub mod clearing_house {
             OracleSource::QuoteAsset => panic!(),
         };
 
+        let max_spread = margin_ratio_initial * (100 - 5) / 2; // init 10% below the oracle price threshold
+
         validate_margin(
             margin_ratio_initial,
             margin_ratio_maintenance,
             liquidation_fee,
+            max_spread,
         )?;
 
         let state = &mut ctx.accounts.state;
@@ -541,7 +546,7 @@ pub mod clearing_house {
                 base_spread: 0,
                 long_spread: 0,
                 short_spread: 0,
-                max_spread: (margin_ratio_initial * 100),
+                max_spread,
                 last_bid_price_twap: init_mark_price,
                 last_ask_price_twap: init_mark_price,
                 net_base_asset_amount: 0,
@@ -635,6 +640,7 @@ pub mod clearing_house {
             &BankBalanceType::Deposit,
             bank,
             user_bank_balance,
+            false,
         )?;
 
         controller::token::receive(
@@ -808,6 +814,7 @@ pub mod clearing_house {
                 &BankBalanceType::Borrow,
                 bank,
                 from_user_bank_balance,
+                true,
             )?;
         }
 
@@ -847,6 +854,7 @@ pub mod clearing_house {
                 &BankBalanceType::Deposit,
                 bank,
                 to_user_bank_balance,
+                false,
             )?;
         }
 
@@ -886,21 +894,35 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let _bank_map = BankMap::load(&BankSet::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
-            &MarketSet::new(),
             &get_market_set(market_index),
+            &MarketSet::new(),
             remaining_accounts_iter,
         )?;
+
         {
-            let market = market_map.get_ref_mut(&market_index)?;
-            controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
         }
 
         let mut market = market_map.get_ref_mut(&market_index)?;
         let position_index = get_position_index(&user.positions, market_index)?;
         let position = &mut user.positions[position_index];
 
-        settle_lp_position(position, &mut market)?;
+        let (position_delta, pnl) = settle_lp_position(position, &mut market)?;
+
+        emit!(LPRecord {
+            ts: now,
+            action: LPAction::SettleLiquidity,
+            user: user_key,
+            market_index,
+            delta_base_asset_amount: position_delta.base_asset_amount,
+            delta_quote_asset_amount: position_delta.quote_asset_amount,
+            pnl,
+            n_shares: 0
+        });
 
         Ok(())
     }
@@ -928,9 +950,18 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
         {
-            let market = market_map.get_ref_mut(&market_index)?;
-            controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
         }
+
+        // standardize n shares to burn
+        let shares_to_burn = {
+            let market = market_map.get_ref(&market_index)?;
+            crate::math::orders::standardize_base_asset_amount(
+                shares_to_burn,
+                market.amm.base_asset_amount_step_size,
+            )?
+        };
 
         if shares_to_burn == 0 {
             return Ok(());
@@ -954,13 +985,20 @@ pub mod clearing_house {
             ErrorCode::TryingToRemoveLiquidityTooFast
         )?;
 
-        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-        burn_lp_shares(
-            position,
-            &mut market,
-            shares_to_burn,
-            oracle_price_data.price,
-        )?;
+        let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+        let (position_delta, pnl) =
+            burn_lp_shares(position, &mut market, shares_to_burn, oracle_price)?;
+
+        emit!(LPRecord {
+            ts: now,
+            action: LPAction::RemoveLiquidity,
+            user: user_key,
+            n_shares: shares_to_burn,
+            market_index,
+            delta_base_asset_amount: position_delta.base_asset_amount,
+            delta_quote_asset_amount: position_delta.quote_asset_amount,
+            pnl,
+        });
 
         Ok(())
     }
@@ -989,16 +1027,33 @@ pub mod clearing_house {
         )?;
 
         {
-            let market = market_map.get_ref_mut(&market_index)?;
-            controller::funding::settle_funding_payment(user, &user_key, &market, now)?;
+            let mut market = market_map.get_ref_mut(&market_index)?;
+            controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
         }
 
         let position_index = get_position_index(&user.positions, market_index)
             .or_else(|_| add_new_position(&mut user.positions, market_index))?;
+
+        validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+        math::liquidation::validate_user_not_being_liquidated(
+            user,
+            &market_map,
+            &bank_map,
+            &mut oracle_map,
+            ctx.accounts.state.liquidation_margin_buffer_ratio,
+        )?;
+
         let position = &mut user.positions[position_index];
 
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
+
+            // standardize n shares to mint
+            let n_shares = crate::math::orders::standardize_base_asset_amount(
+                n_shares,
+                market.amm.base_asset_amount_step_size,
+            )?;
+
             controller::lp::mint_lp_shares(position, &mut market, n_shares, now)?;
         }
 
@@ -1008,6 +1063,15 @@ pub mod clearing_house {
             ErrorCode::InsufficientCollateral,
             "User does not meet initial margin requirement"
         )?;
+
+        emit!(LPRecord {
+            ts: now,
+            action: LPAction::AddLiquidity,
+            user: user_key,
+            n_shares,
+            market_index,
+            ..LPRecord::default()
+        });
 
         Ok(())
     }
@@ -1821,7 +1885,6 @@ pub mod clearing_house {
                 ctx.accounts.insurance_fund_vault.amount
             )?;
 
-            let bank = bank_map.get_quote_asset_bank_mut()?;
             controller::token::send_from_program_vault(
                 &ctx.accounts.token_program,
                 &ctx.accounts.insurance_fund_vault,
@@ -1885,7 +1948,6 @@ pub mod clearing_house {
         )?;
 
         if pay_from_insurance > 0 {
-            let bank = bank_map.get_quote_asset_bank_mut()?;
             controller::token::send_from_program_vault(
                 &ctx.accounts.token_program,
                 &ctx.accounts.insurance_fund_vault,
@@ -1973,6 +2035,7 @@ pub mod clearing_house {
             &BankBalanceType::Borrow,
             bank,
             &mut market.amm.fee_pool,
+            false,
         )?;
 
         market.amm.total_fee_withdrawn = market
@@ -2024,6 +2087,7 @@ pub mod clearing_house {
             &BankBalanceType::Deposit,
             bank,
             &mut market.amm.fee_pool,
+            false,
         )?;
 
         controller::token::send_from_program_vault(
@@ -2473,6 +2537,7 @@ pub mod clearing_house {
             margin_ratio_initial,
             margin_ratio_maintenance,
             market.liquidation_fee,
+            market.amm.max_spread,
         )?;
 
         market.margin_ratio_initial = margin_ratio_initial;
@@ -2523,6 +2588,7 @@ pub mod clearing_house {
             market.margin_ratio_initial,
             market.margin_ratio_maintenance,
             liquidation_fee,
+            market.amm.max_spread,
         )?;
 
         market.liquidation_fee = liquidation_fee;
@@ -2867,10 +2933,15 @@ pub mod clearing_house {
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
         validate!(
-            (max_spread > market.amm.base_spread as u32)
-                && (max_spread <= market.margin_ratio_initial * 100),
+            (max_spread >= market.amm.base_spread as u32),
             ErrorCode::DefaultError,
-            "invalid max_spread",
+            "invalid max_spread < base_spread",
+        )?;
+
+        validate!(
+            max_spread <= market.margin_ratio_initial * 100,
+            ErrorCode::DefaultError,
+            "invalid max_spread > market.margin_ratio_initial * 100",
         )?;
 
         market.amm.max_spread = max_spread;
@@ -3008,7 +3079,7 @@ pub mod clearing_house {
 
     pub fn settle_revenue_to_insurance_fund(
         ctx: Context<SettleRevenueToInsuranceFund>,
-        bank_index: u64,
+        _bank_index: u64,
     ) -> Result<()> {
         let state = &ctx.accounts.state;
         let bank = &mut load_mut!(ctx.accounts.bank)?;

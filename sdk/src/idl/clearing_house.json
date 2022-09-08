@@ -3564,6 +3564,10 @@
             "type": "i128"
           },
           {
+            "name": "lpShares",
+            "type": "u128"
+          },
+          {
             "name": "userPnl",
             "type": "i128"
           },
@@ -4368,6 +4372,10 @@
             "type": "u128"
           },
           {
+            "name": "remainderBaseAssetAmount",
+            "type": "i128"
+          },
+          {
             "name": "lastNetBaseAssetAmountPerLp",
             "type": "i128"
           },
@@ -4731,6 +4739,23 @@
           },
           {
             "name": "OrderFilledWithMatch"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LPAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "AddLiquidity"
+          },
+          {
+            "name": "RemoveLiquidity"
+          },
+          {
+            "name": "SettleLiquidity"
           }
         ]
       }
@@ -5474,6 +5499,53 @@
         },
         {
           "name": "oraclePrice",
+          "type": "i128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "LPRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "action",
+          "type": {
+            "defined": "LPAction"
+          },
+          "index": false
+        },
+        {
+          "name": "nShares",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "deltaBaseAssetAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "deltaQuoteAssetAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "pnl",
           "type": "i128",
           "index": false
         }

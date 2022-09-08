@@ -884,7 +884,6 @@ describe('orders', () => {
 			'\n'
 		);
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		// await clearingHouse.closePosition(marketIndex);
 	});
 	it('When in Max leverage short, fill limit long order to reduce to ZERO', async () => {

@@ -129,6 +129,7 @@ export class ClearingHouseUser {
 	public getEmptyPosition(marketIndex: BN): UserPosition {
 		return {
 			baseAssetAmount: ZERO,
+			remainderBaseAssetAmount: ZERO,
 			lastCumulativeFundingRate: ZERO,
 			marketIndex,
 			quoteAssetAmount: ZERO,
@@ -183,7 +184,9 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates the market position if the lp position was settled
-	 * @returns : userPosition
+	 * @returns : the settled userPosition
+	 * @returns : the dust base asset amount (ie, < stepsize)
+	 * @returns : pnl from settle
 	 */
 	public getSettledLPPosition(marketIndex: BN): [UserPosition, BN, BN] {
 		const _position = this.getUserPosition(marketIndex);
@@ -208,27 +211,33 @@ export class ClearingHouseUser {
 			return sign;
 		}
 
-		const remainder = deltaBaa
-			.abs()
-			.mod(market.amm.baseAssetAmountStepSize)
-			.mul(sign(deltaBaa));
-		const _standardizedBaa = deltaBaa.sub(remainder);
-
-		let remainderBaa;
-		if (_standardizedBaa.abs().gte(market.amm.baseAssetAmountStepSize)) {
-			remainderBaa = remainder;
-		} else {
-			remainderBaa = deltaBaa;
+		function standardize(amount, stepsize) {
+			const remainder = amount.abs().mod(stepsize).mul(sign(amount));
+			const standardizedAmount = amount.sub(remainder);
+			return [standardizedAmount, remainder];
 		}
-		const standardizedBaa = deltaBaa.sub(remainderBaa);
 
-		const reaminderPerLP = remainderBaa.mul(AMM_RESERVE_PRECISION).div(nShares);
+		const [standardizedBaa, remainderBaa] = standardize(
+			deltaBaa,
+			market.amm.baseAssetAmountStepSize
+		);
 
-		position.baseAssetAmount = position.baseAssetAmount.add(standardizedBaa);
-		position.quoteAssetAmount = position.quoteAssetAmount.add(deltaQaa);
+		position.remainderBaseAssetAmount =
+			position.remainderBaseAssetAmount.add(remainderBaa);
 
-		position.lastNetBaseAssetAmountPerLp =
-			market.amm.marketPositionPerLp.baseAssetAmount.sub(reaminderPerLP);
+		if (
+			position.remainderBaseAssetAmount
+				.abs()
+				.gte(market.amm.baseAssetAmountStepSize)
+		) {
+			const [newStandardizedBaa, newRemainderBaa] = standardize(
+				position.remainderBaseAssetAmount,
+				market.amm.baseAssetAmountStepSize
+			);
+			position.baseAssetAmount =
+				position.baseAssetAmount.add(newStandardizedBaa);
+			position.remainderBaseAssetAmount = newRemainderBaa;
+		}
 
 		let updateType;
 		if (position.baseAssetAmount.eq(ZERO)) {
@@ -254,7 +263,7 @@ export class ClearingHouseUser {
 					.mul(deltaBaa.abs())
 					.div(position.baseAssetAmount.abs())
 			);
-			pnl = position.quoteEntryAmount.sub(newQuoteEntry);
+			pnl = position.quoteEntryAmount.sub(newQuoteEntry).add(deltaQaa);
 		} else {
 			newQuoteEntry = deltaQaa.sub(
 				deltaQaa.mul(position.baseAssetAmount.abs()).div(deltaBaa.abs())
@@ -262,6 +271,8 @@ export class ClearingHouseUser {
 			pnl = position.quoteEntryAmount.add(deltaQaa.sub(newQuoteEntry));
 		}
 		position.quoteEntryAmount = newQuoteEntry;
+		position.baseAssetAmount = position.baseAssetAmount.add(standardizedBaa);
+		position.quoteAssetAmount = position.quoteAssetAmount.add(deltaQaa);
 
 		if (position.baseAssetAmount.gt(ZERO)) {
 			position.lastCumulativeFundingRate = market.amm.cumulativeFundingRateLong;
@@ -803,6 +814,7 @@ export class ClearingHouseUser {
 		const proposedMarketPosition: UserPosition = {
 			marketIndex: marketPosition.marketIndex,
 			baseAssetAmount: proposedBaseAssetAmount,
+			remainderBaseAssetAmount: ZERO,
 			quoteAssetAmount: new BN(0),
 			lastCumulativeFundingRate: ZERO,
 			quoteEntryAmount: new BN(0),

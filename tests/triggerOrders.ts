@@ -196,12 +196,12 @@ describe('trigger orders', () => {
 			// no op
 		}
 
-		await fillerClearingHouse.moveAmmPrice(
-			ammInitialBaseAssetReserve.mul(new BN(10)),
-			ammInitialQuoteAssetReserve,
-			marketIndex
+		const newOraclePrice = 0.49;
+		await fillerClearingHouse.moveAmmToPrice(
+			marketIndex,
+			new BN(newOraclePrice * MARK_PRICE_PRECISION.toNumber())
 		);
-		await setFeedPrice(anchor.workspace.Pyth, 0.49, solUsd);
+		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 
 		await fillerClearingHouse.triggerOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
@@ -270,7 +270,9 @@ describe('trigger orders', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: MARK_PRICE_PRECISION.div(new BN(10)),
+			price: MARK_PRICE_PRECISION.div(new BN(2)).sub(
+				MARK_PRICE_PRECISION.div(new BN(50))
+			),
 			triggerPrice: MARK_PRICE_PRECISION.div(new BN(2)),
 			triggerCondition: OrderTriggerCondition.BELOW,
 			userOrderId: 1,
@@ -292,12 +294,12 @@ describe('trigger orders', () => {
 			// no op
 		}
 
-		await fillerClearingHouse.moveAmmPrice(
-			ammInitialBaseAssetReserve.mul(new BN(5)),
-			ammInitialQuoteAssetReserve,
-			marketIndex
+		const newOraclePrice = 0.49;
+		await fillerClearingHouse.moveAmmToPrice(
+			marketIndex,
+			new BN(newOraclePrice * MARK_PRICE_PRECISION.toNumber())
 		);
-		await setFeedPrice(anchor.workspace.Pyth, 0.2, solUsd);
+		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 
 		await fillerClearingHouse.triggerOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
@@ -387,12 +389,12 @@ describe('trigger orders', () => {
 			// no op
 		}
 
-		await fillerClearingHouse.moveAmmPrice(
-			ammInitialBaseAssetReserve.div(new BN(10)),
-			ammInitialQuoteAssetReserve,
-			marketIndex
+		const newOraclePrice = 2.01;
+		await fillerClearingHouse.moveAmmToPrice(
+			marketIndex,
+			new BN(newOraclePrice * MARK_PRICE_PRECISION.toNumber())
 		);
-		await setFeedPrice(anchor.workspace.Pyth, 2.01, solUsd);
+		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 
 		await fillerClearingHouse.triggerOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
@@ -457,14 +459,14 @@ describe('trigger orders', () => {
 		});
 		await clearingHouse.placeAndTake(marketOrderParams);
 
+		const triggerPrice = MARK_PRICE_PRECISION.mul(new BN(6)).div(new BN(5));
+		const limitPrice = triggerPrice.add(MARK_PRICE_PRECISION.div(new BN(50)));
 		const stopLimitOrderParams = getTriggerLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			price: MARK_PRICE_PRECISION.mul(new BN(3)).div(new BN(2)),
-			triggerPrice: MARK_PRICE_PRECISION.mul(new BN(6)).div(new BN(5)),
-			// MARK_PRICE_PRECISION.mul(new BN(10)),
-			// MARK_PRICE_PRECISION.mul(new BN(2)),
+			price: limitPrice,
+			triggerPrice,
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			userOrderId: 1,
 		});
@@ -492,18 +494,13 @@ describe('trigger orders', () => {
 			'user total collateral 0:',
 			convertToNumber(totalCollateral0, QUOTE_PRECISION)
 		);
-		await fillerClearingHouse.moveAmmPrice(
-			// ammInitialBaseAssetReserve.div(new BN(5)),
-			// ammInitialQuoteAssetReserve,
-			ammInitialBaseAssetReserve,
-			ammInitialQuoteAssetReserve.mul(new BN(6)).div(new BN(5)),
-			marketIndex
-		);
-		await setFeedPrice(anchor.workspace.Pyth, 5, solUsd);
-		// console.log('oracle move: $1 -> $5');
 
-		await setFeedPrice(anchor.workspace.Pyth, 1.201, solUsd);
-		console.log('oracle move: $1 -> $1.201');
+		const newOraclePrice = 1.201;
+		await fillerClearingHouse.moveAmmToPrice(
+			marketIndex,
+			new BN(newOraclePrice * MARK_PRICE_PRECISION.toNumber())
+		);
+		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 
 		await clearingHouseUser.fetchAccounts();
 
@@ -672,12 +669,14 @@ describe('trigger orders', () => {
 		});
 		await clearingHouse.placeAndTake(marketOrderParams);
 
+		const triggerPrice = MARK_PRICE_PRECISION.mul(new BN(2));
+		const limitPrice = triggerPrice.sub(MARK_PRICE_PRECISION.div(new BN(50)));
 		const stopLimitOrderParams = getTriggerLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: MARK_PRICE_PRECISION.mul(new BN(2)),
-			triggerPrice: MARK_PRICE_PRECISION.mul(new BN(2)),
+			price: limitPrice,
+			triggerPrice: triggerPrice,
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			userOrderId: 1,
 		});
@@ -698,12 +697,12 @@ describe('trigger orders', () => {
 			// no op
 		}
 
-		await fillerClearingHouse.moveAmmPrice(
-			ammInitialBaseAssetReserve.div(new BN(5)),
-			ammInitialQuoteAssetReserve,
-			marketIndex
+		const newOraclePrice = 2.01;
+		await fillerClearingHouse.moveAmmToPrice(
+			marketIndex,
+			new BN(newOraclePrice * MARK_PRICE_PRECISION.toNumber())
 		);
-		await setFeedPrice(anchor.workspace.Pyth, 5, solUsd);
+		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 
 		await fillerClearingHouse.triggerOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
@@ -863,12 +862,14 @@ describe('trigger orders', () => {
 		});
 		await clearingHouse.placeAndTake(marketOrderParams);
 
+		const triggerPrice = MARK_PRICE_PRECISION.div(new BN(2));
+		const limitPrice = triggerPrice.add(MARK_PRICE_PRECISION.div(new BN(50)));
 		const stopLimitOrderParams = getTriggerLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			price: MARK_PRICE_PRECISION.div(new BN(2)),
-			triggerPrice: MARK_PRICE_PRECISION.div(new BN(2)),
+			price: limitPrice,
+			triggerPrice: triggerPrice,
 			triggerCondition: OrderTriggerCondition.BELOW,
 			userOrderId: 1,
 		});
@@ -889,12 +890,12 @@ describe('trigger orders', () => {
 			// no op
 		}
 
-		await fillerClearingHouse.moveAmmPrice(
-			ammInitialBaseAssetReserve.mul(new BN(5)),
-			ammInitialQuoteAssetReserve,
-			marketIndex
+		const newOraclePrice = 0.49;
+		await fillerClearingHouse.moveAmmToPrice(
+			marketIndex,
+			new BN(newOraclePrice * MARK_PRICE_PRECISION.toNumber())
 		);
-		await setFeedPrice(anchor.workspace.Pyth, 0.2, solUsd);
+		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 
 		await fillerClearingHouse.triggerOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),

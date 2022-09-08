@@ -161,6 +161,21 @@ impl Bank {
             .ok_or_else(math_error!())
     }
 
+    pub fn get_margin_ratio(
+        &self,
+        margin_requirement_type: &MarginRequirementType,
+    ) -> ClearingHouseResult<u128> {
+        let liability_weight = match margin_requirement_type {
+            MarginRequirementType::Initial => self.initial_liability_weight,
+            MarginRequirementType::Maintenance => self.maintenance_liability_weight,
+        };
+        liability_weight
+            .checked_mul(MARGIN_PRECISION_TO_BANK_WEIGHT_PRECISION_RATIO)
+            .ok_or_else(math_error!())?
+            .checked_sub(MARGIN_PRECISION)
+            .ok_or_else(math_error!())
+    }
+
     pub fn get_available_deposits(&self) -> ClearingHouseResult<u128> {
         let deposit_token_amount =
             get_token_amount(self.deposit_balance, self, &BankBalanceType::Deposit)?;

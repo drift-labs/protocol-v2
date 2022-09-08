@@ -11,7 +11,7 @@ use crate::math;
 use crate::math::amm::calculate_max_base_asset_amount_fillable;
 use crate::math::auction::is_auction_complete;
 use crate::math::bank_balance::{get_signed_token_amount, get_token_amount};
-use crate::math::casting::{cast, cast_to_i128};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
 use crate::math::constants::{MARGIN_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
 use crate::math::position::calculate_entry_price;
 use crate::math_error;
@@ -238,49 +238,67 @@ pub fn order_breaches_oracle_price_limits(
     order: &Order,
     oracle_price: i128,
     slot: u64,
-    initial_leverage_ratio: u128,
+    margin_ratio_initial: u128,
+    margin_ratio_maintenance: u128,
     amm: Option<&AMM>,
 ) -> ClearingHouseResult<bool> {
     let order_limit_price = order.get_limit_price(Some(oracle_price), slot, amm)?;
     let oracle_price = oracle_price.unsigned_abs();
 
-    let max_ratio = initial_leverage_ratio / 2;
+    let max_percent_diff = margin_ratio_initial
+        .checked_sub(margin_ratio_maintenance)
+        .ok_or_else(math_error!())?;
+
     match order.direction {
         PositionDirection::Long => {
             if order_limit_price <= oracle_price {
                 return Ok(false);
             }
 
-            let ratio = order_limit_price
+            let percent_diff = order_limit_price
+                .checked_sub(oracle_price)
+                .ok_or_else(math_error!())?
                 .checked_mul(MARGIN_PRECISION)
                 .ok_or_else(math_error!())?
-                .checked_div(
-                    order_limit_price
-                        .checked_sub(oracle_price)
-                        .ok_or_else(math_error!())?,
-                )
+                .checked_div(oracle_price)
                 .ok_or_else(math_error!())?;
 
-            // order cant be buying if oracle price is more than 2.5% below limit price
-            Ok(ratio <= max_ratio)
+            if percent_diff >= max_percent_diff {
+                // order cant be buying if oracle price is more than 5% below limit price
+                msg!(
+                    "Limit Price Breaches Oracle for Long: {} >> {}",
+                    order_limit_price,
+                    oracle_price
+                );
+                return Ok(true);
+            }
+
+            Ok(false)
         }
         PositionDirection::Short => {
             if order_limit_price >= oracle_price {
                 return Ok(false);
             }
 
-            let ratio = oracle_price
+            let percent_diff = oracle_price
+                .checked_sub(order_limit_price)
+                .ok_or_else(math_error!())?
                 .checked_mul(MARGIN_PRECISION)
                 .ok_or_else(math_error!())?
-                .checked_div(
-                    oracle_price
-                        .checked_sub(order_limit_price)
-                        .ok_or_else(math_error!())?,
-                )
+                .checked_div(oracle_price)
                 .ok_or_else(math_error!())?;
 
-            // order cant be buying if oracle price is more than 2.5% above limit price
-            Ok(ratio <= max_ratio)
+            if percent_diff >= max_percent_diff {
+                // order cant be selling if oracle price is more than 5% above limit price
+                msg!(
+                    "Limit Price Breaches Oracle for Short: {} << {}",
+                    order_limit_price,
+                    oracle_price
+                );
+                return Ok(true);
+            }
+
+            Ok(false)
         }
     }
 }
@@ -556,6 +574,210 @@ mod test {
             .unwrap();
 
             assert!(!risk_decreasing);
+        }
+    }
+
+    mod order_breaches_oracle_price_limits {
+        use crate::controller::position::PositionDirection;
+        use crate::math::constants::{
+            MARGIN_PRECISION, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128,
+        };
+        use crate::math::orders::order_breaches_oracle_price_limits;
+        use crate::state::market::Market;
+        use crate::state::user::Order;
+
+        #[test]
+        fn bid_does_not_breach() {
+            let market = Market {
+                margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
+                ..Market::default()
+            };
+
+            let order = Order {
+                price: 101 * MARK_PRICE_PRECISION,
+                ..Order::default()
+            };
+
+            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+
+            let slot = 0;
+
+            let margin_ratio_initial = MARGIN_PRECISION / 10;
+            let margin_ratio_maintenance = MARGIN_PRECISION / 20;
+            let result = order_breaches_oracle_price_limits(
+                &order,
+                oracle_price,
+                slot,
+                margin_ratio_initial,
+                margin_ratio_maintenance,
+                None,
+            )
+            .unwrap();
+
+            assert!(!result)
+        }
+
+        #[test]
+        fn bid_does_not_breach_4_99_percent_move() {
+            let market = Market {
+                margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
+                ..Market::default()
+            };
+
+            let order = Order {
+                price: 105 * MARK_PRICE_PRECISION - 1,
+                ..Order::default()
+            };
+
+            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+
+            let slot = 0;
+
+            let margin_ratio_initial = MARGIN_PRECISION / 10;
+            let margin_ratio_maintenance = MARGIN_PRECISION / 20;
+            let result = order_breaches_oracle_price_limits(
+                &order,
+                oracle_price,
+                slot,
+                margin_ratio_initial,
+                margin_ratio_maintenance,
+                None,
+            )
+            .unwrap();
+
+            assert!(!result)
+        }
+
+        #[test]
+        fn bid_breaches() {
+            let market = Market {
+                margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
+                margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
+                ..Market::default()
+            };
+
+            let order = Order {
+                direction: PositionDirection::Long,
+                price: 105 * MARK_PRICE_PRECISION,
+                ..Order::default()
+            };
+
+            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+
+            let slot = 0;
+
+            let margin_ratio_initial = MARGIN_PRECISION / 10;
+            let margin_ratio_maintenance = MARGIN_PRECISION / 20;
+            let result = order_breaches_oracle_price_limits(
+                &order,
+                oracle_price,
+                slot,
+                margin_ratio_initial,
+                margin_ratio_maintenance,
+                None,
+            )
+            .unwrap();
+
+            assert!(result)
+        }
+
+        #[test]
+        fn ask_does_not_breach() {
+            let market = Market {
+                margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
+                margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
+                ..Market::default()
+            };
+
+            let order = Order {
+                direction: PositionDirection::Short,
+                price: 99 * MARK_PRICE_PRECISION,
+                ..Order::default()
+            };
+
+            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+
+            let slot = 0;
+
+            let margin_ratio_initial = MARGIN_PRECISION / 10;
+            let margin_ratio_maintenance = MARGIN_PRECISION / 20;
+            let result = order_breaches_oracle_price_limits(
+                &order,
+                oracle_price,
+                slot,
+                margin_ratio_initial,
+                margin_ratio_maintenance,
+                None,
+            )
+            .unwrap();
+
+            assert!(!result)
+        }
+
+        #[test]
+        fn ask_does_not_breach_4_99_percent_move() {
+            let market = Market {
+                margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
+                margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
+                ..Market::default()
+            };
+
+            let order = Order {
+                direction: PositionDirection::Short,
+                price: 95 * MARK_PRICE_PRECISION + 1,
+                ..Order::default()
+            };
+
+            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+
+            let slot = 0;
+
+            let margin_ratio_initial = MARGIN_PRECISION / 10;
+            let margin_ratio_maintenance = MARGIN_PRECISION / 20;
+            let result = order_breaches_oracle_price_limits(
+                &order,
+                oracle_price,
+                slot,
+                margin_ratio_initial,
+                margin_ratio_maintenance,
+                None,
+            )
+            .unwrap();
+
+            assert!(!result)
+        }
+
+        #[test]
+        fn ask_breaches() {
+            let market = Market {
+                margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
+                margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
+                ..Market::default()
+            };
+
+            let order = Order {
+                direction: PositionDirection::Short,
+                price: 95 * MARK_PRICE_PRECISION,
+                ..Order::default()
+            };
+
+            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+
+            let slot = 0;
+
+            let margin_ratio_initial = MARGIN_PRECISION / 10;
+            let margin_ratio_maintenance = MARGIN_PRECISION / 20;
+            let result = order_breaches_oracle_price_limits(
+                &order,
+                oracle_price,
+                slot,
+                margin_ratio_initial,
+                margin_ratio_maintenance,
+                None,
+            )
+            .unwrap();
+
+            assert!(result)
         }
     }
 }

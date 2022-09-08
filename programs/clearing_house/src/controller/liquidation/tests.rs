@@ -915,7 +915,7 @@ pub mod liquidate_borrow {
         )
         .unwrap();
 
-        assert_eq!(user.bank_balances[0].balance, 89989989);
+        assert_eq!(user.bank_balances[0].balance, 89989990);
         assert_eq!(user.bank_balances[1].balance, 899999);
 
         assert_eq!(
@@ -1030,7 +1030,7 @@ pub mod liquidate_borrow {
         )
         .unwrap();
 
-        assert_eq!(user.bank_balances[0].balance, 43322222);
+        assert_eq!(user.bank_balances[0].balance, 43322223);
         assert_eq!(user.bank_balances[1].balance, 383838);
 
         assert_eq!(
@@ -1628,7 +1628,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         )
         .unwrap();
 
-        assert_eq!(user.bank_balances[0].balance, 494444);
+        assert_eq!(user.bank_balances[0].balance, 494445);
         assert_eq!(user.positions[0].quote_asset_amount, -50000000);
 
         assert_eq!(
@@ -1765,7 +1765,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         )
         .unwrap();
 
-        assert_eq!(user.bank_balances[0].balance, 887654);
+        assert_eq!(user.bank_balances[0].balance, 887655);
         assert_eq!(user.positions[0].quote_asset_amount, -79888889);
 
         assert_eq!(
@@ -2084,9 +2084,14 @@ pub mod resolve_perp_bankruptcy {
             1010 * FUNDING_RATE_PRECISION_I128;
 
         {
-            let market = market_map.get_ref(&0).unwrap();
-            settle_funding_payment(&mut affected_long_user, &Pubkey::default(), &market, now)
-                .unwrap()
+            let mut market = market_map.get_ref_mut(&0).unwrap();
+            settle_funding_payment(
+                &mut affected_long_user,
+                &Pubkey::default(),
+                &mut market,
+                now,
+            )
+            .unwrap()
         }
 
         assert_eq!(expected_affected_long_user, affected_long_user);
@@ -2111,9 +2116,14 @@ pub mod resolve_perp_bankruptcy {
             -1010 * FUNDING_RATE_PRECISION_I128;
 
         {
-            let market = market_map.get_ref(&0).unwrap();
-            settle_funding_payment(&mut affected_short_user, &Pubkey::default(), &market, now)
-                .unwrap()
+            let mut market = market_map.get_ref_mut(&0).unwrap();
+            settle_funding_payment(
+                &mut affected_short_user,
+                &Pubkey::default(),
+                &mut market,
+                now,
+            )
+            .unwrap()
         }
 
         assert_eq!(expected_affected_short_user, affected_short_user);

@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
+use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
 use crate::math::casting::{cast, cast_to_i64, cast_to_u64};
 use crate::state::user::Order;
@@ -131,6 +132,7 @@ pub struct OrderActionRecord {
 
     pub taker: Option<Pubkey>,
     pub taker_order_id: Option<u64>,
+    pub taker_order_direction: Option<PositionDirection>,
     pub taker_order_base_asset_amount: Option<u128>,
     pub taker_order_base_asset_amount_filled: Option<u128>,
     pub taker_order_quote_asset_amount_filled: Option<u64>,
@@ -139,6 +141,7 @@ pub struct OrderActionRecord {
 
     pub maker: Option<Pubkey>,
     pub maker_order_id: Option<u64>,
+    pub maker_order_direction: Option<PositionDirection>,
     pub maker_order_base_asset_amount: Option<u128>,
     pub maker_order_base_asset_amount_filled: Option<u128>,
     pub maker_order_quote_asset_amount_filled: Option<u64>,
@@ -212,6 +215,7 @@ pub fn get_order_action_record(
         spot_fulfillment_method_fee,
         taker,
         taker_order_id: taker_order.map(|order| order.order_id),
+        taker_order_direction: taker_order.map(|order| order.direction),
         taker_order_base_asset_amount: taker_order.map(|order| order.base_asset_amount),
         taker_order_base_asset_amount_filled: taker_order
             .map(|order| order.base_asset_amount_filled),
@@ -229,6 +233,7 @@ pub fn get_order_action_record(
         },
         maker,
         maker_order_id: maker_order.map(|order| order.order_id),
+        maker_order_direction: maker_order.map(|order| order.direction),
         maker_order_base_asset_amount: maker_order.map(|order| order.base_asset_amount),
         maker_order_base_asset_amount_filled: maker_order
             .map(|order| order.base_asset_amount_filled),
@@ -278,6 +283,32 @@ impl Default for OrderAction {
 
 #[event]
 #[derive(Default)]
+pub struct LPRecord {
+    pub ts: i64,
+    pub user: Pubkey,
+    pub action: LPAction,
+    pub n_shares: u128,
+    pub market_index: u64,
+    pub delta_base_asset_amount: i128,
+    pub delta_quote_asset_amount: i128,
+    pub pnl: i128,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+pub enum LPAction {
+    AddLiquidity,
+    RemoveLiquidity,
+    SettleLiquidity,
+}
+
+impl Default for LPAction {
+    fn default() -> Self {
+        LPAction::AddLiquidity
+    }
+}
+
+#[event]
+#[derive(Default)]
 pub struct LiquidationRecord {
     pub ts: i64,
     pub liquidation_type: LiquidationType,
@@ -320,6 +351,7 @@ pub struct LiquidatePerpRecord {
     pub oracle_price: i128,
     pub base_asset_amount: i128,
     pub quote_asset_amount: i128,
+    pub lp_shares: u128,
     pub user_pnl: i128,
     pub liquidator_pnl: i128,
     pub fill_record_id: u64,
