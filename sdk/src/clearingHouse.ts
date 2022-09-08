@@ -1304,7 +1304,7 @@ export class ClearingHouse {
 	}
 
 	public async sendSignedTx(tx: Transaction): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(tx, undefined, this.opts);
+		const { txSig } = await this.txSender.send(tx, undefined, this.opts, true);
 
 		return txSig;
 	}

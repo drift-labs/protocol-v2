@@ -17,6 +17,7 @@ export interface TxSender {
 	send(
 		tx: Transaction,
 		additionalSigners?: Array<Signer>,
-		opts?: ConfirmOptions
+		opts?: ConfirmOptions,
+		preSigned?: boolean
 	): Promise<TxSigAndSlot>;
 }
