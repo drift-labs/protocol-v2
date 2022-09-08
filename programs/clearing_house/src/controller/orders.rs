@@ -421,15 +421,10 @@ pub fn fill_order(
         get_struct_values!(user.orders[order_index], status, market_index);
 
     // settle lp position so its tradeable
-    {
-        let market = &mut market_map.get_ref_mut(&market_index)?;
-        if let Ok(position_index) = get_position_index(&user.positions, market.market_index) {
-            let position = &mut user.positions[position_index];
-            if position.lp_shares > 0 {
-                controller::lp::settle_lp_position(position, market)?;
-            }
-        };
-    }
+    controller::lp::settle_lp_user(
+        user, 
+        &mut market_map.get_ref_mut(&market_index)?.deref_mut()
+    )?;
 
     controller::funding::settle_funding_payment(
         user,

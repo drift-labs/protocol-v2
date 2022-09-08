@@ -3,6 +3,8 @@ use crate::math::constants::AMM_RESERVE_PRECISION_I128;
 use crate::math_error;
 use crate::state::market::Market;
 use crate::MarketPosition;
+use crate::state::user::User;
+use crate::controller::position::get_position_index;
 
 use crate::bn::U192;
 use crate::controller::position::PositionDelta;
@@ -112,6 +114,19 @@ pub fn settle_lp_position(
     crate::controller::validate::validate_position_account(position, market)?;
 
     Ok((position_delta, pnl))
+}
+
+pub fn settle_lp_user(
+    user: &mut User,
+    market: &mut Market, 
+) -> ClearingHouseResult<()> {
+    if let Ok(position_index) = get_position_index(&user.positions, market.market_index) {
+        let position = &mut user.positions[position_index];
+        if position.lp_shares > 0 {
+            settle_lp_position(position, market)?;
+        }
+    };
+    Ok(())
 }
 
 pub fn burn_lp_shares(
