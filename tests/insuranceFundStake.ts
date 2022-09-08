@@ -1059,6 +1059,8 @@ describe('insurance fund stake', () => {
 			usdcAfter.toString()
 		);
 
+		await clearingHouseUser.unsubscribe();
+
 		// TODO: resolve any issues in liq borrow before adding asserts in test here
 
 		// assert(usdcBefore.eq(usdcAfter));

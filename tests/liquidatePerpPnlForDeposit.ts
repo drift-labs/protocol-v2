@@ -27,6 +27,7 @@ import {
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
 	initializeSolAssetBank,
+	printTxLogs,
 } from './testHelpers';
 import { isVariant } from '../sdk';
 
@@ -121,12 +122,14 @@ describe('liquidate perp pnl for deposit', () => {
 			new BN(0)
 		);
 
+		await setFeedPrice(anchor.workspace.Pyth, 0.1, solOracle);
 		await clearingHouse.moveAmmToPrice(
 			new BN(0),
 			new BN(1).mul(MARK_PRICE_PRECISION).div(new BN(10))
 		);
 
-		await clearingHouse.closePosition(new BN(0));
+		const txSig = await clearingHouse.closePosition(new BN(0));
+		printTxLogs(connection, txSig);
 
 		const solAmount = new BN(1 * 10 ** 9);
 		[liquidatorClearingHouse, liquidatorClearingHouseWSOLAccount] =

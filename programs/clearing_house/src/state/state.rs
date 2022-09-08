@@ -26,8 +26,6 @@ pub struct State {
     pub funding_paused: bool,
     pub admin_controls_prices: bool,
     pub insurance_vault: Pubkey,
-    pub insurance_vault_authority: Pubkey,
-    pub insurance_vault_nonce: u8,
     pub margin_ratio_initial: u128,
     pub margin_ratio_maintenance: u128,
     pub margin_ratio_partial: u128,
@@ -49,6 +47,8 @@ pub struct State {
     pub min_auction_duration: u8,
     pub max_auction_duration: u8,
     pub liquidation_margin_buffer_ratio: u8,
+    pub signer: Pubkey,
+    pub signer_nonce: u8,
 
     // upgrade-ability
     pub padding0: u128,

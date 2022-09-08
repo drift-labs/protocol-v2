@@ -27,11 +27,11 @@ pub struct Initialize<'info> {
         bump,
         payer = admin,
         token::mint = quote_asset_mint,
-        token::authority = insurance_vault_authority
+        token::authority = clearing_house_signer
     )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
     /// CHECK: checked in `initialize`
-    pub insurance_vault_authority: AccountInfo<'info>,
+    pub clearing_house_signer: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
@@ -54,30 +54,23 @@ pub struct InitializeBank<'info> {
         bump,
         payer = admin,
         token::mint = bank_mint,
-        token::authority = bank_vault_authority
+        token::authority = clearing_house_signer
     )]
     pub bank_vault: Box<Account<'info, TokenAccount>>,
-    #[account(
-        seeds = [b"bank_vault_authority".as_ref(), state.number_of_banks.to_le_bytes().as_ref()],
-        bump,
-    )]
-    /// CHECK: this is the pda for the bank vault
-    pub bank_vault_authority: AccountInfo<'info>,
     #[account(
         init,
         seeds = [b"insurance_fund_vault".as_ref(), state.number_of_banks.to_le_bytes().as_ref()],
         bump,
         payer = admin,
         token::mint = bank_mint,
-        token::authority = insurance_fund_vault_authority
+        token::authority = clearing_house_signer
     )]
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
     #[account(
-        seeds = [b"insurance_fund_vault_authority".as_ref(), state.number_of_banks.to_le_bytes().as_ref()],
-        bump,
+        constraint = state.signer.eq(&clearing_house_signer.key())
     )]
     /// CHECK: this is the pda for the bank vault
-    pub insurance_fund_vault_authority: AccountInfo<'info>,
+    pub clearing_house_signer: AccountInfo<'info>,
     #[account(
         mut,
         has_one = admin
@@ -210,12 +203,10 @@ pub struct Withdraw<'info> {
     )]
     pub bank_vault: Box<Account<'info, TokenAccount>>,
     #[account(
-        mut,
-        seeds = [b"bank_vault_authority".as_ref(), bank_index.to_le_bytes().as_ref()],
-        bump,
+        constraint = state.signer.eq(&clearing_house_signer.key())
     )]
-    /// CHECK: this is the pda for the bank vault
-    pub bank_vault_authority: AccountInfo<'info>,
+    /// CHECK: forced clearing_house_signer
+    pub clearing_house_signer: AccountInfo<'info>,
     #[account(
         mut,
         constraint = &bank_vault.mint.eq(&user_token_account.mint)
@@ -286,12 +277,10 @@ pub struct WithdrawFromMarketToInsuranceVault<'info> {
     )]
     pub bank_vault: Box<Account<'info, TokenAccount>>,
     #[account(
-        mut,
-        seeds = [b"bank_vault_authority".as_ref(), 0_u64.to_le_bytes().as_ref()],
-        bump,
+        constraint = state.signer.eq(&clearing_house_signer.key())
     )]
-    /// CHECK: this is the pda for the bank vault
-    pub bank_vault_authority: AccountInfo<'info>,
+    /// CHECK: withdraw fails if this isn't vault owner
+    pub clearing_house_signer: AccountInfo<'info>,
     #[account(mut)]
     pub market: AccountLoader<'info, Market>,
     #[account(
@@ -314,11 +303,11 @@ pub struct WithdrawFromInsuranceVault<'info> {
         constraint = &state.insurance_vault.eq(&insurance_vault.key())
     )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
-    /// CHECK: withdraw fails if this isn't vault owner
     #[account(
-        constraint = &state.insurance_vault_authority.eq(&insurance_vault_authority.key())
+    constraint = state.signer.eq(&clearing_house_signer.key())
     )]
-    pub insurance_vault_authority: AccountInfo<'info>,
+    /// CHECK: withdraw fails if this isn't vault owner
+    pub clearing_house_signer: AccountInfo<'info>,
     #[account(
         mut,
         token::mint = insurance_vault.mint
@@ -342,11 +331,11 @@ pub struct WithdrawFromInsuranceVaultToMarket<'info> {
         constraint = &state.insurance_vault.eq(&insurance_vault.key())
     )]
     pub insurance_vault: Box<Account<'info, TokenAccount>>,
-    /// CHECK: withdraw fails if this isn't vault owner
     #[account(
-        constraint = &state.insurance_vault_authority.eq(&insurance_vault_authority.key())
+        constraint = state.signer.eq(&clearing_house_signer.key())
     )]
-    pub insurance_vault_authority: AccountInfo<'info>,
+    /// CHECK: withdraw fails if this isn't vault owner
+    pub clearing_house_signer: AccountInfo<'info>,
     #[account(
         mut,
         seeds = [b"bank", 0_u64.to_le_bytes().as_ref()],
@@ -609,12 +598,10 @@ pub struct ResolvePerpBankruptcy<'info> {
     )]
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
     #[account(
-        mut,
-        seeds = [b"insurance_fund_vault_authority".as_ref(), bank_index.to_le_bytes().as_ref()],
-        bump,
+        constraint = state.signer.eq(&clearing_house_signer.key())
     )]
-    /// CHECK: this is the pda for the bank vault
-    pub insurance_fund_vault_authority: AccountInfo<'info>,
+    /// CHECK: forced clearing_house_signer
+    pub clearing_house_signer: AccountInfo<'info>,
     pub token_program: Program<'info, Token>,
 }
 
@@ -751,12 +738,10 @@ pub struct SettleRevenueToInsuranceFund<'info> {
     )]
     pub bank_vault: Box<Account<'info, TokenAccount>>,
     #[account(
-        mut,
-        seeds = [b"bank_vault_authority".as_ref(), bank_index.to_le_bytes().as_ref()],
-        bump,
+        constraint = state.signer.eq(&clearing_house_signer.key())
     )]
-    /// CHECK: this is the pda for the bank vault
-    pub bank_vault_authority: AccountInfo<'info>,
+    /// CHECK: forced clearing_house_signer
+    pub clearing_house_signer: AccountInfo<'info>,
     #[account(
         mut,
         seeds = [b"insurance_fund_vault".as_ref(), bank_index.to_le_bytes().as_ref()],
@@ -830,6 +815,7 @@ pub struct RequestRemoveInsuranceFundStake<'info> {
 #[derive(Accounts)]
 #[instruction(bank_index: u64,)]
 pub struct RemoveInsuranceFundStake<'info> {
+    pub state: Box<Account<'info, State>>,
     #[account(
         seeds = [b"bank", bank_index.to_le_bytes().as_ref()],
         bump
@@ -853,12 +839,10 @@ pub struct RemoveInsuranceFundStake<'info> {
     )]
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
     #[account(
-        mut,
-        seeds = [b"insurance_fund_vault_authority".as_ref(), bank_index.to_le_bytes().as_ref()],
-        bump,
+        constraint = state.signer.eq(&clearing_house_signer.key())
     )]
-    /// CHECK: this is the pda for the bank vault
-    pub insurance_fund_vault_authority: AccountInfo<'info>,
+    /// CHECK: forced clearing_house_signer
+    pub clearing_house_signer: AccountInfo<'info>,
     #[account(
         mut,
         token::mint = insurance_fund_vault.mint,

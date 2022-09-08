@@ -510,7 +510,7 @@ mod test {
         )
         .unwrap();
         assert_eq!(if_stake.if_shares, amount as u128);
-        if_balance = if_balance + amount;
+        if_balance += amount;
 
         // must request first
         assert!(remove_insurance_fund_stake(
@@ -539,7 +539,7 @@ mod test {
             (remove_insurance_fund_stake(if_balance, &mut if_stake, &mut user_stats, &mut bank, 0))
                 .unwrap();
         assert_eq!(amount_returned, amount - 1);
-        if_balance = if_balance - amount_returned;
+        if_balance -= amount_returned;
 
         assert_eq!(if_stake.if_shares, 0);
         assert_eq!(if_stake.cost_basis, 1);
@@ -592,9 +592,9 @@ mod test {
         .unwrap();
 
         assert_eq!(bank.total_if_shares, (1001 * QUOTE_PRECISION)); // seeded works
-        assert_eq!(bank.user_if_shares, (1 * QUOTE_PRECISION));
+        assert_eq!(bank.user_if_shares, QUOTE_PRECISION);
         assert_eq!(if_stake.if_shares, amount as u128);
-        if_balance = if_balance + amount;
+        if_balance += amount;
 
         // must request first
         assert!(remove_insurance_fund_stake(
@@ -623,7 +623,7 @@ mod test {
             (remove_insurance_fund_stake(if_balance, &mut if_stake, &mut user_stats, &mut bank, 0))
                 .unwrap();
         assert_eq!(amount_returned, amount - 1);
-        if_balance = if_balance - amount_returned;
+        if_balance -= amount_returned;
 
         assert_eq!(if_stake.if_shares, 0);
         assert_eq!(if_stake.cost_basis, 1);
@@ -672,10 +672,10 @@ mod test {
         )
         .unwrap();
         assert_eq!(if_stake.if_shares, amount as u128);
-        if_balance = if_balance + amount;
+        if_balance += amount;
 
         // gains
-        if_balance = if_balance + amount / 19;
+        if_balance += amount / 19;
 
         let n_shares = if_stake.if_shares;
         let expected_amount_returned = (amount + amount / 19) / 3 - 1;
@@ -694,7 +694,7 @@ mod test {
                 .unwrap();
         assert_eq!(amount_returned, expected_amount_returned - 1);
         assert_eq!(if_stake.if_shares, n_shares * 2 / 3 + 1);
-        if_balance = if_balance - amount_returned;
+        if_balance -= amount_returned;
 
         request_remove_insurance_fund_stake(
             n_shares / 3,
@@ -710,7 +710,7 @@ mod test {
                 .unwrap();
         assert_eq!(if_stake.if_shares, n_shares / 3 + 1);
         assert_eq!(amount_returned, expected_amount_returned);
-        if_balance = if_balance - amount_returned;
+        if_balance -= amount_returned;
 
         request_remove_insurance_fund_stake(
             1,
@@ -742,7 +742,7 @@ mod test {
                 .unwrap();
         assert_eq!(amount_returned, expected_amount_returned + 1);
 
-        if_balance = if_balance - amount_returned;
+        if_balance -= amount_returned;
 
         assert_eq!(if_balance, 3);
     }
@@ -776,10 +776,10 @@ mod test {
         )
         .unwrap();
         assert_eq!(if_stake.if_shares, amount as u128);
-        if_balance = if_balance + amount;
+        if_balance += amount;
 
         // gains
-        if_balance = if_balance - amount / 19;
+        if_balance -= amount / 19;
 
         let n_shares = if_stake.if_shares;
         let expected_amount_returned = (amount - amount / 19) / 3;
@@ -799,7 +799,7 @@ mod test {
                 .unwrap();
         assert_eq!(amount_returned, expected_amount_returned);
         assert_eq!(if_stake.if_shares, n_shares * 2 / 3 + 1);
-        if_balance = if_balance - amount_returned;
+        if_balance -= amount_returned;
 
         request_remove_insurance_fund_stake(
             n_shares / 3,
@@ -815,7 +815,7 @@ mod test {
                 .unwrap();
         assert_eq!(if_stake.if_shares, n_shares / 3 + 1);
         assert_eq!(amount_returned, expected_amount_returned);
-        if_balance = if_balance - amount_returned;
+        if_balance -= amount_returned;
 
         request_remove_insurance_fund_stake(
             1,
@@ -830,7 +830,7 @@ mod test {
         let amount_returned =
             (remove_insurance_fund_stake(if_balance, &mut if_stake, &mut user_stats, &mut bank, 0))
                 .unwrap();
-        assert_eq!(if_stake.if_shares, n_shares * 1 / 3);
+        assert_eq!(if_stake.if_shares, n_shares / 3);
         assert_eq!(amount_returned, 0);
 
         request_remove_insurance_fund_stake(
@@ -849,7 +849,7 @@ mod test {
         assert_eq!(if_stake.cost_basis, 52632);
         assert_eq!(if_stake.if_shares, 0);
 
-        if_balance = if_balance - amount_returned;
+        if_balance -= amount_returned;
 
         assert_eq!(if_balance, 1); // todo, should be stricer w/ rounding?
     }
@@ -885,10 +885,10 @@ mod test {
         )
         .unwrap();
         assert_eq!(if_stake.if_shares, amount as u128);
-        if_balance = if_balance + amount;
+        if_balance += amount;
 
         // losses
-        if_balance = if_balance - amount / 19;
+        if_balance -= amount / 19;
 
         let n_shares = if_stake.if_shares;
         let expected_amount_returned = (amount - amount / 19) / 3;
@@ -935,7 +935,7 @@ mod test {
             now + 60 * 60 * 24 * 7 + 3254,
         ))
         .unwrap();
-        if_balance = if_balance - amount_returned;
+        if_balance -= amount_returned;
 
         // since losses occured during withdraw, worse than expected at time of request
         assert_eq!(amount_returned < (expected_amount_returned - 1), true);
@@ -956,7 +956,7 @@ mod test {
             number_of_users: 0,
             ..UserStats::default()
         };
-        let amount = 100_000_384_939 as u64; // $100k + change
+        let amount = 100_000_384_939_u64; // $100k + change
         let mut bank = Bank {
             deposit_balance: 0,
             cumulative_deposit_interest: 1111 * BANK_CUMULATIVE_INTEREST_PRECISION / 1000,
@@ -991,11 +991,11 @@ mod test {
         .unwrap();
 
         assert_eq!(if_stake.if_shares, amount as u128);
-        if_balance = if_balance + amount;
+        if_balance += amount;
         assert_eq!(if_balance, 100000384940);
 
         // gains
-        if_balance = if_balance + (amount / 13 - 1);
+        if_balance += amount / 13 - 1;
 
         assert_eq!(if_balance, 107692722242);
 
@@ -1044,7 +1044,7 @@ mod test {
         assert_eq!(if_stake.last_withdraw_request_shares, 0);
         assert_eq!(if_stake.last_withdraw_request_value, 0);
 
-        if_balance = if_balance - amount_returned;
+        if_balance -= amount_returned;
 
         assert_eq!(amount_returned < ideal_amount_returned, true);
         assert_eq!(ideal_amount_returned - amount_returned, 261390103);
@@ -1067,7 +1067,7 @@ mod test {
             number_of_users: 0,
             ..UserStats::default()
         };
-        let amount = 100_000_384_939 as u64; // $100k + change
+        let amount = 100_000_384_939_u64; // $100k + change
 
         let mut orig_if_stake = InsuranceFundStake {
             if_shares: 80_000 * QUOTE_PRECISION,
@@ -1116,7 +1116,7 @@ mod test {
             0,
         )
         .unwrap();
-        if_balance = if_balance + amount;
+        if_balance += amount;
 
         // check rebase math
         assert_eq!(bank.total_if_shares, 1000003849400);
@@ -1228,7 +1228,6 @@ mod test {
             0,
         )
         .unwrap();
-        if_balance = if_balance + 10_000_000_000_000;
 
         assert_eq!(bank.if_shares_base, 9);
         assert_eq!(bank.total_if_shares, 200000000000020);
@@ -1409,7 +1408,7 @@ mod test {
             0,
         )
         .unwrap();
-        if_balance = if_balance + 10_000_000_000_000;
+        if_balance += 10_000_000_000_000;
 
         assert_eq!(bank.total_if_shares, 204650145930021);
         assert_eq!(bank.user_if_shares, 204650128021135);

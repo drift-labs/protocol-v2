@@ -67,7 +67,7 @@ pub fn calculate_repeg_validity(
     let oracle_price_u128 = cast_to_u128(oracle_price)?;
 
     let (terminal_price_after, _terminal_quote_reserves, _terminal_base_reserves) =
-        amm::calculate_terminal_price_and_reserves(market)?;
+        amm::calculate_terminal_price_and_reserves(&market.amm)?;
 
     let mut direction_valid = true;
     let mut price_impact_valid = true;
