@@ -119,7 +119,7 @@ pub fn settle_lp_position(
     Ok((position_delta, pnl))
 }
 
-pub fn settle_lp_user(
+pub fn settle_lp(
     user: &mut User,
     user_key: &Pubkey,
     market: &mut Market,

@@ -40,7 +40,7 @@ pub fn settle_pnl(
 
     let mut market = market_map.get_ref_mut(&market_index)?;
 
-    crate::controller::lp::settle_lp_user(user, user_key, &mut market, now)?;
+    crate::controller::lp::settle_lp(user, user_key, &mut market, now)?;
 
     settle_funding_payment(user, user_key, &mut market, now)?;
 

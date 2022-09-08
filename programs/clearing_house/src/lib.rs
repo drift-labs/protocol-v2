@@ -800,11 +800,11 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        let mut market = market_map.get_ref_mut(&market_index)?;
+        let market = &mut market_map.get_ref_mut(&market_index)?;
 
-        controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
+        controller::funding::settle_funding_payment(user, &user_key, market, now)?;
 
-        controller::lp::settle_lp_user(user, &user_key, &mut market, now)?;
+        controller::lp::settle_lp(user, &user_key, market, now)?;
 
         Ok(())
     }

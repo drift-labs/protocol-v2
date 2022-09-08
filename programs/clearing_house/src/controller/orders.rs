@@ -423,7 +423,7 @@ pub fn fill_order(
     // settle lp position so its tradeable
     let mut market = market_map.get_ref_mut(&market_index)?;
 
-    controller::lp::settle_lp_user(user, &user_key, &mut market, now)?;
+    controller::lp::settle_lp(user, &user_key, &mut market, now)?;
     controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
 
     drop(market);
