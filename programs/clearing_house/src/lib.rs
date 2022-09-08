@@ -32,7 +32,7 @@ mod tests;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("HbUKwqFPjz9r7ZtT416AU8aaecDQMKKiDCTS3AdXnS6c");
+declare_id!("3v1iEjbSSLSSYyt1pmx4UB5rqJGurmz71RibXF7X6UF3");
 
 #[program]
 pub mod clearing_house {
@@ -346,10 +346,13 @@ pub mod clearing_house {
             OracleSource::QuoteAsset => panic!(),
         };
 
+        let max_spread = margin_ratio_initial * (100 - 5) / 2; // init 10% below the oracle price threshold
+
         validate_margin(
             margin_ratio_initial,
             margin_ratio_maintenance,
             liquidation_fee,
+            max_spread,
         )?;
 
         let state = &mut ctx.accounts.state;
@@ -435,7 +438,7 @@ pub mod clearing_house {
                 base_spread: 0,
                 long_spread: 0,
                 short_spread: 0,
-                max_spread: (margin_ratio_initial * (100 - 5) / 2), // 10% below the oracle price threshold
+                max_spread,
                 last_bid_price_twap: init_mark_price,
                 last_ask_price_twap: init_mark_price,
                 net_base_asset_amount: 0,
@@ -798,11 +801,14 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let _bank_map = BankMap::load(&WritableBanks::new(), remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &get_market_set(market_index),
             &MarketSet::new(),
             remaining_accounts_iter,
         )?;
+
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
             controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
@@ -855,6 +861,15 @@ pub mod clearing_house {
             controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
         }
 
+        // standardize n shares to burn
+        let shares_to_burn = {
+            let market = market_map.get_ref(&market_index)?;
+            crate::math::orders::standardize_base_asset_amount(
+                shares_to_burn,
+                market.amm.base_asset_amount_step_size,
+            )?
+        };
+
         if shares_to_burn == 0 {
             return Ok(());
         }
@@ -877,13 +892,9 @@ pub mod clearing_house {
             ErrorCode::TryingToRemoveLiquidityTooFast
         )?;
 
-        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-        let (position_delta, pnl) = burn_lp_shares(
-            position,
-            &mut market,
-            shares_to_burn,
-            oracle_price_data.price,
-        )?;
+        let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+        let (position_delta, pnl) =
+            burn_lp_shares(position, &mut market, shares_to_burn, oracle_price)?;
 
         emit!(LPRecord {
             ts: now,
@@ -949,6 +960,13 @@ pub mod clearing_house {
 
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
+
+            // standardize n shares to mint
+            let n_shares = crate::math::orders::standardize_base_asset_amount(
+                n_shares,
+                market.amm.base_asset_amount_step_size,
+            )?;
+
             controller::lp::mint_lp_shares(position, &mut market, n_shares, now)?;
         }
 
@@ -2433,6 +2451,7 @@ pub mod clearing_house {
             margin_ratio_initial,
             margin_ratio_maintenance,
             market.liquidation_fee,
+            market.amm.max_spread,
         )?;
 
         market.margin_ratio_initial = margin_ratio_initial;
@@ -2483,6 +2502,7 @@ pub mod clearing_house {
             market.margin_ratio_initial,
             market.margin_ratio_maintenance,
             liquidation_fee,
+            market.amm.max_spread,
         )?;
 
         market.liquidation_fee = liquidation_fee;

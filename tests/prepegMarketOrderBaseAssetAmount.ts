@@ -369,7 +369,7 @@ describe('prepeg', () => {
 		);
 
 		console.log(newAmm.baseSpread, longSpread, shortSpread, newAmm.maxSpread);
-		assert(newAmm.maxSpread == 100000 * 0.9);
+		assert(newAmm.maxSpread == (100000 / 2) * 0.95);
 		assert(inventoryScale == 0.000703);
 		assert(effectiveLeverage == 0.09895778092399404);
 		assert(shortSpread == 1000);
