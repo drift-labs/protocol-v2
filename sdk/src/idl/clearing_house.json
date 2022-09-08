@@ -5102,6 +5102,15 @@
           "index": false
         },
         {
+          "name": "takerOrderDirection",
+          "type": {
+            "option": {
+              "defined": "PositionDirection"
+            }
+          },
+          "index": false
+        },
+        {
           "name": "takerOrderBaseAssetAmount",
           "type": {
             "option": "u128"
@@ -5140,6 +5149,15 @@
           "name": "makerOrderId",
           "type": {
             "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "makerOrderDirection",
+          "type": {
+            "option": {
+              "defined": "PositionDirection"
+            }
           },
           "index": false
         },
