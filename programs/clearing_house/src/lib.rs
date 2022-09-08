@@ -345,10 +345,13 @@ pub mod clearing_house {
             OracleSource::QuoteAsset => panic!(),
         };
 
+        let max_spread = (margin_ratio_initial * (100 - 5) / 2); // init 10% below the oracle price threshold
+
         validate_margin(
             margin_ratio_initial,
             margin_ratio_maintenance,
             liquidation_fee,
+            max_spread,
         )?;
 
         let state = &mut ctx.accounts.state;
@@ -427,7 +430,7 @@ pub mod clearing_house {
                 base_spread: 0,
                 long_spread: 0,
                 short_spread: 0,
-                max_spread: (margin_ratio_initial * (100 - 5) / 2), // 10% below the oracle price threshold
+                max_spread,
                 last_bid_price_twap: init_mark_price,
                 last_ask_price_twap: init_mark_price,
                 net_base_asset_amount: 0,
@@ -2310,6 +2313,7 @@ pub mod clearing_house {
             margin_ratio_initial,
             margin_ratio_maintenance,
             market.liquidation_fee,
+            market.amm.max_spread,
         )?;
 
         market.margin_ratio_initial = margin_ratio_initial;
@@ -2360,6 +2364,7 @@ pub mod clearing_house {
             market.margin_ratio_initial,
             market.margin_ratio_maintenance,
             liquidation_fee,
+            market.amm.max_spread,
         )?;
 
         market.liquidation_fee = liquidation_fee;

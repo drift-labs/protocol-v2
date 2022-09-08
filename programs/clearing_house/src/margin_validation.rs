@@ -9,6 +9,7 @@ pub fn validate_margin(
     margin_ratio_initial: u32,
     margin_ratio_maintenance: u32,
     liquidation_fee: u128,
+    max_spread: u32,
 ) -> ClearingHouseResult {
     if !(MINIMUM_MARGIN_RATIO..=MAXIMUM_MARGIN_RATIO).contains(&margin_ratio_initial) {
         return Err(ErrorCode::InvalidMarginRatio);
@@ -27,6 +28,13 @@ pub fn validate_margin(
             > liquidation_fee,
         ErrorCode::InvalidMarginRatio,
         "margin_ratio_maintenance must be greater than liquidation fee"
+    )?;
+
+    validate!(
+        (margin_ratio_initial as u128) * 100
+            > max_spread as u128,
+        ErrorCode::InvalidMarginRatio,
+        "margin_ratio_initial must be greater than max_spread (or must lower max_spread first)"
     )?;
 
     Ok(())
