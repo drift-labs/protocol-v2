@@ -2475,8 +2475,8 @@ pub mod fill_order {
             AccountLoader::try_from(&filler_stats_account_info).unwrap();
 
         let state = State {
-            min_auction_duration: 1,
-            max_auction_duration: 10,
+            min_perp_auction_duration: 1,
+            max_perp_auction_duration: 10,
             ..State::default()
         };
 
@@ -2599,8 +2599,8 @@ pub mod fill_order {
             AccountLoader::try_from(&filler_stats_account_info).unwrap();
 
         let state = State {
-            min_auction_duration: 1,
-            max_auction_duration: 10,
+            min_perp_auction_duration: 1,
+            max_perp_auction_duration: 10,
             ..State::default()
         };
 

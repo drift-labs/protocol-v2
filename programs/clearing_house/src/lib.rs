@@ -109,8 +109,10 @@ pub mod clearing_house {
             number_of_markets: 0,
             number_of_banks: 0,
             min_order_quote_asset_amount: 500_000, // 50 cents
-            min_auction_duration: 10,
-            max_auction_duration: 60,
+            min_perp_auction_duration: 10,
+            max_perp_auction_duration: 60,
+            min_spot_auction_duration: 0,
+            max_spot_auction_duration: 60,
             liquidation_margin_buffer_ratio: 50, // 2%
             signer: clearing_house_signer,
             signer_nonce: clearing_house_signer_nonce,
@@ -3044,8 +3046,8 @@ pub mod clearing_house {
             "min auction duration must be less than or equal to max auction duration",
         )?;
 
-        ctx.accounts.state.min_auction_duration = min_auction_duration;
-        ctx.accounts.state.max_auction_duration = max_auction_duration;
+        ctx.accounts.state.min_perp_auction_duration = min_auction_duration;
+        ctx.accounts.state.max_perp_auction_duration = max_auction_duration;
         Ok(())
     }
 

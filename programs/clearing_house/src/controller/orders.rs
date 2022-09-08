@@ -27,7 +27,9 @@ use crate::math::auction::{
 };
 use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::{MARGIN_PRECISION, MARGIN_PRECISION_TO_BANK_WEIGHT_PRECISION_RATIO};
+use crate::math::constants::{
+    MARGIN_PRECISION, MARGIN_PRECISION_TO_BANK_WEIGHT_PRECISION_RATIO, PERP_DECIMALS,
+};
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
@@ -202,8 +204,8 @@ pub fn place_order(
         auction_start_price,
         auction_end_price,
         auction_duration: min(
-            max(state.min_auction_duration, params.auction_duration),
-            state.max_auction_duration,
+            max(state.min_perp_auction_duration, params.auction_duration),
+            state.max_perp_auction_duration,
         ),
         padding: [0; 3],
     };
@@ -607,7 +609,7 @@ pub fn fill_order(
     }
 
     let should_expire_order =
-        should_expire_order(user, order_index, slot, state.max_auction_duration)?;
+        should_expire_order(user, order_index, slot, state.max_perp_auction_duration)?;
     if should_expire_order {
         let filler_reward = {
             let mut market = market_map.get_ref_mut(&market_index)?;
@@ -798,6 +800,12 @@ fn sanitize_maker_order<'a>(
             ErrorCode::OrderMustBeTriggeredFirst,
             "Maker order not triggered"
         )?;
+
+        validate!(
+            maker_order.market_type == MarketType::Perp,
+            ErrorCode::InvalidOrder,
+            "Maker order not a perp order"
+        )?
     }
 
     let breaches_oracle_price_limits = {
@@ -1407,7 +1415,7 @@ pub fn fulfill_order_with_match(
         maker_base_asset_amount,
         maker_price,
         taker_base_asset_amount,
-        13,
+        PERP_DECIMALS,
     )?;
 
     if base_asset_amount == 0 {
@@ -1467,7 +1475,7 @@ pub fn fulfill_order_with_match(
         base_asset_amount_left_to_fill,
         maker_price,
         taker_base_asset_amount,
-        13,
+        PERP_DECIMALS,
     )?;
 
     total_quote_asset_amount = total_quote_asset_amount
@@ -2108,8 +2116,8 @@ pub fn place_spot_order(
         auction_start_price,
         auction_end_price,
         auction_duration: min(
-            max(state.min_auction_duration, params.auction_duration),
-            state.max_auction_duration,
+            max(state.min_spot_auction_duration, params.auction_duration),
+            state.max_spot_auction_duration,
         ),
         padding: [0; 3],
     };
@@ -2213,8 +2221,8 @@ pub fn fill_spot_order(
         .position(|order| order.order_id == order_id)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
-    let (order_status, market_index, order_market_type) =
-        get_struct_values!(user.orders[order_index], status, market_index, market_type);
+    let (order_status, order_market_type) =
+        get_struct_values!(user.orders[order_index], status, market_type);
 
     validate!(
         order_market_type == MarketType::Spot,
@@ -2271,7 +2279,7 @@ pub fn fill_spot_order(
     )?;
 
     let should_expire_order =
-        should_expire_order(user, order_index, slot, state.max_auction_duration)?;
+        should_expire_order(user, order_index, slot, state.max_spot_auction_duration)?;
     if should_expire_order {
         let filler_reward = {
             let mut quote_bank = bank_map.get_quote_asset_bank_mut()?;
@@ -2502,7 +2510,6 @@ fn fulfill_spot_order(
         token_amount,
     )?;
 
-    // TODO SPOT if risk increasing order and free collateral < 0, cancel order
     if free_collateral < 0 && !risk_decreasing {
         let filler_reward = {
             let mut quote_bank = bank_map.get_quote_asset_bank_mut()?;
@@ -2542,7 +2549,7 @@ fn fulfill_spot_order(
     let mut quote_bank = bank_map.get_quote_asset_bank_mut()?;
     let mut base_bank = bank_map.get_ref_mut(&base_bank_index)?;
 
-    let mut order_records: Vec<OrderRecord> = vec![];
+    let mut order_records: Vec<OrderActionRecord> = vec![];
     let mut base_asset_amount = 0_u128;
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
@@ -2639,7 +2646,7 @@ pub fn fulfill_spot_order_with_match(
     slot: u64,
     oracle_map: &mut OracleMap,
     fee_structure: &FeeStructure,
-    order_records: &mut Vec<OrderRecord>,
+    order_records: &mut Vec<OrderActionRecord>,
 ) -> ClearingHouseResult<u128> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
@@ -2822,7 +2829,7 @@ pub fn fulfill_spot_order_with_match(
         Some(0),
         oracle_map.get_price_data(&base_bank.oracle)?.price,
     )?;
-    emit!(order_action_record);
+    order_records.push(order_action_record);
 
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled()? == 0 {
         taker.orders[taker_order_index] = Order::default();
@@ -2855,7 +2862,7 @@ pub fn fulfill_spot_order_with_serum(
     slot: u64,
     oracle_map: &mut OracleMap,
     fee_structure: &FeeStructure,
-    order_records: &mut Vec<OrderRecord>,
+    order_records: &mut Vec<OrderActionRecord>,
     serum_fulfillment_params: &mut Option<SerumFulfillmentParams>,
 ) -> ClearingHouseResult<u128> {
     let mut serum_new_order_accounts = match serum_fulfillment_params {
@@ -3196,7 +3203,7 @@ pub fn fulfill_spot_order_with_serum(
         Some(0),
         oracle_price,
     )?;
-    emit!(order_action_record);
+    order_records.push(order_action_record);
 
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled()? == 0 {
         taker.orders[taker_order_index] = Order::default();
