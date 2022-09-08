@@ -2479,7 +2479,101 @@ pub mod delisting_test {
             liquidate_perp_pnl_for_deposit(
                 0,
                 0,
-                23250000000,
+                QUOTE_PRECISION_I128 as u128,
+                &mut shorter,
+                &maker_key,
+                &mut liquidator,
+                &liq_key,
+                &market_map,
+                &bank_map,
+                &mut oracle_map,
+                clock.unix_timestamp,
+                10,
+            )
+            .unwrap();
+
+            assert_eq!(shorter.being_liquidated, true);
+            assert_eq!(shorter.bankrupt, false);
+
+            {
+                let mut market = market_map.get_ref_mut(&0).unwrap();
+                let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
+
+                assert_eq!(market.amm.quote_asset_amount_long, 201000000);
+                assert_eq!(market.amm.quote_asset_amount_short, 96999000000);
+
+                assert_eq!(market.amm.cumulative_funding_rate_long, 0);
+                assert_eq!(market.amm.cumulative_funding_rate_short, 0);
+
+                let (perp_margin_requirement, weighted_pnl) =
+                    calculate_perp_position_value_and_pnl(
+                        &shorter.positions[0],
+                        &market,
+                        oracle_price_data,
+                        MarginRequirementType::Initial,
+                    )
+                    .unwrap();
+
+                // short cant pay without bankruptcy
+                assert_eq!(shorter.bank_balances[0].balance, 19999000000);
+                assert_eq!(
+                    shorter.bank_balances[0].balance_type,
+                    BankBalanceType::Deposit
+                );
+                assert_eq!(oracle_price_data.price, 1000000000000);
+                assert_eq!(perp_margin_requirement, 0);
+                assert_eq!(weighted_pnl, -23249000000);
+
+                assert_eq!(longer.bank_balances[0].balance, 20000000000);
+                assert_eq!(longer.positions[0].quote_asset_amount, 200000000);
+
+                assert_eq!(
+                    market.base_asset_amount_long + market.base_asset_amount_short,
+                    -8000000000000000
+                );
+                assert_eq!(
+                    market.amm.quote_asset_amount_long + market.amm.quote_asset_amount_short,
+                    97200000000
+                );
+
+                assert_eq!(shorter.positions[0].base_asset_amount, 0);
+                assert_eq!(shorter.positions[0].quote_asset_amount, -23249000000);
+
+                assert_eq!(
+                    liquidator.positions[0].base_asset_amount,
+                    market.base_asset_amount_short
+                );
+                assert_eq!(market.amm.quote_asset_amount_short, 96999000000);
+                assert_eq!(
+                    liquidator.positions[0].quote_asset_amount,
+                    // market.amm.quote_asset_amount_short,
+                    120249000000
+                );
+
+                assert_eq!(
+                    longer.positions[0].base_asset_amount,
+                    market.base_asset_amount_long
+                );
+                assert_eq!(
+                    longer.positions[0].quote_asset_amount,
+                    200000000
+                );
+
+                assert_eq!(market.amm.quote_asset_amount_long, 201000000);
+                assert_eq!(market.amm.quote_asset_amount_short, 96999000000);
+
+
+
+                // add a liq fee now
+                market.liquidation_fee = 10000;
+
+                drop(market);
+            }
+
+            liquidate_perp_pnl_for_deposit(
+                0,
+                0,
+                (QUOTE_PRECISION_I128 * 1000000000) as u128, // give all
                 &mut shorter,
                 &maker_key,
                 &mut liquidator,
@@ -2495,12 +2589,13 @@ pub mod delisting_test {
             assert_eq!(shorter.being_liquidated, true);
             assert_eq!(shorter.bankrupt, true);
 
+
             {
                 let market = market_map.get_ref_mut(&0).unwrap();
                 let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
 
-                assert_eq!(market.amm.quote_asset_amount_long, 20200000000);
-                assert_eq!(market.amm.quote_asset_amount_short, 77000000000);
+                assert_eq!(market.amm.quote_asset_amount_long, 20000010000);
+                assert_eq!(market.amm.quote_asset_amount_short, 77199990000);
 
                 assert_eq!(market.amm.cumulative_funding_rate_long, 0);
                 assert_eq!(market.amm.cumulative_funding_rate_short, 0);
@@ -2522,7 +2617,7 @@ pub mod delisting_test {
                 );
                 assert_eq!(oracle_price_data.price, 1000000000000);
                 assert_eq!(perp_margin_requirement, 0);
-                assert_eq!(weighted_pnl, -3250000000);
+                assert_eq!(weighted_pnl, -3449990000);
 
                 assert_eq!(longer.bank_balances[0].balance, 20000000000);
                 assert_eq!(longer.positions[0].quote_asset_amount, 200000000);
@@ -2537,17 +2632,17 @@ pub mod delisting_test {
                 );
 
                 assert_eq!(shorter.positions[0].base_asset_amount, 0);
-                assert_eq!(shorter.positions[0].quote_asset_amount, -3250000000);
+                assert_eq!(shorter.positions[0].quote_asset_amount, -3449990000);
 
                 assert_eq!(
                     liquidator.positions[0].base_asset_amount,
                     market.base_asset_amount_short
                 );
-                assert_eq!(market.amm.quote_asset_amount_short, 77000000000);
+                assert_eq!(market.amm.quote_asset_amount_short, 77199990000);
                 assert_eq!(
                     liquidator.positions[0].quote_asset_amount,
                     // market.amm.quote_asset_amount_short,
-                    100250000000
+                    100449990000
                 );
 
                 assert_eq!(
@@ -2556,11 +2651,12 @@ pub mod delisting_test {
                 );
                 assert_eq!(
                     longer.positions[0].quote_asset_amount,
-                    market.amm.quote_asset_amount_long - 20000000000
+                    200000000,
+                    // market.amm.quote_asset_amount_long - 20000000000
                 );
 
-                assert_eq!(market.amm.quote_asset_amount_long, 20200000000);
-                assert_eq!(market.amm.quote_asset_amount_short, 77000000000);
+                assert_eq!(market.amm.quote_asset_amount_long, 20000010000);
+                assert_eq!(market.amm.quote_asset_amount_short, 77199990000);
 
                 drop(market);
             }
@@ -2574,7 +2670,7 @@ pub mod delisting_test {
                 liquidator.positions[0].base_asset_amount,
                 -10000000000000000
             );
-            assert_eq!(liquidator.positions[0].quote_asset_amount, 100250000000);
+            assert_eq!(liquidator.positions[0].quote_asset_amount, 100449990000);
             assert_eq!(liquidator.positions[0].quote_entry_amount, 120250000000);
             assert_eq!(liquidator.positions[0].open_orders, 0);
 
@@ -2590,7 +2686,10 @@ pub mod delisting_test {
             )
             .unwrap();
 
-            assert_eq!(liquidator.bank_balances[0].balance, 19879750000); // avoid the social loss :p
+            assert_eq!(liquidator.bank_balances[0].balance, 20079740000); 
+            // avoid the social loss :p
+            // made 79 bucks
+            
             assert_eq!(
                 liquidator.bank_balances[0].balance_type,
                 BankBalanceType::Deposit
@@ -2621,10 +2720,10 @@ pub mod delisting_test {
             assert_eq!(market.base_asset_amount_short, 0);
             assert_eq!(market.amm.net_base_asset_amount, 2000000000000000);
 
-            assert_eq!(market.amm.cumulative_funding_rate_long, 1625000000000000);
-            assert_eq!(market.amm.cumulative_funding_rate_short, -1625000000000000);
+            assert_eq!(market.amm.cumulative_funding_rate_long, 1724995000000000);
+            assert_eq!(market.amm.cumulative_funding_rate_short, -1724995000000000);
 
-            assert_eq!(market.pnl_pool.balance, 21120250000); //$24370
+            assert_eq!(market.pnl_pool.balance, 20920260000); //$20920
             assert_eq!(market.amm.fee_pool.balance, 0);
             drop(market);
 
@@ -2671,15 +2770,15 @@ pub mod delisting_test {
             .unwrap();
 
             let market = market_map.get_ref_mut(&0).unwrap();
-            assert_eq!(market.pnl_pool.balance, 21120250000);
+            assert_eq!(market.pnl_pool.balance, 20920260000);
             assert_eq!(longer.bank_balances[0].balance, 20000000000);
             assert_eq!(longer.positions[0].quote_asset_amount, 200000000);
             assert_eq!(
                 longer.positions[0].quote_asset_amount,
-                market.amm.quote_asset_amount_long - 20000000000
+                200000000
             );
 
-            assert_eq!(market.amm.quote_asset_amount_long, 20200000000);
+            assert_eq!(market.amm.quote_asset_amount_long, 20000010000);
             assert_eq!(market.amm.quote_asset_amount_short, -23250000000);
 
             drop(market);
@@ -2699,7 +2798,7 @@ pub mod delisting_test {
             assert_eq!(longer.positions[0].base_asset_amount, 0);
 
             assert_eq!(longer.bank_balances[0].balance > 100000000, true);
-            assert_eq!(longer.bank_balances[0].balance, 40975950000); //$40975
+            assert_eq!(longer.bank_balances[0].balance, 40775960000); //$40775
 
             let market = market_map.get_ref_mut(&0).unwrap();
             assert_eq!(market.pnl_pool.balance, 144300000); // fees collected
@@ -2711,10 +2810,10 @@ pub mod delisting_test {
 
             assert_eq!(market.amm.net_base_asset_amount, 0);
 
-            assert_eq!(market.amm.quote_asset_amount_long, 20000000000);
+            assert_eq!(market.amm.quote_asset_amount_long, 19800010000);
             assert_eq!(market.amm.quote_asset_amount_short, -23250000000);
 
-            assert_eq!(market.amm.cumulative_social_loss, -3250000000);
+            assert_eq!(market.amm.cumulative_social_loss, -3449990000);
 
             assert_eq!(
                 market.amm.quote_asset_amount_long + market.amm.quote_asset_amount_short,
