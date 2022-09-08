@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
+use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
 use crate::math::casting::{cast, cast_to_i64, cast_to_u64};
 use crate::state::user::Order;
@@ -131,6 +132,7 @@ pub struct OrderActionRecord {
 
     pub taker: Option<Pubkey>,
     pub taker_order_id: Option<u64>,
+    pub taker_order_direction: Option<PositionDirection>,
     pub taker_order_base_asset_amount: Option<u128>,
     pub taker_order_base_asset_amount_filled: Option<u128>,
     pub taker_order_quote_asset_amount_filled: Option<u64>,
@@ -138,6 +140,7 @@ pub struct OrderActionRecord {
 
     pub maker: Option<Pubkey>,
     pub maker_order_id: Option<u64>,
+    pub maker_order_direction: Option<PositionDirection>,
     pub maker_order_base_asset_amount: Option<u128>,
     pub maker_order_base_asset_amount_filled: Option<u128>,
     pub maker_order_quote_asset_amount_filled: Option<u64>,
@@ -209,6 +212,7 @@ pub fn get_order_action_record(
         },
         taker,
         taker_order_id: taker_order.map(|order| order.order_id),
+        taker_order_direction: taker_order.map(|order| order.direction),
         taker_order_base_asset_amount: taker_order.map(|order| order.base_asset_amount),
         taker_order_base_asset_amount_filled: taker_order
             .map(|order| order.base_asset_amount_filled),
@@ -226,6 +230,7 @@ pub fn get_order_action_record(
         },
         maker,
         maker_order_id: maker_order.map(|order| order.order_id),
+        maker_order_direction: maker_order.map(|order| order.direction),
         maker_order_base_asset_amount: maker_order.map(|order| order.base_asset_amount),
         maker_order_base_asset_amount_filled: maker_order
             .map(|order| order.base_asset_amount_filled),
