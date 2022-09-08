@@ -685,65 +685,12 @@ pub fn decrease_open_bids_and_asks(
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use crate::controller::position::{
         update_amm_and_lp_market_position, update_position_and_market, PositionDelta,
     };
     use crate::math::constants::{AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128};
     use crate::state::market::{Market, AMM};
     use crate::state::user::MarketPosition;
-
-    mod tmp {
-        use super::*;
-
-        fn delta(
-            baa: i128,
-            total_lp_shares: u128,
-            user_lp_shares: u128,
-        ) -> ClearingHouseResult<(i128, i128)> {
-            // update Market per lp position
-            let per_lp_delta_base =
-                get_proportion_i128(baa, AMM_RESERVE_PRECISION, total_lp_shares)?;
-
-            let lp_delta_base =
-                get_proportion_i128(per_lp_delta_base, user_lp_shares, AMM_RESERVE_PRECISION)?;
-
-            // check for round off errors
-            let _per_lp_delta_base =
-                get_proportion_i128(lp_delta_base, AMM_RESERVE_PRECISION, user_lp_shares)?;
-
-            let _lp_delta_base =
-                get_proportion_i128(per_lp_delta_base, user_lp_shares, AMM_RESERVE_PRECISION)?;
-
-            let per_delta = per_lp_delta_base - _per_lp_delta_base;
-            let delta = lp_delta_base - _lp_delta_base;
-
-            return Ok((per_delta, delta));
-        }
-
-        #[test]
-        fn fuzz_test() {
-            for total_lp_shares in (1..500_000).step_by(12_123) {
-                for user_lp_shares in (1..total_lp_shares).step_by(1432) {
-                    for i in (0..1000).step_by(121) {
-                        let (per_delta, baa_delta) = delta(
-                            i * AMM_RESERVE_PRECISION_I128,
-                            total_lp_shares * AMM_RESERVE_PRECISION,
-                            user_lp_shares * AMM_RESERVE_PRECISION,
-                        )
-                        .unwrap();
-
-                        if per_delta != 0 {
-                            crate::dlog!(per_delta)
-                        }
-                        if baa_delta != 0 {
-                            crate::dlog!(baa_delta)
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     #[test]
     fn full_amm_split() {
