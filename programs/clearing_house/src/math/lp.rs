@@ -31,19 +31,6 @@ pub fn calculate_settle_lp_metrics(
             amm.base_asset_amount_step_size,
         )?;
 
-    let min_baa = amm.base_asset_amount_step_size;
-
-    // note: since pnl may go into the qaa of a position its not really fair to ensure qaa >= min_qaa
-    let remainder_base_asset_amount = if standardized_base_asset_amount.unsigned_abs() >= min_baa {
-        remainder_base_asset_amount
-    } else {
-        base_asset_amount
-    };
-
-    let standardized_base_asset_amount = base_asset_amount
-        .checked_sub(remainder_base_asset_amount)
-        .ok_or_else(math_error!())?;
-
     let lp_metrics = LPMetrics {
         base_asset_amount: standardized_base_asset_amount,
         quote_asset_amount,

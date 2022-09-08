@@ -421,28 +421,30 @@ pub fn update_amm_and_lp_market_position(
     fee_to_market: i128,
 ) -> ClearingHouseResult {
     let total_lp_shares = market.amm.sqrt_k;
-    let non_amm_lp_shares = market.amm.user_lp_shares;
+    let user_lp_shares = market.amm.user_lp_shares;
 
-    let (lp_delta_base, lp_delta_quote, lp_fee) = if non_amm_lp_shares > 0 {
+    let (lp_delta_base, lp_delta_quote, lp_fee) = if user_lp_shares > 0 {
         // update Market per lp position
-        let lp_delta_base =
-            get_proportion_i128(delta.base_asset_amount, non_amm_lp_shares, total_lp_shares)?;
-        let lp_delta_quote =
-            get_proportion_i128(delta.quote_asset_amount, non_amm_lp_shares, total_lp_shares)?;
-
-        let per_lp_delta_base = -get_proportion_i128(
+        let per_lp_delta_base = get_proportion_i128(
             delta.base_asset_amount,
             AMM_RESERVE_PRECISION,
             total_lp_shares,
         )?;
-        let per_lp_delta_quote = -get_proportion_i128(
+
+        let per_lp_delta_quote = get_proportion_i128(
             delta.quote_asset_amount,
             AMM_RESERVE_PRECISION,
             total_lp_shares,
         )?;
+
+        let lp_delta_base =
+            get_proportion_i128(per_lp_delta_base, user_lp_shares, AMM_RESERVE_PRECISION)?;
+        let lp_delta_quote =
+            get_proportion_i128(per_lp_delta_quote, user_lp_shares, AMM_RESERVE_PRECISION)?;
+
         let per_lp_position_delta = PositionDelta {
-            base_asset_amount: per_lp_delta_base,
-            quote_asset_amount: per_lp_delta_quote,
+            base_asset_amount: -per_lp_delta_base,
+            quote_asset_amount: -per_lp_delta_quote,
         };
 
         update_amm_position(market, &per_lp_position_delta, true)?;
@@ -450,7 +452,7 @@ pub fn update_amm_and_lp_market_position(
         // 1/5 of fee auto goes to market
         // the rest goes to lps/market proportional
         let lp_fee = (fee_to_market - (fee_to_market / 5)) // todo: 80% retained
-            .checked_mul(cast_to_i128(non_amm_lp_shares)?)
+            .checked_mul(cast_to_i128(user_lp_shares)?)
             .ok_or_else(math_error!())?
             .checked_div(cast_to_i128(total_lp_shares)?)
             .ok_or_else(math_error!())?;
@@ -459,7 +461,7 @@ pub fn update_amm_and_lp_market_position(
             lp_fee
                 .checked_mul(AMM_RESERVE_PRECISION_I128)
                 .ok_or_else(math_error!())?
-                .checked_div(cast_to_i128(market.amm.user_lp_shares)?)
+                .checked_div(cast_to_i128(user_lp_shares)?)
                 .ok_or_else(math_error!())?
         } else {
             0

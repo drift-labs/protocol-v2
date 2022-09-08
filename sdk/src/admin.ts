@@ -801,4 +801,20 @@ export class Admin extends ClearingHouse {
 			},
 		});
 	}
+
+	public async updateMarketMaxRevenueWithdrawPerPeroid(
+		marketIndex: BN,
+		maxRevenueWithdrawPerPeriod: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateMarketMaxRevenueWithdrawPerPeroid(
+			maxRevenueWithdrawPerPeriod,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					market: await getMarketPublicKey(this.program.programId, marketIndex),
+				},
+			}
+		);
+	}
 }
