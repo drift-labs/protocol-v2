@@ -4,6 +4,7 @@ use crate::math::constants::PRICE_TO_QUOTE_PRECISION_RATIO;
 use crate::math_error;
 use solana_program::msg;
 
+// Max amount of base to put deposit into serum
 pub fn calculate_serum_max_coin_qty(
     base_asset_amount: u128,
     coin_lot_size: u64,
@@ -13,6 +14,7 @@ pub fn calculate_serum_max_coin_qty(
         .ok_or_else(math_error!())
 }
 
+// calculate limit price in serum lot sizes
 pub fn calculate_serum_limit_price(
     limit_price: u128,
     pc_lot_size: u64,
@@ -35,6 +37,7 @@ pub fn calculate_serum_limit_price(
         .map(|limit_price| limit_price as u64)
 }
 
+// Max amount of quote to put deposit into serum
 pub fn calculate_serum_max_native_pc_quantity(
     serum_limit_price: u64,
     serum_coin_qty: u64,

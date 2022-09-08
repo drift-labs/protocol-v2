@@ -2905,8 +2905,8 @@ pub fn fulfill_spot_order_with_serum(
     let serum_order = NewOrderInstructionV3 {
         side: serum_order_side,
         limit_price: NonZeroU64::new(serum_limit_price).unwrap(),
-        max_coin_qty: NonZeroU64::new(serum_max_coin_qty).unwrap(),
-        max_native_pc_qty_including_fees: NonZeroU64::new(serum_max_native_pc_qty).unwrap(),
+        max_coin_qty: NonZeroU64::new(serum_max_coin_qty).unwrap(), // max base to deposit into serum
+        max_native_pc_qty_including_fees: NonZeroU64::new(serum_max_native_pc_qty).unwrap(), // max quote to deposit into serum
         self_trade_behavior: SelfTradeBehavior::AbortTransaction,
         order_type: serum_dex::matching::OrderType::ImmediateOrCancel,
         client_order_id: 0,
