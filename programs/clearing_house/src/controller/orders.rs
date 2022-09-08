@@ -1305,8 +1305,8 @@ pub fn fulfill_order_with_match(
     let taker_price =
         taker.orders[taker_order_index].get_limit_price(&market.amm, Some(oracle_price), slot)?;
     let taker_direction = taker.orders[taker_order_index].direction;
-    let taker_base_asset_amount = taker.orders[taker_order_index]
-        .get_base_asset_amount_unfilled()?;
+    let taker_base_asset_amount =
+        taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
 
     let maker_price =
         maker.orders[maker_order_index].get_limit_price(&market.amm, Some(oracle_price), slot)?;
