@@ -40,7 +40,6 @@ pub mod clearing_house {
     use std::option::Option::Some;
 
     use crate::controller::lp::burn_lp_shares;
-    use crate::controller::lp::settle_lp_position;
     use crate::controller::position::{add_new_position, get_position_index};
     use crate::margin_validation::validate_margin;
     use crate::math;
@@ -801,27 +800,11 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
 
-        {
-            let mut market = market_map.get_ref_mut(&market_index)?;
-            controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
-        }
+        let market = &mut market_map.get_ref_mut(&market_index)?;
 
-        let mut market = market_map.get_ref_mut(&market_index)?;
-        let position_index = get_position_index(&user.positions, market_index)?;
-        let position = &mut user.positions[position_index];
+        controller::funding::settle_funding_payment(user, &user_key, market, now)?;
 
-        let (position_delta, pnl) = settle_lp_position(position, &mut market)?;
-
-        emit!(LPRecord {
-            ts: now,
-            action: LPAction::SettleLiquidity,
-            user: user_key,
-            market_index,
-            delta_base_asset_amount: position_delta.base_asset_amount,
-            delta_quote_asset_amount: position_delta.quote_asset_amount,
-            pnl,
-            n_shares: 0
-        });
+        controller::lp::settle_lp(user, &user_key, market, now)?;
 
         Ok(())
     }

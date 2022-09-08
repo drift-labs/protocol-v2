@@ -420,12 +420,13 @@ pub fn fill_order(
     let (order_status, market_index) =
         get_struct_values!(user.orders[order_index], status, market_index);
 
-    controller::funding::settle_funding_payment(
-        user,
-        &user_key,
-        market_map.get_ref_mut(&market_index)?.deref_mut(),
-        now,
-    )?;
+    // settle lp position so its tradeable
+    let mut market = market_map.get_ref_mut(&market_index)?;
+
+    controller::lp::settle_lp(user, &user_key, &mut market, now)?;
+    controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
+
+    drop(market);
 
     validate!(
         order_status == OrderStatus::Open,
