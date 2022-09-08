@@ -271,14 +271,6 @@ pub fn calculate_perp_position_value_and_pnl(
         .checked_div(BANK_WEIGHT_PRECISION as i128)
         .ok_or_else(math_error!())?;
 
-    msg!(
-        "market_index: {}, {} {} {}",
-        market.market_index,
-        worse_case_base_asset_value,
-        margin_requirement,
-        unrealized_pnl
-    );
-
     Ok((margin_requirement, weighted_unrealized_pnl))
 }
 
@@ -337,13 +329,6 @@ pub fn calculate_margin_requirement_and_total_collateral(
             oracle_price_data,
             margin_requirement_type,
         )?;
-
-        msg!(
-            "{}, {} + {}",
-            perp_margin_requirement,
-            total_collateral,
-            weighted_pnl
-        );
 
         margin_requirement = margin_requirement
             .checked_add(perp_margin_requirement)
@@ -438,8 +423,6 @@ pub fn meets_maintenance_margin_requirement(
         bank_map,
         oracle_map,
     )?;
-
-    msg!("{} vs {}", total_collateral, margin_requirement);
 
     Ok(total_collateral >= cast_to_i128(margin_requirement)?)
 }

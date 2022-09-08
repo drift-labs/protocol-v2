@@ -1,6 +1,5 @@
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDirection;
-use crate::dlog;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
 use crate::math::bn::U192;
@@ -1483,13 +1482,6 @@ pub fn calculate_settlement_price(
     // net_user_unrealized_pnl negative = surplus in market
     // net_user_unrealized_pnl positive = settlement price needs to differ from oracle
 
-    dlog!(
-        amm.quote_asset_amount_long,
-        amm.quote_asset_amount_short,
-        pnl_pool_amount,
-        amm.net_base_asset_amount
-    );
-
     let price_sign_mult = 1;
 
     // if amm.quote_asset_amount_long > amm.quote_asset_amount_short {
@@ -1509,9 +1501,6 @@ pub fn calculate_settlement_price(
         .checked_div(amm.net_base_asset_amount)
         .ok_or_else(math_error!())?)
         * price_sign_mult;
-
-    dlog!(best_settlement_price);
-    dlog!(target_price);
 
     let settlement_price = if amm.net_base_asset_amount > 0 {
         // net longs only get as high as oracle_price

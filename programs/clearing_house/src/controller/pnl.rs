@@ -5,7 +5,6 @@ use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount, update_realized_pnl,
     PositionDelta,
 };
-use crate::dlog;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::cast;
 use crate::math::casting::cast_to_i128;
@@ -205,12 +204,6 @@ pub fn settle_expired_position(
         .ok_or_else(math_error!())?;
 
     let pnl_to_settle_with_user = update_pnl_pool_balance(market, bank, unrealized_pnl_with_fee)?;
-    dlog!(
-        pnl_to_settle_with_user,
-        unrealized_pnl_with_fee,
-        fee,
-        unrealized_pnl
-    );
 
     validate!(
         unrealized_pnl_with_fee == pnl_to_settle_with_user,
