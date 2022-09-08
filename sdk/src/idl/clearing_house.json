@@ -4133,6 +4133,10 @@
             "type": "u128"
           },
           {
+            "name": "remainderBaseAssetAmount",
+            "type": "i128"
+          },
+          {
             "name": "lastNetBaseAssetAmountPerLp",
             "type": "i128"
           },

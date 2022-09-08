@@ -318,12 +318,14 @@ export type OrderActionRecord = {
 	quoteAssetAmountSurplus: BN | null;
 	taker: PublicKey | null;
 	takerOrderId: BN | null;
+	takerOrderDirection: PositionDirection | null;
 	takerOrderBaseAssetAmount: BN | null;
 	takerOrderBaseAssetAmountFilled: BN | null;
 	takerOrderQuoteAssetAmountFilled: BN | null;
 	takerOrderFee: BN | null;
 	maker: PublicKey | null;
 	makerOrderId: BN | null;
+	makerOrderDirection: PositionDirection | null;
 	makerOrderBaseAssetAmount: BN | null;
 	makerOrderBaseAssetAmountFilled: BN | null;
 	makerOrderQuoteAssetAmountFilled: BN | null;
@@ -492,6 +494,7 @@ export type AMM = {
 // # User Account Types
 export type UserPosition = {
 	baseAssetAmount: BN;
+	remainderBaseAssetAmount: BN;
 	lastCumulativeFundingRate: BN;
 	marketIndex: BN;
 	quoteAssetAmount: BN;
