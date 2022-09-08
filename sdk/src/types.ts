@@ -445,7 +445,6 @@ export type BankAccount = {
 	nextFillRecordId: BN;
 	spotFeePool: {
 		balance: BN;
-		balanceType: BankBalanceType;
 	};
 	totalSpotFee: BN;
 };

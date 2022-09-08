@@ -139,28 +139,7 @@ impl Bank {
         }
     }
 
-    pub fn get_initial_leverage_ratio(
-        &self,
-        margin_type: MarginRequirementType,
-    ) -> ClearingHouseResult<u128> {
-        let liability_weight = match margin_type {
-            MarginRequirementType::Initial => self.initial_liability_weight,
-            MarginRequirementType::Maintenance => self.maintenance_liability_weight,
-        };
-
-        MARGIN_PRECISION
-            .checked_mul(MARGIN_PRECISION)
-            .ok_or_else(math_error!())?
-            .checked_div(
-                liability_weight
-                    .checked_mul(MARGIN_PRECISION_TO_BANK_WEIGHT_PRECISION_RATIO)
-                    .ok_or_else(math_error!())?
-                    .checked_sub(MARGIN_PRECISION)
-                    .ok_or_else(math_error!())?,
-            )
-            .ok_or_else(math_error!())
-    }
-
+    // get liability weight as if it were perp market margin requirement
     pub fn get_margin_ratio(
         &self,
         margin_requirement_type: &MarginRequirementType,
