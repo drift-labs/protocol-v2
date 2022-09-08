@@ -19,6 +19,8 @@ import {
 	getTokenAmount,
 	isVariant,
 	MARK_PRICE_PRECISION,
+	getSerumFulfillmentConfigPublicKey,
+	SerumV3FulfillmentConfigAccount,
 } from '../sdk/src';
 
 import {
@@ -146,7 +148,7 @@ describe('serum spot market', () => {
 			feeRateBps: 0,
 		});
 
-		await makerClearingHouse.addSerumMarket(
+		await makerClearingHouse.initializeSerumFulfillmentConfig(
 			solBankIndex,
 			serumMarketPublicKey,
 			serumHelper.DEX_PID
@@ -170,9 +172,15 @@ describe('serum spot market', () => {
 		)[0];
 		openOrderAccounts.push(makerOpenOrders.publicKey);
 
-		openOrderAccounts.push(
-			takerClearingHouse.getBankAccount(solBankIndex).serumOpenOrders
-		);
+		const serumFulfillmentConfigAccount =
+			(await makerClearingHouse.program.account.serumV3FulfillmentConfig.fetch(
+				getSerumFulfillmentConfigPublicKey(
+					makerClearingHouse.program.programId,
+					serumMarketPublicKey
+				)
+			)) as SerumV3FulfillmentConfigAccount;
+
+		openOrderAccounts.push(serumFulfillmentConfigAccount.serumOpenOrders);
 
 		const consumeEventsIx = await market.makeConsumeEventsInstruction(
 			openOrderAccounts,
@@ -242,10 +250,19 @@ describe('serum spot market', () => {
 
 		await provider.sendAndConfirm(transaction, signers);
 
+		const serumFulfillmentConfigPublicKey = getSerumFulfillmentConfigPublicKey(
+			makerClearingHouse.program.programId,
+			serumMarketPublicKey
+		);
+		const serumFulfillmentConfigAccount =
+			(await makerClearingHouse.program.account.serumV3FulfillmentConfig.fetch(
+				serumFulfillmentConfigPublicKey
+			)) as SerumV3FulfillmentConfigAccount;
 		const txSig = await makerClearingHouse.fillSpotOrder(
 			await takerClearingHouse.getUserAccountPublicKey(),
 			takerClearingHouse.getUserAccount(),
-			takerClearingHouse.getOrderByUserId(1)
+			takerClearingHouse.getOrderByUserId(1),
+			serumFulfillmentConfigAccount
 		);
 
 		await printTxLogs(connection, txSig);
@@ -344,10 +361,19 @@ describe('serum spot market', () => {
 
 		await provider.sendAndConfirm(transaction, signers);
 
+		const serumFulfillmentConfigAccount =
+			(await makerClearingHouse.program.account.serumV3FulfillmentConfig.fetch(
+				getSerumFulfillmentConfigPublicKey(
+					makerClearingHouse.program.programId,
+					serumMarketPublicKey
+				)
+			)) as SerumV3FulfillmentConfigAccount;
+
 		const txSig = await makerClearingHouse.fillSpotOrder(
 			await takerClearingHouse.getUserAccountPublicKey(),
 			takerClearingHouse.getUserAccount(),
-			takerClearingHouse.getOrderByUserId(1)
+			takerClearingHouse.getOrderByUserId(1),
+			serumFulfillmentConfigAccount
 		);
 
 		await printTxLogs(connection, txSig);
@@ -448,10 +474,19 @@ describe('serum spot market', () => {
 
 		await provider.sendAndConfirm(transaction, signers);
 
+		const serumFulfillmentConfigAccount =
+			(await makerClearingHouse.program.account.serumV3FulfillmentConfig.fetch(
+				getSerumFulfillmentConfigPublicKey(
+					makerClearingHouse.program.programId,
+					serumMarketPublicKey
+				)
+			)) as SerumV3FulfillmentConfigAccount;
+
 		const txSig = await makerClearingHouse.fillSpotOrder(
 			await takerClearingHouse.getUserAccountPublicKey(),
 			takerClearingHouse.getUserAccount(),
-			takerClearingHouse.getOrderByUserId(1)
+			takerClearingHouse.getOrderByUserId(1),
+			serumFulfillmentConfigAccount
 		);
 
 		await printTxLogs(connection, txSig);

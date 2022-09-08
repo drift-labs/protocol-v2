@@ -46,21 +46,21 @@ pub fn invoke_init_open_orders<'a>(
     )
 }
 
-pub struct SerumNewOrderAccounts<'a, 'info> {
-    pub clearing_house_signer: &'a AccountInfo<'info>,
-    pub serum_program_id: &'a AccountInfo<'info>,
-    pub serum_market: &'a AccountInfo<'info>,
-    pub serum_request_queue: &'a AccountInfo<'info>,
-    pub serum_event_queue: &'a AccountInfo<'info>,
-    pub serum_bids: &'a AccountInfo<'info>,
-    pub serum_asks: &'a AccountInfo<'info>,
-    pub serum_base_vault: &'a AccountInfo<'info>,
-    pub serum_quote_vault: &'a AccountInfo<'info>,
-    pub serum_open_orders: &'a AccountInfo<'info>,
-    pub token_program: &'a Program<'info, Token>,
-    pub base_bank_vault: &'a mut Box<Account<'info, TokenAccount>>,
-    pub quote_bank_vault: &'a mut Box<Account<'info, TokenAccount>>,
-    pub serum_signer: &'a AccountInfo<'info>,
+pub struct SerumFulfillmentParams<'a, 'b> {
+    pub clearing_house_signer: &'a AccountInfo<'b>,
+    pub serum_program_id: &'a AccountInfo<'b>,
+    pub serum_market: &'a AccountInfo<'b>,
+    pub serum_request_queue: &'a AccountInfo<'b>,
+    pub serum_event_queue: &'a AccountInfo<'b>,
+    pub serum_bids: &'a AccountInfo<'b>,
+    pub serum_asks: &'a AccountInfo<'b>,
+    pub serum_base_vault: &'a AccountInfo<'b>,
+    pub serum_quote_vault: &'a AccountInfo<'b>,
+    pub serum_open_orders: &'a AccountInfo<'b>,
+    pub token_program: Program<'b, Token>,
+    pub base_bank_vault: Box<Account<'b, TokenAccount>>,
+    pub quote_bank_vault: Box<Account<'b, TokenAccount>>,
+    pub serum_signer: &'a AccountInfo<'b>,
     pub signer_nonce: u8,
 }
 

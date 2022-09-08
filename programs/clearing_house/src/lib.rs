@@ -43,13 +43,17 @@ pub mod clearing_house {
 
     use crate::controller::lp::burn_lp_shares;
     use crate::controller::lp::settle_lp_position;
-    use crate::controller::position::{add_new_position, get_position_index};
+    use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::bank_balance::get_token_amount;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
-    use crate::optional_accounts::{get_maker_and_maker_stats, get_referrer_and_referrer_stats};
-    use crate::state::bank::{Bank, BankBalanceType};
+    use crate::optional_accounts::{
+        get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
+    };
+    use crate::state::bank::{
+        Bank, BankBalanceType, SerumV3FulfillmentConfig, SpotFulfillmentStatus,
+    };
     use crate::state::bank_map::{get_writable_banks, BankMap, BankSet};
     use crate::state::events::{CurveRecord, DepositRecord};
     use crate::state::events::{DepositDirection, NewUserRecord};
@@ -63,7 +67,7 @@ pub mod clearing_house {
     use crate::state::state::OrderFillerRewardStructure;
 
     use super::*;
-    use crate::controller::serum::SerumNewOrderAccounts;
+    use crate::controller::serum::SerumFulfillmentParams;
     use crate::state::insurance_fund_stake::InsuranceFundStake;
     use crate::state::serum::{load_market_state, load_open_orders};
     use bytemuck::cast_slice;
@@ -289,16 +293,6 @@ pub mod clearing_house {
             withdraw_guard_threshold: 0,
             order_step_size,
             next_fill_record_id: 1,
-            serum_program_id: Pubkey::default(),
-            serum_market: Pubkey::default(),
-            serum_event_queue: Pubkey::default(),
-            serum_request_queue: Pubkey::default(),
-            serum_asks: Pubkey::default(),
-            serum_bids: Pubkey::default(),
-            serum_base_vault: Pubkey::default(),
-            serum_quote_vault: Pubkey::default(),
-            serum_open_orders: Pubkey::default(),
-            serum_signer_nonce: 0,
             spot_fee_pool: PoolBalance::default(),
             total_spot_fee: 0,
         };
@@ -306,15 +300,18 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn add_serum_market(ctx: Context<AddSerumMarket>, bank_index: u64) -> Result<()> {
+    pub fn initialize_serum_fulfillment_config(
+        ctx: Context<InitializeSerumFulfillmentConfig>,
+        market_index: u64,
+    ) -> Result<()> {
         validate!(
-            bank_index != 0,
+            market_index != 0,
             ErrorCode::DefaultError,
-            "Cant add serum market to quote bank"
+            "Cant add serum market to quote asset"
         )?;
 
-        let mut base_bank = load_mut!(&ctx.accounts.base_bank)?;
-        let mut quote_bank = load_mut!(&ctx.accounts.quote_bank)?;
+        let base_bank = load!(&ctx.accounts.base_bank)?;
+        let quote_bank = load!(&ctx.accounts.quote_bank)?;
 
         let serum_program_id = crate::ids::serum_program::id();
         validate!(
@@ -337,15 +334,15 @@ pub mod clearing_house {
             "Invalid base mint"
         )?;
 
-        base_bank.serum_program_id = serum_program_id;
-        base_bank.serum_market = serum_market_key;
-        base_bank.serum_event_queue = Pubkey::new(cast_slice(&market_state.event_q));
-        base_bank.serum_request_queue = Pubkey::new(cast_slice(&market_state.req_q));
-        base_bank.serum_bids = Pubkey::new(cast_slice(&market_state.bids));
-        base_bank.serum_asks = Pubkey::new(cast_slice(&market_state.asks));
-        base_bank.serum_base_vault = Pubkey::new(cast_slice(&market_state.coin_vault));
-        base_bank.serum_quote_vault = Pubkey::new(cast_slice(&market_state.pc_vault));
-        base_bank.serum_signer_nonce = market_state.vault_signer_nonce;
+        let serum_program_id = serum_program_id;
+        let serum_market = serum_market_key;
+        let serum_event_queue = Pubkey::new(cast_slice(&market_state.event_q));
+        let serum_request_queue = Pubkey::new(cast_slice(&market_state.req_q));
+        let serum_bids = Pubkey::new(cast_slice(&market_state.bids));
+        let serum_asks = Pubkey::new(cast_slice(&market_state.asks));
+        let serum_base_vault = Pubkey::new(cast_slice(&market_state.coin_vault));
+        let serum_quote_vault = Pubkey::new(cast_slice(&market_state.pc_vault));
+        let serum_signer_nonce = market_state.vault_signer_nonce;
 
         drop(market_state);
 
@@ -378,7 +375,24 @@ pub mod clearing_house {
             ctx.accounts.state.signer_nonce,
         )?;
 
-        base_bank.serum_open_orders = ctx.accounts.serum_open_orders.key();
+        let serum_fulfillment_config_key = ctx.accounts.serum_fulfillment_config.key();
+        let mut serum_fulfillment_config = ctx.accounts.serum_fulfillment_config.load_init()?;
+        *serum_fulfillment_config = SerumV3FulfillmentConfig {
+            fulfillment_type: SpotFulfillmentType::SerumV3,
+            status: SpotFulfillmentStatus::Enabled,
+            pubkey: serum_fulfillment_config_key,
+            market_index,
+            serum_program_id,
+            serum_market,
+            serum_request_queue,
+            serum_event_queue,
+            serum_bids,
+            serum_asks,
+            serum_base_vault,
+            serum_quote_vault,
+            serum_open_orders: ctx.accounts.serum_open_orders.key(),
+            serum_signer_nonce,
+        };
 
         Ok(())
     }
@@ -1396,11 +1410,12 @@ pub mod clearing_house {
     }
 
     #[access_control(
-    exchange_not_paused(&ctx.accounts.state)
+        exchange_not_paused(&ctx.accounts.state)
     )]
     pub fn fill_spot_order<'info>(
         ctx: Context<FillSpotOrder>,
         order_id: Option<u64>,
+        fulfillment_type: Option<SpotFulfillmentType>,
         maker_order_id: Option<u64>,
     ) -> Result<()> {
         let (order_id, market_index) = {
@@ -1417,20 +1432,15 @@ pub mod clearing_house {
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let bank_map = BankMap::load(&get_writable_banks(market_index), remaining_accounts_iter)?;
+        let mut writable_banks = BankSet::new();
+        writable_banks.insert(QUOTE_ASSET_BANK_INDEX);
+        writable_banks.insert(market_index);
+        let bank_map = BankMap::load(&writable_banks, remaining_accounts_iter)?;
         let market_map = MarketMap::load(
             &MarketSet::new(),
             &MarketSet::new(),
             remaining_accounts_iter,
         )?;
-
-        {
-            let bank = bank_map.get_ref(&market_index)?;
-            validate!(
-                bank.vault == ctx.accounts.base_bank_vault.key(),
-                ErrorCode::InvalidBankVault
-            )?;
-        }
 
         let (maker, maker_stats) = match maker_order_id {
             Some(_) => {
@@ -1440,22 +1450,18 @@ pub mod clearing_house {
             None => (None, None),
         };
 
-        let mut serum_new_order_accounts = SerumNewOrderAccounts {
-            clearing_house_signer: &ctx.accounts.clearing_house_signer,
-            serum_program_id: &ctx.accounts.serum_program_id,
-            serum_market: &ctx.accounts.serum_market,
-            serum_request_queue: &ctx.accounts.serum_request_queue,
-            serum_event_queue: &ctx.accounts.serum_event_queue,
-            serum_bids: &ctx.accounts.serum_bids,
-            serum_asks: &ctx.accounts.serum_asks,
-            serum_base_vault: &ctx.accounts.serum_base_vault,
-            serum_quote_vault: &ctx.accounts.serum_quote_vault,
-            serum_open_orders: &ctx.accounts.serum_open_orders,
-            token_program: &ctx.accounts.token_program,
-            base_bank_vault: &mut ctx.accounts.base_bank_vault,
-            quote_bank_vault: &mut ctx.accounts.quote_bank_vault,
-            signer_nonce: ctx.accounts.state.signer_nonce,
-            serum_signer: &ctx.accounts.serum_signer,
+        let serum_fulfillment_params = match fulfillment_type {
+            Some(SpotFulfillmentType::SerumV3) => {
+                let base_bank = bank_map.get_ref(&market_index)?;
+                let quote_bank = bank_map.get_quote_asset_bank()?;
+                get_serum_fulfillment_accounts(
+                    remaining_accounts_iter,
+                    &ctx.accounts.state,
+                    &base_bank,
+                    &quote_bank,
+                )?
+            }
+            _ => None,
         };
 
         controller::orders::fill_spot_order(
@@ -1473,7 +1479,7 @@ pub mod clearing_house {
             maker_order_id,
             &Clock::get()?,
             &ctx.accounts.state.spot_fee_structure,
-            serum_new_order_accounts,
+            serum_fulfillment_params,
         )?;
 
         Ok(())

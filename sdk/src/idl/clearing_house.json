@@ -158,16 +158,16 @@
       ]
     },
     {
-      "name": "addSerumMarket",
+      "name": "initializeSerumFulfillmentConfig",
       "accounts": [
         {
           "name": "baseBank",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
           "name": "quoteBank",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -196,6 +196,11 @@
           "isSigner": false
         },
         {
+          "name": "serumFulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "admin",
           "isMut": true,
           "isSigner": true
@@ -213,7 +218,7 @@
       ],
       "args": [
         {
-          "name": "bankIndex",
+          "name": "marketIndex",
           "type": "u64"
         }
       ]
@@ -842,76 +847,6 @@
           "name": "userStats",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "quoteBankVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "baseBankVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "clearingHouseSigner",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "serumProgramId",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "serumMarket",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "serumRequestQueue",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "serumEventQueue",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "serumBids",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "serumAsks",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "serumBaseVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "serumQuoteVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "serumOpenOrders",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "serumSigner",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
@@ -919,6 +854,14 @@
           "name": "orderId",
           "type": {
             "option": "u64"
+          }
+        },
+        {
+          "name": "fulfillmentType",
+          "type": {
+            "option": {
+              "defined": "SpotFulfillmentType"
+            }
           }
         },
         {
@@ -2989,6 +2932,44 @@
             "type": "u64"
           },
           {
+            "name": "totalSpotFee",
+            "type": "u128"
+          },
+          {
+            "name": "spotFeePool",
+            "type": {
+              "defined": "PoolBalance"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SerumV3FulfillmentConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "fulfillmentType",
+            "type": {
+              "defined": "SpotFulfillmentType"
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "SpotFulfillmentStatus"
+            }
+          },
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
             "name": "serumProgramId",
             "type": "publicKey"
           },
@@ -3027,16 +3008,6 @@
           {
             "name": "serumSignerNonce",
             "type": "u64"
-          },
-          {
-            "name": "spotFeePool",
-            "type": {
-              "defined": "PoolBalance"
-            }
-          },
-          {
-            "name": "totalSpotFee",
-            "type": "u128"
           }
         ]
       }
@@ -4561,6 +4532,20 @@
       }
     },
     {
+      "name": "SpotFulfillmentType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "SerumV3"
+          },
+          {
+            "name": "None"
+          }
+        ]
+      }
+    },
+    {
       "name": "SwapDirection",
       "type": {
         "kind": "enum",
@@ -4663,6 +4648,20 @@
           },
           {
             "name": "Borrow"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SpotFulfillmentStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Enabled"
+          },
+          {
+            "name": "Disabled"
           }
         ]
       }
@@ -4783,12 +4782,26 @@
       }
     },
     {
-      "name": "FulfillmentMethod",
+      "name": "PerpFulfillmentMethod",
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "Market"
+            "name": "AMM"
+          },
+          {
+            "name": "Match"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SpotFulfillmentMethod",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "SerumV3"
           },
           {
             "name": "Match"
@@ -5412,13 +5425,6 @@
         },
         {
           "name": "spotFulfillmentMethodFee",
-          "type": {
-            "option": "u64"
-          },
-          "index": false
-        },
-        {
-          "name": "spotFulfillmentMethodRebate",
           "type": {
             "option": "u64"
           },
@@ -6355,6 +6361,11 @@
       "code": 6125,
       "name": "FailedToFillOnSerum",
       "msg": "FailedToFillOnSerum"
+    },
+    {
+      "code": 6126,
+      "name": "InvalidSerumFulfillmentConfig",
+      "msg": "InvalidSerumFulfillmentConfig"
     }
   ]
 }

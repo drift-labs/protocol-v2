@@ -2,11 +2,12 @@ use anchor_lang::{prelude::*, AnchorDeserialize, AnchorSerialize};
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::controller::position::PositionDirection;
-use crate::state::bank::Bank;
+use crate::state::bank::{Bank, SerumV3FulfillmentConfig};
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::market::Market;
 use crate::state::state::State;
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType, User, UserStats};
+use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
@@ -86,16 +87,14 @@ pub struct InitializeBank<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(bank_index: u64)]
-pub struct AddSerumMarket<'info> {
+#[instruction(market_index: u64)]
+pub struct InitializeSerumFulfillmentConfig<'info> {
     #[account(
-        mut,
-        seeds = [b"bank", bank_index.to_le_bytes().as_ref()],
+        seeds = [b"bank", market_index.to_le_bytes().as_ref()],
         bump,
     )]
     pub base_bank: AccountLoader<'info, Bank>,
     #[account(
-        mut,
         seeds = [b"bank", 0_u64.to_le_bytes().as_ref()],
         bump,
     )]
@@ -121,6 +120,14 @@ pub struct AddSerumMarket<'info> {
     )]
     /// CHECK: forced clearing_house_signer
     pub clearing_house_signer: AccountInfo<'info>,
+    #[account(
+        init,
+        seeds = [b"serum_fulfillment_config".as_ref(), serum_market.key.as_ref()],
+        space = std::mem::size_of::<SerumV3FulfillmentConfig>() + 8,
+        bump,
+        payer = admin,
+    )]
+    pub serum_fulfillment_config: AccountLoader<'info, SerumV3FulfillmentConfig>,
     #[account(mut)]
     pub admin: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -455,49 +462,61 @@ pub struct FillSpotOrder<'info> {
         constraint = user_stats.load()?.authority.eq(&user.load()?.authority),
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
-    #[account(
-        mut,
-        seeds = [b"bank_vault".as_ref(), 0_u64.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub quote_bank_vault: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    /// CHECK: checked in ix because it's based on the order market index
-    pub base_bank_vault: Box<Account<'info, TokenAccount>>,
-    #[account(
-        constraint = state.signer.eq(&clearing_house_signer.key())
-    )]
-    /// CHECK: forced clearing_house_signer
-    pub clearing_house_signer: AccountInfo<'info>,
-    /// CHECK:
-    pub serum_program_id: AccountInfo<'info>,
-    #[account(mut)]
-    /// CHECK:
-    pub serum_market: AccountInfo<'info>,
-    #[account(mut)]
-    /// CHECK:
-    pub serum_request_queue: AccountInfo<'info>,
-    #[account(mut)]
-    /// CHECK:
-    pub serum_event_queue: AccountInfo<'info>,
-    #[account(mut)]
-    /// CHECK:
-    pub serum_bids: AccountInfo<'info>,
-    #[account(mut)]
-    /// CHECK:
-    pub serum_asks: AccountInfo<'info>,
-    #[account(mut)]
-    /// CHECK:
-    pub serum_base_vault: AccountInfo<'info>,
-    #[account(mut)]
-    /// CHECK:
-    pub serum_quote_vault: AccountInfo<'info>,
-    #[account(mut)]
-    /// CHECK:
-    pub serum_open_orders: AccountInfo<'info>,
-    pub token_program: Program<'info, Token>,
-    /// CHECK:
-    pub serum_signer: AccountInfo<'info>,
+    // #[account(
+    //     mut,
+    //     seeds = [b"bank_vault".as_ref(), 0_u64.to_le_bytes().as_ref()],
+    //     bump,
+    // )]
+    // pub quote_bank_vault: Box<Account<'info, TokenAccount>>,
+    // #[account(mut)]
+    // /// CHECK: checked in ix because it's based on the order market index
+    // pub base_bank_vault: Box<Account<'info, TokenAccount>>,
+    // #[account(
+    //     constraint = state.signer.eq(&clearing_house_signer.key())
+    // )]
+    // /// CHECK: forced clearing_house_signer
+    // pub clearing_house_signer: AccountInfo<'info>,
+    // /// CHECK:
+    // pub serum_program_id: AccountInfo<'info>,
+    // #[account(mut)]
+    // /// CHECK:
+    // pub serum_market: AccountInfo<'info>,
+    // #[account(mut)]
+    // /// CHECK:
+    // pub serum_request_queue: AccountInfo<'info>,
+    // #[account(mut)]
+    // /// CHECK:
+    // pub serum_event_queue: AccountInfo<'info>,
+    // #[account(mut)]
+    // /// CHECK:
+    // pub serum_bids: AccountInfo<'info>,
+    // #[account(mut)]
+    // /// CHECK:
+    // pub serum_asks: AccountInfo<'info>,
+    // #[account(mut)]
+    // /// CHECK:
+    // pub serum_base_vault: AccountInfo<'info>,
+    // #[account(mut)]
+    // /// CHECK:
+    // pub serum_quote_vault: AccountInfo<'info>,
+    // #[account(mut)]
+    // /// CHECK:
+    // pub serum_open_orders: AccountInfo<'info>,
+    // pub token_program: Program<'info, Token>,
+    // /// CHECK:
+    // pub serum_signer: AccountInfo<'info>,
+}
+
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
+pub enum SpotFulfillmentType {
+    SerumV3,
+    None,
+}
+
+impl Default for SpotFulfillmentType {
+    fn default() -> Self {
+        SpotFulfillmentType::SerumV3
+    }
 }
 
 #[derive(Accounts)]

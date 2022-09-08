@@ -10,7 +10,7 @@ use crate::controller::position::{
     update_amm_and_lp_market_position, update_position_and_market, update_quote_asset_amount,
     PositionDirection,
 };
-use crate::controller::serum::{invoke_new_order, invoke_settle_funds, SerumNewOrderAccounts};
+use crate::controller::serum::{invoke_new_order, invoke_settle_funds, SerumFulfillmentParams};
 use crate::controller::user_bank_balance::{
     decrease_spot_open_bids_and_asks, increase_spot_open_bids_and_asks,
 };
@@ -27,7 +27,9 @@ use crate::math::auction::{
 use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::fees::{FillFees, SerumFillFees};
-use crate::math::fulfillment::determine_fulfillment_methods;
+use crate::math::fulfillment::{
+    determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
+};
 use crate::math::liquidation::validate_user_not_being_liquidated;
 use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders, do_orders_cross,
@@ -45,7 +47,7 @@ use crate::state::bank::{Bank, BankBalanceType};
 use crate::state::bank_map::BankMap;
 use crate::state::events::{get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
-use crate::state::fulfillment::FulfillmentMethod;
+use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::market::Market;
 use crate::state::market_map::MarketMap;
 use crate::state::oracle::OraclePriceData;
@@ -954,7 +956,7 @@ fn fulfill_order(
     }
 
     let fulfillment_methods =
-        determine_fulfillment_methods(&user.orders[user_order_index], maker.is_some(), slot)?;
+        determine_perp_fulfillment_methods(&user.orders[user_order_index], maker.is_some(), slot)?;
 
     if fulfillment_methods.is_empty() {
         return Ok((0, false, false));
@@ -971,7 +973,7 @@ fn fulfill_order(
         let mut market = market_map.get_ref_mut(&market_index)?;
 
         let (_base_asset_amount, _quote_asset_amount) = match fulfillment_method {
-            FulfillmentMethod::Market => fulfill_order_with_amm(
+            PerpFulfillmentMethod::AMM => fulfill_order_with_amm(
                 user,
                 user_stats,
                 user_order_index,
@@ -992,7 +994,7 @@ fn fulfill_order(
                 None,
                 None,
             )?,
-            FulfillmentMethod::Match => fulfill_order_with_match(
+            PerpFulfillmentMethod::Match => fulfill_order_with_match(
                 market.deref_mut(),
                 user,
                 user_stats,
@@ -2177,7 +2179,7 @@ pub fn fill_spot_order(
     maker_order_id: Option<u64>,
     clock: &Clock,
     fee_structure: &FeeStructure,
-    mut serum_new_order_accounts: SerumNewOrderAccounts,
+    serum_fulfillment_params: Option<SerumFulfillmentParams>,
 ) -> ClearingHouseResult<u128> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -2298,7 +2300,7 @@ pub fn fill_spot_order(
         now,
         slot,
         fee_structure,
-        serum_new_order_accounts,
+        serum_fulfillment_params,
     )?;
 
     if should_cancel_order_after_fulfill(user, order_index, slot)? {
@@ -2464,7 +2466,7 @@ fn fulfill_spot_order(
     now: i64,
     slot: u64,
     fee_structure: &FeeStructure,
-    mut serum_new_order_accounts: SerumNewOrderAccounts,
+    mut serum_fulfillment_params: Option<SerumFulfillmentParams>,
 ) -> ClearingHouseResult<(u128, bool)> {
     let free_collateral = calculate_free_collateral(user, market_map, bank_map, oracle_map)?;
 
@@ -2510,8 +2512,12 @@ fn fulfill_spot_order(
         return Ok((0, true));
     }
 
-    let fulfillment_methods =
-        determine_fulfillment_methods(&user.orders[user_order_index], maker.is_some(), slot)?;
+    let fulfillment_methods = determine_spot_fulfillment_methods(
+        &user.orders[user_order_index],
+        maker.is_some(),
+        serum_fulfillment_params.is_some(),
+        slot,
+    )?;
 
     let mut quote_bank = bank_map.get_quote_asset_bank_mut()?;
     let mut base_bank = bank_map.get_ref_mut(&base_bank_index)?;
@@ -2524,7 +2530,7 @@ fn fulfill_spot_order(
         }
 
         let _base_asset_amount = match fulfillment_method {
-            FulfillmentMethod::Match => fulfill_spot_order_with_match(
+            SpotFulfillmentMethod::Match => fulfill_spot_order_with_match(
                 &mut base_bank,
                 &mut quote_bank,
                 user,
@@ -2544,7 +2550,7 @@ fn fulfill_spot_order(
                 fee_structure,
                 &mut order_records,
             )?,
-            FulfillmentMethod::Market => fulfill_spot_order_with_serum(
+            SpotFulfillmentMethod::SerumV3 => fulfill_spot_order_with_serum(
                 &mut base_bank,
                 &mut quote_bank,
                 user,
@@ -2559,7 +2565,7 @@ fn fulfill_spot_order(
                 oracle_map,
                 fee_structure,
                 &mut order_records,
-                &mut serum_new_order_accounts,
+                &mut serum_fulfillment_params,
             )?,
         };
 
@@ -2825,8 +2831,13 @@ pub fn fulfill_spot_order_with_serum(
     oracle_map: &mut OracleMap,
     fee_structure: &FeeStructure,
     order_records: &mut Vec<OrderRecord>,
-    serum_new_order_accounts: &mut SerumNewOrderAccounts,
+    serum_fulfillment_params: &mut Option<SerumFulfillmentParams>,
 ) -> ClearingHouseResult<u128> {
+    let mut serum_new_order_accounts = match serum_fulfillment_params {
+        Some(serum_new_order_accounts) => serum_new_order_accounts,
+        None => return Ok(0),
+    };
+
     let oracle_price = oracle_map.get_price_data(&base_bank.oracle)?.price;
     let taker_price =
         taker.orders[taker_order_index].get_limit_price(Some(oracle_price), slot, None)?;
@@ -2893,7 +2904,7 @@ pub fn fulfill_spot_order_with_serum(
         serum_new_order_accounts.clearing_house_signer,
         serum_new_order_accounts.serum_base_vault,
         serum_new_order_accounts.serum_quote_vault,
-        serum_new_order_accounts.token_program,
+        &serum_new_order_accounts.token_program.to_account_info(),
         serum_order,
         serum_new_order_accounts.signer_nonce,
     )?;
@@ -2923,7 +2934,7 @@ pub fn fulfill_spot_order_with_serum(
         &serum_new_order_accounts.base_bank_vault.to_account_info(),
         &serum_new_order_accounts.quote_bank_vault.to_account_info(),
         serum_new_order_accounts.serum_signer,
-        serum_new_order_accounts.token_program,
+        &serum_new_order_accounts.token_program.to_account_info(),
         serum_new_order_accounts.signer_nonce,
     )?;
 

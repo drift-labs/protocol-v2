@@ -257,6 +257,8 @@ pub enum ErrorCode {
     FailedSerumCPI,
     #[msg("FailedToFillOnSerum")]
     FailedToFillOnSerum,
+    #[msg("InvalidSerumFulfillmentConfig")]
+    InvalidSerumFulfillmentConfig,
 }
 
 #[macro_export]

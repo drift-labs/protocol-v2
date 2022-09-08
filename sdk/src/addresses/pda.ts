@@ -209,3 +209,16 @@ export function getSerumSignerPublicKey(
 		programId
 	);
 }
+
+export function getSerumFulfillmentConfigPublicKey(
+	programId: PublicKey,
+	market: PublicKey
+): PublicKey {
+	return anchor.web3.PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('serum_fulfillment_config')),
+			market.toBuffer(),
+		],
+		programId
+	)[0];
+}

@@ -4,6 +4,8 @@ use std::fmt::{Display, Formatter};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
+use crate::context::SpotFulfillmentType;
+use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
 use crate::math::bank_balance::get_token_amount;
 use crate::math::constants::{
@@ -69,18 +71,8 @@ pub struct Bank {
 
     pub order_step_size: u128,
     pub next_fill_record_id: u64,
-    pub serum_program_id: Pubkey,
-    pub serum_market: Pubkey,
-    pub serum_request_queue: Pubkey,
-    pub serum_event_queue: Pubkey,
-    pub serum_bids: Pubkey,
-    pub serum_asks: Pubkey,
-    pub serum_base_vault: Pubkey,
-    pub serum_quote_vault: Pubkey,
-    pub serum_open_orders: Pubkey,
-    pub serum_signer_nonce: u64,
-    pub spot_fee_pool: PoolBalance,
     pub total_spot_fee: u128,
+    pub spot_fee_pool: PoolBalance,
 }
 
 impl Bank {
@@ -213,4 +205,36 @@ pub trait BankBalance {
     fn decrease_balance(&mut self, delta: u128) -> ClearingHouseResult;
 
     fn update_balance_type(&mut self, balance_type: BankBalanceType) -> ClearingHouseResult;
+}
+
+#[account(zero_copy)]
+#[derive(Default, PartialEq, Eq, Debug)]
+#[repr(packed)]
+pub struct SerumV3FulfillmentConfig {
+    pub pubkey: Pubkey,
+    pub fulfillment_type: SpotFulfillmentType,
+    pub status: SpotFulfillmentStatus,
+    pub market_index: u64,
+    pub serum_program_id: Pubkey,
+    pub serum_market: Pubkey,
+    pub serum_request_queue: Pubkey,
+    pub serum_event_queue: Pubkey,
+    pub serum_bids: Pubkey,
+    pub serum_asks: Pubkey,
+    pub serum_base_vault: Pubkey,
+    pub serum_quote_vault: Pubkey,
+    pub serum_open_orders: Pubkey,
+    pub serum_signer_nonce: u64,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum SpotFulfillmentStatus {
+    Enabled,
+    Disabled,
+}
+
+impl Default for SpotFulfillmentStatus {
+    fn default() -> Self {
+        SpotFulfillmentStatus::Enabled
+    }
 }

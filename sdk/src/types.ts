@@ -82,6 +82,15 @@ export class OrderTriggerCondition {
 	static readonly BELOW = { below: {} };
 }
 
+export class SpotFulfillmentType {
+	static readonly SERUM_v3 = { serumV3: {} };
+}
+
+export class SpotFulfillmentStatus {
+	static readonly ENABLED = { enabled: {} };
+	static readonly DISABLED = { disabled: {} };
+}
+
 export function isVariant(object: unknown, type: string) {
 	return object.hasOwnProperty(type);
 }
@@ -414,16 +423,6 @@ export type BankAccount = {
 
 	orderStepSize: BN;
 	nextFillRecordId: BN;
-	serumProgramId: PublicKey;
-	serumMarket: PublicKey;
-	serumRequestQueue: PublicKey;
-	serumEventQueue: PublicKey;
-	serumBids: PublicKey;
-	serumAsks: PublicKey;
-	serumBaseVault: PublicKey;
-	serumQuoteVault: PublicKey;
-	serumOpenOrders: PublicKey;
-	serumSignerNonce: BN;
 	spotFeePool: {
 		balance: BN;
 		balanceType: BankBalanceType;
@@ -723,4 +722,21 @@ export type InsuranceFundStake = {
 	lastWithdrawRequestShares: BN;
 	lastWithdrawRequestValue: BN;
 	lastWithdrawRequestTs: BN;
+};
+
+export type SerumV3FulfillmentConfigAccount = {
+	fulfillmentType: SpotFulfillmentType;
+	status: SpotFulfillmentStatus;
+	pubkey: PublicKey;
+	marketIndex: BN;
+	serumProgramId: PublicKey;
+	serumMarket: PublicKey;
+	serumRequestQueue: PublicKey;
+	serumEventQueue: PublicKey;
+	serumBids: PublicKey;
+	serumAsks: PublicKey;
+	serumBaseVault: PublicKey;
+	serumQuoteVault: PublicKey;
+	serumOpenOrders: PublicKey;
+	serumSignerNonce: BN;
 };

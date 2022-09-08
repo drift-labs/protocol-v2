@@ -1,9 +1,16 @@
+use crate::controller::serum::SerumFulfillmentParams;
 use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::load;
+use crate::math::casting::cast;
+use crate::state::bank::{Bank, SerumV3FulfillmentConfig};
+use crate::state::state::State;
 use crate::state::user::{User, UserStats};
 use crate::validate;
-use anchor_lang::prelude::AccountInfo;
+use anchor_lang::accounts::account::Account;
 use anchor_lang::prelude::AccountLoader;
+use anchor_lang::prelude::{AccountInfo, Program};
 use anchor_lang::Discriminator;
+use anchor_spl::token::{Token, TokenAccount};
 use arrayref::array_ref;
 use solana_program::account_info::next_account_info;
 use solana_program::msg;
@@ -110,4 +117,98 @@ pub fn get_referrer_and_referrer_stats<'a>(
             .or(Err(ErrorCode::CouldNotDeserializeReferrerStats))?;
 
     Ok((Some(referrer), Some(referrer_stats)))
+}
+
+#[allow(clippy::type_complexity)]
+pub fn get_serum_fulfillment_accounts<'a, 'b, 'c>(
+    account_info_iter: &'a mut std::iter::Peekable<std::slice::Iter<'b, AccountInfo<'c>>>,
+    state: &State,
+    base_bank: &Bank,
+    quote_bank: &Bank,
+) -> ClearingHouseResult<Option<SerumFulfillmentParams<'a, 'c>>> {
+    let account_info_vec = account_info_iter.collect::<Vec<_>>();
+    let account_infos = array_ref![account_info_vec, 0, 15];
+    let [serum_fulfillment_config, serum_program_id, serum_market, serum_request_queue, serum_event_queue, serum_bids, serum_asks, serum_base_vault, serum_quote_vault, serum_open_orders, serum_signer, clearing_house_signer, token_program, base_bank_vault, quote_bank_vault] =
+        account_infos;
+
+    let serum_fulfillment_config_loader: AccountLoader<SerumV3FulfillmentConfig> =
+        AccountLoader::try_from(serum_fulfillment_config).map_err(|e| {
+            msg!("{:?}", e);
+            ErrorCode::InvalidSerumFulfillmentConfig
+        })?;
+    let serum_fulfillment_config = load!(serum_fulfillment_config_loader)?;
+
+    validate!(
+        &state.signer == clearing_house_signer.key,
+        ErrorCode::InvalidSerumFulfillmentConfig
+    )?;
+
+    validate!(
+        serum_fulfillment_config.market_index == base_bank.bank_index,
+        ErrorCode::InvalidSerumFulfillmentConfig,
+        "config market index {} does not equal base asset index {}",
+        serum_fulfillment_config.market_index,
+        base_bank.bank_index
+    )?;
+
+    validate!(
+        &base_bank.vault == base_bank_vault.key,
+        ErrorCode::InvalidSerumFulfillmentConfig
+    )?;
+
+    validate!(
+        &quote_bank.vault == quote_bank_vault.key,
+        ErrorCode::InvalidSerumFulfillmentConfig
+    )?;
+
+    validate!(
+        &serum_fulfillment_config.serum_program_id == serum_program_id.key,
+        ErrorCode::InvalidSerumFulfillmentConfig
+    )?;
+
+    validate!(
+        &serum_fulfillment_config.serum_market == serum_market.key,
+        ErrorCode::InvalidSerumFulfillmentConfig
+    )?;
+
+    validate!(
+        &serum_fulfillment_config.serum_open_orders == serum_open_orders.key,
+        ErrorCode::InvalidSerumFulfillmentConfig
+    )?;
+
+    let base_bank_vault: Box<Account<TokenAccount>> =
+        Box::new(Account::try_from(base_bank_vault).map_err(|e| {
+            msg!("{:?}", e);
+            ErrorCode::InvalidSerumFulfillmentConfig
+        })?);
+    let quote_bank_vault: Box<Account<TokenAccount>> =
+        Box::new(Account::try_from(quote_bank_vault).map_err(|e| {
+            msg!("{:?}", e);
+            ErrorCode::InvalidSerumFulfillmentConfig
+        })?);
+
+    let token_program: Program<Token> = Program::try_from(token_program).map_err(|e| {
+        msg!("{:?}", e);
+        ErrorCode::InvalidSerumFulfillmentConfig
+    })?;
+
+    let serum_fulfillment_accounts = SerumFulfillmentParams {
+        clearing_house_signer,
+        serum_program_id,
+        serum_market,
+        serum_request_queue,
+        serum_event_queue,
+        serum_bids,
+        serum_asks,
+        serum_base_vault,
+        serum_quote_vault,
+        serum_open_orders,
+        token_program,
+        base_bank_vault,
+        quote_bank_vault,
+        serum_signer,
+        signer_nonce: state.signer_nonce,
+    };
+
+    Ok(Some(serum_fulfillment_accounts))
 }

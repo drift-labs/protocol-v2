@@ -21,6 +21,7 @@ import {
 	getInsuranceFundVaultAuthorityPublicKey,
 	getClearingHouseSignerPublicKey,
 	getSerumOpenOrdersPublicKey,
+	getSerumFulfillmentConfigPublicKey,
 } from './addresses/pda';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { ClearingHouse } from './clearingHouse';
@@ -141,8 +142,8 @@ export class Admin extends ClearingHouse {
 		return txSig;
 	}
 
-	public async addSerumMarket(
-		bankIndex: BN,
+	public async initializeSerumFulfillmentConfig(
+		marketIndex: BN,
 		serumMarket: PublicKey,
 		serumProgram: PublicKey
 	): Promise<TransactionSignature> {
@@ -151,22 +152,29 @@ export class Admin extends ClearingHouse {
 			serumMarket
 		);
 
-		console.log(serumOpenOrders.toString());
+		const serumFulfillmentConfig = getSerumFulfillmentConfigPublicKey(
+			this.program.programId,
+			serumMarket
+		);
 
-		return await this.program.rpc.addSerumMarket(bankIndex, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				baseBank: this.getBankAccount(bankIndex).pubkey,
-				quoteBank: this.getQuoteAssetBankAccount().pubkey,
-				clearingHouseSigner: this.getSignerPublicKey(),
-				serumProgram,
-				serumMarket,
-				serumOpenOrders,
-				rent: SYSVAR_RENT_PUBKEY,
-				systemProgram: anchor.web3.SystemProgram.programId,
-			},
-		});
+		return await this.program.rpc.initializeSerumFulfillmentConfig(
+			marketIndex,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					baseBank: this.getBankAccount(marketIndex).pubkey,
+					quoteBank: this.getQuoteAssetBankAccount().pubkey,
+					clearingHouseSigner: this.getSignerPublicKey(),
+					serumProgram,
+					serumMarket,
+					serumOpenOrders,
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+					serumFulfillmentConfig,
+				},
+			}
+		);
 	}
 
 	public async initializeMarket(
@@ -369,7 +377,7 @@ export class Admin extends ClearingHouse {
 				state: await this.getStatePublicKey(),
 				bank: bank.pubkey,
 				insuranceVault: state.insuranceVault,
-				insuranceVaultAuthority: state.insuranceVaultAuthority,
+				// insuranceVaultAuthority: state.insuranceVaultAuthority,
 				recipient: recipient,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
@@ -393,7 +401,7 @@ export class Admin extends ClearingHouse {
 				market: marketPublicKey,
 				bank: bank.pubkey,
 				bankVault: bank.vault,
-				bankVaultAuthority: bank.vaultAuthority,
+				// bankVaultAuthority: bank.vaultAuthority,
 				recipient: recipient,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
@@ -413,10 +421,10 @@ export class Admin extends ClearingHouse {
 				state: await this.getStatePublicKey(),
 				market: await getMarketPublicKey(this.program.programId, marketIndex),
 				insuranceVault: state.insuranceVault,
-				insuranceVaultAuthority: state.insuranceVaultAuthority,
+				// insuranceVaultAuthority: state.insuranceVaultAuthority,
 				bank: bank.pubkey,
 				bankVault: bank.vault,
-				bankVaultAuthority: bank.vaultAuthority,
+				// bankVaultAuthority: bank.vaultAuthority,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
 		});

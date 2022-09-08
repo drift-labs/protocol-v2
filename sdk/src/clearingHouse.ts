@@ -17,6 +17,8 @@ import {
 	OrderType,
 	ReferrerInfo,
 	MarketType,
+	SerumV3FulfillmentConfigAccount,
+	SpotFulfillmentType,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -1645,6 +1647,7 @@ export class ClearingHouse {
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
 		order?: Order,
+		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionSignature> {
@@ -1654,6 +1657,7 @@ export class ClearingHouse {
 					userAccountPublicKey,
 					user,
 					order,
+					fulfillmentConfig,
 					makerInfo,
 					referrerInfo
 				)
@@ -1667,7 +1671,8 @@ export class ClearingHouse {
 	public async getFillSpotOrderIx(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
-		order: Order,
+		order?: Order,
+		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
@@ -1782,35 +1787,104 @@ export class ClearingHouse {
 		const orderId = order.orderId;
 		const makerOrderId = makerInfo ? makerInfo.order.orderId : null;
 
-		return await this.program.instruction.fillSpotOrder(orderId, makerOrderId, {
-			accounts: {
-				state: await this.getStatePublicKey(),
-				filler: fillerPublicKey,
-				fillerStats: fillerStatsPublicKey,
-				user: userAccountPublicKey,
-				userStats: userStatsPublicKey,
-				authority: this.wallet.publicKey,
-				quoteBankVault: this.getQuoteAssetBankAccount().vault,
-				baseBankVault: bankAccount.vault,
-				clearingHouseSigner: this.getSignerPublicKey(),
-				serumProgramId: bankAccount.serumProgramId,
-				serumMarket: bankAccount.serumMarket,
-				serumRequestQueue: bankAccount.serumRequestQueue,
-				serumEventQueue: bankAccount.serumEventQueue,
-				serumBids: bankAccount.serumBids,
-				serumAsks: bankAccount.serumAsks,
-				serumBaseVault: bankAccount.serumBaseVault,
-				serumQuoteVault: bankAccount.serumQuoteVault,
-				serumOpenOrders: bankAccount.serumOpenOrders,
-				tokenProgram: TOKEN_PROGRAM_ID,
-				serumSigner: getSerumSignerPublicKey(
-					bankAccount.serumProgramId,
-					bankAccount.serumMarket,
-					bankAccount.serumSignerNonce
+		if (fulfillmentConfig) {
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.pubkey,
+				isWritable: false,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.serumProgramId,
+				isWritable: false,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.serumMarket,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.serumRequestQueue,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.serumEventQueue,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.serumBids,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.serumAsks,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.serumBaseVault,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.serumQuoteVault,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.serumOpenOrders,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: getSerumSignerPublicKey(
+					fulfillmentConfig.serumProgramId,
+					fulfillmentConfig.serumMarket,
+					fulfillmentConfig.serumSignerNonce
 				),
-			},
-			remainingAccounts,
-		});
+				isWritable: false,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: this.getSignerPublicKey(),
+				isWritable: false,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: TOKEN_PROGRAM_ID,
+				isWritable: false,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: bankAccount.vault,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: quoteBankAccount.vault,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
+		return await this.program.instruction.fillSpotOrder(
+			orderId,
+			fulfillmentConfig ? fulfillmentConfig.fulfillmentType : null,
+			makerOrderId,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					filler: fillerPublicKey,
+					fillerStats: fillerStatsPublicKey,
+					user: userAccountPublicKey,
+					userStats: userStatsPublicKey,
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
 	}
 
 	public async triggerOrder(
