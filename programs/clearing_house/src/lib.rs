@@ -1413,7 +1413,7 @@ pub mod clearing_house {
         exchange_not_paused(&ctx.accounts.state)
     )]
     pub fn fill_spot_order<'info>(
-        ctx: Context<FillSpotOrder>,
+        ctx: Context<FillOrder>,
         order_id: Option<u64>,
         fulfillment_type: Option<SpotFulfillmentType>,
         maker_order_id: Option<u64>,

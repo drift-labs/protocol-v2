@@ -3,7 +3,7 @@ use solana_program::msg;
 
 use crate::context::*;
 use crate::controller;
-use crate::controller::bank_balance::{update_bank_balances, update_spot_fee_pool_balances};
+use crate::controller::bank_balance::update_bank_balances;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,

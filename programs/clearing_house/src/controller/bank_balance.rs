@@ -117,18 +117,6 @@ pub fn update_revenue_pool_balances(
     Ok(())
 }
 
-pub fn update_spot_fee_pool_balances(
-    token_amount: u128,
-    update_direction: &BankBalanceType,
-    bank: &mut Bank,
-) -> ClearingHouseResult {
-    let mut bank_balance = bank.spot_fee_pool;
-    update_bank_balances(token_amount, update_direction, bank, &mut bank_balance)?;
-    bank.spot_fee_pool = bank_balance;
-
-    Ok(())
-}
-
 pub fn update_bank_balances(
     mut token_amount: u128,
     update_direction: &BankBalanceType,
