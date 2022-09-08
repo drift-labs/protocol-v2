@@ -2721,10 +2721,15 @@ pub mod clearing_house {
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
         validate!(
-            (max_spread > market.amm.base_spread as u32)
-                && (max_spread <= market.margin_ratio_initial * 100 / 2),
+            (max_spread >= market.amm.base_spread as u32),
             ErrorCode::DefaultError,
-            "invalid max_spread",
+            "invalid max_spread < base_spread",
+        )?;
+
+        validate!(
+            max_spread <= market.margin_ratio_initial * 100,
+            ErrorCode::DefaultError,
+            "invalid max_spread > market.margin_ratio_initial * 100",
         )?;
 
         market.amm.max_spread = max_spread;
