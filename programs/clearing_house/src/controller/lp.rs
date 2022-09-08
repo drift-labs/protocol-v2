@@ -1,9 +1,9 @@
+use crate::controller::position::get_position_index;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math_error;
 use crate::state::market::Market;
-use crate::MarketPosition;
 use crate::state::user::User;
-use crate::controller::position::get_position_index;
+use crate::MarketPosition;
 
 use crate::bn::U192;
 use crate::controller::position::PositionDelta;
@@ -14,7 +14,7 @@ use crate::math::casting::cast_to_i128;
 use crate::math::lp::calculate_settle_lp_metrics;
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 
-use anchor_lang::prelude::msg;
+use anchor_lang::prelude::{msg, Pubkey};
 
 pub fn mint_lp_shares(
     position: &mut MarketPosition,
@@ -121,12 +121,25 @@ pub fn settle_lp_position(
 
 pub fn settle_lp_user(
     user: &mut User,
-    market: &mut Market, 
+    user_key: &Pubkey,
+    market: &mut Market,
+    now: i64,
 ) -> ClearingHouseResult<()> {
     if let Ok(position_index) = get_position_index(&user.positions, market.market_index) {
         let position = &mut user.positions[position_index];
         if position.lp_shares > 0 {
-            settle_lp_position(position, market)?;
+            let (position_delta, pnl) = settle_lp_position(position, market)?;
+
+            crate::emit!(crate::LPRecord {
+                ts: now,
+                action: crate::LPAction::SettleLiquidity,
+                user: *user_key,
+                market_index: market.market_index,
+                delta_base_asset_amount: position_delta.base_asset_amount,
+                delta_quote_asset_amount: position_delta.quote_asset_amount,
+                pnl,
+                n_shares: 0
+            });
         }
     };
     Ok(())
