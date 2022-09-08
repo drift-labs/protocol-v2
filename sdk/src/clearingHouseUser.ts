@@ -129,6 +129,7 @@ export class ClearingHouseUser {
 	public getEmptyPosition(marketIndex: BN): UserPosition {
 		return {
 			baseAssetAmount: ZERO,
+			remainderBaseAssetAmount: ZERO,
 			lastCumulativeFundingRate: ZERO,
 			marketIndex,
 			quoteAssetAmount: ZERO,
@@ -210,24 +211,33 @@ export class ClearingHouseUser {
 			return sign;
 		}
 
-		const remainder = deltaBaa
-			.abs()
-			.mod(market.amm.baseAssetAmountStepSize)
-			.mul(sign(deltaBaa));
-		const _standardizedBaa = deltaBaa.sub(remainder);
-
-		let remainderBaa;
-		if (_standardizedBaa.abs().gte(market.amm.baseAssetAmountStepSize)) {
-			remainderBaa = remainder;
-		} else {
-			remainderBaa = deltaBaa;
+		function standardize(amount, stepsize) {
+			const remainder = amount.abs().mod(stepsize).mul(sign(amount));
+			const standardizedAmount = amount.sub(remainder);
+			return [standardizedAmount, remainder];
 		}
-		const standardizedBaa = deltaBaa.sub(remainderBaa);
 
-		const reaminderPerLP = remainderBaa.mul(AMM_RESERVE_PRECISION).div(nShares);
+		const [standardizedBaa, remainderBaa] = standardize(
+			deltaBaa,
+			market.amm.baseAssetAmountStepSize
+		);
 
-		position.lastNetBaseAssetAmountPerLp =
-			market.amm.marketPositionPerLp.baseAssetAmount.sub(reaminderPerLP);
+		position.remainderBaseAssetAmount =
+			position.remainderBaseAssetAmount.add(remainderBaa);
+
+		if (
+			position.remainderBaseAssetAmount
+				.abs()
+				.gte(market.amm.baseAssetAmountStepSize)
+		) {
+			const [newStandardizedBaa, newRemainderBaa] = standardize(
+				position.remainderBaseAssetAmount,
+				market.amm.baseAssetAmountStepSize
+			);
+			position.baseAssetAmount =
+				position.baseAssetAmount.add(newStandardizedBaa);
+			position.remainderBaseAssetAmount = newRemainderBaa;
+		}
 
 		let updateType;
 		if (position.baseAssetAmount.eq(ZERO)) {
@@ -804,6 +814,7 @@ export class ClearingHouseUser {
 		const proposedMarketPosition: UserPosition = {
 			marketIndex: marketPosition.marketIndex,
 			baseAssetAmount: proposedBaseAssetAmount,
+			remainderBaseAssetAmount: ZERO,
 			quoteAssetAmount: new BN(0),
 			lastCumulativeFundingRate: ZERO,
 			quoteEntryAmount: new BN(0),

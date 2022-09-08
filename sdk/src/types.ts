@@ -494,6 +494,7 @@ export type AMM = {
 // # User Account Types
 export type UserPosition = {
 	baseAssetAmount: BN;
+	remainderBaseAssetAmount: BN;
 	lastCumulativeFundingRate: BN;
 	marketIndex: BN;
 	quoteAssetAmount: BN;
