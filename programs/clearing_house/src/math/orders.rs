@@ -10,7 +10,7 @@ use crate::error::ClearingHouseResult;
 use crate::math;
 use crate::math::amm::calculate_max_base_asset_amount_fillable;
 use crate::math::auction::is_auction_complete;
-use crate::math::casting::{cast, cast_to_i128};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
 use crate::math::constants::{MARGIN_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
 use crate::math::position::calculate_entry_price;
 use crate::math_error;
@@ -237,7 +237,13 @@ pub fn order_breaches_oracle_price_limits(
     let order_limit_price = order.get_limit_price(&market.amm, Some(oracle_price), slot)?;
     let oracle_price = oracle_price.unsigned_abs();
 
-    let max_percent_diff = market.margin_ratio_initial as u128 / 2;
+    let max_percent_diff = cast_to_u128(
+        market
+            .margin_ratio_initial
+            .checked_sub(market.margin_ratio_maintenance)
+            .ok_or_else(math_error!())?,
+    )?;
+
     match order.direction {
         PositionDirection::Long => {
             if order_limit_price <= oracle_price {
@@ -605,6 +611,7 @@ mod test {
         fn bid_breaches() {
             let market = Market {
                 margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
+                margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
                 ..Market::default()
             };
 
@@ -628,6 +635,7 @@ mod test {
         fn ask_does_not_breach() {
             let market = Market {
                 margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
+                margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
                 ..Market::default()
             };
 
@@ -651,6 +659,7 @@ mod test {
         fn ask_does_not_breach_4_99_percent_move() {
             let market = Market {
                 margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
+                margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
                 ..Market::default()
             };
 
@@ -674,6 +683,7 @@ mod test {
         fn ask_breaches() {
             let market = Market {
                 margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
+                margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
                 ..Market::default()
             };
 
