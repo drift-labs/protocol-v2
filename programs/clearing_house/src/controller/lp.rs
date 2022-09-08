@@ -219,8 +219,52 @@ pub fn burn_lp_shares(
 mod test {
     use super::*;
     use crate::math::constants::AMM_RESERVE_PRECISION;
+    use crate::math::constants::AMM_RESERVE_PRECISION_I128;
     use crate::state::market::AMM;
     use crate::state::user::MarketPosition;
+
+    mod tmp {
+        use super::*;
+
+        fn delta(baa: i128, n_shares: u128) -> ClearingHouseResult<i128> {
+            let n_shares_i128 = cast_to_i128(n_shares)?;
+
+            // update Market per lp position
+            let remainder_base_asset_amount_per_lp = baa
+                .checked_mul(AMM_RESERVE_PRECISION_I128)
+                .ok_or_else(math_error!())?
+                .checked_div(n_shares_i128)
+                .ok_or_else(math_error!())?;
+
+            // account for rounding
+            let remainder_baa = remainder_base_asset_amount_per_lp
+                .checked_mul(n_shares_i128)
+                .ok_or_else(math_error!())?
+                .checked_div(AMM_RESERVE_PRECISION_I128)
+                .ok_or_else(math_error!())?;
+
+            let baa_delta = baa - remainder_baa;
+            return Ok(baa_delta);
+        }
+
+        /// cargo test fuzz_test -- --show-output
+        #[test]
+        fn fuzz_test_settle() {
+            for total_lp_shares in (1..500_000).step_by(12_123) {
+                for baa in (0..1000).step_by(121) {
+                    let baa_delta = delta(
+                        baa * AMM_RESERVE_PRECISION_I128,
+                        total_lp_shares * AMM_RESERVE_PRECISION,
+                    )
+                    .unwrap();
+
+                    if baa_delta != 0 {
+                        crate::dlog!(baa_delta)
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn test_full_long_settle() {
