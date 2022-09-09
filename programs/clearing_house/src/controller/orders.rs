@@ -1305,6 +1305,7 @@ pub fn fulfill_order_with_match(
     let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
     let taker_price =
         taker.orders[taker_order_index].get_limit_price(&market.amm, Some(oracle_price), slot)?;
+    let taker_direction = taker.orders[taker_order_index].direction;
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
 
@@ -1313,6 +1314,13 @@ pub fn fulfill_order_with_match(
     let maker_direction = &maker.orders[maker_order_index].direction;
     let maker_base_asset_amount =
         maker.orders[maker_order_index].get_base_asset_amount_unfilled()?;
+
+    amm::update_mark_twap(
+        &mut market.amm,
+        now,
+        Some(maker_price),
+        Some(taker_direction),
+    )?;
 
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
@@ -1330,7 +1338,7 @@ pub fn fulfill_order_with_match(
         return Ok((0_u128, 0_u128));
     }
 
-    let amm_wants_to_make = match taker.orders[taker_order_index].direction {
+    let amm_wants_to_make = match taker_direction {
         PositionDirection::Long => market.amm.net_base_asset_amount < 0,
         PositionDirection::Short => market.amm.net_base_asset_amount > 0,
     };

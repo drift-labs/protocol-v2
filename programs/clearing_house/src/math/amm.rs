@@ -312,9 +312,12 @@ pub fn update_mark_twap(
     precomputed_trade_price: Option<u128>,
     direction: Option<PositionDirection>,
 ) -> ClearingHouseResult<u128> {
+    let base_spread_u128 = cast_to_u128(amm.base_spread)?;
+    let last_oracle_price_u128 = cast_to_u128(amm.last_oracle_price)?;
+
     let trade_price: u128 = match precomputed_trade_price {
         Some(trade_price) => trade_price,
-        None => cast_to_u128(amm.last_oracle_price)?,
+        None => last_oracle_price_u128,
     };
 
     validate!(
@@ -323,17 +326,32 @@ pub fn update_mark_twap(
         "amm.last_oracle_price <= 0"
     )?;
 
-    // optimistically estimation of bid/ask using execution premium
+    // estimation of bid/ask by looking at execution premium
+
+    // trade is a long
+    let best_bid_estimate = if trade_price > last_oracle_price_u128 {
+        let discount = min(base_spread_u128, amm.short_spread / 2);
+        last_oracle_price_u128
+            .checked_sub(discount)
+            .ok_or_else(math_error!())?
+    } else {
+        trade_price
+    };
+
+    // trade is a short
+    let best_ask_estimate = if trade_price < last_oracle_price_u128 {
+        let premium = min(base_spread_u128, amm.long_spread / 2);
+        last_oracle_price_u128
+            .checked_add(premium)
+            .ok_or_else(math_error!())?
+    } else {
+        trade_price
+    };
+
     let (bid_price, ask_price) = match direction {
         Some(direction) => match direction {
-            PositionDirection::Long => (
-                min(trade_price, cast_to_u128(amm.last_oracle_price)?),
-                trade_price,
-            ),
-            PositionDirection::Short => (
-                trade_price,
-                max(trade_price, cast_to_u128(amm.last_oracle_price)?),
-            ),
+            PositionDirection::Long => (best_bid_estimate, trade_price),
+            PositionDirection::Short => (trade_price, best_ask_estimate),
         },
         None => (trade_price, trade_price),
     };
