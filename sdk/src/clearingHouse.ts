@@ -1348,7 +1348,8 @@ export class ClearingHouse {
 		const { txSig, slot } = await this.txSender.send(
 			signedMarketOrderTx,
 			[],
-			this.opts
+			this.opts,
+			true
 		);
 
 		this.marketLastSlotCache.set(orderParams.marketIndex.toNumber(), slot);
