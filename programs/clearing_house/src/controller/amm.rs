@@ -16,6 +16,7 @@ use crate::math_error;
 use crate::state::events::CurveRecord;
 use crate::state::market::{Market, AMM};
 use crate::state::oracle::OraclePriceData;
+use crate::state::user::User;
 use crate::validate;
 use anchor_lang::prelude::*;
 use solana_program::msg;
@@ -575,19 +576,20 @@ pub fn update_pool_balances(
     Ok(pnl_to_settle_with_user)
 }
 
-pub fn update_pnl_pool_balance(
+pub fn update_pnl_pool_and_user_balance(
     market: &mut Market,
     bank: &mut Bank,
-    user_unsettled_pnl: i128,
+    user: &mut User,
+    unrealized_pnl_with_fee: i128,
 ) -> ClearingHouseResult<i128> {
-    let pnl_to_settle_with_user = if user_unsettled_pnl > 0 {
-        user_unsettled_pnl.min(cast_to_i128(get_token_amount(
+    let pnl_to_settle_with_user = if unrealized_pnl_with_fee > 0 {
+        unrealized_pnl_with_fee.min(cast_to_i128(get_token_amount(
             market.pnl_pool.balance,
             bank,
             market.pnl_pool.balance_type(),
         )?)?)
     } else {
-        user_unsettled_pnl
+        unrealized_pnl_with_fee
     };
 
     update_bank_balances(
@@ -599,6 +601,40 @@ pub fn update_pnl_pool_balance(
         },
         bank,
         &mut market.pnl_pool,
+        false,
+    )?;
+
+    validate!(
+        unrealized_pnl_with_fee == pnl_to_settle_with_user,
+        ErrorCode::DefaultError,
+        "pnl_pool_amount doesnt have enough ({} < {})",
+        pnl_to_settle_with_user,
+        unrealized_pnl_with_fee
+    )?;
+
+    if unrealized_pnl_with_fee == 0 {
+        msg!(
+            "User has no unsettled pnl for market {}",
+            market.market_index
+        );
+        return Ok(0);
+    } else if pnl_to_settle_with_user == 0 {
+        msg!(
+            "Pnl Pool cannot currently settle with user for market {}",
+            market.market_index
+        );
+        return Ok(0);
+    }
+
+    update_bank_balances(
+        pnl_to_settle_with_user.unsigned_abs(),
+        if pnl_to_settle_with_user > 0 {
+            &BankBalanceType::Deposit
+        } else {
+            &BankBalanceType::Borrow
+        },
+        bank,
+        user.get_quote_asset_bank_balance_mut(),
         false,
     )?;
 

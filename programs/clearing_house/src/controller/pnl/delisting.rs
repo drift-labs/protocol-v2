@@ -926,7 +926,7 @@ pub mod delisting_test {
                 &bank_map,
                 &mut oracle_map,
                 clock.unix_timestamp,
-                &state.fee_structure
+                &state
             )
             .is_err(),
             true
@@ -961,7 +961,7 @@ pub mod delisting_test {
             &bank_map,
             &mut oracle_map,
             clock.unix_timestamp,
-            &state.fee_structure,
+            &state,
         )
         .unwrap();
 
@@ -1159,7 +1159,7 @@ pub mod delisting_test {
                 &bank_map,
                 &mut oracle_map,
                 clock.unix_timestamp,
-                &state.fee_structure
+                &state
             )
             .is_err(),
             true
@@ -1194,7 +1194,7 @@ pub mod delisting_test {
             &bank_map,
             &mut oracle_map,
             clock.unix_timestamp,
-            &state.fee_structure,
+            &state,
         )
         .unwrap();
 
@@ -1380,7 +1380,7 @@ pub mod delisting_test {
                 &bank_map,
                 &mut oracle_map,
                 clock.unix_timestamp,
-                &state.fee_structure
+                &state
             )
             .is_err(),
             true
@@ -1415,7 +1415,7 @@ pub mod delisting_test {
             &bank_map,
             &mut oracle_map,
             clock.unix_timestamp,
-            &state.fee_structure,
+            &state,
         )
         .unwrap();
 
@@ -1656,7 +1656,7 @@ pub mod delisting_test {
                 &bank_map,
                 &mut oracle_map,
                 clock.unix_timestamp,
-                &state.fee_structure,
+                &state,
             )
             .unwrap();
 
@@ -1701,7 +1701,7 @@ pub mod delisting_test {
                 &bank_map,
                 &mut oracle_map,
                 clock.unix_timestamp,
-                &state.fee_structure
+                &state
             )
             .is_err(),
             true
@@ -1736,7 +1736,7 @@ pub mod delisting_test {
             &bank_map,
             &mut oracle_map,
             clock.unix_timestamp,
-            &state.fee_structure,
+            &state,
         )
         .unwrap();
 
@@ -1978,7 +1978,7 @@ pub mod delisting_test {
                     &bank_map,
                     &mut oracle_map,
                     clock.unix_timestamp,
-                    &state.fee_structure
+                    &state
                 )
                 .is_err(),
                 true
@@ -2016,7 +2016,7 @@ pub mod delisting_test {
                     &bank_map,
                     &mut oracle_map,
                     clock.unix_timestamp,
-                    &state.fee_structure
+                    &state
                 )
                 .is_err(),
                 true
@@ -2362,7 +2362,7 @@ pub mod delisting_test {
                 &bank_map,
                 &mut oracle_map,
                 clock.unix_timestamp,
-                &state.fee_structure,
+                &state,
             )
             .is_err());
 
@@ -2676,7 +2676,7 @@ pub mod delisting_test {
                 &bank_map,
                 &mut oracle_map,
                 clock.unix_timestamp,
-                &state.fee_structure,
+                &state,
             )
             .unwrap();
 
@@ -2782,7 +2782,7 @@ pub mod delisting_test {
                 &bank_map,
                 &mut oracle_map,
                 clock.unix_timestamp,
-                &state.fee_structure,
+                &state,
             )
             .unwrap();
             assert_eq!(longer.positions[0].quote_asset_amount, 0);

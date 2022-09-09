@@ -1061,6 +1061,15 @@ pub fn calculate_budgeted_k_scale(
 ) -> ClearingHouseResult<(u128, u128)> {
     let curve_update_intensity = market.amm.curve_update_intensity as i128;
     let k_pct_upper_bound = increase_max;
+
+    validate!(
+        increase_max >= K_BPS_UPDATE_SCALE,
+        ErrorCode::DefaultError,
+        "invalid increase_max={} < {}",
+        increase_max,
+        K_BPS_UPDATE_SCALE
+    )?;
+
     let k_pct_lower_bound =
         K_BPS_UPDATE_SCALE - (K_BPS_DECREASE_MAX) * curve_update_intensity / 100;
 
@@ -2458,6 +2467,35 @@ mod test {
         assert!(numer1 < denom1);
         assert_eq!(numer1, 978000); // 2.2% decrease
         assert_eq!(denom1, 1000000);
+    }
+
+    #[test]
+    fn calculate_k_tests_wrapper_fcn() {
+        let mut market = Market {
+            amm: AMM {
+                base_asset_reserve: AMM_RESERVE_PRECISION * 55414,
+                quote_asset_reserve: AMM_RESERVE_PRECISION * 55530,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 36365,
+                net_base_asset_amount: (AMM_RESERVE_PRECISION * 66) as i128,
+                ..AMM::default()
+            },
+            ..Market::default()
+        };
+
+        let (numer1, denom1) = calculate_budgeted_k_scale(
+            &mut market,
+            (QUOTE_PRECISION / 500) as i128, // positive budget
+            1100000,
+        )
+        .unwrap();
+
+        assert_eq!(numer1, 8796289171560000);
+        assert_eq!(denom1, 8790133110760000);
+        assert!(numer1 > denom1);
+
+        let pct_change_in_k = (numer1 * 10000) / denom1;
+        assert_eq!(pct_change_in_k, 10007); // k was increased .07%
     }
 
     #[test]

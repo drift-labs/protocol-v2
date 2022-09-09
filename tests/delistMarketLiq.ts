@@ -14,7 +14,6 @@ import {
 	ZERO,
 	Admin,
 	ClearingHouse,
-	findComputeUnitConsumption,
 	convertToNumber,
 	MARK_PRICE_PRECISION,
 	PositionDirection,
@@ -30,11 +29,9 @@ import {
 	setFeedPrice,
 	initializeQuoteAssetBank,
 	createUserWithUSDCAndWSOLAccount,
-	createWSolTokenAccountForUser,
 	initializeSolAssetBank,
 	printTxLogs,
 	getFeedData,
-	getOraclePriceData,
 	sleep,
 } from './testHelpers';
 import { AMM_RESERVE_PRECISION, isVariant, MARGIN_PRECISION } from '../sdk';
@@ -97,7 +94,6 @@ describe('delist market, liquidation of expired position', () => {
 	let usdcMint;
 	let userUSDCAccount;
 	let userUSDCAccount2;
-	let userWSOLAccount;
 
 	let clearingHouseLoser: ClearingHouse;
 	let clearingHouseLoserUser: ClearingHouseUser;
@@ -126,12 +122,6 @@ describe('delist market, liquidation of expired position', () => {
 			usdcMint,
 			usdcAmount.mul(new BN(10)),
 			provider
-		);
-		userWSOLAccount = await createWSolTokenAccountForUser(
-			provider,
-			// @ts-ignore
-			provider.wallet,
-			ZERO
 		);
 
 		solOracle = await mockOracle(43.1337);
@@ -402,20 +392,17 @@ describe('delist market, liquidation of expired position', () => {
 		console.log(loserUser.positions[0].quoteAssetAmount.toString());
 
 		// TODO: quoteAssetAmountShort!= sum of users
-		// assert(
-		// 	market0.amm.quoteAssetAmountShort.eq(
-		// 		winnerUser.positions[0].quoteAssetAmount
-		// 	)
-		// );
+		assert(
+			market0.amm.quoteAssetAmountShort.eq(
+				winnerUser.positions[0].quoteAssetAmount
+			)
+		);
 
-		// assert(
-		// 	market0.amm.quoteAssetAmountLong.eq(
-		// 		loserUser.positions[0].quoteAssetAmount
-		// 	)
-		// );
-
-		// const solBorrow = new BN(5 * 10 ** 8);
-		// await clearingHouse.withdraw(solBorrow, new BN(1), userWSOLAccount);
+		assert(
+			market0.amm.quoteAssetAmountLong.eq(
+				loserUser.positions[0].quoteAssetAmount
+			)
+		);
 	});
 
 	it('put market in reduce only mode', async () => {
@@ -517,12 +504,9 @@ describe('delist market, liquidation of expired position', () => {
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solOracle))
 			.price;
 		console.log('new oracle price:', curPrice);
-		const oraclePriceData = await getOraclePriceData(
-			anchor.workspace.Pyth,
-			solOracle
-		);
 
 		assert(market.settlementPrice.gt(ZERO));
+		assert(market.settlementPrice.eq(new BN(404999999999)));
 	});
 
 	it('liq and settle expired market position', async () => {
@@ -554,6 +538,8 @@ describe('delist market, liquidation of expired position', () => {
 			marketIndex,
 			BASE_PRECISION.mul(new BN(290))
 		);
+
+		console.log(txSigLiq);
 
 		const liquidatorClearingHouseValueAfter = convertToNumber(
 			liquidatorClearingHouseUser.getTotalCollateral(),

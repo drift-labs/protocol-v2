@@ -1484,7 +1484,7 @@ pub mod clearing_house {
             &bank_map,
             &mut oracle_map,
             clock.unix_timestamp,
-            &state,
+            state,
         )?;
 
         Ok(())
@@ -1890,11 +1890,28 @@ pub mod clearing_house {
         let market = &mut load_mut!(ctx.accounts.market)?;
         let bank = &mut load_mut!(ctx.accounts.bank)?;
 
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+
+        controller::bank_balance::update_bank_cumulative_interest(bank, now)?;
+
         validate!(
             market.status == MarketStatus::Settlement && market.open_interest == 0,
             ErrorCode::DefaultError,
             "Market must be 100% settled"
         )?;
+
+        let depositors_amount_before: u64 = cast(get_token_amount(
+            bank.deposit_balance,
+            bank,
+            &BankBalanceType::Deposit,
+        )?)?;
+
+        let borrowers_amount_before: u64 = cast(get_token_amount(
+            bank.borrow_balance,
+            bank,
+            &BankBalanceType::Borrow,
+        )?)?;
 
         let fee_pool_token_amount =
             get_token_amount(market.amm.fee_pool.balance, bank, &BankBalanceType::Deposit)?;
@@ -1925,7 +1942,26 @@ pub mod clearing_house {
             bank,
         )?;
 
-        math::bank_balance::validate_bank_balances(&bank)?;
+        let depositors_amount_after: u64 = cast(get_token_amount(
+            bank.deposit_balance,
+            bank,
+            &BankBalanceType::Deposit,
+        )?)?;
+
+        let borrowers_amount_after: u64 = cast(get_token_amount(
+            bank.borrow_balance,
+            bank,
+            &BankBalanceType::Borrow,
+        )?)?;
+
+        validate!(
+            borrowers_amount_before == borrowers_amount_after
+                && depositors_amount_before == depositors_amount_after,
+            ErrorCode::DefaultError,
+            "Bank token balances must be equal before and after"
+        )?;
+
+        math::bank_balance::validate_bank_balances(bank)?;
 
         Ok(())
     }

@@ -1,4 +1,4 @@
-use crate::controller::amm::{update_pnl_pool_balance, update_pool_balances};
+use crate::controller::amm::{update_pnl_pool_and_user_balance, update_pool_balances};
 use crate::controller::bank_balance::{update_bank_balances, update_bank_cumulative_interest};
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::position::{
@@ -8,6 +8,7 @@ use crate::controller::position::{
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::cast;
 use crate::math::casting::cast_to_i128;
+use crate::math::casting::cast_to_i64;
 use crate::math::margin::meets_maintenance_margin_requirement;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_settlement_price;
 use crate::math_error;
@@ -20,7 +21,6 @@ use crate::state::oracle_map::OracleMap;
 use crate::state::state::State;
 use crate::state::user::User;
 use crate::validate;
-use crate::math::casting::cast_to_i64;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::prelude::*;
 use solana_program::msg;
@@ -219,38 +219,8 @@ pub fn settle_expired_position(
         .checked_sub(cast_to_i128(fee)?)
         .ok_or_else(math_error!())?;
 
-    let pnl_to_settle_with_user = update_pnl_pool_balance(market, bank, unrealized_pnl_with_fee)?;
-
-    validate!(
-        unrealized_pnl_with_fee == pnl_to_settle_with_user,
-        ErrorCode::DefaultError,
-        "pnl_pool_amount doesnt have enough ({} < {})",
-        pnl_to_settle_with_user,
-        unrealized_pnl_with_fee
-    )?;
-
-    if unrealized_pnl_with_fee == 0 {
-        msg!("User has no unsettled pnl for market {}", market_index);
-        return Ok(());
-    } else if pnl_to_settle_with_user == 0 {
-        msg!(
-            "Pnl Pool cannot currently settle with user for market {}",
-            market_index
-        );
-        return Ok(());
-    }
-
-    update_bank_balances(
-        pnl_to_settle_with_user.unsigned_abs(),
-        if pnl_to_settle_with_user > 0 {
-            &BankBalanceType::Deposit
-        } else {
-            &BankBalanceType::Borrow
-        },
-        bank,
-        user.get_quote_asset_bank_balance_mut(),
-        false,
-    )?;
+    let pnl_to_settle_with_user =
+        update_pnl_pool_and_user_balance(market, bank, user, unrealized_pnl_with_fee)?;
 
     let user_position = &mut user.positions[position_index];
 
