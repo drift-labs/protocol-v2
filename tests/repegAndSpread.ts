@@ -235,7 +235,7 @@ describe('repeg and spread amm', () => {
 			new BN(21_966_868),
 			undefined,
 			500,
-			333
+			250
 		);
 		await clearingHouse.updateMarketBaseSpread(new BN(0), 250);
 		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
@@ -250,7 +250,8 @@ describe('repeg and spread amm', () => {
 				periodicity,
 				new BN(1_000 * i),
 				undefined,
-				1000
+				1000,
+				201
 			);
 			await clearingHouse.updateMarketBaseSpread(new BN(i), 2000);
 			await clearingHouse.updateCurveUpdateIntensity(new BN(i), 100);
