@@ -1145,6 +1145,52 @@
       ]
     },
     {
+      "name": "settleExpiredMarketPoolsToRevenuePool",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "bank",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "bankVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "recipient",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "withdrawFromMarketToInsuranceVault",
       "accounts": [
         {
@@ -3144,6 +3190,10 @@
           {
             "name": "maxAuctionDuration",
             "type": "u8"
+          },
+          {
+            "name": "settlementDuration",
+            "type": "u16"
           },
           {
             "name": "liquidationMarginBufferRatio",

@@ -17,9 +17,10 @@ use crate::state::events::SettlePnlRecord;
 use crate::state::market::MarketStatus;
 use crate::state::market_map::MarketMap;
 use crate::state::oracle_map::OracleMap;
-use crate::state::state::FeeStructure;
+use crate::state::state::State;
 use crate::state::user::User;
 use crate::validate;
+use crate::math::casting::cast_to_i64;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::prelude::*;
 use solana_program::msg;
@@ -151,12 +152,14 @@ pub fn settle_expired_position(
     bank_map: &BankMap,
     oracle_map: &mut OracleMap,
     now: i64,
-    fee_structure: &FeeStructure,
+    state: &State,
 ) -> ClearingHouseResult {
     // cannot settle pnl this way on a user who is in liquidation territory
     if !(meets_maintenance_margin_requirement(user, market_map, bank_map, oracle_map)?) {
         return Err(ErrorCode::InsufficientCollateralForSettlingPNL);
     }
+
+    let fee_structure = &state.fee_structure;
 
     {
         let bank = &mut bank_map.get_quote_asset_bank_mut()?;
@@ -177,7 +180,20 @@ pub fn settle_expired_position(
     validate!(
         market.status == MarketStatus::Settlement,
         ErrorCode::DefaultError,
-        "Market isn't in settlement"
+        "Market isn't in settlement, expiry_ts={}",
+        market.expiry_ts
+    )?;
+
+    let position_settlement_ts = market
+        .expiry_ts
+        .checked_add(cast_to_i64(state.settlement_duration)?)
+        .ok_or_else(math_error!())?;
+
+    validate!(
+        now > position_settlement_ts,
+        ErrorCode::DefaultError,
+        "Market requires {} seconds buffer to settle after expiry_ts",
+        state.settlement_duration
     )?;
 
     validate!(

@@ -98,6 +98,7 @@ pub mod clearing_house {
             min_order_quote_asset_amount: 500_000, // 50 cents
             min_auction_duration: 10,
             max_auction_duration: 60,
+            settlement_duration: 0, // extra duration after market expiry to allow settlement
             liquidation_margin_buffer_ratio: 50, // 2%
             signer: clearing_house_signer,
             signer_nonce: clearing_house_signer_nonce,
@@ -1483,7 +1484,7 @@ pub mod clearing_house {
             &bank_map,
             &mut oracle_map,
             clock.unix_timestamp,
-            &state.fee_structure,
+            &state,
         )?;
 
         Ok(())
@@ -1876,6 +1877,55 @@ pub mod clearing_house {
         }
 
         market.expiry_ts = expiry_ts;
+
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn settle_expired_market_pools_to_revenue_pool(
+        ctx: Context<WithdrawFromMarketToInsuranceVault>,
+    ) -> Result<()> {
+        let market = &mut load_mut!(ctx.accounts.market)?;
+        let bank = &mut load_mut!(ctx.accounts.bank)?;
+
+        validate!(
+            market.status == MarketStatus::Settlement && market.open_interest == 0,
+            ErrorCode::DefaultError,
+            "Market must be 100% settled"
+        )?;
+
+        let fee_pool_token_amount =
+            get_token_amount(market.amm.fee_pool.balance, bank, &BankBalanceType::Deposit)?;
+        let pnl_pool_token_amount =
+            get_token_amount(market.pnl_pool.balance, bank, &BankBalanceType::Deposit)?;
+
+        controller::bank_balance::update_bank_balances(
+            fee_pool_token_amount,
+            &BankBalanceType::Borrow,
+            bank,
+            &mut market.amm.fee_pool,
+            false,
+        )?;
+
+        controller::bank_balance::update_bank_balances(
+            pnl_pool_token_amount,
+            &BankBalanceType::Borrow,
+            bank,
+            &mut market.pnl_pool,
+            false,
+        )?;
+
+        controller::bank_balance::update_revenue_pool_balances(
+            pnl_pool_token_amount
+                .checked_add(fee_pool_token_amount)
+                .ok_or_else(math_error!())?,
+            &BankBalanceType::Deposit,
+            bank,
+        )?;
+
+        math::bank_balance::validate_bank_balances(&bank)?;
 
         Ok(())
     }
