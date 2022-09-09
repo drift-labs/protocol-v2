@@ -132,7 +132,6 @@ impl Market {
             let net_unsettled_pnl =
                 amm::calculate_net_user_pnl(&self.amm, self.amm.last_oracle_price)?;
             if net_unsettled_pnl > cast_to_i128(self.unrealized_max_imbalance)? {
-                msg!("net_unsettled_pnl: {:?}", net_unsettled_pnl);
                 margin_asset_weight = margin_asset_weight
                     .checked_mul(self.unrealized_max_imbalance)
                     .ok_or_else(math_error!())?

@@ -811,7 +811,7 @@ mod test {
             .unwrap();
         assert_eq!(uaw_2, 95 / 2);
 
-        market.unrealized_max_imbalance = (upnl_2 / 10) as u128; // only allow upnl_2 of net pnl
+        market.unrealized_max_imbalance = (upnl_2 / 10) as u128; // only allow upnl_2/10 of net pnl
         let uaw_2 = market
             .get_unrealized_asset_weight(upnl_2, MarginRequirementType::Initial)
             .unwrap();
