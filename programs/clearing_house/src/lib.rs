@@ -334,7 +334,7 @@ pub mod clearing_house {
         validate!(
             identity(market_state.pc_mint) == quote_bank.mint.to_aligned_bytes(),
             ErrorCode::InvalidSerumMarket,
-            "Invalid base mint"
+            "Invalid quote mint"
         )?;
 
         let serum_program_id = serum_program_id;

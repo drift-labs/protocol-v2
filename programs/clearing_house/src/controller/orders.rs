@@ -2528,7 +2528,7 @@ fn fulfill_spot_order(
             oracle_map,
             now,
             slot,
-            OrderActionExplanation::MarketOrderFilledToLimitPrice,
+            OrderActionExplanation::InsufficientFreeCollateral,
             Some(&filler_key),
             filler_reward,
             false,
