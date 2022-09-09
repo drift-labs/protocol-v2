@@ -2330,8 +2330,6 @@ pub fn fill_spot_order(
     )?;
 
     if should_cancel_order_after_fulfill(user, order_index, slot)? {
-        updated_user_state = true;
-
         let filler_reward = {
             let mut quote_bank = bank_map.get_quote_asset_bank_mut()?;
             pay_keeper_flat_reward_for_spot(
@@ -2976,14 +2974,14 @@ pub fn fulfill_spot_order_with_serum(
         .map_err(|e| {
             msg!("Failed to reload base_bank_vault");
             ErrorCode::FailedSerumCPI
-        });
+        })?;
     serum_new_order_accounts
         .quote_bank_vault
         .reload()
         .map_err(|e| {
             msg!("Failed to reload quote_bank_vault");
             ErrorCode::FailedSerumCPI
-        });
+        })?;
 
     let base_after = serum_new_order_accounts.base_bank_vault.amount;
     let quote_after = serum_new_order_accounts.quote_bank_vault.amount;

@@ -69,7 +69,6 @@ pub mod clearing_house {
     use crate::state::state::OrderFillerRewardStructure;
 
     use super::*;
-    use crate::controller::serum::SerumFulfillmentParams;
     use crate::state::insurance_fund_stake::InsuranceFundStake;
     use crate::state::serum::{load_market_state, load_open_orders};
     use bytemuck::cast_slice;
