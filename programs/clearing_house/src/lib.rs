@@ -1474,7 +1474,7 @@ pub mod clearing_house {
 
         validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
 
-        // todo: cancel all open orders in market
+        // todo: cancel all user open orders in market
 
         controller::pnl::settle_expired_position(
             market_index,
@@ -1701,6 +1701,70 @@ pub mod clearing_house {
             now,
             ctx.accounts.state.liquidation_margin_buffer_ratio,
         )?;
+
+        Ok(())
+    }
+
+    pub fn resolve_perp_pnl_deficit(
+        ctx: Context<ResolvePerpPnlDeficit>,
+        bank_index: u64,
+        market_index: u64,
+    ) -> Result<()> {
+        let clock = Clock::get()?;
+        validate!(bank_index == 0, ErrorCode::InvalidBankAccount)?;
+        let state = &ctx.accounts.state;
+
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let bank_map = BankMap::load(&get_writable_banks(bank_index), remaining_accounts_iter)?;
+        let market_map = MarketMap::load(
+            &get_market_set(market_index),
+            &MarketSet::new(),
+            remaining_accounts_iter,
+        )?;
+
+        controller::repeg::update_amm(market_index, &market_map, &mut oracle_map, state, &clock)?;
+
+        let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;
+        let bank_vault_amount = ctx.accounts.bank_vault.amount;
+
+        let pay_from_insurance = {
+            let bank = &mut bank_map.get_ref_mut(&bank_index)?;
+            let market = &mut market_map.get_ref_mut(&market_index)?;
+
+            controller::insurance::resolve_perp_pnl_deficit(
+                bank_vault_amount,
+                insurance_vault_amount,
+                bank,
+                market,
+                clock.unix_timestamp,
+            )?
+        };
+
+        if pay_from_insurance > 0 {
+            validate!(
+                pay_from_insurance < ctx.accounts.insurance_fund_vault.amount,
+                ErrorCode::InsufficientCollateral,
+                "Insurance Fund balance InsufficientCollateral for payment: !{} < {}",
+                pay_from_insurance,
+                ctx.accounts.insurance_fund_vault.amount
+            )?;
+
+            controller::token::send_from_program_vault(
+                &ctx.accounts.token_program,
+                &ctx.accounts.insurance_fund_vault,
+                &ctx.accounts.bank_vault,
+                &ctx.accounts.clearing_house_signer,
+                state.signer_nonce,
+                pay_from_insurance,
+            )?;
+
+            validate!(
+                ctx.accounts.insurance_fund_vault.amount > 0,
+                ErrorCode::DefaultError,
+                "insurance_fund_vault.amount must remain > 0"
+            )?;
+        }
 
         Ok(())
     }

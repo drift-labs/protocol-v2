@@ -983,6 +983,51 @@
       ]
     },
     {
+      "name": "resolvePerpPnlDeficit",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "bankVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bankIndex",
+          "type": "u64"
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "resolvePerpBankruptcy",
       "accounts": [
         {
@@ -5584,6 +5629,11 @@
           "index": false
         },
         {
+          "name": "marketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
           "name": "userIfFactor",
           "type": "u32",
           "index": false
@@ -5615,7 +5665,7 @@
         },
         {
           "name": "amount",
-          "type": "u64",
+          "type": "i64",
           "index": false
         }
       ]

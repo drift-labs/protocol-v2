@@ -1,11 +1,12 @@
 use crate::controller::bank_balance::{
-    update_bank_cumulative_interest, update_revenue_pool_balances,
+    update_bank_balances, update_bank_cumulative_interest, update_revenue_pool_balances,
 };
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
+use crate::math::amm::calculate_net_user_pnl;
 use crate::math::bank_balance::get_token_amount;
 use crate::math::bank_balance::validate_bank_amounts;
-use crate::math::casting::{cast_to_i64, cast_to_u128, cast_to_u32, cast_to_u64};
+use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128, cast_to_u32, cast_to_u64};
 use crate::math::constants::{
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_NUMERATOR,
@@ -19,6 +20,7 @@ use crate::math_error;
 use crate::state::bank::{Bank, BankBalanceType};
 use crate::state::events::{InsuranceFundRecord, InsuranceFundStakeRecord, StakeAction};
 use crate::state::insurance_fund_stake::InsuranceFundStake;
+use crate::state::market::Market;
 use crate::state::user::UserStats;
 use crate::{emit, validate};
 use solana_program::msg;
@@ -462,7 +464,8 @@ pub fn settle_revenue_to_insurance_fund(
     emit!(InsuranceFundRecord {
         ts: now,
         bank_index: bank.bank_index,
-        amount: insurance_fund_token_amount,
+        market_index: 0, // todo
+        amount: cast_to_i64(insurance_fund_token_amount)?,
 
         user_if_factor: bank.user_if_factor,
         total_if_factor: bank.total_if_factor,
@@ -473,6 +476,97 @@ pub fn settle_revenue_to_insurance_fund(
     });
 
     cast_to_u64(insurance_fund_token_amount)
+}
+
+pub fn resolve_perp_pnl_deficit(
+    bank_vault_amount: u64,
+    insurance_vault_amount: u64,
+    bank: &mut Bank,
+    market: &mut Market,
+    now: i64,
+) -> ClearingHouseResult<u64> {
+    validate!(
+        market.amm.total_fee_minus_distributions < 0,
+        ErrorCode::DefaultError,
+        "market.amm.total_fee_minus_distributions={} must be negative",
+        market.amm.total_fee_minus_distributions
+    )?;
+
+    update_bank_cumulative_interest(bank, now)?;
+
+    let total_if_shares_before = bank.total_if_shares;
+
+    let excess_user_pnl_imbalance = if market.unrealized_max_imbalance > 0 {
+        let net_unsettled_pnl = calculate_net_user_pnl(&market.amm, market.amm.last_oracle_price)?;
+
+        net_unsettled_pnl
+            .checked_sub(cast_to_i128(market.unrealized_max_imbalance)?)
+            .ok_or_else(math_error!())?
+    } else {
+        0
+    };
+
+    validate!(
+        excess_user_pnl_imbalance > 0,
+        ErrorCode::DefaultError,
+        "No excess_user_pnl_imbalance({}) to settle",
+        excess_user_pnl_imbalance
+    )?;
+
+    let max_revenue_withdraw_allowed = cast_to_i128(
+        market
+            .max_revenue_withdraw_per_period
+            .checked_sub(market.revenue_withdraw_since_last_settle)
+            .ok_or_else(math_error!())?,
+    )?;
+
+    let insurance_withdraw = excess_user_pnl_imbalance
+        .min(max_revenue_withdraw_allowed)
+        .min(cast_to_i128(insurance_vault_amount.saturating_sub(1))?)
+        .max(0);
+
+    validate!(
+        insurance_withdraw > 0,
+        ErrorCode::DefaultError,
+        "No insurance_withdraw({}) to settle",
+        insurance_withdraw
+    )?;
+
+    market.amm.total_fee_minus_distributions = market
+        .amm
+        .total_fee_minus_distributions
+        .checked_add(insurance_withdraw)
+        .ok_or_else(math_error!())?;
+
+    market.revenue_withdraw_since_last_settle = market
+        .revenue_withdraw_since_last_settle
+        .checked_add(insurance_withdraw.unsigned_abs())
+        .ok_or_else(math_error!())?;
+
+    market.last_revenue_withdraw_ts = now;
+
+    update_bank_balances(
+        insurance_withdraw.unsigned_abs(),
+        &BankBalanceType::Deposit,
+        bank,
+        &mut market.pnl_pool,
+        false,
+    )?;
+
+    emit!(InsuranceFundRecord {
+        ts: now,
+        bank_index: bank.bank_index,
+        market_index: market.market_index,
+        amount: -cast_to_i64(insurance_withdraw)?,
+        user_if_factor: bank.user_if_factor,
+        total_if_factor: bank.total_if_factor,
+        bank_vault_amount_before: bank_vault_amount,
+        insurance_vault_amount_before: insurance_vault_amount,
+        total_if_shares_before,
+        total_if_shares_after: bank.total_if_shares,
+    });
+
+    cast_to_u64(insurance_withdraw)
 }
 
 #[cfg(test)]
