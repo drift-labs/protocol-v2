@@ -3280,11 +3280,19 @@
             "type": "u128"
           },
           {
-            "name": "minAuctionDuration",
+            "name": "minPerpAuctionDuration",
             "type": "u8"
           },
           {
-            "name": "maxAuctionDuration",
+            "name": "maxPerpAuctionDuration",
+            "type": "u8"
+          },
+          {
+            "name": "minSpotAuctionDuration",
+            "type": "u8"
+          },
+          {
+            "name": "maxSpotAuctionDuration",
             "type": "u8"
           },
           {
@@ -5421,6 +5429,15 @@
           "index": false
         },
         {
+          "name": "takerOrderDirection",
+          "type": {
+            "option": {
+              "defined": "PositionDirection"
+            }
+          },
+          "index": false
+        },
+        {
           "name": "takerOrderBaseAssetAmount",
           "type": {
             "option": "u128"
@@ -5466,6 +5483,15 @@
           "name": "makerOrderId",
           "type": {
             "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "makerOrderDirection",
+          "type": {
+            "option": {
+              "defined": "PositionDirection"
+            }
           },
           "index": false
         },

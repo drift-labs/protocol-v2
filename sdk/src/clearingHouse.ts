@@ -46,6 +46,7 @@ import {
 	getClearingHouseStateAccountPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getMarketPublicKey,
+	getSerumFulfillmentConfigPublicKey,
 	getSerumSignerPublicKey,
 	getUserAccountPublicKey,
 	getUserAccountPublicKeySync,
@@ -305,6 +306,18 @@ export class ClearingHouse {
 		oraclePublicKey: PublicKey
 	): DataAndSlot<OraclePriceData> | undefined {
 		return this.accountSubscriber.getOraclePriceDataAndSlot(oraclePublicKey);
+	}
+
+	public async getSerumV3FulfillmentConfig(
+		serumMarket: PublicKey
+	): Promise<SerumV3FulfillmentConfigAccount> {
+		const address = await getSerumFulfillmentConfigPublicKey(
+			this.program.programId,
+			serumMarket
+		);
+		return (await this.program.account.serumV3FulfillmentConfig.fetch(
+			address
+		)) as SerumV3FulfillmentConfigAccount;
 	}
 
 	/**

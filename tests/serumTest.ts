@@ -19,8 +19,6 @@ import {
 	getTokenAmount,
 	isVariant,
 	MARK_PRICE_PRECISION,
-	getSerumFulfillmentConfigPublicKey,
-	SerumV3FulfillmentConfigAccount,
 } from '../sdk/src';
 
 import {
@@ -173,13 +171,9 @@ describe('serum spot market', () => {
 		openOrderAccounts.push(makerOpenOrders.publicKey);
 
 		const serumFulfillmentConfigAccount =
-			(await makerClearingHouse.program.account.serumV3FulfillmentConfig.fetch(
-				getSerumFulfillmentConfigPublicKey(
-					makerClearingHouse.program.programId,
-					serumMarketPublicKey
-				)
-			)) as SerumV3FulfillmentConfigAccount;
-
+			await makerClearingHouse.getSerumV3FulfillmentConfig(
+				serumMarketPublicKey
+			);
 		openOrderAccounts.push(serumFulfillmentConfigAccount.serumOpenOrders);
 
 		const consumeEventsIx = await market.makeConsumeEventsInstruction(
@@ -250,14 +244,10 @@ describe('serum spot market', () => {
 
 		await provider.sendAndConfirm(transaction, signers);
 
-		const serumFulfillmentConfigPublicKey = getSerumFulfillmentConfigPublicKey(
-			makerClearingHouse.program.programId,
-			serumMarketPublicKey
-		);
 		const serumFulfillmentConfigAccount =
-			(await makerClearingHouse.program.account.serumV3FulfillmentConfig.fetch(
-				serumFulfillmentConfigPublicKey
-			)) as SerumV3FulfillmentConfigAccount;
+			await makerClearingHouse.getSerumV3FulfillmentConfig(
+				serumMarketPublicKey
+			);
 		const txSig = await makerClearingHouse.fillSpotOrder(
 			await takerClearingHouse.getUserAccountPublicKey(),
 			takerClearingHouse.getUserAccount(),
@@ -278,7 +268,7 @@ describe('serum spot market', () => {
 			takerQuoteBankBalance.balanceType
 		);
 		console.log(quoteTokenAmount.toString());
-		assert(quoteTokenAmount.eq(new BN(99899999)));
+		assert(quoteTokenAmount.eq(new BN(99900000)));
 
 		const baseTokenAmount = getTokenAmount(
 			takerBaseBankBalance.balance,
@@ -362,13 +352,9 @@ describe('serum spot market', () => {
 		await provider.sendAndConfirm(transaction, signers);
 
 		const serumFulfillmentConfigAccount =
-			(await makerClearingHouse.program.account.serumV3FulfillmentConfig.fetch(
-				getSerumFulfillmentConfigPublicKey(
-					makerClearingHouse.program.programId,
-					serumMarketPublicKey
-				)
-			)) as SerumV3FulfillmentConfigAccount;
-
+			await makerClearingHouse.getSerumV3FulfillmentConfig(
+				serumMarketPublicKey
+			);
 		const txSig = await makerClearingHouse.fillSpotOrder(
 			await takerClearingHouse.getUserAccountPublicKey(),
 			takerClearingHouse.getUserAccount(),
@@ -389,7 +375,7 @@ describe('serum spot market', () => {
 			takerQuoteBankBalance.balanceType
 		);
 		console.log(quoteTokenAmount.toString());
-		assert(quoteTokenAmount.eq(new BN(199799999)));
+		assert(quoteTokenAmount.eq(new BN(199800000)));
 
 		const baseTokenAmount = getTokenAmount(
 			takerBaseBankBalance.balance,
@@ -475,12 +461,9 @@ describe('serum spot market', () => {
 		await provider.sendAndConfirm(transaction, signers);
 
 		const serumFulfillmentConfigAccount =
-			(await makerClearingHouse.program.account.serumV3FulfillmentConfig.fetch(
-				getSerumFulfillmentConfigPublicKey(
-					makerClearingHouse.program.programId,
-					serumMarketPublicKey
-				)
-			)) as SerumV3FulfillmentConfigAccount;
+			await makerClearingHouse.getSerumV3FulfillmentConfig(
+				serumMarketPublicKey
+			);
 
 		const txSig = await makerClearingHouse.fillSpotOrder(
 			await takerClearingHouse.getUserAccountPublicKey(),
@@ -502,7 +485,7 @@ describe('serum spot market', () => {
 			takerQuoteBankBalance.balanceType
 		);
 		console.log(quoteTokenAmount.toString());
-		assert(quoteTokenAmount.eq(new BN(99699998))); // paid ~$.30
+		assert(quoteTokenAmount.eq(new BN(99700000))); // paid ~$.30
 
 		const baseTokenAmount = getTokenAmount(
 			takerBaseBankBalance.balance,

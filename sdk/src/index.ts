@@ -51,6 +51,7 @@ export * from './types';
 export * from './math/utils';
 export * from './config';
 export * from './constants/numericConstants';
+export * from './serum/serumMarketSubscriber';
 export * from './tx/retryTxSender';
 export * from './util/computeUnits';
 export * from './util/tps';
