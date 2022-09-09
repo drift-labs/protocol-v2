@@ -10,14 +10,14 @@ use crate::math::orders::{
     calculate_base_asset_amount_to_fill_up_to_limit_price, is_multiple_of_step_size,
     order_breaches_oracle_price_limits,
 };
-use crate::state::market::Market;
+use crate::state::market::PerpMarket;
 use crate::state::state::State;
 use crate::state::user::{Order, OrderTriggerCondition, OrderType};
 use crate::validate;
 
 pub fn validate_order(
     order: &Order,
-    market: &Market,
+    market: &PerpMarket,
     state: &State,
     valid_oracle_price: Option<i128>,
     slot: u64,
@@ -88,7 +88,7 @@ fn validate_market_order(order: &Order, step_size: u128) -> ClearingHouseResult 
 
 fn validate_limit_order(
     order: &Order,
-    market: &Market,
+    market: &PerpMarket,
     state: &State,
     valid_oracle_price: Option<i128>,
     slot: u64,
@@ -144,7 +144,7 @@ fn validate_limit_order(
 
 fn validate_post_only_order(
     order: &Order,
-    market: &Market,
+    market: &PerpMarket,
     valid_oracle_price: Option<i128>,
     slot: u64,
 ) -> ClearingHouseResult {
@@ -326,7 +326,7 @@ fn validate_spot_limit_order(
     margin_ratio_initial: u128,
     margin_ratio_maintenance: u128,
     minimum_order_value: u128,
-    bank_decimals: u32,
+    decimals: u32,
 ) -> ClearingHouseResult {
     validate_base_asset_amount(order, step_size)?;
 
@@ -369,7 +369,7 @@ fn validate_spot_limit_order(
     let approximate_market_value = limit_price
         .checked_mul(order.base_asset_amount)
         .unwrap_or(u128::MAX)
-        .div(10_u128.pow(bank_decimals))
+        .div(10_u128.pow(decimals))
         .div(MARK_PRICE_PRECISION / QUOTE_PRECISION);
 
     if approximate_market_value < minimum_order_value {

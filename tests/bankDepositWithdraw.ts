@@ -108,7 +108,7 @@ describe('bank deposit and withdraw', () => {
 		const maintenanceAssetWeight = BANK_WEIGHT_PRECISION;
 		const initialLiabilityWeight = BANK_WEIGHT_PRECISION;
 		const maintenanceLiabilityWeight = BANK_WEIGHT_PRECISION;
-		await admin.initializeBank(
+		await admin.initializeSpotMarket(
 			usdcMint.publicKey,
 			optimalUtilization,
 			optimalRate,
@@ -120,7 +120,7 @@ describe('bank deposit and withdraw', () => {
 			initialLiabilityWeight,
 			maintenanceLiabilityWeight
 		);
-		const txSig = await admin.updateBankWithdrawGuardThreshold(
+		const txSig = await admin.updateWithdrawGuardThreshold(
 			new BN(0),
 			new BN(10 ** 10).mul(QUOTE_PRECISION)
 		);
@@ -142,7 +142,7 @@ describe('bank deposit and withdraw', () => {
 		assert(bank.initialLiabilityWeight.eq(initialLiabilityWeight));
 		assert(bank.maintenanceAssetWeight.eq(maintenanceAssetWeight));
 
-		assert(admin.getStateAccount().numberOfBanks.eq(new BN(1)));
+		assert(admin.getStateAccount().numberOfSpotMarkets.eq(new BN(1)));
 	});
 
 	it('Initialize SOL Bank', async () => {
@@ -162,7 +162,7 @@ describe('bank deposit and withdraw', () => {
 			new BN(11)
 		).div(new BN(10));
 
-		await admin.initializeBank(
+		await admin.initializeSpotMarket(
 			NATIVE_MINT,
 			optimalUtilization,
 			optimalRate,
@@ -175,7 +175,7 @@ describe('bank deposit and withdraw', () => {
 			maintenanceLiabilityWeight
 		);
 
-		const txSig = await admin.updateBankWithdrawGuardThreshold(
+		const txSig = await admin.updateWithdrawGuardThreshold(
 			new BN(1),
 			new BN(10 ** 10).mul(QUOTE_PRECISION)
 		);
@@ -197,7 +197,7 @@ describe('bank deposit and withdraw', () => {
 		assert(bank.initialLiabilityWeight.eq(initialLiabilityWeight));
 		assert(bank.maintenanceAssetWeight.eq(maintenanceAssetWeight));
 
-		assert(admin.getStateAccount().numberOfBanks.eq(new BN(2)));
+		assert(admin.getStateAccount().numberOfSpotMarkets.eq(new BN(2)));
 	});
 
 	it('First User Deposit USDC', async () => {
@@ -336,9 +336,10 @@ describe('bank deposit and withdraw', () => {
 
 		await sleep(5000);
 
-		const txSig = await firstUserClearingHouse.updateBankCumulativeInterest(
-			usdcBankIndex
-		);
+		const txSig =
+			await firstUserClearingHouse.updateSpotMarketCumulativeInterest(
+				usdcBankIndex
+			);
 		await printTxLogs(connection, txSig);
 
 		await firstUserClearingHouse.fetchAccounts();
@@ -474,9 +475,10 @@ describe('bank deposit and withdraw', () => {
 
 		await sleep(5000);
 
-		const txSig = await firstUserClearingHouse.updateBankCumulativeInterest(
-			usdcBankIndex
-		);
+		const txSig =
+			await firstUserClearingHouse.updateSpotMarketCumulativeInterest(
+				usdcBankIndex
+			);
 		await printTxLogs(connection, txSig);
 
 		await firstUserClearingHouse.fetchAccounts();

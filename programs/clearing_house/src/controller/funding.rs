@@ -20,24 +20,24 @@ use crate::math::helpers::on_the_hour_update;
 use crate::math::oracle;
 use crate::math_error;
 use crate::state::events::{FundingPaymentRecord, FundingRateRecord};
-use crate::state::market::{Market, AMM};
-use crate::state::market_map::MarketMap;
+use crate::state::market::{PerpMarket, AMM};
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::state::OracleGuardRails;
 use crate::state::user::User;
 
 pub fn settle_funding_payment(
     user: &mut User,
     user_key: &Pubkey,
-    market: &mut Market,
+    market: &mut PerpMarket,
     now: UnixTimestamp,
 ) -> ClearingHouseResult {
-    let position_index = match get_position_index(&user.positions, market.market_index) {
+    let position_index = match get_position_index(&user.perp_positions, market.market_index) {
         Ok(position_index) => position_index,
         Err(_) => return Ok(()),
     };
 
-    let mut market_position = &mut user.positions[position_index];
+    let mut market_position = &mut user.perp_positions[position_index];
 
     if market_position.base_asset_amount == 0 {
         return Ok(());
@@ -81,15 +81,15 @@ pub fn settle_funding_payment(
 pub fn settle_funding_payments(
     user: &mut User,
     user_key: &Pubkey,
-    market_map: &MarketMap,
+    perp_market_map: &PerpMarketMap,
     now: UnixTimestamp,
 ) -> ClearingHouseResult {
-    for market_position in user.positions.iter_mut() {
+    for market_position in user.perp_positions.iter_mut() {
         if market_position.base_asset_amount == 0 {
             continue;
         }
 
-        let market = &mut market_map.get_ref_mut(&market_position.market_index)?;
+        let market = &mut perp_market_map.get_ref_mut(&market_position.market_index)?;
         let amm: &AMM = &market.amm;
 
         let amm_cumulative_funding_rate = if market_position.base_asset_amount > 0 {
@@ -129,7 +129,7 @@ pub fn settle_funding_payments(
 #[allow(clippy::comparison_chain)]
 pub fn update_funding_rate(
     market_index: u64,
-    market: &mut Market,
+    market: &mut PerpMarket,
     oracle_map: &mut OracleMap,
     now: UnixTimestamp,
     guard_rails: &OracleGuardRails,

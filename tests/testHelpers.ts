@@ -779,9 +779,9 @@ export async function initializeQuoteAssetBank(
 	const initialLiabilityWeight = BANK_WEIGHT_PRECISION;
 	const maintenanceLiabilityWeight = BANK_WEIGHT_PRECISION;
 	const imfFactor = new BN(0);
-	const bankIndex = admin.getStateAccount().numberOfBanks;
+	const bankIndex = admin.getStateAccount().numberOfSpotMarkets;
 
-	await admin.initializeBank(
+	await admin.initializeSpotMarket(
 		usdcMint,
 		optimalUtilization,
 		optimalRate,
@@ -794,7 +794,7 @@ export async function initializeQuoteAssetBank(
 		maintenanceLiabilityWeight,
 		imfFactor
 	);
-	await admin.updateBankWithdrawGuardThreshold(
+	await admin.updateWithdrawGuardThreshold(
 		bankIndex,
 		new BN(10 ** 10).mul(QUOTE_PRECISION)
 	);
@@ -819,9 +819,9 @@ export async function initializeSolAssetBank(
 	const maintenanceLiabilityWeight = BANK_WEIGHT_PRECISION.mul(new BN(11)).div(
 		new BN(10)
 	);
-	const bankIndex = admin.getStateAccount().numberOfBanks;
+	const bankIndex = admin.getStateAccount().numberOfSpotMarkets;
 
-	const txSig = await admin.initializeBank(
+	const txSig = await admin.initializeSpotMarket(
 		NATIVE_MINT,
 		optimalUtilization,
 		optimalRate,
@@ -833,7 +833,7 @@ export async function initializeSolAssetBank(
 		initialLiabilityWeight,
 		maintenanceLiabilityWeight
 	);
-	await admin.updateBankWithdrawGuardThreshold(
+	await admin.updateWithdrawGuardThreshold(
 		bankIndex,
 		new BN(10 ** 10).mul(QUOTE_PRECISION)
 	);

@@ -1171,11 +1171,11 @@ export class ClearingHouse {
 		});
 	}
 
-	public async updateBankCumulativeInterest(
-		bankIndex: BN
+	public async updateSpotMarketCumulativeInterest(
+		marketIndex: BN
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
-			wrapInTx(await this.updateBankCumulativeInterestIx(bankIndex)),
+			wrapInTx(await this.updateBankCumulativeInterestIx(marketIndex)),
 			[],
 			this.opts
 		);

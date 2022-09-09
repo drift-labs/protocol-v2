@@ -8,7 +8,7 @@ use crate::math::constants::{
 };
 use crate::math::position::calculate_entry_price;
 use crate::math_error;
-use crate::state::market::Market;
+use crate::state::market::PerpMarket;
 use crate::state::oracle::OraclePriceData;
 use crate::state::user::Order;
 use solana_program::msg;
@@ -17,7 +17,7 @@ use std::cmp::min;
 /// for bid (direction == Long), the auction start price is based on the bid reserves
 /// for ask (direction == Short), the auction start price is based on the ask reserves
 pub fn calculate_auction_start_price(
-    market: &Market,
+    market: &PerpMarket,
     direction: PositionDirection,
 ) -> ClearingHouseResult<u128> {
     let (base_asset_reserves, quote_asset_reserves) = match direction {
@@ -41,7 +41,7 @@ pub fn calculate_auction_start_price(
 }
 
 pub fn calculate_auction_end_price(
-    market: &Market,
+    market: &PerpMarket,
     direction: PositionDirection,
     base_asset_amount: u128,
 ) -> ClearingHouseResult<u128> {

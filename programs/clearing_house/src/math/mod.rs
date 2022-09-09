@@ -1,7 +1,6 @@
 pub mod amm;
 pub mod amm_jit;
 pub mod auction;
-pub mod bank_balance;
 pub mod bankruptcy;
 pub mod base_asset_amount;
 pub mod bn;
@@ -25,4 +24,5 @@ pub mod quote_asset;
 pub mod repeg;
 pub mod serum;
 pub mod slippage;
+pub mod spot_balance;
 pub mod withdrawal;

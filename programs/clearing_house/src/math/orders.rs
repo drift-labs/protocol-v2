@@ -10,21 +10,21 @@ use crate::error::ClearingHouseResult;
 use crate::math;
 use crate::math::amm::calculate_max_base_asset_amount_fillable;
 use crate::math::auction::is_auction_complete;
-use crate::math::bank_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
 use crate::math::constants::{MARGIN_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
 use crate::math::position::calculate_entry_price;
+use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math_error;
-use crate::state::bank::{Bank, BankBalanceType};
-use crate::state::market::{Market, AMM};
+use crate::state::market::{PerpMarket, AMM};
 use crate::state::oracle::OraclePriceData;
+use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::user::{
-    Order, OrderStatus, OrderTriggerCondition, OrderType, User, UserBankBalance,
+    Order, OrderStatus, OrderTriggerCondition, OrderType, SpotPosition, User,
 };
 
 pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     order: &Order,
-    market: &Market,
+    market: &PerpMarket,
     valid_oracle_price: Option<i128>,
     slot: u64,
 ) -> ClearingHouseResult<u128> {
@@ -44,7 +44,7 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
 
 pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
     order: &Order,
-    market: &Market,
+    market: &PerpMarket,
     limit_price: u128,
 ) -> ClearingHouseResult<u128> {
     let base_asset_amount_unfilled = order.get_base_asset_amount_unfilled()?;
@@ -312,14 +312,14 @@ pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u128) -> b
 
 pub fn is_spot_order_risk_decreasing(
     order: &Order,
-    balance_type: &BankBalanceType,
+    balance_type: &SpotBalanceType,
     token_amount: u128,
 ) -> ClearingHouseResult<bool> {
     let risk_decreasing = match (balance_type, order.direction) {
-        (BankBalanceType::Deposit, PositionDirection::Short) => {
+        (SpotBalanceType::Deposit, PositionDirection::Short) => {
             order.base_asset_amount < token_amount.checked_mul(2).ok_or_else(math_error!())?
         }
-        (BankBalanceType::Borrow, PositionDirection::Long) => {
+        (SpotBalanceType::Borrow, PositionDirection::Long) => {
             order.base_asset_amount < token_amount.checked_mul(2).ok_or_else(math_error!())?
         }
         (_, _) => false,
@@ -583,14 +583,14 @@ mod test {
             MARGIN_PRECISION, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128,
         };
         use crate::math::orders::order_breaches_oracle_price_limits;
-        use crate::state::market::Market;
+        use crate::state::market::PerpMarket;
         use crate::state::user::Order;
 
         #[test]
         fn bid_does_not_breach() {
-            let market = Market {
+            let market = PerpMarket {
                 margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
-                ..Market::default()
+                ..PerpMarket::default()
             };
 
             let order = Order {
@@ -619,9 +619,9 @@ mod test {
 
         #[test]
         fn bid_does_not_breach_4_99_percent_move() {
-            let market = Market {
+            let market = PerpMarket {
                 margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
-                ..Market::default()
+                ..PerpMarket::default()
             };
 
             let order = Order {
@@ -650,10 +650,10 @@ mod test {
 
         #[test]
         fn bid_breaches() {
-            let market = Market {
+            let market = PerpMarket {
                 margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
                 margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
-                ..Market::default()
+                ..PerpMarket::default()
             };
 
             let order = Order {
@@ -683,10 +683,10 @@ mod test {
 
         #[test]
         fn ask_does_not_breach() {
-            let market = Market {
+            let market = PerpMarket {
                 margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
                 margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
-                ..Market::default()
+                ..PerpMarket::default()
             };
 
             let order = Order {
@@ -716,10 +716,10 @@ mod test {
 
         #[test]
         fn ask_does_not_breach_4_99_percent_move() {
-            let market = Market {
+            let market = PerpMarket {
                 margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
                 margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
-                ..Market::default()
+                ..PerpMarket::default()
             };
 
             let order = Order {
@@ -749,10 +749,10 @@ mod test {
 
         #[test]
         fn ask_breaches() {
-            let market = Market {
+            let market = PerpMarket {
                 margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
                 margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
-                ..Market::default()
+                ..PerpMarket::default()
             };
 
             let order = Order {

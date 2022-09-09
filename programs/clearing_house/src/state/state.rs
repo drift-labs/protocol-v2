@@ -43,7 +43,7 @@ pub struct State {
     pub discount_mint: Pubkey,
     pub oracle_guard_rails: OracleGuardRails,
     pub number_of_markets: u64,
-    pub number_of_banks: u64,
+    pub number_of_spot_markets: u64,
     pub min_order_quote_asset_amount: u128, // minimum est. quote_asset_amount for place_order to succeed
     pub min_perp_auction_duration: u8,
     pub max_perp_auction_duration: u8,

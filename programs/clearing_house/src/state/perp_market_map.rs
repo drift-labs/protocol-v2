@@ -10,15 +10,15 @@ use anchor_lang::Discriminator;
 use arrayref::array_ref;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::state::market::Market;
+use crate::state::market::PerpMarket;
 use crate::state::user::UserPositions;
 
 use solana_program::msg;
 
-pub struct MarketMap<'a>(pub BTreeMap<u64, AccountLoader<'a, Market>>);
+pub struct PerpMarketMap<'a>(pub BTreeMap<u64, AccountLoader<'a, PerpMarket>>);
 
-impl<'a> MarketMap<'a> {
-    pub fn get_ref(&self, market_index: &u64) -> ClearingHouseResult<Ref<Market>> {
+impl<'a> PerpMarketMap<'a> {
+    pub fn get_ref(&self, market_index: &u64) -> ClearingHouseResult<Ref<PerpMarket>> {
         self.0
             .get(market_index)
             .ok_or_else(|| {
@@ -29,7 +29,7 @@ impl<'a> MarketMap<'a> {
             .or(Err(ErrorCode::UnableToLoadMarketAccount))
     }
 
-    pub fn get_ref_mut(&self, market_index: &u64) -> ClearingHouseResult<RefMut<Market>> {
+    pub fn get_ref_mut(&self, market_index: &u64) -> ClearingHouseResult<RefMut<PerpMarket>> {
         self.0
             .get(market_index)
             .ok_or_else(|| {
@@ -44,16 +44,16 @@ impl<'a> MarketMap<'a> {
         writable_markets: &'b MarketSet,
         override_writable_markets: &'b MarketSet,
         account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
-    ) -> ClearingHouseResult<MarketMap<'a>> {
-        let mut market_map: MarketMap = MarketMap(BTreeMap::new());
+    ) -> ClearingHouseResult<PerpMarketMap<'a>> {
+        let mut perp_market_map: PerpMarketMap = PerpMarketMap(BTreeMap::new());
 
-        let market_discriminator: [u8; 8] = Market::discriminator();
+        let market_discriminator: [u8; 8] = PerpMarket::discriminator();
         while let Some(account_info) = account_info_iter.peek() {
             let data = account_info
                 .try_borrow_data()
                 .or(Err(ErrorCode::CouldNotLoadMarketData))?;
 
-            if data.len() < std::mem::size_of::<Market>() + 8 {
+            if data.len() < std::mem::size_of::<PerpMarket>() + 8 {
                 break;
             }
 
@@ -71,7 +71,7 @@ impl<'a> MarketMap<'a> {
                 return Err(ErrorCode::MarketWrongMutability);
             }
 
-            let account_loader: AccountLoader<Market> = if override_writable_markets
+            let account_loader: AccountLoader<PerpMarket> = if override_writable_markets
                 .contains(&market_index)
             {
                 let mut account_info_clone = account_info.clone();
@@ -86,30 +86,30 @@ impl<'a> MarketMap<'a> {
                 return Err(ErrorCode::MarketIndexNotInitialized);
             }
 
-            market_map.0.insert(market_index, account_loader);
+            perp_market_map.0.insert(market_index, account_loader);
         }
 
-        Ok(market_map)
+        Ok(perp_market_map)
     }
 }
 
 #[cfg(test)]
-impl<'a> MarketMap<'a> {
+impl<'a> PerpMarketMap<'a> {
     pub fn load_one<'c>(
         account_info: &'c AccountInfo<'a>,
         must_be_writable: bool,
-    ) -> ClearingHouseResult<MarketMap<'a>> {
-        let mut market_map: MarketMap = MarketMap(BTreeMap::new());
+    ) -> ClearingHouseResult<PerpMarketMap<'a>> {
+        let mut perp_market_map: PerpMarketMap = PerpMarketMap(BTreeMap::new());
 
         let data = account_info
             .try_borrow_data()
             .or(Err(ErrorCode::CouldNotLoadMarketData))?;
 
-        if data.len() < std::mem::size_of::<Market>() + 8 {
+        if data.len() < std::mem::size_of::<PerpMarket>() + 8 {
             return Err(ErrorCode::CouldNotLoadMarketData);
         }
 
-        let market_discriminator: [u8; 8] = Market::discriminator();
+        let market_discriminator: [u8; 8] = PerpMarket::discriminator();
         let account_discriminator = array_ref![data, 0, 8];
         if account_discriminator != &market_discriminator {
             return Err(ErrorCode::CouldNotLoadMarketData);
@@ -118,7 +118,7 @@ impl<'a> MarketMap<'a> {
         let is_initialized = array_ref![data, 48, 1];
 
         let is_writable = account_info.is_writable;
-        let account_loader: AccountLoader<Market> =
+        let account_loader: AccountLoader<PerpMarket> =
             AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidMarketAccount))?;
 
         if must_be_writable && !is_writable {
@@ -129,31 +129,31 @@ impl<'a> MarketMap<'a> {
             return Err(ErrorCode::MarketIndexNotInitialized);
         }
 
-        market_map.0.insert(market_index, account_loader);
+        perp_market_map.0.insert(market_index, account_loader);
 
-        Ok(market_map)
+        Ok(perp_market_map)
     }
 
     pub fn empty() -> Self {
-        MarketMap(BTreeMap::new())
+        PerpMarketMap(BTreeMap::new())
     }
 
     pub fn load_multiple<'c>(
         account_infos: Vec<&'c AccountInfo<'a>>,
         must_be_writable: bool,
-    ) -> ClearingHouseResult<MarketMap<'a>> {
-        let mut market_map: MarketMap = MarketMap(BTreeMap::new());
+    ) -> ClearingHouseResult<PerpMarketMap<'a>> {
+        let mut perp_market_map: PerpMarketMap = PerpMarketMap(BTreeMap::new());
 
         for account_info in account_infos {
             let data = account_info
                 .try_borrow_data()
                 .or(Err(ErrorCode::CouldNotLoadMarketData))?;
 
-            if data.len() < std::mem::size_of::<Market>() + 8 {
+            if data.len() < std::mem::size_of::<PerpMarket>() + 8 {
                 return Err(ErrorCode::CouldNotLoadMarketData);
             }
 
-            let market_discriminator: [u8; 8] = Market::discriminator();
+            let market_discriminator: [u8; 8] = PerpMarket::discriminator();
             let account_discriminator = array_ref![data, 0, 8];
             if account_discriminator != &market_discriminator {
                 return Err(ErrorCode::CouldNotLoadMarketData);
@@ -162,7 +162,7 @@ impl<'a> MarketMap<'a> {
             let is_initialized = array_ref![data, 48, 1];
 
             let is_writable = account_info.is_writable;
-            let account_loader: AccountLoader<Market> =
+            let account_loader: AccountLoader<PerpMarket> =
                 AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidMarketAccount))?;
 
             if must_be_writable && !is_writable {
@@ -173,10 +173,10 @@ impl<'a> MarketMap<'a> {
                 return Err(ErrorCode::MarketIndexNotInitialized);
             }
 
-            market_map.0.insert(market_index, account_loader);
+            perp_market_map.0.insert(market_index, account_loader);
         }
 
-        Ok(market_map)
+        Ok(perp_market_map)
     }
 }
 

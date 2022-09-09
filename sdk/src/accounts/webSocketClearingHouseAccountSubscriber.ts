@@ -10,7 +10,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
 	getClearingHouseStateAccountPublicKey,
-	getBankPublicKey,
+	getSpotMarketPublicKey,
 	getMarketPublicKey,
 } from '../addresses/pda';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
@@ -141,7 +141,7 @@ export class WebSocketClearingHouseAccountSubscriber
 	}
 
 	async subscribeToBankAccount(bankIndex: BN): Promise<boolean> {
-		const bankPublicKey = await getBankPublicKey(
+		const bankPublicKey = await getSpotMarketPublicKey(
 			this.program.programId,
 			bankIndex
 		);

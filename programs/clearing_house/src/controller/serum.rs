@@ -58,8 +58,8 @@ pub struct SerumFulfillmentParams<'a, 'b> {
     pub serum_quote_vault: &'a AccountInfo<'b>,
     pub serum_open_orders: &'a AccountInfo<'b>,
     pub token_program: Program<'b, Token>,
-    pub base_bank_vault: Box<Account<'b, TokenAccount>>,
-    pub quote_bank_vault: Box<Account<'b, TokenAccount>>,
+    pub base_market_vault: Box<Account<'b, TokenAccount>>,
+    pub quote_market_vault: Box<Account<'b, TokenAccount>>,
     pub serum_signer: &'a AccountInfo<'b>,
     pub signer_nonce: u8,
 }

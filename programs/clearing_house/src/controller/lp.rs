@@ -1,7 +1,7 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math_error;
-use crate::state::market::Market;
-use crate::MarketPosition;
+use crate::state::market::PerpMarket;
+use crate::PerpPosition;
 
 use crate::bn::U192;
 use crate::controller::position::PositionDelta;
@@ -15,8 +15,8 @@ use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use anchor_lang::prelude::msg;
 
 pub fn mint_lp_shares(
-    position: &mut MarketPosition,
-    market: &mut Market,
+    position: &mut PerpPosition,
+    market: &mut PerpMarket,
     n_shares: u128,
     now: i64,
 ) -> ClearingHouseResult<()> {
@@ -65,8 +65,8 @@ pub fn mint_lp_shares(
 }
 
 pub fn settle_lp_position(
-    position: &mut MarketPosition,
-    market: &mut Market,
+    position: &mut PerpPosition,
+    market: &mut PerpMarket,
 ) -> ClearingHouseResult<(PositionDelta, i128)> {
     let mut lp_metrics = calculate_settle_lp_metrics(&market.amm, position)?;
 
@@ -118,8 +118,8 @@ pub fn settle_lp_position(
 }
 
 pub fn burn_lp_shares(
-    position: &mut MarketPosition,
-    market: &mut Market,
+    position: &mut PerpPosition,
+    market: &mut PerpMarket,
     shares_to_burn: u128,
     oracle_price: i128,
 ) -> ClearingHouseResult<(PositionDelta, i128)> {
@@ -220,12 +220,12 @@ mod test {
     use super::*;
     use crate::math::constants::AMM_RESERVE_PRECISION;
     use crate::state::market::AMM;
-    use crate::state::user::MarketPosition;
+    use crate::state::user::PerpPosition;
 
     #[test]
     fn test_full_long_settle() {
-        let mut position = MarketPosition {
-            ..MarketPosition::default()
+        let mut position = PerpPosition {
+            ..PerpPosition::default()
         };
 
         let amm = AMM {
@@ -233,18 +233,18 @@ mod test {
             base_asset_amount_step_size: 1,
             ..AMM::default_test()
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
         let og_market = market;
 
         mint_lp_shares(&mut position, &mut market, AMM_RESERVE_PRECISION, 0).unwrap();
 
-        market.amm.market_position_per_lp = MarketPosition {
+        market.amm.market_position_per_lp = PerpPosition {
             base_asset_amount: 10,
             quote_asset_amount: -10,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
         market.amm.net_unsettled_lp_base_asset_amount = -10;
         market.base_asset_amount_short = -10;
@@ -271,8 +271,8 @@ mod test {
 
     #[test]
     fn test_full_short_settle() {
-        let mut position = MarketPosition {
-            ..MarketPosition::default()
+        let mut position = PerpPosition {
+            ..PerpPosition::default()
         };
 
         let amm = AMM {
@@ -282,17 +282,17 @@ mod test {
             ..AMM::default_test()
         };
 
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         mint_lp_shares(&mut position, &mut market, 100 * AMM_RESERVE_PRECISION, 0).unwrap();
 
-        market.amm.market_position_per_lp = MarketPosition {
+        market.amm.market_position_per_lp = PerpPosition {
             base_asset_amount: -10,
             quote_asset_amount: 10,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
 
         settle_lp_position(&mut position, &mut market).unwrap();
@@ -305,8 +305,8 @@ mod test {
 
     #[test]
     fn test_partial_short_settle() {
-        let mut position = MarketPosition {
-            ..MarketPosition::default()
+        let mut position = PerpPosition {
+            ..PerpPosition::default()
         };
 
         let amm = AMM {
@@ -314,17 +314,17 @@ mod test {
             ..AMM::default_test()
         };
 
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         mint_lp_shares(&mut position, &mut market, AMM_RESERVE_PRECISION, 0).unwrap();
 
-        market.amm.market_position_per_lp = MarketPosition {
+        market.amm.market_position_per_lp = PerpPosition {
             base_asset_amount: -10,
             quote_asset_amount: 10,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
         market.amm.net_unsettled_lp_base_asset_amount = 10;
         market.base_asset_amount_long = 10;
@@ -346,24 +346,24 @@ mod test {
 
     #[test]
     fn test_partial_long_settle() {
-        let mut position = MarketPosition {
+        let mut position = PerpPosition {
             lp_shares: AMM_RESERVE_PRECISION,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
 
         let amm = AMM {
-            market_position_per_lp: MarketPosition {
+            market_position_per_lp: PerpPosition {
                 base_asset_amount: -10,
                 quote_asset_amount: 10,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             },
             base_asset_amount_step_size: 3,
             ..AMM::default_test()
         };
 
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         settle_lp_position(&mut position, &mut market).unwrap();

@@ -17,7 +17,7 @@ import {
 } from '../types';
 import {
 	getClearingHouseStateAccountPublicKey,
-	getBankPublicKey,
+	getSpotMarketPublicKey,
 	getMarketPublicKey,
 } from '../addresses/pda';
 import { BulkAccountLoader } from './bulkAccountLoader';
@@ -157,7 +157,7 @@ export class PollingClearingHouseAccountSubscriber
 	}
 
 	async addBankAccountToPoll(bankIndex: BN): Promise<boolean> {
-		const bankPublicKey = await getBankPublicKey(
+		const bankPublicKey = await getSpotMarketPublicKey(
 			this.program.programId,
 			bankIndex
 		);

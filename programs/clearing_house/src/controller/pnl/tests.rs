@@ -4,17 +4,17 @@ use crate::create_anchor_account_info;
 use crate::error::ErrorCode;
 use crate::math::casting::cast;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
-    BANK_WEIGHT_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
-    QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
+    AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
+    QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+    SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
 };
-use crate::state::bank::{Bank, BankBalanceType};
-use crate::state::bank_map::BankMap;
-use crate::state::market::{Market, PoolBalance, AMM};
-use crate::state::market_map::MarketMap;
+use crate::state::market::{PerpMarket, PoolBalance, AMM};
 use crate::state::oracle::OracleSource;
 use crate::state::oracle_map::OracleMap;
-use crate::state::user::{MarketPosition, User, UserBankBalance};
+use crate::state::perp_market_map::PerpMarketMap;
+use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+use crate::state::spot_market_map::SpotMarketMap;
+use crate::state::user::{PerpPosition, SpotPosition, User};
 use crate::tests::utils::get_pyth_price;
 use crate::tests::utils::*;
 use anchor_lang::Owner;
@@ -38,7 +38,7 @@ pub fn user_no_position() {
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
-    let mut market = Market {
+    let mut market = PerpMarket {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -62,32 +62,32 @@ pub fn user_no_position() {
         initialized: true,
         liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            balance: 50 * BANK_INTEREST_PRECISION,
+            balance: 50 * SPOT_INTEREST_PRECISION,
         },
-        ..Market::default()
+        ..PerpMarket::default()
     };
-    create_anchor_account_info!(market, Market, market_account_info);
-    let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+    create_anchor_account_info!(market, PerpMarket, market_account_info);
+    let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-    let mut bank = Bank {
-        bank_index: 0,
+    let mut spot_market = SpotMarket {
+        market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
-        cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         decimals: 6,
-        initial_asset_weight: BANK_WEIGHT_PRECISION,
-        deposit_balance: 100 * BANK_INTEREST_PRECISION,
-        ..Bank::default()
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 100 * SPOT_INTEREST_PRECISION,
+        ..SpotMarket::default()
     };
-    create_anchor_account_info!(bank, Bank, bank_account_info);
-    let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+    create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+    let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
     let mut user = User {
-        positions: [MarketPosition::default(); 5],
-        bank_balances: get_bank_balances(UserBankBalance {
-            bank_index: 0,
-            balance_type: BankBalanceType::Deposit,
-            balance: 50 * BANK_INTEREST_PRECISION,
-            ..UserBankBalance::default()
+        perp_positions: [PerpPosition::default(); 5],
+        spot_positions: get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            balance: 50 * SPOT_INTEREST_PRECISION,
+            ..SpotPosition::default()
         }),
         ..User::default()
     };
@@ -101,7 +101,7 @@ pub fn user_no_position() {
         &authority,
         &user_key,
         &market_map,
-        &bank_map,
+        &spot_market_map,
         &mut oracle_map,
         now,
     );
@@ -126,7 +126,7 @@ pub fn user_does_not_meet_maintenance_requirement() {
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
-    let mut market = Market {
+    let mut market = PerpMarket {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -150,38 +150,38 @@ pub fn user_does_not_meet_maintenance_requirement() {
         initialized: true,
         liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            balance: 50 * BANK_INTEREST_PRECISION,
+            balance: 50 * SPOT_INTEREST_PRECISION,
         },
-        unrealized_maintenance_asset_weight: cast(BANK_WEIGHT_PRECISION).unwrap(),
-        ..Market::default()
+        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        ..PerpMarket::default()
     };
-    create_anchor_account_info!(market, Market, market_account_info);
-    let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+    create_anchor_account_info!(market, PerpMarket, market_account_info);
+    let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-    let mut bank = Bank {
-        bank_index: 0,
+    let mut spot_market = SpotMarket {
+        market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
-        cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         decimals: 6,
-        initial_asset_weight: BANK_WEIGHT_PRECISION,
-        maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-        deposit_balance: 100 * BANK_INTEREST_PRECISION,
-        ..Bank::default()
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 100 * SPOT_INTEREST_PRECISION,
+        ..SpotMarket::default()
     };
-    create_anchor_account_info!(bank, Bank, bank_account_info);
-    let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+    create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+    let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
     let mut user = User {
-        positions: get_positions(MarketPosition {
+        perp_positions: get_positions(PerpPosition {
             market_index: 0,
             quote_asset_amount: -120 * QUOTE_PRECISION_I128,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         }),
-        bank_balances: get_bank_balances(UserBankBalance {
-            bank_index: 0,
-            balance_type: BankBalanceType::Deposit,
-            balance: 100 * BANK_INTEREST_PRECISION,
-            ..UserBankBalance::default()
+        spot_positions: get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            balance: 100 * SPOT_INTEREST_PRECISION,
+            ..SpotPosition::default()
         }),
         ..User::default()
     };
@@ -195,7 +195,7 @@ pub fn user_does_not_meet_maintenance_requirement() {
         &authority,
         &user_key,
         &market_map,
-        &bank_map,
+        &spot_market_map,
         &mut oracle_map,
         now,
     );
@@ -220,7 +220,7 @@ pub fn user_unsettled_negative_pnl() {
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
-    let mut market = Market {
+    let mut market = PerpMarket {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -244,38 +244,38 @@ pub fn user_unsettled_negative_pnl() {
         initialized: true,
         liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            balance: 50 * BANK_INTEREST_PRECISION,
+            balance: 50 * SPOT_INTEREST_PRECISION,
         },
-        unrealized_maintenance_asset_weight: cast(BANK_WEIGHT_PRECISION).unwrap(),
-        ..Market::default()
+        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        ..PerpMarket::default()
     };
-    create_anchor_account_info!(market, Market, market_account_info);
-    let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+    create_anchor_account_info!(market, PerpMarket, market_account_info);
+    let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-    let mut bank = Bank {
-        bank_index: 0,
+    let mut spot_market = SpotMarket {
+        market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
-        cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         decimals: 6,
-        initial_asset_weight: BANK_WEIGHT_PRECISION,
-        maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-        deposit_balance: 100 * BANK_INTEREST_PRECISION,
-        ..Bank::default()
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 100 * SPOT_INTEREST_PRECISION,
+        ..SpotMarket::default()
     };
-    create_anchor_account_info!(bank, Bank, bank_account_info);
-    let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+    create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+    let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
     let mut user = User {
-        positions: get_positions(MarketPosition {
+        perp_positions: get_positions(PerpPosition {
             market_index: 0,
             quote_asset_amount: -50 * QUOTE_PRECISION_I128,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         }),
-        bank_balances: get_bank_balances(UserBankBalance {
-            bank_index: 0,
-            balance_type: BankBalanceType::Deposit,
-            balance: 100 * BANK_INTEREST_PRECISION,
-            ..UserBankBalance::default()
+        spot_positions: get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            balance: 100 * SPOT_INTEREST_PRECISION,
+            ..SpotPosition::default()
         }),
         ..User::default()
     };
@@ -284,12 +284,12 @@ pub fn user_unsettled_negative_pnl() {
     let authority = Pubkey::default();
 
     let mut expected_user = user;
-    expected_user.positions[0].quote_asset_amount = 0;
-    expected_user.positions[0].realized_pnl = -50 * QUOTE_PRECISION_I64;
-    expected_user.bank_balances[0].balance = 50 * BANK_INTEREST_PRECISION;
+    expected_user.perp_positions[0].quote_asset_amount = 0;
+    expected_user.perp_positions[0].realized_pnl = -50 * QUOTE_PRECISION_I64;
+    expected_user.spot_positions[0].balance = 50 * SPOT_INTEREST_PRECISION;
 
     let mut expected_market = market;
-    expected_market.pnl_pool.balance = 100 * BANK_INTEREST_PRECISION;
+    expected_market.pnl_pool.balance = 100 * SPOT_INTEREST_PRECISION;
     expected_market.amm.quote_asset_amount_long = -100 * QUOTE_PRECISION_I128;
 
     settle_pnl(
@@ -298,7 +298,7 @@ pub fn user_unsettled_negative_pnl() {
         &authority,
         &user_key,
         &market_map,
-        &bank_map,
+        &spot_market_map,
         &mut oracle_map,
         now,
     )
@@ -325,7 +325,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
-    let mut market = Market {
+    let mut market = PerpMarket {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -349,38 +349,38 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
         initialized: true,
         liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            balance: 50 * BANK_INTEREST_PRECISION,
+            balance: 50 * SPOT_INTEREST_PRECISION,
         },
-        unrealized_maintenance_asset_weight: cast(BANK_WEIGHT_PRECISION).unwrap(),
-        ..Market::default()
+        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        ..PerpMarket::default()
     };
-    create_anchor_account_info!(market, Market, market_account_info);
-    let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+    create_anchor_account_info!(market, PerpMarket, market_account_info);
+    let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-    let mut bank = Bank {
-        bank_index: 0,
+    let mut spot_market = SpotMarket {
+        market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
-        cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         decimals: 6,
-        initial_asset_weight: BANK_WEIGHT_PRECISION,
-        maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-        deposit_balance: 100 * BANK_INTEREST_PRECISION,
-        ..Bank::default()
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 100 * SPOT_INTEREST_PRECISION,
+        ..SpotMarket::default()
     };
-    create_anchor_account_info!(bank, Bank, bank_account_info);
-    let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+    create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+    let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
     let mut user = User {
-        positions: get_positions(MarketPosition {
+        perp_positions: get_positions(PerpPosition {
             market_index: 0,
             quote_asset_amount: 100 * QUOTE_PRECISION_I128,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         }),
-        bank_balances: get_bank_balances(UserBankBalance {
-            bank_index: 0,
-            balance_type: BankBalanceType::Deposit,
-            balance: 100 * BANK_INTEREST_PRECISION,
-            ..UserBankBalance::default()
+        spot_positions: get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            balance: 100 * SPOT_INTEREST_PRECISION,
+            ..SpotPosition::default()
         }),
         ..User::default()
     };
@@ -389,9 +389,9 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
     let authority = Pubkey::default();
 
     let mut expected_user = user;
-    expected_user.positions[0].quote_asset_amount = 50 * QUOTE_PRECISION_I128;
-    expected_user.positions[0].realized_pnl = 50 * QUOTE_PRECISION_I64;
-    expected_user.bank_balances[0].balance = 150 * BANK_INTEREST_PRECISION;
+    expected_user.perp_positions[0].quote_asset_amount = 50 * QUOTE_PRECISION_I128;
+    expected_user.perp_positions[0].realized_pnl = 50 * QUOTE_PRECISION_I64;
+    expected_user.spot_positions[0].balance = 150 * SPOT_INTEREST_PRECISION;
 
     let mut expected_market = market;
     expected_market.pnl_pool.balance = 0;
@@ -403,7 +403,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
         &authority,
         &user_key,
         &market_map,
-        &bank_map,
+        &spot_market_map,
         &mut oracle_map,
         now,
     )
@@ -430,7 +430,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
-    let mut market = Market {
+    let mut market = PerpMarket {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -454,38 +454,38 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
         initialized: true,
         liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            balance: 50 * BANK_INTEREST_PRECISION,
+            balance: 50 * SPOT_INTEREST_PRECISION,
         },
-        unrealized_maintenance_asset_weight: cast(BANK_WEIGHT_PRECISION).unwrap(),
-        ..Market::default()
+        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        ..PerpMarket::default()
     };
-    create_anchor_account_info!(market, Market, market_account_info);
-    let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+    create_anchor_account_info!(market, PerpMarket, market_account_info);
+    let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-    let mut bank = Bank {
-        bank_index: 0,
+    let mut spot_market = SpotMarket {
+        market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
-        cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         decimals: 6,
-        initial_asset_weight: BANK_WEIGHT_PRECISION,
-        maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-        deposit_balance: 100 * BANK_INTEREST_PRECISION,
-        ..Bank::default()
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 100 * SPOT_INTEREST_PRECISION,
+        ..SpotMarket::default()
     };
-    create_anchor_account_info!(bank, Bank, bank_account_info);
-    let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+    create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+    let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
     let mut user = User {
-        positions: get_positions(MarketPosition {
+        perp_positions: get_positions(PerpPosition {
             market_index: 0,
             quote_asset_amount: 25 * QUOTE_PRECISION_I128,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         }),
-        bank_balances: get_bank_balances(UserBankBalance {
-            bank_index: 0,
-            balance_type: BankBalanceType::Deposit,
-            balance: 100 * BANK_INTEREST_PRECISION,
-            ..UserBankBalance::default()
+        spot_positions: get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            balance: 100 * SPOT_INTEREST_PRECISION,
+            ..SpotPosition::default()
         }),
         ..User::default()
     };
@@ -494,12 +494,12 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
     let authority = Pubkey::default();
 
     let mut expected_user = user;
-    expected_user.positions[0].quote_asset_amount = 0;
-    expected_user.positions[0].realized_pnl = 25 * QUOTE_PRECISION_I64;
-    expected_user.bank_balances[0].balance = 125 * BANK_INTEREST_PRECISION;
+    expected_user.perp_positions[0].quote_asset_amount = 0;
+    expected_user.perp_positions[0].realized_pnl = 25 * QUOTE_PRECISION_I64;
+    expected_user.spot_positions[0].balance = 125 * SPOT_INTEREST_PRECISION;
 
     let mut expected_market = market;
-    expected_market.pnl_pool.balance = 25 * BANK_INTEREST_PRECISION;
+    expected_market.pnl_pool.balance = 25 * SPOT_INTEREST_PRECISION;
     expected_market.amm.quote_asset_amount_long = -175 * QUOTE_PRECISION_I128;
 
     settle_pnl(
@@ -508,7 +508,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
         &authority,
         &user_key,
         &market_map,
-        &bank_map,
+        &spot_market_map,
         &mut oracle_map,
         now,
     )
@@ -535,7 +535,7 @@ pub fn market_fee_pool_receives_portion() {
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
-    let mut market = Market {
+    let mut market = PerpMarket {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -560,38 +560,38 @@ pub fn market_fee_pool_receives_portion() {
         initialized: true,
         liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            balance: 50 * BANK_INTEREST_PRECISION,
+            balance: 50 * SPOT_INTEREST_PRECISION,
         },
-        unrealized_maintenance_asset_weight: cast(BANK_WEIGHT_PRECISION).unwrap(),
-        ..Market::default()
+        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        ..PerpMarket::default()
     };
-    create_anchor_account_info!(market, Market, market_account_info);
-    let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+    create_anchor_account_info!(market, PerpMarket, market_account_info);
+    let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-    let mut bank = Bank {
-        bank_index: 0,
+    let mut spot_market = SpotMarket {
+        market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
-        cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         decimals: 6,
-        initial_asset_weight: BANK_WEIGHT_PRECISION,
-        maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-        deposit_balance: 100 * BANK_INTEREST_PRECISION,
-        ..Bank::default()
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 100 * SPOT_INTEREST_PRECISION,
+        ..SpotMarket::default()
     };
-    create_anchor_account_info!(bank, Bank, bank_account_info);
-    let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+    create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+    let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
     let mut user = User {
-        positions: get_positions(MarketPosition {
+        perp_positions: get_positions(PerpPosition {
             market_index: 0,
             quote_asset_amount: -100 * QUOTE_PRECISION_I128,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         }),
-        bank_balances: get_bank_balances(UserBankBalance {
-            bank_index: 0,
-            balance_type: BankBalanceType::Deposit,
-            balance: 200 * BANK_INTEREST_PRECISION,
-            ..UserBankBalance::default()
+        spot_positions: get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            balance: 200 * SPOT_INTEREST_PRECISION,
+            ..SpotPosition::default()
         }),
         ..User::default()
     };
@@ -600,13 +600,13 @@ pub fn market_fee_pool_receives_portion() {
     let authority = Pubkey::default();
 
     let mut expected_user = user;
-    expected_user.positions[0].quote_asset_amount = 0;
-    expected_user.positions[0].realized_pnl = -100 * QUOTE_PRECISION_I64;
-    expected_user.bank_balances[0].balance = 100 * BANK_INTEREST_PRECISION;
+    expected_user.perp_positions[0].quote_asset_amount = 0;
+    expected_user.perp_positions[0].realized_pnl = -100 * QUOTE_PRECISION_I64;
+    expected_user.spot_positions[0].balance = 100 * SPOT_INTEREST_PRECISION;
 
     let mut expected_market = market;
-    expected_market.pnl_pool.balance = 149 * BANK_INTEREST_PRECISION;
-    expected_market.amm.fee_pool.balance = BANK_INTEREST_PRECISION;
+    expected_market.pnl_pool.balance = 149 * SPOT_INTEREST_PRECISION;
+    expected_market.amm.fee_pool.balance = SPOT_INTEREST_PRECISION;
     expected_market.amm.quote_asset_amount_long = -50 * QUOTE_PRECISION_I128;
 
     settle_pnl(
@@ -615,7 +615,7 @@ pub fn market_fee_pool_receives_portion() {
         &authority,
         &user_key,
         &market_map,
-        &bank_map,
+        &spot_market_map,
         &mut oracle_map,
         now,
     )
@@ -642,7 +642,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
-    let mut market = Market {
+    let mut market = PerpMarket {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -660,7 +660,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
             oracle: oracle_price_key,
             total_fee_minus_distributions: QUOTE_PRECISION_I128,
             fee_pool: PoolBalance {
-                balance: 2 * BANK_INTEREST_PRECISION,
+                balance: 2 * SPOT_INTEREST_PRECISION,
             },
             ..AMM::default()
         },
@@ -670,38 +670,38 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
         initialized: true,
         liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            balance: 50 * BANK_INTEREST_PRECISION,
+            balance: 50 * SPOT_INTEREST_PRECISION,
         },
-        unrealized_maintenance_asset_weight: cast(BANK_WEIGHT_PRECISION).unwrap(),
-        ..Market::default()
+        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        ..PerpMarket::default()
     };
-    create_anchor_account_info!(market, Market, market_account_info);
-    let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+    create_anchor_account_info!(market, PerpMarket, market_account_info);
+    let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-    let mut bank = Bank {
-        bank_index: 0,
+    let mut spot_market = SpotMarket {
+        market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
-        cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         decimals: 6,
-        initial_asset_weight: BANK_WEIGHT_PRECISION,
-        maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-        deposit_balance: 100 * BANK_INTEREST_PRECISION,
-        ..Bank::default()
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 100 * SPOT_INTEREST_PRECISION,
+        ..SpotMarket::default()
     };
-    create_anchor_account_info!(bank, Bank, bank_account_info);
-    let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+    create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+    let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
     let mut user = User {
-        positions: get_positions(MarketPosition {
+        perp_positions: get_positions(PerpPosition {
             market_index: 0,
             quote_asset_amount: -100 * QUOTE_PRECISION_I128,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         }),
-        bank_balances: get_bank_balances(UserBankBalance {
-            bank_index: 0,
-            balance_type: BankBalanceType::Deposit,
-            balance: 200 * BANK_INTEREST_PRECISION,
-            ..UserBankBalance::default()
+        spot_positions: get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            balance: 200 * SPOT_INTEREST_PRECISION,
+            ..SpotPosition::default()
         }),
         ..User::default()
     };
@@ -710,13 +710,13 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
     let authority = Pubkey::default();
 
     let mut expected_user = user;
-    expected_user.positions[0].quote_asset_amount = 0;
-    expected_user.positions[0].realized_pnl = -100 * QUOTE_PRECISION_I64;
-    expected_user.bank_balances[0].balance = 100 * BANK_INTEREST_PRECISION;
+    expected_user.perp_positions[0].quote_asset_amount = 0;
+    expected_user.perp_positions[0].realized_pnl = -100 * QUOTE_PRECISION_I64;
+    expected_user.spot_positions[0].balance = 100 * SPOT_INTEREST_PRECISION;
 
     let mut expected_market = market;
-    expected_market.pnl_pool.balance = 151 * BANK_INTEREST_PRECISION;
-    expected_market.amm.fee_pool.balance = BANK_INTEREST_PRECISION;
+    expected_market.pnl_pool.balance = 151 * SPOT_INTEREST_PRECISION;
+    expected_market.amm.fee_pool.balance = SPOT_INTEREST_PRECISION;
     expected_market.amm.quote_asset_amount_long = -50 * QUOTE_PRECISION_I128;
 
     settle_pnl(
@@ -725,7 +725,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
         &authority,
         &user_key,
         &market_map,
-        &bank_map,
+        &spot_market_map,
         &mut oracle_map,
         now,
     )
@@ -752,7 +752,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
-    let mut market = Market {
+    let mut market = PerpMarket {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -776,40 +776,40 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
         initialized: true,
         liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            balance: 50 * BANK_INTEREST_PRECISION,
+            balance: 50 * SPOT_INTEREST_PRECISION,
         },
-        unrealized_maintenance_asset_weight: cast(BANK_WEIGHT_PRECISION).unwrap(),
-        ..Market::default()
+        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        ..PerpMarket::default()
     };
-    create_anchor_account_info!(market, Market, market_account_info);
-    let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+    create_anchor_account_info!(market, PerpMarket, market_account_info);
+    let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-    let mut bank = Bank {
-        bank_index: 0,
+    let mut spot_market = SpotMarket {
+        market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
-        cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         decimals: 6,
-        initial_asset_weight: BANK_WEIGHT_PRECISION,
-        maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-        deposit_balance: 100 * BANK_INTEREST_PRECISION,
-        ..Bank::default()
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 100 * SPOT_INTEREST_PRECISION,
+        ..SpotMarket::default()
     };
-    create_anchor_account_info!(bank, Bank, bank_account_info);
-    let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+    create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+    let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
     let mut user = User {
-        positions: get_positions(MarketPosition {
+        perp_positions: get_positions(PerpPosition {
             market_index: 0,
             base_asset_amount: BASE_PRECISION_I128,
             quote_asset_amount: -50 * QUOTE_PRECISION_I128,
             quote_entry_amount: -100 * QUOTE_PRECISION_I128,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         }),
-        bank_balances: get_bank_balances(UserBankBalance {
-            bank_index: 0,
-            balance_type: BankBalanceType::Deposit,
-            balance: 100 * BANK_INTEREST_PRECISION,
-            ..UserBankBalance::default()
+        spot_positions: get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            balance: 100 * SPOT_INTEREST_PRECISION,
+            ..SpotPosition::default()
         }),
         ..User::default()
     };
@@ -818,9 +818,9 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
     let authority = Pubkey::default();
 
     let mut expected_user = user;
-    expected_user.positions[0].quote_asset_amount = -100 * QUOTE_PRECISION_I128;
-    expected_user.positions[0].realized_pnl = 50 * QUOTE_PRECISION_I64;
-    expected_user.bank_balances[0].balance = 150 * BANK_INTEREST_PRECISION;
+    expected_user.perp_positions[0].quote_asset_amount = -100 * QUOTE_PRECISION_I128;
+    expected_user.perp_positions[0].realized_pnl = 50 * QUOTE_PRECISION_I64;
+    expected_user.spot_positions[0].balance = 150 * SPOT_INTEREST_PRECISION;
 
     let mut expected_market = market;
     expected_market.pnl_pool.balance = 0;
@@ -832,7 +832,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
         &authority,
         &user_key,
         &market_map,
-        &bank_map,
+        &spot_market_map,
         &mut oracle_map,
         now,
     )
@@ -859,7 +859,7 @@ pub fn user_long_negative_unrealized_pnl() {
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
-    let mut market = Market {
+    let mut market = PerpMarket {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -883,40 +883,40 @@ pub fn user_long_negative_unrealized_pnl() {
         initialized: true,
         liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            balance: 50 * BANK_INTEREST_PRECISION,
+            balance: 50 * SPOT_INTEREST_PRECISION,
         },
-        unrealized_maintenance_asset_weight: cast(BANK_WEIGHT_PRECISION).unwrap(),
-        ..Market::default()
+        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        ..PerpMarket::default()
     };
-    create_anchor_account_info!(market, Market, market_account_info);
-    let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+    create_anchor_account_info!(market, PerpMarket, market_account_info);
+    let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-    let mut bank = Bank {
-        bank_index: 0,
+    let mut spot_market = SpotMarket {
+        market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
-        cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         decimals: 6,
-        initial_asset_weight: BANK_WEIGHT_PRECISION,
-        maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-        deposit_balance: 100 * BANK_INTEREST_PRECISION,
-        ..Bank::default()
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 100 * SPOT_INTEREST_PRECISION,
+        ..SpotMarket::default()
     };
-    create_anchor_account_info!(bank, Bank, bank_account_info);
-    let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+    create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+    let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
     let mut user = User {
-        positions: get_positions(MarketPosition {
+        perp_positions: get_positions(PerpPosition {
             market_index: 0,
             base_asset_amount: BASE_PRECISION_I128,
             quote_asset_amount: -100 * QUOTE_PRECISION_I128,
             quote_entry_amount: -100 * QUOTE_PRECISION_I128,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         }),
-        bank_balances: get_bank_balances(UserBankBalance {
-            bank_index: 0,
-            balance_type: BankBalanceType::Deposit,
-            balance: 100 * BANK_INTEREST_PRECISION,
-            ..UserBankBalance::default()
+        spot_positions: get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            balance: 100 * SPOT_INTEREST_PRECISION,
+            ..SpotPosition::default()
         }),
         ..User::default()
     };
@@ -925,12 +925,12 @@ pub fn user_long_negative_unrealized_pnl() {
     let authority = Pubkey::default();
 
     let mut expected_user = user;
-    expected_user.positions[0].quote_asset_amount = -50 * QUOTE_PRECISION_I128;
-    expected_user.positions[0].realized_pnl = -50 * QUOTE_PRECISION_I64;
-    expected_user.bank_balances[0].balance = 50 * BANK_INTEREST_PRECISION;
+    expected_user.perp_positions[0].quote_asset_amount = -50 * QUOTE_PRECISION_I128;
+    expected_user.perp_positions[0].realized_pnl = -50 * QUOTE_PRECISION_I64;
+    expected_user.spot_positions[0].balance = 50 * SPOT_INTEREST_PRECISION;
 
     let mut expected_market = market;
-    expected_market.pnl_pool.balance = 100 * BANK_INTEREST_PRECISION;
+    expected_market.pnl_pool.balance = 100 * SPOT_INTEREST_PRECISION;
     expected_market.amm.quote_asset_amount_long = -100 * QUOTE_PRECISION_I128;
 
     settle_pnl(
@@ -939,7 +939,7 @@ pub fn user_long_negative_unrealized_pnl() {
         &authority,
         &user_key,
         &market_map,
-        &bank_map,
+        &spot_market_map,
         &mut oracle_map,
         now,
     )
@@ -966,7 +966,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
-    let mut market = Market {
+    let mut market = PerpMarket {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -990,40 +990,40 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
         initialized: true,
         liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            balance: 50 * BANK_INTEREST_PRECISION,
+            balance: 50 * SPOT_INTEREST_PRECISION,
         },
-        unrealized_maintenance_asset_weight: cast(BANK_WEIGHT_PRECISION).unwrap(),
-        ..Market::default()
+        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        ..PerpMarket::default()
     };
-    create_anchor_account_info!(market, Market, market_account_info);
-    let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+    create_anchor_account_info!(market, PerpMarket, market_account_info);
+    let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-    let mut bank = Bank {
-        bank_index: 0,
+    let mut spot_market = SpotMarket {
+        market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
-        cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         decimals: 6,
-        initial_asset_weight: BANK_WEIGHT_PRECISION,
-        maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-        deposit_balance: 100 * BANK_INTEREST_PRECISION,
-        ..Bank::default()
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 100 * SPOT_INTEREST_PRECISION,
+        ..SpotMarket::default()
     };
-    create_anchor_account_info!(bank, Bank, bank_account_info);
-    let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+    create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+    let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
     let mut user = User {
-        positions: get_positions(MarketPosition {
+        perp_positions: get_positions(PerpPosition {
             market_index: 0,
             base_asset_amount: -BASE_PRECISION_I128,
             quote_asset_amount: 100 * QUOTE_PRECISION_I128,
             quote_entry_amount: 50 * QUOTE_PRECISION_I128,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         }),
-        bank_balances: get_bank_balances(UserBankBalance {
-            bank_index: 0,
-            balance_type: BankBalanceType::Deposit,
-            balance: 100 * BANK_INTEREST_PRECISION,
-            ..UserBankBalance::default()
+        spot_positions: get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            balance: 100 * SPOT_INTEREST_PRECISION,
+            ..SpotPosition::default()
         }),
         ..User::default()
     };
@@ -1032,9 +1032,9 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
     let authority = Pubkey::default();
 
     let mut expected_user = user;
-    expected_user.positions[0].quote_asset_amount = 50 * QUOTE_PRECISION_I128;
-    expected_user.positions[0].realized_pnl = 50 * QUOTE_PRECISION_I64;
-    expected_user.bank_balances[0].balance = 150 * BANK_INTEREST_PRECISION;
+    expected_user.perp_positions[0].quote_asset_amount = 50 * QUOTE_PRECISION_I128;
+    expected_user.perp_positions[0].realized_pnl = 50 * QUOTE_PRECISION_I64;
+    expected_user.spot_positions[0].balance = 150 * SPOT_INTEREST_PRECISION;
 
     let mut expected_market = market;
     expected_market.pnl_pool.balance = 0;
@@ -1046,7 +1046,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
         &authority,
         &user_key,
         &market_map,
-        &bank_map,
+        &spot_market_map,
         &mut oracle_map,
         now,
     )
@@ -1073,7 +1073,7 @@ pub fn user_short_negative_unrealized_pnl() {
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
-    let mut market = Market {
+    let mut market = PerpMarket {
         amm: AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -1097,40 +1097,40 @@ pub fn user_short_negative_unrealized_pnl() {
         initialized: true,
         liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            balance: 50 * BANK_INTEREST_PRECISION,
+            balance: 50 * SPOT_INTEREST_PRECISION,
         },
-        unrealized_maintenance_asset_weight: cast(BANK_WEIGHT_PRECISION).unwrap(),
-        ..Market::default()
+        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        ..PerpMarket::default()
     };
-    create_anchor_account_info!(market, Market, market_account_info);
-    let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+    create_anchor_account_info!(market, PerpMarket, market_account_info);
+    let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-    let mut bank = Bank {
-        bank_index: 0,
+    let mut spot_market = SpotMarket {
+        market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
-        cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         decimals: 6,
-        initial_asset_weight: BANK_WEIGHT_PRECISION,
-        maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-        deposit_balance: 100 * BANK_INTEREST_PRECISION,
-        ..Bank::default()
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 100 * SPOT_INTEREST_PRECISION,
+        ..SpotMarket::default()
     };
-    create_anchor_account_info!(bank, Bank, bank_account_info);
-    let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+    create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+    let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
     let mut user = User {
-        positions: get_positions(MarketPosition {
+        perp_positions: get_positions(PerpPosition {
             market_index: 0,
             base_asset_amount: -BASE_PRECISION_I128,
             quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             quote_entry_amount: 50 * QUOTE_PRECISION_I128,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         }),
-        bank_balances: get_bank_balances(UserBankBalance {
-            bank_index: 0,
-            balance_type: BankBalanceType::Deposit,
-            balance: 100 * BANK_INTEREST_PRECISION,
-            ..UserBankBalance::default()
+        spot_positions: get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            balance: 100 * SPOT_INTEREST_PRECISION,
+            ..SpotPosition::default()
         }),
         ..User::default()
     };
@@ -1139,12 +1139,12 @@ pub fn user_short_negative_unrealized_pnl() {
     let authority = Pubkey::default();
 
     let mut expected_user = user;
-    expected_user.positions[0].quote_asset_amount = 100 * QUOTE_PRECISION_I128;
-    expected_user.positions[0].realized_pnl = -50 * QUOTE_PRECISION_I64;
-    expected_user.bank_balances[0].balance = 50 * BANK_INTEREST_PRECISION;
+    expected_user.perp_positions[0].quote_asset_amount = 100 * QUOTE_PRECISION_I128;
+    expected_user.perp_positions[0].realized_pnl = -50 * QUOTE_PRECISION_I64;
+    expected_user.spot_positions[0].balance = 50 * SPOT_INTEREST_PRECISION;
 
     let mut expected_market = market;
-    expected_market.pnl_pool.balance = 100 * BANK_INTEREST_PRECISION;
+    expected_market.pnl_pool.balance = 100 * SPOT_INTEREST_PRECISION;
     expected_market.amm.quote_asset_amount_short = 200 * QUOTE_PRECISION_I128;
 
     settle_pnl(
@@ -1153,7 +1153,7 @@ pub fn user_short_negative_unrealized_pnl() {
         &authority,
         &user_key,
         &market_map,
-        &bank_map,
+        &spot_market_map,
         &mut oracle_map,
         now,
     )

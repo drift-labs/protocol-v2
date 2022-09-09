@@ -280,7 +280,7 @@ describe('insurance fund stake', () => {
 	});
 
 	it('user request if unstake with escrow period (last half)', async () => {
-		const txSig = await clearingHouse.updateBankInsuranceWithdrawEscrowPeriod(
+		const txSig = await clearingHouse.updateInsuranceWithdrawEscrowPeriod(
 			new BN(0),
 			new BN(10)
 		);
@@ -342,7 +342,7 @@ describe('insurance fund stake', () => {
 		const bankIndex = new BN(0);
 
 		try {
-			await clearingHouse.updateBankIfFactor(
+			await clearingHouse.updateSpotMarketIfFactor(
 				new BN(0),
 				new BN(90000),
 				new BN(100000),
@@ -543,7 +543,7 @@ describe('insurance fund stake', () => {
 		assert(bank.borrowBalance.gt(ZERO));
 		assert(ifPoolBalance.eq(new BN(0)));
 
-		await clearingHouse.updateBankCumulativeInterest(new BN(0));
+		await clearingHouse.updateSpotMarketCumulativeInterest(new BN(0));
 
 		await clearingHouse.fetchAccounts();
 		bank = clearingHouse.getBankAccount(0);
@@ -724,7 +724,7 @@ describe('insurance fund stake', () => {
 
 		console.log('letting interest accum (2s)');
 		await sleep(2000);
-		await clearingHouse.updateBankCumulativeInterest(new BN(0));
+		await clearingHouse.updateSpotMarketCumulativeInterest(new BN(0));
 		const bankIUpdate = await clearingHouse.getBankAccount(bankIndex);
 
 		console.log(

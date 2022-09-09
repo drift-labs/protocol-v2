@@ -373,7 +373,7 @@ export type StateAccount = {
 	oracleGuardRails: OracleGuardRails;
 	maxDeposit: BN;
 	numberOfMarkets: BN;
-	numberOfBanks: BN;
+	numberOfSpotMarkets: BN;
 	minOrderQuoteAssetAmount: BN;
 	signer: PublicKey;
 	signerNonce: number;

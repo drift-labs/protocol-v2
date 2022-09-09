@@ -4,78 +4,78 @@ mod test {
     use crate::controller::amm::SwapDirection;
     use crate::math::collateral::calculate_updated_collateral;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_IMF_PRECISION,
-        MARK_PRICE_PRECISION, QUOTE_PRECISION,
+        AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION,
+        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
     };
     use crate::math::margin::{
-        calculate_bank_balance_value, calculate_oracle_price_for_perp_margin,
-        calculate_perp_position_value_and_pnl, MarginRequirementType,
+        calculate_oracle_price_for_perp_margin, calculate_perp_position_value_and_pnl,
+        calculate_spot_position_value, MarginRequirementType,
     };
     use crate::math::position::{
         calculate_base_asset_value_and_pnl_with_oracle_price, calculate_position_pnl,
     };
-    use crate::state::bank::{Bank, BankBalanceType};
-    use crate::state::market::{Market, AMM};
+    use crate::state::market::{PerpMarket, AMM};
     use crate::state::oracle::OraclePriceData;
-    use crate::state::user::{MarketPosition, User, UserBankBalance};
+    use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+    use crate::state::user::{PerpPosition, SpotPosition, User};
     use num_integer::Roots;
 
     #[test]
-    fn bank_asset_weight() {
-        let mut bank = Bank {
+    fn spot_market_asset_weight() {
+        let mut spot_market = SpotMarket {
             initial_asset_weight: 90,
             initial_liability_weight: 110,
             decimals: 6,
             imf_factor: 0,
-            ..Bank::default()
+            ..SpotMarket::default()
         };
 
         let size = 1000 * QUOTE_PRECISION;
-        let asset_weight = bank
+        let asset_weight = spot_market
             .get_asset_weight(size, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, 90);
 
-        let lib_weight = bank
+        let lib_weight = spot_market
             .get_liability_weight(size, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(lib_weight, 110);
 
-        bank.imf_factor = 10;
-        let asset_weight = bank
+        spot_market.imf_factor = 10;
+        let asset_weight = spot_market
             .get_asset_weight(size, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, 90);
 
-        let lib_weight = bank
+        let lib_weight = spot_market
             .get_liability_weight(size, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(lib_weight, 110);
 
         let same_asset_weight_diff_imf_factor = 83;
-        let asset_weight = bank
+        let asset_weight = spot_market
             .get_asset_weight(size * 1_000_000, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, same_asset_weight_diff_imf_factor);
 
-        bank.imf_factor = 10000;
-        let asset_weight = bank
+        spot_market.imf_factor = 10000;
+        let asset_weight = spot_market
             .get_asset_weight(size, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, same_asset_weight_diff_imf_factor);
 
-        let lib_weight = bank
+        let lib_weight = spot_market
             .get_liability_weight(size, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(lib_weight, 140);
 
-        bank.imf_factor = BANK_IMF_PRECISION / 10;
-        let asset_weight = bank
+        spot_market.imf_factor = SPOT_IMF_PRECISION / 10;
+        let asset_weight = spot_market
             .get_asset_weight(size, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(asset_weight, 26);
 
-        let lib_weight = bank
+        let lib_weight = spot_market
             .get_liability_weight(size, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(lib_weight, 415);
@@ -83,31 +83,31 @@ mod test {
 
     #[test]
     fn negative_margin_user_test() {
-        let bank = Bank {
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+        let spot_market = SpotMarket {
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
-            ..Bank::default()
+            ..SpotMarket::default()
         };
 
-        let user_bank_balance = UserBankBalance {
-            balance_type: BankBalanceType::Deposit,
+        let spot_position = SpotPosition {
+            balance_type: SpotBalanceType::Deposit,
             balance: MARK_PRICE_PRECISION,
-            ..UserBankBalance::default()
+            ..SpotPosition::default()
         };
 
         let mut user = User { ..User::default() };
 
-        let market_position = MarketPosition {
+        let market_position = PerpPosition {
             market_index: 0,
             quote_asset_amount: -(2 * QUOTE_PRECISION as i128),
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
 
-        user.bank_balances[0] = user_bank_balance;
-        user.positions[0] = market_position;
+        user.spot_positions[0] = spot_position;
+        user.perp_positions[0] = market_position;
 
-        let market = Market {
+        let market = PerpMarket {
             market_index: 0,
             amm: AMM {
                 base_asset_reserve: 5122950819670000,
@@ -122,7 +122,7 @@ mod test {
             imf_factor: 1000, // 1_000/1_000_000 = .001
             unrealized_initial_asset_weight: 100,
             unrealized_maintenance_asset_weight: 100,
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         // btc
@@ -148,9 +148,9 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
-        let total_collateral = calculate_bank_balance_value(
-            &user_bank_balance,
-            &bank,
+        let total_collateral = calculate_spot_position_value(
+            &spot_position,
+            &spot_market,
             &quote_asset_oracle_price_data,
             MarginRequirementType::Initial,
         )
@@ -170,20 +170,20 @@ mod test {
     fn calculate_user_equity_value_tests() {
         let _user = User { ..User::default() };
 
-        let user_bank_balance = UserBankBalance {
-            balance_type: BankBalanceType::Deposit,
+        let spot_position = SpotPosition {
+            balance_type: SpotBalanceType::Deposit,
             balance: MARK_PRICE_PRECISION,
-            ..UserBankBalance::default()
+            ..SpotPosition::default()
         };
 
-        let bank = Bank {
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+        let spot_market = SpotMarket {
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
-            ..Bank::default()
+            ..SpotMarket::default()
         };
 
-        let mut market = Market {
+        let mut market = PerpMarket {
             market_index: 0,
             amm: AMM {
                 base_asset_reserve: 5122950819670000,
@@ -199,7 +199,7 @@ mod test {
             imf_factor: 1000, // 1_000/1_000_000 = .001
             unrealized_initial_asset_weight: 100,
             unrealized_maintenance_asset_weight: 100,
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         let current_price = market.amm.mark_price().unwrap();
@@ -215,11 +215,11 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
-        let market_position = MarketPosition {
+        let market_position = PerpPosition {
             market_index: 0,
             base_asset_amount: -(122950819670000 / 2_i128),
             quote_asset_amount: 153688524588, // $25,000 entry price
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
 
         let margin_requirement_type = MarginRequirementType::Initial;
@@ -229,9 +229,9 @@ mod test {
             delay: 0,
             has_sufficient_number_of_data_points: true,
         };
-        let _bqv = calculate_bank_balance_value(
-            &user_bank_balance,
-            &bank,
+        let _bqv = calculate_spot_position_value(
+            &spot_position,
+            &spot_market,
             &quote_asset_oracle_price_data,
             margin_requirement_type,
         )
@@ -364,7 +364,7 @@ mod test {
 
     #[test]
     fn test_lp_user_short() {
-        let mut market = Market {
+        let mut market = PerpMarket {
             market_index: 0,
             amm: AMM {
                 base_asset_reserve: 5 * AMM_RESERVE_PRECISION,
@@ -379,12 +379,12 @@ mod test {
             imf_factor: 1000, // 1_000/1_000_000 = .001
             unrealized_initial_asset_weight: 100,
             unrealized_maintenance_asset_weight: 100,
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
-        let position = MarketPosition {
+        let position = PerpPosition {
             lp_shares: market.amm.user_lp_shares,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
 
         let oracle_price_data = OraclePriceData {
@@ -429,7 +429,7 @@ mod test {
 
     #[test]
     fn test_lp_user_long() {
-        let mut market = Market {
+        let mut market = PerpMarket {
             market_index: 0,
             amm: AMM {
                 base_asset_reserve: 5 * AMM_RESERVE_PRECISION,
@@ -444,12 +444,12 @@ mod test {
             imf_factor: 1000, // 1_000/1_000_000 = .001
             unrealized_initial_asset_weight: 100,
             unrealized_maintenance_asset_weight: 100,
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
-        let position = MarketPosition {
+        let position = PerpPosition {
             lp_shares: market.amm.user_lp_shares,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
 
         let oracle_price_data = OraclePriceData {
@@ -497,18 +497,18 @@ mod calculate_margin_requirement_and_total_collateral {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION, BANK_WEIGHT_PRECISION,
-        LIQUIDATION_FEE_PRECISION,
+        LIQUIDATION_FEE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
     };
-    use crate::state::bank::{Bank, BankBalanceType};
-    use crate::state::bank_map::BankMap;
-    use crate::state::market_map::MarketMap;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
-    use crate::state::user::{MarketPosition, Order, User, UserBankBalance};
+    use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+    use crate::state::spot_market_map::SpotMarketMap;
+    use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::tests::utils::get_pyth_price;
     use crate::tests::utils::*;
     use anchor_lang::Owner;
@@ -531,56 +531,60 @@ mod calculate_margin_requirement_and_total_collateral {
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
-        let market_map = MarketMap::empty();
+        let market_map = PerpMarketMap::empty();
 
-        let mut usdc_bank = Bank {
-            bank_index: 0,
+        let mut usdc_spot_market = SpotMarket {
+            market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
-            initial_asset_weight: BANK_WEIGHT_PRECISION,
-            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-            deposit_balance: 10000 * BANK_INTEREST_PRECISION,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
             liquidation_fee: 0,
-            ..Bank::default()
+            ..SpotMarket::default()
         };
-        create_anchor_account_info!(usdc_bank, Bank, usdc_bank_account_info);
-        let mut sol_bank = Bank {
-            bank_index: 1,
+        create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
+        let mut sol_spot_market = SpotMarket {
+            market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 9,
-            initial_asset_weight: 8 * BANK_WEIGHT_PRECISION / 10,
-            maintenance_asset_weight: 9 * BANK_WEIGHT_PRECISION / 10,
-            initial_liability_weight: 12 * BANK_WEIGHT_PRECISION / 10,
-            maintenance_liability_weight: 11 * BANK_WEIGHT_PRECISION / 10,
+            initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
+            initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
-            ..Bank::default()
+            ..SpotMarket::default()
         };
-        create_anchor_account_info!(sol_bank, Bank, sol_bank_account_info);
-        let bank_account_infos = Vec::from([&usdc_bank_account_info, &sol_bank_account_info]);
-        let bank_map = BankMap::load_multiple(bank_account_infos, true).unwrap();
+        create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
+        let spot_market_account_infos = Vec::from([
+            &usdc_spot_market_account_info,
+            &sol_spot_market_account_info,
+        ]);
+        let spot_market_map =
+            SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
 
-        let mut user_bank_balances = [UserBankBalance::default(); 8];
-        user_bank_balances[0] = UserBankBalance {
-            bank_index: 0,
-            balance_type: BankBalanceType::Deposit,
-            balance: 10000 * BANK_INTEREST_PRECISION,
-            ..UserBankBalance::default()
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[0] = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            balance: 10000 * SPOT_INTEREST_PRECISION,
+            ..SpotPosition::default()
         };
-        user_bank_balances[1] = UserBankBalance {
-            bank_index: 1,
-            balance_type: BankBalanceType::Deposit,
+        spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
             open_orders: 1,
             open_bids: 500 * 10_i128.pow(9),
-            ..UserBankBalance::default()
+            ..SpotPosition::default()
         };
         let user = User {
             orders: [Order::default(); 32],
-            positions: [MarketPosition::default(); 5],
-            bank_balances: user_bank_balances,
+            perp_positions: [PerpPosition::default(); 5],
+            spot_positions: spot_positions,
             ..User::default()
         };
 
@@ -589,7 +593,7 @@ mod calculate_margin_requirement_and_total_collateral {
                 &user,
                 &market_map,
                 MarginRequirementType::Initial,
-                &bank_map,
+                &spot_market_map,
                 &mut oracle_map,
             )
             .unwrap();
@@ -614,56 +618,60 @@ mod calculate_margin_requirement_and_total_collateral {
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
-        let market_map = MarketMap::empty();
+        let market_map = PerpMarketMap::empty();
 
-        let mut usdc_bank = Bank {
-            bank_index: 0,
+        let mut usdc_spot_market = SpotMarket {
+            market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
-            initial_asset_weight: BANK_WEIGHT_PRECISION,
-            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-            deposit_balance: 10000 * BANK_INTEREST_PRECISION,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
             liquidation_fee: 0,
-            ..Bank::default()
+            ..SpotMarket::default()
         };
-        create_anchor_account_info!(usdc_bank, Bank, usdc_bank_account_info);
-        let mut sol_bank = Bank {
-            bank_index: 1,
+        create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
+        let mut sol_spot_market = SpotMarket {
+            market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 9,
-            initial_asset_weight: 8 * BANK_WEIGHT_PRECISION / 10,
-            maintenance_asset_weight: 9 * BANK_WEIGHT_PRECISION / 10,
-            initial_liability_weight: 12 * BANK_WEIGHT_PRECISION / 10,
-            maintenance_liability_weight: 11 * BANK_WEIGHT_PRECISION / 10,
+            initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
+            initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
-            ..Bank::default()
+            ..SpotMarket::default()
         };
-        create_anchor_account_info!(sol_bank, Bank, sol_bank_account_info);
-        let bank_account_infos = Vec::from([&usdc_bank_account_info, &sol_bank_account_info]);
-        let bank_map = BankMap::load_multiple(bank_account_infos, true).unwrap();
+        create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
+        let spot_market_account_infos = Vec::from([
+            &usdc_spot_market_account_info,
+            &sol_spot_market_account_info,
+        ]);
+        let spot_market_map =
+            SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
 
-        let mut user_bank_balances = [UserBankBalance::default(); 8];
-        user_bank_balances[0] = UserBankBalance {
-            bank_index: 0,
-            balance_type: BankBalanceType::Deposit,
-            balance: 10000 * BANK_INTEREST_PRECISION,
-            ..UserBankBalance::default()
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[0] = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            balance: 10000 * SPOT_INTEREST_PRECISION,
+            ..SpotPosition::default()
         };
-        user_bank_balances[1] = UserBankBalance {
-            bank_index: 1,
-            balance_type: BankBalanceType::Deposit,
+        spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
             open_orders: 1,
             open_asks: -500 * 10_i128.pow(9),
-            ..UserBankBalance::default()
+            ..SpotPosition::default()
         };
         let user = User {
             orders: [Order::default(); 32],
-            positions: [MarketPosition::default(); 5],
-            bank_balances: user_bank_balances,
+            perp_positions: [PerpPosition::default(); 5],
+            spot_positions: spot_positions,
             ..User::default()
         };
 
@@ -672,7 +680,7 @@ mod calculate_margin_requirement_and_total_collateral {
                 &user,
                 &market_map,
                 MarginRequirementType::Initial,
-                &bank_map,
+                &spot_market_map,
                 &mut oracle_map,
             )
             .unwrap();
@@ -697,57 +705,61 @@ mod calculate_margin_requirement_and_total_collateral {
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
-        let market_map = MarketMap::empty();
+        let market_map = PerpMarketMap::empty();
 
-        let mut usdc_bank = Bank {
-            bank_index: 0,
+        let mut usdc_spot_market = SpotMarket {
+            market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
-            initial_asset_weight: BANK_WEIGHT_PRECISION,
-            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-            deposit_balance: 10000 * BANK_INTEREST_PRECISION,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
             liquidation_fee: 0,
-            ..Bank::default()
+            ..SpotMarket::default()
         };
-        create_anchor_account_info!(usdc_bank, Bank, usdc_bank_account_info);
-        let mut sol_bank = Bank {
-            bank_index: 1,
+        create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
+        let mut sol_spot_market = SpotMarket {
+            market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 9,
-            initial_asset_weight: 8 * BANK_WEIGHT_PRECISION / 10,
-            maintenance_asset_weight: 9 * BANK_WEIGHT_PRECISION / 10,
-            initial_liability_weight: 12 * BANK_WEIGHT_PRECISION / 10,
-            maintenance_liability_weight: 11 * BANK_WEIGHT_PRECISION / 10,
+            initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
+            initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
-            deposit_balance: 10000 * BANK_INTEREST_PRECISION,
-            ..Bank::default()
+            deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
+            ..SpotMarket::default()
         };
-        create_anchor_account_info!(sol_bank, Bank, sol_bank_account_info);
-        let bank_account_infos = Vec::from([&usdc_bank_account_info, &sol_bank_account_info]);
-        let bank_map = BankMap::load_multiple(bank_account_infos, true).unwrap();
+        create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
+        let spot_market_account_infos = Vec::from([
+            &usdc_spot_market_account_info,
+            &sol_spot_market_account_info,
+        ]);
+        let spot_market_map =
+            SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
 
-        let mut user_bank_balances = [UserBankBalance::default(); 8];
-        user_bank_balances[0] = UserBankBalance {
-            bank_index: 0,
-            balance_type: BankBalanceType::Deposit,
-            ..UserBankBalance::default()
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[0] = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            ..SpotPosition::default()
         };
-        user_bank_balances[1] = UserBankBalance {
-            bank_index: 1,
-            balance_type: BankBalanceType::Deposit,
-            balance: 500 * BANK_INTEREST_PRECISION,
+        spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            balance: 500 * SPOT_INTEREST_PRECISION,
             open_orders: 1,
             open_asks: -3000 * 10_i128.pow(9),
-            ..UserBankBalance::default()
+            ..SpotPosition::default()
         };
         let user = User {
             orders: [Order::default(); 32],
-            positions: [MarketPosition::default(); 5],
-            bank_balances: user_bank_balances,
+            perp_positions: [PerpPosition::default(); 5],
+            spot_positions: spot_positions,
             ..User::default()
         };
 
@@ -756,7 +768,7 @@ mod calculate_margin_requirement_and_total_collateral {
                 &user,
                 &market_map,
                 MarginRequirementType::Initial,
-                &bank_map,
+                &spot_market_map,
                 &mut oracle_map,
             )
             .unwrap();
