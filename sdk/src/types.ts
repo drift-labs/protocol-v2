@@ -7,7 +7,7 @@ export class SwapDirection {
 	static readonly REMOVE = { remove: {} };
 }
 
-export class BankBalanceType {
+export class SpotBalanceType {
 	static readonly DEPOSIT = { deposit: {} };
 	static readonly BORROW = { borrow: {} };
 }
@@ -134,7 +134,7 @@ export type DepositRecord = {
 		deposit?: any;
 		withdraw?: any;
 	};
-	bankIndex: BN;
+	marketIndex: BN;
 	amount: BN;
 	oraclePrice: BN;
 	referrer: PublicKey;
@@ -257,28 +257,28 @@ export type LiquidatePerpRecord = {
 };
 
 export type LiquidateBorrowRecord = {
-	assetBankIndex: BN;
+	assetMarketIndex: BN;
 	assetPrice: BN;
 	assetTransfer: BN;
-	liabilityBankIndex: BN;
+	liabilityMarketIndex: BN;
 	liabilityPrice: BN;
 	liabilityTransfer: BN;
 };
 
 export type LiquidateBorrowForPerpPnlRecord = {
-	marketIndex: BN;
+	perpMarketIndex: BN;
 	marketOraclePrice: BN;
 	pnlTransfer: BN;
-	liabilityBankIndex: BN;
+	liabilityMarketIndex: BN;
 	liabilityPrice: BN;
 	liabilityTransfer: BN;
 };
 
 export type LiquidatePerpPnlForDepositRecord = {
-	marketIndex: BN;
+	perpMarketIndex: BN;
 	marketOraclePrice: BN;
 	pnlTransfer: BN;
-	assetBankIndex: BN;
+	assetMarketIndex: BN;
 	assetPrice: BN;
 	assetTransfer: BN;
 };
@@ -290,7 +290,7 @@ export type PerpBankruptcyRecord = {
 };
 
 export type BorrowBankruptcyRecord = {
-	bankIndex: BN;
+	marketIndex: BN;
 	borrowAmount: BN;
 	cumulativeDepositInterestDelta: BN;
 };
@@ -302,7 +302,7 @@ export type SettlePnlRecord = {
 	pnl: BN;
 	baseAssetAmount: BN;
 	quoteAssetAmountAfter: BN;
-	quoteEntryamount: BN;
+	quoteEntryAmount: BN;
 	settlePrice: BN;
 };
 
@@ -381,7 +381,7 @@ export type StateAccount = {
 	minAuctionDuration: number;
 };
 
-export type MarketAccount = {
+export type PerpMarketAccount = {
 	initialized: boolean;
 	marketIndex: BN;
 	pubkey: PublicKey;
@@ -401,8 +401,8 @@ export type MarketAccount = {
 	unrealizedMaintenanceAssetWeight: number;
 };
 
-export type BankAccount = {
-	bankIndex: BN;
+export type SpotMarketAccount = {
+	marketIndex: BN;
 	pubkey: PublicKey;
 	mint: PublicKey;
 	vault: PublicKey;
@@ -506,15 +506,15 @@ export type AMM = {
 	longSpread: BN;
 	shortSpread: BN;
 	maxSpread: number;
-	marketPosition: UserPosition;
-	marketPositionPerLp: UserPosition;
+	marketPosition: PerpPosition;
+	marketPositionPerLp: PerpPosition;
 	ammJitIntensity: number;
 	maxBaseAssetReserve: BN;
 	minBaseAssetReserve: BN;
 };
 
 // # User Account Types
-export type UserPosition = {
+export type PerpPosition = {
 	baseAssetAmount: BN;
 	remainderBaseAssetAmount: BN;
 	lastCumulativeFundingRate: BN;
@@ -556,8 +556,8 @@ export type UserAccount = {
 	authority: PublicKey;
 	name: number[];
 	userId: number;
-	bankBalances: UserBankBalance[];
-	positions: UserPosition[];
+	spotPositions: SpotPosition[];
+	perpPositions: PerpPosition[];
 	orders: Order[];
 	beingLiquidated: boolean;
 	bankrupt: boolean;
@@ -565,10 +565,13 @@ export type UserAccount = {
 	nextOrderId: BN;
 };
 
-export type UserBankBalance = {
-	bankIndex: BN;
-	balanceType: BankBalanceType;
+export type SpotPosition = {
+	marketIndex: BN;
+	balanceType: SpotBalanceType;
 	balance: BN;
+	openOrders: number;
+	openBids: BN;
+	openAsks: BN;
 };
 
 export type Order = {
@@ -733,7 +736,7 @@ export type OrderFillerRewardStructure = {
 export type MarginCategory = 'Initial' | 'Maintenance';
 
 export type InsuranceFundStake = {
-	bankIndex: BN;
+	marketIndex: BN;
 	authority: PublicKey;
 
 	ifShares: BN;

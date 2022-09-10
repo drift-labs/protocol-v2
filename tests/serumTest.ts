@@ -14,18 +14,19 @@ import {
 	OracleSource,
 	OracleInfo,
 	PositionDirection,
-	castNumberToBankPrecision,
+	castNumberToSpotPrecision,
 	getLimitOrderParams,
 	getTokenAmount,
 	isVariant,
 	MARK_PRICE_PRECISION,
+	SpotBalanceType,
 } from '../sdk/src';
 
 import {
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
-	initializeQuoteAssetBank,
-	initializeSolAssetBank,
+	initializeQuoteSpotMarket,
+	initializeSolSpotMarket,
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
@@ -33,7 +34,6 @@ import {
 } from './testHelpers';
 import { NATIVE_MINT } from '@solana/spl-token';
 import { Market } from '@project-serum/serum';
-import { BankBalanceType } from '../sdk';
 
 describe('serum spot market', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -66,10 +66,10 @@ describe('serum spot market', () => {
 	const solAmount = new BN(2 * 10 ** 9);
 
 	let marketIndexes: BN[];
-	let bankIndexes: BN[];
+	let spotMarketIndexes: BN[];
 	let oracleInfos: OracleInfo[];
 
-	const solBankIndex = new BN(1);
+	const solSpotMarketIndex = new BN(1);
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -84,7 +84,7 @@ describe('serum spot market', () => {
 		solOracle = await mockOracle(30);
 
 		marketIndexes = [];
-		bankIndexes = [new BN(0), new BN(1)];
+		spotMarketIndexes = [new BN(0), new BN(1)];
 		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
 
 		makerClearingHouse = new Admin({
@@ -95,8 +95,8 @@ describe('serum spot market', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 
@@ -104,8 +104,8 @@ describe('serum spot market', () => {
 		await makerClearingHouse.subscribe();
 		await makerClearingHouse.initializeUserAccount();
 
-		await initializeQuoteAssetBank(makerClearingHouse, usdcMint.publicKey);
-		await initializeSolAssetBank(makerClearingHouse, solOracle);
+		await initializeQuoteSpotMarket(makerClearingHouse, usdcMint.publicKey);
+		await initializeSolSpotMarket(makerClearingHouse, solOracle);
 		await makerClearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		[takerClearingHouse, takerWSOL, takerUSDC] =
@@ -147,7 +147,7 @@ describe('serum spot market', () => {
 		});
 
 		await makerClearingHouse.initializeSerumFulfillmentConfig(
-			solBankIndex,
+			solSpotMarketIndex,
 			serumMarketPublicKey,
 			serumHelper.DEX_PID
 		);
@@ -196,14 +196,14 @@ describe('serum spot market', () => {
 	};
 
 	it('Fill bid', async () => {
-		const baseAssetAmount = castNumberToBankPrecision(
+		const baseAssetAmount = castNumberToSpotPrecision(
 			1,
-			makerClearingHouse.getBankAccount(solBankIndex)
+			makerClearingHouse.getSpotMarketAccount(solSpotMarketIndex)
 		);
 
 		await takerClearingHouse.placeSpotOrder(
 			getLimitOrderParams({
-				marketIndex: solBankIndex,
+				marketIndex: solSpotMarketIndex,
 				direction: PositionDirection.LONG,
 				baseAssetAmount,
 				userOrderId: 1,
@@ -259,21 +259,21 @@ describe('serum spot market', () => {
 
 		await takerClearingHouse.fetchAccounts();
 
-		const takerQuoteBankBalance = takerClearingHouse.getUserBankBalance(0);
-		const takerBaseBankBalance = takerClearingHouse.getUserBankBalance(1);
+		const takerQuoteSpotBalance = takerClearingHouse.getSpotPosition(0);
+		const takerBaseSpotBalance = takerClearingHouse.getSpotPosition(1);
 
 		const quoteTokenAmount = getTokenAmount(
-			takerQuoteBankBalance.balance,
-			takerClearingHouse.getQuoteAssetBankAccount(),
-			takerQuoteBankBalance.balanceType
+			takerQuoteSpotBalance.balance,
+			takerClearingHouse.getQuoteSpotMarketAccount(),
+			takerQuoteSpotBalance.balanceType
 		);
 		console.log(quoteTokenAmount.toString());
 		assert(quoteTokenAmount.eq(new BN(99900000)));
 
 		const baseTokenAmount = getTokenAmount(
-			takerBaseBankBalance.balance,
-			takerClearingHouse.getBankAccount(new BN(1)),
-			takerBaseBankBalance.balanceType
+			takerBaseSpotBalance.balance,
+			takerClearingHouse.getSpotMarketAccount(new BN(1)),
+			takerBaseSpotBalance.balanceType
 		);
 		assert(baseTokenAmount.eq(new BN(1000000000)));
 
@@ -290,12 +290,13 @@ describe('serum spot market', () => {
 
 		assert(makerClearingHouse.getQuoteAssetTokenAmount().eq(new BN(10000)));
 
-		const solBank = takerClearingHouse.getBankAccount(solBankIndex);
-		assert(solBank.totalSpotFee.eq(new BN(58000)));
+		const solSpotMarket =
+			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
+		assert(solSpotMarket.totalSpotFee.eq(new BN(58000)));
 		const spotFeePoolAmount = getTokenAmount(
-			solBank.spotFeePool.balance,
-			takerClearingHouse.getQuoteAssetBankAccount(),
-			BankBalanceType.DEPOSIT
+			solSpotMarket.spotFeePool.balance,
+			takerClearingHouse.getQuoteSpotMarketAccount(),
+			SpotBalanceType.DEPOSIT
 		);
 		assert(spotFeePoolAmount.eq(new BN(50000)));
 
@@ -303,14 +304,14 @@ describe('serum spot market', () => {
 	});
 
 	it('Fill ask', async () => {
-		const baseAssetAmount = castNumberToBankPrecision(
+		const baseAssetAmount = castNumberToSpotPrecision(
 			1,
-			makerClearingHouse.getBankAccount(solBankIndex)
+			makerClearingHouse.getSpotMarketAccount(solSpotMarketIndex)
 		);
 
 		await takerClearingHouse.placeSpotOrder(
 			getLimitOrderParams({
-				marketIndex: solBankIndex,
+				marketIndex: solSpotMarketIndex,
 				direction: PositionDirection.SHORT,
 				baseAssetAmount,
 				userOrderId: 1,
@@ -366,21 +367,21 @@ describe('serum spot market', () => {
 
 		await takerClearingHouse.fetchAccounts();
 
-		const takerQuoteBankBalance = takerClearingHouse.getUserBankBalance(0);
-		const takerBaseBankBalance = takerClearingHouse.getUserBankBalance(1);
+		const takerQuoteSpotBalance = takerClearingHouse.getSpotPosition(0);
+		const takerBaseSpotBalance = takerClearingHouse.getSpotPosition(1);
 
 		const quoteTokenAmount = getTokenAmount(
-			takerQuoteBankBalance.balance,
-			takerClearingHouse.getQuoteAssetBankAccount(),
-			takerQuoteBankBalance.balanceType
+			takerQuoteSpotBalance.balance,
+			takerClearingHouse.getQuoteSpotMarketAccount(),
+			takerQuoteSpotBalance.balanceType
 		);
 		console.log(quoteTokenAmount.toString());
 		assert(quoteTokenAmount.eq(new BN(199800000)));
 
 		const baseTokenAmount = getTokenAmount(
-			takerBaseBankBalance.balance,
-			takerClearingHouse.getBankAccount(new BN(1)),
-			takerBaseBankBalance.balanceType
+			takerBaseSpotBalance.balance,
+			takerClearingHouse.getSpotMarketAccount(new BN(1)),
+			takerBaseSpotBalance.balanceType
 		);
 		assert(baseTokenAmount.eq(new BN(0)));
 
@@ -397,12 +398,13 @@ describe('serum spot market', () => {
 
 		assert(makerClearingHouse.getQuoteAssetTokenAmount().eq(new BN(20000)));
 
-		const solBank = takerClearingHouse.getBankAccount(solBankIndex);
-		assert(solBank.totalSpotFee.eq(new BN(116000)));
+		const solSpotMarket =
+			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
+		assert(solSpotMarket.totalSpotFee.eq(new BN(116000)));
 		const spotFeePoolAmount = getTokenAmount(
-			solBank.spotFeePool.balance,
-			takerClearingHouse.getQuoteAssetBankAccount(),
-			BankBalanceType.DEPOSIT
+			solSpotMarket.spotFeePool.balance,
+			takerClearingHouse.getQuoteSpotMarketAccount(),
+			SpotBalanceType.DEPOSIT
 		);
 		console.log(spotFeePoolAmount.toString());
 		assert(spotFeePoolAmount.eq(new BN(108000)));
@@ -412,14 +414,14 @@ describe('serum spot market', () => {
 
 	// check that moving referrer rebates works properly
 	it('Fill bid second time', async () => {
-		const baseAssetAmount = castNumberToBankPrecision(
+		const baseAssetAmount = castNumberToSpotPrecision(
 			1,
-			makerClearingHouse.getBankAccount(solBankIndex)
+			makerClearingHouse.getSpotMarketAccount(solSpotMarketIndex)
 		);
 
 		await takerClearingHouse.placeSpotOrder(
 			getLimitOrderParams({
-				marketIndex: solBankIndex,
+				marketIndex: solSpotMarketIndex,
 				direction: PositionDirection.LONG,
 				baseAssetAmount,
 				userOrderId: 1,
@@ -476,21 +478,21 @@ describe('serum spot market', () => {
 
 		await takerClearingHouse.fetchAccounts();
 
-		const takerQuoteBankBalance = takerClearingHouse.getUserBankBalance(0);
-		const takerBaseBankBalance = takerClearingHouse.getUserBankBalance(1);
+		const takerQuoteSpotBalance = takerClearingHouse.getSpotPosition(0);
+		const takerBaseSpotBalance = takerClearingHouse.getSpotPosition(1);
 
 		const quoteTokenAmount = getTokenAmount(
-			takerQuoteBankBalance.balance,
-			takerClearingHouse.getQuoteAssetBankAccount(),
-			takerQuoteBankBalance.balanceType
+			takerQuoteSpotBalance.balance,
+			takerClearingHouse.getQuoteSpotMarketAccount(),
+			takerQuoteSpotBalance.balanceType
 		);
 		console.log(quoteTokenAmount.toString());
 		assert(quoteTokenAmount.eq(new BN(99700000))); // paid ~$.30
 
 		const baseTokenAmount = getTokenAmount(
-			takerBaseBankBalance.balance,
-			takerClearingHouse.getBankAccount(new BN(1)),
-			takerBaseBankBalance.balanceType
+			takerBaseSpotBalance.balance,
+			takerClearingHouse.getSpotMarketAccount(new BN(1)),
+			takerBaseSpotBalance.balanceType
 		);
 		assert(baseTokenAmount.eq(new BN(1000000000)));
 
@@ -505,12 +507,13 @@ describe('serum spot market', () => {
 		assert(orderActionRecord.takerFee.eq(new BN(100000)));
 		assert(orderActionRecord.takerOrderFee.eq(new BN(100000)));
 
-		const solBank = takerClearingHouse.getBankAccount(solBankIndex);
-		assert(solBank.totalSpotFee.eq(new BN(174000)));
+		const solSpotMarket =
+			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
+		assert(solSpotMarket.totalSpotFee.eq(new BN(174000)));
 		const spotFeePoolAmount = getTokenAmount(
-			solBank.spotFeePool.balance,
-			takerClearingHouse.getQuoteAssetBankAccount(),
-			BankBalanceType.DEPOSIT
+			solSpotMarket.spotFeePool.balance,
+			takerClearingHouse.getQuoteSpotMarketAccount(),
+			SpotBalanceType.DEPOSIT
 		);
 		console.log(spotFeePoolAmount.toString());
 		assert(spotFeePoolAmount.eq(new BN(166000)));

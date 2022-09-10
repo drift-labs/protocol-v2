@@ -27,11 +27,11 @@ import {
 	mockUSDCMint,
 	setFeedPrice,
 	getOraclePriceData,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 } from './testHelpers';
 
 async function feePoolInjection(fees, marketIndex, clearingHouse) {
-	let market0 = clearingHouse.getMarketAccount(marketIndex);
+	let market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 	await clearingHouse.updateCurveUpdateIntensity(marketIndex, 0);
 	const connection = anchor.AnchorProvider.local().connection;
 
@@ -64,7 +64,7 @@ async function feePoolInjection(fees, marketIndex, clearingHouse) {
 			clearingHouse.getUserAccount(),
 			marketIndex
 		);
-		market0 = clearingHouse.getMarketAccount(marketIndex);
+		market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log(
 			market0.amm.totalFeeMinusDistributions.toString(),
 			'<',
@@ -102,7 +102,7 @@ describe('update amm', () => {
 	const usdcAmount = new BN(10000 * 10 ** 6);
 
 	let marketIndexes;
-	let bankIndexes;
+	let spotMarketIndexes;
 	let oracleInfos;
 	let solUsd;
 	const mockOracles = [];
@@ -119,7 +119,7 @@ describe('update amm', () => {
 			mockOracles.push(thisUsd);
 		}
 
-		bankIndexes = [new BN(0)];
+		spotMarketIndexes = [new BN(0)];
 		marketIndexes = mockOracles.map((_, i) => new BN(i));
 		oracleInfos = mockOracles.map((oracle) => {
 			return { publicKey: oracle, source: OracleSource.PYTH };
@@ -133,8 +133,8 @@ describe('update amm', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: marketIndexes,
-			bankIndexes: bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos: oracleInfos,
 		});
 
@@ -142,7 +142,7 @@ describe('update amm', () => {
 		await clearingHouse.updateAuctionDuration(0, 0);
 
 		await clearingHouse.subscribe();
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		await clearingHouse.initializeMarket(
@@ -191,7 +191,7 @@ describe('update amm', () => {
 		const baseAssetAmount = new BN(
 			(49.7450503674885 * AMM_RESERVE_PRECISION.toNumber()) / 50
 		);
-		const market0 = clearingHouse.getMarketAccount(0);
+		const market0 = clearingHouse.getPerpMarketAccount(0);
 		await setFeedPrice(anchor.workspace.Pyth, 1.003, solUsd);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		console.log('new oracle price:', curPrice);
@@ -240,7 +240,7 @@ describe('update amm', () => {
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
 				.logMessages
 		);
-		const market = clearingHouse.getMarketAccount(0);
+		const market = clearingHouse.getPerpMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
 			'after trade bid/ask:',
@@ -288,7 +288,7 @@ describe('update amm', () => {
 		const baseAssetAmount = new BN(
 			(49.7450503674885 * AMM_RESERVE_PRECISION.toNumber()) / 50
 		);
-		const market0 = clearingHouse.getMarketAccount(1);
+		const market0 = clearingHouse.getPerpMarketAccount(1);
 		await setFeedPrice(anchor.workspace.Pyth, 0.9378, mockOracles[1]);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, mockOracles[1]))
 			.price;
@@ -338,7 +338,7 @@ describe('update amm', () => {
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
 				.logMessages
 		);
-		const market = clearingHouse.getMarketAccount(1);
+		const market = clearingHouse.getPerpMarketAccount(1);
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
 			'after trade bid/ask:',
@@ -388,7 +388,7 @@ describe('update amm', () => {
 			new BN(1),
 			clearingHouse
 		);
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 
 		const oraclePriceData = await getOraclePriceData(
 			anchor.workspace.Pyth,
@@ -440,7 +440,7 @@ describe('update amm', () => {
 		console.log('new oracle price:', curPrice);
 
 		const _txSig2 = await clearingHouse.updateAMMs([new BN(marketIndex)]);
-		const market2 = clearingHouse.getMarketAccount(marketIndex);
+		const market2 = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log(
 			'market2.amm.pegMultiplier = ',
 			market2.amm.pegMultiplier.toString()
@@ -460,7 +460,7 @@ describe('update amm', () => {
 			const baseAssetAmount = new BN(
 				31.02765 * AMM_RESERVE_PRECISION.toNumber()
 			);
-			const market0 = clearingHouse.getMarketAccount(i);
+			const market0 = clearingHouse.getPerpMarketAccount(i);
 			const orderParams = getMarketOrderParams({
 				marketIndex,
 				direction: PositionDirection.LONG,
@@ -512,7 +512,7 @@ describe('update amm', () => {
 					.meta.logMessages
 			);
 
-			const market = clearingHouse.getMarketAccount(i);
+			const market = clearingHouse.getPerpMarketAccount(i);
 			const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 			console.log(
 				'after trade bid/ask:',
@@ -535,7 +535,7 @@ describe('update amm', () => {
 		for (let i = 0; i <= 4; i++) {
 			const thisUsd = mockOracles[i];
 			const marketIndex = new BN(i);
-			const market0 = clearingHouse.getMarketAccount(marketIndex);
+			const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 			market0s.push(market0);
 			const curPrice = (await getFeedData(anchor.workspace.Pyth, thisUsd))
 				.price;
@@ -616,7 +616,7 @@ describe('update amm', () => {
 				anchor.workspace.Pyth,
 				thisUsd
 			);
-			const market = clearingHouse.getMarketAccount(i);
+			const market = clearingHouse.getPerpMarketAccount(i);
 			const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 			console.log(
 				'after trade bid/ask:',

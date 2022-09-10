@@ -1473,7 +1473,7 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
         let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-        let market_map = PerpMarketMap::load(
+        let perp_market_map = PerpMarketMap::load(
             &MarketSet::new(),
             &MarketSet::new(),
             remaining_accounts_iter,
@@ -1487,7 +1487,7 @@ pub mod clearing_house {
         controller::orders::place_spot_order(
             &ctx.accounts.state,
             &ctx.accounts.user,
-            &market_map,
+            &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
             &Clock::get()?,

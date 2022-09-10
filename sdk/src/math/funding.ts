@@ -5,7 +5,7 @@ import {
 	QUOTE_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
-import { MarketAccount } from '../types';
+import { PerpMarketAccount } from '../types';
 import { calculateMarkPrice } from './market';
 import { OraclePriceData } from '../oracles/types';
 
@@ -17,7 +17,7 @@ import { OraclePriceData } from '../oracles/types';
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
 export async function calculateAllEstimatedFundingRate(
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	oraclePriceData?: OraclePriceData,
 	periodAdjustment: BN = new BN(1)
 ): Promise<[BN, BN, BN, BN, BN]> {
@@ -208,7 +208,7 @@ export async function calculateAllEstimatedFundingRate(
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
 export async function calculateEstimatedFundingRate(
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	oraclePriceData?: OraclePriceData,
 	periodAdjustment: BN = new BN(1),
 	estimationMethod?: 'interpolated' | 'lowerbound' | 'capped'
@@ -238,7 +238,7 @@ export async function calculateEstimatedFundingRate(
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
 export async function calculateLongShortFundingRate(
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	oraclePriceData?: OraclePriceData,
 	periodAdjustment: BN = new BN(1)
 ): Promise<[BN, BN]> {
@@ -266,7 +266,7 @@ export async function calculateLongShortFundingRate(
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
 export async function calculateLongShortFundingRateAndLiveTwaps(
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	oraclePriceData?: OraclePriceData,
 	periodAdjustment: BN = new BN(1)
 ): Promise<[BN, BN, BN, BN]> {
@@ -291,7 +291,7 @@ export async function calculateLongShortFundingRateAndLiveTwaps(
  * @param market
  * @returns Estimated fee pool size
  */
-export function calculateFundingPool(market: MarketAccount): BN {
+export function calculateFundingPool(market: PerpMarketAccount): BN {
 	// todo
 	const totalFeeLB = market.amm.totalExchangeFee.div(new BN(2));
 	const feePool = BN.max(

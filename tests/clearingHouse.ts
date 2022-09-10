@@ -21,7 +21,7 @@ import {
 	PositionDirection,
 	getMarketPublicKey,
 	EventSubscriber,
-	QUOTE_ASSET_BANK_INDEX,
+	QUOTE_SPOT_MARKET_INDEX,
 } from '../sdk/src';
 
 import {
@@ -29,7 +29,7 @@ import {
 	mockUserUSDCAccount,
 	mockOracle,
 	setFeedPrice,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 	getTokenAmountAsBN,
 	mintUSDCToUser,
 	printTxLogs,
@@ -77,8 +77,8 @@ describe('clearing_house', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: [new BN(0)],
-			bankIndexes: [new BN(0)],
+			perpMarketIndexes: [new BN(0)],
+			spotMarketIndexes: [new BN(0)],
 			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
 			userStats: true,
 		});
@@ -101,7 +101,7 @@ describe('clearing_house', () => {
 		const expectedSigner = clearingHouse.getSignerPublicKey();
 		assert(state.signer.equals(expectedSigner));
 
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 	});
 
 	it('Initialize Market', async () => {
@@ -125,7 +125,7 @@ describe('clearing_house', () => {
 			clearingHouse.program.programId,
 			marketIndex
 		);
-		const market = (await clearingHouse.program.account.market.fetch(
+		const market = (await clearingHouse.program.account.perpMarket.fetch(
 			marketPublicKey
 		)) as MarketAccount;
 
@@ -162,22 +162,22 @@ describe('clearing_house', () => {
 		assert(depositTokenAmount.eq(usdcAmount));
 		assert(
 			isVariant(
-				clearingHouse.getUserBankBalance(QUOTE_ASSET_BANK_INDEX).balanceType,
+				clearingHouse.getSpotPosition(QUOTE_SPOT_MARKET_INDEX).balanceType,
 				'deposit'
 			)
 		);
 
 		// Check that clearing house collateral account has proper collateral
-		const quoteAssetBankVault = await getTokenAccount(
+		const quoteSpotVault = await getTokenAccount(
 			provider,
-			clearingHouse.getQuoteAssetBankAccount().vault
+			clearingHouse.getQuoteSpotMarketAccount().vault
 		);
-		assert.ok(quoteAssetBankVault.amount.eq(usdcAmount));
+		assert.ok(quoteSpotVault.amount.eq(usdcAmount));
 
-		assert.ok(user.positions.length == 5);
-		assert.ok(user.positions[0].baseAssetAmount.toNumber() === 0);
-		assert.ok(user.positions[0].quoteEntryAmount.toNumber() === 0);
-		assert.ok(user.positions[0].lastCumulativeFundingRate.toNumber() === 0);
+		assert.ok(user.perpPositions.length == 5);
+		assert.ok(user.perpPositions[0].baseAssetAmount.toNumber() === 0);
+		assert.ok(user.perpPositions[0].quoteEntryAmount.toNumber() === 0);
+		assert.ok(user.perpPositions[0].lastCumulativeFundingRate.toNumber() === 0);
 
 		await eventSubscriber.awaitTx(txSig);
 		const depositRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
@@ -195,7 +195,7 @@ describe('clearing_house', () => {
 	it('Withdraw Collateral', async () => {
 		const txSig = await clearingHouse.withdraw(
 			usdcAmount,
-			QUOTE_ASSET_BANK_INDEX,
+			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey,
 			true
 		);
@@ -204,11 +204,11 @@ describe('clearing_house', () => {
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(ZERO));
 
 		// Check that clearing house collateral account has proper collateral]
-		const quoteAssetBankVaultAmount = await getTokenAmountAsBN(
+		const quoteSpotVaultAmount = await getTokenAmountAsBN(
 			connection,
-			clearingHouse.getQuoteAssetBankAccount().vault
+			clearingHouse.getQuoteSpotMarketAccount().vault
 		);
-		assert.ok(quoteAssetBankVaultAmount.eq(ZERO));
+		assert.ok(quoteSpotVaultAmount.eq(ZERO));
 
 		const userUSDCtoken = await getTokenAmountAsBN(
 			connection,
@@ -233,7 +233,7 @@ describe('clearing_house', () => {
 		// Re-Deposit USDC, assuming we have 0 balance here
 		await clearingHouse.deposit(
 			usdcAmount,
-			QUOTE_ASSET_BANK_INDEX,
+			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
 		);
 
@@ -245,7 +245,7 @@ describe('clearing_house', () => {
 			marketIndex
 		);
 		await printTxLogs(connection, txSig);
-		const marketData = clearingHouse.getMarketAccount(0);
+		const marketData = clearingHouse.getPerpMarketAccount(0);
 		await setFeedPrice(anchor.workspace.Pyth, 1.01, marketData.amm.oracle);
 
 		await eventSubscriber.awaitTx(txSig);
@@ -276,10 +276,12 @@ describe('clearing_house', () => {
 				.data.fees.totalFeePaid.eq(new BN(48004))
 		);
 
-		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(-48004609)));
-		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(480000000000000)));
+		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(-48004609)));
+		assert.ok(
+			user.perpPositions[0].baseAssetAmount.eq(new BN(480000000000000))
+		);
 
-		const market = clearingHouse.getMarketAccount(0);
+		const market = clearingHouse.getPerpMarketAccount(0);
 		console.log(market.amm.netBaseAssetAmount.toNumber());
 		console.log(market);
 
@@ -306,7 +308,9 @@ describe('clearing_house', () => {
 		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(48004609)));
 		assert.ok(orderActionRecord.marketIndex.eq(marketIndex));
 
-		assert(clearingHouse.getMarketAccount(0).nextFillRecordId.eq(new BN(2)));
+		assert(
+			clearingHouse.getPerpMarketAccount(0).nextFillRecordId.eq(new BN(2))
+		);
 	});
 
 	it('Withdraw fails due to insufficient collateral', async () => {
@@ -322,7 +326,7 @@ describe('clearing_house', () => {
 		try {
 			await clearingHouse.withdraw(
 				usdcAmount,
-				QUOTE_ASSET_BANK_INDEX,
+				QUOTE_SPOT_MARKET_INDEX,
 				userUSDCAccount.publicKey
 			);
 			assert(false, 'Withdrawal succeeded');
@@ -355,17 +359,19 @@ describe('clearing_house', () => {
 		const user = clearingHouse.getUserAccount();
 		console.log(
 			'quoteAssetAmount:',
-			user.positions[0].quoteAssetAmount.toNumber()
+			user.perpPositions[0].quoteAssetAmount.toNumber()
 		);
 		console.log(
 			'quoteEntryAmount:',
-			user.positions[0].quoteEntryAmount.toNumber()
+			user.perpPositions[0].quoteEntryAmount.toNumber()
 		);
 
-		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(-24073160)));
-		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(-24002305)));
+		assert.ok(user.perpPositions[0].quoteAssetAmount.eq(new BN(-24073160)));
+		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(-24002305)));
 
-		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(240000000000000)));
+		assert.ok(
+			user.perpPositions[0].baseAssetAmount.eq(new BN(240000000000000))
+		);
 		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(10000000)));
 		assert(
@@ -375,7 +381,7 @@ describe('clearing_house', () => {
 				.data.fees.totalFeePaid.eq(new BN(72007))
 		);
 
-		const market = clearingHouse.getMarketAccount(0);
+		const market = clearingHouse.getPerpMarketAccount(0);
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(240000000000000)));
 		assert.ok(market.amm.totalFee.eq(new BN(72007)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(72007)));
@@ -400,7 +406,7 @@ describe('clearing_house', () => {
 	});
 
 	it('Reverse long position', async () => {
-		const marketData = clearingHouse.getMarketAccount(0);
+		const marketData = clearingHouse.getPerpMarketAccount(0);
 		await setFeedPrice(anchor.workspace.Pyth, 1.0, marketData.amm.oracle);
 
 		const baseAssetAmount = new BN(480000000000000);
@@ -421,11 +427,11 @@ describe('clearing_house', () => {
 		const user = clearingHouse.getUserAccount();
 		console.log(
 			'quoteAssetAmount:',
-			user.positions[0].quoteAssetAmount.toNumber()
+			user.perpPositions[0].quoteAssetAmount.toNumber()
 		);
 		console.log(
 			'quoteEntryAmount:',
-			user.positions[0].quoteEntryAmount.toNumber()
+			user.perpPositions[0].quoteEntryAmount.toNumber()
 		);
 		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9878840)));
@@ -435,14 +441,16 @@ describe('clearing_house', () => {
 				.getAccountAndSlot()
 				.data.fees.totalFeePaid.eq(new BN(120007))
 		);
-		console.log(user.positions[0].quoteEntryAmount.toString());
+		console.log(user.perpPositions[0].quoteEntryAmount.toString());
 
-		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(24000000)));
-		assert.ok(user.positions[0].quoteAssetAmount.eq(new BN(24000000)));
-		console.log(user.positions[0].baseAssetAmount.toString());
-		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(-240000000000000)));
+		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(24000000)));
+		assert.ok(user.perpPositions[0].quoteAssetAmount.eq(new BN(24000000)));
+		console.log(user.perpPositions[0].baseAssetAmount.toString());
+		assert.ok(
+			user.perpPositions[0].baseAssetAmount.eq(new BN(-240000000000000))
+		);
 
-		const market = clearingHouse.getMarketAccount(0);
+		const market = clearingHouse.getPerpMarketAccount(0);
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-240000000000000)));
 		assert.ok(market.amm.totalFee.eq(new BN(120007)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120007)));
@@ -480,8 +488,8 @@ describe('clearing_house', () => {
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
-		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(0)));
-		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(0)));
+		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(0)));
+		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(0)));
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9855993)));
 		assert(
 			clearingHouse
@@ -490,7 +498,7 @@ describe('clearing_house', () => {
 				.data.fees.totalFeePaid.eq(new BN(144005))
 		);
 
-		const market = clearingHouse.getMarketAccount(0);
+		const market = clearingHouse.getPerpMarketAccount(0);
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(0)));
 		assert.ok(market.amm.totalFee.eq(new BN(144005)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(144005)));
@@ -525,11 +533,13 @@ describe('clearing_house', () => {
 		const user = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
-		console.log(user.positions[0].quoteEntryAmount.toString());
-		assert.ok(user.positions[0].quoteEntryAmount.eq(new BN(47995392)));
-		assert.ok(user.positions[0].baseAssetAmount.eq(new BN(-480000000000000)));
+		console.log(user.perpPositions[0].quoteEntryAmount.toString());
+		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(47995392)));
+		assert.ok(
+			user.perpPositions[0].baseAssetAmount.eq(new BN(-480000000000000))
+		);
 
-		const market = clearingHouse.getMarketAccount(0);
+		const market = clearingHouse.getPerpMarketAccount(0);
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-480000000000000)));
 
 		await eventSubscriber.awaitTx(txSig);
@@ -555,14 +565,15 @@ describe('clearing_house', () => {
 
 		await clearingHouse.deposit(
 			usdcAmount,
-			QUOTE_ASSET_BANK_INDEX,
+			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
 		);
 
 		try {
 			await clearingHouse.openPosition(
 				PositionDirection.LONG,
-				clearingHouse.getMarketAccount(new BN(0)).amm.baseAssetAmountStepSize,
+				clearingHouse.getPerpMarketAccount(new BN(0)).amm
+					.baseAssetAmountStepSize,
 				new BN(0)
 			);
 		} catch (e) {
@@ -573,7 +584,7 @@ describe('clearing_house', () => {
 	it('Short order succeeds due to realiziable limit price ', async () => {
 		const baseAssetAmount = BASE_PRECISION;
 		const marketIndex = new BN(0);
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		const estTradePrice = calculateTradeSlippage(
 			PositionDirection.SHORT,
 			baseAssetAmount,
@@ -598,7 +609,7 @@ describe('clearing_house', () => {
 	it('Long order succeeds due to realiziable limit price ', async () => {
 		const baseAssetAmount = BASE_PRECISION;
 		const marketIndex = new BN(0);
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		const estTradePrice = calculateTradeSlippage(
 			PositionDirection.LONG,
 			baseAssetAmount,

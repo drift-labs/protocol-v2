@@ -22,7 +22,7 @@ import {
 } from '../sdk/src';
 
 import {
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
@@ -85,7 +85,7 @@ describe('stop limit', () => {
 		btcUsd = await mockOracle(60000);
 
 		const marketIndexes = [marketIndex];
-		const bankIndexes = [new BN(0)];
+		const spotMarketIndexes = [new BN(0)];
 		const oracleInfos = [
 			{
 				publicKey: solUsd,
@@ -105,13 +105,13 @@ describe('stop limit', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -182,8 +182,8 @@ describe('stop limit', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await fillerClearingHouse.subscribe();
@@ -263,7 +263,7 @@ describe('stop limit', () => {
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
-		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
+		const firstPosition = clearingHouseUser.getUserAccount().perpPositions[0];
 		const expectedBaseAssetAmount = new BN(0);
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
 
@@ -348,7 +348,7 @@ describe('stop limit', () => {
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
-		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
+		const firstPosition = clearingHouseUser.getUserAccount().perpPositions[0];
 		const expectedBaseAssetAmount = new BN(0);
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
 

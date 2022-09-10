@@ -11,11 +11,11 @@ import {
 	convertToNumber,
 	calculateTradeSlippage,
 	BulkAccountLoader,
-	Markets,
+	PerpMarkets,
 	MARK_PRICE_PRECISION,
 	QUOTE_PRECISION,
 } from '..';
-import { Banks } from '../constants/banks';
+import { SpotMarkets } from '../constants/spotMarkets';
 
 export const getTokenAddress = (
 	mintAddress: string,
@@ -76,8 +76,10 @@ const main = async () => {
 		connection,
 		wallet: provider.wallet,
 		programID: clearingHousePublicKey,
-		marketIndexes: Markets[cluster].map((market) => market.marketIndex),
-		bankIndexes: Banks[cluster].map((bank) => bank.bankIndex),
+		perpMarketIndexes: PerpMarkets[cluster].map((market) => market.marketIndex),
+		spotMarketIndexes: SpotMarkets[cluster].map(
+			(spotMarket) => spotMarket.marketIndex
+		),
 		accountSubscription: {
 			type: 'polling',
 			accountLoader: bulkAccountLoader,
@@ -107,19 +109,19 @@ const main = async () => {
 				usdcTokenAddress.toString(),
 				wallet.publicKey.toString()
 			),
-			Banks['devnet'][0].bankIndex
+			SpotMarkets['devnet'][0].marketIndex
 		);
 	}
 
 	await user.subscribe();
 
 	// Get current price
-	const solMarketInfo = sdkConfig.MARKETS.find(
+	const solMarketInfo = sdkConfig.PERP_MARKETS.find(
 		(market) => market.baseAssetSymbol === 'SOL'
 	);
 
 	const currentMarketPrice = calculateMarkPrice(
-		clearingHouse.getMarketAccount(solMarketInfo.marketIndex),
+		clearingHouse.getPerpMarketAccount(solMarketInfo.marketIndex),
 		undefined
 	);
 
@@ -131,7 +133,7 @@ const main = async () => {
 	console.log(`Current Market Price is $${formattedPrice}`);
 
 	// Estimate the slippage for a $5000 LONG trade
-	const solMarketAccount = clearingHouse.getMarketAccount(
+	const solMarketAccount = clearingHouse.getPerpMarketAccount(
 		solMarketInfo.marketIndex
 	);
 

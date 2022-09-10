@@ -1,7 +1,7 @@
 import { squareRootBN } from './utils';
 import {
-	BANK_WEIGHT_PRECISION,
-	BANK_IMF_PRECISION,
+	SPOT_MARKET_WEIGHT_PRECISION,
+	SPOT_MARKET_IMF_PRECISION,
 	ZERO,
 	BID_ASK_SPREAD_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
@@ -9,7 +9,7 @@ import {
 } from '../constants/numericConstants';
 import { BN } from '@project-serum/anchor';
 import { OraclePriceData } from '../oracles/types';
-import { MarketAccount, UserPosition } from '..';
+import { PerpMarketAccount, PerpPosition } from '..';
 
 export function calculateSizePremiumLiabilityWeight(
 	size: BN, // AMM_RESERVE_PRECISION
@@ -23,13 +23,15 @@ export function calculateSizePremiumLiabilityWeight(
 
 	const sizeSqrt = squareRootBN(size.div(new BN(1000)).add(new BN(1))); //1e13 -> 1e10 -> 1e5
 	const liabilityWeightNumerator = liabilityWeight.sub(
-		liabilityWeight.div(BN.max(new BN(1), BANK_IMF_PRECISION.div(imfFactor)))
+		liabilityWeight.div(
+			BN.max(new BN(1), SPOT_MARKET_IMF_PRECISION.div(imfFactor))
+		)
 	);
 
 	const sizePremiumLiabilityWeight = liabilityWeightNumerator.add(
 		sizeSqrt // 1e5
 			.mul(imfFactor)
-			.div(new BN(100_000).mul(BANK_IMF_PRECISION).div(precision)) // 1e5
+			.div(new BN(100_000).mul(SPOT_MARKET_IMF_PRECISION).div(precision)) // 1e5
 	);
 
 	const maxLiabilityWeight = BN.max(
@@ -49,17 +51,19 @@ export function calculateSizeDiscountAssetWeight(
 	}
 
 	const sizeSqrt = squareRootBN(size.div(new BN(1000)).add(new BN(1))); //1e13 -> 1e10 -> 1e5
-	const imfNumerator = BANK_IMF_PRECISION.add(
-		BANK_IMF_PRECISION.div(new BN(10))
+	const imfNumerator = SPOT_MARKET_IMF_PRECISION.add(
+		SPOT_MARKET_IMF_PRECISION.div(new BN(10))
 	);
 
-	const sizeDiscountAssetWeight = imfNumerator.mul(BANK_WEIGHT_PRECISION).div(
-		BANK_IMF_PRECISION.add(
-			sizeSqrt // 1e5
-				.mul(imfFactor)
-				.div(new BN(100_000)) // 1e5
-		)
-	);
+	const sizeDiscountAssetWeight = imfNumerator
+		.mul(SPOT_MARKET_WEIGHT_PRECISION)
+		.div(
+			SPOT_MARKET_IMF_PRECISION.add(
+				sizeSqrt // 1e5
+					.mul(imfFactor)
+					.div(new BN(100_000)) // 1e5
+			)
+		);
 
 	const minAssetWeight = BN.min(assetWeight, sizeDiscountAssetWeight);
 
@@ -67,8 +71,8 @@ export function calculateSizeDiscountAssetWeight(
 }
 
 export function calculateOraclePriceForPerpMargin(
-	marketPosition: UserPosition,
-	market: MarketAccount,
+	marketPosition: PerpPosition,
+	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
 	const oraclePriceOffset = BN.min(
@@ -93,8 +97,8 @@ export function calculateOraclePriceForPerpMargin(
 }
 
 export function calculateBaseAssetValueWithOracle(
-	market: MarketAccount,
-	marketPosition: UserPosition,
+	market: PerpMarketAccount,
+	marketPosition: PerpPosition,
 	oraclePriceData: OraclePriceData
 ): BN {
 	return marketPosition.baseAssetAmount
@@ -104,7 +108,7 @@ export function calculateBaseAssetValueWithOracle(
 }
 
 export function calculateWorstCaseBaseAssetAmount(
-	marketPosition: UserPosition
+	marketPosition: PerpPosition
 ): BN {
 	const allBids = marketPosition.baseAssetAmount.add(marketPosition.openBids);
 	const allAsks = marketPosition.baseAssetAmount.add(marketPosition.openAsks);

@@ -54,20 +54,20 @@
       ]
     },
     {
-      "name": "initializeBank",
+      "name": "initializeSpotMarket",
       "accounts": [
         {
-          "name": "bank",
+          "name": "spotMarket",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "bankMint",
+          "name": "spotMarketMint",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "bankVault",
+          "name": "spotMarketVault",
           "isMut": true,
           "isSigner": false
         },
@@ -161,12 +161,12 @@
       "name": "initializeSerumFulfillmentConfig",
       "accounts": [
         {
-          "name": "baseBank",
+          "name": "baseSpotMarket",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "quoteBank",
+          "name": "quoteSpotMarket",
           "isMut": false,
           "isSigner": false
         },
@@ -318,7 +318,7 @@
           "isSigner": true
         },
         {
-          "name": "bankVault",
+          "name": "spotMarketVault",
           "isMut": true,
           "isSigner": false
         },
@@ -335,7 +335,7 @@
       ],
       "args": [
         {
-          "name": "bankIndex",
+          "name": "marketIndex",
           "type": "u64"
         },
         {
@@ -372,7 +372,7 @@
           "isSigner": true
         },
         {
-          "name": "bankVault",
+          "name": "spotMarketVault",
           "isMut": true,
           "isSigner": false
         },
@@ -394,7 +394,7 @@
       ],
       "args": [
         {
-          "name": "bankIndex",
+          "name": "marketIndex",
           "type": "u64"
         },
         {
@@ -438,7 +438,7 @@
       ],
       "args": [
         {
-          "name": "bankIndex",
+          "name": "marketIndex",
           "type": "u64"
         },
         {
@@ -448,10 +448,10 @@
       ]
     },
     {
-      "name": "updateBankCumulativeInterest",
+      "name": "updateSpotMarketCumulativeInterest",
       "accounts": [
         {
-          "name": "bank",
+          "name": "spotMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -995,11 +995,11 @@
       ],
       "args": [
         {
-          "name": "assetBankIndex",
+          "name": "assetMarketIndex",
           "type": "u64"
         },
         {
-          "name": "liabilityBankIndex",
+          "name": "liabilityMarketIndex",
           "type": "u64"
         },
         {
@@ -1038,7 +1038,7 @@
           "type": "u64"
         },
         {
-          "name": "liabilityBankIndex",
+          "name": "spotMarketIndex",
           "type": "u64"
         },
         {
@@ -1077,7 +1077,7 @@
           "type": "u64"
         },
         {
-          "name": "assetBankIndex",
+          "name": "spotMarketIndex",
           "type": "u64"
         },
         {
@@ -1110,7 +1110,7 @@
           "isSigner": false
         },
         {
-          "name": "bankVault",
+          "name": "spotMarketVault",
           "isMut": true,
           "isSigner": false
         },
@@ -1132,7 +1132,7 @@
       ],
       "args": [
         {
-          "name": "bankIndex",
+          "name": "quoteSpotMarketIndex",
           "type": "u64"
         },
         {
@@ -1165,7 +1165,7 @@
           "isSigner": false
         },
         {
-          "name": "bankVault",
+          "name": "spotMarketVault",
           "isMut": true,
           "isSigner": false
         },
@@ -1187,7 +1187,7 @@
       ],
       "args": [
         {
-          "name": "bankIndex",
+          "name": "marketIndex",
           "type": "u64"
         }
       ]
@@ -1236,12 +1236,12 @@
           "isSigner": true
         },
         {
-          "name": "bank",
+          "name": "spotMarket",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "bankVault",
+          "name": "spotMarketVault",
           "isMut": true,
           "isSigner": false
         },
@@ -1251,7 +1251,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         },
@@ -1343,12 +1343,12 @@
           "isSigner": false
         },
         {
-          "name": "bank",
+          "name": "quoteSpotMarket",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "bankVault",
+          "name": "spotMarketVault",
           "isMut": true,
           "isSigner": false
         },
@@ -1695,7 +1695,7 @@
       ]
     },
     {
-      "name": "updateBankInsuranceWithdrawEscrowPeriod",
+      "name": "updateInsuranceWithdrawEscrowPeriod",
       "accounts": [
         {
           "name": "admin",
@@ -1708,7 +1708,7 @@
           "isSigner": false
         },
         {
-          "name": "bank",
+          "name": "spotMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -1721,7 +1721,7 @@
       ]
     },
     {
-      "name": "updateBankLiquidationFee",
+      "name": "updateSpotMarketLiquidationFee",
       "accounts": [
         {
           "name": "admin",
@@ -1734,7 +1734,7 @@
           "isSigner": false
         },
         {
-          "name": "bank",
+          "name": "spotMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -1747,7 +1747,7 @@
       ]
     },
     {
-      "name": "updateBankWithdrawGuardThreshold",
+      "name": "updateWithdrawGuardThreshold",
       "accounts": [
         {
           "name": "admin",
@@ -1760,7 +1760,7 @@
           "isSigner": false
         },
         {
-          "name": "bank",
+          "name": "spotMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -1773,7 +1773,7 @@
       ]
     },
     {
-      "name": "updateBankIfFactor",
+      "name": "updateSpotMarketIfFactor",
       "accounts": [
         {
           "name": "admin",
@@ -1786,14 +1786,14 @@
           "isSigner": false
         },
         {
-          "name": "bank",
+          "name": "spotMarket",
           "isMut": true,
           "isSigner": false
         }
       ],
       "args": [
         {
-          "name": "bankIndex",
+          "name": "spotMarketIndex",
           "type": "u64"
         },
         {
@@ -1811,7 +1811,7 @@
       ]
     },
     {
-      "name": "updateBankRevenueSettlePeriod",
+      "name": "updateSpotMarketRevenueSettlePeriod",
       "accounts": [
         {
           "name": "admin",
@@ -1824,7 +1824,7 @@
           "isSigner": false
         },
         {
-          "name": "bank",
+          "name": "spotMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2494,7 +2494,7 @@
       "name": "initializeInsuranceFundStake",
       "accounts": [
         {
-          "name": "bank",
+          "name": "spotMarket",
           "isMut": false,
           "isSigner": false
         },
@@ -2536,7 +2536,7 @@
       ],
       "args": [
         {
-          "name": "bankIndex",
+          "name": "marketIndex",
           "type": "u64"
         }
       ]
@@ -2550,12 +2550,12 @@
           "isSigner": false
         },
         {
-          "name": "bank",
+          "name": "spotMarket",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "bankVault",
+          "name": "spotMarketVault",
           "isMut": true,
           "isSigner": false
         },
@@ -2577,7 +2577,7 @@
       ],
       "args": [
         {
-          "name": "bankIndex",
+          "name": "marketIndex",
           "type": "u64"
         }
       ]
@@ -2586,7 +2586,7 @@
       "name": "addInsuranceFundStake",
       "accounts": [
         {
-          "name": "bank",
+          "name": "spotMarket",
           "isMut": false,
           "isSigner": false
         },
@@ -2623,7 +2623,7 @@
       ],
       "args": [
         {
-          "name": "bankIndex",
+          "name": "marketIndex",
           "type": "u64"
         },
         {
@@ -2636,7 +2636,7 @@
       "name": "requestRemoveInsuranceFundStake",
       "accounts": [
         {
-          "name": "bank",
+          "name": "spotMarket",
           "isMut": false,
           "isSigner": false
         },
@@ -2663,7 +2663,7 @@
       ],
       "args": [
         {
-          "name": "bankIndex",
+          "name": "marketIndex",
           "type": "u64"
         },
         {
@@ -2676,7 +2676,7 @@
       "name": "cancelRequestRemoveInsuranceFundStake",
       "accounts": [
         {
-          "name": "bank",
+          "name": "spotMarket",
           "isMut": false,
           "isSigner": false
         },
@@ -2703,7 +2703,7 @@
       ],
       "args": [
         {
-          "name": "bankIndex",
+          "name": "marketIndex",
           "type": "u64"
         }
       ]
@@ -2717,7 +2717,7 @@
           "isSigner": false
         },
         {
-          "name": "bank",
+          "name": "spotMarket",
           "isMut": false,
           "isSigner": false
         },
@@ -2759,7 +2759,7 @@
       ],
       "args": [
         {
-          "name": "bankIndex",
+          "name": "marketIndex",
           "type": "u64"
         }
       ]
@@ -2767,12 +2767,172 @@
   ],
   "accounts": [
     {
-      "name": "Bank",
+      "name": "InsuranceFundStake",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "bankIndex",
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "ifShares",
+            "type": "u128"
+          },
+          {
+            "name": "ifBase",
+            "type": "u128"
+          },
+          {
+            "name": "lastValidTs",
+            "type": "i64"
+          },
+          {
+            "name": "lastWithdrawRequestShares",
+            "type": "u128"
+          },
+          {
+            "name": "lastWithdrawRequestValue",
+            "type": "u64"
+          },
+          {
+            "name": "lastWithdrawRequestTs",
+            "type": "i64"
+          },
+          {
+            "name": "costBasis",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PerpMarket",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "pubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "initialized",
+            "type": "bool"
+          },
+          {
+            "name": "amm",
+            "type": {
+              "defined": "AMM"
+            }
+          },
+          {
+            "name": "baseAssetAmountLong",
+            "type": "i128"
+          },
+          {
+            "name": "baseAssetAmountShort",
+            "type": "i128"
+          },
+          {
+            "name": "openInterest",
+            "type": "u128"
+          },
+          {
+            "name": "marginRatioInitial",
+            "type": "u32"
+          },
+          {
+            "name": "marginRatioMaintenance",
+            "type": "u32"
+          },
+          {
+            "name": "nextFillRecordId",
+            "type": "u64"
+          },
+          {
+            "name": "nextFundingRateRecordId",
+            "type": "u64"
+          },
+          {
+            "name": "nextCurveRecordId",
+            "type": "u64"
+          },
+          {
+            "name": "pnlPool",
+            "type": {
+              "defined": "PoolBalance"
+            }
+          },
+          {
+            "name": "revenueWithdrawSinceLastSettle",
+            "type": "u128"
+          },
+          {
+            "name": "maxRevenueWithdrawPerPeriod",
+            "type": "u128"
+          },
+          {
+            "name": "lastRevenueWithdrawTs",
+            "type": "i64"
+          },
+          {
+            "name": "imfFactor",
+            "type": "u128"
+          },
+          {
+            "name": "unrealizedInitialAssetWeight",
+            "type": "u8"
+          },
+          {
+            "name": "unrealizedMaintenanceAssetWeight",
+            "type": "u8"
+          },
+          {
+            "name": "unrealizedImfFactor",
+            "type": "u128"
+          },
+          {
+            "name": "liquidationFee",
+            "type": "u128"
+          },
+          {
+            "name": "padding0",
+            "type": "u32"
+          },
+          {
+            "name": "padding1",
+            "type": "u128"
+          },
+          {
+            "name": "padding2",
+            "type": "u128"
+          },
+          {
+            "name": "padding3",
+            "type": "u128"
+          },
+          {
+            "name": "padding4",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SpotMarket",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketIndex",
             "type": "u64"
           },
           {
@@ -3013,166 +3173,6 @@
       }
     },
     {
-      "name": "InsuranceFundStake",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "authority",
-            "type": "publicKey"
-          },
-          {
-            "name": "bankIndex",
-            "type": "u64"
-          },
-          {
-            "name": "ifShares",
-            "type": "u128"
-          },
-          {
-            "name": "ifBase",
-            "type": "u128"
-          },
-          {
-            "name": "lastValidTs",
-            "type": "i64"
-          },
-          {
-            "name": "lastWithdrawRequestShares",
-            "type": "u128"
-          },
-          {
-            "name": "lastWithdrawRequestValue",
-            "type": "u64"
-          },
-          {
-            "name": "lastWithdrawRequestTs",
-            "type": "i64"
-          },
-          {
-            "name": "costBasis",
-            "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "Market",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          },
-          {
-            "name": "pubkey",
-            "type": "publicKey"
-          },
-          {
-            "name": "initialized",
-            "type": "bool"
-          },
-          {
-            "name": "amm",
-            "type": {
-              "defined": "AMM"
-            }
-          },
-          {
-            "name": "baseAssetAmountLong",
-            "type": "i128"
-          },
-          {
-            "name": "baseAssetAmountShort",
-            "type": "i128"
-          },
-          {
-            "name": "openInterest",
-            "type": "u128"
-          },
-          {
-            "name": "marginRatioInitial",
-            "type": "u32"
-          },
-          {
-            "name": "marginRatioMaintenance",
-            "type": "u32"
-          },
-          {
-            "name": "nextFillRecordId",
-            "type": "u64"
-          },
-          {
-            "name": "nextFundingRateRecordId",
-            "type": "u64"
-          },
-          {
-            "name": "nextCurveRecordId",
-            "type": "u64"
-          },
-          {
-            "name": "pnlPool",
-            "type": {
-              "defined": "PoolBalance"
-            }
-          },
-          {
-            "name": "revenueWithdrawSinceLastSettle",
-            "type": "u128"
-          },
-          {
-            "name": "maxRevenueWithdrawPerPeriod",
-            "type": "u128"
-          },
-          {
-            "name": "lastRevenueWithdrawTs",
-            "type": "i64"
-          },
-          {
-            "name": "imfFactor",
-            "type": "u128"
-          },
-          {
-            "name": "unrealizedInitialAssetWeight",
-            "type": "u8"
-          },
-          {
-            "name": "unrealizedMaintenanceAssetWeight",
-            "type": "u8"
-          },
-          {
-            "name": "unrealizedImfFactor",
-            "type": "u128"
-          },
-          {
-            "name": "liquidationFee",
-            "type": "u128"
-          },
-          {
-            "name": "padding0",
-            "type": "u32"
-          },
-          {
-            "name": "padding1",
-            "type": "u128"
-          },
-          {
-            "name": "padding2",
-            "type": "u128"
-          },
-          {
-            "name": "padding3",
-            "type": "u128"
-          },
-          {
-            "name": "padding4",
-            "type": "u128"
-          }
-        ]
-      }
-    },
-    {
       "name": "State",
       "type": {
         "kind": "struct",
@@ -3272,7 +3272,7 @@
             "type": "u64"
           },
           {
-            "name": "numberOfBanks",
+            "name": "numberOfSpotMarkets",
             "type": "u64"
           },
           {
@@ -3341,11 +3341,11 @@
             }
           },
           {
-            "name": "bankBalances",
+            "name": "spotPositions",
             "type": {
               "array": [
                 {
-                  "defined": "UserBankBalance"
+                  "defined": "SpotPosition"
                 },
                 8
               ]
@@ -3356,11 +3356,11 @@
             "type": "u64"
           },
           {
-            "name": "positions",
+            "name": "perpPositions",
             "type": {
               "array": [
                 {
-                  "defined": "MarketPosition"
+                  "defined": "PerpPosition"
                 },
                 5
               ]
@@ -3604,7 +3604,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "assetBankIndex",
+            "name": "assetMarketIndex",
             "type": "u64"
           },
           {
@@ -3616,7 +3616,7 @@
             "type": "u128"
           },
           {
-            "name": "liabilityBankIndex",
+            "name": "liabilityMarketIndex",
             "type": "u64"
           },
           {
@@ -3636,7 +3636,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "marketIndex",
+            "name": "perpMarketIndex",
             "type": "u64"
           },
           {
@@ -3648,7 +3648,7 @@
             "type": "u128"
           },
           {
-            "name": "liabilityBankIndex",
+            "name": "liabilityMarketIndex",
             "type": "u64"
           },
           {
@@ -3668,7 +3668,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "marketIndex",
+            "name": "perpMarketIndex",
             "type": "u64"
           },
           {
@@ -3680,7 +3680,7 @@
             "type": "u128"
           },
           {
-            "name": "assetBankIndex",
+            "name": "assetMarketIndex",
             "type": "u64"
           },
           {
@@ -3724,7 +3724,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "bankIndex",
+            "name": "marketIndex",
             "type": "u64"
           },
           {
@@ -3864,7 +3864,7 @@
           {
             "name": "marketPositionPerLp",
             "type": {
-              "defined": "MarketPosition"
+              "defined": "PerpPosition"
             }
           },
           {
@@ -3942,7 +3942,7 @@
           {
             "name": "marketPosition",
             "type": {
-              "defined": "MarketPosition"
+              "defined": "PerpPosition"
             }
           },
           {
@@ -4293,18 +4293,18 @@
       }
     },
     {
-      "name": "UserBankBalance",
+      "name": "SpotPosition",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "bankIndex",
+            "name": "marketIndex",
             "type": "u64"
           },
           {
             "name": "balanceType",
             "type": {
-              "defined": "BankBalanceType"
+              "defined": "SpotBalanceType"
             }
           },
           {
@@ -4327,7 +4327,7 @@
       }
     },
     {
-      "name": "MarketPosition",
+      "name": "PerpPosition",
       "type": {
         "kind": "struct",
         "fields": [
@@ -4655,34 +4655,6 @@
       }
     },
     {
-      "name": "BankBalanceType",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Deposit"
-          },
-          {
-            "name": "Borrow"
-          }
-        ]
-      }
-    },
-    {
-      "name": "SpotFulfillmentStatus",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Enabled"
-          },
-          {
-            "name": "Disabled"
-          }
-        ]
-      }
-    },
-    {
       "name": "DepositDirection",
       "type": {
         "kind": "enum",
@@ -4860,6 +4832,34 @@
       }
     },
     {
+      "name": "SpotBalanceType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Deposit"
+          },
+          {
+            "name": "Borrow"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SpotFulfillmentStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Enabled"
+          },
+          {
+            "name": "Disabled"
+          }
+        ]
+      }
+    },
+    {
       "name": "AssetType",
       "type": {
         "kind": "enum",
@@ -5014,7 +5014,7 @@
           "index": false
         },
         {
-          "name": "bankIndex",
+          "name": "marketIndex",
           "type": "u64",
           "index": false
         },
@@ -5720,7 +5720,7 @@
           "index": false
         },
         {
-          "name": "bankIndex",
+          "name": "marketIndex",
           "type": "u64",
           "index": false
         },
@@ -5735,7 +5735,7 @@
           "index": false
         },
         {
-          "name": "bankVaultAmountBefore",
+          "name": "vaultAmountBefore",
           "type": "u64",
           "index": false
         },
@@ -5787,7 +5787,7 @@
           "index": false
         },
         {
-          "name": "bankIndex",
+          "name": "marketIndex",
           "type": "u64",
           "index": false
         },
@@ -5832,8 +5832,8 @@
   "errors": [
     {
       "code": 6000,
-      "name": "InvalidBankAuthority",
-      "msg": "Invalid Bank Authority"
+      "name": "InvalidSpotMarketAuthority",
+      "msg": "Invalid Spot Market Authority"
     },
     {
       "code": 6001,
@@ -6172,53 +6172,53 @@
     },
     {
       "code": 6068,
-      "name": "CouldNotFindBankBalance",
-      "msg": "CouldNotFindBankBalance"
+      "name": "CouldNotFindSpotPosition",
+      "msg": "CouldNotFindSpotPosition"
     },
     {
       "code": 6069,
-      "name": "NoUserBankBalanceAvailable",
-      "msg": "NoUserBankBalanceAvailable"
+      "name": "NoSpotPositionAvailable",
+      "msg": "NoSpotPositionAvailable"
     },
     {
       "code": 6070,
-      "name": "InvalidBankInitialization",
-      "msg": "InvalidBankInitialization"
+      "name": "InvalidSpotMarketInitialization",
+      "msg": "InvalidSpotMarketInitialization"
     },
     {
       "code": 6071,
-      "name": "CouldNotLoadBankData",
-      "msg": "CouldNotLoadBankData"
+      "name": "CouldNotLoadSpotMarketData",
+      "msg": "CouldNotLoadSpotMarketData"
     },
     {
       "code": 6072,
-      "name": "BankNotFound",
-      "msg": "BankNotFound"
+      "name": "SpotMarketNotFound",
+      "msg": "SpotMarketNotFound"
     },
     {
       "code": 6073,
-      "name": "InvalidBankAccount",
-      "msg": "InvalidBankAccount"
+      "name": "InvalidSpotMarketAccount",
+      "msg": "InvalidSpotMarketAccount"
     },
     {
       "code": 6074,
-      "name": "UnableToLoadBankAccount",
-      "msg": "UnableToLoadBankAccount"
+      "name": "UnableToLoadSpotMarketAccount",
+      "msg": "UnableToLoadSpotMarketAccount"
     },
     {
       "code": 6075,
-      "name": "BankWrongMutability",
-      "msg": "BankWrongMutability"
+      "name": "SpotMarketWrongMutability",
+      "msg": "SpotMarketWrongMutability"
     },
     {
       "code": 6076,
-      "name": "BankInterestNotUpToDate",
-      "msg": "BankInterestNotUpToDate"
+      "name": "SpotMarketInterestNotUpToDate",
+      "msg": "SpotInterestNotUpToDate"
     },
     {
       "code": 6077,
-      "name": "BankInsufficientDeposits",
-      "msg": "BankInsufficientDeposits"
+      "name": "SpotMarketInsufficientDeposits",
+      "msg": "SpotMarketInsufficientDeposits"
     },
     {
       "code": 6078,
@@ -6352,8 +6352,8 @@
     },
     {
       "code": 6104,
-      "name": "WrongBankBalanceType",
-      "msg": "WrongBankBalanceType"
+      "name": "WrongSpotBalanceType",
+      "msg": "WrongSpotBalanceType"
     },
     {
       "code": 6105,
@@ -6397,8 +6397,8 @@
     },
     {
       "code": 6113,
-      "name": "BankDailyWithdrawLimit",
-      "msg": "BankDailyWithdrawLimit"
+      "name": "DailyWithdrawLimit",
+      "msg": "DailyWithdrawLimit"
     },
     {
       "code": 6114,
@@ -6427,13 +6427,13 @@
     },
     {
       "code": 6119,
-      "name": "InvalidBankVault",
-      "msg": "Invalid Bank Vault"
+      "name": "InvalidSpotMarketVault",
+      "msg": "Invalid Spot Market Vault"
     },
     {
       "code": 6120,
-      "name": "InvalidBankState",
-      "msg": "Invalid Bank State"
+      "name": "InvalidSpotMarketState",
+      "msg": "Invalid Spot Market State"
     },
     {
       "code": 6121,

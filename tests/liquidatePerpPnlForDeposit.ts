@@ -23,10 +23,10 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPrice,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
-	initializeSolAssetBank,
+	initializeSolSpotMarket,
 	printTxLogs,
 } from './testHelpers';
 import { isVariant } from '../sdk';
@@ -84,8 +84,8 @@ describe('liquidate perp pnl for deposit', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: [new BN(0)],
-			bankIndexes: [new BN(0), new BN(1)],
+			perpMarketIndexes: [new BN(0)],
+			spotMarketIndexes: [new BN(0), new BN(1)],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
@@ -97,8 +97,8 @@ describe('liquidate perp pnl for deposit', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		await initializeSolAssetBank(clearingHouse, solOracle);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
+		await initializeSolSpotMarket(clearingHouse, solOracle);
 		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(0);
@@ -150,10 +150,10 @@ describe('liquidate perp pnl for deposit', () => {
 			);
 		await liquidatorClearingHouse.subscribe();
 
-		const bankIndex = new BN(1);
+		const spotMarketIndex = new BN(1);
 		await liquidatorClearingHouse.deposit(
 			solAmount,
-			bankIndex,
+			spotMarketIndex,
 			liquidatorClearingHouseWSOLAccount
 		);
 		const solBorrow = new BN(5 * 10 ** 8);
@@ -192,7 +192,7 @@ describe('liquidate perp pnl for deposit', () => {
 
 		assert(clearingHouse.getUserAccount().beingLiquidated);
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
-		assert(clearingHouse.getUserAccount().bankBalances[0].balance.eq(ZERO));
+		assert(clearingHouse.getUserAccount().spotPositions[0].balance.eq(ZERO));
 
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
@@ -206,7 +206,9 @@ describe('liquidate perp pnl for deposit', () => {
 				new BN(50).mul(MARK_PRICE_PRECISION)
 			)
 		);
-		assert(liquidationRecord.liquidatePerpPnlForDeposit.marketIndex.eq(ZERO));
+		assert(
+			liquidationRecord.liquidatePerpPnlForDeposit.perpMarketIndex.eq(ZERO)
+		);
 		assert(
 			liquidationRecord.liquidatePerpPnlForDeposit.pnlTransfer.eq(
 				new BN(9011207)
@@ -218,7 +220,9 @@ describe('liquidate perp pnl for deposit', () => {
 			)
 		);
 		assert(
-			liquidationRecord.liquidatePerpPnlForDeposit.assetBankIndex.eq(new BN(0))
+			liquidationRecord.liquidatePerpPnlForDeposit.assetMarketIndex.eq(
+				new BN(0)
+			)
 		);
 		assert(
 			liquidationRecord.liquidatePerpPnlForDeposit.assetTransfer.eq(

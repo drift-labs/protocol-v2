@@ -102,13 +102,13 @@ export async function getSpotMarketPublicKey(
 
 export async function getSpotMarketVaultPublicKey(
 	programId: PublicKey,
-	bankIndex: BN
+	marketIndex: BN
 ): Promise<PublicKey> {
 	return (
 		await anchor.web3.PublicKey.findProgramAddress(
 			[
 				Buffer.from(anchor.utils.bytes.utf8.encode('spot_market_vault')),
-				bankIndex.toArrayLike(Buffer, 'le', 8),
+				marketIndex.toArrayLike(Buffer, 'le', 8),
 			],
 			programId
 		)
@@ -117,13 +117,13 @@ export async function getSpotMarketVaultPublicKey(
 
 export async function getInsuranceFundVaultPublicKey(
 	programId: PublicKey,
-	bankIndex: BN
+	marketIndex: BN
 ): Promise<PublicKey> {
 	return (
 		await anchor.web3.PublicKey.findProgramAddress(
 			[
 				Buffer.from(anchor.utils.bytes.utf8.encode('insurance_fund_vault')),
-				bankIndex.toArrayLike(Buffer, 'le', 8),
+				marketIndex.toArrayLike(Buffer, 'le', 8),
 			],
 			programId
 		)

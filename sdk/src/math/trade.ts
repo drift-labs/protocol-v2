@@ -1,4 +1,4 @@
-import { MarketAccount, PositionDirection } from '../types';
+import { PerpMarketAccount, PositionDirection } from '../types';
 import { BN } from '@project-serum/anchor';
 import { assert } from '../assert/assert';
 import {
@@ -59,7 +59,7 @@ export type PriceImpactUnit =
 export function calculateTradeSlippage(
 	direction: PositionDirection,
 	amount: BN,
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	inputAssetType: AssetType = 'quote',
 	oraclePriceData?: OraclePriceData,
 	useSpread = true
@@ -147,7 +147,7 @@ export function calculateTradeSlippage(
 export function calculateTradeAcquiredAmounts(
 	direction: PositionDirection,
 	amount: BN,
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	inputAssetType: AssetType = 'quote',
 	oraclePriceData: OraclePriceData,
 	useSpread = true
@@ -204,7 +204,7 @@ export function calculateTradeAcquiredAmounts(
  * ]
  */
 export function calculateTargetPriceTrade(
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	targetPrice: BN,
 	pct: BN = MAXPCT,
 	outputAssetType: AssetType = 'quote',

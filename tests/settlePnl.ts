@@ -15,14 +15,14 @@ import {
 	MAX_LEVERAGE,
 	getMarketPublicKey,
 	EventSubscriber,
-	QUOTE_ASSET_BANK_INDEX,
+	QUOTE_SPOT_MARKET_INDEX,
 } from '../sdk/src';
 
 import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	mockOracle,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 } from './testHelpers';
 
 const calculateTradeAmount = (amountOfCollateral: BN) => {
@@ -77,8 +77,8 @@ describe('clearing_house', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			marketIndexes: [new BN(0)],
-			bankIndexes: [new BN(0)],
+			perpMarketIndexes: [new BN(0)],
+			spotMarketIndexes: [new BN(0)],
 			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
 		});
 	});
@@ -107,7 +107,7 @@ describe('clearing_house', () => {
 		);
 		assert.ok(state.insuranceVaultNonce == expectedInsuranceAccountNonce);
 
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 	});
 
 	it('Initialize Market', async () => {
@@ -168,7 +168,7 @@ describe('clearing_house', () => {
 		assert(depositTokenAmount.eq(usdcAmount));
 		assert(
 			isVariant(
-				clearingHouse.getUserBankBalance(QUOTE_ASSET_BANK_INDEX).balanceType,
+				clearingHouse.getSpotPosition(QUOTE_SPOT_MARKET_INDEX).balanceType,
 				'deposit'
 			)
 		);
@@ -176,7 +176,7 @@ describe('clearing_house', () => {
 		// Check that clearing house collateral account has proper collateral
 		const quoteAssetBankVault = await getTokenAccount(
 			provider,
-			clearingHouse.getQuoteAssetBankAccount().vault
+			clearingHouse.getQuoteSpotMarketAccount().vault
 		);
 		assert.ok(quoteAssetBankVault.amount.eq(usdcAmount));
 
@@ -220,7 +220,7 @@ describe('clearing_house', () => {
 
 		await clearingHouse.fetchAccounts();
 
-		const market0 = clearingHouse.getMarketAccount(marketIndex);
+		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log(
 			'market0.amm.feePool.balance:',
 			market0.amm.feePool.balance.toString(),
@@ -236,7 +236,7 @@ describe('clearing_house', () => {
 		await userAccount.subscribe();
 		console.log(
 			'before unsettledPnl:',
-			user0.positions[0].unsettledPnl.toString()
+			user0.perpPositions[0].unsettledPnl.toString()
 		);
 
 		const unrealizedPnl = userAccount.getUnrealizedPNL(); //false, marketIndex);
@@ -245,11 +245,11 @@ describe('clearing_house', () => {
 		console.log('before unrealizedPnl:', unrealizedPnl.toString());
 		console.log(
 			'before quoteAssetAmount:',
-			user0.positions[0].quoteAssetAmount.toNumber()
+			user0.perpPositions[0].quoteAssetAmount.toNumber()
 		);
 		console.log(
 			'before quoteEntryAmount:',
-			user0.positions[0].quoteEntryAmount.toNumber()
+			user0.perpPositions[0].quoteEntryAmount.toNumber()
 		);
 
 		await clearingHouse.settlePNL(
@@ -260,10 +260,10 @@ describe('clearing_house', () => {
 
 		await clearingHouse.fetchAccounts();
 		await userAccount.fetchAccounts();
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 
-		const userBankBalance = clearingHouse.getUserBankBalance(
-			QUOTE_ASSET_BANK_INDEX
+		const userBankBalance = clearingHouse.getSpotPosition(
+			QUOTE_SPOT_MARKET_INDEX
 		);
 
 		console.log(
@@ -278,9 +278,9 @@ describe('clearing_house', () => {
 		const user = clearingHouse.getUserAccount();
 		console.log(
 			'after unsettledPnl:',
-			user.positions[0].unsettledPnl.toString()
+			user.perpPositions[0].unsettledPnl.toString()
 		);
-		assert(user.positions[0].unsettledPnl.eq(ZERO));
+		assert(user.perpPositions[0].unsettledPnl.eq(ZERO));
 
 		const unrealizedPnl2 = userAccount.getUnrealizedPNL(); //(false, marketIndex);
 
@@ -288,18 +288,18 @@ describe('clearing_house', () => {
 		assert(unrealizedPnl2.eq(ZERO));
 		console.log(
 			'quoteAssetAmount:',
-			user.positions[0].quoteAssetAmount.toNumber()
+			user.perpPositions[0].quoteAssetAmount.toNumber()
 		);
 		console.log(
 			'quoteEntryAmount:',
-			user.positions[0].quoteEntryAmount.toNumber()
+			user.perpPositions[0].quoteEntryAmount.toNumber()
 		);
 
-		const ogCostBasis = user.positions[0].quoteAssetAmount.add(
+		const ogCostBasis = user.perpPositions[0].quoteAssetAmount.add(
 			unrealizedPnl //.add(user0.positions[0].unsettledPnl)
 		);
 		console.log('ogCostBasis:', ogCostBasis.toString());
-		assert(ogCostBasis.eq(user.positions[0].quoteEntryAmount));
+		assert(ogCostBasis.eq(user.perpPositions[0].quoteEntryAmount));
 
 		const newTokenAmount = clearingHouse.getQuoteAssetTokenAmount();
 		console.log(
@@ -350,7 +350,7 @@ describe('clearing_house', () => {
 
 		await clearingHouse.fetchAccounts();
 
-		const market0 = clearingHouse.getMarketAccount(marketIndex);
+		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log(
 			'market0.amm.feePool.balance:',
 			market0.amm.feePool.balance.toString(),
@@ -366,7 +366,7 @@ describe('clearing_house', () => {
 		await userAccount.subscribe();
 		console.log(
 			'before unsettledPnl:',
-			user0.positions[0].unsettledPnl.toString()
+			user0.perpPositions[0].unsettledPnl.toString()
 		);
 
 		const unrealizedPnl = userAccount.getUnrealizedPNL(); //false, marketIndex);
@@ -375,11 +375,11 @@ describe('clearing_house', () => {
 		console.log('before unrealizedPnl:', unrealizedPnl.toString());
 		console.log(
 			'before quoteAssetAmount:',
-			user0.positions[0].quoteAssetAmount.toNumber()
+			user0.perpPositions[0].quoteAssetAmount.toNumber()
 		);
 		console.log(
 			'before quoteEntryAmount:',
-			user0.positions[0].quoteEntryAmount.toNumber()
+			user0.perpPositions[0].quoteEntryAmount.toNumber()
 		);
 
 		// close and
@@ -391,10 +391,10 @@ describe('clearing_house', () => {
 
 		await clearingHouse.fetchAccounts();
 		await userAccount.fetchAccounts();
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 
-		const userBankBalance = clearingHouse.getUserBankBalance(
-			QUOTE_ASSET_BANK_INDEX
+		const userBankBalance = clearingHouse.getSpotPosition(
+			QUOTE_SPOT_MARKET_INDEX
 		);
 
 		console.log(
@@ -409,9 +409,9 @@ describe('clearing_house', () => {
 		const user = clearingHouse.getUserAccount();
 		console.log(
 			'after unsettledPnl:',
-			user.positions[0].unsettledPnl.toString()
+			user.perpPositions[0].unsettledPnl.toString()
 		);
-		assert(user.positions[0].unsettledPnl.eq(ZERO));
+		assert(user.perpPositions[0].unsettledPnl.eq(ZERO));
 
 		const unrealizedPnl2 = userAccount.getUnrealizedPNL(); //(false, marketIndex);
 
@@ -419,16 +419,16 @@ describe('clearing_house', () => {
 		assert(unrealizedPnl2.eq(ZERO));
 		console.log(
 			'quoteAssetAmount:',
-			user.positions[0].quoteAssetAmount.toNumber()
+			user.perpPositions[0].quoteAssetAmount.toNumber()
 		);
 		console.log(
 			'quoteEntryAmount:',
-			user.positions[0].quoteEntryAmount.toNumber()
+			user.perpPositions[0].quoteEntryAmount.toNumber()
 		);
 
-		const ogCostBasis = user.positions[0].quoteAssetAmount;
+		const ogCostBasis = user.perpPositions[0].quoteAssetAmount;
 		console.log('ogCostBasis:', ogCostBasis.toString());
-		assert(ogCostBasis.eq(user.positions[0].quoteEntryAmount));
+		assert(ogCostBasis.eq(user.perpPositions[0].quoteEntryAmount));
 
 		const newTokenAmount = clearingHouse.getQuoteAssetTokenAmount();
 		console.log(

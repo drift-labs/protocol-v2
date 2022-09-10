@@ -32,7 +32,7 @@ import {
 	mockUserUSDCAccount,
 	mockUSDCMint,
 	setFeedPrice,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 	printTxLogs,
 } from './testHelpers';
 import {
@@ -129,13 +129,13 @@ describe('orders', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: bankIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -189,8 +189,8 @@ describe('orders', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: bankIndexes,
 			oracleInfos,
 		});
 		await fillerClearingHouse.subscribe();
@@ -220,8 +220,8 @@ describe('orders', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: bankIndexes,
 			oracleInfos,
 			userStats: true,
 		});
@@ -293,7 +293,7 @@ describe('orders', () => {
 		assert(order.orderId.eq(expectedOrderId));
 		assert(order.ts.gt(ZERO));
 
-		const position = clearingHouseUser.getUserAccount().positions[0];
+		const position = clearingHouseUser.getUserAccount().perpPositions[0];
 		const expectedOpenOrders = new BN(1);
 		assert(position.openOrders.eq(expectedOpenOrders));
 		assert(position.openBids.eq(baseAssetAmount));
@@ -324,7 +324,7 @@ describe('orders', () => {
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
-		const position = clearingHouseUser.getUserAccount().positions[0];
+		const position = clearingHouseUser.getUserAccount().perpPositions[0];
 		const expectedOpenOrders = new BN(0);
 		assert(position.openOrders.eq(expectedOpenOrders));
 		assert(position.openBids.eq(ZERO));
@@ -348,7 +348,7 @@ describe('orders', () => {
 		const price = MARK_PRICE_PRECISION.add(
 			MARK_PRICE_PRECISION.div(new BN(100))
 		);
-		const market0 = clearingHouse.getMarketAccount(marketIndex);
+		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 
 		console.log('markPrice:', calculateMarkPrice(market0).toString());
 
@@ -417,7 +417,7 @@ describe('orders', () => {
 				.eq(expectedFillerReward)
 		);
 
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log('markPrice After:', calculateMarkPrice(market).toString());
 
 		const expectedFeeToMarket = new BN(900);
@@ -429,7 +429,7 @@ describe('orders', () => {
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
-		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
+		const firstPosition = clearingHouseUser.getUserAccount().perpPositions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 		assert(firstPosition.openBids.eq(new BN(0)));
 
@@ -475,7 +475,7 @@ describe('orders', () => {
 			MARK_PRICE_PRECISION.div(new BN(10))
 		);
 		const triggerCondition = OrderTriggerCondition.ABOVE;
-		const market0 = clearingHouse.getMarketAccount(marketIndex);
+		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 
 		console.log('markPrice:', calculateMarkPrice(market0).toString());
 
@@ -559,7 +559,7 @@ describe('orders', () => {
 				.eq(expectedFillerReward)
 		);
 
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log('markPrice after:', calculateMarkPrice(market).toString());
 
 		const expectedFeeToMarket = new BN(1800);
@@ -571,7 +571,7 @@ describe('orders', () => {
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
-		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
+		const firstPosition = clearingHouseUser.getUserAccount().perpPositions[0];
 		const expectedBaseAssetAmount = new BN(0);
 		assert(firstPosition.baseAssetAmount.eq(expectedBaseAssetAmount));
 
@@ -615,7 +615,7 @@ describe('orders', () => {
 	it('Fail to fill limit short order', async () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		const limitPrice = calculateMarkPrice(market); // 0 liquidity at current mark price
 		const orderParams = getLimitOrderParams({
 			marketIndex,
@@ -672,7 +672,7 @@ describe('orders', () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		await clearingHouse.fetchAccounts();
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		const limitPrice = calculateMarkPrice(market).sub(new BN(10000)); // 0 liquidity at current mark price
 		const [newDirection, amountToPrice, _entryPrice, newMarkPrice] =
 			calculateTargetPriceTrade(market, limitPrice, new BN(1000), 'base');
@@ -731,7 +731,7 @@ describe('orders', () => {
 		await clearingHouseUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const market2 = clearingHouse.getMarketAccount(marketIndex);
+		const market2 = clearingHouse.getPerpMarketAccount(marketIndex);
 		const order2 = clearingHouseUser.getUserAccount().orders[0];
 		console.log(
 			'order filled: ',
@@ -740,7 +740,7 @@ describe('orders', () => {
 			convertToNumber(order2.baseAssetAmount)
 		);
 		console.log(order2);
-		const position = clearingHouseUser.getUserAccount().positions[0];
+		const position = clearingHouseUser.getUserAccount().perpPositions[0];
 		console.log(
 			'curPosition',
 			convertToNumber(position.baseAssetAmount, AMM_RESERVE_PRECISION)
@@ -784,7 +784,7 @@ describe('orders', () => {
 
 		const direction = PositionDirection.SHORT;
 
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		const limitPrice = calculateMarkPrice(market); // 0 liquidity at current mark price
 		const baseAssetAmount = new BN(275717238851000);
 		//long 50 base amount at $1 with ~$10 collateral (max leverage = 5x)
@@ -842,7 +842,8 @@ describe('orders', () => {
 
 		const standardizedBaseAssetAmount = standardizeBaseAssetAmount(
 			baseAssetAmount,
-			clearingHouse.getMarketAccount(marketIndex).amm.baseAssetAmountStepSize
+			clearingHouse.getPerpMarketAccount(marketIndex).amm
+				.baseAssetAmountStepSize
 		);
 		assert(
 			clearingHouseUser
@@ -867,7 +868,7 @@ describe('orders', () => {
 		assert(clearingHouseUser.getUserPosition(marketIndex).openBids.eq(ZERO));
 
 		const order1 = clearingHouseUser.getUserAccount().orders[0];
-		const newMarket1 = clearingHouse.getMarketAccount(marketIndex);
+		const newMarket1 = clearingHouse.getPerpMarketAccount(marketIndex);
 		const newMarkPrice1 = calculateMarkPrice(newMarket1); // 0 liquidity at current mark price
 
 		const userLeverage = clearingHouseUser.getLeverage();
@@ -898,7 +899,7 @@ describe('orders', () => {
 
 		const direction = PositionDirection.LONG;
 
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		const limitPrice = calculateMarkPrice(market); // 0 liquidity at current mark price
 		const baseAssetAmount = prePosition.baseAssetAmount.abs(); //new BN(AMM_RESERVE_PRECISION.mul(new BN(50)));
 		//long 50 base amount at $1 with ~$10 collateral (max leverage = 5x)
@@ -965,7 +966,7 @@ describe('orders', () => {
 		await fillerUser.fetchAccounts();
 
 		const orderPriceMove = clearingHouseUser.getUserAccount().orders[0];
-		const newMarketPriceMove = clearingHouse.getMarketAccount(marketIndex);
+		const newMarketPriceMove = clearingHouse.getPerpMarketAccount(marketIndex);
 		const newMarkPricePriceMove = calculateMarkPrice(newMarketPriceMove);
 
 		assert(clearingHouseUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
@@ -1010,7 +1011,7 @@ describe('orders', () => {
 		await fillerUser.fetchAccounts();
 
 		const order1 = clearingHouseUser.getUserAccount().orders[0];
-		const newMarket1 = clearingHouse.getMarketAccount(marketIndex);
+		const newMarket1 = clearingHouse.getPerpMarketAccount(marketIndex);
 		const newMarkPrice1 = calculateMarkPrice(newMarket1); // 0 liquidity at current mark price
 
 		const userLeverage = clearingHouseUser.getLeverage();
@@ -1054,7 +1055,7 @@ describe('orders', () => {
 
 		const direction = PositionDirection.LONG;
 
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		const limitPrice = calculateMarkPrice(market); // 0 liquidity at current mark price
 		const baseAssetAmount = new BN(377119100000000);
 		//long 50 base amount at $1 with ~$10 collateral (max leverage = 5x)
@@ -1134,7 +1135,7 @@ describe('orders', () => {
 		await fillerUser.fetchAccounts();
 
 		const order1 = clearingHouseUser.getUserAccount().orders[0];
-		const newMarket1 = clearingHouse.getMarketAccount(marketIndex);
+		const newMarket1 = clearingHouse.getPerpMarketAccount(marketIndex);
 		const newMarkPrice1 = calculateMarkPrice(newMarket1); // 0 liquidity at current mark price
 
 		const userLeverage = clearingHouseUser.getLeverage();
@@ -1170,7 +1171,7 @@ describe('orders', () => {
 		);
 		const direction = PositionDirection.SHORT;
 
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		// const limitPrice = calculateMarkPrice(market); // 0 liquidity at current mark price
 		const baseAssetAmount = prePosition.baseAssetAmount.abs().mul(new BN(2)); //new BN(AMM_RESERVE_PRECISION.mul(new BN(50)));
 		const limitPrice = calculateTradeSlippage(
@@ -1245,7 +1246,7 @@ describe('orders', () => {
 		await fillerUser.fetchAccounts();
 
 		const orderPriceMove = clearingHouseUser.getUserAccount().orders[0];
-		const newMarketPriceMove = clearingHouse.getMarketAccount(marketIndex);
+		const newMarketPriceMove = clearingHouse.getPerpMarketAccount(marketIndex);
 		const newMarkPricePriceMove = calculateMarkPrice(newMarketPriceMove);
 
 		const userLeveragePriceMove = clearingHouseUser.getLeverage();
@@ -1283,7 +1284,7 @@ describe('orders', () => {
 		await fillerUser.fetchAccounts();
 
 		const order1 = clearingHouseUser.getUserAccount().orders[0];
-		const newMarket1 = clearingHouse.getMarketAccount(marketIndex);
+		const newMarket1 = clearingHouse.getPerpMarketAccount(marketIndex);
 		const newMarkPrice1 = calculateMarkPrice(newMarket1); // 0 liquidity at current mark price
 
 		const userTC = clearingHouseUser.getTotalCollateral();
@@ -1344,7 +1345,7 @@ describe('orders', () => {
 
 		const direction = PositionDirection.LONG;
 
-		const market = clearingHouse.getMarketAccount(marketIndexBTC);
+		const market = clearingHouse.getPerpMarketAccount(marketIndexBTC);
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION.div(new BN(10000)));
 		const limitPrice = calculateTradeSlippage(
 			direction,
@@ -1418,7 +1419,7 @@ describe('orders', () => {
 			orderAfter.baseAssetAmountFilled
 		);
 		const stepSize =
-			clearingHouse.getMarketAccount(marketIndexBTC).amm
+			clearingHouse.getPerpMarketAccount(marketIndexBTC).amm
 				.baseAssetAmountStepSize;
 
 		assert(baseAssetAmountUnfilled.eq(stepSize));
@@ -1436,7 +1437,7 @@ describe('orders', () => {
 
 		const direction = PositionDirection.SHORT;
 
-		const market = clearingHouse.getMarketAccount(marketIndexBTC);
+		const market = clearingHouse.getPerpMarketAccount(marketIndexBTC);
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION.div(new BN(10000)));
 		const limitPrice = calculateTradeSlippage(
 			direction,
@@ -1510,7 +1511,7 @@ describe('orders', () => {
 			orderAfter.baseAssetAmountFilled
 		);
 		const stepSize =
-			clearingHouse.getMarketAccount(marketIndexBTC).amm
+			clearingHouse.getPerpMarketAccount(marketIndexBTC).amm
 				.baseAssetAmountStepSize;
 
 		assert(baseAssetAmountUnfilled.eq(stepSize));
@@ -1618,7 +1619,7 @@ describe('orders', () => {
 		const fillerCollateralBefore =
 			fillerClearingHouse.getQuoteAssetTokenAmount();
 		const fillerUnsettledPNLBefore =
-			fillerClearingHouse.getUserAccount().positions[0].quoteAssetAmount;
+			fillerClearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount;
 
 		await fillerClearingHouse.triggerOrder(
 			whaleAccountPublicKey,
@@ -1654,7 +1655,7 @@ describe('orders', () => {
 		const fillerReward = fillerClearingHouse
 			.getQuoteAssetTokenAmount()
 			.sub(fillerCollateralBefore)
-			.add(fillerUser.getUserAccount().positions[0].quoteAssetAmount)
+			.add(fillerUser.getUserAccount().perpPositions[0].quoteAssetAmount)
 			.sub(fillerUnsettledPNLBefore);
 		console.log(
 			'FillerReward: $',
@@ -1697,7 +1698,7 @@ describe('orders', () => {
 			direction: PositionDirection.LONG,
 			baseAssetAmount: TWO.mul(AMM_RESERVE_PRECISION),
 			price: calculateMarkPrice(
-				clearingHouse.getMarketAccount(marketIndexEth)
+				clearingHouse.getPerpMarketAccount(marketIndexEth)
 			).add(MARK_PRICE_PRECISION.div(new BN(40))),
 			reduceOnly: true,
 		});

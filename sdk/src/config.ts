@@ -1,15 +1,15 @@
 import {
-	DevnetMarkets,
+	DevnetPerpMarkets,
 	MainnetMarkets,
-	MarketConfig,
-	Markets,
-} from './constants/markets';
+	PerpMarketConfig,
+	PerpMarkets,
+} from './constants/perpMarkets';
 import {
-	BankConfig,
-	Banks,
-	DevnetBanks,
-	MainnetBanks,
-} from './constants/banks';
+	SpotMarketConfig,
+	SpotMarkets,
+	DevnetSpotMarkets,
+	MainnetSpotMarkets,
+} from './constants/spotMarkets';
 import { BN } from '@project-serum/anchor';
 import { OracleInfo } from './oracles/types';
 
@@ -18,8 +18,8 @@ type DriftConfig = {
 	PYTH_ORACLE_MAPPING_ADDRESS: string;
 	CLEARING_HOUSE_PROGRAM_ID: string;
 	USDC_MINT_ADDRESS: string;
-	MARKETS: MarketConfig[];
-	BANKS: BankConfig[];
+	PERP_MARKETS: PerpMarketConfig[];
+	SPOT_MARKETS: SpotMarketConfig[];
 };
 
 export type DriftEnv = 'devnet' | 'mainnet-beta';
@@ -30,16 +30,16 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 		PYTH_ORACLE_MAPPING_ADDRESS: 'BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2',
 		CLEARING_HOUSE_PROGRAM_ID: '3v1iEjbSSLSSYyt1pmx4UB5rqJGurmz71RibXF7X6UF3',
 		USDC_MINT_ADDRESS: '8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2',
-		MARKETS: DevnetMarkets,
-		BANKS: DevnetBanks,
+		PERP_MARKETS: DevnetPerpMarkets,
+		SPOT_MARKETS: DevnetSpotMarkets,
 	},
 	'mainnet-beta': {
 		ENV: 'mainnet-beta',
 		PYTH_ORACLE_MAPPING_ADDRESS: 'AHtgzX45WTKfkPG53L6WYhGEXwQkN1BVknET3sVsLL8J',
 		CLEARING_HOUSE_PROGRAM_ID: 'dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN',
 		USDC_MINT_ADDRESS: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-		MARKETS: MainnetMarkets,
-		BANKS: MainnetBanks,
+		PERP_MARKETS: MainnetMarkets,
+		SPOT_MARKETS: MainnetSpotMarkets,
 	},
 };
 
@@ -67,34 +67,34 @@ export const initialize = (props: {
 	return currentConfig;
 };
 
-export function getMarketsBanksAndOraclesForSubscription(env: DriftEnv): {
-	marketIndexes: BN[];
-	bankIndexes: BN[];
+export function getMarketsAndOraclesForSubscription(env: DriftEnv): {
+	perpMarketIndexes: BN[];
+	spotMarketIndexes: BN[];
 	oracleInfos: OracleInfo[];
 } {
-	const marketIndexes = [];
-	const bankIndexes = [];
+	const perpMarketIndexes = [];
+	const spotMarketIndexes = [];
 	const oracleInfos = new Map<string, OracleInfo>();
 
-	for (const market of Markets[env]) {
-		marketIndexes.push(market.marketIndex);
+	for (const market of PerpMarkets[env]) {
+		perpMarketIndexes.push(market.marketIndex);
 		oracleInfos.set(market.oracle.toString(), {
 			publicKey: market.oracle,
 			source: market.oracleSource,
 		});
 	}
 
-	for (const bank of Banks[env]) {
-		bankIndexes.push(bank.bankIndex);
-		oracleInfos.set(bank.oracle.toString(), {
-			publicKey: bank.oracle,
-			source: bank.oracleSource,
+	for (const spotMarket of SpotMarkets[env]) {
+		spotMarketIndexes.push(spotMarket.marketIndex);
+		oracleInfos.set(spotMarket.oracle.toString(), {
+			publicKey: spotMarket.oracle,
+			source: spotMarket.oracleSource,
 		});
 	}
 
 	return {
-		marketIndexes,
-		bankIndexes,
+		perpMarketIndexes: perpMarketIndexes,
+		spotMarketIndexes: spotMarketIndexes,
 		oracleInfos: Array.from(oracleInfos.values()),
 	};
 }

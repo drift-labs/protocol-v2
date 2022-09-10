@@ -9,7 +9,7 @@ import { Keypair } from '@solana/web3.js';
 import { Admin, ClearingHouse, PositionDirection } from '../sdk/src';
 
 import {
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
@@ -33,7 +33,7 @@ describe('round in favor', () => {
 	const usdcAmount = new BN(9999 * 10 ** 3);
 
 	let marketIndexes;
-	let bankIndexes;
+	let spotMarketIndexes;
 	let oracleInfos;
 
 	before(async () => {
@@ -42,7 +42,7 @@ describe('round in favor', () => {
 		const solUsd = await mockOracle(63000);
 
 		marketIndexes = [new BN(0)];
-		bankIndexes = [new BN(0)];
+		spotMarketIndexes = [new BN(0)];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		primaryClearingHouse = new Admin({
@@ -53,14 +53,14 @@ describe('round in favor', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await primaryClearingHouse.initialize(usdcMint.publicKey, true);
 		await primaryClearingHouse.subscribe();
 
-		await initializeQuoteAssetBank(primaryClearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(primaryClearingHouse, usdcMint.publicKey);
 		await primaryClearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -131,8 +131,8 @@ describe('round in favor', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.subscribe();
@@ -161,7 +161,7 @@ describe('round in favor', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].quoteAssetAmount.eq(new BN(-1))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-1))
 		);
 		await clearingHouse.unsubscribe();
 	});
@@ -184,8 +184,8 @@ describe('round in favor', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.subscribe();
@@ -211,7 +211,7 @@ describe('round in favor', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].quoteAssetAmount.eq(new BN(-1))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-1))
 		);
 		await clearingHouse.unsubscribe();
 	});

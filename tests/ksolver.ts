@@ -225,7 +225,7 @@ describe('AMM Curve', () => {
 	});
 
 	const showBook = (marketIndex) => {
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		const currentMark = calculateMarkPrice(market);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
@@ -272,7 +272,7 @@ describe('AMM Curve', () => {
 		const avgSlippageCenter = calculateTradeSlippage(
 			PositionDirection.LONG,
 			new BN(MAX_USER_TRADE * MARK_PRICE_PRECISION.toNumber()),
-			clearingHouse.getMarketAccount(0)
+			clearingHouse.getPerpMarketAccount(0)
 		)[0];
 		showBook(marketIndex);
 
@@ -281,7 +281,7 @@ describe('AMM Curve', () => {
 		);
 
 		const [_direction, tradeSize, _] = calculateTargetPriceTrade(
-			clearingHouse.getMarketAccount(marketIndex),
+			clearingHouse.getPerpMarketAccount(marketIndex),
 			targetPriceUp
 		);
 
@@ -290,7 +290,7 @@ describe('AMM Curve', () => {
 		const avgSlippage25PctOut = calculateTradeSlippage(
 			PositionDirection.LONG,
 			new BN(MAX_USER_TRADE * MARK_PRICE_PRECISION.toNumber()),
-			clearingHouse.getMarketAccount(0)
+			clearingHouse.getPerpMarketAccount(0)
 		)[0];
 
 		showBook(marketIndex);

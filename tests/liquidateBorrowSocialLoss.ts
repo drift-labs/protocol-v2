@@ -15,7 +15,7 @@ import {
 	EventSubscriber,
 	MARK_PRICE_PRECISION,
 	getTokenAmount,
-	BankBalanceType,
+	SpotBalanceType,
 } from '../sdk/src';
 
 import {
@@ -23,10 +23,10 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPrice,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
-	initializeSolAssetBank,
+	initializeSolSpotMarket,
 } from './testHelpers';
 import { isVariant, ONE } from '../sdk';
 
@@ -74,8 +74,8 @@ describe('liquidate borrow w/ social loss', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: [],
-			bankIndexes: [new BN(0), new BN(1)],
+			perpMarketIndexes: [],
+			spotMarketIndexes: [new BN(0), new BN(1)],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
@@ -87,8 +87,8 @@ describe('liquidate borrow w/ social loss', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		await initializeSolAssetBank(clearingHouse, solOracle);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
+		await initializeSolSpotMarket(clearingHouse, solOracle);
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -113,10 +113,10 @@ describe('liquidate borrow w/ social loss', () => {
 				]
 			);
 
-		const bankIndex = new BN(1);
+		const marketIndex = new BN(1);
 		await liquidatorClearingHouse.deposit(
 			solAmount,
-			bankIndex,
+			marketIndex,
 			liquidatorClearingHouseWSOLAccount
 		);
 		const solBorrow = new BN(5 * 10 ** 8);
@@ -131,8 +131,8 @@ describe('liquidate borrow w/ social loss', () => {
 
 	it('liquidate', async () => {
 		await setFeedPrice(anchor.workspace.Pyth, 200, solOracle);
-		const bankBefore = clearingHouse.getBankAccount(0);
-		const bank1Before = clearingHouse.getBankAccount(1);
+		const spotMarketBefore = clearingHouse.getSpotMarketAccount(0);
+		const spotMarket1Before = clearingHouse.getSpotMarketAccount(1);
 
 		const txSig = await liquidatorClearingHouse.liquidateBorrow(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -157,13 +157,13 @@ describe('liquidate borrow w/ social loss', () => {
 
 		assert(clearingHouse.getUserAccount().beingLiquidated);
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
-		assert(clearingHouse.getUserAccount().bankBalances[0].balance.eq(ZERO));
+		assert(clearingHouse.getUserAccount().spotPositions[0].balance.eq(ZERO));
 		assert(
-			clearingHouse.getUserAccount().bankBalances[1].balance.eq(new BN(2))
+			clearingHouse.getUserAccount().spotPositions[1].balance.eq(new BN(2))
 		);
 
 		console.log(
-			clearingHouse.getUserAccount().bankBalances[0].balance.toString()
+			clearingHouse.getUserAccount().spotPositions[0].balance.toString()
 		);
 
 		const liquidationRecord =
@@ -173,7 +173,7 @@ describe('liquidate borrow w/ social loss', () => {
 		assert(
 			liquidationRecord.liquidateBorrow.assetPrice.eq(MARK_PRICE_PRECISION)
 		);
-		assert(liquidationRecord.liquidateBorrow.assetBankIndex.eq(ZERO));
+		assert(liquidationRecord.liquidateBorrow.assetMarketIndex.eq(ZERO));
 		assert(
 			liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(100000000))
 		);
@@ -182,90 +182,98 @@ describe('liquidate borrow w/ social loss', () => {
 				new BN(200).mul(MARK_PRICE_PRECISION)
 			)
 		);
-		assert(liquidationRecord.liquidateBorrow.liabilityBankIndex.eq(new BN(1)));
+		assert(
+			liquidationRecord.liquidateBorrow.liabilityMarketIndex.eq(new BN(1))
+		);
 		assert(
 			liquidationRecord.liquidateBorrow.liabilityTransfer.eq(new BN(500000000))
 		);
 		await clearingHouse.fetchAccounts();
-		const bank = clearingHouse.getBankAccount(0);
-		const bank1 = clearingHouse.getBankAccount(1);
+		const spotMarket = clearingHouse.getSpotMarketAccount(0);
+		const spotMarket1 = clearingHouse.getSpotMarketAccount(1);
 
 		console.log(
-			'usdc borrows in bank:',
+			'usdc borrows in spotMarket:',
 			getTokenAmount(
-				bankBefore.borrowBalance,
-				bankBefore,
-				BankBalanceType.BORROW
+				spotMarketBefore.borrowBalance,
+				spotMarketBefore,
+				SpotBalanceType.BORROW
 			).toString(),
 			'->',
 			getTokenAmount(
-				bank.borrowBalance,
-				bank,
-				BankBalanceType.BORROW
+				spotMarket.borrowBalance,
+				spotMarket,
+				SpotBalanceType.BORROW
 			).toString()
 		);
 
 		console.log(
-			'usdc deposits in bank:',
+			'usdc deposits in spotMarket:',
 			getTokenAmount(
-				bankBefore.depositBalance,
-				bankBefore,
-				BankBalanceType.DEPOSIT
+				spotMarketBefore.depositBalance,
+				spotMarketBefore,
+				SpotBalanceType.DEPOSIT
 			).toString(),
 			'->',
 			getTokenAmount(
-				bank.depositBalance,
-				bank,
-				BankBalanceType.DEPOSIT
+				spotMarket.depositBalance,
+				spotMarket,
+				SpotBalanceType.DEPOSIT
 			).toString()
 		);
 
 		console.log(
-			'sol borrows in bank:',
+			'sol borrows in spotMarket:',
 			getTokenAmount(
-				bank1Before.borrowBalance,
-				bank1Before,
-				BankBalanceType.BORROW
+				spotMarket1Before.borrowBalance,
+				spotMarket1Before,
+				SpotBalanceType.BORROW
 			).toString(),
 			'->',
 			getTokenAmount(
-				bank1.borrowBalance,
-				bank1,
-				BankBalanceType.BORROW
+				spotMarket1.borrowBalance,
+				spotMarket1,
+				SpotBalanceType.BORROW
 			).toString()
 		);
 
 		console.log(
-			'sol deposits in bank:',
+			'sol deposits in spotMarket:',
 			getTokenAmount(
-				bank1Before.depositBalance,
-				bank1Before,
-				BankBalanceType.DEPOSIT
+				spotMarket1Before.depositBalance,
+				spotMarket1Before,
+				SpotBalanceType.DEPOSIT
 			).toString(),
 			'->',
 			getTokenAmount(
-				bank1.depositBalance,
-				bank1,
-				BankBalanceType.DEPOSIT
+				spotMarket1.depositBalance,
+				spotMarket1,
+				SpotBalanceType.DEPOSIT
 			).toString()
 		);
 
 		const borrowDecrease = getTokenAmount(
-			bank1Before.borrowBalance,
-			bank1Before,
-			BankBalanceType.BORROW
-		).sub(getTokenAmount(bank1.borrowBalance, bank1, BankBalanceType.BORROW));
+			spotMarket1Before.borrowBalance,
+			spotMarket1Before,
+			SpotBalanceType.BORROW
+		).sub(
+			getTokenAmount(
+				spotMarket1.borrowBalance,
+				spotMarket1,
+				SpotBalanceType.BORROW
+			)
+		);
 
 		const newDepositAmount = getTokenAmount(
-			bank1Before.depositBalance,
-			bank1Before,
-			BankBalanceType.DEPOSIT
+			spotMarket1Before.depositBalance,
+			spotMarket1Before,
+			SpotBalanceType.DEPOSIT
 		).sub(borrowDecrease);
 
 		const currentDepositAmount = getTokenAmount(
-			bank1.depositBalance,
-			bank1,
-			BankBalanceType.DEPOSIT
+			spotMarket1.depositBalance,
+			spotMarket1,
+			SpotBalanceType.DEPOSIT
 		);
 
 		const interestOfUpdate = currentDepositAmount.sub(newDepositAmount);
@@ -275,11 +283,11 @@ describe('liquidate borrow w/ social loss', () => {
 	});
 
 	it('resolve bankruptcy', async () => {
-		const bankBefore = clearingHouse.getBankAccount(0);
-		const bank1Before = clearingHouse.getBankAccount(1);
+		const spotMarketBefore = clearingHouse.getSpotMarketAccount(0);
+		const spotMarket1Before = clearingHouse.getSpotMarketAccount(1);
 
-		const bankCumulativeDepositInterestBefore =
-			clearingHouse.getBankAccount(1).cumulativeDepositInterest;
+		const spotMarketCumulativeDepositInterestBefore =
+			clearingHouse.getSpotMarketAccount(1).cumulativeDepositInterest;
 
 		await liquidatorClearingHouse.resolveBorrowBankruptcy(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -291,91 +299,93 @@ describe('liquidate borrow w/ social loss', () => {
 
 		assert(!clearingHouse.getUserAccount().beingLiquidated);
 		assert(!clearingHouse.getUserAccount().bankrupt);
-		assert(clearingHouse.getUserAccount().bankBalances[1].balance.eq(ZERO));
+		assert(clearingHouse.getUserAccount().spotPositions[1].balance.eq(ZERO));
 
 		const bankruptcyRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(isVariant(bankruptcyRecord.liquidationType, 'borrowBankruptcy'));
 		console.log(bankruptcyRecord.borrowBankruptcy);
-		assert(bankruptcyRecord.borrowBankruptcy.bankIndex.eq(ONE));
+		assert(bankruptcyRecord.borrowBankruptcy.marketIndex.eq(ONE));
 		assert(bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(2000)));
-		const bank = clearingHouse.getBankAccount(1);
+		const spotMarket = clearingHouse.getSpotMarketAccount(1);
 		assert(
-			bank.cumulativeDepositInterest.eq(
-				bankCumulativeDepositInterestBefore.sub(
+			spotMarket.cumulativeDepositInterest.eq(
+				spotMarketCumulativeDepositInterestBefore.sub(
 					bankruptcyRecord.borrowBankruptcy.cumulativeDepositInterestDelta
 				)
 			)
 		);
 
 		await clearingHouse.fetchAccounts();
-		const bank0 = clearingHouse.getBankAccount(0);
-		const bank1 = clearingHouse.getBankAccount(1);
+		const spotMarket0 = clearingHouse.getSpotMarketAccount(0);
+		const spotMarket1 = clearingHouse.getSpotMarketAccount(1);
 
 		console.log(
-			'usdc borrows in bank:',
+			'usdc borrows in spotMarket:',
 			getTokenAmount(
-				bankBefore.borrowBalance,
-				bankBefore,
-				BankBalanceType.BORROW
+				spotMarketBefore.borrowBalance,
+				spotMarketBefore,
+				SpotBalanceType.BORROW
 			).toString(),
 			'->',
 			getTokenAmount(
-				bank0.borrowBalance,
-				bank0,
-				BankBalanceType.BORROW
+				spotMarket0.borrowBalance,
+				spotMarket0,
+				SpotBalanceType.BORROW
 			).toString()
 		);
 
 		console.log(
-			'usdc deposits in bank:',
+			'usdc deposits in spotMarket:',
 			getTokenAmount(
-				bankBefore.depositBalance,
-				bankBefore,
-				BankBalanceType.DEPOSIT
+				spotMarketBefore.depositBalance,
+				spotMarketBefore,
+				SpotBalanceType.DEPOSIT
 			).toString(),
 			'->',
 			getTokenAmount(
-				bank0.depositBalance,
-				bank0,
-				BankBalanceType.DEPOSIT
+				spotMarket0.depositBalance,
+				spotMarket0,
+				SpotBalanceType.DEPOSIT
 			).toString()
 		);
 
 		console.log(
-			'sol borrows in bank:',
+			'sol borrows in spotMarket:',
 			getTokenAmount(
-				bank1Before.borrowBalance,
-				bank1Before,
-				BankBalanceType.BORROW
+				spotMarket1Before.borrowBalance,
+				spotMarket1Before,
+				SpotBalanceType.BORROW
 			).toString(),
 			'->',
 			getTokenAmount(
-				bank1.borrowBalance,
-				bank1,
-				BankBalanceType.BORROW
+				spotMarket1.borrowBalance,
+				spotMarket1,
+				SpotBalanceType.BORROW
 			).toString()
 		);
 
 		console.log(
-			'sol deposits in bank:',
+			'sol deposits in spotMarket:',
 			getTokenAmount(
-				bank1Before.depositBalance,
-				bank1Before,
-				BankBalanceType.DEPOSIT
+				spotMarket1Before.depositBalance,
+				spotMarket1Before,
+				SpotBalanceType.DEPOSIT
 			).toString(),
 			'->',
 			getTokenAmount(
-				bank1.depositBalance,
-				bank1,
-				BankBalanceType.DEPOSIT
+				spotMarket1.depositBalance,
+				spotMarket1,
+				SpotBalanceType.DEPOSIT
 			).toString()
 		);
 
-		const netBalance0Before = bankBefore.depositBalance.sub(
-			bankBefore.borrowBalance
+		const netBalance0Before = spotMarketBefore.depositBalance.sub(
+			spotMarketBefore.borrowBalance
 		);
-		const netBalance0After = bank0.depositBalance.sub(bank0.borrowBalance);
+		const netBalance0After = spotMarket0.depositBalance.sub(
+			spotMarket0.borrowBalance
+		);
 
 		console.log(
 			'netBalance usd:',
@@ -386,23 +396,25 @@ describe('liquidate borrow w/ social loss', () => {
 
 		console.log(
 			'cumulative deposit interest usd:',
-			bankBefore.cumulativeDepositInterest.toString(),
+			spotMarketBefore.cumulativeDepositInterest.toString(),
 			'->',
-			bank0.cumulativeDepositInterest.toString()
+			spotMarket0.cumulativeDepositInterest.toString()
 		);
 		console.log(
 			'cumulative borrow interest usd:',
-			bankBefore.cumulativeBorrowInterest.toString(),
+			spotMarketBefore.cumulativeBorrowInterest.toString(),
 			'->',
-			bank0.cumulativeBorrowInterest.toString()
+			spotMarket0.cumulativeBorrowInterest.toString()
 		);
 
 		assert(netBalance0Before.eq(netBalance0After));
 
-		const netBalanceBefore = bank1Before.depositBalance.sub(
-			bank1Before.borrowBalance
+		const netBalanceBefore = spotMarket1Before.depositBalance.sub(
+			spotMarket1Before.borrowBalance
 		);
-		const netBalanceAfter = bank1.depositBalance.sub(bank1.borrowBalance);
+		const netBalanceAfter = spotMarket1.depositBalance.sub(
+			spotMarket1.borrowBalance
+		);
 
 		console.log(
 			'netBalance sol:',
@@ -413,32 +425,40 @@ describe('liquidate borrow w/ social loss', () => {
 
 		console.log(
 			'cumulative deposit interest sol:',
-			bank1Before.cumulativeDepositInterest.toString(),
+			spotMarket1Before.cumulativeDepositInterest.toString(),
 			'->',
-			bank1.cumulativeDepositInterest.toString()
+			spotMarket1.cumulativeDepositInterest.toString()
 		);
 		console.log(
 			'cumulative borrow interest sol:',
-			bank1Before.cumulativeBorrowInterest.toString(),
+			spotMarket1Before.cumulativeBorrowInterest.toString(),
 			'->',
-			bank1.cumulativeBorrowInterest.toString()
+			spotMarket1.cumulativeBorrowInterest.toString()
 		);
 
 		// no usd balance or interest changes
 		assert(
-			bankBefore.cumulativeBorrowInterest.eq(bank0.cumulativeBorrowInterest)
+			spotMarketBefore.cumulativeBorrowInterest.eq(
+				spotMarket0.cumulativeBorrowInterest
+			)
 		);
 		assert(
-			bankBefore.cumulativeDepositInterest.eq(bank0.cumulativeDepositInterest)
+			spotMarketBefore.cumulativeDepositInterest.eq(
+				spotMarket0.cumulativeDepositInterest
+			)
 		);
 		assert(netBalance0Before.eq(netBalance0After));
 
 		// sol deposit interest goes down changes (due to social loss)
 		assert(
-			bank1Before.cumulativeBorrowInterest.eq(bank1.cumulativeBorrowInterest)
+			spotMarket1Before.cumulativeBorrowInterest.eq(
+				spotMarket1.cumulativeBorrowInterest
+			)
 		);
 		assert(
-			bank1Before.cumulativeDepositInterest.gt(bank1.cumulativeDepositInterest)
+			spotMarket1Before.cumulativeDepositInterest.gt(
+				spotMarket1.cumulativeDepositInterest
+			)
 		);
 
 		// sol net balances goes up by socialized (borrow has been forgiven)

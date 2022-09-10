@@ -24,7 +24,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPrice,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 } from './testHelpers';
 import {
 	BASE_PRECISION,
@@ -60,7 +60,7 @@ describe('trigger orders', () => {
 	let solUsd;
 
 	let marketIndexes;
-	let bankIndexes;
+	let spotMarketIndexes;
 	let oracleInfos;
 
 	before(async () => {
@@ -69,7 +69,7 @@ describe('trigger orders', () => {
 
 		solUsd = await mockOracle(1);
 		marketIndexes = [new BN(0)];
-		bankIndexes = [new BN(0)];
+		spotMarketIndexes = [new BN(0)];
 		oracleInfos = [
 			{
 				publicKey: solUsd,
@@ -85,13 +85,13 @@ describe('trigger orders', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
 		await fillerClearingHouse.subscribe();
-		await initializeQuoteAssetBank(fillerClearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(fillerClearingHouse, usdcMint.publicKey);
 		await fillerClearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -147,8 +147,8 @@ describe('trigger orders', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.subscribe();
@@ -217,7 +217,9 @@ describe('trigger orders', () => {
 		await clearingHouseUser.fetchAccounts();
 
 		assert(
-			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
+			clearingHouseUser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 
 		await clearingHouse.unsubscribe();
@@ -242,8 +244,8 @@ describe('trigger orders', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.subscribe();
@@ -315,7 +317,9 @@ describe('trigger orders', () => {
 		await clearingHouseUser.fetchAccounts();
 
 		assert(
-			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
+			clearingHouseUser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 
 		await clearingHouse.unsubscribe();
@@ -340,8 +344,8 @@ describe('trigger orders', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.subscribe();
@@ -410,7 +414,9 @@ describe('trigger orders', () => {
 		await clearingHouseUser.fetchAccounts();
 
 		assert(
-			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
+			clearingHouseUser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 
 		await clearingHouse.unsubscribe();
@@ -435,8 +441,8 @@ describe('trigger orders', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.subscribe();
@@ -525,7 +531,9 @@ describe('trigger orders', () => {
 		await clearingHouseUser.fetchAccounts();
 
 		assert(
-			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
+			clearingHouseUser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 
 		await clearingHouse.unsubscribe();
@@ -550,8 +558,8 @@ describe('trigger orders', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.subscribe();
@@ -620,7 +628,9 @@ describe('trigger orders', () => {
 		await clearingHouseUser.fetchAccounts();
 
 		assert(
-			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
+			clearingHouseUser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 
 		await clearingHouse.unsubscribe();
@@ -645,8 +655,8 @@ describe('trigger orders', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.subscribe();
@@ -718,7 +728,9 @@ describe('trigger orders', () => {
 		await clearingHouseUser.fetchAccounts();
 
 		assert(
-			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
+			clearingHouseUser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 
 		await clearingHouse.unsubscribe();
@@ -743,8 +755,8 @@ describe('trigger orders', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.subscribe();
@@ -813,7 +825,9 @@ describe('trigger orders', () => {
 		await clearingHouseUser.fetchAccounts();
 
 		assert(
-			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
+			clearingHouseUser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 
 		await clearingHouse.unsubscribe();
@@ -838,8 +852,8 @@ describe('trigger orders', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.subscribe();
@@ -911,7 +925,9 @@ describe('trigger orders', () => {
 		await clearingHouseUser.fetchAccounts();
 
 		assert(
-			clearingHouseUser.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
+			clearingHouseUser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 
 		await clearingHouse.unsubscribe();

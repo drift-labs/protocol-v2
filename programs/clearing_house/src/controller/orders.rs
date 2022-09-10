@@ -940,7 +940,8 @@ fn fulfill_order(
         position_base_asset_amount_before,
     )?;
 
-    let free_collateral = calculate_free_collateral(user, perp_market_map, spot_market_map, oracle_map)?;
+    let free_collateral =
+        calculate_free_collateral(user, perp_market_map, spot_market_map, oracle_map)?;
     if free_collateral < 0 && !risk_decreasing {
         cancel_risk_increasing_order(
             user,
@@ -2494,7 +2495,8 @@ fn fulfill_spot_order(
     fee_structure: &FeeStructure,
     mut serum_fulfillment_params: Option<SerumFulfillmentParams>,
 ) -> ClearingHouseResult<(u128, bool)> {
-    let free_collateral = calculate_free_collateral(user, perp_market_map, spot_market_map, oracle_map)?;
+    let free_collateral =
+        calculate_free_collateral(user, perp_market_map, spot_market_map, oracle_map)?;
 
     let base_market = user.orders[user_order_index].market_index;
     let spot_position_index = user.get_spot_position_index(base_market)?;
@@ -2928,8 +2930,12 @@ pub fn fulfill_spot_order_with_serum(
         serum_new_order_accounts.serum_bids,
         serum_new_order_accounts.serum_asks,
         &match order_direction {
-            PositionDirection::Long => serum_new_order_accounts.quote_market_vault.to_account_info(),
-            PositionDirection::Short => serum_new_order_accounts.base_market_vault.to_account_info(),
+            PositionDirection::Long => serum_new_order_accounts
+                .quote_market_vault
+                .to_account_info(),
+            PositionDirection::Short => {
+                serum_new_order_accounts.base_market_vault.to_account_info()
+            }
         },
         serum_new_order_accounts.clearing_house_signer,
         serum_new_order_accounts.serum_base_vault,
@@ -2962,7 +2968,9 @@ pub fn fulfill_spot_order_with_serum(
         serum_new_order_accounts.serum_base_vault,
         serum_new_order_accounts.serum_quote_vault,
         &serum_new_order_accounts.base_market_vault.to_account_info(),
-        &serum_new_order_accounts.quote_market_vault.to_account_info(),
+        &serum_new_order_accounts
+            .quote_market_vault
+            .to_account_info(),
         serum_new_order_accounts.serum_signer,
         &serum_new_order_accounts.token_program.to_account_info(),
         serum_new_order_accounts.signer_nonce,

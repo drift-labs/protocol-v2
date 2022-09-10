@@ -17,7 +17,7 @@ import {
 } from '../sdk/src';
 
 import {
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
@@ -62,7 +62,7 @@ describe('post only', () => {
 
 	let solUsd;
 	let marketIndexes;
-	let bankIndexes;
+	let spotMarketIndexes;
 	let oracleInfos;
 
 	before(async () => {
@@ -72,7 +72,7 @@ describe('post only', () => {
 		solUsd = await mockOracle(1);
 
 		marketIndexes = [new BN(0)];
-		bankIndexes = [new BN(0)];
+		spotMarketIndexes = [new BN(0)];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		fillerClearingHouse = new Admin({
@@ -83,13 +83,13 @@ describe('post only', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
 		await fillerClearingHouse.subscribe();
-		await initializeQuoteAssetBank(fillerClearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(fillerClearingHouse, usdcMint.publicKey);
 		await fillerClearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -148,8 +148,8 @@ describe('post only', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 			userStats: true,
 		});
@@ -167,7 +167,7 @@ describe('post only', () => {
 		const marketIndex = new BN(0);
 		const baseAssetAmount = BASE_PRECISION;
 		const markPrice = calculateMarkPrice(
-			clearingHouse.getMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
@@ -235,8 +235,8 @@ describe('post only', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 			userStats: true,
 		});
@@ -254,7 +254,7 @@ describe('post only', () => {
 		const marketIndex = new BN(0);
 		const baseAssetAmount = BASE_PRECISION;
 		const markPrice = calculateMarkPrice(
-			clearingHouse.getMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,

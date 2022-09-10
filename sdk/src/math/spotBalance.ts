@@ -1,17 +1,17 @@
 import {
-	BankAccount,
-	BankBalanceType,
+	SpotMarketAccount,
+	SpotBalanceType,
 	isVariant,
 	MarginCategory,
 } from '../types';
 import { BN } from '@project-serum/anchor';
 import {
-	BANK_UTILIZATION_PRECISION,
+	SPOT_MARKET_UTILIZATION_PRECISION,
 	ONE,
 	TEN,
 	ZERO,
-	BANK_INTEREST_PRECISION,
-	BANK_WEIGHT_PRECISION,
+	SPOT_MARKET_INTEREST_PRECISION,
+	SPOT_MARKET_WEIGHT_PRECISION,
 	ONE_YEAR,
 	AMM_RESERVE_PRECISION,
 } from '../constants/numericConstants';
@@ -22,14 +22,14 @@ import {
 
 export function getBalance(
 	tokenAmount: BN,
-	bank: BankAccount,
-	balanceType: BankBalanceType
+	spotMarket: SpotMarketAccount,
+	balanceType: SpotBalanceType
 ): BN {
-	const precisionIncrease = TEN.pow(new BN(16 - bank.decimals));
+	const precisionIncrease = TEN.pow(new BN(16 - spotMarket.decimals));
 
 	const cumulativeInterest = isVariant(balanceType, 'deposit')
-		? bank.cumulativeDepositInterest
-		: bank.cumulativeBorrowInterest;
+		? spotMarket.cumulativeDepositInterest
+		: spotMarket.cumulativeBorrowInterest;
 
 	let balance = tokenAmount.mul(precisionIncrease).div(cumulativeInterest);
 
@@ -42,24 +42,24 @@ export function getBalance(
 
 export function getTokenAmount(
 	balanceAmount: BN,
-	bank: BankAccount,
-	balanceType: BankBalanceType
+	spotMarket: SpotMarketAccount,
+	balanceType: SpotBalanceType
 ): BN {
-	const precisionDecrease = TEN.pow(new BN(16 - bank.decimals));
+	const precisionDecrease = TEN.pow(new BN(16 - spotMarket.decimals));
 
 	const cumulativeInterest = isVariant(balanceType, 'deposit')
-		? bank.cumulativeDepositInterest
-		: bank.cumulativeBorrowInterest;
+		? spotMarket.cumulativeDepositInterest
+		: spotMarket.cumulativeBorrowInterest;
 
 	return balanceAmount.mul(cumulativeInterest).div(precisionDecrease);
 }
 
 export function calculateAssetWeight(
 	balanceAmount: BN,
-	bank: BankAccount,
+	spotMarket: SpotMarketAccount,
 	marginCategory: MarginCategory
 ): BN {
-	const sizePrecision = TEN.pow(new BN(bank.decimals));
+	const sizePrecision = TEN.pow(new BN(spotMarket.decimals));
 	let sizeInAmmReservePrecision;
 	if (sizePrecision.gt(AMM_RESERVE_PRECISION)) {
 		sizeInAmmReservePrecision = balanceAmount.div(
@@ -77,19 +77,19 @@ export function calculateAssetWeight(
 		case 'Initial':
 			assetWeight = calculateSizeDiscountAssetWeight(
 				sizeInAmmReservePrecision,
-				bank.imfFactor,
-				bank.initialAssetWeight
+				spotMarket.imfFactor,
+				spotMarket.initialAssetWeight
 			);
 			break;
 		case 'Maintenance':
 			assetWeight = calculateSizeDiscountAssetWeight(
 				sizeInAmmReservePrecision,
-				bank.imfFactor,
-				bank.maintenanceAssetWeight
+				spotMarket.imfFactor,
+				spotMarket.maintenanceAssetWeight
 			);
 			break;
 		default:
-			assetWeight = bank.initialAssetWeight;
+			assetWeight = spotMarket.initialAssetWeight;
 			break;
 	}
 
@@ -98,10 +98,10 @@ export function calculateAssetWeight(
 
 export function calculateLiabilityWeight(
 	balanceAmount: BN,
-	bank: BankAccount,
+	spotMarket: SpotMarketAccount,
 	marginCategory: MarginCategory
 ): BN {
-	const sizePrecision = TEN.pow(new BN(bank.decimals));
+	const sizePrecision = TEN.pow(new BN(spotMarket.decimals));
 	let sizeInAmmReservePrecision;
 	if (sizePrecision.gt(AMM_RESERVE_PRECISION)) {
 		sizeInAmmReservePrecision = balanceAmount.div(
@@ -119,21 +119,21 @@ export function calculateLiabilityWeight(
 		case 'Initial':
 			assetWeight = calculateSizePremiumLiabilityWeight(
 				sizeInAmmReservePrecision,
-				bank.imfFactor,
-				bank.initialLiabilityWeight,
-				BANK_WEIGHT_PRECISION
+				spotMarket.imfFactor,
+				spotMarket.initialLiabilityWeight,
+				SPOT_MARKET_WEIGHT_PRECISION
 			);
 			break;
 		case 'Maintenance':
 			assetWeight = calculateSizePremiumLiabilityWeight(
 				sizeInAmmReservePrecision,
-				bank.imfFactor,
-				bank.maintenanceLiabilityWeight,
-				BANK_WEIGHT_PRECISION
+				spotMarket.imfFactor,
+				spotMarket.maintenanceLiabilityWeight,
+				SPOT_MARKET_WEIGHT_PRECISION
 			);
 			break;
 		default:
-			assetWeight = bank.initialLiabilityWeight;
+			assetWeight = spotMarket.initialLiabilityWeight;
 			break;
 	}
 
@@ -141,118 +141,127 @@ export function calculateLiabilityWeight(
 }
 
 export function calculateInterestAccumulated(
-	bank: BankAccount,
+	spotMarket: SpotMarketAccount,
 	now: BN
 ): { borrowInterest: BN; depositInterest: BN } {
 	const token_deposit_amount = getTokenAmount(
-		bank.depositBalance,
-		bank,
-		BankBalanceType.DEPOSIT
+		spotMarket.depositBalance,
+		spotMarket,
+		SpotBalanceType.DEPOSIT
 	);
 	const token_borrow_amount = getTokenAmount(
-		bank.borrowBalance,
-		bank,
-		BankBalanceType.BORROW
+		spotMarket.borrowBalance,
+		spotMarket,
+		SpotBalanceType.BORROW
 	);
 
 	let utilization: BN;
 	if (token_borrow_amount.eq(ZERO) && token_deposit_amount.eq(ZERO)) {
 		utilization = ZERO;
 	} else if (token_deposit_amount.eq(ZERO)) {
-		utilization = BANK_UTILIZATION_PRECISION;
+		utilization = SPOT_MARKET_UTILIZATION_PRECISION;
 	} else {
 		utilization = token_borrow_amount
-			.mul(BANK_UTILIZATION_PRECISION)
+			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
 			.div(token_deposit_amount);
 	}
 
 	let interest_rate: BN;
-	if (utilization.gt(bank.optimalUtilization)) {
-		const surplusUtilization = utilization.sub(bank.optimalUtilization);
-		const borrowRateSlope = bank.maxBorrowRate
-			.sub(bank.optimalBorrowRate)
-			.mul(BANK_UTILIZATION_PRECISION)
-			.div(BANK_UTILIZATION_PRECISION.sub(bank.optimalUtilization));
+	if (utilization.gt(spotMarket.optimalUtilization)) {
+		const surplusUtilization = utilization.sub(spotMarket.optimalUtilization);
+		const borrowRateSlope = spotMarket.maxBorrowRate
+			.sub(spotMarket.optimalBorrowRate)
+			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+			.div(
+				SPOT_MARKET_UTILIZATION_PRECISION.sub(spotMarket.optimalUtilization)
+			);
 
-		interest_rate = bank.optimalBorrowRate.add(
-			surplusUtilization.mul(borrowRateSlope).div(BANK_UTILIZATION_PRECISION)
+		interest_rate = spotMarket.optimalBorrowRate.add(
+			surplusUtilization
+				.mul(borrowRateSlope)
+				.div(SPOT_MARKET_UTILIZATION_PRECISION)
 		);
 	} else {
-		const borrowRateSlope = bank.optimalBorrowRate
-			.mul(BANK_UTILIZATION_PRECISION)
-			.div(BANK_UTILIZATION_PRECISION.sub(bank.optimalUtilization));
+		const borrowRateSlope = spotMarket.optimalBorrowRate
+			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+			.div(
+				SPOT_MARKET_UTILIZATION_PRECISION.sub(spotMarket.optimalUtilization)
+			);
 
 		interest_rate = utilization
 			.mul(borrowRateSlope)
-			.div(BANK_UTILIZATION_PRECISION);
+			.div(SPOT_MARKET_UTILIZATION_PRECISION);
 	}
 
-	const timeSinceLastUpdate = now.sub(bank.lastInterestTs);
+	const timeSinceLastUpdate = now.sub(spotMarket.lastInterestTs);
 
 	const modifiedBorrowRate = interest_rate.mul(timeSinceLastUpdate);
 
 	const modifiedDepositRate = modifiedBorrowRate
 		.mul(utilization)
-		.div(BANK_UTILIZATION_PRECISION);
+		.div(SPOT_MARKET_UTILIZATION_PRECISION);
 
-	const borrowInterest = bank.cumulativeBorrowInterest
+	const borrowInterest = spotMarket.cumulativeBorrowInterest
 		.mul(modifiedBorrowRate)
 		.div(ONE_YEAR)
-		.div(BANK_INTEREST_PRECISION)
+		.div(SPOT_MARKET_INTEREST_PRECISION)
 		.add(ONE);
-	const depositInterest = bank.cumulativeDepositInterest
+	const depositInterest = spotMarket.cumulativeDepositInterest
 		.mul(modifiedDepositRate)
 		.div(ONE_YEAR)
-		.div(BANK_INTEREST_PRECISION);
+		.div(SPOT_MARKET_INTEREST_PRECISION);
 
 	return { borrowInterest, depositInterest };
 }
 
 export function calculateWithdrawLimit(
-	bank: BankAccount,
+	spotMarket: SpotMarketAccount,
 	now: BN
 ): { borrowLimit: BN; withdrawLimit: BN } {
-	const bankDepositTokenAmount = getTokenAmount(
-		bank.depositBalance,
-		bank,
-		BankBalanceType.DEPOSIT
+	const marketDepositTokenAmount = getTokenAmount(
+		spotMarket.depositBalance,
+		spotMarket,
+		SpotBalanceType.DEPOSIT
 	);
-	const bankBorrowTokenAmount = getTokenAmount(
-		bank.borrowBalance,
-		bank,
-		BankBalanceType.BORROW
+	const marketBorrowTokenAmount = getTokenAmount(
+		spotMarket.borrowBalance,
+		spotMarket,
+		SpotBalanceType.BORROW
 	);
 
 	const twentyFourHours = new BN(60 * 60 * 24);
-	const sinceLast = now.sub(bank.lastTwapTs);
+	const sinceLast = now.sub(spotMarket.lastTwapTs);
 	const sinceStart = BN.max(ZERO, twentyFourHours.sub(sinceLast));
-	const borrowTokenTwapLive = bank.borrowTokenTwap
+	const borrowTokenTwapLive = spotMarket.borrowTokenTwap
 		.mul(sinceStart)
-		.add(bankBorrowTokenAmount.mul(sinceLast))
+		.add(marketBorrowTokenAmount.mul(sinceLast))
 		.div(sinceLast.add(sinceLast));
 
-	const depositTokenTwapLive = bank.depositTokenTwap
+	const depositTokenTwapLive = spotMarket.depositTokenTwap
 		.mul(sinceStart)
-		.add(bankDepositTokenAmount.mul(sinceLast))
+		.add(marketDepositTokenAmount.mul(sinceLast))
 		.div(sinceLast.add(sinceLast));
 
 	const maxBorrowTokens = BN.min(
 		BN.max(
-			bankDepositTokenAmount.div(new BN(6)),
+			marketDepositTokenAmount.div(new BN(6)),
 			borrowTokenTwapLive.add(borrowTokenTwapLive.div(new BN(5)))
 		),
-		bankDepositTokenAmount.sub(bankDepositTokenAmount.div(new BN(10)))
+		marketDepositTokenAmount.sub(marketDepositTokenAmount.div(new BN(10)))
 	); // between ~15-90% utilization with friction on twap
 
 	const minDepositTokens = depositTokenTwapLive.sub(
 		BN.min(
-			BN.max(depositTokenTwapLive.div(new BN(5)), bank.withdrawGuardThreshold),
+			BN.max(
+				depositTokenTwapLive.div(new BN(5)),
+				spotMarket.withdrawGuardThreshold
+			),
 			depositTokenTwapLive
 		)
 	);
 
 	return {
-		borrowLimit: maxBorrowTokens.sub(bankBorrowTokenAmount),
-		withdrawLimit: bankDepositTokenAmount.sub(minDepositTokens),
+		borrowLimit: maxBorrowTokens.sub(marketBorrowTokenAmount),
+		withdrawLimit: marketDepositTokenAmount.sub(minDepositTokens),
 	};
 }
