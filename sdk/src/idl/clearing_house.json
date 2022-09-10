@@ -1656,7 +1656,7 @@
       ]
     },
     {
-      "name": "updateMarketMaxRevenueWithdrawPerPeriod",
+      "name": "updateMarketMaxImbalances",
       "accounts": [
         {
           "name": "admin",
@@ -1677,6 +1677,14 @@
       "args": [
         {
           "name": "maxRevenueWithdrawPerPeriod",
+          "type": "u128"
+        },
+        {
+          "name": "unrealizedMaxImbalance",
+          "type": "u128"
+        },
+        {
+          "name": "quoteMaxInsurance",
           "type": "u128"
         }
       ]

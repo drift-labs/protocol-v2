@@ -18,7 +18,11 @@ import {
 	calculateSizePremiumLiabilityWeight,
 } from './margin';
 import { OraclePriceData } from '../oracles/types';
-import { MARGIN_PRECISION } from '../constants/numericConstants';
+import {
+	BASE_PRECISION,
+	MARGIN_PRECISION,
+	PRICE_TO_QUOTE_PRECISION,
+} from '../constants/numericConstants';
 import { getTokenAmount } from './bankBalance';
 
 /**
@@ -167,4 +171,38 @@ export function calculateMarketAvailablePNL(
 	bank: BankAccount
 ): BN {
 	return getTokenAmount(market.pnlPool.balance, bank, BankBalanceType.DEPOSIT);
+}
+
+export function calculateNetUserImbalance(
+	market: MarketAccount,
+	bank: BankAccount,
+	oraclePriceData: OraclePriceData
+): BN {
+	const netUserPositionValue = market.amm.netBaseAssetAmount
+		.mul(oraclePriceData.price)
+		.div(BASE_PRECISION)
+		.div(PRICE_TO_QUOTE_PRECISION);
+
+	const netUserCostBasis = market.amm.quoteAssetAmountLong
+		.add(market.amm.quoteAssetAmountShort)
+		.sub(market.amm.cumulativeSocialLoss);
+
+	const userEntitledPnl = netUserPositionValue.add(netUserCostBasis);
+
+	const pnlPool = getTokenAmount(
+		market.pnlPool.balance,
+		bank,
+		BankBalanceType.DEPOSIT
+	);
+
+	console.log(
+		netUserPositionValue.toString(),
+		netUserCostBasis.toString(),
+		userEntitledPnl.toString(),
+		pnlPool.toString()
+	);
+
+	const imbalance = userEntitledPnl.sub(pnlPool);
+
+	return imbalance;
 }

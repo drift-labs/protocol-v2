@@ -5,6 +5,7 @@ if [ "$1" != "--skip-build" ]
 fi
 
 test_files=(
+  imbalancePerpPnl.ts
   delistMarket.ts
   delistMarketLiq.ts
   liquidityProvider.ts
@@ -23,6 +24,9 @@ test_files=(
   subaccounts.ts pyth.ts userAccount.ts admin.ts updateK.ts adminWithdraw.ts
   curve.ts roundInFavor.ts cappedSymFunding.ts
 )
+
+test_files=(
+  imbalancePerpPnl.ts)
 
 for test_file in ${test_files[@]}; do
   export ANCHOR_TEST_FILE=${test_file} && anchor test --skip-build || exit 1;

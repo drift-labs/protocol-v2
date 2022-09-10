@@ -815,12 +815,16 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
-	public async updateMarketMaxRevenueWithdrawPerPeroid(
+	public async updateMarketMaxImbalances(
 		marketIndex: BN,
-		maxRevenueWithdrawPerPeriod: number
+		maxRevenueWithdrawPerPeriod: BN,
+		unrealizedMaxImbalance: BN,
+		quoteMaxInsurance: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateMarketMaxRevenueWithdrawPerPeroid(
+		return await this.program.rpc.updateMarketMaxImbalances(
 			maxRevenueWithdrawPerPeriod,
+			unrealizedMaxImbalance,
+			quoteMaxInsurance,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,

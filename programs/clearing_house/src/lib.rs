@@ -2595,16 +2595,31 @@ pub mod clearing_house {
     #[access_control(
         market_initialized(&ctx.accounts.market)
     )]
-    pub fn update_market_max_revenue_withdraw_per_period(
+    pub fn update_market_max_imbalances(
         ctx: Context<AdminUpdateMarket>,
         max_revenue_withdraw_per_period: u128,
+        unrealized_max_imbalance: u128,
+        quote_max_insurance: u128,
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
 
         validate!(
-            max_revenue_withdraw_per_period < 10_000 * QUOTE_PRECISION,
+            max_revenue_withdraw_per_period < 100_000 * QUOTE_PRECISION,
             ErrorCode::DefaultError,
-            "max_revenue_withdraw_per_period must be less than 10k"
+            "max_revenue_withdraw_per_period must be less than 100k"
+        )?;
+
+        validate!(
+            unrealized_max_imbalance < 100_000 * QUOTE_PRECISION,
+            ErrorCode::DefaultError,
+            "unrealized_max_imbalance must be less than 100k"
+        )?;
+
+        validate!(
+            market.quote_settled_insurance < quote_max_insurance,
+            ErrorCode::DefaultError,
+            "quote_max_insurance must be above market.quote_settled_insurance={}",
+            market.quote_settled_insurance
         )?;
 
         msg!(
@@ -2613,7 +2628,22 @@ pub mod clearing_house {
             max_revenue_withdraw_per_period
         );
 
+        msg!(
+            "market.unrealized_max_imbalance: {:?} -> {:?}",
+            market.unrealized_max_imbalance,
+            unrealized_max_imbalance
+        );
+
+        msg!(
+            "market.quote_max_insurance: {:?} -> {:?}",
+            market.quote_max_insurance,
+            quote_max_insurance
+        );
+
         market.max_revenue_withdraw_per_period = max_revenue_withdraw_per_period;
+        market.unrealized_max_imbalance = unrealized_max_imbalance;
+        market.quote_max_insurance = quote_max_insurance;
+
         Ok(())
     }
 

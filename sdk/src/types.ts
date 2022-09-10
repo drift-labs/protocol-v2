@@ -401,6 +401,11 @@ export type MarketAccount = {
 	unrealizedMaxImbalance: BN;
 	unrealizedInitialAssetWeight: number;
 	unrealizedMaintenanceAssetWeight: number;
+	revenueWithdrawSinceLastSettle: BN;
+	maxRevenueWithdrawPerPeriod: BN;
+	lastRevenueWithdrawTs: BN;
+	quoteSettledInsurance: BN;
+	quoteMaxInsurance: BN;
 };
 
 export type BankAccount = {
@@ -496,6 +501,7 @@ export type AMM = {
 	totalMmFee: BN;
 	netRevenueSinceLastFunding: BN;
 	lastUpdateSlot: BN;
+	lastOracleValid: boolean;
 	lastBidPriceTwap: BN;
 	lastAskPriceTwap: BN;
 	longSpread: BN;
@@ -506,6 +512,7 @@ export type AMM = {
 	ammJitIntensity: number;
 	maxBaseAssetReserve: BN;
 	minBaseAssetReserve: BN;
+	cumulativeSocialLoss: BN;
 };
 
 // # User Account Types
