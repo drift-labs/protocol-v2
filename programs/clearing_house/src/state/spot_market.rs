@@ -6,6 +6,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::context::SpotFulfillmentType;
 use crate::error::ClearingHouseResult;
+#[cfg(test)]
+use crate::math::constants::SPOT_CUMULATIVE_INTEREST_PRECISION;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
     MARGIN_PRECISION_TO_SPOT_WEIGHT_PRECISION_RATIO, SPOT_WEIGHT_PRECISION,
@@ -164,6 +166,28 @@ impl SpotMarket {
         deposit_token_amount
             .checked_sub(borrow_token_amount)
             .ok_or_else(math_error!())
+    }
+}
+
+#[cfg(test)]
+impl SpotMarket {
+    pub fn default_base_market() -> Self {
+        SpotMarket {
+            market_index: 1,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            ..SpotMarket::default()
+        }
+    }
+
+    pub fn default_quote_market() -> Self {
+        SpotMarket {
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            ..SpotMarket::default()
+        }
     }
 }
 

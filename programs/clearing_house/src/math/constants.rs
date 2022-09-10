@@ -1,4 +1,5 @@
 use solana_program::native_token::LAMPORTS_PER_SOL;
+pub const LAMPORTS_PER_SOL_I128: i128 = LAMPORTS_PER_SOL as i128;
 
 // PRECISIONS
 pub const AMM_RESERVE_PRECISION: u128 = 10_000_000_000_000; //expo = -13;

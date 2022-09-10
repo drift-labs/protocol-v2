@@ -2662,18 +2662,21 @@ pub fn fulfill_spot_order_with_match(
         return Ok(0_u128);
     }
 
+    let market_index = taker.orders[taker_order_index].market_index;
     let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
     let taker_price =
         taker.orders[taker_order_index].get_limit_price(Some(oracle_price), slot, None)?;
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
     let taker_order_ts = taker.orders[taker_order_index].ts;
+    let taker_spot_position_index = taker.get_spot_position_index(market_index)?;
 
     let maker_price =
         maker.orders[maker_order_index].get_limit_price(Some(oracle_price), slot, None)?;
     let maker_direction = &maker.orders[maker_order_index].direction;
     let maker_base_asset_amount =
         maker.orders[maker_order_index].get_base_asset_amount_unfilled()?;
+    let maker_spot_position_index = maker.get_spot_position_index(market_index)?;
 
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
@@ -2707,20 +2710,21 @@ pub fn fulfill_spot_order_with_match(
         false,
     )?;
 
+    // Update taker state
     update_spot_balances(
         base_asset_amount,
         &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Base),
         base_market,
-        taker.force_get_spot_position_mut(base_market.market_index)?,
+        &mut taker.spot_positions[taker_spot_position_index],
         false,
     )?;
 
     let taker_quote_asset_amount_delta = match &taker.orders[taker_order_index].direction {
         PositionDirection::Long => quote_asset_amount
-            .checked_sub(taker_fee)
+            .checked_add(taker_fee)
             .ok_or_else(math_error!())?,
         PositionDirection::Short => quote_asset_amount
-            .checked_add(taker_fee)
+            .checked_sub(taker_fee)
             .ok_or_else(math_error!())?,
     };
 
@@ -2732,35 +2736,6 @@ pub fn fulfill_spot_order_with_match(
         false,
     )?;
 
-    maker_stats.update_maker_volume_30d(cast(quote_asset_amount)?, now)?;
-
-    update_spot_balances(
-        base_asset_amount,
-        &maker.orders[maker_order_index].get_spot_position_update_direction(AssetType::Base),
-        base_market,
-        taker.force_get_spot_position_mut(base_market.market_index)?,
-        false,
-    )?;
-
-    let maker_quote_asset_amount_delta = match &maker.orders[maker_order_index].direction {
-        PositionDirection::Long => quote_asset_amount
-            .checked_add(maker_rebate)
-            .ok_or_else(math_error!())?,
-        PositionDirection::Short => quote_asset_amount
-            .checked_sub(maker_rebate)
-            .ok_or_else(math_error!())?,
-    };
-
-    update_spot_balances(
-        maker_quote_asset_amount_delta,
-        &maker.orders[maker_order_index].get_spot_position_update_direction(AssetType::Quote),
-        quote_market,
-        taker.get_quote_spot_position_mut(),
-        false,
-    )?;
-
-    taker_stats.update_taker_volume_30d(cast(quote_asset_amount)?, now)?;
-
     update_order_after_fill(
         &mut taker.orders[taker_order_index],
         base_market.order_step_size,
@@ -2771,9 +2746,43 @@ pub fn fulfill_spot_order_with_match(
 
     let taker_order_direction = taker.orders[taker_order_index].direction;
     decrease_spot_open_bids_and_asks(
-        taker.force_get_spot_position_mut(base_market.market_index)?,
+        &mut taker.spot_positions[taker_spot_position_index],
         &taker_order_direction,
         base_asset_amount,
+    )?;
+
+    taker_stats.update_taker_volume_30d(cast(quote_asset_amount)?, now)?;
+
+    taker_stats.fees.total_fee_paid = taker_stats
+        .fees
+        .total_fee_paid
+        .checked_add(cast(taker_fee)?)
+        .ok_or_else(math_error!())?;
+
+    // Update maker state
+    update_spot_balances(
+        base_asset_amount,
+        &maker.orders[maker_order_index].get_spot_position_update_direction(AssetType::Base),
+        base_market,
+        &mut maker.spot_positions[maker_spot_position_index],
+        false,
+    )?;
+
+    let maker_quote_asset_amount_delta = match &maker.orders[maker_order_index].direction {
+        PositionDirection::Long => quote_asset_amount
+            .checked_sub(maker_rebate)
+            .ok_or_else(math_error!())?,
+        PositionDirection::Short => quote_asset_amount
+            .checked_add(maker_rebate)
+            .ok_or_else(math_error!())?,
+    };
+
+    update_spot_balances(
+        maker_quote_asset_amount_delta,
+        &maker.orders[maker_order_index].get_spot_position_update_direction(AssetType::Quote),
+        quote_market,
+        maker.get_quote_spot_position_mut(),
+        false,
     )?;
 
     update_order_after_fill(
@@ -2786,11 +2795,20 @@ pub fn fulfill_spot_order_with_match(
 
     let maker_order_direction = maker.orders[maker_order_index].direction;
     decrease_spot_open_bids_and_asks(
-        maker.force_get_spot_position_mut(base_market.market_index)?,
+        &mut maker.spot_positions[maker_spot_position_index],
         &maker_order_direction,
         base_asset_amount,
     )?;
 
+    maker_stats.update_maker_volume_30d(cast(quote_asset_amount)?, now)?;
+
+    maker_stats.fees.total_fee_rebate = maker_stats
+        .fees
+        .total_fee_rebate
+        .checked_add(cast(maker_rebate)?)
+        .ok_or_else(math_error!())?;
+
+    // Update filler state
     if let (Some(filler), Some(filler_stats)) = (filler, filler_stats) {
         if filler_reward > 0 {
             update_spot_balances(
@@ -2805,10 +2823,19 @@ pub fn fulfill_spot_order_with_match(
         filler_stats.update_filler_volume(cast(quote_asset_amount)?, now)?;
     }
 
+    // Update base market
     base_market.total_spot_fee = base_market
         .total_spot_fee
         .checked_add(cast(fee_to_market)?)
         .ok_or_else(math_error!())?;
+
+    update_spot_balances(
+        cast(fee_to_market)?,
+        &SpotBalanceType::Deposit,
+        quote_market,
+        &mut base_market.spot_fee_pool,
+        false,
+    )?;
 
     let fill_record_id = get_then_update_id!(base_market, next_fill_record_id);
     let order_action_record = get_order_action_record(
@@ -2830,26 +2857,23 @@ pub fn fulfill_spot_order_with_match(
         None,
         Some(*taker_key),
         Some(taker.orders[taker_order_index]),
-        Some(0),
+        None,
         Some(*maker_key),
         Some(maker.orders[maker_order_index]),
-        Some(0),
+        None,
         oracle_map.get_price_data(&base_market.oracle)?.price,
     )?;
     order_records.push(order_action_record);
 
+    // Clear taker/maker order if completely filled
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled()? == 0 {
         taker.orders[taker_order_index] = Order::default();
-        taker
-            .force_get_spot_position_mut(base_market.market_index)?
-            .open_orders -= 1;
+        taker.spot_positions[taker_spot_position_index].open_orders -= 1;
     }
 
     if maker.orders[maker_order_index].get_base_asset_amount_unfilled()? == 0 {
         maker.orders[maker_order_index] = Order::default();
-        maker
-            .force_get_spot_position_mut(base_market.market_index)?
-            .open_orders -= 1;
+        maker.spot_positions[maker_spot_position_index].open_orders -= 1;
     }
 
     Ok(base_asset_amount)
@@ -3141,6 +3165,12 @@ pub fn fulfill_spot_order_with_serum(
     )?;
 
     taker_stats.update_taker_volume_30d(cast(quote_asset_amount_filled)?, now)?;
+
+    taker_stats.fees.total_fee_paid = taker_stats
+        .fees
+        .total_fee_paid
+        .checked_add(cast(taker_fee)?)
+        .ok_or_else(math_error!())?;
 
     update_order_after_fill(
         &mut taker.orders[taker_order_index],
