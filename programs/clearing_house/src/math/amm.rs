@@ -190,7 +190,7 @@ pub fn calculate_spread(
             long_spread,
             last_oracle_mark_spread_pct
                 .unsigned_abs()
-                .checked_add(last_oracle_conf_pct as u128)
+                .checked_add(cast_to_u128(last_oracle_conf_pct)?)
                 .ok_or_else(math_error!())?,
         );
     } else {
@@ -198,7 +198,7 @@ pub fn calculate_spread(
             short_spread,
             last_oracle_mark_spread_pct
                 .unsigned_abs()
-                .checked_add(last_oracle_conf_pct as u128)
+                .checked_add(cast_to_u128(last_oracle_conf_pct)?)
                 .ok_or_else(math_error!())?,
         );
     }

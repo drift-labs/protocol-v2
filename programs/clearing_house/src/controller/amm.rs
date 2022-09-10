@@ -217,7 +217,7 @@ pub fn update_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u
             amm.max_base_asset_reserve,
         )?
     } else {
-        let half_base_spread = (amm.base_spread / 2) as u128;
+        let half_base_spread = cast_to_u128(amm.base_spread / 2)?;
         (half_base_spread, half_base_spread)
     };
 

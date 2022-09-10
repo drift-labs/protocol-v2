@@ -87,6 +87,16 @@ impl Market {
         }
     }
 
+    pub fn default_btc_test() -> Self {
+        let amm = AMM::default_btc_test();
+        Market {
+            amm,
+            margin_ratio_initial: 1000,    // 10x
+            margin_ratio_maintenance: 500, // 5x
+            ..Market::default()
+        }
+    }
+
     pub fn get_unrealized_asset_weight(
         &self,
         unrealized_pnl: i128,
@@ -276,6 +286,34 @@ impl AMM {
             peg_multiplier: crate::math::constants::PEG_PRECISION,
             max_spread: 1000,
             last_oracle_price: MARK_PRICE_PRECISION as i128,
+            last_oracle_valid: true,
+            ..AMM::default()
+        }
+    }
+
+    pub fn default_btc_test() -> Self {
+        AMM {
+            base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 630153846154000,
+            terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
+            sqrt_k: 64 * AMM_RESERVE_PRECISION,
+
+            peg_multiplier: 19_400_000,
+
+            max_base_asset_reserve: 90 * AMM_RESERVE_PRECISION,
+            min_base_asset_reserve: 45 * AMM_RESERVE_PRECISION,
+
+            net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
+            mark_std: MARK_PRICE_PRECISION as u64,
+
+            last_oracle_price_twap_ts: 1662800000,
+            last_mark_price_twap_ts: 1662800000,
+            last_oracle_price_twap: (19_400 * MARK_PRICE_PRECISION) as i128,
+            curve_update_intensity: 100,
+
+            base_spread: 250,
+            max_spread: 975,
+
             last_oracle_valid: true,
             ..AMM::default()
         }
