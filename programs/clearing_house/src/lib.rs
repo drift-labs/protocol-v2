@@ -1348,6 +1348,8 @@ pub mod clearing_house {
 
         let state = &ctx.accounts.state;
 
+        msg!("HI");
+
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let market_map = &mut MarketMap::load(
@@ -1355,8 +1357,10 @@ pub mod clearing_house {
             &MarketSet::new(),
             remaining_accounts_iter,
         )?;
+        msg!("update_amms");
 
         controller::repeg::update_amms(market_map, oracle_map, state, &clock)?;
+        msg!("update_amms done");
 
         Ok(())
     }

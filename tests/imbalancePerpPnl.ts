@@ -37,7 +37,12 @@ import {
 	getFeedData,
 	sleep,
 } from './testHelpers';
-import { AMM_RESERVE_PRECISION, isVariant, MARGIN_PRECISION } from '../sdk';
+import {
+	AMM_RESERVE_PRECISION,
+	calculateBidAskPrice,
+	isVariant,
+	MARGIN_PRECISION,
+} from '../sdk';
 import {
 	Keypair,
 	sendAndConfirmTransaction,
@@ -219,22 +224,53 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		await eventSubscriber.unsubscribe();
 	});
 
-	it('put market in big drawdown and net user negative pnl', async () => {
+	it('update amm', async () => {
+		const marketAccount0 = clearingHouse.getMarketAccount(0);
+		assert(marketAccount0.amm.totalFee.eq(ZERO));
+		assert(marketAccount0.amm.pegMultiplier.eq(new BN(42500)));
+		assert(marketAccount0.amm.totalFeeMinusDistributions.eq(ZERO));
+
 		await depositToFeePoolFromIF(1000, clearingHouse, userUSDCAccount);
 
-		try {
-			await clearingHouse.openPosition(
-				PositionDirection.SHORT,
-				BASE_PRECISION,
-				new BN(0),
-				new BN(0)
-			);
-		} catch (e) {
-			console.log('clearingHouse.openPosition');
+		const newPrice = 42.52;
+		await setFeedPrice(anchor.workspace.Pyth, newPrice, solOracle);
+		console.log('price move to $', newPrice);
 
-			console.error(e);
-		}
+		const txSig1 = await clearingHouse.updateAMMs([new BN(0)]);
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txSig1, { commitment: 'confirmed' }))
+				.meta.logMessages
+		);
 
+		await clearingHouse.openPosition(
+			PositionDirection.SHORT,
+			BASE_PRECISION,
+			new BN(0),
+			new BN(0)
+		);
+		await clearingHouse.fetchAccounts();
+		const userAccount = clearingHouse.getUserAccount();
+		assert(userAccount.positions[0].baseAssetAmount.abs().eq(BASE_PRECISION));
+
+		const marketAccount = clearingHouse.getMarketAccount(0);
+		assert(marketAccount.amm.totalFee.gt(ZERO));
+		assert(marketAccount.amm.pegMultiplier.eq(new BN(42520)));
+		assert(marketAccount.amm.totalFeeMinusDistributions.gt(ZERO));
+
+		const newPrice2 = 42.5;
+		await setFeedPrice(anchor.workspace.Pyth, newPrice2, solOracle);
+		console.log('price move to $', newPrice2);
+
+		const txSig2 = await clearingHouse.updateAMMs([new BN(0)]);
+		console.log(
+			'tx logs',
+			(await connection.getTransaction(txSig2, { commitment: 'confirmed' }))
+				.meta.logMessages
+		);
+	});
+
+	it('put market in big drawdown and net user negative pnl', async () => {
 		const uL = clearingHouseLoserUser.getUserAccount();
 		console.log(
 			'uL.bankBalances[0].balance:',
@@ -291,7 +327,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		assert(clearingHouseLoserUserLeverage < 8.95);
-		assert(clearingHouseLoserUserLeverage > 8.9);
+		assert(clearingHouseLoserUserLeverage > 8.5);
 		assert(clearingHouseLoserUserLiqPrice < 41);
 		assert(clearingHouseLoserUserLiqPrice > 30.5);
 
@@ -310,7 +346,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance00:', imbalance00.toString());
-		assert(imbalance00.eq(new BN(-10049945)));
+		assert(imbalance00.eq(new BN(-9821950)));
 
 		const bank0Value1p5 = clearingHouseLoserUser.getBankAssetValue(new BN(0));
 		console.log('uL.bank0Value1p5:', bank0Value1p5.toString());
@@ -430,7 +466,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		const bank0 = clearingHouse.getBankAccount(new BN(0));
-		const market0 = clearingHouse.getMarketAccount(new BN(0));
+		let market0 = clearingHouse.getMarketAccount(new BN(0));
 		const winnerUser = clearingHouse.getUserAccount();
 		const loserUser = clearingHouseLoser.getUserAccount();
 		console.log(winnerUser.positions[0].quoteAssetAmount.toString());
@@ -448,6 +484,46 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 				loserUser.positions[0].quoteAssetAmount
 			)
 		);
+
+		while (!market0.amm.lastOracleValid) {
+			const oraclePriceData = clearingHouse.getOracleDataForMarket(
+				market0.marketIndex
+			);
+
+			const imbalance = calculateNetUserImbalance(
+				market0,
+				bank0,
+				oraclePriceData
+			);
+
+			console.log('pnlimbalance:', imbalance.toString());
+			assert(imbalance.eq(new BN(44462178050))); //44k! :o
+
+			console.log('lastOraclePrice:', market0.amm.lastOraclePrice.toString());
+			console.log('lastOracleValid:', market0.amm.lastOracleValid.toString());
+			console.log('lastUpdateSlot:', market0.amm.lastUpdateSlot.toString());
+
+			console.log('lastAskPriceTwap:', market0.amm.lastAskPriceTwap.toString());
+			console.log('lastBidPriceTwap:', market0.amm.lastBidPriceTwap.toString());
+			console.log(
+				'lastOraclePriceTwap:',
+				market0.amm.lastOraclePriceTwap.toString()
+			);
+
+			try {
+				const txSig = await clearingHouse.updateAMMs([new BN(0)]);
+				console.log(
+					'tx logs',
+					(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
+						.meta.logMessages
+				);
+			} catch (e) {
+				console.error(e);
+			}
+			clearingHouse.fetchAccounts();
+
+			market0 = clearingHouse.getMarketAccount(new BN(0));
+		}
 		const oraclePriceData = clearingHouse.getOracleDataForMarket(
 			market0.marketIndex
 		);
@@ -459,7 +535,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance:', imbalance.toString());
-		assert(imbalance.eq(new BN(44332675255))); //44k! :o
+		assert(imbalance.eq(new BN(44462178050))); //44k! :o
 
 		console.log('lastOraclePrice:', market0.amm.lastOraclePrice.toString());
 		console.log('lastOracleValid:', market0.amm.lastOracleValid.toString());
@@ -471,7 +547,6 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			'lastOraclePriceTwap:',
 			market0.amm.lastOraclePriceTwap.toString()
 		);
-
 		assert(market0.amm.lastOracleValid == true);
 	});
 
@@ -500,7 +575,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData0);
 		console.log(prepegAMM.pegMultiplier.toString());
-		assert(prepegAMM.pegMultiplier.eq(new BN(1003)));
+		assert(prepegAMM.pegMultiplier.eq(new BN(248126)));
 
 		try {
 			const tx1 = await clearingHouse.updateMarketMaxImbalances(
@@ -527,7 +602,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const imbalance = calculateNetUserImbalance(market, bank, oraclePriceData);
 
 		console.log('pnlimbalance:', imbalance.toString());
-		assert(imbalance.eq(new BN(44332675255))); //44k still :o
+		assert(imbalance.eq(new BN(44462178050))); //44k still :o
 
 		assert(market.revenueWithdrawSinceLastSettle, ZERO);
 		assert(
@@ -556,94 +631,145 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 	});
 
-	it('liq and settle expired market position', async () => {
-		const marketIndex = new BN(0);
-		const loserUser0 = clearingHouseLoser.getUserAccount();
-		assert(loserUser0.positions[0].baseAssetAmount.gt(new BN(0)));
-		assert(loserUser0.positions[0].quoteAssetAmount.lt(new BN(0)));
-		// console.log(loserUser0.positions[0]);
+	it('whale takes tiny profit', async () => {
+		const market0 = clearingHouse.getMarketAccount(new BN(0));
 
-		const liquidatorClearingHouseUser = new ClearingHouseUser({
-			clearingHouse: liquidatorClearingHouse,
-			userAccountPublicKey:
-				await liquidatorClearingHouse.getUserAccountPublicKey(),
+		const oraclePriceData0 = clearingHouse.getOracleDataForMarket(
+			market0.marketIndex
+		);
+		oraclePriceData0.confidence = oraclePriceData0.price.div(new BN(1000));
+
+		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData0);
+		console.log(prepegAMM.pegMultiplier.toString());
+		assert(prepegAMM.pegMultiplier.eq(new BN(248126)));
+
+		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData0);
+		console.log(
+			'bid/ask:',
+			bid.toString(),
+			ask.toString(),
+			'oracle:',
+			oraclePriceData0.price.toString()
+		);
+		assert(bid.eq(new BN('2481260112483')));
+		assert(ask.eq(new BN('2600821965976')));
+		assert(bid.lte(oraclePriceData0.price));
+		assert(ask.gte(oraclePriceData0.price));
+
+		const direction = PositionDirection.SHORT;
+		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
+		const price = bid.mul(new BN(1000)).div(new BN(1049)); // dont breach oracle price bands
+
+		const orderParams = getMarketOrderParams({
+			marketIndex: new BN(0),
+			direction,
+			baseAssetAmount,
+			price,
 		});
-		await liquidatorClearingHouseUser.subscribe();
 
-		const liquidatorClearingHouseValue = convertToNumber(
-			liquidatorClearingHouseUser.getTotalCollateral(),
-			QUOTE_PRECISION
-		);
-		console.log(
-			'liquidatorClearingHouseValue:',
-			liquidatorClearingHouseValue.toString()
-		);
+		//    'Program failed to complete: Access violation in stack frame 11 at address 0x20000bff0 of size 8 by instruction #88129',
 
-		const txSigLiq = await liquidatorClearingHouse.liquidatePerp(
-			await clearingHouseLoser.getUserAccountPublicKey(),
-			clearingHouseLoser.getUserAccount(),
-			marketIndex,
-			BASE_PRECISION.mul(new BN(290))
-		);
-
-		console.log(txSigLiq);
-
-		const liquidatorClearingHouseValueAfter = convertToNumber(
-			liquidatorClearingHouseUser.getTotalCollateral(),
-			QUOTE_PRECISION
-		);
-		console.log(
-			'liquidatorClearingHouseValueAfter:',
-			liquidatorClearingHouseValueAfter.toString()
-		);
-
-		console.log('settle position clearingHouseLoser');
-		const txSig = await clearingHouseLoser.settleExpiredPosition(
-			await clearingHouseLoser.getUserAccountPublicKey(),
-			clearingHouseLoser.getUserAccount(),
-			marketIndex
-		);
+		const txSig = await clearingHouseLoser.placeAndTake(orderParams);
 		await printTxLogs(connection, txSig);
 
-		console.log('settle pnl clearingHouseLoser');
+		const market1 = clearingHouse.getMarketAccount(new BN(0));
 
-		try {
-			await clearingHouse.settlePNL(
-				await clearingHouse.getUserAccountPublicKey(),
-				clearingHouse.getUserAccount(),
-				marketIndex
-			);
-		} catch (e) {
-			// if (!e.toString().search('AnchorError occurred')) {
-			// 	assert(false);
-			// }
-			console.log('Cannot settle pnl under current market status');
-		}
-
-		// const settleRecord = eventSubscriber.getEventsArray('SettlePnlRecord')[0];
-		// console.log(settleRecord);
-
-		await clearingHouseLoser.fetchAccounts();
-		const loserUser = clearingHouseLoser.getUserAccount();
-		// console.log(loserUser.positions[0]);
-		assert(loserUser.positions[0].baseAssetAmount.eq(new BN(0)));
-		assert(loserUser.positions[0].quoteAssetAmount.eq(new BN(0)));
-		const marketAfter0 = clearingHouse.getMarketAccount(marketIndex);
-
-		const finalPnlResultMin0 = new BN(1415296436 - 11090);
-		const finalPnlResultMax0 = new BN(1415296436 + 111090);
-
-		console.log(marketAfter0.pnlPool.balance.toString());
-		assert(marketAfter0.pnlPool.balance.gt(finalPnlResultMin0));
-		assert(marketAfter0.pnlPool.balance.lt(finalPnlResultMax0));
-
-		// const ammPnlResult = new BN(0);
-		console.log('feePool:', marketAfter0.amm.feePool.balance.toString());
-		console.log(
-			'totalExchangeFee:',
-			marketAfter0.amm.totalExchangeFee.toString()
+		const oraclePriceData1 = clearingHouse.getOracleDataForMarket(
+			market1.marketIndex
 		);
-		assert(marketAfter0.amm.feePool.balance.eq(new BN(4356250)));
-		await liquidatorClearingHouseUser.unsubscribe();
+		const prepegAMM1 = calculateUpdatedAMM(market0.amm, oraclePriceData1);
+		console.log(prepegAMM1.pegMultiplier.toString());
+		assert(prepegAMM1.pegMultiplier.eq(new BN(248126)));
 	});
+
+	// it('liq and settle expired market position', async () => {
+	// 	const marketIndex = new BN(0);
+	// 	const loserUser0 = clearingHouseLoser.getUserAccount();
+	// 	assert(loserUser0.positions[0].baseAssetAmount.gt(new BN(0)));
+	// 	assert(loserUser0.positions[0].quoteAssetAmount.lt(new BN(0)));
+	// 	// console.log(loserUser0.positions[0]);
+
+	// 	const liquidatorClearingHouseUser = new ClearingHouseUser({
+	// 		clearingHouse: liquidatorClearingHouse,
+	// 		userAccountPublicKey:
+	// 			await liquidatorClearingHouse.getUserAccountPublicKey(),
+	// 	});
+	// 	await liquidatorClearingHouseUser.subscribe();
+
+	// 	const liquidatorClearingHouseValue = convertToNumber(
+	// 		liquidatorClearingHouseUser.getTotalCollateral(),
+	// 		QUOTE_PRECISION
+	// 	);
+	// 	console.log(
+	// 		'liquidatorClearingHouseValue:',
+	// 		liquidatorClearingHouseValue.toString()
+	// 	);
+
+	// 	const txSigLiq = await liquidatorClearingHouse.liquidatePerp(
+	// 		await clearingHouseLoser.getUserAccountPublicKey(),
+	// 		clearingHouseLoser.getUserAccount(),
+	// 		marketIndex,
+	// 		BASE_PRECISION.mul(new BN(290))
+	// 	);
+
+	// 	console.log(txSigLiq);
+
+	// 	const liquidatorClearingHouseValueAfter = convertToNumber(
+	// 		liquidatorClearingHouseUser.getTotalCollateral(),
+	// 		QUOTE_PRECISION
+	// 	);
+	// 	console.log(
+	// 		'liquidatorClearingHouseValueAfter:',
+	// 		liquidatorClearingHouseValueAfter.toString()
+	// 	);
+
+	// 	console.log('settle position clearingHouseLoser');
+	// 	const txSig = await clearingHouseLoser.settleExpiredPosition(
+	// 		await clearingHouseLoser.getUserAccountPublicKey(),
+	// 		clearingHouseLoser.getUserAccount(),
+	// 		marketIndex
+	// 	);
+	// 	await printTxLogs(connection, txSig);
+
+	// 	console.log('settle pnl clearingHouseLoser');
+
+	// 	try {
+	// 		await clearingHouse.settlePNL(
+	// 			await clearingHouse.getUserAccountPublicKey(),
+	// 			clearingHouse.getUserAccount(),
+	// 			marketIndex
+	// 		);
+	// 	} catch (e) {
+	// 		// if (!e.toString().search('AnchorError occurred')) {
+	// 		// 	assert(false);
+	// 		// }
+	// 		console.log('Cannot settle pnl under current market status');
+	// 	}
+
+	// 	// const settleRecord = eventSubscriber.getEventsArray('SettlePnlRecord')[0];
+	// 	// console.log(settleRecord);
+
+	// 	await clearingHouseLoser.fetchAccounts();
+	// 	const loserUser = clearingHouseLoser.getUserAccount();
+	// 	// console.log(loserUser.positions[0]);
+	// 	assert(loserUser.positions[0].baseAssetAmount.eq(new BN(0)));
+	// 	assert(loserUser.positions[0].quoteAssetAmount.eq(new BN(0)));
+	// 	const marketAfter0 = clearingHouse.getMarketAccount(marketIndex);
+
+	// 	const finalPnlResultMin0 = new BN(1415296436 - 11090);
+	// 	const finalPnlResultMax0 = new BN(1415296436 + 111090);
+
+	// 	console.log(marketAfter0.pnlPool.balance.toString());
+	// 	assert(marketAfter0.pnlPool.balance.gt(finalPnlResultMin0));
+	// 	assert(marketAfter0.pnlPool.balance.lt(finalPnlResultMax0));
+
+	// 	// const ammPnlResult = new BN(0);
+	// 	console.log('feePool:', marketAfter0.amm.feePool.balance.toString());
+	// 	console.log(
+	// 		'totalExchangeFee:',
+	// 		marketAfter0.amm.totalExchangeFee.toString()
+	// 	);
+	// 	assert(marketAfter0.amm.feePool.balance.eq(new BN(4356250)));
+	// 	await liquidatorClearingHouseUser.unsubscribe();
+	// });
 });
