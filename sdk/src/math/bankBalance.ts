@@ -140,33 +140,36 @@ export function calculateLiabilityWeight(
 	return assetWeight;
 }
 
-export function calculateInterestAccumulated(
-	bank: BankAccount,
-	now: BN
-): { borrowInterest: BN; depositInterest: BN } {
-	const token_deposit_amount = getTokenAmount(
+export function calculateUtilization(bank: BankAccount): BN {
+	const tokenDepositAmount = getTokenAmount(
 		bank.depositBalance,
 		bank,
 		BankBalanceType.DEPOSIT
 	);
-	const token_borrow_amount = getTokenAmount(
+	const tokenBorrowAmount = getTokenAmount(
 		bank.borrowBalance,
 		bank,
 		BankBalanceType.BORROW
 	);
 
 	let utilization: BN;
-	if (token_borrow_amount.eq(ZERO) && token_deposit_amount.eq(ZERO)) {
+	if (tokenBorrowAmount.eq(ZERO) && tokenDepositAmount.eq(ZERO)) {
 		utilization = ZERO;
-	} else if (token_deposit_amount.eq(ZERO)) {
+	} else if (tokenDepositAmount.eq(ZERO)) {
 		utilization = BANK_UTILIZATION_PRECISION;
 	} else {
-		utilization = token_borrow_amount
+		utilization = tokenBorrowAmount
 			.mul(BANK_UTILIZATION_PRECISION)
-			.div(token_deposit_amount);
+			.div(tokenDepositAmount);
 	}
 
-	let interest_rate: BN;
+	return utilization;
+}
+
+export function calculateInterestRate(bank: BankAccount): BN {
+	const utilization = calculateUtilization(bank);
+
+	let interestRate: BN;
 	if (utilization.gt(bank.optimalUtilization)) {
 		const surplusUtilization = utilization.sub(bank.optimalUtilization);
 		const borrowRateSlope = bank.maxBorrowRate
@@ -174,7 +177,7 @@ export function calculateInterestAccumulated(
 			.mul(BANK_UTILIZATION_PRECISION)
 			.div(BANK_UTILIZATION_PRECISION.sub(bank.optimalUtilization));
 
-		interest_rate = bank.optimalBorrowRate.add(
+		interestRate = bank.optimalBorrowRate.add(
 			surplusUtilization.mul(borrowRateSlope).div(BANK_UTILIZATION_PRECISION)
 		);
 	} else {
@@ -182,14 +185,38 @@ export function calculateInterestAccumulated(
 			.mul(BANK_UTILIZATION_PRECISION)
 			.div(BANK_UTILIZATION_PRECISION.sub(bank.optimalUtilization));
 
-		interest_rate = utilization
+		interestRate = utilization
 			.mul(borrowRateSlope)
 			.div(BANK_UTILIZATION_PRECISION);
 	}
 
+	return interestRate;
+}
+
+export function calculateDepositRate(bank: BankAccount): BN {
+	const utilization = calculateUtilization(bank);
+	const borrowRate = calculateBorrowRate(bank);
+	const depositRate = borrowRate
+		.mul(utilization)
+		.div(BANK_UTILIZATION_PRECISION);
+	return depositRate;
+}
+
+export function calculateBorrowRate(bank: BankAccount): BN {
+	return calculateInterestRate(bank);
+}
+
+export function calculateInterestAccumulated(
+	bank: BankAccount,
+	now: BN
+): { borrowInterest: BN; depositInterest: BN } {
+	const interestRate = calculateInterestRate(bank);
+
 	const timeSinceLastUpdate = now.sub(bank.lastInterestTs);
 
-	const modifiedBorrowRate = interest_rate.mul(timeSinceLastUpdate);
+	const modifiedBorrowRate = interestRate.mul(timeSinceLastUpdate);
+
+	const utilization = calculateUtilization(bank);
 
 	const modifiedDepositRate = modifiedBorrowRate
 		.mul(utilization)
