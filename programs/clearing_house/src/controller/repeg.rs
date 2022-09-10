@@ -218,7 +218,10 @@ pub fn apply_cost_to_market(
 mod test {
     use super::*;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128,
+        AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128, QUOTE_PRECISION,
+    };
+    use crate::math::repeg::{
+        calculate_fee_pool, calculate_peg_from_target_price, calculate_repeg_cost,
     };
     use crate::state::market::AMM;
     use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
@@ -471,6 +474,22 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
+        let fee_budget = calculate_fee_pool(&market).unwrap();
+        assert_eq!(market.amm.total_fee_minus_distributions, 42993230);
+        assert_eq!(fee_budget, 42993230);
+
+        let optimal_peg = calculate_peg_from_target_price(
+            market.amm.quote_asset_reserve,
+            market.amm.base_asset_reserve,
+            oracle_price_data.price as u128,
+        )
+        .unwrap();
+        assert_eq!(market.amm.peg_multiplier, 19443665);
+        assert_eq!(optimal_peg, 19412720);
+
+        let optimal_peg_cost = calculate_repeg_cost(&market.amm, optimal_peg).unwrap();
+        assert_eq!(optimal_peg_cost, 30468923);
+
         let cost_of_update =
             _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
         assert_eq!(cost_of_update, 30468923);
@@ -504,5 +523,133 @@ mod test {
         assert_eq!(bid, 188046473725985);
         assert_eq!(mrk, 188229997974010);
         assert_eq!(ask, 188229997974010);
+    }
+
+    #[test]
+    pub fn update_amm_larg_conf_w_neg_tfmd_test() {
+        let now = 1662800000 + 60;
+        let slot = 81680085;
+
+        let mut market = Market::default_btc_test();
+        market.amm.total_fee_minus_distributions = -(10000 * QUOTE_PRECISION as i128);
+        assert_eq!(market.amm.net_base_asset_amount, -10000000000000);
+
+        let state = State {
+            oracle_guard_rails: OracleGuardRails {
+                price_divergence: PriceDivergenceGuardRails {
+                    mark_oracle_divergence_numerator: 1,
+                    mark_oracle_divergence_denominator: 10,
+                },
+                validity: ValidityGuardRails {
+                    slots_before_stale: 10,
+                    confidence_interval_max_size: 1000,
+                    too_volatile_ratio: 5,
+                },
+                use_for_liquidations: true,
+            },
+            ..State::default()
+        };
+
+        let mark_price_before = market.amm.mark_price().unwrap();
+        assert_eq!(mark_price_before, 188076686390578);
+
+        let oracle_price_data = OraclePriceData {
+            price: (18_850 * MARK_PRICE_PRECISION) as i128,
+            confidence: 0,
+            delay: 9,
+            has_sufficient_number_of_data_points: true,
+        };
+        assert_eq!(market.amm.long_spread, 0);
+        assert_eq!(market.amm.short_spread, 0);
+
+        let cost_of_update =
+            _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
+        let mark_price_after = market.amm.mark_price().unwrap();
+        assert_eq!(mark_price_before < mark_price_after, true);
+        assert_eq!(mark_price_after, 188500004355075);
+
+        assert_eq!(cost_of_update, -42993230); // amm wins when price increases
+        assert_eq!(market.amm.long_spread, 285);
+        assert_eq!(market.amm.short_spread, 690);
+
+        // add large confidence
+        let oracle_price_data = OraclePriceData {
+            price: (18_850 * MARK_PRICE_PRECISION) as i128,
+            confidence: 100 * MARK_PRICE_PRECISION,
+            delay: 1,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let cost_of_update =
+            _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
+        assert_eq!(cost_of_update, 0);
+
+        let mrk = market.amm.mark_price().unwrap();
+        let (bid, ask) = market.amm.bid_ask_price(mrk).unwrap();
+
+        assert_eq!(bid, 188316216850828);
+        assert_eq!(mrk, 188500004355075);
+        assert_eq!(ask, 188500004355075);
+
+        assert_eq!(market.amm.long_spread, 0);
+        assert_eq!(market.amm.short_spread, 975);
+
+        // add move lower
+        let oracle_price_data = OraclePriceData {
+            price: (18_820 * MARK_PRICE_PRECISION) as i128,
+            confidence: 100 * MARK_PRICE_PRECISION,
+            delay: 1,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let fee_budget = calculate_fee_pool(&market).unwrap();
+        assert_eq!(market.amm.total_fee_minus_distributions, -9957006770);
+        assert_eq!(fee_budget, 0);
+
+        let optimal_peg = calculate_peg_from_target_price(
+            market.amm.quote_asset_reserve,
+            market.amm.base_asset_reserve,
+            oracle_price_data.price as u128,
+        )
+        .unwrap();
+        assert_eq!(market.amm.peg_multiplier, 19443665);
+        assert_eq!(optimal_peg, 19412720);
+
+        let optimal_peg_cost = calculate_repeg_cost(&market.amm, optimal_peg).unwrap();
+        assert_eq!(optimal_peg_cost, 30468923);
+
+        let cost_of_update =
+            _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
+        assert_eq!(cost_of_update, 11833107);
+        assert_eq!(market.amm.long_spread, 0);
+        assert_eq!(market.amm.short_spread, 975);
+
+        let mrk = market.amm.mark_price().unwrap();
+        let (bid, ask) = market.amm.bid_ask_price(mrk).unwrap();
+
+        assert_eq!(bid, 188199819849846);
+        assert_eq!(mrk, 188383493756259);
+        assert_eq!(ask, 188383493756259);
+
+        // add move lower
+        let oracle_price_data = OraclePriceData {
+            price: (18_823 * MARK_PRICE_PRECISION) as i128,
+            confidence: 121 * MARK_PRICE_PRECISION,
+            delay: 1,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let cost_of_update =
+            _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
+        assert_eq!(cost_of_update, 0);
+        assert_eq!(market.amm.long_spread, 0);
+        assert_eq!(market.amm.short_spread, 975);
+
+        let mrk = market.amm.mark_price().unwrap();
+        let (bid, ask) = market.amm.bid_ask_price(mrk).unwrap();
+
+        assert_eq!(bid, 188199819849846);
+        assert_eq!(mrk, 188383493756259);
+        assert_eq!(ask, 188383493756259);
     }
 }
