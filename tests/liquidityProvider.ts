@@ -131,25 +131,6 @@ async function fullClosePosition(clearingHouse, userPosition) {
 	return sig;
 }
 
-// if (limitPrice === undefined) {
-// 	switch (direction) {
-// 		case PositionDirection.LONG:
-// 			console.log('longing..')
-// 			limitPrice = new BN(100 * 1e13)
-
-// 		case PositionDirection.SHORT:
-// 			console.log('shorting..')
-// 			limitPrice = new BN(10 * 1e6)
-// 	}
-// }
-
-// let limitPrice;
-// if (userPosition.baseAssetAmount.lt(ZERO)) {
-// 	limitPrice = new BN(100 * 1e13)
-// } else {
-// 	limitPrice = new BN(10 * 1e6)
-// }
-
 describe('liquidity providing', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',

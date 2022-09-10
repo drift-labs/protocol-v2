@@ -140,73 +140,96 @@ export function calculateLiabilityWeight(
 	return assetWeight;
 }
 
-export function calculateInterestAccumulated(
-	spotMarket: SpotMarketAccount,
-	now: BN
-): { borrowInterest: BN; depositInterest: BN } {
-	const token_deposit_amount = getTokenAmount(
-		spotMarket.depositBalance,
-		spotMarket,
+export function calculateUtilization(bank: SpotMarketAccount): BN {
+	const tokenDepositAmount = getTokenAmount(
+		bank.depositBalance,
+		bank,
 		SpotBalanceType.DEPOSIT
 	);
-	const token_borrow_amount = getTokenAmount(
-		spotMarket.borrowBalance,
-		spotMarket,
+	const tokenBorrowAmount = getTokenAmount(
+		bank.borrowBalance,
+		bank,
 		SpotBalanceType.BORROW
 	);
 
 	let utilization: BN;
-	if (token_borrow_amount.eq(ZERO) && token_deposit_amount.eq(ZERO)) {
+	if (tokenBorrowAmount.eq(ZERO) && tokenDepositAmount.eq(ZERO)) {
 		utilization = ZERO;
-	} else if (token_deposit_amount.eq(ZERO)) {
+	} else if (tokenDepositAmount.eq(ZERO)) {
 		utilization = SPOT_MARKET_UTILIZATION_PRECISION;
 	} else {
-		utilization = token_borrow_amount
+		utilization = tokenBorrowAmount
 			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
-			.div(token_deposit_amount);
+			.div(tokenDepositAmount);
 	}
 
-	let interest_rate: BN;
-	if (utilization.gt(spotMarket.optimalUtilization)) {
-		const surplusUtilization = utilization.sub(spotMarket.optimalUtilization);
-		const borrowRateSlope = spotMarket.maxBorrowRate
-			.sub(spotMarket.optimalBorrowRate)
-			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
-			.div(
-				SPOT_MARKET_UTILIZATION_PRECISION.sub(spotMarket.optimalUtilization)
-			);
+	return utilization;
+}
 
-		interest_rate = spotMarket.optimalBorrowRate.add(
+export function calculateInterestRate(bank: SpotMarketAccount): BN {
+	const utilization = calculateUtilization(bank);
+
+	let interestRate: BN;
+	if (utilization.gt(bank.optimalUtilization)) {
+		const surplusUtilization = utilization.sub(bank.optimalUtilization);
+		const borrowRateSlope = bank.maxBorrowRate
+			.sub(bank.optimalBorrowRate)
+			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+			.div(SPOT_MARKET_UTILIZATION_PRECISION.sub(bank.optimalUtilization));
+
+		interestRate = bank.optimalBorrowRate.add(
 			surplusUtilization
 				.mul(borrowRateSlope)
 				.div(SPOT_MARKET_UTILIZATION_PRECISION)
 		);
 	} else {
-		const borrowRateSlope = spotMarket.optimalBorrowRate
+		const borrowRateSlope = bank.optimalBorrowRate
 			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
-			.div(
-				SPOT_MARKET_UTILIZATION_PRECISION.sub(spotMarket.optimalUtilization)
-			);
+			.div(SPOT_MARKET_UTILIZATION_PRECISION.sub(bank.optimalUtilization));
 
-		interest_rate = utilization
+		interestRate = utilization
 			.mul(borrowRateSlope)
 			.div(SPOT_MARKET_UTILIZATION_PRECISION);
 	}
 
-	const timeSinceLastUpdate = now.sub(spotMarket.lastInterestTs);
+	return interestRate;
+}
 
-	const modifiedBorrowRate = interest_rate.mul(timeSinceLastUpdate);
+export function calculateDepositRate(bank: SpotMarketAccount): BN {
+	const utilization = calculateUtilization(bank);
+	const borrowRate = calculateBorrowRate(bank);
+	const depositRate = borrowRate
+		.mul(utilization)
+		.div(SPOT_MARKET_UTILIZATION_PRECISION);
+	return depositRate;
+}
+
+export function calculateBorrowRate(bank: SpotMarketAccount): BN {
+	return calculateInterestRate(bank);
+}
+
+export function calculateInterestAccumulated(
+	bank: SpotMarketAccount,
+	now: BN
+): { borrowInterest: BN; depositInterest: BN } {
+	const interestRate = calculateInterestRate(bank);
+
+	const timeSinceLastUpdate = now.sub(bank.lastInterestTs);
+
+	const modifiedBorrowRate = interestRate.mul(timeSinceLastUpdate);
+
+	const utilization = calculateUtilization(bank);
 
 	const modifiedDepositRate = modifiedBorrowRate
 		.mul(utilization)
 		.div(SPOT_MARKET_UTILIZATION_PRECISION);
 
-	const borrowInterest = spotMarket.cumulativeBorrowInterest
+	const borrowInterest = bank.cumulativeBorrowInterest
 		.mul(modifiedBorrowRate)
 		.div(ONE_YEAR)
 		.div(SPOT_MARKET_INTEREST_PRECISION)
 		.add(ONE);
-	const depositInterest = spotMarket.cumulativeDepositInterest
+	const depositInterest = bank.cumulativeDepositInterest
 		.mul(modifiedDepositRate)
 		.div(ONE_YEAR)
 		.div(SPOT_MARKET_INTEREST_PRECISION);

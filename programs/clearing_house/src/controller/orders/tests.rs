@@ -1448,7 +1448,7 @@ pub mod fulfill_order {
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION,
-        PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
+        MARK_PRICE_PRECISION_I128, PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{PerpMarket, AMM};
@@ -2098,6 +2098,9 @@ pub mod fulfill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 base_asset_amount_step_size: 1,
+                last_oracle_price: 100 * MARK_PRICE_PRECISION_I128,
+                max_slippage_ratio: 50,
+                max_base_asset_amount_ratio: 100,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2117,6 +2120,9 @@ pub mod fulfill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 20000 * PEG_PRECISION,
                 base_asset_amount_step_size: 1,
+                last_oracle_price: 20000 * MARK_PRICE_PRECISION_I128,
+                max_slippage_ratio: 50,
+                max_base_asset_amount_ratio: 100,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2195,7 +2201,7 @@ pub mod fulfill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_INTEREST_PRECISION,
+                balance: 10_000 * SPOT_INTEREST_PRECISION,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2245,7 +2251,7 @@ pub mod fulfill_order {
         };
 
         // random
-        let now = 0; //80080880_i64;
+        let now = 1; //80080880_i64;
         let slot = 0; //7893275_u64;
 
         let fee_structure = get_fee_structure();
@@ -2332,11 +2338,14 @@ pub mod fulfill_order {
         assert_eq!(market_after.amm.total_fee_minus_distributions, 10000);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 10000);
 
-        assert_eq!(market_after.amm.last_mark_price_twap_ts, 0);
-        assert_eq!(market_after.amm.last_ask_price_twap, 0);
-        assert_eq!(market_after.amm.last_bid_price_twap, 0);
-        assert_eq!(market_after.amm.last_mark_price_twap, 0);
-        assert_eq!(market_after.amm.last_mark_price_twap_5min, 0);
+        assert_eq!(market_after.amm.last_mark_price_twap_ts, 1);
+        assert_eq!(market_after.amm.last_oracle_price_twap_ts, 0);
+        assert_eq!(market_after.amm.last_ask_price_twap, 500000000000);
+        assert_eq!(market_after.amm.last_bid_price_twap, 500000000000);
+        assert_eq!(market_after.amm.last_mark_price_twap, 500000000000);
+        assert_eq!(market_after.amm.last_mark_price_twap_5min, 3333333333);
+        assert_eq!(market_after.amm.last_oracle_price_twap, 0);
+        assert_eq!(market_after.amm.last_oracle_price_twap_5min, 0);
     }
 }
 

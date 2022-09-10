@@ -93,6 +93,7 @@ impl PerpMarket {
         PerpMarket {
             amm,
             margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
             ..PerpMarket::default()
         }
     }
@@ -285,6 +286,8 @@ impl AMM {
             terminal_quote_asset_reserve: default_reserves,
             peg_multiplier: crate::math::constants::PEG_PRECISION,
             max_spread: 1000,
+            last_oracle_price: MARK_PRICE_PRECISION as i128,
+            last_oracle_valid: true,
             ..AMM::default()
         }
     }
