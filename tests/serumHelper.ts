@@ -240,6 +240,7 @@ async function listMarket({
 
 	async function getVaultOwnerAndNonce() {
 		const nonce = new BN(0);
+		// eslint-disable-next-line no-constant-condition
 		while (true) {
 			try {
 				const vaultOwner = await PublicKey.createProgramAddress(
@@ -357,7 +358,7 @@ async function listMarket({
 			signedTransaction.serialize()
 		);
 	}
-	const acc = await connection.getAccountInfo(market.publicKey);
+	await connection.getAccountInfo(market.publicKey);
 
 	return market.publicKey;
 }

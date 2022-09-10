@@ -1018,7 +1018,7 @@ pub mod liquidate_borrow {
         let mut user = User {
             orders: [Order::default(); 32],
             perp_positions: [PerpPosition::default(); 5],
-            spot_positions: spot_positions,
+            spot_positions,
             ..User::default()
         };
 
@@ -1186,7 +1186,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 quote_asset_amount: 100 * QUOTE_PRECISION_I128 as i128,
                 ..PerpPosition::default()
             }),
-            spot_positions: spot_positions,
+            spot_positions,
             ..User::default()
         };
 
@@ -1327,7 +1327,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 quote_asset_amount: 110 * QUOTE_PRECISION_I128 as i128,
                 ..PerpPosition::default()
             }),
-            spot_positions: spot_positions,
+            spot_positions,
             ..User::default()
         };
 
@@ -1468,7 +1468,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 quote_asset_amount: 80 * QUOTE_PRECISION_I128 as i128,
                 ..PerpPosition::default()
             }),
-            spot_positions: spot_positions,
+            spot_positions,
             ..User::default()
         };
 
@@ -1632,7 +1632,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 quote_asset_amount: -100 * QUOTE_PRECISION_I128 as i128,
                 ..PerpPosition::default()
             }),
-            spot_positions: spot_positions,
+            spot_positions,
             ..User::default()
         };
 
@@ -1773,7 +1773,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 quote_asset_amount: -91 * QUOTE_PRECISION_I128 as i128,
                 ..PerpPosition::default()
             }),
-            spot_positions: spot_positions,
+            spot_positions,
             ..User::default()
         };
 
@@ -1914,7 +1914,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128 as i128,
                 ..PerpPosition::default()
             }),
-            spot_positions: spot_positions,
+            spot_positions,
             ..User::default()
         };
 

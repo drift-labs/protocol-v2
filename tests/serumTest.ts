@@ -59,7 +59,7 @@ describe('serum spot market', () => {
 	let makerUSDC;
 
 	let takerClearingHouse: ClearingHouse;
-	let takerWSOL: PublicKey;
+	let _takerWSOL: PublicKey;
 	let takerUSDC: PublicKey;
 
 	const usdcAmount = new BN(200 * 10 ** 6);
@@ -108,7 +108,7 @@ describe('serum spot market', () => {
 		await initializeSolSpotMarket(makerClearingHouse, solOracle);
 		await makerClearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
-		[takerClearingHouse, takerWSOL, takerUSDC] =
+		[takerClearingHouse, _takerWSOL, takerUSDC] =
 			await createUserWithUSDCAndWSOLAccount(
 				provider,
 				usdcMint,

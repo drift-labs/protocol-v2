@@ -44,8 +44,8 @@ pub mod clearing_house {
     use std::option::Option::Some;
 
     use crate::controller::lp::burn_lp_shares;
-    use crate::controller::lp::settle_lp_position;
-    use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
+
+    use crate::controller::position::{add_new_position, get_position_index};
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};

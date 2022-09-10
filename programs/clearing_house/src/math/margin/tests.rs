@@ -584,7 +584,7 @@ mod calculate_margin_requirement_and_total_collateral {
         let user = User {
             orders: [Order::default(); 32],
             perp_positions: [PerpPosition::default(); 5],
-            spot_positions: spot_positions,
+            spot_positions,
             ..User::default()
         };
 
@@ -671,7 +671,7 @@ mod calculate_margin_requirement_and_total_collateral {
         let user = User {
             orders: [Order::default(); 32],
             perp_positions: [PerpPosition::default(); 5],
-            spot_positions: spot_positions,
+            spot_positions,
             ..User::default()
         };
 
@@ -759,7 +759,7 @@ mod calculate_margin_requirement_and_total_collateral {
         let user = User {
             orders: [Order::default(); 32],
             perp_positions: [PerpPosition::default(); 5],
-            spot_positions: spot_positions,
+            spot_positions,
             ..User::default()
         };
 

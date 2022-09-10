@@ -26,9 +26,7 @@ use crate::math::auction::{
     is_auction_complete,
 };
 use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::{
-    MARGIN_PRECISION, MARGIN_PRECISION_TO_SPOT_WEIGHT_PRECISION_RATIO, PERP_DECIMALS,
-};
+use crate::math::constants::PERP_DECIMALS;
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
@@ -58,7 +56,7 @@ use crate::state::serum::{load_market_state, load_open_orders};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::*;
-use crate::state::user::{AssetType, Order, OrderStatus, OrderType, PerpPosition, UserStats};
+use crate::state::user::{AssetType, Order, OrderStatus, OrderType, UserStats};
 use crate::state::user::{MarketType, User};
 use crate::validate;
 use serum_dex::instruction::{NewOrderInstructionV3, SelfTradeBehavior};
@@ -2318,7 +2316,7 @@ pub fn fill_spot_order(
         return Ok(0);
     }
 
-    let (base_asset_amount, mut updated_user_state) = fulfill_spot_order(
+    let (base_asset_amount, _updated_user_state) = fulfill_spot_order(
         user,
         order_index,
         &user_key,
@@ -2533,14 +2531,14 @@ fn fulfill_spot_order(
         cancel_order(
             user_order_index,
             user,
-            &user_key,
+            user_key,
             perp_market_map,
             spot_market_map,
             oracle_map,
             now,
             slot,
             OrderActionExplanation::InsufficientFreeCollateral,
-            Some(&filler_key),
+            Some(filler_key),
             filler_reward,
             false,
         )?;
@@ -2874,7 +2872,7 @@ pub fn fulfill_spot_order_with_serum(
     order_records: &mut Vec<OrderActionRecord>,
     serum_fulfillment_params: &mut Option<SerumFulfillmentParams>,
 ) -> ClearingHouseResult<u128> {
-    let mut serum_new_order_accounts = match serum_fulfillment_params {
+    let serum_new_order_accounts = match serum_fulfillment_params {
         Some(serum_new_order_accounts) => serum_new_order_accounts,
         None => return Ok(0),
     };
@@ -2988,14 +2986,14 @@ pub fn fulfill_spot_order_with_serum(
     serum_new_order_accounts
         .base_market_vault
         .reload()
-        .map_err(|e| {
+        .map_err(|_e| {
             msg!("Failed to reload base_market_vault");
             ErrorCode::FailedSerumCPI
         })?;
     serum_new_order_accounts
         .quote_market_vault
         .reload()
-        .map_err(|e| {
+        .map_err(|_e| {
             msg!("Failed to reload quote_market_vault");
             ErrorCode::FailedSerumCPI
         })?;

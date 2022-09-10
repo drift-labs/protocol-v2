@@ -420,7 +420,7 @@ mod test {
         let mut user = User {
             orders: [Order::default(); 32],
             perp_positions: [PerpPosition::default(); 5],
-            spot_positions: spot_positions,
+            spot_positions,
             ..User::default()
         };
 
@@ -752,7 +752,7 @@ mod test {
         let mut user = User {
             orders: [Order::default(); 32],
             perp_positions: [PerpPosition::default(); 5],
-            spot_positions: spot_positions,
+            spot_positions,
             ..User::default()
         };
 
@@ -1077,7 +1077,7 @@ mod test {
         let mut user = User {
             orders: [Order::default(); 32],
             perp_positions: [PerpPosition::default(); 5],
-            spot_positions: spot_positions,
+            spot_positions,
             ..User::default()
         };
 

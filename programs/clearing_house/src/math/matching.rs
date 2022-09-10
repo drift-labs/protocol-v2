@@ -1,6 +1,5 @@
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::constants::MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO;
 use crate::math_error;
 use crate::state::user::Order;
 use solana_program::msg;

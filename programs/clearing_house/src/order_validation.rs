@@ -5,7 +5,7 @@ use solana_program::msg;
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::constants::*;
-use crate::math::margin::MarginRequirementType;
+
 use crate::math::orders::{
     calculate_base_asset_amount_to_fill_up_to_limit_price, is_multiple_of_step_size,
     order_breaches_oracle_price_limits,

@@ -81,7 +81,7 @@ pub fn invoke_new_order<'a>(
     nonce: u8,
 ) -> ClearingHouseResult {
     let data = serum_dex::instruction::MarketInstruction::NewOrderV3(order).pack();
-    let mut instruction = Instruction {
+    let instruction = Instruction {
         program_id: *serum_program.key,
         data,
         accounts: vec![

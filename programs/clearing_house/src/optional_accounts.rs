@@ -1,7 +1,7 @@
 use crate::controller::serum::SerumFulfillmentParams;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::load;
-use crate::math::casting::cast;
+
 use crate::state::spot_market::{SerumV3FulfillmentConfig, SpotMarket};
 use crate::state::state::State;
 use crate::state::user::{User, UserStats};

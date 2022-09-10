@@ -1,9 +1,4 @@
-import {
-	MarketType,
-	OptionalOrderParams,
-	OrderTriggerCondition,
-	OrderType,
-} from './types';
+import { OptionalOrderParams, OrderTriggerCondition, OrderType } from './types';
 import { BN } from '@project-serum/anchor';
 
 export function getLimitOrderParams(

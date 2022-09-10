@@ -7,7 +7,6 @@ use crate::state::market::PerpMarket;
 use crate::state::spot_market::{SerumV3FulfillmentConfig, SpotMarket};
 use crate::state::state::State;
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType, User, UserStats};
-use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {

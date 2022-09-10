@@ -107,8 +107,11 @@ pub fn calculate_if_shares_lost(
 ) -> ClearingHouseResult<u128> {
     let n_shares = insurance_fund_stake.last_withdraw_request_shares;
 
-    let amount =
-        unstaked_shares_to_amount(n_shares, spot_market.total_if_shares, insurance_fund_vault_balance)?;
+    let amount = unstaked_shares_to_amount(
+        n_shares,
+        spot_market.total_if_shares,
+        insurance_fund_vault_balance,
+    )?;
 
     let if_shares_lost = if amount > insurance_fund_stake.last_withdraw_request_value {
         let new_n_shares = staked_amount_to_shares(

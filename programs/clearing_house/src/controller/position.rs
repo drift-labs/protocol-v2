@@ -562,8 +562,11 @@ pub fn update_position_with_base_asset_amount(
     let position_delta =
         get_position_delta_for_fill(base_asset_amount, quote_asset_amount, direction)?;
 
-    let pnl =
-        update_position_and_market(&mut user.perp_positions[position_index], market, &position_delta)?;
+    let pnl = update_position_and_market(
+        &mut user.perp_positions[position_index],
+        market,
+        &position_delta,
+    )?;
 
     market.amm.net_base_asset_amount = market
         .amm

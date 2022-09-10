@@ -31,7 +31,7 @@ mod test {
     use crate::math::bankruptcy::is_user_bankrupt;
     use crate::state::spot_market::SpotBalanceType;
     use crate::state::user::{PerpPosition, SpotPosition, User};
-    use crate::tests::utils::{get_spot_positions, get_positions};
+    use crate::tests::utils::{get_positions, get_spot_positions};
 
     #[test]
     fn user_has_position_with_base() {

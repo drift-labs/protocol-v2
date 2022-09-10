@@ -1442,7 +1442,7 @@ pub mod fulfill_order_with_maker_order {
 
 pub mod fulfill_order {
     use super::*;
-    use crate::controller::orders::{fulfill_order, fulfill_spot_order};
+    use crate::controller::orders::fulfill_order;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
@@ -2028,7 +2028,7 @@ pub mod fulfill_order {
             ..User::default()
         };
 
-        let mut maker = User {
+        let _maker = User {
             orders: get_orders(Order {
                 market_index: 0,
                 post_only: true,

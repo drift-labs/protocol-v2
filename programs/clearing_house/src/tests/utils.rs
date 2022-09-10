@@ -1,4 +1,4 @@
-use crate::state::user::{PerpPosition, Order, SpotPosition};
+use crate::state::user::{Order, PerpPosition, SpotPosition};
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::{Owner, ZeroCopy};
 use bytes::BytesMut;

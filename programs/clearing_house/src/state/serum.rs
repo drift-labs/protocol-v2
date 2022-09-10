@@ -26,7 +26,7 @@ fn strip_dex_padding<'a>(acc: &'a AccountInfo) -> ClearingHouseResult<Ref<'a, [u
     validate!(acc.data_len() >= 12, ErrorCode::InvalidSerumOpenOrders)?;
     let unpadded_data: Ref<[u8]> = Ref::map(
         acc.try_borrow_data()
-            .map_err(|e| ErrorCode::InvalidSerumOpenOrders)?,
+            .map_err(|_e| ErrorCode::InvalidSerumOpenOrders)?,
         |data| {
             let data_len = data.len() - 12;
             let (_, rest) = data.split_at(5);
