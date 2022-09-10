@@ -1244,25 +1244,14 @@ pub fn fulfill_order_with_amm(
         .ok_or_else(math_error!())?;
 
     // Increment the user's total fee variables
-    user_stats.fees.total_fee_paid = user_stats
-        .fees
-        .total_fee_paid
-        .checked_add(cast(user_fee)?)
-        .ok_or_else(math_error!())?;
-    user_stats.fees.total_referee_discount = user_stats
-        .fees
-        .total_referee_discount
-        .checked_add(referee_discount)
-        .ok_or_else(math_error!())?;
+    user_stats.increment_total_fees(cast(user_fee)?)?;
+    user_stats.increment_total_referee_discount(cast(referee_discount)?)?;
 
     if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
         if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index) {
             update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
 
-            referrer_stats.total_referrer_reward = referrer_stats
-                .total_referrer_reward
-                .checked_add(referrer_reward)
-                .ok_or_else(math_error!())?;
+            referrer_stats.increment_total_referrer_reward(cast(referrer_reward)?)?;
         }
     }
 
@@ -1583,16 +1572,8 @@ pub fn fulfill_order_with_match(
         -cast(taker_fee)?,
     )?;
 
-    taker_stats.fees.total_fee_paid = taker_stats
-        .fees
-        .total_fee_paid
-        .checked_add(cast(taker_fee)?)
-        .ok_or_else(math_error!())?;
-    taker_stats.fees.total_referee_discount = taker_stats
-        .fees
-        .total_referee_discount
-        .checked_add(referee_discount)
-        .ok_or_else(math_error!())?;
+    taker_stats.increment_total_fees(cast(taker_fee)?)?;
+    taker_stats.increment_total_referee_discount(cast(referee_discount)?)?;
 
     taker_pnl = taker_pnl
         .checked_sub(cast(taker_fee)?)
@@ -1604,11 +1585,7 @@ pub fn fulfill_order_with_match(
         cast(maker_rebate)?,
     )?;
 
-    maker_stats.fees.total_fee_rebate = maker_stats
-        .fees
-        .total_fee_rebate
-        .checked_add(cast(maker_rebate)?)
-        .ok_or_else(math_error!())?;
+    maker_stats.increment_total_rebate(cast(maker_rebate)?)?;
 
     maker_pnl = maker_pnl
         .checked_add(cast(maker_rebate)?)
@@ -1634,10 +1611,7 @@ pub fn fulfill_order_with_match(
         if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index) {
             update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
 
-            referrer_stats.total_referrer_reward = referrer_stats
-                .total_referrer_reward
-                .checked_add(referrer_reward)
-                .ok_or_else(math_error!())?;
+            referrer_stats.increment_total_referrer_reward(cast(referrer_reward)?)?;
         }
     }
 
@@ -2753,11 +2727,7 @@ pub fn fulfill_spot_order_with_match(
 
     taker_stats.update_taker_volume_30d(cast(quote_asset_amount)?, now)?;
 
-    taker_stats.fees.total_fee_paid = taker_stats
-        .fees
-        .total_fee_paid
-        .checked_add(cast(taker_fee)?)
-        .ok_or_else(math_error!())?;
+    taker_stats.increment_total_fees(cast(taker_fee)?)?;
 
     // Update maker state
     update_spot_balances(
@@ -2802,11 +2772,7 @@ pub fn fulfill_spot_order_with_match(
 
     maker_stats.update_maker_volume_30d(cast(quote_asset_amount)?, now)?;
 
-    maker_stats.fees.total_fee_rebate = maker_stats
-        .fees
-        .total_fee_rebate
-        .checked_add(cast(maker_rebate)?)
-        .ok_or_else(math_error!())?;
+    maker_stats.increment_total_rebate(cast(maker_rebate)?)?;
 
     // Update filler state
     if let (Some(filler), Some(filler_stats)) = (filler, filler_stats) {
@@ -3166,11 +3132,7 @@ pub fn fulfill_spot_order_with_serum(
 
     taker_stats.update_taker_volume_30d(cast(quote_asset_amount_filled)?, now)?;
 
-    taker_stats.fees.total_fee_paid = taker_stats
-        .fees
-        .total_fee_paid
-        .checked_add(cast(taker_fee)?)
-        .ok_or_else(math_error!())?;
+    taker_stats.increment_total_fees(cast(taker_fee)?)?;
 
     update_order_after_fill(
         &mut taker.orders[taker_order_index],

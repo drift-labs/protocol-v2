@@ -141,10 +141,10 @@ impl User {
 #[repr(packed)]
 pub struct UserFees {
     pub total_fee_paid: u64,
-    pub total_lp_fees: u128,
+    pub total_lp_fees: u64,
     pub total_fee_rebate: u64,
-    pub total_token_discount: u128,
-    pub total_referee_discount: u128,
+    pub total_token_discount: u64,
+    pub total_referee_discount: u64,
 }
 
 #[zero_copy]
@@ -586,7 +586,7 @@ pub struct UserStats {
 
     pub is_referrer: bool,
     pub referrer: Pubkey,
-    pub total_referrer_reward: u128,
+    pub total_referrer_reward: u64,
 
     pub fees: UserFees,
 
@@ -598,9 +598,10 @@ pub struct UserStats {
     pub last_taker_volume_30d_ts: i64,
     pub last_filler_volume_30d_ts: i64,
 
-    pub quote_asset_insurance_fund_stake: u128, // for market_index = 0
-                                                // todo: offer vip fee status for users who have lp_shares > threshold
-                                                //       lower taker fee, higher maker fee etc
+    // for market_index = 0
+    // todo: offer vip fee status for users who have lp_shares > threshold
+    // lower taker fee, higher maker fee etc
+    pub quote_asset_insurance_fund_stake: u128,
 }
 
 impl UserStats {
@@ -667,6 +668,45 @@ impl UserStats {
         )?;
 
         self.last_filler_volume_30d_ts = now;
+
+        Ok(())
+    }
+
+    pub fn increment_total_fees(&mut self, fee: u64) -> ClearingHouseResult {
+        self.fees.total_fee_paid = self
+            .fees
+            .total_fee_paid
+            .checked_add(fee)
+            .ok_or_else(math_error!())?;
+
+        Ok(())
+    }
+
+    pub fn increment_total_rebate(&mut self, fee: u64) -> ClearingHouseResult {
+        self.fees.total_fee_rebate = self
+            .fees
+            .total_fee_rebate
+            .checked_add(fee)
+            .ok_or_else(math_error!())?;
+
+        Ok(())
+    }
+
+    pub fn increment_total_referrer_reward(&mut self, reward: u64) -> ClearingHouseResult {
+        self.total_referrer_reward = self
+            .total_referrer_reward
+            .checked_add(reward)
+            .ok_or_else(math_error!())?;
+
+        Ok(())
+    }
+
+    pub fn increment_total_referee_discount(&mut self, discount: u64) -> ClearingHouseResult {
+        self.fees.total_referee_discount = self
+            .fees
+            .total_referee_discount
+            .checked_add(discount)
+            .ok_or_else(math_error!())?;
 
         Ok(())
     }
