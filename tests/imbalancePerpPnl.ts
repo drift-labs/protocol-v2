@@ -8,6 +8,8 @@ import { PublicKey } from '@solana/web3.js';
 
 import {
 	Wallet,
+	getInsuranceFundStakeAccountPublicKey,
+	InsuranceFundStake,
 	BASE_PRECISION,
 	BN,
 	OracleSource,
@@ -23,6 +25,7 @@ import {
 	calculateNetUserImbalance,
 	getMarketOrderParams,
 	calculateUpdatedAMM,
+	oraclePriceBands,
 } from '../sdk/src';
 
 import {
@@ -39,9 +42,12 @@ import {
 } from './testHelpers';
 import {
 	AMM_RESERVE_PRECISION,
+	BID_ASK_SPREAD_PRECISION,
 	calculateBidAskPrice,
 	isVariant,
 	MARGIN_PRECISION,
+	MarketAccount,
+	OraclePriceData,
 } from '../sdk';
 import {
 	Keypair,
@@ -86,6 +92,58 @@ async function depositToFeePoolFromIF(
 	console.log(txSig00);
 }
 
+function examineSpread(
+	market: MarketAccount,
+	oraclePriceData: OraclePriceData
+) {
+	const [bid, ask] = calculateBidAskPrice(market.amm, oraclePriceData);
+	console.log(
+		'bid/ask:',
+		bid.toString(),
+		'/',
+		ask.toString(),
+		'oracle:',
+		oraclePriceData.price.toString()
+	);
+
+	const spread = ask.sub(bid);
+	console.log(
+		'market spread:',
+		'$',
+		convertToNumber(spread),
+		spread.mul(BID_ASK_SPREAD_PRECISION).div(oraclePriceData.price).toNumber() /
+			BID_ASK_SPREAD_PRECISION.toNumber(),
+		'%',
+		'and max (',
+		'$',
+		convertToNumber(
+			new BN(market.amm.maxSpread)
+				.mul(oraclePriceData.price)
+				.div(BID_ASK_SPREAD_PRECISION)
+		),
+		market.amm.maxSpread / BID_ASK_SPREAD_PRECISION.toNumber(),
+		'%',
+
+		' margin max=',
+		(market.marginRatioInitial - market.marginRatioMaintenance) /
+			BID_ASK_SPREAD_PRECISION.toNumber(),
+		')'
+	);
+
+	const [minPrice, maxPrice] = oraclePriceBands(market, oraclePriceData);
+	console.log(
+		'min/max:',
+		minPrice.toString(),
+		'/',
+		maxPrice.toString(),
+		'(oracle bands)'
+	);
+
+	assert(bid.lte(oraclePriceData.price));
+	assert(ask.gte(oraclePriceData.price));
+	return [bid, ask];
+}
+
 describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
@@ -128,7 +186,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
-			usdcAmount.mul(new BN(10)),
+			usdcAmount.mul(new BN(10000)),
 			provider
 		);
 
@@ -169,7 +227,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			new BN(42_500),
 			undefined,
 			1000,
-			201 // hard to liq
+			500
 		);
 		await clearingHouse.updateMarketBaseSpread(new BN(0), 250);
 		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
@@ -298,7 +356,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 				new BN(0),
 				new BN(0)
 			);
-			await printTxLogs(connection, txSig);
+			// await printTxLogs(connection, txSig);
 		} catch (e) {
 			console.log('failed clearingHouseLoserc.openPosition');
 
@@ -361,6 +419,10 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			clearingHouseLoserUserValue1p5
 		);
 
+		const [bid0, ask0] = examineSpread(market00, oraclePriceData00);
+		assert(bid0.eq(new BN(424947320792)));
+		assert(ask0.eq(new BN(425052721008)));
+
 		// sol rallys big
 		// await clearingHouse.moveAmmToPrice(
 		// 	new BN(0),
@@ -368,7 +430,20 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		// );
 		await setFeedPrice(anchor.workspace.Pyth, 260.5, solOracle);
 		console.log('price move to $260.5');
+		await sleep(1000);
+		await clearingHouse.fetchAccounts();
 
+		const oraclePriceData00Again = clearingHouse.getOracleDataForMarket(
+			market00.marketIndex
+		);
+		const newAmm00 = calculateUpdatedAMM(market00.amm, oraclePriceData00Again);
+		const [bid0After, ask0After] = calculateBidAskPrice(
+			newAmm00,
+			oraclePriceData00Again
+		);
+		console.log('bid0After:', bid0After.toString(), ask0After.toString());
+		assert(bid0After.eq(new BN(2481260112483)));
+		assert(ask0After.eq(new BN(2606873905678)));
 		try {
 			const txSig = await clearingHouse.updateAMMs([new BN(0)]);
 			console.log(
@@ -379,22 +454,6 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		} catch (e) {
 			console.error(e);
 		}
-
-		// const direction = PositionDirection.SHORT;
-		// const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		// const price = new BN(260.5 * 1e10).mul(new BN(1000)).div(new BN(1049)); // dont breach oracle price bands
-
-		// const orderParams = getMarketOrderParams({
-		// 	marketIndex: new BN(0),
-		// 	direction,
-		// 	baseAssetAmount,
-		// 	price,
-		// });
-		//
-		//    'Program failed to complete: Access violation in stack frame 11 at address 0x20000bff0 of size 8 by instruction #88129',
-		//
-		// const txSig = await clearingHouseLoser.placeAndTake(orderParams);
-		// await printTxLogs(connection, txSig);
 
 		await clearingHouseLoser.fetchAccounts();
 		await clearingHouseLoserUser.fetchAccounts();
@@ -484,16 +543,18 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 				loserUser.positions[0].quoteAssetAmount
 			)
 		);
+		const oraclePriceData0 = clearingHouse.getOracleDataForMarket(
+			market0.marketIndex
+		);
+		const [bid1, ask1] = examineSpread(market0, oraclePriceData0);
+		assert(bid1.eq(bid0After));
+		assert(ask1.eq(ask0After));
 
 		while (!market0.amm.lastOracleValid) {
-			const oraclePriceData = clearingHouse.getOracleDataForMarket(
-				market0.marketIndex
-			);
-
 			const imbalance = calculateNetUserImbalance(
 				market0,
 				bank0,
-				oraclePriceData
+				oraclePriceData0
 			);
 
 			console.log('pnlimbalance:', imbalance.toString());
@@ -575,7 +636,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData0);
 		console.log(prepegAMM.pegMultiplier.toString());
-		assert(prepegAMM.pegMultiplier.eq(new BN(248126)));
+		// assert(prepegAMM.pegMultiplier.eq(new BN(248126)));
 
 		try {
 			const tx1 = await clearingHouse.updateMarketMaxImbalances(
@@ -584,7 +645,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 				new BN(40000).mul(QUOTE_PRECISION),
 				QUOTE_PRECISION
 			);
-			await printTxLogs(connection, tx1);
+			// await printTxLogs(connection, tx1);
 		} catch (e) {
 			console.error(e);
 		}
@@ -633,28 +694,21 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 	it('whale takes tiny profit', async () => {
 		const market0 = clearingHouse.getMarketAccount(new BN(0));
+		assert(market0.marginRatioInitial == 1000);
+		assert(market0.marginRatioMaintenance == 500);
 
 		const oraclePriceData0 = clearingHouse.getOracleDataForMarket(
 			market0.marketIndex
 		);
-		oraclePriceData0.confidence = oraclePriceData0.price.div(new BN(1000));
+		oraclePriceData0.confidence = 0; //oraclePriceData0.price.div(new BN(1000));
 
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData0);
 		console.log(prepegAMM.pegMultiplier.toString());
-		assert(prepegAMM.pegMultiplier.eq(new BN(248126)));
+		// assert(prepegAMM.pegMultiplier.eq(new BN(248126)));
 
-		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData0);
-		console.log(
-			'bid/ask:',
-			bid.toString(),
-			ask.toString(),
-			'oracle:',
-			oraclePriceData0.price.toString()
-		);
+		const [bid, ask] = examineSpread(market0, oraclePriceData0);
 		assert(bid.eq(new BN('2481260112483')));
-		assert(ask.eq(new BN('2600821965976')));
-		assert(bid.lte(oraclePriceData0.price));
-		assert(ask.gte(oraclePriceData0.price));
+		assert(ask.eq(new BN('2606873905678')));
 
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
@@ -670,7 +724,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		//    'Program failed to complete: Access violation in stack frame 11 at address 0x20000bff0 of size 8 by instruction #88129',
 
 		const txSig = await clearingHouseLoser.placeAndTake(orderParams);
-		await printTxLogs(connection, txSig);
+		// await printTxLogs(connection, txSig);
 
 		const market1 = clearingHouse.getMarketAccount(new BN(0));
 
@@ -680,6 +734,83 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const prepegAMM1 = calculateUpdatedAMM(market0.amm, oraclePriceData1);
 		console.log(prepegAMM1.pegMultiplier.toString());
 		assert(prepegAMM1.pegMultiplier.eq(new BN(248126)));
+	});
+
+	it('resolvePerpPnlDeficit', async () => {
+		const bankIndex = new BN(0);
+		const marketIndex = new BN(0);
+
+		const usdcbalance = await connection.getTokenAccountBalance(
+			userUSDCAccount.publicKey
+		);
+		console.log('usdc balance:', usdcbalance.value.amount);
+		assert(usdcbalance.value.amount == '9998000000000');
+
+		await clearingHouse.initializeInsuranceFundStake(bankIndex);
+
+		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
+			clearingHouse.program.programId,
+			provider.wallet.publicKey,
+			bankIndex
+		);
+		const ifStakeAccount =
+			(await clearingHouse.program.account.insuranceFundStake.fetch(
+				ifStakePublicKey
+			)) as InsuranceFundStake;
+		assert(ifStakeAccount.bankIndex.eq(bankIndex));
+		assert(ifStakeAccount.authority.equals(provider.wallet.publicKey));
+
+		const txSig = await clearingHouse.addInsuranceFundStake(
+			bankIndex,
+			QUOTE_PRECISION.add(QUOTE_PRECISION.div(new BN(100))), // $1.01
+			userUSDCAccount.publicKey
+		);
+
+		const market0 = clearingHouse.getMarketAccount(marketIndex);
+
+		const txSig2 = clearingHouse.resolvePerpPnlDeficit(bankIndex, marketIndex);
+		await clearingHouse.fetchAccounts();
+		const slot = await connection.getSlot();
+		const now = await connection.getBlockTime(slot);
+		const market = clearingHouse.getMarketAccount(marketIndex);
+		const bank = clearingHouse.getBankAccount(marketIndex);
+
+		const oraclePriceData = clearingHouse.getOracleDataForMarket(
+			market.marketIndex
+		);
+
+		const imbalance = calculateNetUserImbalance(market, bank, oraclePriceData);
+
+		console.log('pnlimbalance:', imbalance.toString());
+		assert(imbalance.lt(new BN(44462175964))); //44k still :o
+		assert(imbalance.gt(new BN(44462125964))); //44k still :o
+
+		assert(market.revenueWithdrawSinceLastSettle, ZERO);
+		assert(
+			market.maxRevenueWithdrawPerPeriod,
+			new BN(40000).mul(QUOTE_PRECISION)
+		);
+		console.log(
+			'market.lastRevenueWithdrawTs:',
+			market.lastRevenueWithdrawTs.toString(),
+			now.toString()
+		);
+		// assert(market.lastRevenueWithdrawTs.gt(market0.lastRevenueWithdrawTs));
+		assert(market.unrealizedMaxImbalance, QUOTE_PRECISION);
+
+		assert(market.quoteSettledInsurance, QUOTE_PRECISION);
+		assert(market.quoteMaxInsurance, QUOTE_PRECISION);
+		assert(market.pnlPool.balance.gt(market0.pnlPool.balance));
+
+		console.log(market.status);
+		assert(isVariant(market.status, 'initialized'));
+		console.log('totalExchangeFee:', market.amm.totalExchangeFee.toString());
+		console.log('totalFee:', market.amm.totalFee.toString());
+		console.log('totalMMFee:', market.amm.totalMmFee.toString());
+		console.log(
+			'totalFeeMinusDistributions:',
+			market.amm.totalFeeMinusDistributions.toString()
+		);
 	});
 
 	// it('liq and settle expired market position', async () => {

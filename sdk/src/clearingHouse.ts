@@ -2843,4 +2843,44 @@ export class ClearingHouse {
 			remainingAccounts,
 		});
 	}
+
+	public async resolvePerpPnlDeficit(
+		bankIndex: BN,
+		marketIndex: BN
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(await this.getResolvePerpPnlDeficitIx(bankIndex, marketIndex)),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getResolvePerpPnlDeficitIx(
+		bankIndex: BN,
+		marketIndex: BN
+	): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			writableMarketIndex: marketIndex,
+			writableBankIndex: bankIndex,
+		});
+
+		const bank = this.getBankAccount(bankIndex);
+
+		return await this.program.instruction.resolvePerpPnlDeficit(
+			bankIndex,
+			marketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					authority: this.wallet.publicKey,
+					bankVault: bank.vault,
+					insuranceFundVault: bank.insuranceFundVault,
+					clearingHouseSigner: this.getSignerPublicKey(),
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+				remainingAccounts: remainingAccounts,
+			}
+		);
+	}
 }

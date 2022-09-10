@@ -346,7 +346,7 @@ pub mod clearing_house {
             OracleSource::QuoteAsset => panic!(),
         };
 
-        let max_spread = margin_ratio_initial * (100 - 5) / 2; // init 10% below the oracle price threshold
+        let max_spread = (margin_ratio_initial - margin_ratio_maintenance) * (100 - 5);
 
         validate_margin(
             margin_ratio_initial,

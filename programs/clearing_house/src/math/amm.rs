@@ -300,8 +300,11 @@ pub fn calculate_spread(
             .checked_div(BID_ASK_SPREAD_PRECISION)
             .ok_or_else(math_error!())?;
     }
-    let (long_spread, short_spread) =
-        cap_to_max_spread(long_spread, short_spread, cast_to_u128(max_spread)?)?;
+    let (long_spread, short_spread) = cap_to_max_spread(
+        long_spread,
+        short_spread,
+        cast_to_u128(max_spread)?.max(last_oracle_mark_spread_pct.unsigned_abs()),
+    )?;
 
     Ok((long_spread, short_spread))
 }

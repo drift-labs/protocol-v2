@@ -293,7 +293,7 @@ describe('prepeg', () => {
 			anchor.workspace.Pyth,
 			solUsd
 		);
-
+		assert(market0.amm.pegMultiplier.eq(new BN(1000)));
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 		console.log(prepegAMM.pegMultiplier.toString());
 		assert(prepegAMM.pegMultiplier.eq(new BN(1005)));

@@ -450,8 +450,8 @@ pub fn calculate_optimal_peg_and_budget(
     let mut check_lower_bound = true;
     if fee_budget < cast_to_u128(max(0, optimal_peg_cost))? {
         let max_price_spread = cast_to_i128(
-            (market.amm.max_spread as u128)
-                .checked_mul(target_price)
+            target_price
+                .checked_mul(cast_to_u128(market.amm.max_spread)?)
                 .ok_or_else(math_error!())?
                 .checked_div(BID_ASK_SPREAD_PRECISION)
                 .ok_or_else(math_error!())?,

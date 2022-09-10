@@ -8,6 +8,7 @@ import {
 	ZERO,
 } from '../constants/numericConstants';
 import { BN, MarketAccount } from '../index';
+import { assert } from '../assert/assert';
 
 export function oraclePriceBands(
 	market: MarketAccount,
@@ -18,6 +19,8 @@ export function oraclePriceBands(
 	const offset = oraclePriceData.price
 		.mul(new BN(maxPercentDiff))
 		.div(MARGIN_PRECISION);
+
+	assert(offset.gt(ZERO));
 
 	return [oraclePriceData.price.sub(offset), oraclePriceData.price.add(offset)];
 }
