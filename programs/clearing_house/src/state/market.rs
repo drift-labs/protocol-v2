@@ -100,11 +100,11 @@ impl PerpMarket {
 
     pub fn default_btc_test() -> Self {
         let amm = AMM::default_btc_test();
-        Market {
+        PerpMarket {
             amm,
             margin_ratio_initial: 1000,    // 10x
             margin_ratio_maintenance: 500, // 5x
-            ..Market::default()
+            ..PerpMarket::default()
         }
     }
 

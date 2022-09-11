@@ -403,7 +403,7 @@ mod test {
         let now = 1662800000 + 60;
         let slot = 81680085;
 
-        let mut market = Market::default_btc_test();
+        let mut market = PerpMarket::default_btc_test();
         assert_eq!(market.amm.net_base_asset_amount, -10000000000000);
 
         let state = State {
@@ -530,7 +530,7 @@ mod test {
         let now = 1662800000 + 60;
         let slot = 81680085;
 
-        let mut market = Market::default_btc_test();
+        let mut market = PerpMarket::default_btc_test();
         market.amm.total_fee_minus_distributions = -(10000 * QUOTE_PRECISION as i128);
         assert_eq!(market.amm.net_base_asset_amount, -10000000000000);
 
