@@ -5,17 +5,19 @@ import {
 	IWallet,
 	PositionDirection,
 	UserAccount,
-	MarketAccount,
+	PerpMarketAccount,
 	OrderParams,
 	Order,
-	BankAccount,
-	UserBankBalance,
+	SpotMarketAccount,
+	SpotPosition,
 	MakerInfo,
 	TakerInfo,
 	OptionalOrderParams,
 	DefaultOrderParams,
 	OrderType,
 	ReferrerInfo,
+	MarketType,
+	SerumV3FulfillmentConfigAccount,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -43,6 +45,8 @@ import {
 	getClearingHouseStateAccountPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getMarketPublicKey,
+	getSerumFulfillmentConfigPublicKey,
+	getSerumSignerPublicKey,
 	getUserAccountPublicKey,
 	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
@@ -56,11 +60,11 @@ import { TxSender } from './tx/types';
 import { wrapInTx } from './tx/utils';
 import {
 	ONE,
-	QUOTE_ASSET_BANK_INDEX,
+	QUOTE_SPOT_MARKET_INDEX,
 	ZERO,
 } from './constants/numericConstants';
 import { findDirectionToClose, positionIsAvailable } from './math/position';
-import { getTokenAmount } from './math/bankBalance';
+import { getTokenAmount } from './math/spotBalance';
 import { DEFAULT_USER_NAME, encodeName } from './userName';
 import { OraclePriceData } from './oracles/types';
 import { ClearingHouseConfig } from './clearingHouseConfig';
@@ -69,9 +73,10 @@ import { WebSocketClearingHouseAccountSubscriber } from './accounts/webSocketCle
 import { RetryTxSender } from './tx/retryTxSender';
 import { ClearingHouseUser } from './clearingHouseUser';
 import { ClearingHouseUserAccountSubscriptionConfig } from './clearingHouseUserConfig';
-import { getMarketsBanksAndOraclesForSubscription } from './config';
-import { WRAPPED_SOL_MINT } from './constants/banks';
+import { getMarketsAndOraclesForSubscription } from './config';
+import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { ClearingHouseUserStats } from './clearingHouseUserStats';
+import { isSpotPositionAvailable } from './math/spotPosition';
 
 /**
  * # ClearingHouse
@@ -139,17 +144,21 @@ export class ClearingHouse {
 			});
 		}
 
-		let marketIndexes = config.marketIndexes;
-		let bankIndexes = config.bankIndexes;
+		let perpMarketIndexes = config.perpMarketIndexes;
+		let spotMarketIndexes = config.spotMarketIndexes;
 		let oracleInfos = config.oracleInfos;
 		if (config.env) {
 			const {
-				marketIndexes: envMarketIndexes,
-				bankIndexes: envBankIndexes,
+				perpMarketIndexes: envPerpMarketIndexes,
+				spotMarketIndexes: envSpotMarketIndexes,
 				oracleInfos: envOralceInfos,
-			} = getMarketsBanksAndOraclesForSubscription(config.env);
-			marketIndexes = marketIndexes ? marketIndexes : envMarketIndexes;
-			bankIndexes = bankIndexes ? bankIndexes : envBankIndexes;
+			} = getMarketsAndOraclesForSubscription(config.env);
+			perpMarketIndexes = perpMarketIndexes
+				? perpMarketIndexes
+				: envPerpMarketIndexes;
+			spotMarketIndexes = spotMarketIndexes
+				? spotMarketIndexes
+				: envSpotMarketIndexes;
 			oracleInfos = oracleInfos ? oracleInfos : envOralceInfos;
 		}
 
@@ -157,15 +166,15 @@ export class ClearingHouse {
 			this.accountSubscriber = new PollingClearingHouseAccountSubscriber(
 				this.program,
 				config.accountSubscription.accountLoader,
-				marketIndexes ?? [],
-				bankIndexes ?? [],
+				perpMarketIndexes ?? [],
+				spotMarketIndexes ?? [],
 				oracleInfos ?? []
 			);
 		} else {
 			this.accountSubscriber = new WebSocketClearingHouseAccountSubscriber(
 				this.program,
-				config.marketIndexes ?? [],
-				config.bankIndexes ?? [],
+				config.perpMarketIndexes ?? [],
+				config.spotMarketIndexes ?? [],
 				config.oracleInfos ?? []
 			);
 		}
@@ -276,31 +285,48 @@ export class ClearingHouse {
 		return this.accountSubscriber.getStateAccountAndSlot().data;
 	}
 
-	public getMarketAccount(marketIndex: BN | number): MarketAccount | undefined {
+	public getPerpMarketAccount(
+		marketIndex: BN | number
+	): PerpMarketAccount | undefined {
 		marketIndex = marketIndex instanceof BN ? marketIndex : new BN(marketIndex);
 		return this.accountSubscriber.getMarketAccountAndSlot(marketIndex)?.data;
 	}
 
-	public getMarketAccounts(): MarketAccount[] {
+	public getPerpMarketAccounts(): PerpMarketAccount[] {
 		return this.accountSubscriber
 			.getMarketAccountsAndSlots()
 			.map((value) => value.data);
 	}
 
-	public getBankAccount(bankIndex: BN | number): BankAccount | undefined {
-		bankIndex = bankIndex instanceof BN ? bankIndex : new BN(bankIndex);
-		return this.accountSubscriber.getBankAccountAndSlot(bankIndex).data;
+	public getSpotMarketAccount(
+		marketIndex: BN | number
+	): SpotMarketAccount | undefined {
+		marketIndex = marketIndex instanceof BN ? marketIndex : new BN(marketIndex);
+		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
 	}
 
-	public getQuoteAssetBankAccount(): BankAccount {
-		return this.accountSubscriber.getBankAccountAndSlot(QUOTE_ASSET_BANK_INDEX)
-			.data;
+	public getQuoteSpotMarketAccount(): SpotMarketAccount {
+		return this.accountSubscriber.getSpotMarketAccountAndSlot(
+			QUOTE_SPOT_MARKET_INDEX
+		).data;
 	}
 
 	public getOraclePriceDataAndSlot(
 		oraclePublicKey: PublicKey
 	): DataAndSlot<OraclePriceData> | undefined {
 		return this.accountSubscriber.getOraclePriceDataAndSlot(oraclePublicKey);
+	}
+
+	public async getSerumV3FulfillmentConfig(
+		serumMarket: PublicKey
+	): Promise<SerumV3FulfillmentConfigAccount> {
+		const address = await getSerumFulfillmentConfigPublicKey(
+			this.program.programId,
+			serumMarket
+		);
+		return (await this.program.account.serumV3FulfillmentConfig.fetch(
+			address
+		)) as SerumV3FulfillmentConfigAccount;
 	}
 
 	/**
@@ -476,29 +502,29 @@ export class ClearingHouse {
 		return this.getUser(userId).getUserAccountAndSlot();
 	}
 
-	public getUserBankBalance(
-		bankIndex: number | BN
-	): UserBankBalance | undefined {
-		const bankIndexBN = bankIndex instanceof BN ? bankIndex : new BN(bankIndex);
-		return this.getUserAccount().bankBalances.find((bankBalance) =>
-			bankBalance.bankIndex.eq(bankIndexBN)
+	public getSpotPosition(marketIndex: number | BN): SpotPosition | undefined {
+		const marketIndexBN =
+			marketIndex instanceof BN ? marketIndex : new BN(marketIndex);
+		return this.getUserAccount().spotPositions.find((spotPosition) =>
+			spotPosition.marketIndex.eq(marketIndexBN)
 		);
 	}
 
 	public getQuoteAssetTokenAmount(): BN {
-		const bank = this.getBankAccount(QUOTE_ASSET_BANK_INDEX);
-		const userBankBalance = this.getUserBankBalance(QUOTE_ASSET_BANK_INDEX);
+		const spotMarket = this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX);
+		const spotPosition = this.getSpotPosition(QUOTE_SPOT_MARKET_INDEX);
 		return getTokenAmount(
-			userBankBalance.balance,
-			bank,
-			userBankBalance.balanceType
+			spotPosition.balance,
+			spotMarket,
+			spotPosition.balanceType
 		);
 	}
 
 	getRemainingAccounts(params: {
-		writableMarketIndex?: BN;
-		writableBankIndex?: BN;
-		readableMarketIndex?: BN;
+		writablePerpMarketIndex?: BN;
+		writableSpotMarketIndex?: BN;
+		readablePerpMarketIndex?: BN;
+		readableSpotMarketIndex?: BN;
 	}): AccountMeta[] {
 		const userAccountAndSlot = this.getUserAccountAndSlot();
 		if (!userAccountAndSlot) {
@@ -510,14 +536,14 @@ export class ClearingHouse {
 			userAccountAndSlot;
 
 		const oracleAccountMap = new Map<string, AccountMeta>();
-		const bankAccountMap = new Map<number, AccountMeta>();
-		const marketAccountMap = new Map<number, AccountMeta>();
+		const spotMarketAccountMap = new Map<number, AccountMeta>();
+		const perpMarketAccountMap = new Map<number, AccountMeta>();
 		for (const [marketIndexNum, slot] of this.marketLastSlotCache.entries()) {
 			// if cache has more recent slot than user positions account slot, add market to remaining accounts
 			// otherwise remove from slot
 			if (slot > lastUserPositionsSlot) {
-				const marketAccount = this.getMarketAccount(marketIndexNum);
-				marketAccountMap.set(marketIndexNum, {
+				const marketAccount = this.getPerpMarketAccount(marketIndexNum);
+				perpMarketAccountMap.set(marketIndexNum, {
 					pubkey: marketAccount.pubkey,
 					isSigner: false,
 					isWritable: false,
@@ -532,11 +558,11 @@ export class ClearingHouse {
 			}
 		}
 
-		for (const position of userAccount.positions) {
+		for (const position of userAccount.perpPositions) {
 			if (!positionIsAvailable(position)) {
 				const marketIndexNum = position.marketIndex.toNumber();
-				const marketAccount = this.getMarketAccount(marketIndexNum);
-				marketAccountMap.set(marketIndexNum, {
+				const marketAccount = this.getPerpMarketAccount(marketIndexNum);
+				perpMarketAccountMap.set(marketIndexNum, {
 					pubkey: marketAccount.pubkey,
 					isSigner: false,
 					isWritable: false,
@@ -549,11 +575,11 @@ export class ClearingHouse {
 			}
 		}
 
-		if (params.readableMarketIndex) {
-			const marketAccount = this.getMarketAccount(
-				params.readableMarketIndex.toNumber()
+		if (params.readablePerpMarketIndex) {
+			const marketAccount = this.getPerpMarketAccount(
+				params.readablePerpMarketIndex.toNumber()
 			);
-			marketAccountMap.set(params.readableMarketIndex.toNumber(), {
+			perpMarketAccountMap.set(params.readablePerpMarketIndex.toNumber(), {
 				pubkey: marketAccount.pubkey,
 				isSigner: false,
 				isWritable: true,
@@ -565,11 +591,11 @@ export class ClearingHouse {
 			});
 		}
 
-		if (params.writableMarketIndex) {
-			const marketAccount = this.getMarketAccount(
-				params.writableMarketIndex.toNumber()
+		if (params.writablePerpMarketIndex) {
+			const marketAccount = this.getPerpMarketAccount(
+				params.writablePerpMarketIndex.toNumber()
 			);
-			marketAccountMap.set(params.writableMarketIndex.toNumber(), {
+			perpMarketAccountMap.set(params.writablePerpMarketIndex.toNumber(), {
 				pubkey: marketAccount.pubkey,
 				isSigner: false,
 				isWritable: true,
@@ -581,17 +607,19 @@ export class ClearingHouse {
 			});
 		}
 
-		for (const userBankBalance of userAccount.bankBalances) {
-			if (!userBankBalance.balance.eq(ZERO)) {
-				const bankAccount = this.getBankAccount(userBankBalance.bankIndex);
-				bankAccountMap.set(userBankBalance.bankIndex.toNumber(), {
-					pubkey: bankAccount.pubkey,
+		for (const spotPosition of userAccount.spotPositions) {
+			if (!isSpotPositionAvailable(spotPosition)) {
+				const spotMarketAccount = this.getSpotMarketAccount(
+					spotPosition.marketIndex
+				);
+				spotMarketAccountMap.set(spotPosition.marketIndex.toNumber(), {
+					pubkey: spotMarketAccount.pubkey,
 					isSigner: false,
 					isWritable: false,
 				});
-				if (!bankAccount.bankIndex.eq(ZERO)) {
-					oracleAccountMap.set(bankAccount.oracle.toString(), {
-						pubkey: bankAccount.oracle,
+				if (!spotMarketAccount.marketIndex.eq(ZERO)) {
+					oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
+						pubkey: spotMarketAccount.oracle,
 						isSigner: false,
 						isWritable: false,
 					});
@@ -599,16 +627,36 @@ export class ClearingHouse {
 			}
 		}
 
-		if (params.writableBankIndex) {
-			const bankAccount = this.getBankAccount(params.writableBankIndex);
-			bankAccountMap.set(params.writableBankIndex.toNumber(), {
-				pubkey: bankAccount.pubkey,
+		if (params.readableSpotMarketIndex) {
+			const spotMarketAccount = this.getSpotMarketAccount(
+				params.readableSpotMarketIndex
+			);
+			spotMarketAccountMap.set(params.readableSpotMarketIndex.toNumber(), {
+				pubkey: spotMarketAccount.pubkey,
+				isSigner: false,
+				isWritable: false,
+			});
+			if (!spotMarketAccount.marketIndex.eq(ZERO)) {
+				oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
+					pubkey: spotMarketAccount.oracle,
+					isSigner: false,
+					isWritable: false,
+				});
+			}
+		}
+
+		if (params.writableSpotMarketIndex) {
+			const spotMarketAccount = this.getSpotMarketAccount(
+				params.writableSpotMarketIndex
+			);
+			spotMarketAccountMap.set(params.writableSpotMarketIndex.toNumber(), {
+				pubkey: spotMarketAccount.pubkey,
 				isSigner: false,
 				isWritable: true,
 			});
-			if (!bankAccount.bankIndex.eq(ZERO)) {
-				oracleAccountMap.set(bankAccount.oracle.toString(), {
-					pubkey: bankAccount.oracle,
+			if (!spotMarketAccount.marketIndex.eq(ZERO)) {
+				oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
+					pubkey: spotMarketAccount.oracle,
 					isSigner: false,
 					isWritable: false,
 				});
@@ -617,8 +665,8 @@ export class ClearingHouse {
 
 		return [
 			...oracleAccountMap.values(),
-			...bankAccountMap.values(),
-			...marketAccountMap.values(),
+			...spotMarketAccountMap.values(),
+			...perpMarketAccountMap.values(),
 		];
 	}
 
@@ -637,7 +685,7 @@ export class ClearingHouse {
 
 	public async deposit(
 		amount: BN,
-		bankIndex: BN,
+		marketIndex: BN,
 		collateralAccountPublicKey: PublicKey,
 		userId?: number,
 		reduceOnly = false
@@ -645,14 +693,14 @@ export class ClearingHouse {
 		const tx = new Transaction();
 		const additionalSigners: Array<Signer> = [];
 
-		const bank = this.getBankAccount(bankIndex);
+		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
-		const isSolBank = bank.mint.equals(WRAPPED_SOL_MINT);
+		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 
 		const authority = this.wallet.publicKey;
 
 		const createWSOLTokenAccount =
-			isSolBank && collateralAccountPublicKey.equals(authority);
+			isSolMarket && collateralAccountPublicKey.equals(authority);
 
 		if (createWSOLTokenAccount) {
 			const { ixs, signers, pubkey } =
@@ -669,7 +717,7 @@ export class ClearingHouse {
 
 		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
-			bankIndex,
+			marketIndex,
 			collateralAccountPublicKey,
 			userId,
 			reduceOnly,
@@ -701,7 +749,7 @@ export class ClearingHouse {
 
 	async getDepositInstruction(
 		amount: BN,
-		bankIndex: BN,
+		marketIndex: BN,
 		userTokenAccount: PublicKey,
 		userId?: number,
 		reduceOnly = false,
@@ -718,35 +766,35 @@ export class ClearingHouse {
 		let remainingAccounts = [];
 		if (userInitialized) {
 			remainingAccounts = this.getRemainingAccounts({
-				writableBankIndex: bankIndex,
+				writableSpotMarketIndex: marketIndex,
 			});
 		} else {
-			const bankAccount = this.getBankAccount(bankIndex);
-			if (!bankAccount.oracle.equals(PublicKey.default)) {
+			const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
+			if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
 				remainingAccounts.push({
-					pubkey: bankAccount.oracle,
+					pubkey: spotMarketAccount.oracle,
 					isSigner: false,
 					isWritable: false,
 				});
 			}
 			remainingAccounts.push({
-				pubkey: bankAccount.pubkey,
+				pubkey: spotMarketAccount.pubkey,
 				isSigner: false,
 				isWritable: true,
 			});
 		}
 
-		const bank = this.getBankAccount(bankIndex);
+		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
 		return await this.program.instruction.deposit(
-			bankIndex,
+			marketIndex,
 			amount,
 			reduceOnly,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					bank: bank.pubkey,
-					bankVault: bank.vault,
+					spotMarket: spotMarketAccount.pubkey,
+					spotMarketVault: spotMarketAccount.vault,
 					user: userAccountPublicKey,
 					userStats: this.getUserStatsAccountPublicKey(),
 					userTokenAccount: userTokenAccount,
@@ -769,7 +817,7 @@ export class ClearingHouse {
 	}
 
 	private async getSolWithdrawalIxs(
-		bankIndex: BN,
+		marketIndex: BN,
 		amount: BN
 	): Promise<{
 		ixs: anchor.web3.TransactionInstruction[];
@@ -801,7 +849,7 @@ export class ClearingHouse {
 
 		const withdrawIx = await this.getWithdrawIx(
 			amount,
-			bankIndex,
+			marketIndex,
 			pubkey,
 			true
 		);
@@ -868,7 +916,7 @@ export class ClearingHouse {
 	 * Creates the Clearing House User account for a user, and deposits some initial collateral
 	 * @param amount
 	 * @param userTokenAccount
-	 * @param bankIndex
+	 * @param marketIndex
 	 * @param userId
 	 * @param name
 	 * @param fromUserId
@@ -877,7 +925,7 @@ export class ClearingHouse {
 	public async initializeUserAccountAndDepositCollateral(
 		amount: BN,
 		userTokenAccount: PublicKey,
-		bankIndex = new BN(0),
+		marketIndex = new BN(0),
 		userId = 0,
 		name = DEFAULT_USER_NAME,
 		fromUserId?: number,
@@ -888,16 +936,16 @@ export class ClearingHouse {
 
 		const additionalSigners: Array<Signer> = [];
 
-		const bank = this.getBankAccount(bankIndex);
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
 
-		const isSolBank = bank.mint.equals(WRAPPED_SOL_MINT);
+		const isSolMarket = spotMarket.mint.equals(WRAPPED_SOL_MINT);
 
 		const tx = new Transaction();
 
 		const authority = this.wallet.publicKey;
 
 		const createWSOLTokenAccount =
-			isSolBank && userTokenAccount.equals(authority);
+			isSolMarket && userTokenAccount.equals(authority);
 
 		if (createWSOLTokenAccount) {
 			const {
@@ -917,10 +965,15 @@ export class ClearingHouse {
 
 		const depositCollateralIx =
 			fromUserId != null
-				? await this.getTransferDepositIx(amount, bankIndex, fromUserId, userId)
+				? await this.getTransferDepositIx(
+						amount,
+						marketIndex,
+						fromUserId,
+						userId
+				  )
 				: await this.getDepositInstruction(
 						amount,
-						bankIndex,
+						marketIndex,
 						userTokenAccount,
 						userId,
 						false,
@@ -957,7 +1010,7 @@ export class ClearingHouse {
 	public async initializeUserAccountForDevnet(
 		userId = 0,
 		name = DEFAULT_USER_NAME,
-		bankIndex: BN,
+		marketIndex: BN,
 		tokenFaucet: TokenFaucet,
 		amount: BN,
 		referrerInfo?: ReferrerInfo
@@ -973,7 +1026,7 @@ export class ClearingHouse {
 
 		const depositCollateralIx = await this.getDepositInstruction(
 			amount,
-			bankIndex,
+			marketIndex,
 			associateTokenPublicKey,
 			userId,
 			false,
@@ -994,21 +1047,21 @@ export class ClearingHouse {
 
 	public async withdraw(
 		amount: BN,
-		bankIndex: BN,
+		marketIndex: BN,
 		userTokenAccount: PublicKey,
 		reduceOnly = false
 	): Promise<TransactionSignature> {
 		const tx = new Transaction();
 		const additionalSigners: Array<Signer> = [];
 
-		const bank = this.getBankAccount(bankIndex);
+		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
-		const isSolBank = bank.mint.equals(WRAPPED_SOL_MINT);
+		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 
 		const authority = this.wallet.publicKey;
 
 		const createWSOLTokenAccount =
-			isSolBank && userTokenAccount.equals(authority);
+			isSolMarket && userTokenAccount.equals(authority);
 
 		if (createWSOLTokenAccount) {
 			const { ixs, signers, pubkey } =
@@ -1025,7 +1078,7 @@ export class ClearingHouse {
 
 		const withdrawCollateral = await this.getWithdrawIx(
 			amount,
-			bank.bankIndex,
+			spotMarketAccount.marketIndex,
 			userTokenAccount,
 			reduceOnly
 		);
@@ -1055,27 +1108,27 @@ export class ClearingHouse {
 
 	public async getWithdrawIx(
 		amount: BN,
-		bankIndex: BN,
+		marketIndex: BN,
 		userTokenAccount: PublicKey,
 		reduceOnly = false
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
-			writableBankIndex: bankIndex,
+			writableSpotMarketIndex: marketIndex,
 		});
 
-		const bank = this.getBankAccount(bankIndex);
+		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
 		return await this.program.instruction.withdraw(
-			bankIndex,
+			marketIndex,
 			amount,
 			reduceOnly,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					bank: bank.pubkey,
-					bankVault: bank.vault,
+					spotMarket: spotMarketAccount.pubkey,
+					spotMarketVault: spotMarketAccount.vault,
 					clearingHouseSigner: this.getSignerPublicKey(),
 					user: userAccountPublicKey,
 					userStats: this.getUserStatsAccountPublicKey(),
@@ -1090,13 +1143,18 @@ export class ClearingHouse {
 
 	public async transferDeposit(
 		amount: BN,
-		bankIndex: BN,
+		marketIndex: BN,
 		fromUserId: number,
 		toUserId: number
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
 			wrapInTx(
-				await this.getTransferDepositIx(amount, bankIndex, fromUserId, toUserId)
+				await this.getTransferDepositIx(
+					amount,
+					marketIndex,
+					fromUserId,
+					toUserId
+				)
 			),
 			[],
 			this.opts
@@ -1106,7 +1164,7 @@ export class ClearingHouse {
 
 	public async getTransferDepositIx(
 		amount: BN,
-		bankIndex: BN,
+		marketIndex: BN,
 		fromUserId: number,
 		toUserId: number
 	): Promise<TransactionInstruction> {
@@ -1122,10 +1180,10 @@ export class ClearingHouse {
 		);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			writableBankIndex: bankIndex,
+			writableSpotMarketIndex: marketIndex,
 		});
 
-		return await this.program.instruction.transferDeposit(bankIndex, amount, {
+		return await this.program.instruction.transferDeposit(marketIndex, amount, {
 			accounts: {
 				authority: this.wallet.publicKey,
 				fromUser,
@@ -1137,24 +1195,24 @@ export class ClearingHouse {
 		});
 	}
 
-	public async updateBankCumulativeInterest(
-		bankIndex: BN
+	public async updateSpotMarketCumulativeInterest(
+		marketIndex: BN
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
-			wrapInTx(await this.updateBankCumulativeInterestIx(bankIndex)),
+			wrapInTx(await this.updateSpotMarketCumulativeInterestIx(marketIndex)),
 			[],
 			this.opts
 		);
 		return txSig;
 	}
 
-	public async updateBankCumulativeInterestIx(
-		bankIndex: BN
+	public async updateSpotMarketCumulativeInterestIx(
+		marketIndex: BN
 	): Promise<TransactionInstruction> {
-		const bank = this.getBankAccount(bankIndex);
-		return await this.program.instruction.updateBankCumulativeInterest({
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		return await this.program.instruction.updateSpotMarketCumulativeInterest({
 			accounts: {
-				bank: bank.pubkey,
+				spotMarket: spotMarket.pubkey,
 			},
 		});
 	}
@@ -1178,7 +1236,7 @@ export class ClearingHouse {
 		const settleeUserAccount = (await this.program.account.user.fetch(
 			settleeUserAccountPublicKey
 		)) as UserAccount;
-		const userPositions = settleeUserAccount.positions;
+		const userPositions = settleeUserAccount.perpPositions;
 		const remainingAccounts = [];
 
 		let foundMarket = false;
@@ -1234,12 +1292,12 @@ export class ClearingHouse {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
-			writableMarketIndex: marketIndex,
+			writablePerpMarketIndex: marketIndex,
 		});
 
 		if (sharesToBurn == undefined) {
 			const userAccount = this.getUserAccount();
-			const marketPosition = userAccount.positions.filter((position) =>
+			const marketPosition = userAccount.perpPositions.filter((position) =>
 				position.marketIndex.eq(marketIndex)
 			)[0];
 			sharesToBurn = marketPosition.lpShares;
@@ -1275,7 +1333,7 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 		const remainingAccounts = this.getRemainingAccounts({
-			writableMarketIndex: marketIndex,
+			writablePerpMarketIndex: marketIndex,
 		});
 
 		return this.program.instruction.addLiquidity(amount, marketIndex, {
@@ -1315,18 +1373,23 @@ export class ClearingHouse {
 		return txSig;
 	}
 
-	getOrderParams(optionalOrderParams: OptionalOrderParams): OrderParams {
-		return Object.assign({}, DefaultOrderParams, optionalOrderParams);
+	getOrderParams(
+		optionalOrderParams: OptionalOrderParams,
+		marketType: MarketType
+	): OrderParams {
+		return Object.assign({}, DefaultOrderParams, optionalOrderParams, {
+			marketType,
+		});
 	}
 
 	public async getPlaceOrderIx(
 		orderParams: OptionalOrderParams
 	): Promise<TransactionInstruction> {
-		orderParams = this.getOrderParams(orderParams);
+		orderParams = this.getOrderParams(orderParams, MarketType.PERP);
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
-			readableMarketIndex: orderParams.marketIndex,
+			readablePerpMarketIndex: orderParams.marketIndex,
 		});
 
 		return await this.program.instruction.placeOrder(orderParams, {
@@ -1359,7 +1422,7 @@ export class ClearingHouse {
 		const oracleAccountInfos = [];
 		for (const marketIndex of marketIndexes) {
 			if (!marketIndex.eq(new BN(100))) {
-				const market = this.getMarketAccount(marketIndex);
+				const market = this.getPerpMarketAccount(marketIndex);
 				marketAccountInfos.push({
 					pubkey: market.pubkey,
 					isWritable: true,
@@ -1424,7 +1487,7 @@ export class ClearingHouse {
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		const order = this.getOrderByUserId(userOrderId);
-		const oracle = this.getMarketAccount(order.marketIndex).amm.oracle;
+		const oracle = this.getPerpMarketAccount(order.marketIndex).amm.oracle;
 
 		const remainingAccounts = this.getRemainingAccounts({});
 
@@ -1482,24 +1545,26 @@ export class ClearingHouse {
 			: userAccount.orders.find((order) =>
 					order.orderId.eq(userAccount.nextOrderId.sub(ONE))
 			  ).marketIndex;
-		const marketAccount = this.getMarketAccount(marketIndex);
+		const marketAccount = this.getPerpMarketAccount(marketIndex);
 
 		const oracleAccountMap = new Map<string, AccountMeta>();
-		const bankAccountMap = new Map<number, AccountMeta>();
-		const marketAccountMap = new Map<number, AccountMeta>();
+		const spotMarketAccountMap = new Map<number, AccountMeta>();
+		const perpMarketAccountMap = new Map<number, AccountMeta>();
 
-		for (const bankBalance of userAccount.bankBalances) {
-			if (!bankBalance.balance.eq(ZERO)) {
-				const bankAccount = this.getBankAccount(bankBalance.bankIndex);
-				bankAccountMap.set(bankBalance.bankIndex.toNumber(), {
-					pubkey: bankAccount.pubkey,
+		for (const spotPosition of userAccount.spotPositions) {
+			if (!isSpotPositionAvailable(spotPosition)) {
+				const spotMarketAccount = this.getSpotMarketAccount(
+					spotPosition.marketIndex
+				);
+				spotMarketAccountMap.set(spotPosition.marketIndex.toNumber(), {
+					pubkey: spotMarketAccount.pubkey,
 					isSigner: false,
 					isWritable: false,
 				});
 
-				if (!bankAccount.oracle.equals(PublicKey.default)) {
-					oracleAccountMap.set(bankAccount.oracle.toString(), {
-						pubkey: bankAccount.oracle,
+				if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
+					oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
+						pubkey: spotMarketAccount.oracle,
 						isSigner: false,
 						isWritable: false,
 					});
@@ -1507,13 +1572,13 @@ export class ClearingHouse {
 			}
 		}
 
-		for (const position of userAccount.positions) {
+		for (const position of userAccount.perpPositions) {
 			if (
 				!positionIsAvailable(position) &&
 				!position.marketIndex.eq(order.marketIndex)
 			) {
-				const market = this.getMarketAccount(position.marketIndex);
-				marketAccountMap.set(position.marketIndex.toNumber(), {
+				const market = this.getPerpMarketAccount(position.marketIndex);
+				perpMarketAccountMap.set(position.marketIndex.toNumber(), {
 					pubkey: market.pubkey,
 					isWritable: false,
 					isSigner: false,
@@ -1526,7 +1591,7 @@ export class ClearingHouse {
 			}
 		}
 
-		marketAccountMap.set(marketIndex.toNumber(), {
+		perpMarketAccountMap.set(marketIndex.toNumber(), {
 			pubkey: marketAccount.pubkey,
 			isWritable: true,
 			isSigner: false,
@@ -1539,8 +1604,8 @@ export class ClearingHouse {
 
 		const remainingAccounts = [
 			...oracleAccountMap.values(),
-			...bankAccountMap.values(),
-			...marketAccountMap.values(),
+			...spotMarketAccountMap.values(),
+			...perpMarketAccountMap.values(),
 		];
 
 		if (makerInfo) {
@@ -1585,6 +1650,282 @@ export class ClearingHouse {
 		});
 	}
 
+	public async placeSpotOrder(
+		orderParams: OptionalOrderParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(await this.getPlaceSpotOrderIx(orderParams)),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getPlaceSpotOrderIx(
+		orderParams: OptionalOrderParams
+	): Promise<TransactionInstruction> {
+		orderParams = this.getOrderParams(orderParams, MarketType.SPOT);
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			readableSpotMarketIndex: orderParams.marketIndex,
+		});
+
+		return await this.program.instruction.placeSpotOrder(orderParams, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async fillSpotOrder(
+		userAccountPublicKey: PublicKey,
+		user: UserAccount,
+		order?: Order,
+		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
+		makerInfo?: MakerInfo,
+		referrerInfo?: ReferrerInfo
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(
+				await this.getFillSpotOrderIx(
+					userAccountPublicKey,
+					user,
+					order,
+					fulfillmentConfig,
+					makerInfo,
+					referrerInfo
+				)
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getFillSpotOrderIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		order?: Order,
+		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
+		makerInfo?: MakerInfo,
+		referrerInfo?: ReferrerInfo
+	): Promise<TransactionInstruction> {
+		const userStatsPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			userAccount.authority
+		);
+
+		const fillerPublicKey = await this.getUserAccountPublicKey();
+		const fillerStatsPublicKey = this.getUserStatsAccountPublicKey();
+
+		const marketIndex = order
+			? order.marketIndex
+			: userAccount.orders.find((order) =>
+					order.orderId.eq(userAccount.nextOrderId.sub(ONE))
+			  ).marketIndex;
+
+		const oracleAccountMap = new Map<string, AccountMeta>();
+		const spotMarketAccountMap = new Map<number, AccountMeta>();
+		const perpMarketAccountMap = new Map<number, AccountMeta>();
+
+		for (const spotPosition of userAccount.spotPositions) {
+			if (!isSpotPositionAvailable(spotPosition)) {
+				const spotMarket = this.getSpotMarketAccount(spotPosition.marketIndex);
+				spotMarketAccountMap.set(spotPosition.marketIndex.toNumber(), {
+					pubkey: spotMarket.pubkey,
+					isSigner: false,
+					isWritable: false,
+				});
+
+				if (!spotMarket.oracle.equals(PublicKey.default)) {
+					oracleAccountMap.set(spotMarket.oracle.toString(), {
+						pubkey: spotMarket.oracle,
+						isSigner: false,
+						isWritable: false,
+					});
+				}
+			}
+		}
+
+		for (const position of userAccount.perpPositions) {
+			if (
+				!positionIsAvailable(position) &&
+				!position.marketIndex.eq(order.marketIndex)
+			) {
+				const market = this.getPerpMarketAccount(position.marketIndex);
+				perpMarketAccountMap.set(position.marketIndex.toNumber(), {
+					pubkey: market.pubkey,
+					isWritable: false,
+					isSigner: false,
+				});
+				oracleAccountMap.set(market.amm.oracle.toString(), {
+					pubkey: market.amm.oracle,
+					isWritable: false,
+					isSigner: false,
+				});
+			}
+		}
+
+		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
+		spotMarketAccountMap.set(marketIndex.toNumber(), {
+			pubkey: spotMarketAccount.pubkey,
+			isWritable: true,
+			isSigner: false,
+		});
+		if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
+			oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
+				pubkey: spotMarketAccount.oracle,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
+		const quoteMarketAccount = this.getQuoteSpotMarketAccount();
+		spotMarketAccountMap.set(quoteMarketAccount.marketIndex.toNumber(), {
+			pubkey: quoteMarketAccount.pubkey,
+			isWritable: true,
+			isSigner: false,
+		});
+
+		const remainingAccounts = [
+			...oracleAccountMap.values(),
+			...spotMarketAccountMap.values(),
+			...perpMarketAccountMap.values(),
+		];
+
+		if (makerInfo) {
+			remainingAccounts.push({
+				pubkey: makerInfo.maker,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: makerInfo.makerStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
+		if (referrerInfo) {
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrer,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrerStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
+		const orderId = order.orderId;
+		const makerOrderId = makerInfo ? makerInfo.order.orderId : null;
+
+		if (fulfillmentConfig) {
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.pubkey,
+				isWritable: false,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.serumProgramId,
+				isWritable: false,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.serumMarket,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.serumRequestQueue,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.serumEventQueue,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.serumBids,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.serumAsks,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.serumBaseVault,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.serumQuoteVault,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: fulfillmentConfig.serumOpenOrders,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: getSerumSignerPublicKey(
+					fulfillmentConfig.serumProgramId,
+					fulfillmentConfig.serumMarket,
+					fulfillmentConfig.serumSignerNonce
+				),
+				isWritable: false,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: this.getSignerPublicKey(),
+				isWritable: false,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: TOKEN_PROGRAM_ID,
+				isWritable: false,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: spotMarketAccount.vault,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: quoteMarketAccount.vault,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
+		return await this.program.instruction.fillSpotOrder(
+			orderId,
+			fulfillmentConfig ? fulfillmentConfig.fulfillmentType : null,
+			makerOrderId,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					filler: fillerPublicKey,
+					fillerStats: fillerStatsPublicKey,
+					user: userAccountPublicKey,
+					userStats: userStatsPublicKey,
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
 	public async triggerOrder(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
@@ -1606,24 +1947,26 @@ export class ClearingHouse {
 		const fillerPublicKey = await this.getUserAccountPublicKey();
 
 		const marketIndex = order.marketIndex;
-		const marketAccount = this.getMarketAccount(marketIndex);
+		const marketAccount = this.getPerpMarketAccount(marketIndex);
 
 		const oracleAccountMap = new Map<string, AccountMeta>();
-		const bankAccountMap = new Map<number, AccountMeta>();
-		const marketAccountMap = new Map<number, AccountMeta>();
+		const spotMarketAccountMap = new Map<number, AccountMeta>();
+		const perpMarketAccountMap = new Map<number, AccountMeta>();
 
-		for (const bankBalance of userAccount.bankBalances) {
-			if (!bankBalance.balance.eq(ZERO)) {
-				const bankAccount = this.getBankAccount(bankBalance.bankIndex);
-				bankAccountMap.set(bankBalance.bankIndex.toNumber(), {
-					pubkey: bankAccount.pubkey,
+		for (const spotPosition of userAccount.spotPositions) {
+			if (!isSpotPositionAvailable(spotPosition)) {
+				const spotMarketAccount = this.getSpotMarketAccount(
+					spotPosition.marketIndex
+				);
+				spotMarketAccountMap.set(spotPosition.marketIndex.toNumber(), {
+					pubkey: spotMarketAccount.pubkey,
 					isSigner: false,
 					isWritable: false,
 				});
 
-				if (!bankAccount.oracle.equals(PublicKey.default)) {
-					oracleAccountMap.set(bankAccount.oracle.toString(), {
-						pubkey: bankAccount.oracle,
+				if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
+					oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
+						pubkey: spotMarketAccount.oracle,
 						isSigner: false,
 						isWritable: false,
 					});
@@ -1631,13 +1974,13 @@ export class ClearingHouse {
 			}
 		}
 
-		for (const position of userAccount.positions) {
+		for (const position of userAccount.perpPositions) {
 			if (
 				!positionIsAvailable(position) &&
 				!position.marketIndex.eq(order.marketIndex)
 			) {
-				const market = this.getMarketAccount(position.marketIndex);
-				marketAccountMap.set(position.marketIndex.toNumber(), {
+				const market = this.getPerpMarketAccount(position.marketIndex);
+				perpMarketAccountMap.set(position.marketIndex.toNumber(), {
 					pubkey: market.pubkey,
 					isWritable: false,
 					isSigner: false,
@@ -1650,7 +1993,7 @@ export class ClearingHouse {
 			}
 		}
 
-		marketAccountMap.set(marketIndex.toNumber(), {
+		perpMarketAccountMap.set(marketIndex.toNumber(), {
 			pubkey: marketAccount.pubkey,
 			isWritable: true,
 			isSigner: false,
@@ -1663,8 +2006,8 @@ export class ClearingHouse {
 
 		const remainingAccounts = [
 			...oracleAccountMap.values(),
-			...bankAccountMap.values(),
-			...marketAccountMap.values(),
+			...spotMarketAccountMap.values(),
+			...perpMarketAccountMap.values(),
 		];
 
 		const orderId = order.orderId;
@@ -1700,13 +2043,13 @@ export class ClearingHouse {
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
-		orderParams = this.getOrderParams(orderParams);
+		orderParams = this.getOrderParams(orderParams, MarketType.PERP);
 		const userStatsPublicKey = await this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
-			writableMarketIndex: orderParams.marketIndex,
-			writableBankIndex: QUOTE_ASSET_BANK_INDEX,
+			writablePerpMarketIndex: orderParams.marketIndex,
+			writableSpotMarketIndex: QUOTE_SPOT_MARKET_INDEX,
 		});
 
 		let makerOrderId = null;
@@ -1775,14 +2118,14 @@ export class ClearingHouse {
 		takerInfo: TakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
-		orderParams = this.getOrderParams(orderParams);
+		orderParams = this.getOrderParams(orderParams, MarketType.PERP);
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
 		// todo merge this with getRemainingAccounts
 		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			counterPartyUserAccount: takerInfo.takerUserAccount,
-			writableMarketIndex: orderParams.marketIndex,
+			writablePerpMarketIndex: orderParams.marketIndex,
 		});
 
 		if (referrerInfo) {
@@ -1895,14 +2238,14 @@ export class ClearingHouse {
 		settleeUserAccount: UserAccount,
 		marketIndex: BN
 	): Promise<TransactionInstruction> {
-		const marketAccountMap = new Map<number, AccountMeta>();
+		const perpMarketAccountMap = new Map<number, AccountMeta>();
 		const oracleAccountMap = new Map<string, AccountMeta>();
-		const bankAccountMap = new Map<number, AccountMeta>();
+		const spotMarketAccountMap = new Map<number, AccountMeta>();
 
-		for (const position of settleeUserAccount.positions) {
+		for (const position of settleeUserAccount.perpPositions) {
 			if (!positionIsAvailable(position)) {
-				const market = this.getMarketAccount(position.marketIndex);
-				marketAccountMap.set(position.marketIndex.toNumber(), {
+				const market = this.getPerpMarketAccount(position.marketIndex);
+				perpMarketAccountMap.set(position.marketIndex.toNumber(), {
 					pubkey: market.pubkey,
 					isWritable: false,
 					isSigner: false,
@@ -1915,17 +2258,19 @@ export class ClearingHouse {
 			}
 		}
 
-		for (const userBankBalance of settleeUserAccount.bankBalances) {
-			if (!userBankBalance.balance.eq(QUOTE_ASSET_BANK_INDEX)) {
-				const bankAccount = this.getBankAccount(userBankBalance.bankIndex);
-				bankAccountMap.set(userBankBalance.bankIndex.toNumber(), {
-					pubkey: bankAccount.pubkey,
+		for (const spotPosition of settleeUserAccount.spotPositions) {
+			if (!isSpotPositionAvailable(spotPosition)) {
+				const spotMarketAccount = this.getSpotMarketAccount(
+					spotPosition.marketIndex
+				);
+				spotMarketAccountMap.set(spotPosition.marketIndex.toNumber(), {
+					pubkey: spotMarketAccount.pubkey,
 					isSigner: false,
 					isWritable: false,
 				});
-				if (!bankAccount.bankIndex.eq(ZERO)) {
-					oracleAccountMap.set(bankAccount.oracle.toString(), {
-						pubkey: bankAccount.oracle,
+				if (!spotMarketAccount.marketIndex.eq(ZERO)) {
+					oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
+						pubkey: spotMarketAccount.oracle,
 						isSigner: false,
 						isWritable: false,
 					});
@@ -1933,8 +2278,8 @@ export class ClearingHouse {
 			}
 		}
 
-		const marketAccount = this.getMarketAccount(marketIndex.toNumber());
-		marketAccountMap.set(marketIndex.toNumber(), {
+		const marketAccount = this.getPerpMarketAccount(marketIndex.toNumber());
+		perpMarketAccountMap.set(marketIndex.toNumber(), {
 			pubkey: marketAccount.pubkey,
 			isSigner: false,
 			isWritable: true,
@@ -1945,16 +2290,16 @@ export class ClearingHouse {
 			isWritable: false,
 		});
 
-		bankAccountMap.set(QUOTE_ASSET_BANK_INDEX.toNumber(), {
-			pubkey: this.getBankAccount(QUOTE_ASSET_BANK_INDEX).pubkey,
+		spotMarketAccountMap.set(QUOTE_SPOT_MARKET_INDEX.toNumber(), {
+			pubkey: this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX).pubkey,
 			isSigner: false,
 			isWritable: true,
 		});
 
 		const remainingAccounts = [
 			...oracleAccountMap.values(),
-			...bankAccountMap.values(),
-			...marketAccountMap.values(),
+			...spotMarketAccountMap.values(),
+			...perpMarketAccountMap.values(),
 		];
 
 		return await this.program.instruction.settlePnl(marketIndex, {
@@ -2003,7 +2348,7 @@ export class ClearingHouse {
 		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
-			writableMarketIndex: marketIndex,
+			writablePerpMarketIndex: marketIndex,
 			counterPartyUserAccount: userAccount,
 		});
 
@@ -2027,8 +2372,8 @@ export class ClearingHouse {
 	public async liquidateBorrow(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
-		assetBankIndex: BN,
-		liabilityBankIndex: BN,
+		assetmarketIndex: BN,
+		liabilitymarketIndex: BN,
 		maxLiabilityTransfer: BN
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
@@ -2036,8 +2381,8 @@ export class ClearingHouse {
 				await this.getLiquidateBorrowIx(
 					userAccountPublicKey,
 					userAccount,
-					assetBankIndex,
-					liabilityBankIndex,
+					assetmarketIndex,
+					liabilitymarketIndex,
 					maxLiabilityTransfer
 				)
 			),
@@ -2050,20 +2395,20 @@ export class ClearingHouse {
 	public async getLiquidateBorrowIx(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
-		assetBankIndex: BN,
-		liabilityBankIndex: BN,
+		assetmarketIndex: BN,
+		liabilitymarketIndex: BN,
 		maxLiabilityTransfer: BN
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			counterPartyUserAccount: userAccount,
-			writableBankIndexes: [liabilityBankIndex, assetBankIndex],
+			writableSpotMarketIndexes: [liabilitymarketIndex, assetmarketIndex],
 		});
 
 		return await this.program.instruction.liquidateBorrow(
-			assetBankIndex,
-			liabilityBankIndex,
+			assetmarketIndex,
+			liabilitymarketIndex,
 			maxLiabilityTransfer,
 			{
 				accounts: {
@@ -2081,7 +2426,7 @@ export class ClearingHouse {
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		perpMarketIndex: BN,
-		liabilityBankIndex: BN,
+		liabilitymarketIndex: BN,
 		maxLiabilityTransfer: BN
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
@@ -2090,7 +2435,7 @@ export class ClearingHouse {
 					userAccountPublicKey,
 					userAccount,
 					perpMarketIndex,
-					liabilityBankIndex,
+					liabilitymarketIndex,
 					maxLiabilityTransfer
 				)
 			),
@@ -2104,20 +2449,20 @@ export class ClearingHouse {
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		perpMarketIndex: BN,
-		liabilityBankIndex: BN,
+		liabilitymarketIndex: BN,
 		maxLiabilityTransfer: BN
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			counterPartyUserAccount: userAccount,
-			writableMarketIndex: perpMarketIndex,
-			writableBankIndexes: [liabilityBankIndex],
+			writablePerpMarketIndex: perpMarketIndex,
+			writableSpotMarketIndexes: [liabilitymarketIndex],
 		});
 
 		return await this.program.instruction.liquidateBorrowForPerpPnl(
 			perpMarketIndex,
-			liabilityBankIndex,
+			liabilitymarketIndex,
 			maxLiabilityTransfer,
 			{
 				accounts: {
@@ -2135,7 +2480,7 @@ export class ClearingHouse {
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		perpMarketIndex: BN,
-		assetBankIndex: BN,
+		assetmarketIndex: BN,
 		maxPnlTransfer: BN
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
@@ -2144,7 +2489,7 @@ export class ClearingHouse {
 					userAccountPublicKey,
 					userAccount,
 					perpMarketIndex,
-					assetBankIndex,
+					assetmarketIndex,
 					maxPnlTransfer
 				)
 			),
@@ -2158,20 +2503,20 @@ export class ClearingHouse {
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		perpMarketIndex: BN,
-		assetBankIndex: BN,
+		assetmarketIndex: BN,
 		maxPnlTransfer: BN
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			counterPartyUserAccount: userAccount,
-			writableMarketIndex: perpMarketIndex,
-			writableBankIndexes: [assetBankIndex],
+			writablePerpMarketIndex: perpMarketIndex,
+			writableSpotMarketIndexes: [assetmarketIndex],
 		});
 
 		return await this.program.instruction.liquidatePerpPnlForDeposit(
 			perpMarketIndex,
-			assetBankIndex,
+			assetmarketIndex,
 			maxPnlTransfer,
 			{
 				accounts: {
@@ -2188,7 +2533,6 @@ export class ClearingHouse {
 	public async resolvePerpBankruptcy(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
-		bankIndex: BN,
 		marketIndex: BN
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
@@ -2196,7 +2540,6 @@ export class ClearingHouse {
 				await this.getResolvePerpBankruptcyIx(
 					userAccountPublicKey,
 					userAccount,
-					bankIndex,
 					marketIndex
 				)
 			),
@@ -2209,21 +2552,20 @@ export class ClearingHouse {
 	public async getResolvePerpBankruptcyIx(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
-		bankIndex: BN,
 		marketIndex: BN
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
-			writableMarketIndex: marketIndex,
-			writableBankIndexes: [bankIndex],
+			writablePerpMarketIndex: marketIndex,
+			writableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 			counterPartyUserAccount: userAccount,
 		});
 
-		const bank = this.getBankAccount(bankIndex);
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
 
 		return await this.program.instruction.resolvePerpBankruptcy(
-			bankIndex,
+			QUOTE_SPOT_MARKET_INDEX,
 			marketIndex,
 			{
 				accounts: {
@@ -2231,8 +2573,8 @@ export class ClearingHouse {
 					authority: this.wallet.publicKey,
 					user: userAccountPublicKey,
 					liquidator: liquidatorPublicKey,
-					bankVault: bank.vault,
-					insuranceFundVault: bank.insuranceFundVault,
+					spotMarketVault: spotMarket.vault,
+					insuranceFundVault: spotMarket.insuranceFundVault,
 					clearingHouseSigner: this.getSignerPublicKey(),
 					tokenProgram: TOKEN_PROGRAM_ID,
 				},
@@ -2244,14 +2586,14 @@ export class ClearingHouse {
 	public async resolveBorrowBankruptcy(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
-		bankIndex: BN
+		marketIndex: BN
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
 			wrapInTx(
 				await this.getResolveBorrowBankruptcyIx(
 					userAccountPublicKey,
 					userAccount,
-					bankIndex
+					marketIndex
 				)
 			),
 			[],
@@ -2263,25 +2605,25 @@ export class ClearingHouse {
 	public async getResolveBorrowBankruptcyIx(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
-		bankIndex: BN
+		marketIndex: BN
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
-			writableBankIndexes: [bankIndex],
+			writableSpotMarketIndexes: [marketIndex],
 			counterPartyUserAccount: userAccount,
 		});
 
-		const bank = this.getBankAccount(bankIndex);
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
 
-		return await this.program.instruction.resolveBorrowBankruptcy(bankIndex, {
+		return await this.program.instruction.resolveBorrowBankruptcy(marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				authority: this.wallet.publicKey,
 				user: userAccountPublicKey,
 				liquidator: liquidatorPublicKey,
-				bankVault: bank.vault,
-				insuranceFundVault: bank.insuranceFundVault,
+				spotMarketVault: spotMarket.vault,
+				insuranceFundVault: spotMarket.insuranceFundVault,
 				clearingHouseSigner: this.getSignerPublicKey(),
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
@@ -2291,35 +2633,35 @@ export class ClearingHouse {
 
 	getRemainingAccountsWithCounterparty(params: {
 		counterPartyUserAccount: UserAccount;
-		writableMarketIndex?: BN;
-		writableBankIndexes?: BN[];
+		writablePerpMarketIndex?: BN;
+		writableSpotMarketIndexes?: BN[];
 	}): AccountMeta[] {
 		const counterPartyUserAccount = params.counterPartyUserAccount;
 
 		const oracleAccountMap = new Map<string, AccountMeta>();
-		const bankAccountMap = new Map<number, AccountMeta>();
+		const spotMarketAccountMap = new Map<number, AccountMeta>();
 		const marketAccountMap = new Map<number, AccountMeta>();
-		for (const bankBalance of counterPartyUserAccount.bankBalances) {
-			if (!bankBalance.balance.eq(ZERO)) {
-				const bankAccount = this.getBankAccount(bankBalance.bankIndex);
-				bankAccountMap.set(bankBalance.bankIndex.toNumber(), {
-					pubkey: bankAccount.pubkey,
+		for (const spotPosition of counterPartyUserAccount.spotPositions) {
+			if (!isSpotPositionAvailable(spotPosition)) {
+				const spotMarket = this.getSpotMarketAccount(spotPosition.marketIndex);
+				spotMarketAccountMap.set(spotPosition.marketIndex.toNumber(), {
+					pubkey: spotMarket.pubkey,
 					isSigner: false,
 					isWritable: false,
 				});
 
-				if (!bankAccount.oracle.equals(PublicKey.default)) {
-					oracleAccountMap.set(bankAccount.oracle.toString(), {
-						pubkey: bankAccount.oracle,
+				if (!spotMarket.oracle.equals(PublicKey.default)) {
+					oracleAccountMap.set(spotMarket.oracle.toString(), {
+						pubkey: spotMarket.oracle,
 						isSigner: false,
 						isWritable: false,
 					});
 				}
 			}
 		}
-		for (const position of counterPartyUserAccount.positions) {
+		for (const position of counterPartyUserAccount.perpPositions) {
 			if (!positionIsAvailable(position)) {
-				const market = this.getMarketAccount(position.marketIndex);
+				const market = this.getPerpMarketAccount(position.marketIndex);
 				marketAccountMap.set(position.marketIndex.toNumber(), {
 					pubkey: market.pubkey,
 					isWritable: false,
@@ -2346,7 +2688,7 @@ export class ClearingHouse {
 			// if cache has more recent slot than user positions account slot, add market to remaining accounts
 			// otherwise remove from slot
 			if (slot > lastUserPositionsSlot) {
-				const marketAccount = this.getMarketAccount(marketIndexNum);
+				const marketAccount = this.getPerpMarketAccount(marketIndexNum);
 				marketAccountMap.set(marketIndexNum, {
 					pubkey: marketAccount.pubkey,
 					isSigner: false,
@@ -2361,27 +2703,27 @@ export class ClearingHouse {
 				this.marketLastSlotCache.delete(marketIndexNum);
 			}
 		}
-		for (const bankBalance of userAccount.bankBalances) {
-			if (!bankBalance.balance.eq(ZERO)) {
-				const bankAccount = this.getBankAccount(bankBalance.bankIndex);
-				bankAccountMap.set(bankBalance.bankIndex.toNumber(), {
-					pubkey: bankAccount.pubkey,
+		for (const spotPosition of userAccount.spotPositions) {
+			if (!isSpotPositionAvailable(spotPosition)) {
+				const spotMarket = this.getSpotMarketAccount(spotPosition.marketIndex);
+				spotMarketAccountMap.set(spotPosition.marketIndex.toNumber(), {
+					pubkey: spotMarket.pubkey,
 					isSigner: false,
 					isWritable: false,
 				});
 
-				if (!bankAccount.oracle.equals(PublicKey.default)) {
-					oracleAccountMap.set(bankAccount.oracle.toString(), {
-						pubkey: bankAccount.oracle,
+				if (!spotMarket.oracle.equals(PublicKey.default)) {
+					oracleAccountMap.set(spotMarket.oracle.toString(), {
+						pubkey: spotMarket.oracle,
 						isSigner: false,
 						isWritable: false,
 					});
 				}
 			}
 		}
-		for (const position of userAccount.positions) {
+		for (const position of userAccount.perpPositions) {
 			if (!positionIsAvailable(position)) {
-				const market = this.getMarketAccount(position.marketIndex);
+				const market = this.getPerpMarketAccount(position.marketIndex);
 				marketAccountMap.set(position.marketIndex.toNumber(), {
 					pubkey: market.pubkey,
 					isWritable: false,
@@ -2395,8 +2737,8 @@ export class ClearingHouse {
 			}
 		}
 
-		if (params.writableMarketIndex) {
-			const market = this.getMarketAccount(params.writableMarketIndex);
+		if (params.writablePerpMarketIndex) {
+			const market = this.getPerpMarketAccount(params.writablePerpMarketIndex);
 			marketAccountMap.set(market.marketIndex.toNumber(), {
 				pubkey: market.pubkey,
 				isSigner: false,
@@ -2409,17 +2751,19 @@ export class ClearingHouse {
 			});
 		}
 
-		if (params.writableBankIndexes) {
-			for (const writableBankIndex of params.writableBankIndexes) {
-				const bank = this.getBankAccount(writableBankIndex);
-				bankAccountMap.set(bank.bankIndex.toNumber(), {
-					pubkey: bank.pubkey,
+		if (params.writableSpotMarketIndexes) {
+			for (const writableSpotMarketIndex of params.writableSpotMarketIndexes) {
+				const spotMarketAccount = this.getSpotMarketAccount(
+					writableSpotMarketIndex
+				);
+				spotMarketAccountMap.set(spotMarketAccount.marketIndex.toNumber(), {
+					pubkey: spotMarketAccount.pubkey,
 					isSigner: false,
 					isWritable: true,
 				});
-				if (!bank.oracle.equals(PublicKey.default)) {
-					oracleAccountMap.set(bank.oracle.toString(), {
-						pubkey: bank.oracle,
+				if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
+					oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
+						pubkey: spotMarketAccount.oracle,
 						isSigner: false,
 						isWritable: false,
 					});
@@ -2429,7 +2773,7 @@ export class ClearingHouse {
 
 		return [
 			...oracleAccountMap.values(),
-			...bankAccountMap.values(),
+			...spotMarketAccountMap.values(),
 			...marketAccountMap.values(),
 		];
 	}
@@ -2477,7 +2821,7 @@ export class ClearingHouse {
 			userAccount
 		)) as UserAccount;
 
-		const userPositions = user.positions;
+		const userPositions = user.perpPositions;
 
 		const remainingAccounts = [];
 		for (const position of userPositions) {
@@ -2508,17 +2852,17 @@ export class ClearingHouse {
 	}
 
 	public getOracleDataForMarket(marketIndex: BN): OraclePriceData {
-		const oracleKey = this.getMarketAccount(marketIndex).amm.oracle;
+		const oracleKey = this.getPerpMarketAccount(marketIndex).amm.oracle;
 		const oracleData = this.getOraclePriceDataAndSlot(oracleKey).data;
 
 		return oracleData;
 	}
 
 	public async initializeInsuranceFundStake(
-		bankIndex: BN
+		marketIndex: BN
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
-			wrapInTx(await this.getInitializeInsuranceFundStakeIx(bankIndex)),
+			wrapInTx(await this.getInitializeInsuranceFundStakeIx(marketIndex)),
 			[],
 			this.opts
 		);
@@ -2526,20 +2870,20 @@ export class ClearingHouse {
 	}
 
 	public async getInitializeInsuranceFundStakeIx(
-		bankIndex: BN
+		marketIndex: BN
 	): Promise<TransactionInstruction> {
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
 			this.program.programId,
 			this.wallet.publicKey,
-			bankIndex
+			marketIndex
 		);
 
 		return await this.program.instruction.initializeInsuranceFundStake(
-			bankIndex,
+			marketIndex,
 			{
 				accounts: {
 					insuranceFundStake: ifStakeAccountPublicKey,
-					bank: this.getBankAccount(bankIndex).pubkey,
+					spotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
 					userStats: this.getUserStatsAccountPublicKey(),
 					authority: this.wallet.publicKey,
 					payer: this.wallet.publicKey,
@@ -2552,29 +2896,29 @@ export class ClearingHouse {
 	}
 
 	public async addInsuranceFundStake(
-		bankIndex: BN,
+		marketIndex: BN,
 		amount: BN,
 		collateralAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {
-		const bank = this.getBankAccount(bankIndex);
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
 			this.program.programId,
 			this.wallet.publicKey,
-			bankIndex
+			marketIndex
 		);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			writableBankIndex: bankIndex,
+			writableSpotMarketIndex: marketIndex,
 		});
 
-		return await this.program.rpc.addInsuranceFundStake(bankIndex, amount, {
+		return await this.program.rpc.addInsuranceFundStake(marketIndex, amount, {
 			accounts: {
 				state: await this.getStatePublicKey(),
-				bank: bank.pubkey,
+				spotMarket: spotMarket.pubkey,
 				insuranceFundStake: ifStakeAccountPublicKey,
 				userStats: this.getUserStatsAccountPublicKey(),
 				authority: this.wallet.publicKey,
-				insuranceFundVault: bank.insuranceFundVault,
+				insuranceFundVault: spotMarket.insuranceFundVault,
 				userTokenAccount: collateralAccountPublicKey,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
@@ -2583,31 +2927,31 @@ export class ClearingHouse {
 	}
 
 	public async requestRemoveInsuranceFundStake(
-		bankIndex: BN,
+		marketIndex: BN,
 		amount: BN
 	): Promise<TransactionSignature> {
-		const bank = this.getBankAccount(bankIndex);
+		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
 			this.program.programId,
 			this.wallet.publicKey,
-			bankIndex
+			marketIndex
 		);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			writableBankIndex: bankIndex,
+			writableSpotMarketIndex: marketIndex,
 		});
 
 		return await this.program.rpc.requestRemoveInsuranceFundStake(
-			bankIndex,
+			marketIndex,
 			amount,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					bank: bank.pubkey,
+					spotMarket: spotMarketAccount.pubkey,
 					insuranceFundStake: ifStakeAccountPublicKey,
 					userStats: this.getUserStatsAccountPublicKey(),
 					authority: this.wallet.publicKey,
-					insuranceFundVault: bank.insuranceFundVault,
+					insuranceFundVault: spotMarketAccount.insuranceFundVault,
 					// userTokenAccount: collateralAccountPublicKey,
 					// tokenProgram: TOKEN_PROGRAM_ID,
 				},
@@ -2617,29 +2961,29 @@ export class ClearingHouse {
 	}
 
 	public async cancelRequestRemoveInsuranceFundStake(
-		bankIndex: BN
+		marketIndex: BN
 	): Promise<TransactionSignature> {
-		const bank = this.getBankAccount(bankIndex);
+		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
 			this.program.programId,
 			this.wallet.publicKey,
-			bankIndex
+			marketIndex
 		);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			writableBankIndex: bankIndex,
+			writableSpotMarketIndex: marketIndex,
 		});
 
 		return await this.program.rpc.cancelRequestRemoveInsuranceFundStake(
-			bankIndex,
+			marketIndex,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					bank: bank.pubkey,
+					spotMarket: spotMarketAccount.pubkey,
 					insuranceFundStake: ifStakeAccountPublicKey,
 					userStats: this.getUserStatsAccountPublicKey(),
 					authority: this.wallet.publicKey,
-					insuranceFundVault: bank.insuranceFundVault,
+					insuranceFundVault: spotMarketAccount.insuranceFundVault,
 					// userTokenAccount: collateralAccountPublicKey,
 					// tokenProgram: TOKEN_PROGRAM_ID,
 				},
@@ -2649,28 +2993,28 @@ export class ClearingHouse {
 	}
 
 	public async removeInsuranceFundStake(
-		bankIndex: BN,
+		marketIndex: BN,
 		collateralAccountPublicKey: PublicKey
 	): Promise<TransactionSignature> {
-		const bank = this.getBankAccount(bankIndex);
+		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
 			this.program.programId,
 			this.wallet.publicKey,
-			bankIndex
+			marketIndex
 		);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			writableBankIndex: bankIndex,
+			writableSpotMarketIndex: marketIndex,
 		});
 
-		return await this.program.rpc.removeInsuranceFundStake(bankIndex, {
+		return await this.program.rpc.removeInsuranceFundStake(marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
-				bank: bank.pubkey,
+				spotMarket: spotMarketAccount.pubkey,
 				insuranceFundStake: ifStakeAccountPublicKey,
 				userStats: this.getUserStatsAccountPublicKey(),
 				authority: this.wallet.publicKey,
-				insuranceFundVault: bank.insuranceFundVault,
+				insuranceFundVault: spotMarketAccount.insuranceFundVault,
 				clearingHouseSigner: this.getSignerPublicKey(),
 				userTokenAccount: collateralAccountPublicKey,
 				tokenProgram: TOKEN_PROGRAM_ID,
@@ -2680,21 +3024,21 @@ export class ClearingHouse {
 	}
 
 	public async settleRevenueToInsuranceFund(
-		bankIndex: BN
+		marketIndex: BN
 	): Promise<TransactionSignature> {
-		const bank = this.getBankAccount(bankIndex);
+		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			writableBankIndex: bankIndex,
+			writableSpotMarketIndex: marketIndex,
 		});
 
-		return await this.program.rpc.settleRevenueToInsuranceFund(bankIndex, {
+		return await this.program.rpc.settleRevenueToInsuranceFund(marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
-				bank: bank.pubkey,
-				bankVault: bank.vault,
+				spotMarket: spotMarketAccount.pubkey,
+				spotMarketVault: spotMarketAccount.vault,
 				clearingHouseSigner: this.getSignerPublicKey(),
-				insuranceFundVault: bank.insuranceFundVault,
+				insuranceFundVault: spotMarketAccount.insuranceFundVault,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
 			remainingAccounts,

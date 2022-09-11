@@ -7,10 +7,10 @@ import {
 	ONE,
 	ZERO,
 } from '../constants/numericConstants';
-import { BN, MarketAccount } from '../index';
+import { BN, PerpMarketAccount } from '../index';
 
 export function oraclePriceBands(
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ): [BN, BN] {
 	const maxPercentDiff =

@@ -11,7 +11,7 @@ import {
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 } from './testHelpers';
 
 describe('admin withdraw', () => {
@@ -49,14 +49,14 @@ describe('admin withdraw', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: [new BN(0)],
-			bankIndexes: [new BN(0)],
+			perpMarketIndexes: [new BN(0)],
+			spotMarketIndexes: [new BN(0)],
 			userStats: true,
 		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const solUsd = await mockOracle(1);
@@ -146,7 +146,7 @@ describe('admin withdraw', () => {
 			.getAccount()
 			.fees.totalFeePaid.div(new BN(4));
 
-		let market = clearingHouse.getMarketAccount(0);
+		let market = clearingHouse.getPerpMarketAccount(0);
 		assert(
 			market.amm.totalFee.eq(
 				clearingHouse.getUserStats().getAccount().fees.totalFeePaid
@@ -160,11 +160,11 @@ describe('admin withdraw', () => {
 
 		const collateralVaultTokenAccount = await getTokenAccount(
 			provider,
-			clearingHouse.getQuoteAssetBankAccount().vault
+			clearingHouse.getQuoteSpotMarketAccount().vault
 		);
 		assert(collateralVaultTokenAccount.amount.eq(new BN(9998750)));
 
-		market = clearingHouse.getMarketAccount(0);
+		market = clearingHouse.getPerpMarketAccount(0);
 
 		// deposits go entirely to distributions for sym-funding/repeg/k-adjustments
 		console.log(market.amm.totalFee.toString());

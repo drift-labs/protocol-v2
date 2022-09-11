@@ -7,10 +7,10 @@ use crate::load_mut;
 use crate::math::amm;
 use crate::math::repeg;
 use crate::math_error;
-use crate::state::market::Market;
-use crate::state::market_map::MarketMap;
+use crate::state::market::PerpMarket;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::state::{OracleGuardRails, State};
 use anchor_lang::prelude::AccountInfo;
 use anchor_lang::prelude::*;
@@ -18,7 +18,7 @@ use solana_program::msg;
 use std::cmp::min;
 
 pub fn repeg(
-    market: &mut Market,
+    market: &mut PerpMarket,
     price_oracle: &AccountInfo,
     new_peg_candidate: u128,
     clock_slot: u64,
@@ -77,7 +77,7 @@ pub fn repeg(
 }
 
 pub fn update_amms(
-    market_map: &mut MarketMap,
+    perp_market_map: &mut PerpMarketMap,
     oracle_map: &mut OracleMap,
     state: &State,
     clock: &Clock,
@@ -87,7 +87,7 @@ pub fn update_amms(
     let now = clock.unix_timestamp;
 
     let updated = true; // todo
-    for (_key, market_account_loader) in market_map.0.iter_mut() {
+    for (_key, market_account_loader) in perp_market_map.0.iter_mut() {
         let market = &mut load_mut!(market_account_loader)?;
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
         _update_amm(market, oracle_price_data, state, now, clock_slot)?;
@@ -98,12 +98,12 @@ pub fn update_amms(
 
 pub fn update_amm(
     market_index: u64,
-    market_map: &MarketMap,
+    perp_market_map: &PerpMarketMap,
     oracle_map: &mut OracleMap,
     state: &State,
     clock: &Clock,
 ) -> ClearingHouseResult<i128> {
-    let market = &mut market_map.get_ref_mut(&market_index)?;
+    let market = &mut perp_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
     _update_amm(
         market,
@@ -115,7 +115,7 @@ pub fn update_amm(
 }
 
 pub fn _update_amm(
-    market: &mut Market,
+    market: &mut PerpMarket,
     oracle_price_data: &OraclePriceData,
     state: &State,
     now: i64,
@@ -171,7 +171,7 @@ pub fn _update_amm(
 }
 
 pub fn apply_cost_to_market(
-    market: &mut Market,
+    market: &mut PerpMarket,
     cost: i128,
     check_lower_bound: bool,
 ) -> ClearingHouseResult<bool> {
@@ -227,7 +227,7 @@ mod test {
     use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
     #[test]
     pub fn update_amm_test() {
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 630153846154000,
@@ -244,7 +244,7 @@ mod test {
                 ..AMM::default()
             },
             margin_ratio_initial: 555, // max 1/.0555 = 18.018018018x leverage
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         let state = State {
@@ -340,7 +340,7 @@ mod test {
 
     #[test]
     pub fn update_amm_test_bad_oracle() {
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 630153846154000,
@@ -357,7 +357,7 @@ mod test {
                 ..AMM::default()
             },
             margin_ratio_initial: 555, // max 1/.0555 = 18.018018018x leverage
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         let state = State {

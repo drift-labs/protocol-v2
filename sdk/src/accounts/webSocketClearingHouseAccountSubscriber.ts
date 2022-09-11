@@ -4,13 +4,13 @@ import {
 	DataAndSlot,
 } from './types';
 import { AccountSubscriber, NotSubscribedError } from './types';
-import { BankAccount, MarketAccount, StateAccount } from '../types';
+import { SpotMarketAccount, PerpMarketAccount, StateAccount } from '../types';
 import { BN, Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
 	getClearingHouseStateAccountPublicKey,
-	getBankPublicKey,
+	getSpotMarketPublicKey,
 	getMarketPublicKey,
 } from '../addresses/pda';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
@@ -25,18 +25,21 @@ export class WebSocketClearingHouseAccountSubscriber
 {
 	isSubscribed: boolean;
 	program: Program;
-	marketIndexes: BN[];
-	bankIndexes: BN[];
+	perpMarketIndexes: BN[];
+	spotMarketIndexes: BN[];
 	oracleInfos: OracleInfo[];
 	oracleClientCache = new OracleClientCache();
 
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 	stateAccountSubscriber?: AccountSubscriber<StateAccount>;
-	marketAccountSubscribers = new Map<
+	perpMarketAccountSubscribers = new Map<
 		number,
-		AccountSubscriber<MarketAccount>
+		AccountSubscriber<PerpMarketAccount>
 	>();
-	bankAccountSubscribers = new Map<number, AccountSubscriber<BankAccount>>();
+	spotMarketAccountSubscribers = new Map<
+		number,
+		AccountSubscriber<SpotMarketAccount>
+	>();
 	oracleSubscribers = new Map<string, AccountSubscriber<OraclePriceData>>();
 
 	private isSubscribing = false;
@@ -45,15 +48,15 @@ export class WebSocketClearingHouseAccountSubscriber
 
 	public constructor(
 		program: Program,
-		marketIndexes: BN[],
-		bankIndexes: BN[],
+		perpMarketIndexes: BN[],
+		spotMarketIndexes: BN[],
 		oracleInfos: OracleInfo[]
 	) {
 		this.isSubscribed = false;
 		this.program = program;
 		this.eventEmitter = new EventEmitter();
-		this.marketIndexes = marketIndexes;
-		this.bankIndexes = bankIndexes;
+		this.perpMarketIndexes = perpMarketIndexes;
+		this.spotMarketIndexes = spotMarketIndexes;
 		this.oracleInfos = oracleInfos;
 	}
 
@@ -90,8 +93,8 @@ export class WebSocketClearingHouseAccountSubscriber
 		// subscribe to market accounts
 		await this.subscribeToMarketAccounts();
 
-		// subscribe to bank accounts
-		await this.subscribeToBankAccounts();
+		// subscribe to spot market accounts
+		await this.subscribeToSpotMarketAccounts();
 
 		// subscribe to oracles
 		await this.subscribeToOracles();
@@ -106,7 +109,7 @@ export class WebSocketClearingHouseAccountSubscriber
 	}
 
 	async subscribeToMarketAccounts(): Promise<boolean> {
-		for (const marketIndex of this.marketIndexes) {
+		for (const marketIndex of this.perpMarketIndexes) {
 			await this.subscribeToMarketAccount(marketIndex);
 		}
 		return true;
@@ -117,44 +120,47 @@ export class WebSocketClearingHouseAccountSubscriber
 			this.program.programId,
 			marketIndex
 		);
-		const accountSubscriber = new WebSocketAccountSubscriber<MarketAccount>(
-			'market',
+		const accountSubscriber = new WebSocketAccountSubscriber<PerpMarketAccount>(
+			'perpMarket',
 			this.program,
 			marketPublicKey
 		);
-		await accountSubscriber.subscribe((data: MarketAccount) => {
-			this.eventEmitter.emit('marketAccountUpdate', data);
+		await accountSubscriber.subscribe((data: PerpMarketAccount) => {
+			this.eventEmitter.emit('perpMarketAccountUpdate', data);
 			this.eventEmitter.emit('update');
 		});
-		this.marketAccountSubscribers.set(
+		this.perpMarketAccountSubscribers.set(
 			marketIndex.toNumber(),
 			accountSubscriber
 		);
 		return true;
 	}
 
-	async subscribeToBankAccounts(): Promise<boolean> {
-		for (const bankIndex of this.bankIndexes) {
-			await this.subscribeToBankAccount(bankIndex);
+	async subscribeToSpotMarketAccounts(): Promise<boolean> {
+		for (const marketIndex of this.spotMarketIndexes) {
+			await this.subscribeToSpotMarketAccount(marketIndex);
 		}
 		return true;
 	}
 
-	async subscribeToBankAccount(bankIndex: BN): Promise<boolean> {
-		const bankPublicKey = await getBankPublicKey(
+	async subscribeToSpotMarketAccount(marketIndex: BN): Promise<boolean> {
+		const marketPublicKey = await getSpotMarketPublicKey(
 			this.program.programId,
-			bankIndex
+			marketIndex
 		);
-		const accountSubscriber = new WebSocketAccountSubscriber<BankAccount>(
-			'bank',
+		const accountSubscriber = new WebSocketAccountSubscriber<SpotMarketAccount>(
+			'spotMarket',
 			this.program,
-			bankPublicKey
+			marketPublicKey
 		);
-		await accountSubscriber.subscribe((data: BankAccount) => {
-			this.eventEmitter.emit('bankAccountUpdate', data);
+		await accountSubscriber.subscribe((data: SpotMarketAccount) => {
+			this.eventEmitter.emit('spotMarketAccountUpdate', data);
 			this.eventEmitter.emit('update');
 		});
-		this.bankAccountSubscribers.set(bankIndex.toNumber(), accountSubscriber);
+		this.spotMarketAccountSubscribers.set(
+			marketIndex.toNumber(),
+			accountSubscriber
+		);
 		return true;
 	}
 
@@ -195,13 +201,13 @@ export class WebSocketClearingHouseAccountSubscriber
 	}
 
 	async unsubscribeFromMarketAccounts(): Promise<void> {
-		for (const accountSubscriber of this.marketAccountSubscribers.values()) {
+		for (const accountSubscriber of this.perpMarketAccountSubscribers.values()) {
 			await accountSubscriber.unsubscribe();
 		}
 	}
 
-	async unsubscribeFromBankAccounts(): Promise<void> {
-		for (const accountSubscriber of this.bankAccountSubscribers.values()) {
+	async unsubscribeFromSpotMarketAccounts(): Promise<void> {
+		for (const accountSubscriber of this.spotMarketAccountSubscribers.values()) {
 			await accountSubscriber.unsubscribe();
 		}
 	}
@@ -219,13 +225,13 @@ export class WebSocketClearingHouseAccountSubscriber
 
 		const promises = [this.stateAccountSubscriber.fetch()]
 			.concat(
-				Array.from(this.marketAccountSubscribers.values()).map((subscriber) =>
-					subscriber.fetch()
+				Array.from(this.perpMarketAccountSubscribers.values()).map(
+					(subscriber) => subscriber.fetch()
 				)
 			)
 			.concat(
-				Array.from(this.bankAccountSubscribers.values()).map((subscriber) =>
-					subscriber.fetch()
+				Array.from(this.spotMarketAccountSubscribers.values()).map(
+					(subscriber) => subscriber.fetch()
 				)
 			);
 
@@ -240,21 +246,21 @@ export class WebSocketClearingHouseAccountSubscriber
 		await this.stateAccountSubscriber.unsubscribe();
 
 		await this.unsubscribeFromMarketAccounts();
-		await this.unsubscribeFromBankAccounts();
+		await this.unsubscribeFromSpotMarketAccounts();
 		await this.unsubscribeFromOracles();
 
 		this.isSubscribed = false;
 	}
 
-	async addBank(bankIndex: BN): Promise<boolean> {
-		if (this.bankAccountSubscribers.has(bankIndex.toNumber())) {
+	async addSpotMarket(marketIndex: BN): Promise<boolean> {
+		if (this.spotMarketAccountSubscribers.has(marketIndex.toNumber())) {
 			return true;
 		}
-		return this.subscribeToBankAccount(bankIndex);
+		return this.subscribeToSpotMarketAccount(marketIndex);
 	}
 
-	async addMarket(marketIndex: BN): Promise<boolean> {
-		if (this.marketAccountSubscribers.has(marketIndex.toNumber())) {
+	async addPerpMarket(marketIndex: BN): Promise<boolean> {
+		if (this.perpMarketAccountSubscribers.has(marketIndex.toNumber())) {
 			return true;
 		}
 		return this.subscribeToMarketAccount(marketIndex);
@@ -287,23 +293,24 @@ export class WebSocketClearingHouseAccountSubscriber
 
 	public getMarketAccountAndSlot(
 		marketIndex: BN
-	): DataAndSlot<MarketAccount> | undefined {
+	): DataAndSlot<PerpMarketAccount> | undefined {
 		this.assertIsSubscribed();
-		return this.marketAccountSubscribers.get(marketIndex.toNumber())
+		return this.perpMarketAccountSubscribers.get(marketIndex.toNumber())
 			.dataAndSlot;
 	}
 
-	public getMarketAccountsAndSlots(): DataAndSlot<MarketAccount>[] {
-		return Array.from(this.marketAccountSubscribers.values()).map(
+	public getMarketAccountsAndSlots(): DataAndSlot<PerpMarketAccount>[] {
+		return Array.from(this.perpMarketAccountSubscribers.values()).map(
 			(subscriber) => subscriber.dataAndSlot
 		);
 	}
 
-	public getBankAccountAndSlot(
-		bankIndex: BN
-	): DataAndSlot<BankAccount> | undefined {
+	public getSpotMarketAccountAndSlot(
+		marketIndex: BN
+	): DataAndSlot<SpotMarketAccount> | undefined {
 		this.assertIsSubscribed();
-		return this.bankAccountSubscribers.get(bankIndex.toNumber()).dataAndSlot;
+		return this.spotMarketAccountSubscribers.get(marketIndex.toNumber())
+			.dataAndSlot;
 	}
 
 	public getOraclePriceDataAndSlot(

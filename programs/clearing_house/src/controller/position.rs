@@ -16,10 +16,10 @@ use crate::math::position::{
     calculate_position_new_quote_base_pnl, get_position_update_type, PositionUpdateType,
 };
 use crate::math_error;
-use crate::state::market::Market;
+use crate::state::market::PerpMarket;
 use crate::state::user::{User, UserPositions};
 use crate::validate;
-use crate::MarketPosition;
+use crate::PerpPosition;
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum PositionDirection {
@@ -43,9 +43,9 @@ pub fn add_new_position(
         .position(|market_position| market_position.is_available())
         .ok_or(ErrorCode::MaxNumberOfPositions)?;
 
-    let new_market_position = MarketPosition {
+    let new_market_position = PerpPosition {
         market_index,
-        ..MarketPosition::default()
+        ..PerpPosition::default()
     };
 
     user_positions[new_position_index] = new_market_position;
@@ -74,7 +74,7 @@ pub struct PositionDelta {
 }
 
 pub fn update_amm_position(
-    market: &mut Market,
+    market: &mut PerpMarket,
     delta: &PositionDelta,
     is_per_lp_position: bool,
 ) -> ClearingHouseResult<i128> {
@@ -118,8 +118,8 @@ pub fn update_amm_position(
 }
 
 pub fn update_position_and_market(
-    position: &mut MarketPosition,
-    market: &mut Market,
+    position: &mut PerpPosition,
+    market: &mut PerpMarket,
     delta: &PositionDelta,
 ) -> ClearingHouseResult<i128> {
     let update_type = get_position_update_type(position, delta);
@@ -416,7 +416,7 @@ pub fn update_position_and_market(
 }
 
 pub fn update_amm_and_lp_market_position(
-    market: &mut Market,
+    market: &mut PerpMarket,
     delta: &PositionDelta,
     fee_to_market: i128,
 ) -> ClearingHouseResult {
@@ -529,7 +529,7 @@ pub fn update_amm_and_lp_market_position(
 pub fn update_position_with_base_asset_amount(
     base_asset_amount: u128,
     direction: PositionDirection,
-    market: &mut Market,
+    market: &mut PerpMarket,
     user: &mut User,
     position_index: usize,
     mark_price_before: u128,
@@ -562,8 +562,11 @@ pub fn update_position_with_base_asset_amount(
     let position_delta =
         get_position_delta_for_fill(base_asset_amount, quote_asset_amount, direction)?;
 
-    let pnl =
-        update_position_and_market(&mut user.positions[position_index], market, &position_delta)?;
+    let pnl = update_position_and_market(
+        &mut user.perp_positions[position_index],
+        market,
+        &position_delta,
+    )?;
 
     market.amm.net_base_asset_amount = market
         .amm
@@ -599,8 +602,8 @@ fn calculate_quote_asset_amount_surplus(
 }
 
 pub fn update_quote_asset_amount(
-    position: &mut MarketPosition,
-    market: &mut Market,
+    position: &mut PerpPosition,
+    market: &mut PerpMarket,
     delta: i128,
 ) -> ClearingHouseResult<()> {
     position.quote_asset_amount = position
@@ -628,7 +631,7 @@ pub fn update_quote_asset_amount(
     Ok(())
 }
 
-pub fn update_realized_pnl(position: &mut MarketPosition, delta: i64) -> ClearingHouseResult<()> {
+pub fn update_realized_pnl(position: &mut PerpPosition, delta: i64) -> ClearingHouseResult<()> {
     position.realized_pnl = position
         .realized_pnl
         .checked_add(delta)
@@ -638,7 +641,7 @@ pub fn update_realized_pnl(position: &mut MarketPosition, delta: i64) -> Clearin
 }
 
 pub fn increase_open_bids_and_asks(
-    position: &mut MarketPosition,
+    position: &mut PerpPosition,
     direction: &PositionDirection,
     base_asset_amount_unfilled: u128,
 ) -> ClearingHouseResult {
@@ -661,7 +664,7 @@ pub fn increase_open_bids_and_asks(
 }
 
 pub fn decrease_open_bids_and_asks(
-    position: &mut MarketPosition,
+    position: &mut PerpPosition,
     direction: &PositionDirection,
     base_asset_amount_unfilled: u128,
 ) -> ClearingHouseResult {
@@ -689,8 +692,8 @@ mod test {
         update_amm_and_lp_market_position, update_position_and_market, PositionDelta,
     };
     use crate::math::constants::{AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128};
-    use crate::state::market::{Market, AMM};
-    use crate::state::user::MarketPosition;
+    use crate::state::market::{PerpMarket, AMM};
+    use crate::state::user::PerpPosition;
 
     #[test]
     fn full_amm_split() {
@@ -705,9 +708,9 @@ mod test {
             net_base_asset_amount: 10 * AMM_RESERVE_PRECISION_I128,
             ..AMM::default_test()
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         update_amm_and_lp_market_position(&mut market, &delta, 0).unwrap();
@@ -740,9 +743,9 @@ mod test {
             net_base_asset_amount: 10 * AMM_RESERVE_PRECISION_I128,
             ..AMM::default_test()
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         update_amm_and_lp_market_position(&mut market, &delta, 0).unwrap();
@@ -775,9 +778,9 @@ mod test {
             net_base_asset_amount: 10 * AMM_RESERVE_PRECISION_I128,
             ..AMM::default_test()
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         update_amm_and_lp_market_position(&mut market, &delta, 0).unwrap();
@@ -812,12 +815,12 @@ mod test {
 
     #[test]
     fn increase_long_from_no_position() {
-        let mut existing_position = MarketPosition::default();
+        let mut existing_position = PerpPosition::default();
         let position_delta = PositionDelta {
             base_asset_amount: 1,
             quote_asset_amount: -1,
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 cumulative_funding_rate_long: 1,
                 sqrt_k: 1,
@@ -825,7 +828,7 @@ mod test {
                 ..AMM::default()
             },
             open_interest: 0,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
@@ -849,18 +852,18 @@ mod test {
 
     #[test]
     fn increase_short_from_no_position() {
-        let mut existing_position = MarketPosition::default();
+        let mut existing_position = PerpPosition::default();
         let position_delta = PositionDelta {
             base_asset_amount: -1,
             quote_asset_amount: 1,
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 cumulative_funding_rate_short: 1,
                 ..AMM::default_test()
             },
             open_interest: 0,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
@@ -883,18 +886,18 @@ mod test {
 
     #[test]
     fn increase_long() {
-        let mut existing_position = MarketPosition {
+        let mut existing_position = PerpPosition {
             base_asset_amount: 1,
             quote_asset_amount: -1,
             quote_entry_amount: -1,
             last_cumulative_funding_rate: 1,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
             base_asset_amount: 1,
             quote_asset_amount: -1,
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 1,
                 quote_asset_amount_long: -1,
@@ -905,7 +908,7 @@ mod test {
             base_asset_amount_long: 1,
             base_asset_amount_short: 0,
             open_interest: 1,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
@@ -929,18 +932,18 @@ mod test {
 
     #[test]
     fn increase_short() {
-        let mut existing_position = MarketPosition {
+        let mut existing_position = PerpPosition {
             base_asset_amount: -1,
             quote_asset_amount: 1,
             quote_entry_amount: 1,
             last_cumulative_funding_rate: 1,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
             base_asset_amount: -1,
             quote_asset_amount: 1,
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 1,
@@ -951,7 +954,7 @@ mod test {
             open_interest: 1,
             base_asset_amount_short: -1,
             base_asset_amount_long: 0,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
@@ -974,18 +977,18 @@ mod test {
 
     #[test]
     fn reduce_long_profitable() {
-        let mut existing_position = MarketPosition {
+        let mut existing_position = PerpPosition {
             base_asset_amount: 10,
             quote_asset_amount: -10,
             quote_entry_amount: -10,
             last_cumulative_funding_rate: 1,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
             base_asset_amount: -1,
             quote_asset_amount: 5,
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 10,
                 quote_asset_amount_long: -10,
@@ -997,7 +1000,7 @@ mod test {
             open_interest: 1,
             base_asset_amount_long: 10,
             base_asset_amount_short: 0,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
@@ -1021,18 +1024,18 @@ mod test {
 
     #[test]
     fn reduce_long_unprofitable() {
-        let mut existing_position = MarketPosition {
+        let mut existing_position = PerpPosition {
             base_asset_amount: 10,
             quote_asset_amount: -100,
             quote_entry_amount: -100,
             last_cumulative_funding_rate: 1,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
             base_asset_amount: -1,
             quote_asset_amount: 5,
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 10,
                 quote_asset_amount_long: -100,
@@ -1044,7 +1047,7 @@ mod test {
             open_interest: 1,
             base_asset_amount_long: 10,
             base_asset_amount_short: 0,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
@@ -1068,18 +1071,18 @@ mod test {
 
     #[test]
     fn flip_long_to_short_profitable() {
-        let mut existing_position = MarketPosition {
+        let mut existing_position = PerpPosition {
             base_asset_amount: 10,
             quote_asset_amount: -10,
             quote_entry_amount: -10,
             last_cumulative_funding_rate: 1,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
             base_asset_amount: -11,
             quote_asset_amount: 22,
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 10,
                 quote_asset_amount_long: -10,
@@ -1092,7 +1095,7 @@ mod test {
             open_interest: 1,
             base_asset_amount_long: 10,
             base_asset_amount_short: 0,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
@@ -1116,18 +1119,18 @@ mod test {
 
     #[test]
     fn flip_long_to_short_unprofitable() {
-        let mut existing_position = MarketPosition {
+        let mut existing_position = PerpPosition {
             base_asset_amount: 10,
             quote_asset_amount: -10,
             quote_entry_amount: -10,
             last_cumulative_funding_rate: 1,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
             base_asset_amount: -11,
             quote_asset_amount: 10,
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 10,
                 quote_asset_amount_long: -10,
@@ -1141,7 +1144,7 @@ mod test {
             open_interest: 1,
             base_asset_amount_long: 10,
             base_asset_amount_short: 0,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
@@ -1165,18 +1168,18 @@ mod test {
 
     #[test]
     fn reduce_short_profitable() {
-        let mut existing_position = MarketPosition {
+        let mut existing_position = PerpPosition {
             base_asset_amount: -10,
             quote_asset_amount: 100,
             quote_entry_amount: 100,
             last_cumulative_funding_rate: 1,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
             base_asset_amount: 1,
             quote_asset_amount: -5,
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 100,
@@ -1187,7 +1190,7 @@ mod test {
             open_interest: 1,
             base_asset_amount_long: 0,
             base_asset_amount_short: -10,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
@@ -1210,18 +1213,18 @@ mod test {
 
     #[test]
     fn decrease_short_unprofitable() {
-        let mut existing_position = MarketPosition {
+        let mut existing_position = PerpPosition {
             base_asset_amount: -10,
             quote_asset_amount: 100,
             quote_entry_amount: 100,
             last_cumulative_funding_rate: 1,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
             base_asset_amount: 1,
             quote_asset_amount: -15,
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 100,
@@ -1232,7 +1235,7 @@ mod test {
             open_interest: 1,
             base_asset_amount_long: 0,
             base_asset_amount_short: -10,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
@@ -1255,18 +1258,18 @@ mod test {
 
     #[test]
     fn flip_short_to_long_profitable() {
-        let mut existing_position = MarketPosition {
+        let mut existing_position = PerpPosition {
             base_asset_amount: -10,
             quote_asset_amount: 100,
             quote_entry_amount: 100,
             last_cumulative_funding_rate: 1,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
             base_asset_amount: 11,
             quote_asset_amount: -60,
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: -10,
                 quote_asset_amount_long: 0,
@@ -1279,7 +1282,7 @@ mod test {
             open_interest: 1,
             base_asset_amount_long: 0,
             base_asset_amount_short: -10,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
@@ -1303,18 +1306,18 @@ mod test {
 
     #[test]
     fn flip_short_to_long_unprofitable() {
-        let mut existing_position = MarketPosition {
+        let mut existing_position = PerpPosition {
             base_asset_amount: -10,
             quote_asset_amount: 100,
             quote_entry_amount: 100,
             last_cumulative_funding_rate: 1,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
             base_asset_amount: 11,
             quote_asset_amount: -120,
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: -10,
                 quote_asset_amount_long: 0,
@@ -1327,7 +1330,7 @@ mod test {
             open_interest: 1,
             base_asset_amount_long: 0,
             base_asset_amount_short: -10,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
@@ -1351,19 +1354,19 @@ mod test {
 
     #[test]
     fn close_long_profitable() {
-        let mut existing_position = MarketPosition {
+        let mut existing_position = PerpPosition {
             base_asset_amount: 10,
             quote_asset_amount: -10,
             quote_entry_amount: -10,
             last_cumulative_funding_rate: 1,
             last_funding_rate_ts: 1,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
             base_asset_amount: -10,
             quote_asset_amount: 15,
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 11,
                 quote_asset_amount_long: -11,
@@ -1373,7 +1376,7 @@ mod test {
             },
             open_interest: 2,
             base_asset_amount_long: 11,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
@@ -1399,19 +1402,19 @@ mod test {
 
     #[test]
     fn close_long_unprofitable() {
-        let mut existing_position = MarketPosition {
+        let mut existing_position = PerpPosition {
             base_asset_amount: 10,
             quote_asset_amount: -10,
             quote_entry_amount: -10,
             last_cumulative_funding_rate: 1,
             last_funding_rate_ts: 1,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
             base_asset_amount: -10,
             quote_asset_amount: 5,
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 11,
                 quote_asset_amount_long: -11,
@@ -1421,7 +1424,7 @@ mod test {
             },
             open_interest: 2,
             base_asset_amount_long: 11,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
@@ -1446,19 +1449,19 @@ mod test {
 
     #[test]
     fn close_short_profitable() {
-        let mut existing_position = MarketPosition {
+        let mut existing_position = PerpPosition {
             base_asset_amount: -10,
             quote_asset_amount: 10,
             quote_entry_amount: 10,
             last_cumulative_funding_rate: 1,
             last_funding_rate_ts: 1,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
             base_asset_amount: 10,
             quote_asset_amount: -5,
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 quote_asset_amount_short: 11,
                 quote_entry_amount_short: 11,
@@ -1467,7 +1470,7 @@ mod test {
             },
             open_interest: 2,
             base_asset_amount_short: -11,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
@@ -1491,19 +1494,19 @@ mod test {
 
     #[test]
     fn close_short_unprofitable() {
-        let mut existing_position = MarketPosition {
+        let mut existing_position = PerpPosition {
             base_asset_amount: -10,
             quote_asset_amount: 10,
             quote_entry_amount: 10,
             last_cumulative_funding_rate: 1,
             last_funding_rate_ts: 1,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
             base_asset_amount: 10,
             quote_asset_amount: -15,
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 quote_asset_amount_short: 11,
                 quote_entry_amount_short: 11,
@@ -1512,7 +1515,7 @@ mod test {
             },
             open_interest: 2,
             base_asset_amount_short: -11,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
@@ -1536,19 +1539,19 @@ mod test {
 
     #[test]
     fn close_long_with_quote_entry_amount_less_than_quote_asset_amount() {
-        let mut existing_position = MarketPosition {
+        let mut existing_position = PerpPosition {
             base_asset_amount: 10,
             quote_asset_amount: -10,
             quote_entry_amount: -8,
             last_cumulative_funding_rate: 1,
             last_funding_rate_ts: 1,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
             base_asset_amount: -10,
             quote_asset_amount: 5,
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 11,
                 quote_asset_amount_long: -11,
@@ -1559,7 +1562,7 @@ mod test {
             },
             open_interest: 2,
             base_asset_amount_long: 11,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)
@@ -1584,19 +1587,19 @@ mod test {
 
     #[test]
     fn close_short_with_quote_entry_amount_more_than_quote_asset_amount() {
-        let mut existing_position = MarketPosition {
+        let mut existing_position = PerpPosition {
             base_asset_amount: -10,
             quote_asset_amount: 10,
             quote_entry_amount: 15,
             last_cumulative_funding_rate: 1,
             last_funding_rate_ts: 1,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
             base_asset_amount: 10,
             quote_asset_amount: -15,
         };
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 quote_asset_amount_short: 11,
                 quote_entry_amount_short: 15,
@@ -1606,7 +1609,7 @@ mod test {
             },
             open_interest: 2,
             base_asset_amount_short: -11,
-            ..Market::default_test()
+            ..PerpMarket::default_test()
         };
 
         let pnl = update_position_and_market(&mut existing_position, &mut market, &position_delta)

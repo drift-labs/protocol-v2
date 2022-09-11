@@ -7,9 +7,9 @@ import {
 	OracleSource,
 	BID_ASK_SPREAD_PRECISION,
 	PEG_PRECISION,
-	QUOTE_ASSET_BANK_INDEX,
+	QUOTE_SPOT_MARKET_INDEX,
 	getTokenAmount,
-	BankBalanceType,
+	SpotBalanceType,
 	ZERO,
 	getLimitOrderParams,
 	ClearingHouse,
@@ -49,7 +49,7 @@ import {
 	mockUSDCMint,
 	setFeedPrice,
 	getOraclePriceData,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 } from './testHelpers';
 
 async function depositToFeePoolFromIF(
@@ -179,7 +179,7 @@ describe('repeg and spread amm', () => {
 	const usdcAmount = new BN(10000 * 10 ** 6);
 
 	let marketIndexes;
-	let bankIndexes;
+	let spotMarketIndexes;
 	let oracleInfos;
 	let btcUsd;
 	const mockOracles = [];
@@ -200,7 +200,7 @@ describe('repeg and spread amm', () => {
 			mockOracles.push(thisUsd);
 		}
 
-		bankIndexes = [new BN(0)];
+		spotMarketIndexes = [new BN(0)];
 		marketIndexes = mockOracles.map((_, i) => new BN(i));
 		oracleInfos = mockOracles.map((oracle) => {
 			return { publicKey: oracle, source: OracleSource.PYTH };
@@ -214,8 +214,8 @@ describe('repeg and spread amm', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: marketIndexes,
-			bankIndexes: bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos: oracleInfos,
 		});
 
@@ -223,7 +223,7 @@ describe('repeg and spread amm', () => {
 		await clearingHouse.updateAuctionDuration(0, 0);
 		await clearingHouse.subscribe();
 
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		// BTC
@@ -305,7 +305,7 @@ describe('repeg and spread amm', () => {
 			anchor.workspace.Pyth,
 			btcUsd
 		);
-		const market0 = clearingHouse.getMarketAccount(0);
+		const market0 = clearingHouse.getPerpMarketAccount(0);
 		console.log(
 			'market0.amm.totalFeeMinusDistributions:',
 			market0.amm.totalFeeMinusDistributions.toNumber() /
@@ -413,8 +413,8 @@ describe('repeg and spread amm', () => {
 
 		console.log(convertToNumber(oraclePriceData.price), midPrice);
 		console.log(
-			'getBankAssetValue:',
-			clearingHouseUser.getBankAssetValue().toString()
+			'getSpotMarketAssetValue:',
+			clearingHouseUser.getSpotMarketAssetValue().toString()
 		);
 
 		const effectiveLeverage = calculateEffectiveLeverage(
@@ -449,7 +449,7 @@ describe('repeg and spread amm', () => {
 			console.error(e);
 		}
 
-		const market = clearingHouse.getMarketAccount(0);
+		const market = clearingHouse.getPerpMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(
 			market.amm,
 			oraclePriceData,
@@ -497,17 +497,20 @@ describe('repeg and spread amm', () => {
 
 		await clearingHouse.fetchAccounts();
 		console.log(
-			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.toString()
+			clearingHouse
+				.getUserAccount()
+				.perpPositions[0].quoteAssetAmount.toString()
 		);
 		console.log(
-			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toString()
+			clearingHouse.getUserAccount().perpPositions[0].baseAssetAmount.toString()
 		);
 		assert(
-			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toString() ==
-				'-1931600000000'
+			clearingHouse
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.toString() == '-1931600000000'
 		);
 		// assert(
-		// 	clearingHouse.getUserAccount().positions[0].quoteAssetAmount.toString() ==
+		// 	clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==
 		// 		'4229493402'
 		// ); // $4229.49
 
@@ -544,47 +547,51 @@ describe('repeg and spread amm', () => {
 		}
 
 		console.log(
-			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toString()
+			clearingHouse.getUserAccount().perpPositions[0].baseAssetAmount.toString()
 		);
 		console.log(
-			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.toString()
+			clearingHouse
+				.getUserAccount()
+				.perpPositions[0].quoteAssetAmount.toString()
 		);
 		assert(
-			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toString() ==
-				'0'
+			clearingHouse
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.toString() == '0'
 		);
 		// assert(
-		// 	clearingHouse.getUserAccount().positions[0].quoteAssetAmount.toString() ==
+		// 	clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==
 		// 		'203455312'
 		// ); // $203.45
 
 		assert(
-			clearingHouse.getUserAccount().positions[0].quoteEntryAmount.toString() ==
-				'0'
+			clearingHouse
+				.getUserAccount()
+				.perpPositions[0].quoteEntryAmount.toString() == '0'
 		);
 
 		console.log(
-			'getBankAssetValue:',
-			clearingHouseUser.getBankAssetValue().toString()
+			'getSpotMarketAssetValue:',
+			clearingHouseUser.getSpotMarketAssetValue().toString()
 		);
-		const bankAccount0 = clearingHouse.getBankAccount(0);
+		const spotMarketAccount0 = clearingHouse.getSpotMarketAccount(0);
 
 		const feePoolBalance0 = getTokenAmount(
 			market.amm.feePool.balance,
-			bankAccount0,
-			BankBalanceType.DEPOSIT
+			spotMarketAccount0,
+			SpotBalanceType.DEPOSIT
 		);
 
 		const pnlPoolBalance0 = getTokenAmount(
 			market.pnlPool.balance,
-			bankAccount0,
-			BankBalanceType.DEPOSIT
+			spotMarketAccount0,
+			SpotBalanceType.DEPOSIT
 		);
 
 		console.log('usdcAmount:', usdcAmount.toString());
 		console.log(
-			'getBankAssetValue:',
-			clearingHouseUser.getBankAssetValue().toString()
+			'getSpotMarketAssetValue:',
+			clearingHouseUser.getSpotMarketAssetValue().toString()
 		);
 		console.log('feePoolBalance0:', feePoolBalance0.toString());
 		console.log('pnlPoolBalance0:', pnlPoolBalance0.toString());
@@ -596,23 +603,28 @@ describe('repeg and spread amm', () => {
 		);
 		await clearingHouse.fetchAccounts();
 		console.log(
-			clearingHouse.getUserAccount().positions[0].quoteAssetAmount.toString()
+			clearingHouse
+				.getUserAccount()
+				.perpPositions[0].quoteAssetAmount.toString()
 		);
 		console.log(
-			clearingHouse.getUserAccount().positions[0].quoteEntryAmount.toString()
+			clearingHouse
+				.getUserAccount()
+				.perpPositions[0].quoteEntryAmount.toString()
 		);
 		// assert(
-		// 	clearingHouse.getUserAccount().positions[0].quoteAssetAmount.toString() ==
+		// 	clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==
 		// 		'157582183'
 		// ); // $157.58
 		assert(
-			clearingHouse.getUserAccount().positions[0].quoteEntryAmount.toString() ==
-				'0'
+			clearingHouse
+				.getUserAccount()
+				.perpPositions[0].quoteEntryAmount.toString() == '0'
 		);
 
 		await depositToFeePoolFromIF(157.476328, clearingHouse, userUSDCAccount);
 
-		const market1 = clearingHouse.getMarketAccount(0);
+		const market1 = clearingHouse.getPerpMarketAccount(0);
 		console.log(
 			'after fee pool deposit totalFeeMinusDistributions:',
 			market1.amm.totalFeeMinusDistributions.toString()
@@ -620,36 +632,36 @@ describe('repeg and spread amm', () => {
 
 		assert(!market1.amm.totalFeeMinusDistributions.eq(ZERO));
 
-		const bankAccount = clearingHouse.getBankAccount(0);
+		const spotMarketAccount = clearingHouse.getSpotMarketAccount(0);
 
 		const revPoolBalance = getTokenAmount(
-			bankAccount.revenuePool.balance,
-			bankAccount,
-			BankBalanceType.DEPOSIT
+			spotMarketAccount.revenuePool.balance,
+			spotMarketAccount,
+			SpotBalanceType.DEPOSIT
 		);
 
 		const feePoolBalance = getTokenAmount(
 			market1.amm.feePool.balance,
-			bankAccount,
-			BankBalanceType.DEPOSIT
+			spotMarketAccount,
+			SpotBalanceType.DEPOSIT
 		);
 
 		const pnlPoolBalance = getTokenAmount(
 			market1.pnlPool.balance,
-			bankAccount,
-			BankBalanceType.DEPOSIT
+			spotMarketAccount,
+			SpotBalanceType.DEPOSIT
 		);
 
 		console.log('usdcAmount:', usdcAmount.toString());
 		console.log(
-			'getBankAssetValue:',
-			clearingHouseUser.getBankAssetValue().toString()
+			'getSpotMarketAssetValue:',
+			clearingHouseUser.getSpotMarketAssetValue().toString()
 		);
 		console.log('revPoolBalance:', revPoolBalance.toString());
 		console.log('feePoolBalance:', feePoolBalance.toString());
 		console.log('pnlPoolBalance:', pnlPoolBalance.toString());
 
-		// assert(clearingHouseUser.getBankAssetValue().eq(new BN('10000000000'))); // remainder is of debt is for fees for revenue pool
+		// assert(clearingHouseUser.getSpotMarketAssetValue().eq(new BN('10000000000'))); // remainder is of debt is for fees for revenue pool
 		await clearingHouseUser.unsubscribe();
 	});
 
@@ -664,7 +676,7 @@ describe('repeg and spread amm', () => {
 				usdcAmount,
 				provider,
 				marketIndexes,
-				bankIndexes,
+				spotMarketIndexes,
 				[]
 			);
 		let count = 0;
@@ -685,7 +697,7 @@ describe('repeg and spread amm', () => {
 				btcUsd
 			);
 
-			const market0 = clearingHouse.getMarketAccount(0);
+			const market0 = clearingHouse.getPerpMarketAccount(0);
 			const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 			const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 			const longSpread = calculateSpread(
@@ -734,14 +746,14 @@ describe('repeg and spread amm', () => {
 		});
 		await clearingHouseUser.subscribe();
 		const userCollateral = convertToNumber(
-			clearingHouseUser.getBankAssetValue(),
+			clearingHouseUser.getSpotMarketAssetValue(),
 			QUOTE_PRECISION
 		);
 
 		const userUnsettledPnl = convertToNumber(
 			clearingHouseUser
 				.getUserAccount()
-				.positions.reduce((unsettledPnl, position) => {
+				.perpPositions.reduce((unsettledPnl, position) => {
 					return unsettledPnl.add(
 						position.quoteAssetAmount.add(position.quoteEntryAmount)
 					);
@@ -769,7 +781,7 @@ describe('repeg and spread amm', () => {
 		);
 
 		for (let i = 0; i < clearingHouses.length; i++) {
-			const pos = clearingHouses[i].getUserAccount().positions[0];
+			const pos = clearingHouses[i].getUserAccount().perpPositions[0];
 			console.log(
 				'user',
 				i,
@@ -789,13 +801,13 @@ describe('repeg and spread amm', () => {
 			const clearingHouseI = clearingHouses[i];
 			const clearingHouseUserI = _userAccountInfos[i];
 			const userCollateral = convertToNumber(
-				clearingHouseUserI.getBankAssetValue(),
+				clearingHouseUserI.getSpotMarketAssetValue(),
 				QUOTE_PRECISION
 			);
 
 			const unsettledPnl = clearingHouseUserI
 				.getUserAccount()
-				.positions.reduce((unsettledPnl, position) => {
+				.perpPositions.reduce((unsettledPnl, position) => {
 					return unsettledPnl.add(
 						position.quoteAssetAmount.add(position.quoteEntryAmount)
 					);
@@ -818,7 +830,7 @@ describe('repeg and spread amm', () => {
 			await clearingHouseUserI.unsubscribe();
 		}
 
-		const market0 = clearingHouseOld.getMarketAccount(0);
+		const market0 = clearingHouseOld.getPerpMarketAccount(0);
 
 		console.log('total Fees:', market0.amm.totalFee.toString());
 		console.log(
@@ -826,13 +838,15 @@ describe('repeg and spread amm', () => {
 			market0.amm.totalFeeMinusDistributions.toString()
 		);
 
-		const bankAccount = clearingHouseOld.getBankAccount(QUOTE_ASSET_BANK_INDEX);
+		const spotMarketAccount = clearingHouseOld.getSpotMarketAccount(
+			QUOTE_SPOT_MARKET_INDEX
+		);
 
 		const revPoolBalance = convertToNumber(
 			getTokenAmount(
-				bankAccount.revenuePool.balance,
-				bankAccount,
-				BankBalanceType.DEPOSIT
+				spotMarketAccount.revenuePool.balance,
+				spotMarketAccount,
+				SpotBalanceType.DEPOSIT
 			),
 			QUOTE_PRECISION
 		);
@@ -840,8 +854,8 @@ describe('repeg and spread amm', () => {
 		const pnlPoolBalance = convertToNumber(
 			getTokenAmount(
 				market0.pnlPool.balance,
-				bankAccount,
-				BankBalanceType.DEPOSIT
+				spotMarketAccount,
+				SpotBalanceType.DEPOSIT
 			),
 			QUOTE_PRECISION
 		);
@@ -849,26 +863,26 @@ describe('repeg and spread amm', () => {
 		const feePoolBalance = convertToNumber(
 			getTokenAmount(
 				market0.amm.feePool.balance,
-				bankAccount,
-				BankBalanceType.DEPOSIT
+				spotMarketAccount,
+				SpotBalanceType.DEPOSIT
 			),
 			QUOTE_PRECISION
 		);
 
 		const usdcDepositBalance = convertToNumber(
 			getTokenAmount(
-				bankAccount.depositBalance,
-				bankAccount,
-				BankBalanceType.DEPOSIT
+				spotMarketAccount.depositBalance,
+				spotMarketAccount,
+				SpotBalanceType.DEPOSIT
 			),
 			QUOTE_PRECISION
 		);
 
 		const usdcBorrowBalance = convertToNumber(
 			getTokenAmount(
-				bankAccount.borrowBalance,
-				bankAccount,
-				BankBalanceType.DEPOSIT
+				spotMarketAccount.borrowBalance,
+				spotMarketAccount,
+				SpotBalanceType.DEPOSIT
 			),
 			QUOTE_PRECISION
 		);

@@ -1,30 +1,30 @@
 use solana_program::msg;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast, cast_to_u64};
-use crate::math::constants::{BANK_INTEREST_PRECISION, BANK_UTILIZATION_PRECISION, ONE_YEAR};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
+use crate::math::constants::{ONE_YEAR, SPOT_INTEREST_PRECISION, SPOT_UTILIZATION_PRECISION};
 use crate::math_error;
-use crate::state::bank::{Bank, BankBalanceType};
 use crate::state::oracle::OraclePriceData;
-use crate::state::user::UserBankBalance;
+use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+use crate::state::user::SpotPosition;
 use crate::validate;
 
-pub fn get_bank_balance(
+pub fn get_spot_balance(
     token_amount: u128,
-    bank: &Bank,
-    balance_type: &BankBalanceType,
+    spot_market: &SpotMarket,
+    balance_type: &SpotBalanceType,
     round_up: bool,
 ) -> ClearingHouseResult<u128> {
     let precision_increase = 10_u128.pow(
         16_u8
-            .checked_sub(bank.decimals)
+            .checked_sub(spot_market.decimals)
             .ok_or_else(math_error!())?
             .into(),
     );
 
     let cumulative_interest = match balance_type {
-        BankBalanceType::Deposit => bank.cumulative_deposit_interest,
-        BankBalanceType::Borrow => bank.cumulative_borrow_interest,
+        SpotBalanceType::Deposit => spot_market.cumulative_deposit_interest,
+        SpotBalanceType::Borrow => spot_market.cumulative_borrow_interest,
     };
 
     let mut balance = token_amount
@@ -42,19 +42,19 @@ pub fn get_bank_balance(
 
 pub fn get_token_amount(
     balance: u128,
-    bank: &Bank,
-    balance_type: &BankBalanceType,
+    spot_market: &SpotMarket,
+    balance_type: &SpotBalanceType,
 ) -> ClearingHouseResult<u128> {
     let precision_decrease = 10_u128.pow(
         16_u8
-            .checked_sub(bank.decimals)
+            .checked_sub(spot_market.decimals)
             .ok_or_else(math_error!())?
             .into(),
     );
 
     let cumulative_interest = match balance_type {
-        BankBalanceType::Deposit => bank.cumulative_deposit_interest,
-        BankBalanceType::Borrow => bank.cumulative_borrow_interest,
+        SpotBalanceType::Deposit => spot_market.cumulative_deposit_interest,
+        SpotBalanceType::Borrow => spot_market.cumulative_borrow_interest,
     };
 
     let token_amount = balance
@@ -66,14 +66,24 @@ pub fn get_token_amount(
     Ok(token_amount)
 }
 
+pub fn get_signed_token_amount(
+    token_amount: u128,
+    balance_type: &SpotBalanceType,
+) -> ClearingHouseResult<i128> {
+    match balance_type {
+        SpotBalanceType::Deposit => cast_to_i128(token_amount),
+        SpotBalanceType::Borrow => cast_to_i128(token_amount).map(|token_amount| -token_amount),
+    }
+}
+
 pub fn get_interest_token_amount(
     balance: u128,
-    bank: &Bank,
+    spot_market: &SpotMarket,
     interest: u128,
 ) -> ClearingHouseResult<u128> {
     let precision_decrease = 10_u128.pow(
         16_u8
-            .checked_sub(bank.decimals)
+            .checked_sub(spot_market.decimals)
             .ok_or_else(math_error!())?
             .into(),
     );
@@ -97,7 +107,7 @@ pub fn calculate_utilization(
     borrow_token_amount: u128,
 ) -> ClearingHouseResult<u128> {
     let utilization = borrow_token_amount
-        .checked_mul(BANK_UTILIZATION_PRECISION)
+        .checked_mul(SPOT_UTILIZATION_PRECISION)
         .ok_or_else(math_error!())?
         .checked_div(deposit_token_amount)
         .or({
@@ -105,7 +115,7 @@ pub fn calculate_utilization(
                 Some(0_u128)
             } else {
                 // if there are borrows without deposits, default to maximum utilization rate
-                Some(BANK_UTILIZATION_PRECISION)
+                Some(SPOT_UTILIZATION_PRECISION)
             }
         })
         .unwrap();
@@ -114,13 +124,19 @@ pub fn calculate_utilization(
 }
 
 pub fn calculate_accumulated_interest(
-    bank: &Bank,
+    spot_market: &SpotMarket,
     now: i64,
 ) -> ClearingHouseResult<InterestAccumulated> {
-    let deposit_token_amount =
-        get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)?;
-    let borrow_token_amount =
-        get_token_amount(bank.borrow_balance, bank, &BankBalanceType::Borrow)?;
+    let deposit_token_amount = get_token_amount(
+        spot_market.deposit_balance,
+        spot_market,
+        &SpotBalanceType::Deposit,
+    )?;
+    let borrow_token_amount = get_token_amount(
+        spot_market.borrow_balance,
+        spot_market,
+        &SpotBalanceType::Borrow,
+    )?;
 
     let utilization = calculate_utilization(deposit_token_amount, borrow_token_amount)?;
 
@@ -131,51 +147,52 @@ pub fn calculate_accumulated_interest(
         });
     }
 
-    let borrow_rate = if utilization > bank.optimal_utilization {
+    let borrow_rate = if utilization > spot_market.optimal_utilization {
         let surplus_utilization = utilization
-            .checked_sub(bank.optimal_utilization)
+            .checked_sub(spot_market.optimal_utilization)
             .ok_or_else(math_error!())?;
 
-        let borrow_rate_slope = bank
+        let borrow_rate_slope = spot_market
             .max_borrow_rate
-            .checked_sub(bank.optimal_borrow_rate)
+            .checked_sub(spot_market.optimal_borrow_rate)
             .ok_or_else(math_error!())?
-            .checked_mul(BANK_UTILIZATION_PRECISION)
+            .checked_mul(SPOT_UTILIZATION_PRECISION)
             .ok_or_else(math_error!())?
             .checked_div(
-                BANK_UTILIZATION_PRECISION
-                    .checked_sub(bank.optimal_utilization)
+                SPOT_UTILIZATION_PRECISION
+                    .checked_sub(spot_market.optimal_utilization)
                     .ok_or_else(math_error!())?,
             )
             .ok_or_else(math_error!())?;
 
-        bank.optimal_borrow_rate
+        spot_market
+            .optimal_borrow_rate
             .checked_add(
                 surplus_utilization
                     .checked_mul(borrow_rate_slope)
                     .ok_or_else(math_error!())?
-                    .checked_div(BANK_UTILIZATION_PRECISION)
+                    .checked_div(SPOT_UTILIZATION_PRECISION)
                     .ok_or_else(math_error!())?,
             )
             .ok_or_else(math_error!())?
     } else {
-        let borrow_rate_slope = bank
+        let borrow_rate_slope = spot_market
             .optimal_borrow_rate
-            .checked_mul(BANK_UTILIZATION_PRECISION)
+            .checked_mul(SPOT_UTILIZATION_PRECISION)
             .ok_or_else(math_error!())?
-            .checked_div(bank.optimal_utilization)
+            .checked_div(spot_market.optimal_utilization)
             .ok_or_else(math_error!())?;
 
         utilization
             .checked_mul(borrow_rate_slope)
             .ok_or_else(math_error!())?
-            .checked_div(BANK_UTILIZATION_PRECISION)
+            .checked_div(SPOT_UTILIZATION_PRECISION)
             .ok_or_else(math_error!())?
     };
 
     let time_since_last_update = cast_to_u64(now)
         .or(Err(ErrorCode::UnableToCastUnixTime))?
-        .checked_sub(bank.last_interest_ts)
+        .checked_sub(spot_market.last_interest_ts)
         .ok_or_else(math_error!())?;
 
     // To save some compute units, have to multiply the rate by the `time_since_last_update` here
@@ -187,27 +204,27 @@ pub fn calculate_accumulated_interest(
     let modified_deposit_rate = modified_borrow_rate
         .checked_mul(utilization)
         .ok_or_else(math_error!())?
-        .checked_div(BANK_UTILIZATION_PRECISION)
+        .checked_div(SPOT_UTILIZATION_PRECISION)
         .ok_or_else(math_error!())?;
 
-    let borrow_interest = bank
+    let borrow_interest = spot_market
         .cumulative_borrow_interest
         .checked_mul(modified_borrow_rate)
         .ok_or_else(math_error!())?
         .checked_div(ONE_YEAR)
         .ok_or_else(math_error!())?
-        .checked_div(BANK_INTEREST_PRECISION)
+        .checked_div(SPOT_INTEREST_PRECISION)
         .ok_or_else(math_error!())?
         .checked_add(1)
         .ok_or_else(math_error!())?;
 
-    let deposit_interest = bank
+    let deposit_interest = spot_market
         .cumulative_deposit_interest
         .checked_mul(modified_deposit_rate)
         .ok_or_else(math_error!())?
         .checked_div(ONE_YEAR)
         .ok_or_else(math_error!())?
-        .checked_div(BANK_INTEREST_PRECISION)
+        .checked_div(SPOT_INTEREST_PRECISION)
         .ok_or_else(math_error!())?;
 
     Ok(InterestAccumulated {
@@ -217,13 +234,17 @@ pub fn calculate_accumulated_interest(
 }
 
 pub fn get_balance_value_and_token_amount(
-    bank_balance: &UserBankBalance,
-    bank: &Bank,
+    spot_position: &SpotPosition,
+    spot_market: &SpotMarket,
     oracle_price_data: &OraclePriceData,
 ) -> ClearingHouseResult<(u128, u128)> {
-    let token_amount = get_token_amount(bank_balance.balance, bank, &bank_balance.balance_type)?;
+    let token_amount = get_token_amount(
+        spot_position.balance,
+        spot_market,
+        &spot_position.balance_type,
+    )?;
 
-    let precision_decrease = 10_u128.pow(10_u32 + (bank.decimals - 6) as u32);
+    let precision_decrease = 10_u128.pow(10_u32 + (spot_market.decimals - 6) as u32);
 
     let value = token_amount
         .checked_mul(cast(oracle_price_data.price)?)
@@ -234,26 +255,52 @@ pub fn get_balance_value_and_token_amount(
     Ok((value, token_amount))
 }
 
+pub fn get_token_value(
+    token_amount: i128,
+    spot_decimals: u8,
+    oracle_price_data: &OraclePriceData,
+) -> ClearingHouseResult<i128> {
+    if token_amount == 0 {
+        return Ok(0);
+    }
+
+    let precision_decrease = 10_i128.pow(10_u32 + (spot_decimals - 6) as u32);
+
+    token_amount
+        .checked_mul(oracle_price_data.price)
+        .ok_or_else(math_error!())?
+        .checked_div(precision_decrease)
+        .ok_or_else(math_error!())
+}
+
 pub fn get_balance_value(
-    bank_balance: &UserBankBalance,
-    bank: &Bank,
+    spot_position: &SpotPosition,
+    spot_market: &SpotMarket,
     oracle_price_data: &OraclePriceData,
 ) -> ClearingHouseResult<u128> {
-    let (value, _) = get_balance_value_and_token_amount(bank_balance, bank, oracle_price_data)?;
+    let (value, _) =
+        get_balance_value_and_token_amount(spot_position, spot_market, oracle_price_data)?;
     Ok(value)
 }
 
-pub fn check_withdraw_limits(bank: &Bank) -> ClearingHouseResult<bool> {
-    let deposit_token_amount =
-        get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)?;
-    let borrow_token_amount =
-        get_token_amount(bank.borrow_balance, bank, &BankBalanceType::Borrow)?;
+pub fn check_withdraw_limits(spot_market: &SpotMarket) -> ClearingHouseResult<bool> {
+    let deposit_token_amount = get_token_amount(
+        spot_market.deposit_balance,
+        spot_market,
+        &SpotBalanceType::Deposit,
+    )?;
+    let borrow_token_amount = get_token_amount(
+        spot_market.borrow_balance,
+        spot_market,
+        &SpotBalanceType::Borrow,
+    )?;
 
-    let max_borrow_token = bank.withdraw_guard_threshold.max(
+    let max_borrow_token = spot_market.withdraw_guard_threshold.max(
         (deposit_token_amount / 6)
             .max(
-                bank.borrow_token_twap
-                    .checked_add(bank.borrow_token_twap / 5)
+                spot_market
+                    .borrow_token_twap
+                    .checked_add(spot_market.borrow_token_twap / 5)
                     .ok_or_else(math_error!())?,
             )
             .min(
@@ -263,11 +310,14 @@ pub fn check_withdraw_limits(bank: &Bank) -> ClearingHouseResult<bool> {
             ),
     ); // between ~15-90% utilization with friction on twap
 
-    let min_deposit_token = bank
+    let min_deposit_token = spot_market
         .deposit_token_twap
         .checked_sub(
-            (bank.deposit_token_twap / 5)
-                .max(bank.withdraw_guard_threshold.min(bank.deposit_token_twap)),
+            (spot_market.deposit_token_twap / 5).max(
+                spot_market
+                    .withdraw_guard_threshold
+                    .min(spot_market.deposit_token_twap),
+            ),
         )
         .ok_or_else(math_error!())?;
     // friction to decrease utilization (if above withdraw guard threshold)
@@ -278,7 +328,7 @@ pub fn check_withdraw_limits(bank: &Bank) -> ClearingHouseResult<bool> {
     if !valid_withdrawal {
         msg!(
             "withdraw_guard_threshold={:?}",
-            bank.withdraw_guard_threshold
+            spot_market.withdraw_guard_threshold
         );
         msg!("min_deposit_token={:?}", min_deposit_token);
         msg!("deposit_token_amount={:?}", deposit_token_amount);
@@ -289,16 +339,16 @@ pub fn check_withdraw_limits(bank: &Bank) -> ClearingHouseResult<bool> {
     Ok(valid_withdrawal)
 }
 
-pub fn validate_bank_balances(bank: &Bank) -> ClearingHouseResult<u64> {
+pub fn validate_spot_balances(spot_market: &SpotMarket) -> ClearingHouseResult<u64> {
     let depositors_amount: u64 = cast(get_token_amount(
-        bank.deposit_balance,
-        bank,
-        &BankBalanceType::Deposit,
+        spot_market.deposit_balance,
+        spot_market,
+        &SpotBalanceType::Deposit,
     )?)?;
     let borrowers_amount: u64 = cast(get_token_amount(
-        bank.borrow_balance,
-        bank,
-        &BankBalanceType::Borrow,
+        spot_market.borrow_balance,
+        spot_market,
+        &SpotBalanceType::Borrow,
     )?)?;
 
     msg!("depositors_amount={}", depositors_amount);
@@ -313,9 +363,9 @@ pub fn validate_bank_balances(bank: &Bank) -> ClearingHouseResult<u64> {
     )?;
 
     let revenue_amount: u64 = cast(get_token_amount(
-        bank.revenue_pool.balance,
-        bank,
-        &BankBalanceType::Deposit,
+        spot_market.revenue_pool.balance,
+        spot_market,
+        &SpotBalanceType::Deposit,
     )?)?;
 
     let depositors_claim = depositors_amount - borrowers_amount;
@@ -323,24 +373,27 @@ pub fn validate_bank_balances(bank: &Bank) -> ClearingHouseResult<u64> {
     validate!(
         revenue_amount <= depositors_amount,
         ErrorCode::DefaultError,
-        "revenue_amount={} greater or equal to the depositors_amount={} (depositors_claim={}, bank.deposit_balance={})",
+        "revenue_amount={} greater or equal to the depositors_amount={} (depositors_claim={}, spot_market.deposit_balance={})",
         revenue_amount,
         depositors_amount,
         depositors_claim,
-        bank.deposit_balance
+        spot_market.deposit_balance
     )?;
 
     Ok(depositors_claim)
 }
 
-pub fn validate_bank_amounts(bank: &Bank, bank_vault_amount: u64) -> ClearingHouseResult<u64> {
-    let depositors_claim = validate_bank_balances(bank)?;
+pub fn validate_spot_market_amounts(
+    spot_market: &SpotMarket,
+    vault_amount: u64,
+) -> ClearingHouseResult<u64> {
+    let depositors_claim = validate_spot_balances(spot_market)?;
 
     validate!(
-        bank_vault_amount >= depositors_claim,
+        vault_amount >= depositors_claim,
         ErrorCode::DefaultError,
-        "bank vault ={} holds less than remaining depositor claims = {}",
-        bank_vault_amount,
+        "spot market vault ={} holds less than remaining depositor claims = {}",
+        vault_amount,
         depositors_claim
     )?;
 

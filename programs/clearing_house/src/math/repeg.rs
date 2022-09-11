@@ -11,7 +11,7 @@ use crate::math::constants::{
 };
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::math_error;
-use crate::state::market::{Market, AMM};
+use crate::state::market::{PerpMarket, AMM};
 use crate::state::oracle::OraclePriceData;
 use std::cmp::{max, min};
 
@@ -20,7 +20,7 @@ use anchor_lang::prelude::AccountInfo;
 use solana_program::msg;
 
 pub fn calculate_repeg_validity_from_oracle_account(
-    market: &Market,
+    market: &PerpMarket,
     oracle_account_info: &AccountInfo,
     terminal_price_before: u128,
     clock_slot: u64,
@@ -52,7 +52,7 @@ pub fn calculate_repeg_validity_from_oracle_account(
 }
 
 pub fn calculate_repeg_validity(
-    market: &Market,
+    market: &PerpMarket,
     oracle_price_data: &OraclePriceData,
     oracle_is_valid: bool,
     terminal_price_before: u128,
@@ -226,9 +226,9 @@ pub fn calculate_amm_target_price(
 }
 
 pub fn adjust_peg_cost(
-    market: &Market,
+    market: &PerpMarket,
     new_peg_candidate: u128,
-) -> ClearingHouseResult<(Market, i128)> {
+) -> ClearingHouseResult<(PerpMarket, i128)> {
     let mut market_clone = *market;
 
     let cost = if new_peg_candidate != market_clone.amm.peg_multiplier {
@@ -293,11 +293,11 @@ pub fn calculate_per_peg_cost(
 }
 
 pub fn adjust_amm(
-    market: &Market,
+    market: &PerpMarket,
     optimal_peg: u128,
     budget: u128,
     adjust_k: bool,
-) -> ClearingHouseResult<(Market, i128)> {
+) -> ClearingHouseResult<(PerpMarket, i128)> {
     let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
 
     // return early
@@ -425,7 +425,7 @@ pub fn adjust_amm(
 }
 
 pub fn calculate_optimal_peg_and_budget(
-    market: &Market,
+    market: &PerpMarket,
     oracle_price_data: &OraclePriceData,
 ) -> ClearingHouseResult<(u128, u128, bool)> {
     let mark_price_before = market.amm.mark_price()?;
@@ -486,7 +486,7 @@ pub fn calculate_optimal_peg_and_budget(
 }
 
 pub fn calculate_expected_excess_funding_payment(
-    market: &Market,
+    market: &PerpMarket,
     oracle_price: i128,
     mark_price: u128,
 ) -> ClearingHouseResult<i128> {
@@ -527,7 +527,7 @@ pub fn calculate_expected_excess_funding_payment(
     Ok(expected_excess_funding_payment)
 }
 
-pub fn calculate_fee_pool(market: &Market) -> ClearingHouseResult<u128> {
+pub fn calculate_fee_pool(market: &PerpMarket) -> ClearingHouseResult<u128> {
     let total_fee_minus_distributions_lower_bound =
         cast_to_i128(get_total_fee_lower_bound(market)?)?;
 
@@ -547,7 +547,7 @@ pub fn calculate_fee_pool(market: &Market) -> ClearingHouseResult<u128> {
     Ok(fee_pool)
 }
 
-pub fn get_total_fee_lower_bound(market: &Market) -> ClearingHouseResult<u128> {
+pub fn get_total_fee_lower_bound(market: &PerpMarket) -> ClearingHouseResult<u128> {
     // market to retain half of exchange fees
     let total_fee_lower_bound = market
         .amm
@@ -589,7 +589,7 @@ mod test {
 
     #[test]
     fn calculate_optimal_peg_and_budget_test() {
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 630153846154000,
@@ -608,7 +608,7 @@ mod test {
             },
             margin_ratio_initial: 500,
 
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         let mark_price = market.amm.mark_price().unwrap();
@@ -720,7 +720,7 @@ mod test {
     #[test]
     fn calc_adjust_amm_tests_repeg_in_favour() {
         // btc-esque market
-        let market = Market {
+        let market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 630153846154000,
@@ -733,7 +733,7 @@ mod test {
                 curve_update_intensity: 100,
                 ..AMM::default()
             },
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         let prev_price = market.amm.mark_price().unwrap();
@@ -759,7 +759,7 @@ mod test {
     #[test]
     fn calc_adjust_amm_tests_sufficent_fee_for_repeg() {
         // btc-esque market
-        let market = Market {
+        let market = PerpMarket {
             amm: AMM {
                 minimum_quote_asset_trade_size: 10000000,
                 base_asset_amount_step_size: 10000000,
@@ -785,7 +785,7 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
 
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         let px = 35768 * MARK_PRICE_PRECISION / 1000;

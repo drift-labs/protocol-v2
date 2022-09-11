@@ -5,7 +5,7 @@ import { Program } from '@project-serum/anchor';
 import {
 	getUserAccountPublicKey,
 	isVariant,
-	QUOTE_ASSET_BANK_INDEX,
+	QUOTE_SPOT_MARKET_INDEX,
 	Admin,
 	BN,
 	EventSubscriber,
@@ -13,7 +13,7 @@ import {
 } from '../sdk/src';
 
 import {
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
@@ -40,7 +40,7 @@ describe('subaccounts', () => {
 		usdcAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
 		const marketIndexes = [new BN(0)];
-		const bankIndexes = [new BN(0)];
+		const spotMarketIndexes = [new BN(0)];
 
 		clearingHouse = new Admin({
 			connection,
@@ -50,14 +50,14 @@ describe('subaccounts', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			userStats: true,
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 	});
 
@@ -107,12 +107,12 @@ describe('subaccounts', () => {
 	it('Deposit and transfer between accounts', async () => {
 		await clearingHouse.deposit(
 			usdcAmount,
-			QUOTE_ASSET_BANK_INDEX,
+			QUOTE_SPOT_MARKET_INDEX,
 			usdcAccount.publicKey
 		);
 		const txSig = await clearingHouse.transferDeposit(
 			usdcAmount,
-			QUOTE_ASSET_BANK_INDEX,
+			QUOTE_SPOT_MARKET_INDEX,
 			1,
 			0
 		);

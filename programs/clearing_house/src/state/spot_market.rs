@@ -4,15 +4,19 @@ use std::fmt::{Display, Formatter};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
+use crate::context::SpotFulfillmentType;
 use crate::error::ClearingHouseResult;
-use crate::math::bank_balance::get_token_amount;
+#[cfg(test)]
+use crate::math::constants::SPOT_CUMULATIVE_INTEREST_PRECISION;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION,
+    AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
+    MARGIN_PRECISION_TO_SPOT_WEIGHT_PRECISION_RATIO, SPOT_WEIGHT_PRECISION,
 };
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
 };
+use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
 use crate::state::market::PoolBalance;
 use crate::state::oracle::OracleSource;
@@ -21,8 +25,8 @@ use solana_program::msg;
 #[account(zero_copy)]
 #[derive(Default, PartialEq, Eq, Debug)]
 #[repr(packed)]
-pub struct Bank {
-    pub bank_index: u64,
+pub struct SpotMarket {
+    pub market_index: u64,
     pub pubkey: Pubkey,
     pub oracle: Pubkey,
     pub oracle_source: OracleSource,
@@ -64,10 +68,15 @@ pub struct Bank {
 
     pub liquidation_fee: u128,
     pub liquidation_if_factor: u32, // percentage of liquidation transfer for total insurance
-    pub withdraw_guard_threshold: u128, // no withdraw limits/guards when bank deposits below this threshold
+    pub withdraw_guard_threshold: u128, // no withdraw limits/guards when deposits below this threshold
+
+    pub order_step_size: u128,
+    pub next_fill_record_id: u64,
+    pub total_spot_fee: u128,
+    pub spot_fee_pool: PoolBalance,
 }
 
-impl Bank {
+impl SpotMarket {
     pub fn get_asset_weight(
         &self,
         size: u128,
@@ -109,7 +118,7 @@ impl Bank {
                 size_in_amm_reserve_precision,
                 self.imf_factor,
                 self.initial_liability_weight,
-                BANK_WEIGHT_PRECISION,
+                SPOT_WEIGHT_PRECISION,
             )?,
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
         };
@@ -119,24 +128,40 @@ impl Bank {
 
     pub fn get_liquidation_fee_multiplier(
         &self,
-        balance_type: BankBalanceType,
+        balance_type: SpotBalanceType,
     ) -> ClearingHouseResult<u128> {
         match balance_type {
-            BankBalanceType::Deposit => LIQUIDATION_FEE_PRECISION
+            SpotBalanceType::Deposit => LIQUIDATION_FEE_PRECISION
                 .checked_add(self.liquidation_fee)
                 .ok_or_else(math_error!()),
-            BankBalanceType::Borrow => LIQUIDATION_FEE_PRECISION
+            SpotBalanceType::Borrow => LIQUIDATION_FEE_PRECISION
                 .checked_sub(self.liquidation_fee)
                 .ok_or_else(math_error!()),
         }
     }
 
+    // get liability weight as if it were perp market margin requirement
+    pub fn get_margin_ratio(
+        &self,
+        margin_requirement_type: &MarginRequirementType,
+    ) -> ClearingHouseResult<u128> {
+        let liability_weight = match margin_requirement_type {
+            MarginRequirementType::Initial => self.initial_liability_weight,
+            MarginRequirementType::Maintenance => self.maintenance_liability_weight,
+        };
+        liability_weight
+            .checked_mul(MARGIN_PRECISION_TO_SPOT_WEIGHT_PRECISION_RATIO)
+            .ok_or_else(math_error!())?
+            .checked_sub(MARGIN_PRECISION)
+            .ok_or_else(math_error!())
+    }
+
     pub fn get_available_deposits(&self) -> ClearingHouseResult<u128> {
         let deposit_token_amount =
-            get_token_amount(self.deposit_balance, self, &BankBalanceType::Deposit)?;
+            get_token_amount(self.deposit_balance, self, &SpotBalanceType::Deposit)?;
 
         let borrow_token_amount =
-            get_token_amount(self.borrow_balance, self, &BankBalanceType::Borrow)?;
+            get_token_amount(self.borrow_balance, self, &SpotBalanceType::Borrow)?;
 
         deposit_token_amount
             .checked_sub(borrow_token_amount)
@@ -144,29 +169,51 @@ impl Bank {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
-pub enum BankBalanceType {
-    Deposit,
-    Borrow,
-}
+#[cfg(test)]
+impl SpotMarket {
+    pub fn default_base_market() -> Self {
+        SpotMarket {
+            market_index: 1,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            ..SpotMarket::default()
+        }
+    }
 
-impl Display for BankBalanceType {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            BankBalanceType::Deposit => write!(f, "BankBalanceType::Deposit"),
-            BankBalanceType::Borrow => write!(f, "BankBalanceType::Borrow"),
+    pub fn default_quote_market() -> Self {
+        SpotMarket {
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            ..SpotMarket::default()
         }
     }
 }
 
-impl Default for BankBalanceType {
-    fn default() -> Self {
-        BankBalanceType::Deposit
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
+pub enum SpotBalanceType {
+    Deposit,
+    Borrow,
+}
+
+impl Display for SpotBalanceType {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            SpotBalanceType::Deposit => write!(f, "SpotBalanceType::Deposit"),
+            SpotBalanceType::Borrow => write!(f, "SpotBalanceType::Borrow"),
+        }
     }
 }
 
-pub trait BankBalance {
-    fn balance_type(&self) -> &BankBalanceType;
+impl Default for SpotBalanceType {
+    fn default() -> Self {
+        SpotBalanceType::Deposit
+    }
+}
+
+pub trait SpotBalance {
+    fn balance_type(&self) -> &SpotBalanceType;
 
     fn balance(&self) -> u128;
 
@@ -174,5 +221,37 @@ pub trait BankBalance {
 
     fn decrease_balance(&mut self, delta: u128) -> ClearingHouseResult;
 
-    fn update_balance_type(&mut self, balance_type: BankBalanceType) -> ClearingHouseResult;
+    fn update_balance_type(&mut self, balance_type: SpotBalanceType) -> ClearingHouseResult;
+}
+
+#[account(zero_copy)]
+#[derive(Default, PartialEq, Eq, Debug)]
+#[repr(packed)]
+pub struct SerumV3FulfillmentConfig {
+    pub pubkey: Pubkey,
+    pub fulfillment_type: SpotFulfillmentType,
+    pub status: SpotFulfillmentStatus,
+    pub market_index: u64,
+    pub serum_program_id: Pubkey,
+    pub serum_market: Pubkey,
+    pub serum_request_queue: Pubkey,
+    pub serum_event_queue: Pubkey,
+    pub serum_bids: Pubkey,
+    pub serum_asks: Pubkey,
+    pub serum_base_vault: Pubkey,
+    pub serum_quote_vault: Pubkey,
+    pub serum_open_orders: Pubkey,
+    pub serum_signer_nonce: u64,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum SpotFulfillmentStatus {
+    Enabled,
+    Disabled,
+}
+
+impl Default for SpotFulfillmentStatus {
+    fn default() -> Self {
+        SpotFulfillmentStatus::Enabled
+    }
 }

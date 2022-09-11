@@ -10,7 +10,7 @@ import {
 	ZERO,
 } from '../constants/numericConstants';
 import { OraclePriceData } from '../oracles/types';
-import { MarketAccount, PositionDirection, UserPosition } from '../types';
+import { PerpMarketAccount, PositionDirection, PerpPosition } from '../types';
 import {
 	calculateUpdatedAMM,
 	calculateUpdatedAMMSpreadReserves,
@@ -29,8 +29,8 @@ import { calculateBaseAssetValueWithOracle } from './margin';
  * @returns Base Asset Value. : Precision QUOTE_PRECISION
  */
 export function calculateBaseAssetValue(
-	market: MarketAccount,
-	userPosition: UserPosition,
+	market: PerpMarketAccount,
+	userPosition: PerpPosition,
 	oraclePriceData: OraclePriceData
 ): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
@@ -90,8 +90,8 @@ export function calculateBaseAssetValue(
  * @returns BaseAssetAmount : Precision QUOTE_PRECISION
  */
 export function calculatePositionPNL(
-	market: MarketAccount,
-	marketPosition: UserPosition,
+	market: PerpMarketAccount,
+	marketPosition: PerpPosition,
 	withFunding = false,
 	oraclePriceData: OraclePriceData
 ): BN {
@@ -125,8 +125,8 @@ export function calculatePositionPNL(
 }
 
 export function calculateUnsettledPnl(
-	market: MarketAccount,
-	marketPosition: UserPosition,
+	market: PerpMarketAccount,
+	marketPosition: PerpPosition,
 	oraclePriceData: OraclePriceData
 ): BN {
 	const unrealizedPnl = calculatePositionPNL(
@@ -161,8 +161,8 @@ export function calculateUnsettledPnl(
  * @returns // TODO-PRECISION
  */
 export function calculatePositionFundingPNL(
-	market: MarketAccount,
-	marketPosition: UserPosition
+	market: PerpMarketAccount,
+	marketPosition: PerpPosition
 ): BN {
 	if (marketPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
@@ -185,7 +185,7 @@ export function calculatePositionFundingPNL(
 	return perPositionFundingRate;
 }
 
-export function positionIsAvailable(position: UserPosition): boolean {
+export function positionIsAvailable(position: PerpPosition): boolean {
 	return (
 		position.baseAssetAmount.eq(ZERO) &&
 		position.openOrders.eq(ZERO) &&
@@ -199,7 +199,7 @@ export function positionIsAvailable(position: UserPosition): boolean {
  * @param userPosition
  * @returns Precision: MARK_PRICE_PRECISION (10^10)
  */
-export function calculateEntryPrice(userPosition: UserPosition): BN {
+export function calculateEntryPrice(userPosition: PerpPosition): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
 	}
@@ -216,7 +216,7 @@ export function calculateEntryPrice(userPosition: UserPosition): BN {
  * @param userPosition
  * @returns Precision: MARK_PRICE_PRECISION (10^10)
  */
-export function calculateCostBasis(userPosition: UserPosition): BN {
+export function calculateCostBasis(userPosition: PerpPosition): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
 	}
@@ -229,7 +229,7 @@ export function calculateCostBasis(userPosition: UserPosition): BN {
 }
 
 export function findDirectionToClose(
-	userPosition: UserPosition
+	userPosition: PerpPosition
 ): PositionDirection {
 	return userPosition.baseAssetAmount.gt(ZERO)
 		? PositionDirection.SHORT
@@ -237,14 +237,14 @@ export function findDirectionToClose(
 }
 
 export function positionCurrentDirection(
-	userPosition: UserPosition
+	userPosition: PerpPosition
 ): PositionDirection {
 	return userPosition.baseAssetAmount.gte(ZERO)
 		? PositionDirection.LONG
 		: PositionDirection.SHORT;
 }
 
-export function isEmptyPosition(userPosition: UserPosition): boolean {
+export function isEmptyPosition(userPosition: PerpPosition): boolean {
 	return (
 		userPosition.baseAssetAmount.eq(ZERO) && userPosition.openOrders.eq(ZERO)
 	);

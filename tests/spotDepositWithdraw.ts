@@ -10,12 +10,12 @@ import {
 	BN,
 	ClearingHouse,
 	EventSubscriber,
-	BANK_RATE_PRECISION,
-	BankBalanceType,
+	SPOT_MARKET_RATE_PRECISION,
+	SpotBalanceType,
 	isVariant,
 	OracleSource,
-	BANK_WEIGHT_PRECISION,
-	BANK_CUMULATIVE_INTEREST_PRECISION,
+	SPOT_MARKET_WEIGHT_PRECISION,
+	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 	OracleInfo,
 } from '../sdk/src';
 
@@ -34,11 +34,11 @@ import {
 	getBalance,
 	calculateInterestAccumulated,
 	getTokenAmount,
-} from '../sdk/src/math/bankBalance';
+} from '../sdk/src/math/spotBalance';
 import { NATIVE_MINT } from '@solana/spl-token';
 import { QUOTE_PRECISION, ZERO, ONE } from '../sdk';
 
-describe('bank deposit and withdraw', () => {
+describe('spot deposit and withdraw', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
@@ -63,7 +63,7 @@ describe('bank deposit and withdraw', () => {
 	const solAmount = new BN(1 * 10 ** 9);
 
 	let marketIndexes: BN[];
-	let bankIndexes: BN[];
+	let spotMarketIndexes: BN[];
 	let oracleInfos: OracleInfo[];
 
 	before(async () => {
@@ -73,7 +73,7 @@ describe('bank deposit and withdraw', () => {
 		solOracle = await mockOracle(30);
 
 		marketIndexes = [];
-		bankIndexes = [new BN(0), new BN(1)];
+		spotMarketIndexes = [new BN(0), new BN(1)];
 		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
 
 		admin = new Admin({
@@ -84,8 +84,8 @@ describe('bank deposit and withdraw', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 
@@ -100,15 +100,15 @@ describe('bank deposit and withdraw', () => {
 		await secondUserClearingHouse.unsubscribe();
 	});
 
-	it('Initialize USDC Bank', async () => {
-		const optimalUtilization = BANK_RATE_PRECISION.div(new BN(2)); // 50% utilization
-		const optimalRate = BANK_RATE_PRECISION.mul(new BN(20)); // 2000% APR
-		const maxRate = BANK_RATE_PRECISION.mul(new BN(50)); // 5000% APR
-		const initialAssetWeight = BANK_WEIGHT_PRECISION;
-		const maintenanceAssetWeight = BANK_WEIGHT_PRECISION;
-		const initialLiabilityWeight = BANK_WEIGHT_PRECISION;
-		const maintenanceLiabilityWeight = BANK_WEIGHT_PRECISION;
-		await admin.initializeBank(
+	it('Initialize USDC Market', async () => {
+		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(new BN(2)); // 50% utilization
+		const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)); // 2000% APR
+		const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(50)); // 5000% APR
+		const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION;
+		const maintenanceAssetWeight = SPOT_MARKET_WEIGHT_PRECISION;
+		const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION;
+		const maintenanceLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION;
+		await admin.initializeSpotMarket(
 			usdcMint.publicKey,
 			optimalUtilization,
 			optimalRate,
@@ -120,49 +120,53 @@ describe('bank deposit and withdraw', () => {
 			initialLiabilityWeight,
 			maintenanceLiabilityWeight
 		);
-		const txSig = await admin.updateBankWithdrawGuardThreshold(
+		const txSig = await admin.updateWithdrawGuardThreshold(
 			new BN(0),
 			new BN(10 ** 10).mul(QUOTE_PRECISION)
 		);
 		await printTxLogs(connection, txSig);
 		await admin.fetchAccounts();
-		const bank = await admin.getBankAccount(0);
-		assert(bank.bankIndex.eq(new BN(0)));
-		assert(bank.optimalUtilization.eq(optimalUtilization));
-		assert(bank.optimalBorrowRate.eq(optimalRate));
-		assert(bank.maxBorrowRate.eq(maxRate));
+		const spotMarket = await admin.getSpotMarketAccount(0);
+		assert(spotMarket.marketIndex.eq(new BN(0)));
+		assert(spotMarket.optimalUtilization.eq(optimalUtilization));
+		assert(spotMarket.optimalBorrowRate.eq(optimalRate));
+		assert(spotMarket.maxBorrowRate.eq(maxRate));
 		assert(
-			bank.cumulativeBorrowInterest.eq(BANK_CUMULATIVE_INTEREST_PRECISION)
+			spotMarket.cumulativeBorrowInterest.eq(
+				SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION
+			)
 		);
 		assert(
-			bank.cumulativeDepositInterest.eq(BANK_CUMULATIVE_INTEREST_PRECISION)
+			spotMarket.cumulativeDepositInterest.eq(
+				SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION
+			)
 		);
-		assert(bank.initialAssetWeight.eq(initialAssetWeight));
-		assert(bank.maintenanceAssetWeight.eq(maintenanceAssetWeight));
-		assert(bank.initialLiabilityWeight.eq(initialLiabilityWeight));
-		assert(bank.maintenanceAssetWeight.eq(maintenanceAssetWeight));
+		assert(spotMarket.initialAssetWeight.eq(initialAssetWeight));
+		assert(spotMarket.maintenanceAssetWeight.eq(maintenanceAssetWeight));
+		assert(spotMarket.initialLiabilityWeight.eq(initialLiabilityWeight));
+		assert(spotMarket.maintenanceAssetWeight.eq(maintenanceAssetWeight));
 
-		assert(admin.getStateAccount().numberOfBanks.eq(new BN(1)));
+		assert(admin.getStateAccount().numberOfSpotMarkets.eq(new BN(1)));
 	});
 
-	it('Initialize SOL Bank', async () => {
-		const optimalUtilization = BANK_RATE_PRECISION.div(new BN(2)); // 50% utilization
-		const optimalRate = BANK_RATE_PRECISION.mul(new BN(20)); // 2000% APR
-		const maxRate = BANK_RATE_PRECISION.mul(new BN(50)); // 5000% APR
-		const initialAssetWeight = BANK_WEIGHT_PRECISION.mul(new BN(8)).div(
+	it('Initialize SOL Market', async () => {
+		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(new BN(2)); // 50% utilization
+		const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)); // 2000% APR
+		const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(50)); // 5000% APR
+		const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(new BN(8)).div(
 			new BN(10)
 		);
-		const maintenanceAssetWeight = BANK_WEIGHT_PRECISION.mul(new BN(9)).div(
-			new BN(10)
-		);
-		const initialLiabilityWeight = BANK_WEIGHT_PRECISION.mul(new BN(12)).div(
-			new BN(10)
-		);
-		const maintenanceLiabilityWeight = BANK_WEIGHT_PRECISION.mul(
+		const maintenanceAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(
+			new BN(9)
+		).div(new BN(10));
+		const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(
+			new BN(12)
+		).div(new BN(10));
+		const maintenanceLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(
 			new BN(11)
 		).div(new BN(10));
 
-		await admin.initializeBank(
+		await admin.initializeSpotMarket(
 			NATIVE_MINT,
 			optimalUtilization,
 			optimalRate,
@@ -175,29 +179,33 @@ describe('bank deposit and withdraw', () => {
 			maintenanceLiabilityWeight
 		);
 
-		const txSig = await admin.updateBankWithdrawGuardThreshold(
+		const txSig = await admin.updateWithdrawGuardThreshold(
 			new BN(1),
 			new BN(10 ** 10).mul(QUOTE_PRECISION)
 		);
 		await printTxLogs(connection, txSig);
 		await admin.fetchAccounts();
-		const bank = await admin.getBankAccount(1);
-		assert(bank.bankIndex.eq(new BN(1)));
-		assert(bank.optimalUtilization.eq(optimalUtilization));
-		assert(bank.optimalBorrowRate.eq(optimalRate));
-		assert(bank.maxBorrowRate.eq(maxRate));
+		const spotMarket = await admin.getSpotMarketAccount(1);
+		assert(spotMarket.marketIndex.eq(new BN(1)));
+		assert(spotMarket.optimalUtilization.eq(optimalUtilization));
+		assert(spotMarket.optimalBorrowRate.eq(optimalRate));
+		assert(spotMarket.maxBorrowRate.eq(maxRate));
 		assert(
-			bank.cumulativeBorrowInterest.eq(BANK_CUMULATIVE_INTEREST_PRECISION)
+			spotMarket.cumulativeBorrowInterest.eq(
+				SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION
+			)
 		);
 		assert(
-			bank.cumulativeDepositInterest.eq(BANK_CUMULATIVE_INTEREST_PRECISION)
+			spotMarket.cumulativeDepositInterest.eq(
+				SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION
+			)
 		);
-		assert(bank.initialAssetWeight.eq(initialAssetWeight));
-		assert(bank.maintenanceAssetWeight.eq(maintenanceAssetWeight));
-		assert(bank.initialLiabilityWeight.eq(initialLiabilityWeight));
-		assert(bank.maintenanceAssetWeight.eq(maintenanceAssetWeight));
+		assert(spotMarket.initialAssetWeight.eq(initialAssetWeight));
+		assert(spotMarket.maintenanceAssetWeight.eq(maintenanceAssetWeight));
+		assert(spotMarket.initialLiabilityWeight.eq(initialLiabilityWeight));
+		assert(spotMarket.maintenanceAssetWeight.eq(maintenanceAssetWeight));
 
-		assert(admin.getStateAccount().numberOfBanks.eq(new BN(2)));
+		assert(admin.getStateAccount().numberOfSpotMarkets.eq(new BN(2)));
 	});
 
 	it('First User Deposit USDC', async () => {
@@ -208,37 +216,37 @@ describe('bank deposit and withdraw', () => {
 				chProgram,
 				usdcAmount,
 				marketIndexes,
-				bankIndexes,
+				spotMarketIndexes,
 				oracleInfos
 			);
 
-		const bankIndex = new BN(0);
+		const marketIndex = new BN(0);
 		const txSig = await firstUserClearingHouse.deposit(
 			usdcAmount,
-			bankIndex,
+			marketIndex,
 			firstUserClearingHouseUSDCAccount
 		);
 		await printTxLogs(connection, txSig);
 
-		const bank = await admin.getBankAccount(bankIndex);
-		assert(bank.depositBalance.eq(usdcAmount));
+		const spotMarket = await admin.getSpotMarketAccount(marketIndex);
+		assert(spotMarket.depositBalance.eq(usdcAmount));
 
 		const vaultAmount = new BN(
 			(
-				await provider.connection.getTokenAccountBalance(bank.vault)
+				await provider.connection.getTokenAccountBalance(spotMarket.vault)
 			).value.amount
 		);
 		assert(vaultAmount.eq(usdcAmount));
 
 		const expectedBalance = getBalance(
 			usdcAmount,
-			bank,
-			BankBalanceType.DEPOSIT
+			spotMarket,
+			SpotBalanceType.DEPOSIT
 		);
-		const userBankBalance =
-			firstUserClearingHouse.getUserAccount().bankBalances[0];
-		assert(isVariant(userBankBalance.balanceType, 'deposit'));
-		assert(userBankBalance.balance.eq(expectedBalance));
+		const spotPosition =
+			firstUserClearingHouse.getUserAccount().spotPositions[0];
+		assert(isVariant(spotPosition.balanceType, 'deposit'));
+		assert(spotPosition.balance.eq(expectedBalance));
 	});
 
 	it('Second User Deposit SOL', async () => {
@@ -253,56 +261,56 @@ describe('bank deposit and withdraw', () => {
 			solAmount,
 			ZERO,
 			marketIndexes,
-			bankIndexes,
+			spotMarketIndexes,
 			oracleInfos
 		);
 
-		const bankIndex = new BN(1);
+		const marketIndex = new BN(1);
 		const txSig = await secondUserClearingHouse.deposit(
 			solAmount,
-			bankIndex,
+			marketIndex,
 			secondUserClearingHouseWSOLAccount
 		);
 		await printTxLogs(connection, txSig);
 
-		const bank = await admin.getBankAccount(bankIndex);
-		assert(bank.depositBalance.eq(BANK_RATE_PRECISION));
+		const spotMarket = await admin.getSpotMarketAccount(marketIndex);
+		assert(spotMarket.depositBalance.eq(SPOT_MARKET_RATE_PRECISION));
 
 		const vaultAmount = new BN(
 			(
-				await provider.connection.getTokenAccountBalance(bank.vault)
+				await provider.connection.getTokenAccountBalance(spotMarket.vault)
 			).value.amount
 		);
 		assert(vaultAmount.eq(solAmount));
 
 		const expectedBalance = getBalance(
 			solAmount,
-			bank,
-			BankBalanceType.DEPOSIT
+			spotMarket,
+			SpotBalanceType.DEPOSIT
 		);
-		const userBankBalance =
-			secondUserClearingHouse.getUserAccount().bankBalances[1];
-		assert(isVariant(userBankBalance.balanceType, 'deposit'));
-		assert(userBankBalance.balance.eq(expectedBalance));
+		const spotPosition =
+			secondUserClearingHouse.getUserAccount().spotPositions[1];
+		assert(isVariant(spotPosition.balanceType, 'deposit'));
+		assert(spotPosition.balance.eq(expectedBalance));
 	});
 
 	it('Second User Withdraw First half USDC', async () => {
-		const bankIndex = new BN(0);
+		const marketIndex = new BN(0);
 		const withdrawAmount = usdcAmount.div(new BN(2));
 		const txSig = await secondUserClearingHouse.withdraw(
 			withdrawAmount,
-			bankIndex,
+			marketIndex,
 			secondUserClearingHouseUSDCAccount
 		);
 		await printTxLogs(connection, txSig);
 
-		const bank = await admin.getBankAccount(bankIndex);
+		const spotMarket = await admin.getSpotMarketAccount(marketIndex);
 		const expectedBorrowBalance = new BN(5000001);
-		assert(bank.borrowBalance.eq(expectedBorrowBalance));
+		assert(spotMarket.borrowBalance.eq(expectedBorrowBalance));
 
 		const vaultAmount = new BN(
 			(
-				await provider.connection.getTokenAccountBalance(bank.vault)
+				await provider.connection.getTokenAccountBalance(spotMarket.vault)
 			).value.amount
 		);
 		const expectedVaultAmount = usdcAmount.sub(withdrawAmount);
@@ -310,14 +318,14 @@ describe('bank deposit and withdraw', () => {
 
 		const expectedBalance = getBalance(
 			withdrawAmount,
-			bank,
-			BankBalanceType.BORROW
+			spotMarket,
+			SpotBalanceType.BORROW
 		);
 
-		const userBankBalance =
-			secondUserClearingHouse.getUserAccount().bankBalances[0];
-		assert(isVariant(userBankBalance.balanceType, 'borrow'));
-		assert(userBankBalance.balance.eq(expectedBalance));
+		const spotPosition =
+			secondUserClearingHouse.getUserAccount().spotPositions[0];
+		assert(isVariant(spotPosition.balanceType, 'borrow'));
+		assert(spotPosition.balance.eq(expectedBalance));
 
 		const actualAmountWithdrawn = new BN(
 			(
@@ -331,58 +339,62 @@ describe('bank deposit and withdraw', () => {
 	});
 
 	it('Update Cumulative Interest with 50% utilization', async () => {
-		const usdcBankIndex = new BN(0);
-		const oldBankAccount = firstUserClearingHouse.getBankAccount(usdcBankIndex);
+		const usdcmarketIndex = new BN(0);
+		const oldSpotMarketAccount =
+			firstUserClearingHouse.getSpotMarketAccount(usdcmarketIndex);
 
 		await sleep(5000);
 
-		const txSig = await firstUserClearingHouse.updateBankCumulativeInterest(
-			usdcBankIndex
-		);
+		const txSig =
+			await firstUserClearingHouse.updateSpotMarketCumulativeInterest(
+				usdcmarketIndex
+			);
 		await printTxLogs(connection, txSig);
 
 		await firstUserClearingHouse.fetchAccounts();
-		const newBankAccount = firstUserClearingHouse.getBankAccount(usdcBankIndex);
+		const newSpotMarketAccount =
+			firstUserClearingHouse.getSpotMarketAccount(usdcmarketIndex);
 
 		const expectedInterestAccumulated = calculateInterestAccumulated(
-			oldBankAccount,
-			newBankAccount.lastInterestTs
+			oldSpotMarketAccount,
+			newSpotMarketAccount.lastInterestTs
 		);
 		const expectedCumulativeDepositInterest =
-			oldBankAccount.cumulativeDepositInterest.add(
+			oldSpotMarketAccount.cumulativeDepositInterest.add(
 				expectedInterestAccumulated.depositInterest
 			);
 		const expectedCumulativeBorrowInterest =
-			oldBankAccount.cumulativeBorrowInterest.add(
+			oldSpotMarketAccount.cumulativeBorrowInterest.add(
 				expectedInterestAccumulated.borrowInterest
 			);
 
 		assert(
-			newBankAccount.cumulativeDepositInterest.eq(
+			newSpotMarketAccount.cumulativeDepositInterest.eq(
 				expectedCumulativeDepositInterest
 			)
 		);
 		assert(
-			newBankAccount.cumulativeBorrowInterest.eq(
+			newSpotMarketAccount.cumulativeBorrowInterest.eq(
 				expectedCumulativeBorrowInterest
 			)
 		);
 	});
 
 	it('Second User Withdraw second half USDC', async () => {
-		const bankIndex = new BN(0);
-		let bankAccount = secondUserClearingHouse.getBankAccount(bankIndex);
-		const bankDepositTokenAmountBefore = getTokenAmount(
-			bankAccount.depositBalance,
-			bankAccount,
-			BankBalanceType.DEPOSIT
+		const marketIndex = new BN(0);
+		let spotMarketAccount =
+			secondUserClearingHouse.getSpotMarketAccount(marketIndex);
+		const spotMarketDepositTokenAmountBefore = getTokenAmount(
+			spotMarketAccount.depositBalance,
+			spotMarketAccount,
+			SpotBalanceType.DEPOSIT
 		);
-		const bankBorrowTokenAmountBefore = getTokenAmount(
-			bankAccount.borrowBalance,
-			bankAccount,
-			BankBalanceType.BORROW
+		const spotMarketBorrowTokenAmountBefore = getTokenAmount(
+			spotMarketAccount.borrowBalance,
+			spotMarketAccount,
+			SpotBalanceType.BORROW
 		);
-		const bankBorrowBalanceBefore = bankAccount.borrowBalance;
+		const spotMarketBorrowBalanceBefore = spotMarketAccount.borrowBalance;
 
 		const userUSDCAmountBefore = new BN(
 			(
@@ -392,35 +404,34 @@ describe('bank deposit and withdraw', () => {
 			).value.amount
 		);
 
-		const userBankBalanceBefore =
-			secondUserClearingHouse.getUserBankBalance(bankIndex).balance;
+		const spotPositionBefore =
+			secondUserClearingHouse.getSpotPosition(marketIndex).balance;
 
-		const withdrawAmount = bankDepositTokenAmountBefore
-			.sub(bankBorrowTokenAmountBefore)
+		const withdrawAmount = spotMarketDepositTokenAmountBefore
+			.sub(spotMarketBorrowTokenAmountBefore)
 			.sub(ONE);
 
 		const txSig = await secondUserClearingHouse.withdraw(
 			withdrawAmount,
-			bankIndex,
+			marketIndex,
 			secondUserClearingHouseUSDCAccount
 		);
 		await printTxLogs(connection, txSig);
 
-		bankAccount = secondUserClearingHouse.getBankAccount(bankIndex);
-		const increaseInUserBankBalance = getBalance(
+		spotMarketAccount =
+			secondUserClearingHouse.getSpotMarketAccount(marketIndex);
+		const increaseInspotPosition = getBalance(
 			withdrawAmount,
-			bankAccount,
-			BankBalanceType.BORROW
+			spotMarketAccount,
+			SpotBalanceType.BORROW
 		);
-		const expectedUserBankBalance = userBankBalanceBefore.add(
-			increaseInUserBankBalance
-		);
+		const expectedspotPosition = spotPositionBefore.add(increaseInspotPosition);
 		console.log('withdrawAmount:', withdrawAmount.toString());
 
 		assert(
 			secondUserClearingHouse
-				.getUserBankBalance(bankIndex)
-				.balance.eq(expectedUserBankBalance)
+				.getSpotPosition(marketIndex)
+				.balance.eq(expectedspotPosition)
 		);
 
 		const expectedUserUSDCAmount = userUSDCAmountBefore.add(withdrawAmount);
@@ -433,82 +444,91 @@ describe('bank deposit and withdraw', () => {
 		);
 		assert(expectedUserUSDCAmount.eq(userUSDCAmountAfter));
 
-		const expectedBankBorrowBalance = bankBorrowBalanceBefore.add(
-			increaseInUserBankBalance
+		const expectedSpotMarketBorrowBalance = spotMarketBorrowBalanceBefore.add(
+			increaseInspotPosition
 		);
-		console.assert(bankAccount.borrowBalance.eq(expectedBankBorrowBalance));
+		console.assert(
+			spotMarketAccount.borrowBalance.eq(expectedSpotMarketBorrowBalance)
+		);
 
 		const expectedVaultBalance = usdcAmount.sub(expectedUserUSDCAmount);
 		const vaultUSDCAmountAfter = new BN(
 			(
-				await provider.connection.getTokenAccountBalance(bankAccount.vault)
+				await provider.connection.getTokenAccountBalance(
+					spotMarketAccount.vault
+				)
 			).value.amount
 		);
 
 		assert(expectedVaultBalance.eq(vaultUSDCAmountAfter));
 
-		const bankDepositTokenAmountAfter = getTokenAmount(
-			bankAccount.depositBalance,
-			bankAccount,
-			BankBalanceType.DEPOSIT
+		const spotMarketDepositTokenAmountAfter = getTokenAmount(
+			spotMarketAccount.depositBalance,
+			spotMarketAccount,
+			SpotBalanceType.DEPOSIT
 		);
-		const bankBorrowTokenAmountAfter = getTokenAmount(
-			bankAccount.borrowBalance,
-			bankAccount,
-			BankBalanceType.BORROW
+		const spotMarketBorrowTokenAmountAfter = getTokenAmount(
+			spotMarketAccount.borrowBalance,
+			spotMarketAccount,
+			SpotBalanceType.BORROW
 		);
 
 		// TODO
 		console.log(
-			bankDepositTokenAmountAfter.toString(),
-			bankBorrowTokenAmountAfter.toString()
+			spotMarketDepositTokenAmountAfter.toString(),
+			spotMarketBorrowTokenAmountAfter.toString()
 		);
 		assert(
-			bankDepositTokenAmountAfter.sub(bankBorrowTokenAmountAfter).lte(ONE)
+			spotMarketDepositTokenAmountAfter
+				.sub(spotMarketBorrowTokenAmountAfter)
+				.lte(ONE)
 		);
 	});
 
 	it('Update Cumulative Interest with 100% utilization', async () => {
-		const usdcBankIndex = new BN(0);
-		const oldBankAccount = firstUserClearingHouse.getBankAccount(usdcBankIndex);
+		const usdcmarketIndex = new BN(0);
+		const oldSpotMarketAccount =
+			firstUserClearingHouse.getSpotMarketAccount(usdcmarketIndex);
 
 		await sleep(5000);
 
-		const txSig = await firstUserClearingHouse.updateBankCumulativeInterest(
-			usdcBankIndex
-		);
+		const txSig =
+			await firstUserClearingHouse.updateSpotMarketCumulativeInterest(
+				usdcmarketIndex
+			);
 		await printTxLogs(connection, txSig);
 
 		await firstUserClearingHouse.fetchAccounts();
-		const newBankAccount = firstUserClearingHouse.getBankAccount(usdcBankIndex);
+		const newSpotMarketAccount =
+			firstUserClearingHouse.getSpotMarketAccount(usdcmarketIndex);
 
 		const expectedInterestAccumulated = calculateInterestAccumulated(
-			oldBankAccount,
-			newBankAccount.lastInterestTs
+			oldSpotMarketAccount,
+			newSpotMarketAccount.lastInterestTs
 		);
 		const expectedCumulativeDepositInterest =
-			oldBankAccount.cumulativeDepositInterest.add(
+			oldSpotMarketAccount.cumulativeDepositInterest.add(
 				expectedInterestAccumulated.depositInterest
 			);
 		const expectedCumulativeBorrowInterest =
-			oldBankAccount.cumulativeBorrowInterest.add(
+			oldSpotMarketAccount.cumulativeBorrowInterest.add(
 				expectedInterestAccumulated.borrowInterest
 			);
 
 		assert(
-			newBankAccount.cumulativeDepositInterest.eq(
+			newSpotMarketAccount.cumulativeDepositInterest.eq(
 				expectedCumulativeDepositInterest
 			)
 		);
 		assert(
-			newBankAccount.cumulativeBorrowInterest.eq(
+			newSpotMarketAccount.cumulativeBorrowInterest.eq(
 				expectedCumulativeBorrowInterest
 			)
 		);
 	});
 
 	it('Flip second user borrow to deposit', async () => {
-		const bankIndex = new BN(0);
+		const marketIndex = new BN(0);
 		const mintAmount = new BN(2 * 10 ** 6); // $2
 		const userUSDCAmountBefore = await getTokenAmountAsBN(
 			connection,
@@ -522,119 +542,127 @@ describe('bank deposit and withdraw', () => {
 		);
 
 		const userBorrowBalanceBefore =
-			secondUserClearingHouse.getUserBankBalance(bankIndex).balance;
-		const bankDepositBalanceBefore =
-			secondUserClearingHouse.getBankAccount(bankIndex).depositBalance;
+			secondUserClearingHouse.getSpotPosition(marketIndex).balance;
+		const spotMarketDepositBalanceBefore =
+			secondUserClearingHouse.getSpotMarketAccount(marketIndex).depositBalance;
 
 		const depositAmount = userUSDCAmountBefore.add(mintAmount.div(new BN(2)));
 		const txSig = await secondUserClearingHouse.deposit(
 			depositAmount,
-			bankIndex,
+			marketIndex,
 			secondUserClearingHouseUSDCAccount
 		);
 		await printTxLogs(connection, txSig);
 
 		await secondUserClearingHouse.fetchAccounts();
-		const bankAccount = secondUserClearingHouse.getBankAccount(bankIndex);
+		const spotMarketAccount =
+			secondUserClearingHouse.getSpotMarketAccount(marketIndex);
 		const borrowToPayOff = getTokenAmount(
 			userBorrowBalanceBefore,
-			bankAccount,
-			BankBalanceType.BORROW
+			spotMarketAccount,
+			SpotBalanceType.BORROW
 		);
 		const newDepositTokenAmount = depositAmount.sub(borrowToPayOff);
 
 		const expectedUserBalance = getBalance(
 			newDepositTokenAmount,
-			bankAccount,
-			BankBalanceType.DEPOSIT
+			spotMarketAccount,
+			SpotBalanceType.DEPOSIT
 		);
 		const userBalanceAfter =
-			secondUserClearingHouse.getUserBankBalance(bankIndex);
+			secondUserClearingHouse.getSpotPosition(marketIndex);
 
 		assert(expectedUserBalance.eq(userBalanceAfter.balance));
 		assert(isVariant(userBalanceAfter.balanceType, 'deposit'));
 
-		const expectedBankDepositBalance =
-			bankDepositBalanceBefore.add(expectedUserBalance);
-		assert(bankAccount.depositBalance.eq(expectedBankDepositBalance));
-		assert(bankAccount.borrowBalance.eq(ZERO));
+		const expectedSpotMarketDepositBalance =
+			spotMarketDepositBalanceBefore.add(expectedUserBalance);
+		assert(
+			spotMarketAccount.depositBalance.eq(expectedSpotMarketDepositBalance)
+		);
+		assert(spotMarketAccount.borrowBalance.eq(ZERO));
 	});
 
 	it('Flip second user deposit to borrow', async () => {
-		const bankIndex = new BN(0);
+		const marketIndex = new BN(0);
 
-		const bankAccountBefore = secondUserClearingHouse.getBankAccount(bankIndex);
+		const spotMarketAccountBefore =
+			secondUserClearingHouse.getSpotMarketAccount(marketIndex);
 		const userDepositBalanceBefore =
-			secondUserClearingHouse.getUserBankBalance(bankIndex).balance;
-		const bankDepositBalanceBefore =
-			secondUserClearingHouse.getBankAccount(bankIndex).depositBalance;
+			secondUserClearingHouse.getSpotPosition(marketIndex).balance;
+		const spotMarketDepositBalanceBefore =
+			secondUserClearingHouse.getSpotMarketAccount(marketIndex).depositBalance;
 		const userDepositokenAmountBefore = getTokenAmount(
 			userDepositBalanceBefore,
-			bankAccountBefore,
-			BankBalanceType.DEPOSIT
+			spotMarketAccountBefore,
+			SpotBalanceType.DEPOSIT
 		);
 
 		const borrowAmount = userDepositokenAmountBefore.add(new BN(1 * 10 ** 6));
 		const txSig = await secondUserClearingHouse.withdraw(
 			borrowAmount,
-			bankIndex,
+			marketIndex,
 			secondUserClearingHouseUSDCAccount
 		);
 		await printTxLogs(connection, txSig);
 
 		await secondUserClearingHouse.fetchAccounts();
-		const bankAccount = secondUserClearingHouse.getBankAccount(bankIndex);
+		const spotMarketAccount =
+			secondUserClearingHouse.getSpotMarketAccount(marketIndex);
 		const depositToWithdrawAgainst = getTokenAmount(
 			userDepositBalanceBefore,
-			bankAccount,
-			BankBalanceType.DEPOSIT
+			spotMarketAccount,
+			SpotBalanceType.DEPOSIT
 		);
 		const newBorrowTokenAmount = borrowAmount.sub(depositToWithdrawAgainst);
 
 		const expectedUserBalance = getBalance(
 			newBorrowTokenAmount,
-			bankAccount,
-			BankBalanceType.BORROW
+			spotMarketAccount,
+			SpotBalanceType.BORROW
 		);
 		const userBalanceAfter =
-			secondUserClearingHouse.getUserBankBalance(bankIndex);
+			secondUserClearingHouse.getSpotPosition(marketIndex);
 
 		assert(expectedUserBalance.eq(userBalanceAfter.balance));
 		assert(isVariant(userBalanceAfter.balanceType, 'borrow'));
 
-		const expectedBankDepositBalance = bankDepositBalanceBefore.sub(
+		const expectedSpotMarketDepositBalance = spotMarketDepositBalanceBefore.sub(
 			userDepositBalanceBefore
 		);
-		assert(bankAccount.depositBalance.eq(expectedBankDepositBalance));
-		assert(bankAccount.borrowBalance.eq(expectedUserBalance));
+		assert(
+			spotMarketAccount.depositBalance.eq(expectedSpotMarketDepositBalance)
+		);
+		assert(spotMarketAccount.borrowBalance.eq(expectedUserBalance));
 	});
 
 	it('Second user reduce only pay down borrow', async () => {
-		const bankIndex = new BN(0);
+		const marketIndex = new BN(0);
 		const userUSDCAmountBefore = await getTokenAmountAsBN(
 			connection,
 			secondUserClearingHouseUSDCAccount
 		);
 		const currentUserBorrowBalance =
-			secondUserClearingHouse.getUserBankBalance(bankIndex).balance;
-		const bankDepositBalanceBefore =
-			secondUserClearingHouse.getBankAccount(bankIndex).depositBalance;
+			secondUserClearingHouse.getSpotPosition(marketIndex).balance;
+		const spotMarketDepositBalanceBefore =
+			secondUserClearingHouse.getSpotMarketAccount(marketIndex).depositBalance;
 
 		const depositAmount = userUSDCAmountBefore.mul(new BN(100000)); // huge number
 		const txSig = await secondUserClearingHouse.deposit(
 			depositAmount,
-			bankIndex,
+			marketIndex,
 			secondUserClearingHouseUSDCAccount,
 			undefined,
 			true
 		);
 		await printTxLogs(connection, txSig);
 
-		const bankAccountAfter = secondUserClearingHouse.getBankAccount(bankIndex);
+		const spotMarketAccountAfter =
+			secondUserClearingHouse.getSpotMarketAccount(marketIndex);
 		const borrowToPayBack = getTokenAmount(
 			currentUserBorrowBalance,
-			bankAccountAfter,
-			BankBalanceType.BORROW
+			spotMarketAccountAfter,
+			SpotBalanceType.BORROW
 		);
 
 		const userUSDCAmountAfter = await getTokenAmountAsBN(
@@ -645,37 +673,40 @@ describe('bank deposit and withdraw', () => {
 		assert(expectedUserUSDCAmount.eq(userUSDCAmountAfter));
 
 		const userBalanceAfter =
-			secondUserClearingHouse.getUserBankBalance(bankIndex);
+			secondUserClearingHouse.getSpotPosition(marketIndex);
 		assert(userBalanceAfter.balance.eq(ZERO));
 
-		assert(bankAccountAfter.borrowBalance.eq(ZERO));
-		assert(bankAccountAfter.depositBalance.eq(bankDepositBalanceBefore));
+		assert(spotMarketAccountAfter.borrowBalance.eq(ZERO));
+		assert(
+			spotMarketAccountAfter.depositBalance.eq(spotMarketDepositBalanceBefore)
+		);
 	});
 
 	it('Second user reduce only withdraw deposit', async () => {
-		const bankIndex = new BN(1);
+		const marketIndex = new BN(1);
 		const userWSOLAmountBefore = await getTokenAmountAsBN(
 			connection,
 			secondUserClearingHouseWSOLAccount
 		);
 
 		const currentUserDepositBalance =
-			secondUserClearingHouse.getUserBankBalance(bankIndex).balance;
+			secondUserClearingHouse.getSpotPosition(marketIndex).balance;
 
 		const withdrawAmount = new BN(LAMPORTS_PER_SOL * 100);
 		const txSig = await secondUserClearingHouse.withdraw(
 			withdrawAmount,
-			bankIndex,
+			marketIndex,
 			secondUserClearingHouseWSOLAccount,
 			true
 		);
 		await printTxLogs(connection, txSig);
 
-		const bankAccountAfter = secondUserClearingHouse.getBankAccount(bankIndex);
+		const spotMarketAccountAfter =
+			secondUserClearingHouse.getSpotMarketAccount(marketIndex);
 		const amountAbleToWithdraw = getTokenAmount(
 			currentUserDepositBalance,
-			bankAccountAfter,
-			BankBalanceType.DEPOSIT
+			spotMarketAccountAfter,
+			SpotBalanceType.DEPOSIT
 		);
 
 		const userWSOLAmountAfter = await getTokenAmountAsBN(
@@ -689,7 +720,7 @@ describe('bank deposit and withdraw', () => {
 		assert(expectedUserWSOLAmount.eq(userWSOLAmountAfter));
 
 		const userBalanceAfter =
-			secondUserClearingHouse.getUserBankBalance(bankIndex);
+			secondUserClearingHouse.getSpotPosition(marketIndex);
 		assert(userBalanceAfter.balance.eq(ZERO));
 	});
 });

@@ -46,8 +46,8 @@ export async function initUserAccounts(
 			//@ts-ignore
 			wallet: ownerWallet,
 			programID: chProgram.programId,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: bankIndexes,
 		});
 
 		// await clearingHouse1.initialize(usdcMint.publicKey, false);

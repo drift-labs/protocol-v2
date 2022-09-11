@@ -2,7 +2,7 @@ import { ClearingHouseUser } from '../clearingHouseUser';
 import {
 	isOneOfVariant,
 	isVariant,
-	MarketAccount,
+	PerpMarketAccount,
 	Order,
 	PositionDirection,
 } from '../types';
@@ -131,7 +131,7 @@ export function standardizeBaseAssetAmount(
 
 export function getLimitPrice(
 	order: Order,
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
 	slot: number
 ): BN {
@@ -161,7 +161,7 @@ export function getLimitPrice(
 
 export function isFillableByVAMM(
 	order: Order,
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
 	slot: number,
 	maxAuctionDuration: number
@@ -180,7 +180,7 @@ export function isFillableByVAMM(
 
 export function calculateBaseAssetAmountForAmmToFulfill(
 	order: Order,
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
 	slot: number
 ): BN {
@@ -209,7 +209,7 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 
 export function calculateBaseAssetAmountToFillUpToLimitPrice(
 	order: Order,
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	limitPrice: BN,
 	oraclePriceData: OraclePriceData
 ): BN {

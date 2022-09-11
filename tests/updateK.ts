@@ -5,7 +5,6 @@ import {
 	BASE_PRECISION,
 	BN,
 	calculateTradeSlippage,
-	QUOTE_ASSET_BANK_INDEX,
 } from '../sdk';
 
 import { Keypair } from '@solana/web3.js';
@@ -20,13 +19,14 @@ import {
 	convertToNumber,
 	squareRootBN,
 	calculateBudgetedKBN,
+	QUOTE_SPOT_MARKET_INDEX,
 } from '../sdk/src';
 
 import {
 	createPriceFeed,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 } from './testHelpers';
 import { QUOTE_PRECISION } from '../sdk/lib';
 
@@ -68,13 +68,13 @@ describe('update k', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: [new BN(0)],
-			bankIndexes: [new BN(0)],
+			perpMarketIndexes: [new BN(0)],
+			spotMarketIndexes: [new BN(0)],
 		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -109,18 +109,18 @@ describe('update k', () => {
 		const marketIndex = new BN(0);
 
 		const oldKPrice = calculateMarkPrice(
-			clearingHouse.getMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
-		const ammOld = clearingHouse.getMarketAccount(0).amm;
+		const ammOld = clearingHouse.getPerpMarketAccount(0).amm;
 		const newSqrtK = ammInitialBaseAssetReserve.mul(new BN(10));
 		await clearingHouse.updateK(newSqrtK, marketIndex);
 
 		await clearingHouse.fetchAccounts();
 		const newKPrice = calculateMarkPrice(
-			clearingHouse.getMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 
-		const amm = clearingHouse.getMarketAccount(0).amm;
+		const amm = clearingHouse.getPerpMarketAccount(0).amm;
 
 		const marginOfError = new BN(100);
 
@@ -145,7 +145,7 @@ describe('update k', () => {
 	it('increase k base/quote imbalance (FREE)', async () => {
 		await clearingHouse.deposit(
 			usdcAmount,
-			QUOTE_ASSET_BANK_INDEX,
+			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
 		);
 
@@ -157,10 +157,10 @@ describe('update k', () => {
 		await clearingHouse.moveAmmToPrice(marketIndex, targetPriceUp);
 		await clearingHouse.fetchAccounts();
 
-		const marketOld = clearingHouse.getMarketAccount(0);
+		const marketOld = clearingHouse.getPerpMarketAccount(0);
 
 		const oldKPrice = calculateMarkPrice(
-			clearingHouse.getMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 		const ammOld = marketOld.amm;
 
@@ -172,10 +172,10 @@ describe('update k', () => {
 
 		await clearingHouse.fetchAccounts();
 		const newKPrice = calculateMarkPrice(
-			clearingHouse.getMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 
-		const amm = clearingHouse.getMarketAccount(0).amm;
+		const amm = clearingHouse.getPerpMarketAccount(0).amm;
 
 		const marginOfError = new BN(MARK_PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
@@ -226,11 +226,11 @@ describe('update k', () => {
 		);
 		console.log('$1 position taken');
 		await clearingHouse.fetchAccounts();
-		const marketOld = clearingHouse.getMarketAccount(0);
+		const marketOld = clearingHouse.getPerpMarketAccount(0);
 		assert(!marketOld.amm.netBaseAssetAmount.eq(ZERO));
 
 		const oldKPrice = calculateMarkPrice(
-			clearingHouse.getMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 		const ammOld = marketOld.amm;
 		console.log(
@@ -247,11 +247,11 @@ describe('update k', () => {
 			assert(false);
 		} catch {
 			await clearingHouse.fetchAccounts();
-			const marketKChange = await clearingHouse.getMarketAccount(0);
+			const marketKChange = await clearingHouse.getPerpMarketAccount(0);
 			const ammKChange = marketKChange.amm;
 
 			const newKPrice = calculateMarkPrice(
-				clearingHouse.getMarketAccount(marketIndex)
+				clearingHouse.getPerpMarketAccount(marketIndex)
 			);
 
 			console.log('$1 position closing');
@@ -259,7 +259,7 @@ describe('update k', () => {
 			await clearingHouse.closePosition(marketIndex);
 			console.log('$1 position closed');
 
-			const amm = clearingHouse.getMarketAccount(0).amm;
+			const amm = clearingHouse.getPerpMarketAccount(0).amm;
 
 			const marginOfError = new BN(MARK_PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
@@ -317,11 +317,11 @@ describe('update k', () => {
 		);
 		console.log('$1 position taken');
 		await clearingHouse.fetchAccounts();
-		const marketOld = await clearingHouse.getMarketAccount(0);
+		const marketOld = await clearingHouse.getPerpMarketAccount(0);
 		assert(!marketOld.amm.netBaseAssetAmount.eq(ZERO));
 
 		const oldKPrice = calculateMarkPrice(
-			clearingHouse.getMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 		const ammOld = marketOld.amm;
 		console.log(
@@ -346,11 +346,11 @@ describe('update k', () => {
 		}
 
 		await clearingHouse.fetchAccounts();
-		const marketKChange = await clearingHouse.getMarketAccount(0);
+		const marketKChange = await clearingHouse.getPerpMarketAccount(0);
 		const ammKChange = marketKChange.amm;
 
 		const newKPrice = calculateMarkPrice(
-			clearingHouse.getMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 
 		const smallTradeSlip = calculateTradeSlippage(
@@ -372,7 +372,7 @@ describe('update k', () => {
 		await clearingHouse.closePosition(marketIndex);
 		console.log('$1 position closed');
 
-		const amm = clearingHouse.getMarketAccount(0).amm;
+		const amm = clearingHouse.getPerpMarketAccount(0).amm;
 
 		const marginOfError = new BN(MARK_PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
@@ -428,11 +428,11 @@ describe('update k', () => {
 		);
 		console.log('$1 position taken');
 		await clearingHouse.fetchAccounts();
-		const marketOld = await clearingHouse.getMarketAccount(0);
+		const marketOld = await clearingHouse.getPerpMarketAccount(0);
 		assert(!marketOld.amm.netBaseAssetAmount.eq(ZERO));
 
 		const oldKPrice = calculateMarkPrice(
-			clearingHouse.getMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 		const ammOld = marketOld.amm;
 		console.log(
@@ -452,10 +452,10 @@ describe('update k', () => {
 		await clearingHouse.updateK(newSqrtK, marketIndex);
 
 		await clearingHouse.fetchAccounts();
-		const marketKChange = await clearingHouse.getMarketAccount(0);
+		const marketKChange = await clearingHouse.getPerpMarketAccount(0);
 		const ammKChange = marketKChange.amm;
 		const newKPrice = calculateMarkPrice(
-			clearingHouse.getMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 
 		const smallTradeSlip = calculateTradeSlippage(
@@ -478,7 +478,7 @@ describe('update k', () => {
 		console.log('$1 position closed');
 
 		await clearingHouse.fetchAccounts();
-		const markets = clearingHouse.getMarketAccount(0);
+		const markets = clearingHouse.getPerpMarketAccount(0);
 		const amm = markets.amm;
 
 		const marginOfError = new BN(MARK_PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places

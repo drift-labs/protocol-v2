@@ -5,8 +5,8 @@ pub type ClearingHouseResult<T = ()> = std::result::Result<T, ErrorCode>;
 #[error_code]
 #[derive(PartialEq, Eq)]
 pub enum ErrorCode {
-    #[msg("Invalid Bank Authority")]
-    InvalidBankAuthority,
+    #[msg("Invalid Spot Market Authority")]
+    InvalidSpotMarketAuthority,
     #[msg("Clearing house not insurance fund authority")]
     InvalidInsuranceFundAuthority,
     #[msg("Insufficient deposit")]
@@ -37,8 +37,8 @@ pub enum ErrorCode {
     InvalidRepegProfitability,
     #[msg("Slippage Outside Limit Price")]
     SlippageOutsideLimit,
-    #[msg("Trade Size Too Small")]
-    TradeSizeTooSmall,
+    #[msg("Order Size Too Small")]
+    OrderSizeTooSmall,
     #[msg("Price change too large when updating K")]
     InvalidUpdateK,
     #[msg("Admin tried to withdraw amount larger than fees collected")]
@@ -141,26 +141,26 @@ pub enum ErrorCode {
     MarketWrongMutability,
     #[msg("UnableToCastUnixTime")]
     UnableToCastUnixTime,
-    #[msg("CouldNotFindBankBalance")]
-    CouldNotFindBankBalance,
-    #[msg("NoUserBankBalanceAvailable")]
-    NoUserBankBalanceAvailable,
-    #[msg("InvalidBankInitialization")]
-    InvalidBankInitialization,
-    #[msg("CouldNotLoadBankData")]
-    CouldNotLoadBankData,
-    #[msg("BankNotFound")]
-    BankNotFound,
-    #[msg("InvalidBankAccount")]
-    InvalidBankAccount,
-    #[msg("UnableToLoadBankAccount")]
-    UnableToLoadBankAccount,
-    #[msg("BankWrongMutability")]
-    BankWrongMutability,
-    #[msg("BankInterestNotUpToDate")]
-    BankInterestNotUpToDate,
-    #[msg("BankInsufficientDeposits")]
-    BankInsufficientDeposits,
+    #[msg("CouldNotFindSpotPosition")]
+    CouldNotFindSpotPosition,
+    #[msg("NoSpotPositionAvailable")]
+    NoSpotPositionAvailable,
+    #[msg("InvalidSpotMarketInitialization")]
+    InvalidSpotMarketInitialization,
+    #[msg("CouldNotLoadSpotMarketData")]
+    CouldNotLoadSpotMarketData,
+    #[msg("SpotMarketNotFound")]
+    SpotMarketNotFound,
+    #[msg("InvalidSpotMarketAccount")]
+    InvalidSpotMarketAccount,
+    #[msg("UnableToLoadSpotMarketAccount")]
+    UnableToLoadSpotMarketAccount,
+    #[msg("SpotMarketWrongMutability")]
+    SpotMarketWrongMutability,
+    #[msg("SpotInterestNotUpToDate")]
+    SpotMarketInterestNotUpToDate,
+    #[msg("SpotMarketInsufficientDeposits")]
+    SpotMarketInsufficientDeposits,
     #[msg("UserMustSettleTheirOwnPositiveUnsettledPNL")]
     UserMustSettleTheirOwnPositiveUnsettledPNL,
     #[msg("CantUpdatePoolBalanceType")]
@@ -213,8 +213,8 @@ pub enum ErrorCode {
     UserIsBeingLiquidated,
     #[msg("LiquidationsOngoing")]
     LiquidationsOngoing,
-    #[msg("WrongBankBalanceType")]
-    WrongBankBalanceType,
+    #[msg("WrongSpotBalanceType")]
+    WrongSpotBalanceType,
     #[msg("UserCantLiquidateThemself")]
     UserCantLiquidateThemself,
     #[msg("InvalidPerpPositionToLiquidate")]
@@ -231,8 +231,8 @@ pub enum ErrorCode {
     UserNotBankrupt,
     #[msg("UserHasInvalidBorrow")]
     UserHasInvalidBorrow,
-    #[msg("BankDailyWithdrawLimit")]
-    BankDailyWithdrawLimit,
+    #[msg("DailyWithdrawLimit")]
+    DailyWithdrawLimit,
     #[msg("DefaultError")]
     DefaultError,
     #[msg("Insufficient LP tokens")]
@@ -243,8 +243,22 @@ pub enum ErrorCode {
     UnableToBurnLPTokens,
     #[msg("Trying to remove liqudity too fast after adding it")]
     TryingToRemoveLiquidityTooFast,
-    #[msg("Invalid Bank State")]
-    InvalidBankState,
+    #[msg("Invalid Spot Market Vault")]
+    InvalidSpotMarketVault,
+    #[msg("Invalid Spot Market State")]
+    InvalidSpotMarketState,
+    #[msg("InvalidSerumProgram")]
+    InvalidSerumProgram,
+    #[msg("InvalidSerumMarket")]
+    InvalidSerumMarket,
+    #[msg("InvalidSerumOpenOrders")]
+    InvalidSerumOpenOrders,
+    #[msg("FailedSerumCPI")]
+    FailedSerumCPI,
+    #[msg("FailedToFillOnSerum")]
+    FailedToFillOnSerum,
+    #[msg("InvalidSerumFulfillmentConfig")]
+    InvalidSerumFulfillmentConfig,
 }
 
 #[macro_export]

@@ -18,7 +18,7 @@ import {
 } from '../sdk/src';
 
 import {
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
@@ -71,7 +71,7 @@ describe('market order', () => {
 		btcUsd = await mockOracle(60000);
 
 		const marketIndexes = [new BN(0), new BN(1)];
-		const bankIndexes = [new BN(0)];
+		const spotMarketIndexes = [new BN(0)];
 		const oracleInfos = [
 			{ publicKey: solUsd, source: OracleSource.PYTH },
 			{ publicKey: btcUsd, source: OracleSource.PYTH },
@@ -85,13 +85,13 @@ describe('market order', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -161,8 +161,8 @@ describe('market order', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await fillerClearingHouse.subscribe();
@@ -208,7 +208,7 @@ describe('market order', () => {
 		const order =
 			clearingHouseUser.getUserAccount().orders[orderIndex.toString()];
 
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		const expectedFeeToMarket = new BN(1000);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 
@@ -216,7 +216,7 @@ describe('market order', () => {
 		assert(order.price.eq(new BN(0)));
 		assert(order.marketIndex.eq(new BN(0)));
 
-		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
+		const firstPosition = clearingHouseUser.getUserAccount().perpPositions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 
 		const expectedQuoteAssetAmount = new BN(-1000003);
@@ -264,7 +264,7 @@ describe('market order', () => {
 		await clearingHouseUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		const firstPosition = clearingHouseUser.getUserAccount().positions[0];
+		const firstPosition = clearingHouseUser.getUserAccount().perpPositions[0];
 		assert(firstPosition.baseAssetAmount.eq(ZERO));
 
 		assert(firstPosition.quoteEntryAmount.eq(ZERO));

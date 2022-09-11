@@ -1,21 +1,20 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::bank_balance::get_token_amount;
 use crate::math::casting::cast;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION_I128, BANK_WEIGHT_PRECISION,
-    FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO, LIQUIDATION_FEE_PRECISION,
-    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, MARK_PRICE_PRECISION,
-    MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
+    AMM_RESERVE_PRECISION_I128, FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO,
+    LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, MARK_PRICE_PRECISION,
+    MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, SPOT_WEIGHT_PRECISION,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, MarginRequirementType,
 };
+use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
-use crate::state::bank::{Bank, BankBalanceType};
-use crate::state::bank_map::BankMap;
-use crate::state::market::Market;
-use crate::state::market_map::MarketMap;
+use crate::state::market::PerpMarket;
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market_map::PerpMarketMap;
+use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::User;
 use solana_program::msg;
 
@@ -77,14 +76,14 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
     margin_shortage
         .checked_mul(numerator_scale)
         .ok_or_else(math_error!())?
-        .checked_mul(MARK_PRICE_PRECISION * BANK_WEIGHT_PRECISION * 1000)
+        .checked_mul(MARK_PRICE_PRECISION * SPOT_WEIGHT_PRECISION * 1000)
         .ok_or_else(math_error!())?
         .checked_div(
             liability_price
                 .unsigned_abs()
                 .checked_mul(
                     liability_weight
-                        .checked_mul(1000) // multiply bank weights by extra 1000 to increase precision
+                        .checked_mul(1000) // multiply market weights by extra 1000 to increase precision
                         .ok_or_else(math_error!())?
                         .checked_sub(
                             asset_weight
@@ -202,8 +201,8 @@ pub fn calculate_asset_transfer_for_liability_transfer(
 
 pub fn is_user_being_liquidated(
     user: &User,
-    market_map: &MarketMap,
-    bank_map: &BankMap,
+    market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     liquidation_margin_buffer_ratio: u8,
 ) -> ClearingHouseResult<bool> {
@@ -211,7 +210,7 @@ pub fn is_user_being_liquidated(
         user,
         market_map,
         MarginRequirementType::Maintenance,
-        bank_map,
+        spot_market_map,
         oracle_map,
     )?;
 
@@ -236,8 +235,8 @@ pub fn get_margin_requirement_plus_buffer(
 
 pub fn validate_user_not_being_liquidated(
     user: &mut User,
-    market_map: &MarketMap,
-    bank_map: &BankMap,
+    market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     liquidation_margin_buffer_ratio: u8,
 ) -> ClearingHouseResult {
@@ -248,7 +247,7 @@ pub fn validate_user_not_being_liquidated(
     let is_still_being_liquidated = is_user_being_liquidated(
         user,
         market_map,
-        bank_map,
+        spot_market_map,
         oracle_map,
         liquidation_margin_buffer_ratio,
     )?;
@@ -283,7 +282,7 @@ pub fn calculate_liquidation_multiplier(
 
 pub fn calculate_funding_rate_deltas_to_resolve_bankruptcy(
     loss: i128,
-    market: &Market,
+    market: &PerpMarket,
 ) -> ClearingHouseResult<i128> {
     let total_base_asset_amount = market
         .base_asset_amount_long
@@ -306,11 +305,16 @@ pub fn calculate_funding_rate_deltas_to_resolve_bankruptcy(
 
 pub fn calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(
     borrow: u128,
-    bank: &Bank,
+    spot_market: &SpotMarket,
 ) -> ClearingHouseResult<u128> {
-    let total_deposits = get_token_amount(bank.deposit_balance, bank, &BankBalanceType::Deposit)?;
+    let total_deposits = get_token_amount(
+        spot_market.deposit_balance,
+        spot_market,
+        &SpotBalanceType::Deposit,
+    )?;
 
-    bank.cumulative_deposit_interest
+    spot_market
+        .cumulative_deposit_interest
         .checked_mul(borrow)
         .ok_or_else(math_error!())?
         .checked_div(total_deposits)

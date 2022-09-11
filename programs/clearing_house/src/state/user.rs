@@ -7,11 +7,13 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::calculate_rolling_sum;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::cast_to_i128;
-use crate::math::constants::{QUOTE_ASSET_BANK_INDEX, THIRTY_DAY_I128};
+use crate::math::constants::{QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY_I128};
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
+use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
 use crate::math_error;
-use crate::state::bank::{BankBalance, BankBalanceType};
 use crate::state::market::AMM;
+use crate::state::oracle::OraclePriceData;
+use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use std::cmp::max;
 
 #[cfg(test)]
@@ -24,9 +26,9 @@ pub struct User {
     pub authority: Pubkey,
     pub user_id: u8,
     pub name: [u8; 32],
-    pub bank_balances: [UserBankBalance; 8],
+    pub spot_positions: [SpotPosition; 8],
     pub next_order_id: u64,
-    pub positions: [MarketPosition; 5],
+    pub perp_positions: [PerpPosition; 5],
     pub orders: [Order; 32],
     pub next_liquidation_id: u16,
     pub being_liquidated: bool,
@@ -34,81 +36,84 @@ pub struct User {
 }
 
 impl User {
-    pub fn get_bank_balance(&self, bank_index: u64) -> Option<&UserBankBalance> {
-        // first bank balance is always quote asset, which is
-        if bank_index == 0 {
-            return Some(&self.bank_balances[0]);
+    pub fn get_spot_position_index(&self, market_index: u64) -> ClearingHouseResult<usize> {
+        // first spot position is always quote asset
+        if market_index == 0 {
+            return Ok(0);
         }
 
-        self.bank_balances
+        self.spot_positions
             .iter()
-            .find(|bank_balance| bank_balance.bank_index == bank_index)
+            .position(|spot_position| spot_position.market_index == market_index)
+            .ok_or(ErrorCode::CouldNotFindSpotPosition)
     }
 
-    pub fn get_bank_balance_mut(&mut self, bank_index: u64) -> Option<&mut UserBankBalance> {
-        // first bank balance is always quote asset, which is
-        if bank_index == 0 {
-            return Some(&mut self.bank_balances[0]);
-        }
-
-        self.bank_balances
-            .iter_mut()
-            .find(|bank_balance| bank_balance.bank_index == bank_index)
+    pub fn get_spot_position(&self, market_index: u64) -> Option<&SpotPosition> {
+        self.get_spot_position_index(market_index)
+            .ok()
+            .map(|market_index| &self.spot_positions[market_index])
     }
 
-    pub fn get_quote_asset_bank_balance_mut(&mut self) -> &mut UserBankBalance {
-        self.get_bank_balance_mut(QUOTE_ASSET_BANK_INDEX).unwrap()
+    pub fn get_spot_position_mut(&mut self, market_index: u64) -> Option<&mut SpotPosition> {
+        self.get_spot_position_index(market_index)
+            .ok()
+            .map(move |market_index| &mut self.spot_positions[market_index])
     }
 
-    pub fn get_next_available_bank_balance(&mut self) -> Option<&mut UserBankBalance> {
-        let mut next_available_balance = None;
-
-        for (i, bank_balance) in self.bank_balances.iter_mut().enumerate() {
-            if i != 0 && bank_balance.bank_index == 0 {
-                next_available_balance = Some(bank_balance);
-                break;
-            }
-        }
-
-        next_available_balance
+    pub fn get_quote_spot_position_mut(&mut self) -> &mut SpotPosition {
+        self.get_spot_position_mut(QUOTE_SPOT_MARKET_INDEX).unwrap()
     }
 
-    pub fn add_bank_balance(
+    pub fn add_spot_position(
         &mut self,
-        bank_index: u64,
-        balance_type: BankBalanceType,
-    ) -> ClearingHouseResult<&mut UserBankBalance> {
-        let next_balance = self
-            .get_next_available_bank_balance()
-            .ok_or(ErrorCode::NoUserBankBalanceAvailable)?;
+        market_index: u64,
+        balance_type: SpotBalanceType,
+    ) -> ClearingHouseResult<usize> {
+        let new_spot_position_index = self
+            .spot_positions
+            .iter()
+            .enumerate()
+            .position(|(index, spot_position)| index != 0 && spot_position.is_available())
+            .ok_or(ErrorCode::NoSpotPositionAvailable)?;
 
-        *next_balance = UserBankBalance {
-            bank_index,
+        let new_spot_position = SpotPosition {
+            market_index,
             balance_type,
-            balance: 0,
+            ..SpotPosition::default()
         };
 
-        Ok(next_balance)
+        self.spot_positions[new_spot_position_index] = new_spot_position;
+
+        Ok(new_spot_position_index)
     }
 
-    pub fn get_position(&self, market_index: u64) -> ClearingHouseResult<&MarketPosition> {
-        Ok(&self.positions[get_position_index(&self.positions, market_index)?])
-    }
-
-    pub fn get_position_mut(
+    pub fn force_get_spot_position_mut(
         &mut self,
         market_index: u64,
-    ) -> ClearingHouseResult<&mut MarketPosition> {
-        Ok(&mut self.positions[get_position_index(&self.positions, market_index)?])
+    ) -> ClearingHouseResult<&mut SpotPosition> {
+        self.get_spot_position_index(market_index)
+            .or_else(|_| self.add_spot_position(market_index, SpotBalanceType::Deposit))
+            .map(move |market_index| &mut self.spot_positions[market_index])
     }
 
-    pub fn force_get_position_mut(
+    pub fn get_perp_position(&self, market_index: u64) -> ClearingHouseResult<&PerpPosition> {
+        Ok(&self.perp_positions[get_position_index(&self.perp_positions, market_index)?])
+    }
+
+    pub fn get_perp_position_mut(
         &mut self,
         market_index: u64,
-    ) -> ClearingHouseResult<&mut MarketPosition> {
-        let position_index = get_position_index(&self.positions, market_index)
-            .or_else(|_| add_new_position(&mut self.positions, market_index))?;
-        Ok(&mut self.positions[position_index])
+    ) -> ClearingHouseResult<&mut PerpPosition> {
+        Ok(&mut self.perp_positions[get_position_index(&self.perp_positions, market_index)?])
+    }
+
+    pub fn force_get_perp_position_mut(
+        &mut self,
+        market_index: u64,
+    ) -> ClearingHouseResult<&mut PerpPosition> {
+        let position_index = get_position_index(&self.perp_positions, market_index)
+            .or_else(|_| add_new_position(&mut self.perp_positions, market_index))?;
+        Ok(&mut self.perp_positions[position_index])
     }
 
     pub fn get_order_index(&self, order_id: u64) -> ClearingHouseResult<usize> {
@@ -136,23 +141,26 @@ impl User {
 #[repr(packed)]
 pub struct UserFees {
     pub total_fee_paid: u64,
-    pub total_lp_fees: u128,
+    pub total_lp_fees: u64,
     pub total_fee_rebate: u64,
-    pub total_token_discount: u128,
-    pub total_referee_discount: u128,
+    pub total_token_discount: u64,
+    pub total_referee_discount: u64,
 }
 
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(packed)]
-pub struct UserBankBalance {
-    pub bank_index: u64,
-    pub balance_type: BankBalanceType,
+pub struct SpotPosition {
+    pub market_index: u64,
+    pub balance_type: SpotBalanceType,
     pub balance: u128,
+    pub open_orders: u8,
+    pub open_bids: i128,
+    pub open_asks: i128,
 }
 
-impl BankBalance for UserBankBalance {
-    fn balance_type(&self) -> &BankBalanceType {
+impl SpotBalance for SpotPosition {
+    fn balance_type(&self) -> &SpotBalanceType {
         &self.balance_type
     }
 
@@ -170,16 +178,63 @@ impl BankBalance for UserBankBalance {
         Ok(())
     }
 
-    fn update_balance_type(&mut self, balance_type: BankBalanceType) -> ClearingHouseResult {
+    fn update_balance_type(&mut self, balance_type: SpotBalanceType) -> ClearingHouseResult {
         self.balance_type = balance_type;
         Ok(())
+    }
+}
+
+impl SpotPosition {
+    pub fn is_available(&self) -> bool {
+        self.balance == 0 && self.open_orders == 0
+    }
+
+    pub fn get_token_amount(&self, spot_market: &SpotMarket) -> ClearingHouseResult<u128> {
+        get_token_amount(self.balance, spot_market, &self.balance_type)
+    }
+
+    pub fn get_signed_token_amount(&self, spot_market: &SpotMarket) -> ClearingHouseResult<i128> {
+        get_signed_token_amount(
+            get_token_amount(self.balance, spot_market, &self.balance_type)?,
+            &self.balance_type,
+        )
+    }
+
+    pub fn get_worst_case_token_amounts(
+        &self,
+        spot_market: &SpotMarket,
+        oracle_price_data: &OraclePriceData,
+        token_amount: Option<i128>,
+    ) -> ClearingHouseResult<(i128, i128)> {
+        let token_amount = match token_amount {
+            Some(token_amount) => token_amount,
+            None => self.get_signed_token_amount(spot_market)?,
+        };
+
+        let token_amount_all_bids_fill = token_amount
+            .checked_add(self.open_bids)
+            .ok_or_else(math_error!())?;
+
+        let token_amount_all_asks_fill = token_amount
+            .checked_add(self.open_asks)
+            .ok_or_else(math_error!())?;
+
+        if token_amount_all_bids_fill.abs() > token_amount_all_asks_fill.abs() {
+            let worst_case_quote_token_amount =
+                get_token_value(-self.open_bids, spot_market.decimals, oracle_price_data)?;
+            Ok((token_amount_all_bids_fill, worst_case_quote_token_amount))
+        } else {
+            let worst_case_quote_token_amount =
+                get_token_value(-self.open_asks, spot_market.decimals, oracle_price_data)?;
+            Ok((token_amount_all_asks_fill, worst_case_quote_token_amount))
+        }
     }
 }
 
 #[zero_copy]
 #[derive(Default, Debug, Eq, PartialEq)]
 #[repr(packed)]
-pub struct MarketPosition {
+pub struct PerpPosition {
     pub market_index: u64,
     pub base_asset_amount: i128,
     pub quote_asset_amount: i128,
@@ -207,7 +262,7 @@ pub struct MarketPosition {
     pub padding4: u128,
 }
 
-impl MarketPosition {
+impl PerpPosition {
     pub fn is_for(&self, market_index: u64) -> bool {
         self.market_index == market_index && !self.is_available()
     }
@@ -294,7 +349,7 @@ impl MarketPosition {
     }
 }
 
-pub type UserPositions = [MarketPosition; 5];
+pub type UserPositions = [PerpPosition; 5];
 
 #[zero_copy]
 #[repr(packed)]
@@ -302,6 +357,7 @@ pub type UserPositions = [MarketPosition; 5];
 pub struct Order {
     pub status: OrderStatus,
     pub order_type: OrderType,
+    pub market_type: MarketType,
     pub ts: i64,
     pub slot: u64,
     pub order_id: u64,
@@ -327,6 +383,12 @@ pub struct Order {
     pub padding: [u16; 3],
 }
 
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
+pub enum AssetType {
+    Base,
+    Quote,
+}
+
 impl Order {
     pub fn has_oracle_price_offset(self) -> bool {
         self.oracle_price_offset != 0
@@ -334,9 +396,9 @@ impl Order {
 
     pub fn get_limit_price(
         &self,
-        amm: &AMM,
         valid_oracle_price: Option<i128>,
         slot: u64,
+        amm: Option<&AMM>,
     ) -> ClearingHouseResult<u128> {
         // the limit price can be hardcoded on order or derived from oracle_price + oracle_price_offset
         let price = if self.has_oracle_price_offset() {
@@ -364,20 +426,41 @@ impl Order {
             } else if self.price != 0 {
                 self.price
             } else {
-                match self.direction {
-                    PositionDirection::Long => {
-                        let ask_price = amm.ask_price(amm.mark_price()?)?;
-                        let delta = ask_price
-                            .checked_div(amm.max_slippage_ratio as u128)
-                            .ok_or_else(math_error!())?;
-                        ask_price.checked_add(delta).ok_or_else(math_error!())?
-                    }
-                    PositionDirection::Short => {
-                        let bid_price = amm.bid_price(amm.mark_price()?)?;
-                        let delta = bid_price
-                            .checked_div(amm.max_slippage_ratio as u128)
-                            .ok_or_else(math_error!())?;
-                        bid_price.checked_sub(delta).ok_or_else(math_error!())?
+                match amm {
+                    Some(amm) => match self.direction {
+                        PositionDirection::Long => {
+                            let ask_price = amm.ask_price(amm.mark_price()?)?;
+                            let delta = ask_price
+                                .checked_div(amm.max_slippage_ratio as u128)
+                                .ok_or_else(math_error!())?;
+                            ask_price.checked_add(delta).ok_or_else(math_error!())?
+                        }
+                        PositionDirection::Short => {
+                            let bid_price = amm.bid_price(amm.mark_price()?)?;
+                            let delta = bid_price
+                                .checked_div(amm.max_slippage_ratio as u128)
+                                .ok_or_else(math_error!())?;
+                            bid_price.checked_sub(delta).ok_or_else(math_error!())?
+                        }
+                    },
+                    None => {
+                        let oracle_price = valid_oracle_price
+                            .ok_or_else(|| {
+                                msg!("No oracle found to generate dynamic limit price");
+                                ErrorCode::OracleNotFound
+                            })?
+                            .unsigned_abs();
+
+                        let oracle_price_1pct = oracle_price / 100;
+
+                        match self.direction {
+                            PositionDirection::Long => oracle_price
+                                .checked_add(oracle_price_1pct)
+                                .ok_or_else(math_error!())?,
+                            PositionDirection::Short => oracle_price
+                                .checked_sub(oracle_price_1pct)
+                                .ok_or_else(math_error!())?,
+                        }
                     }
                 }
             }
@@ -405,8 +488,19 @@ impl Order {
         self.post_only && self.immediate_or_cancel
     }
 
-    pub fn is_open_order_for_market(&self, market_index: u64) -> bool {
-        self.market_index == market_index && self.status == OrderStatus::Open
+    pub fn is_open_order_for_market(&self, market_index: u64, market_type: &MarketType) -> bool {
+        self.market_index == market_index
+            && self.status == OrderStatus::Open
+            && &self.market_type == market_type
+    }
+
+    pub fn get_spot_position_update_direction(&self, asset_type: AssetType) -> SpotBalanceType {
+        match (self.direction, asset_type) {
+            (PositionDirection::Long, AssetType::Base) => SpotBalanceType::Deposit,
+            (PositionDirection::Long, AssetType::Quote) => SpotBalanceType::Borrow,
+            (PositionDirection::Short, AssetType::Base) => SpotBalanceType::Borrow,
+            (PositionDirection::Short, AssetType::Quote) => SpotBalanceType::Deposit,
+        }
     }
 }
 
@@ -415,6 +509,7 @@ impl Default for Order {
         Self {
             status: OrderStatus::Init,
             order_type: OrderType::Limit,
+            market_type: MarketType::Perp,
             ts: 0,
             slot: 0,
             order_id: 0,
@@ -465,9 +560,20 @@ pub enum OrderTriggerCondition {
 }
 
 impl Default for OrderTriggerCondition {
-    // UpOnly
     fn default() -> Self {
         OrderTriggerCondition::Above
+    }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum MarketType {
+    Spot,
+    Perp,
+}
+
+impl Default for MarketType {
+    fn default() -> Self {
+        MarketType::Spot
     }
 }
 
@@ -480,7 +586,7 @@ pub struct UserStats {
 
     pub is_referrer: bool,
     pub referrer: Pubkey,
-    pub total_referrer_reward: u128,
+    pub total_referrer_reward: u64,
 
     pub fees: UserFees,
 
@@ -492,9 +598,10 @@ pub struct UserStats {
     pub last_taker_volume_30d_ts: i64,
     pub last_filler_volume_30d_ts: i64,
 
-    pub quote_asset_insurance_fund_stake: u128, // for bank_index = 0
-                                                // todo: offer vip fee status for users who have lp_shares > threshold
-                                                //       lower taker fee, higher maker fee etc
+    // for market_index = 0
+    // todo: offer vip fee status for users who have lp_shares > threshold
+    // lower taker fee, higher maker fee etc
+    pub quote_asset_insurance_fund_stake: u128,
 }
 
 impl UserStats {
@@ -561,6 +668,45 @@ impl UserStats {
         )?;
 
         self.last_filler_volume_30d_ts = now;
+
+        Ok(())
+    }
+
+    pub fn increment_total_fees(&mut self, fee: u64) -> ClearingHouseResult {
+        self.fees.total_fee_paid = self
+            .fees
+            .total_fee_paid
+            .checked_add(fee)
+            .ok_or_else(math_error!())?;
+
+        Ok(())
+    }
+
+    pub fn increment_total_rebate(&mut self, fee: u64) -> ClearingHouseResult {
+        self.fees.total_fee_rebate = self
+            .fees
+            .total_fee_rebate
+            .checked_add(fee)
+            .ok_or_else(math_error!())?;
+
+        Ok(())
+    }
+
+    pub fn increment_total_referrer_reward(&mut self, reward: u64) -> ClearingHouseResult {
+        self.total_referrer_reward = self
+            .total_referrer_reward
+            .checked_add(reward)
+            .ok_or_else(math_error!())?;
+
+        Ok(())
+    }
+
+    pub fn increment_total_referee_discount(&mut self, discount: u64) -> ClearingHouseResult {
+        self.fees.total_referee_discount = self
+            .fees
+            .total_referee_discount
+            .checked_add(discount)
+            .ok_or_else(math_error!())?;
 
         Ok(())
     }

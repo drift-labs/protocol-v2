@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
-import { BASE_PRECISION, BN, QUOTE_ASSET_BANK_INDEX } from '../sdk';
+import { BASE_PRECISION, BN } from '../sdk';
 import {
 	Admin,
 	MARK_PRICE_PRECISION,
@@ -13,6 +13,7 @@ import {
 	PositionDirection,
 	convertToNumber,
 	calculateBudgetedPeg,
+	QUOTE_SPOT_MARKET_INDEX,
 } from '../sdk/src';
 
 import { liquidityBook } from './liquidityBook';
@@ -20,7 +21,7 @@ import { liquidityBook } from './liquidityBook';
 import { assert } from '../sdk/src/assert/assert';
 import {
 	createPriceFeed,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPrice,
@@ -40,8 +41,8 @@ describe('AMM Curve', () => {
 			commitment: 'confirmed',
 		},
 		activeUserId: 0,
-		marketIndexes: [new BN(0)],
-		bankIndexes: [new BN(0)],
+		perpMarketIndexes: [new BN(0)],
+		spotMarketIndexes: [new BN(0)],
 	});
 
 	const ammInitialQuoteAssetAmount = new anchor.BN(10 ** 8).mul(
@@ -70,7 +71,7 @@ describe('AMM Curve', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		solUsdOracle = await createPriceFeed({
@@ -101,7 +102,7 @@ describe('AMM Curve', () => {
 	});
 
 	const showCurve = (marketIndex) => {
-		const marketData = clearingHouse.getMarketAccount(marketIndex);
+		const marketData = clearingHouse.getPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
 
 		console.log(
@@ -144,7 +145,7 @@ describe('AMM Curve', () => {
 	};
 
 	const showBook = (marketIndex) => {
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		const currentMark = calculateMarkPrice(market);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
@@ -180,7 +181,7 @@ describe('AMM Curve', () => {
 	it('After Deposit', async () => {
 		await clearingHouse.deposit(
 			usdcAmount,
-			QUOTE_ASSET_BANK_INDEX,
+			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
 		);
 
@@ -208,7 +209,7 @@ describe('AMM Curve', () => {
 	});
 	it('Arb back to Oracle Price Moves', async () => {
 		const [direction, basesize] = calculateTargetPriceTrade(
-			clearingHouse.getMarketAccount(marketIndex),
+			clearingHouse.getPerpMarketAccount(marketIndex),
 			new BN(initialSOLPrice).mul(MARK_PRICE_PRECISION),
 			undefined,
 			'base'
@@ -221,7 +222,7 @@ describe('AMM Curve', () => {
 	});
 
 	it('Repeg Curve LONG', async () => {
-		let marketData = clearingHouse.getMarketAccount(marketIndex);
+		let marketData = clearingHouse.getPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
 		assert(ammAccountState.totalFee.eq(ammAccountState.totalFee));
 
@@ -242,14 +243,14 @@ describe('AMM Curve', () => {
 		// showBook(marketIndex);
 
 		const priceBefore = calculateMarkPrice(
-			clearingHouse.getMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 		await clearingHouse.repegAmmCurve(
 			new BN(150.001 * PEG_PRECISION.toNumber()),
 			marketIndex
 		);
 		const priceAfter = calculateMarkPrice(
-			clearingHouse.getMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 
 		assert(newOraclePriceWithMantissa.gt(priceBefore));
@@ -260,7 +261,7 @@ describe('AMM Curve', () => {
 		showCurve(marketIndex);
 		// showBook(marketIndex);
 
-		marketData = clearingHouse.getMarketAccount(marketIndex);
+		marketData = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log(marketData.amm);
 		console.log();
 		assert(
@@ -269,7 +270,7 @@ describe('AMM Curve', () => {
 
 		const newPeg = marketData.amm.pegMultiplier;
 
-		const userMarketPosition = userAccount.getUserAccount().positions[0];
+		const userMarketPosition = userAccount.getUserAccount().perpPositions[0];
 		const linearApproxCostToAMM = convertToNumber(
 			newPeg
 				.sub(oldPeg)
@@ -306,12 +307,12 @@ describe('AMM Curve', () => {
 			BASE_PRECISION.div(new BN(1000)),
 			marketIndex
 		);
-		const marketData1 = clearingHouse.getMarketAccount(marketIndex);
+		const marketData1 = clearingHouse.getPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData1.amm;
 		const oldPeg = ammAccountState.pegMultiplier;
 
 		const priceBefore = calculateMarkPrice(
-			clearingHouse.getMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 
 		await clearingHouse.repegAmmCurve(
@@ -320,17 +321,17 @@ describe('AMM Curve', () => {
 		);
 
 		const priceAfter = calculateMarkPrice(
-			clearingHouse.getMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 
 		assert(newOraclePriceWithMantissa.lt(priceBefore));
 		assert(priceAfter.lt(priceBefore));
 		assert(newOraclePriceWithMantissa.lt(priceAfter));
 
-		const marketData = clearingHouse.getMarketAccount(marketIndex);
+		const marketData = clearingHouse.getPerpMarketAccount(marketIndex);
 		const newPeg = marketData.amm.pegMultiplier;
 
-		const userMarketPosition = userAccount.getUserAccount().positions[0];
+		const userMarketPosition = userAccount.getUserAccount().perpPositions[0];
 
 		console.log('\n post repeg: \n --------');
 
@@ -357,7 +358,7 @@ describe('AMM Curve', () => {
 	});
 
 	it('calculateBudgetedPeg (sdk tests)', async () => {
-		const marketData1 = clearingHouse.getMarketAccount(marketIndex);
+		const marketData1 = clearingHouse.getPerpMarketAccount(marketIndex);
 
 		let amm = marketData1.amm;
 
@@ -388,7 +389,7 @@ describe('AMM Curve', () => {
 			marketIndex
 		);
 
-		amm = clearingHouse.getMarketAccount(marketIndex).amm;
+		amm = clearingHouse.getPerpMarketAccount(marketIndex).amm;
 
 		const candidatePegUp = calculateBudgetedPeg(
 			amm,
@@ -418,7 +419,7 @@ describe('AMM Curve', () => {
 			BASE_PRECISION,
 			marketIndex
 		);
-		amm = clearingHouse.getMarketAccount(marketIndex).amm;
+		amm = clearingHouse.getPerpMarketAccount(marketIndex).amm;
 
 		const candidatePegUp2 = calculateBudgetedPeg(
 			amm,

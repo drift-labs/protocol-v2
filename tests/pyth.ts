@@ -1,7 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
 
-import { BASE_PRECISION, BN, QUOTE_ASSET_BANK_INDEX } from '../sdk';
+import { BASE_PRECISION, BN } from '../sdk';
 
 import {
 	getFeedData,
@@ -9,7 +9,7 @@ import {
 	mockUserUSDCAccount,
 	mockUSDCMint,
 	setFeedPrice,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 } from './testHelpers';
 
 import {
@@ -29,6 +29,7 @@ import {
 	FUNDING_PAYMENT_PRECISION,
 	ClearingHouse,
 	ClearingHouseUser,
+	QUOTE_SPOT_MARKET_INDEX,
 } from '../sdk/src';
 
 import { initUserAccounts } from '../stress/stressUtils';
@@ -45,7 +46,7 @@ async function updateFundingRateHelper(
 		const newprice = prices[i];
 		setFeedPrice(anchor.workspace.Pyth, newprice, priceFeedAddress);
 
-		const marketData0 = clearingHouse.getMarketAccount(marketIndex);
+		const marketData0 = clearingHouse.getPerpMarketAccount(marketIndex);
 		const ammAccountState0 = marketData0.amm;
 		const oraclePx0 = await getFeedData(
 			anchor.workspace.Pyth,
@@ -91,7 +92,7 @@ async function updateFundingRateHelper(
 		const CONVERSION_SCALE =
 			FUNDING_PAYMENT_PRECISION.mul(MARK_PRICE_PRECISION);
 
-		const marketData = clearingHouse.getMarketAccount(marketIndex);
+		const marketData = clearingHouse.getPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
 		const peroidicity = marketData.amm.fundingPeriod;
 
@@ -196,13 +197,13 @@ describe('pyth-oracle', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: [new BN(0), new BN(1)],
-			bankIndexes: [new BN(0)],
+			perpMarketIndexes: [new BN(0), new BN(1)],
+			spotMarketIndexes: [new BN(0)],
 		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		await clearingHouse.initializeUserAccount();
@@ -214,7 +215,7 @@ describe('pyth-oracle', () => {
 
 		await clearingHouse.deposit(
 			usdcAmount,
-			QUOTE_ASSET_BANK_INDEX,
+			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
 		);
 
@@ -321,7 +322,7 @@ describe('pyth-oracle', () => {
 		console.log(
 			'PRICE',
 			convertToNumber(
-				calculateMarkPrice(clearingHouse.getMarketAccount(marketIndex))
+				calculateMarkPrice(clearingHouse.getPerpMarketAccount(marketIndex))
 			)
 		);
 
@@ -337,7 +338,7 @@ describe('pyth-oracle', () => {
 			marketIndex
 		);
 
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 
 		await updateFundingRateHelper(
 			clearingHouse,
@@ -346,7 +347,7 @@ describe('pyth-oracle', () => {
 			[43.501, 41.499]
 		);
 
-		const marketNew = clearingHouse.getMarketAccount(marketIndex);
+		const marketNew = clearingHouse.getPerpMarketAccount(marketIndex);
 
 		const fundingRateLong = marketNew.amm.cumulativeFundingRateLong.sub(
 			market.amm.cumulativeFundingRateLong

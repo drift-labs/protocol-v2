@@ -25,7 +25,7 @@ pub struct DepositRecord {
     pub user: Pubkey,
     pub direction: DepositDirection,
     pub amount: u64,
-    pub bank_index: u64,
+    pub market_index: u64,
     pub oracle_price: i128,
     pub referrer: Pubkey,
     pub from: Option<Pubkey>,
@@ -137,6 +137,7 @@ pub struct OrderActionRecord {
     pub taker_order_base_asset_amount_filled: Option<u128>,
     pub taker_order_quote_asset_amount_filled: Option<u64>,
     pub taker_order_fee: Option<i64>,
+    pub spot_fulfillment_method_fee: Option<u64>,
 
     pub maker: Option<Pubkey>,
     pub maker_order_id: Option<u64>,
@@ -165,6 +166,7 @@ pub fn get_order_action_record(
     referrer_reward: Option<u128>,
     referee_discount: Option<u128>,
     quote_asset_amount_surplus: Option<i128>,
+    spot_fulfillment_method_fee: Option<u64>,
     taker: Option<Pubkey>,
     taker_order: Option<Order>,
     taker_pnl: Option<i128>,
@@ -210,6 +212,7 @@ pub fn get_order_action_record(
             Some(quote_asset_amount_surplus) => Some(cast(quote_asset_amount_surplus)?),
             None => None,
         },
+        spot_fulfillment_method_fee,
         taker,
         taker_order_id: taker_order.map(|order| order.order_id),
         taker_order_direction: taker_order.map(|order| order.direction),
@@ -358,30 +361,30 @@ pub struct LiquidatePerpRecord {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
 pub struct LiquidateBorrowRecord {
-    pub asset_bank_index: u64,
+    pub asset_market_index: u64,
     pub asset_price: i128,
     pub asset_transfer: u128,
-    pub liability_bank_index: u64,
+    pub liability_market_index: u64,
     pub liability_price: i128,
     pub liability_transfer: u128,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
 pub struct LiquidateBorrowForPerpPnlRecord {
-    pub market_index: u64,
+    pub perp_market_index: u64,
     pub market_oracle_price: i128,
     pub pnl_transfer: u128,
-    pub liability_bank_index: u64,
+    pub liability_market_index: u64,
     pub liability_price: i128,
     pub liability_transfer: u128,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
 pub struct LiquidatePerpPnlForDepositRecord {
-    pub market_index: u64,
+    pub perp_market_index: u64,
     pub market_oracle_price: i128,
     pub pnl_transfer: u128,
-    pub asset_bank_index: u64,
+    pub asset_market_index: u64,
     pub asset_price: i128,
     pub asset_transfer: u128,
 }
@@ -396,7 +399,7 @@ pub struct PerpBankruptcyRecord {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
 pub struct BorrowBankruptcyRecord {
-    pub bank_index: u64,
+    pub market_index: u64,
     pub borrow_amount: u128,
     pub if_payment: u128,
     pub cumulative_deposit_interest_delta: u128,
@@ -419,10 +422,10 @@ pub struct SettlePnlRecord {
 #[derive(Default)]
 pub struct InsuranceFundRecord {
     pub ts: i64,
-    pub bank_index: u64,
+    pub market_index: u64,
     pub user_if_factor: u32,
     pub total_if_factor: u32,
-    pub bank_vault_amount_before: u64,
+    pub vault_amount_before: u64,
     pub insurance_vault_amount_before: u64,
     pub total_if_shares_before: u128,
     pub total_if_shares_after: u128,
@@ -436,7 +439,7 @@ pub struct InsuranceFundStakeRecord {
     pub user_authority: Pubkey,
     pub action: StakeAction,
     pub amount: u64,
-    pub bank_index: u64,
+    pub market_index: u64,
 
     pub insurance_vault_amount_before: u64,
     pub if_shares_before: u128,

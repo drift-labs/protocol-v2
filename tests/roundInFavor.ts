@@ -14,7 +14,7 @@ import {
 } from '../sdk/src';
 
 import {
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
@@ -58,13 +58,13 @@ describe('round in favor', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: [new BN(0)],
-			bankIndexes: [new BN(0)],
+			perpMarketIndexes: [new BN(0)],
+			spotMarketIndexes: [new BN(0)],
 		});
 		await primaryClearingHouse.initialize(usdcMint.publicKey, true);
 		await primaryClearingHouse.subscribe();
 
-		await initializeQuoteAssetBank(primaryClearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(primaryClearingHouse, usdcMint.publicKey);
 		await primaryClearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const solUsd = await mockOracle(63000);
@@ -136,8 +136,14 @@ describe('round in favor', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: [new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
-			bankIndexes: [new BN(0)],
+			perpMarketIndexes: [
+				new BN(0),
+				new BN(1),
+				new BN(2),
+				new BN(3),
+				new BN(4),
+			],
+			spotMarketIndexes: [new BN(0)],
 		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -159,7 +165,9 @@ describe('round in favor', () => {
 		await clearingHouse.closePosition(marketIndex);
 
 		await clearingHouse.fetchAccounts();
-		clearingHouse.getUserAccount().positions[0].quoteAssetAmount.eq(new BN(0));
+		clearingHouse
+			.getUserAccount()
+			.perpPositions[0].quoteAssetAmount.eq(new BN(0));
 		await clearingHouse.unsubscribe();
 	});
 
@@ -181,8 +189,14 @@ describe('round in favor', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: [new BN(0), new BN(1), new BN(2), new BN(3), new BN(4)],
-			bankIndexes: [new BN(0)],
+			perpMarketIndexes: [
+				new BN(0),
+				new BN(1),
+				new BN(2),
+				new BN(3),
+				new BN(4),
+			],
+			spotMarketIndexes: [new BN(0)],
 		});
 		await clearingHouse.subscribe();
 
@@ -208,7 +222,7 @@ describe('round in favor', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].quoteAssetAmount.eq(new BN(-1))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-1))
 		);
 		await clearingHouse.unsubscribe();
 	});
