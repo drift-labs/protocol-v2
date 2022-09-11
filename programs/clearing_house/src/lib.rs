@@ -2014,6 +2014,8 @@ pub mod clearing_house {
             )?;
         }
 
+        // todo: validate amounts transfered and bank before and after are zero-sum
+
         Ok(())
     }
 

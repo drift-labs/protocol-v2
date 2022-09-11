@@ -538,6 +538,12 @@ pub fn resolve_perp_pnl_deficit(
             .checked_sub(market.revenue_withdraw_since_last_settle)
             .ok_or_else(math_error!())?,
     )?;
+    validate!(
+        max_revenue_withdraw_allowed > 0,
+        ErrorCode::DefaultError,
+        "max_revenue_withdraw_per_period={} as already been reached",
+        max_revenue_withdraw_allowed
+    )?;
 
     let insurance_withdraw = excess_user_pnl_imbalance
         .min(max_revenue_withdraw_allowed)
@@ -547,8 +553,9 @@ pub fn resolve_perp_pnl_deficit(
     validate!(
         insurance_withdraw > 0,
         ErrorCode::DefaultError,
-        "No insurance_withdraw({}) to settle",
-        insurance_withdraw
+        "No available funds for insurance_withdraw({}) for user_pnl_imbalance={}",
+        insurance_withdraw,
+        excess_user_pnl_imbalance
     )?;
 
     market.amm.total_fee_minus_distributions = market
