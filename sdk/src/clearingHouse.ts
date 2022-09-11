@@ -1361,6 +1361,60 @@ export class ClearingHouse {
 		});
 	}
 
+	public async sendSignedTx(tx: Transaction): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(tx, undefined, this.opts, true);
+
+		return txSig;
+	}
+
+	/**
+	 * Sends a market order and returns a signed tx which can fill the order against the vamm, which the caller can use to fill their own order if required.
+	 * @param orderParams
+	 * @param userAccountPublicKey
+	 * @param userAccount
+	 * @returns
+	 */
+	public async sendMarketOrderAndGetSignedFillTx(
+		orderParams: OptionalOrderParams,
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount
+	): Promise<{ txSig: TransactionSignature; signedFillTx: Transaction }> {
+		const marketIndex = orderParams.marketIndex;
+		const orderId = userAccount.nextOrderId;
+
+		const marketOrderTx = wrapInTx(await this.getPlaceOrderIx(orderParams));
+		const fillTx = wrapInTx(
+			await this.getFillOrderIx(userAccountPublicKey, userAccount, {
+				orderId,
+				marketIndex,
+			})
+		);
+
+		// Apply the latest blockhash to the txs so that we can sign before sending them
+		const currentBlockHash = (
+			await this.connection.getLatestBlockhash('finalized')
+		).blockhash;
+		marketOrderTx.recentBlockhash = currentBlockHash;
+		fillTx.recentBlockhash = currentBlockHash;
+
+		marketOrderTx.feePayer = userAccount.authority;
+		fillTx.feePayer = userAccount.authority;
+
+		const [signedMarketOrderTx, signedFillTx] =
+			await this.provider.wallet.signAllTransactions([marketOrderTx, fillTx]);
+
+		const { txSig, slot } = await this.txSender.send(
+			signedMarketOrderTx,
+			[],
+			this.opts,
+			true
+		);
+
+		this.marketLastSlotCache.set(orderParams.marketIndex.toNumber(), slot);
+
+		return { txSig, signedFillTx };
+	}
+
 	public async placeOrder(
 		orderParams: OptionalOrderParams
 	): Promise<TransactionSignature> {
@@ -1528,7 +1582,7 @@ export class ClearingHouse {
 	public async getFillOrderIx(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
-		order: Order,
+		order: Pick<Order, 'marketIndex' | 'orderId'>,
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {

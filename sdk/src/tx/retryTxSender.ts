@@ -42,7 +42,8 @@ export class RetryTxSender implements TxSender {
 	async send(
 		tx: Transaction,
 		additionalSigners?: Array<Signer>,
-		opts?: ConfirmOptions
+		opts?: ConfirmOptions,
+		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
 		if (additionalSigners === undefined) {
 			additionalSigners = [];
@@ -51,7 +52,9 @@ export class RetryTxSender implements TxSender {
 			opts = this.provider.opts;
 		}
 
-		await this.prepareTx(tx, additionalSigners, opts);
+		if (!preSigned) {
+			await this.prepareTx(tx, additionalSigners, opts);
+		}
 
 		const rawTransaction = tx.serialize();
 		const startTime = this.getTimestamp();
