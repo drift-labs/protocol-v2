@@ -2601,8 +2601,8 @@ pub mod clearing_house {
     )]
     pub fn update_market_max_imbalances(
         ctx: Context<AdminUpdateMarket>,
-        max_revenue_withdraw_per_period: u128,
         unrealized_max_imbalance: u128,
+        max_revenue_withdraw_per_period: u128,
         quote_max_insurance: u128,
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;

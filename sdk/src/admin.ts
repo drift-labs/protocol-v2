@@ -817,13 +817,13 @@ export class Admin extends ClearingHouse {
 
 	public async updateMarketMaxImbalances(
 		marketIndex: BN,
-		maxRevenueWithdrawPerPeriod: BN,
 		unrealizedMaxImbalance: BN,
+		maxRevenueWithdrawPerPeriod: BN,
 		quoteMaxInsurance: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMarketMaxImbalances(
-			maxRevenueWithdrawPerPeriod,
 			unrealizedMaxImbalance,
+			maxRevenueWithdrawPerPeriod,
 			quoteMaxInsurance,
 			{
 				accounts: {

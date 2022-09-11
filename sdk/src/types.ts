@@ -161,6 +161,19 @@ export type CurveRecord = {
 	tradeId: BN;
 };
 
+export declare type InsuranceFundRecord = {
+	ts: BN;
+	bankIndex: BN;
+	marketIndex: BN;
+	userIfFactor: BN;
+	totalIfFactor: BN;
+	bankVaultAmountBefore: BN;
+	insuranceVaultAmountBefore: BN;
+	amount: BN;
+	totalIfSharesBefore: BN;
+	totalIfSharesAfter: BN;
+};
+
 export type LPRecord = {
 	ts: BN;
 	user: PublicKey;

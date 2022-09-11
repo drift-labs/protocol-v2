@@ -124,6 +124,7 @@ describe('insurance fund stake', () => {
 
 	after(async () => {
 		await clearingHouse.unsubscribe();
+		await secondUserClearingHouse.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 

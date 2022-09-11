@@ -1676,11 +1676,11 @@
       ],
       "args": [
         {
-          "name": "maxRevenueWithdrawPerPeriod",
+          "name": "unrealizedMaxImbalance",
           "type": "u128"
         },
         {
-          "name": "unrealizedMaxImbalance",
+          "name": "maxRevenueWithdrawPerPeriod",
           "type": "u128"
         },
         {

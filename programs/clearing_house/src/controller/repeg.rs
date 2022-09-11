@@ -618,13 +618,13 @@ mod test {
 
         let cost_of_update =
             _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
-        let mark_price_after = market.amm.mark_price().unwrap();
-        assert_eq!(mark_price_before < mark_price_after, true);
-        assert_eq!(mark_price_after, 188500004355075);
-
-        assert_eq!(cost_of_update, -42993230); // amm wins when price increases
-        assert_eq!(market.amm.long_spread, 125);
         assert_eq!(market.amm.short_spread, 690);
+        assert_eq!(market.amm.long_spread, 125);
+        assert_eq!(cost_of_update, -42993230); // amm wins when price increases
+
+        let mark_price_after = market.amm.mark_price().unwrap();
+        assert_eq!(mark_price_after, 188500004355075);
+        assert_eq!(mark_price_before < mark_price_after, true);
 
         // add large confidence
         let oracle_price_data = OraclePriceData {
@@ -746,13 +746,13 @@ mod test {
 
         let cost_of_update =
             _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
-        let mark_price_after = market.amm.mark_price().unwrap();
-        assert_eq!(mark_price_before < mark_price_after, true);
-        assert_eq!(mark_price_after, 188500004355075);
-
-        assert_eq!(cost_of_update, -42993230); // amm wins when price increases
         assert_eq!(market.amm.long_spread, 285);
         assert_eq!(market.amm.short_spread, 690);
+        assert_eq!(cost_of_update, -42993230); // amm wins when price increases
+
+        let mark_price_after = market.amm.mark_price().unwrap();
+        assert_eq!(mark_price_after, 188500004355075);
+        assert_eq!(mark_price_before < mark_price_after, true);
 
         // add large confidence
         let oracle_price_data = OraclePriceData {

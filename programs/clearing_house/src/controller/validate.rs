@@ -133,9 +133,9 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
     )?;
 
     validate!(
-        market.amm.long_spread + market.amm.short_spread <= 
-        
-        (market.amm.max_spread as u128).max(market.amm.last_oracle_mark_spread_pct.unsigned_abs()),
+        market.amm.long_spread + market.amm.short_spread
+            <= (market.amm.max_spread as u128)
+                .max(market.amm.last_oracle_mark_spread_pct.unsigned_abs()),
         ErrorCode::DefaultError,
         "long_spread + short_spread > max_spread: {} + {} < {}.max({})",
         market.amm.long_spread,
