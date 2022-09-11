@@ -8,7 +8,7 @@ use crate::math::constants::{
     QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_CUMULATIVE_INTEREST_PRECISION,
     SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
 };
-use crate::state::market::{PerpMarket, MarketStatus, PoolBalance, AMM};
+use crate::state::market::{MarketStatus, PerpMarket, PoolBalance, AMM};
 use crate::state::oracle::OracleSource;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;

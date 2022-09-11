@@ -1,14 +1,15 @@
 use crate::controller::spot_balance::{
-    update_spot_balances, update_revenue_pool_balances, 
+    update_revenue_pool_balances,
+    update_spot_balances,
     update_spot_market_cumulative_interest,
-    validate_bank_amounts
+    // validate_spot_balances
 };
 use crate::math::spot_balance::get_token_amount;
 
-use crate::math::amm::calculate_net_user_pnl;
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
-use crate::math::casting::{cast_to_i64, cast_to_u128, cast_to_u32, cast_to_u64};
+use crate::math::amm::calculate_net_user_pnl;
+use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128, cast_to_u32, cast_to_u64};
 use crate::math::constants::{
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_NUMERATOR,
@@ -568,12 +569,12 @@ pub fn resolve_perp_pnl_deficit(
 
     emit!(InsuranceFundRecord {
         ts: now,
-        bank_index: bank.bank_index,
-        market_index: market.market_index,
+        spot_market_index: bank.market_index,
+        perp_market_index: market.market_index,
         amount: -cast_to_i64(insurance_withdraw)?,
         user_if_factor: bank.user_if_factor,
         total_if_factor: bank.total_if_factor,
-        bank_vault_amount_before: bank_vault_amount,
+        vault_amount_before: bank_vault_amount,
         insurance_vault_amount_before: insurance_vault_amount,
         total_if_shares_before,
         total_if_shares_after: bank.total_if_shares,
@@ -1399,7 +1400,6 @@ mod test {
         assert_eq!(spot_market.user_if_shares, 200000000000000);
         if_balance += 10_000_000_000_000;
         assert_eq!(if_balance, 10000000000001);
-
     }
 
     #[test]

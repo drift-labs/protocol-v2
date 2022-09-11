@@ -178,8 +178,8 @@ export function calculateMarketAvailablePNL(
 }
 
 export function calculateNetUserImbalance(
-	market: MarketAccount,
-	bank: BankAccount,
+	market: PerpMarketAccount,
+	bank: SpotMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
 	const netUserPositionValue = market.amm.netBaseAssetAmount

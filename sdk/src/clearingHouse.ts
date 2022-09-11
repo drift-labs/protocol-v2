@@ -1463,7 +1463,7 @@ export class ClearingHouse {
 		const marketAccountInfos = [];
 		const oracleAccountInfos = [];
 		const bankAccountInfos = [];
-		const market = this.getMarketAccount(marketIndex);
+		const market = this.getPerpMarketAccount(marketIndex);
 		marketAccountInfos.push({
 			pubkey: market.pubkey,
 			isWritable: true,
@@ -1476,7 +1476,7 @@ export class ClearingHouse {
 		});
 
 		bankAccountInfos.push({
-			pubkey: this.getBankAccount(QUOTE_SPOT_MARKET_INDEX).pubkey,
+			pubkey: this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX).pubkey,
 			isSigner: false,
 			isWritable: true,
 		});
@@ -2387,9 +2387,9 @@ export class ClearingHouse {
 		const marketAccountMap = new Map<number, AccountMeta>();
 		const oracleAccountMap = new Map<string, AccountMeta>();
 		const bankAccountMap = new Map<number, AccountMeta>();
-		for (const position of settleeUserAccount.positions) {
+		for (const position of settleeUserAccount.perpPositions) {
 			if (!positionIsAvailable(position)) {
-				const market = this.getMarketAccount(position.marketIndex);
+				const market = this.getPerpMarketAccount(position.marketIndex);
 				marketAccountMap.set(position.marketIndex.toNumber(), {
 					pubkey: market.pubkey,
 					isWritable: false,
@@ -2403,15 +2403,17 @@ export class ClearingHouse {
 			}
 		}
 
-		for (const userBankBalance of settleeUserAccount.bankBalances) {
+		for (const userBankBalance of settleeUserAccount.spotPositions) {
 			if (!userBankBalance.balance.eq(QUOTE_SPOT_MARKET_INDEX)) {
-				const bankAccount = this.getBankAccount(userBankBalance.bankIndex);
-				bankAccountMap.set(userBankBalance.bankIndex.toNumber(), {
+				const bankAccount = this.getSpotMarketAccount(
+					userBankBalance.marketIndex
+				);
+				bankAccountMap.set(userBankBalance.marketIndex.toNumber(), {
 					pubkey: bankAccount.pubkey,
 					isSigner: false,
 					isWritable: false,
 				});
-				if (!bankAccount.bankIndex.eq(ZERO)) {
+				if (!bankAccount.marketIndex.eq(ZERO)) {
 					oracleAccountMap.set(bankAccount.oracle.toString(), {
 						pubkey: bankAccount.oracle,
 						isSigner: false,
@@ -2421,7 +2423,7 @@ export class ClearingHouse {
 			}
 		}
 
-		const marketAccount = this.getMarketAccount(marketIndex.toNumber());
+		const marketAccount = this.getPerpMarketAccount(marketIndex.toNumber());
 		marketAccountMap.set(marketIndex.toNumber(), {
 			pubkey: marketAccount.pubkey,
 			isSigner: false,
@@ -2434,7 +2436,7 @@ export class ClearingHouse {
 		});
 
 		bankAccountMap.set(QUOTE_SPOT_MARKET_INDEX.toNumber(), {
-			pubkey: this.getBankAccount(QUOTE_SPOT_MARKET_INDEX).pubkey,
+			pubkey: this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX).pubkey,
 			isSigner: false,
 			isWritable: true,
 		});
@@ -3189,11 +3191,13 @@ export class ClearingHouse {
 	}
 
 	public async resolvePerpPnlDeficit(
-		bankIndex: BN,
-		marketIndex: BN
+		spotMarketIndex: BN,
+		perpMarketIndex: BN
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
-			wrapInTx(await this.getResolvePerpPnlDeficitIx(bankIndex, marketIndex)),
+			wrapInTx(
+				await this.getResolvePerpPnlDeficitIx(spotMarketIndex, perpMarketIndex)
+			),
 			[],
 			this.opts
 		);
@@ -3201,25 +3205,25 @@ export class ClearingHouse {
 	}
 
 	public async getResolvePerpPnlDeficitIx(
-		bankIndex: BN,
-		marketIndex: BN
+		spotMarketIndex: BN,
+		perpMarketIndex: BN
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = this.getRemainingAccounts({
-			writableMarketIndex: marketIndex,
-			writableBankIndex: bankIndex,
+			writablePerpMarketIndex: perpMarketIndex,
+			writableSpotMarketIndex: spotMarketIndex,
 		});
 
-		const bank = this.getBankAccount(bankIndex);
+		const spotMarket = this.getSpotMarketAccount(spotMarketIndex);
 
 		return await this.program.instruction.resolvePerpPnlDeficit(
-			bankIndex,
-			marketIndex,
+			spotMarketIndex,
+			perpMarketIndex,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
 					authority: this.wallet.publicKey,
-					bankVault: bank.vault,
-					insuranceFundVault: bank.insuranceFundVault,
+					spotMarketVault: spotMarket.vault,
+					insuranceFundVault: spotMarket.insuranceFundVault,
 					clearingHouseSigner: this.getSignerPublicKey(),
 					tokenProgram: TOKEN_PROGRAM_ID,
 				},

@@ -1,27 +1,25 @@
 use crate::controller::amm::{update_pnl_pool_and_user_balance, update_pool_balances};
-use crate::controller::spot_balance::{update_spot_balances};
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount, update_realized_pnl,
     PositionDelta,
 };
-use crate::controller::spot_balance::{
-    update_spot_market_cumulative_interest,
-};
-use crate::controller::bank_balance::update_bank_cumulative_interest;
+use crate::controller::spot_balance::update_spot_balances;
+use crate::controller::spot_balance::update_spot_market_cumulative_interest;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::cast;
 use crate::math::casting::cast_to_i128;
 use crate::math::casting::cast_to_i64;
 use crate::math::margin::meets_maintenance_margin_requirement;
-use crate::math_error;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_settlement_price;
+use crate::math_error;
 use crate::state::events::SettlePnlRecord;
-use crate::state::oracle_map::OracleMap;
 use crate::state::market::MarketStatus;
+use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::SpotMarketMap;
+use crate::state::state::State;
 use crate::state::user::User;
 use crate::validate;
 use anchor_lang::prelude::Pubkey;
@@ -81,7 +79,7 @@ pub fn settle_pnl(
     )?;
 
     validate!(
-        market.status == MarketStatus::Initialized,
+        perp_market.status == MarketStatus::Initialized,
         ErrorCode::DefaultError,
         "Cannot settle pnl under current market status"
     )?;
@@ -165,11 +163,11 @@ pub fn settle_expired_position(
         return Err(ErrorCode::InsufficientCollateralForSettlingPNL);
     }
 
-    let fee_structure = &state.fee_structure;
+    let fee_structure = &state.perp_fee_structure;
 
     {
         let bank = &mut spot_market_map.get_quote_spot_market_mut()?;
-        update_bank_cumulative_interest(bank, now)?;
+        update_spot_market_cumulative_interest(bank, now)?;
     }
 
     settle_funding_payment(
@@ -202,7 +200,7 @@ pub fn settle_expired_position(
     )?;
 
     validate!(
-        user.positions[position_index].open_orders == 0,
+        user.perp_positions[position_index].open_orders == 0,
         ErrorCode::DefaultError,
         "User must first cancel open orders for expired market"
     )?;

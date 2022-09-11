@@ -2,23 +2,24 @@ use crate::error::*;
 use crate::math::casting::cast_to_i128;
 
 use crate::controller::amm::update_spreads;
+use crate::controller::spot_balance::update_spot_balances;
 use crate::error::ErrorCode;
 use crate::load_mut;
 use crate::math::amm;
+use crate::math::amm::get_update_k_result;
+use crate::math::bn;
+use crate::math::constants::{
+    K_BPS_UPDATE_SCALE, ONE_HOUR_I128, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX,
+};
 use crate::math::repeg;
+use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
-use crate::state::market::{PerpMarket, MarketStatus};
+use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
+use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::SpotMarketMap;
-use crate::controller::spot_balance::update_spot_balances;
-use crate::math::amm::get_update_k_result;
-use crate::math::spot_balance::get_token_amount;
-use crate::math::bn;
-use crate::math::constants::{
-    K_BPS_UPDATE_SCALE, ONE_HOUR_I128, QUOTE_SPOT_MARKET_INDEX, QUOTE_PRECISION,
-};
 use crate::state::state::{OracleGuardRails, State};
 use crate::validate;
 use anchor_lang::prelude::AccountInfo;

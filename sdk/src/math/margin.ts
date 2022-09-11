@@ -9,12 +9,8 @@ import {
 } from '../constants/numericConstants';
 import { BN } from '@project-serum/anchor';
 import { OraclePriceData } from '../oracles/types';
-<<<<<<< HEAD
-import { MarketAccount, UserPosition } from '..';
-import { assert } from '../assert/assert';
-=======
 import { PerpMarketAccount, PerpPosition } from '..';
->>>>>>> master
+import { assert } from '../assert/assert';
 
 export function calculateSizePremiumLiabilityWeight(
 	size: BN, // AMM_RESERVE_PRECISION

@@ -1498,8 +1498,8 @@ pub mod fulfill_order {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-status: MarketStatus::Initialized,
-..PerpMarket::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
@@ -1660,8 +1660,8 @@ status: MarketStatus::Initialized,
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-status: MarketStatus::Initialized,
-..PerpMarket::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -1837,8 +1837,8 @@ status: MarketStatus::Initialized,
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-status: MarketStatus::Initialized,
-..PerpMarket::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
@@ -1979,8 +1979,8 @@ status: MarketStatus::Initialized,
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-status: MarketStatus::Initialized,
-..PerpMarket::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
@@ -2106,8 +2106,8 @@ status: MarketStatus::Initialized,
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-status: MarketStatus::Initialized,
-..PerpMarket::default()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default()
         };
         create_anchor_account_info!(sol_market, PerpMarket, sol_market_account_info);
         let mut btc_market = PerpMarket {
@@ -2542,7 +2542,7 @@ pub mod fill_order {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-status: MarketStatus::Initialized,
+            status: MarketStatus::Initialized,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);

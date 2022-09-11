@@ -331,7 +331,10 @@ pub fn formulaic_update_k(
     Ok(())
 }
 
-pub fn get_fee_pool_tokens(market: &mut Market, bank: &mut Bank) -> ClearingHouseResult<i128> {
+pub fn get_fee_pool_tokens(
+    market: &mut PerpMarket,
+    bank: &mut SpotMarket,
+) -> ClearingHouseResult<i128> {
     let amm_fee_pool_token_amount = cast_to_i128(get_token_amount(
         market.amm.fee_pool.balance(),
         bank,
@@ -633,7 +636,7 @@ pub fn update_pnl_pool_and_user_balance(
             &SpotBalanceType::Borrow
         },
         bank,
-        user.get_quote_asset_bank_balance_mut(),
+        user.get_quote_spot_position_mut(),
         false,
     )?;
 

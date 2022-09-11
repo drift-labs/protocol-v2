@@ -136,7 +136,7 @@ impl PerpMarket {
             amm,
             margin_ratio_initial: 1000,    // 10x
             margin_ratio_maintenance: 500, // 5x
-            status: MarketStatus::Initialized,   
+            status: MarketStatus::Initialized,
             ..PerpMarket::default()
         }
     }

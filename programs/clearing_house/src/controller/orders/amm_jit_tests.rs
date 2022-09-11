@@ -30,7 +30,7 @@ pub mod amm_jit {
         PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
-    use crate::state::market::{PerpMarket, MarketStatus, AMM};
+    use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::OracleSource;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -80,8 +80,8 @@ pub mod amm_jit {
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-status: MarketStatus::Initialized,
-..PerpMarket::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
@@ -248,8 +248,8 @@ status: MarketStatus::Initialized,
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-status: MarketStatus::Initialized,
-..PerpMarket::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
@@ -413,8 +413,8 @@ status: MarketStatus::Initialized,
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-status: MarketStatus::Initialized,
-..PerpMarket::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
@@ -578,8 +578,8 @@ status: MarketStatus::Initialized,
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-status: MarketStatus::Initialized,
-..PerpMarket::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
@@ -743,8 +743,8 @@ status: MarketStatus::Initialized,
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-status: MarketStatus::Initialized,
-..PerpMarket::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
@@ -936,8 +936,8 @@ status: MarketStatus::Initialized,
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-status: MarketStatus::Initialized,
-..PerpMarket::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
@@ -1131,8 +1131,8 @@ status: MarketStatus::Initialized,
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-status: MarketStatus::Initialized,
-..PerpMarket::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
@@ -1326,8 +1326,8 @@ status: MarketStatus::Initialized,
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-status: MarketStatus::Initialized,
-..PerpMarket::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
@@ -1522,8 +1522,8 @@ status: MarketStatus::Initialized,
             base_asset_amount_short: -(100 * AMM_RESERVE_PRECISION as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-status: MarketStatus::Initialized,
-..PerpMarket::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
@@ -1790,8 +1790,8 @@ status: MarketStatus::Initialized,
             base_asset_amount_long: 100 * AMM_RESERVE_PRECISION as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-status: MarketStatus::Initialized,
-..PerpMarket::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;

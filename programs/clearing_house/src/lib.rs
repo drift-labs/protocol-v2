@@ -12,7 +12,7 @@ use state::oracle::{get_oracle_price, OracleSource};
 
 use crate::math::amm::get_update_k_result;
 use crate::state::events::{LPAction, LPRecord};
-use crate::state::market::{ContractType, PerpMarket, MarketStatus};
+use crate::state::market::{ContractType, MarketStatus, PerpMarket};
 use crate::state::user::PerpPosition;
 use crate::state::{market::AMM, state::*, user::*};
 
@@ -49,11 +49,11 @@ pub mod clearing_house {
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
+    use crate::math::liquidation::validate_user_not_being_liquidated;
     use crate::math::spot_balance::get_token_amount;
     use crate::optional_accounts::{
         get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
     };
-    use crate::math::liquidation::validate_user_not_being_liquidated;
 
     use crate::state::events::{CurveRecord, DepositRecord};
     use crate::state::events::{DepositDirection, NewUserRecord};
@@ -1946,37 +1946,42 @@ pub mod clearing_house {
 
     pub fn resolve_perp_pnl_deficit(
         ctx: Context<ResolvePerpPnlDeficit>,
-        bank_index: u64,
-        market_index: u64,
+        spot_market_index: u64,
+        perp_market_index: u64,
     ) -> Result<()> {
         let clock = Clock::get()?;
-        validate!(bank_index == 0, ErrorCode::InvalidBankAccount)?;
+        validate!(spot_market_index == 0, ErrorCode::InvalidSpotMarketAccount)?;
         let state = &ctx.accounts.state;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
         let spot_market_map = SpotMarketMap::load(
-            &get_writable_spot_market_set(bank_index),
+            &get_writable_spot_market_set(spot_market_index),
             remaining_accounts_iter,
         )?;
         let market_map = PerpMarketMap::load(
-            &get_market_set(market_index),
+            &get_market_set(perp_market_index),
             &MarketSet::new(),
             remaining_accounts_iter,
         )?;
-        
 
-        controller::repeg::update_amm(market_index, &market_map, &mut oracle_map, state, &clock)?;
+        controller::repeg::update_amm(
+            perp_market_index,
+            &market_map,
+            &mut oracle_map,
+            state,
+            &clock,
+        )?;
 
         let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;
-        let bank_vault_amount = ctx.accounts.bank_vault.amount;
+        let spot_market_vault_amount = ctx.accounts.spot_market_vault.amount;
 
         let pay_from_insurance = {
-            let bank = &mut spot_market_map.get_ref_mut(&bank_index)?;
-            let market = &mut market_map.get_ref_mut(&market_index)?;
+            let bank = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
+            let market = &mut market_map.get_ref_mut(&perp_market_index)?;
 
             controller::insurance::resolve_perp_pnl_deficit(
-                bank_vault_amount,
+                spot_market_vault_amount,
                 insurance_vault_amount,
                 bank,
                 market,
@@ -1996,7 +2001,7 @@ pub mod clearing_house {
             controller::token::send_from_program_vault(
                 &ctx.accounts.token_program,
                 &ctx.accounts.insurance_fund_vault,
-                &ctx.accounts.bank_vault,
+                &ctx.accounts.spot_market_vault,
                 &ctx.accounts.clearing_house_signer,
                 state.signer_nonce,
                 pay_from_insurance,
@@ -2161,7 +2166,7 @@ pub mod clearing_house {
 
     #[allow(unused_must_use)]
     #[access_control(
-        market_initialized(&ctx.accounts.market) &&
+        market_initialized(&ctx.accounts.perp_market) &&
         exchange_not_paused(&ctx.accounts.state) &&
         admin_controls_prices(&ctx.accounts.state)
     )]
@@ -2170,7 +2175,7 @@ pub mod clearing_house {
         base_asset_reserve: u128,
         quote_asset_reserve: u128,
     ) -> Result<()> {
-        let market = &mut load_mut!(ctx.accounts.market)?;
+        let market = &mut load_mut!(ctx.accounts.perp_market)?;
         controller::amm::move_price(&mut market.amm, base_asset_reserve, quote_asset_reserve)?;
         Ok(())
     }
@@ -2198,7 +2203,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_initialized(&ctx.accounts.perp_market)
     )]
     pub fn settle_expired_market_pools_to_revenue_pool(
         ctx: Context<WithdrawFromMarketToInsuranceVault>,
@@ -2209,7 +2214,7 @@ pub mod clearing_house {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
-        controller::bank_balance::update_bank_cumulative_interest(bank, now)?;
+        controller::spot_balance::update_spot_market_cumulative_interest(bank, now)?;
 
         validate!(
             market.status == MarketStatus::Settlement && market.open_interest == 0,
@@ -2234,7 +2239,7 @@ pub mod clearing_house {
         let pnl_pool_token_amount =
             get_token_amount(market.pnl_pool.balance, bank, &SpotBalanceType::Deposit)?;
 
-        controller::bank_balance::update_spot_balances(
+        controller::spot_balance::update_spot_balances(
             fee_pool_token_amount,
             &SpotBalanceType::Borrow,
             bank,
@@ -2242,7 +2247,7 @@ pub mod clearing_house {
             false,
         )?;
 
-        controller::bank_balance::update_spot_balances(
+        controller::spot_balance::update_spot_balances(
             pnl_pool_token_amount,
             &SpotBalanceType::Borrow,
             bank,
@@ -2250,7 +2255,7 @@ pub mod clearing_house {
             false,
         )?;
 
-        controller::bank_balance::update_revenue_pool_balances(
+        controller::spot_balance::update_revenue_pool_balances(
             pnl_pool_token_amount
                 .checked_add(fee_pool_token_amount)
                 .ok_or_else(math_error!())?,
@@ -2277,13 +2282,13 @@ pub mod clearing_house {
             "Bank token balances must be equal before and after"
         )?;
 
-        math::bank_balance::validate_bank_balances(bank)?;
+        math::spot_balance::validate_spot_balances(bank)?;
 
         Ok(())
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_initialized(&ctx.accounts.perp_market)
     )]
     pub fn withdraw_from_market_to_insurance_vault(
         ctx: Context<WithdrawFromMarketToInsuranceVault>,

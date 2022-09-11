@@ -58,7 +58,7 @@ pub fn update_bank_twap_stats(bank: &mut Bank, now: i64) -> ClearingHouseResult 
     Ok(())
 }
 
-pub fn update_bank_cumulative_interest(bank: &mut Bank, now: i64) -> ClearingHouseResult {
+pub fn update_spot_market_cumulative_interest(bank: &mut Bank, now: i64) -> ClearingHouseResult {
     let InterestAccumulated {
         deposit_interest,
         borrow_interest,
@@ -460,11 +460,11 @@ mod test {
         assert_eq!(user.spot_positions[0].bank_index, 0);
 
         let old_twap = bank.deposit_token_twap;
-        update_bank_cumulative_interest(&mut bank, now + 3600).unwrap();
+        update_spot_market_cumulative_interest(&mut bank, now + 3600).unwrap();
         assert_eq!(bank.deposit_token_twap, 495833);
-        update_bank_cumulative_interest(&mut bank, now + 3600 * 24).unwrap();
+        update_spot_market_cumulative_interest(&mut bank, now + 3600 * 24).unwrap();
         assert_eq!(bank.deposit_token_twap, 403993); // little bit slower than 1 day
-        update_bank_cumulative_interest(&mut bank, now + 3600 * 48 + 100).unwrap();
+        update_spot_market_cumulative_interest(&mut bank, now + 3600 * 48 + 100).unwrap();
         let new_twap = bank.deposit_token_twap;
         assert!(old_twap >= new_twap);
         assert_eq!(new_twap, 400000);
@@ -484,9 +484,9 @@ mod test {
 
         bank.last_interest_ts = now as u64;
         bank.last_twap_ts = now as u64;
-        update_bank_cumulative_interest(&mut bank, now + 3600).unwrap();
+        update_spot_market_cumulative_interest(&mut bank, now + 3600).unwrap();
         assert_eq!(bank.deposit_token_twap, 4167066666); //$4167.06
-        update_bank_cumulative_interest(&mut bank, now + 3600 * 44).unwrap();
+        update_spot_market_cumulative_interest(&mut bank, now + 3600 * 44).unwrap();
         assert_eq!(bank.deposit_token_twap, 99999780925); //$4167.06
 
         // tiny whale who will grow
@@ -567,7 +567,7 @@ mod test {
         assert_eq!(sol_bank.deposit_balance, 50000000);
         assert_eq!(sol_bank.borrow_balance, 8000002);
         assert_eq!(sol_bank.borrow_token_twap, 0);
-        update_bank_cumulative_interest(&mut sol_bank, now + 3655 * 24).unwrap();
+        update_spot_market_cumulative_interest(&mut sol_bank, now + 3655 * 24).unwrap();
         assert_eq!(sol_bank.deposit_token_twap, 500067287978);
         assert_eq!(sol_bank.borrow_token_twap, 80072095947);
 
@@ -723,7 +723,7 @@ mod test {
         assert_eq!(bank.borrow_balance, 125001);
         assert_eq!(bank.utilization_twap, 0);
 
-        update_bank_cumulative_interest(&mut bank, now + 100).unwrap();
+        update_spot_market_cumulative_interest(&mut bank, now + 100).unwrap();
 
         assert_eq!(bank.revenue_pool.balance, 0);
         assert_eq!(bank.cumulative_deposit_interest, 10000019799);
@@ -743,7 +743,7 @@ mod test {
         assert_eq!(borrow_tokens_1, 125002);
         assert_eq!(if_tokens_1, 0);
 
-        update_bank_cumulative_interest(&mut bank, now + 7500).unwrap();
+        update_spot_market_cumulative_interest(&mut bank, now + 7500).unwrap();
 
         assert_eq!(bank.last_interest_ts, 7500);
         assert_eq!(bank.last_twap_ts, 7500);
@@ -770,7 +770,7 @@ mod test {
             0
         );
 
-        update_bank_cumulative_interest(&mut bank, now + 750 + (60 * 60 * 24 * 365)).unwrap();
+        update_spot_market_cumulative_interest(&mut bank, now + 750 + (60 * 60 * 24 * 365)).unwrap();
 
         now = now + 750 + (60 * 60 * 24 * 365);
 
@@ -843,7 +843,7 @@ mod test {
         assert_eq!(if_tokens_4, 0);
 
         // one more day later, twap update
-        update_bank_cumulative_interest(&mut bank, now + 60 + (60 * 60 * 24)).unwrap();
+        update_spot_market_cumulative_interest(&mut bank, now + 60 + (60 * 60 * 24)).unwrap();
 
         let deposit_tokens_5 =
             get_token_amount(bank.deposit_balance, &bank, &SpotBalanceType::Deposit).unwrap();
@@ -988,7 +988,7 @@ mod test {
         assert_eq!(bank.borrow_balance, 540510000001);
         assert_eq!(bank.utilization_twap, 0);
 
-        update_bank_cumulative_interest(&mut bank, now + 100).unwrap();
+        update_spot_market_cumulative_interest(&mut bank, now + 100).unwrap();
 
         assert_eq!(bank.revenue_pool.balance, 3844266);
         assert_eq!(bank.cumulative_deposit_interest, 10000346004);
@@ -1008,7 +1008,7 @@ mod test {
         assert_eq!(borrow_tokens_1, 540548444855);
         assert_eq!(if_tokens_1, 3844399);
 
-        update_bank_cumulative_interest(&mut bank, now + 7500).unwrap();
+        update_spot_market_cumulative_interest(&mut bank, now + 7500).unwrap();
 
         assert_eq!(bank.last_interest_ts, 7500);
         assert_eq!(bank.last_twap_ts, 7500);
@@ -1035,7 +1035,7 @@ mod test {
             3631
         );
 
-        update_bank_cumulative_interest(&mut bank, now + 750 + (60 * 60 * 24 * 365)).unwrap();
+        update_spot_market_cumulative_interest(&mut bank, now + 750 + (60 * 60 * 24 * 365)).unwrap();
 
         now = now + 750 + (60 * 60 * 24 * 365);
 

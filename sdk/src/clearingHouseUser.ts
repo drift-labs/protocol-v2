@@ -197,11 +197,11 @@ export class ClearingHouseUser {
 		);
 		const nShares = position.lpShares;
 
-		const deltaBaa = market.amm.PerpPositionPerLp.baseAssetAmount
+		const deltaBaa = market.amm.marketPositionPerLp.baseAssetAmount
 			.sub(position.lastNetBaseAssetAmountPerLp)
 			.mul(nShares)
 			.div(AMM_RESERVE_PRECISION);
-		const deltaQaa = market.amm.PerpPositionPerLp.quoteAssetAmount
+		const deltaQaa = market.amm.marketPositionPerLp.quoteAssetAmount
 			.sub(position.lastNetQuoteAssetAmountPerLp)
 			.mul(nShares)
 			.div(AMM_RESERVE_PRECISION);

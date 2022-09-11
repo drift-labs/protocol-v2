@@ -26,9 +26,9 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPrice,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 	createUserWithUSDCAndWSOLAccount,
-	initializeSolAssetBank,
+	initializeSolSpotMarket,
 	printTxLogs,
 	getFeedData,
 	getOraclePriceData,
@@ -132,8 +132,8 @@ describe('delist market', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: [new BN(0)],
-			bankIndexes: [new BN(0), new BN(1)],
+			perpMarketIndexes: [new BN(0)],
+			spotMarketIndexes: [new BN(0), new BN(1)],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
@@ -145,8 +145,8 @@ describe('delist market', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		await initializeSolAssetBank(clearingHouse, solOracle);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
+		await initializeSolSpotMarket(clearingHouse, solOracle);
 		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(0);
@@ -182,8 +182,8 @@ describe('delist market', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: [new BN(0)],
-			bankIndexes: [new BN(0), new BN(1)],
+			perpMarketIndexes: [new BN(0)],
+			spotMarketIndexes: [new BN(0), new BN(1)],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
@@ -248,7 +248,7 @@ describe('delist market', () => {
 			console.error(e);
 		}
 
-		const market00 = clearingHouse.getMarketAccount(new BN(0));
+		const market00 = clearingHouse.getPerpMarketAccount(new BN(0));
 		assert(market00.amm.feePool.balance.eq(new BN(1000000000)));
 
 		// sol tanks 90%
@@ -284,22 +284,22 @@ describe('delist market', () => {
 			liquidatorClearingHouseWSOLAccount
 		);
 
-		const market0 = clearingHouse.getMarketAccount(new BN(0));
+		const market0 = clearingHouse.getPerpMarketAccount(new BN(0));
 		const winnerUser = clearingHouse.getUserAccount();
 		const loserUser = clearingHouseLoser.getUserAccount();
-		console.log(winnerUser.perp_positions[0].quoteAssetAmount.toString());
-		console.log(loserUser.perp_positions[0].quoteAssetAmount.toString());
+		console.log(winnerUser.perpPositions[0].quoteAssetAmount.toString());
+		console.log(loserUser.perpPositions[0].quoteAssetAmount.toString());
 
 		// TODO: quoteAssetAmountShort!= sum of users
 		assert(
 			market0.amm.quoteAssetAmountShort.eq(
-				winnerUser.perp_positions[0].quoteAssetAmount
+				winnerUser.perpPositions[0].quoteAssetAmount
 			)
 		);
 
 		assert(
 			market0.amm.quoteAssetAmountLong.eq(
-				loserUser.perp_positions[0].quoteAssetAmount
+				loserUser.perpPositions[0].quoteAssetAmount
 			)
 		);
 	});
@@ -315,14 +315,14 @@ describe('delist market', () => {
 		// 	new BN(43.1337 * MARK_PRICE_PRECISION.toNumber())
 		// );
 
-		const market0 = clearingHouse.getMarketAccount(marketIndex);
+		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 		assert(market0.expiryTs.eq(ZERO));
 
 		await clearingHouse.updateMarketExpiry(marketIndex, expiryTs);
 		await sleep(1000);
 		clearingHouse.fetchAccounts();
 
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log(market.status);
 		assert(isVariant(market.status, 'reduceOnly'));
 		console.log(
@@ -374,7 +374,7 @@ describe('delist market', () => {
 		let slot = await connection.getSlot();
 		let now = await connection.getBlockTime(slot);
 
-		const market0 = clearingHouse.getMarketAccount(marketIndex);
+		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log('market0.status:', market0.status);
 		while (market0.expiryTs.gte(new BN(now))) {
 			console.log(market0.expiryTs.toString(), '>', now);
@@ -392,7 +392,7 @@ describe('delist market', () => {
 
 		clearingHouse.fetchAccounts();
 
-		const market = clearingHouse.getMarketAccount(marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log(market.status);
 		assert(isVariant(market.status, 'settlement'));
 		console.log(
@@ -423,9 +423,9 @@ describe('delist market', () => {
 	it('settle expired market position', async () => {
 		const marketIndex = new BN(0);
 		const loserUser0 = clearingHouseLoser.getUserAccount();
-		assert(loserUser0.perp_positions[0].baseAssetAmount.gt(new BN(0)));
-		assert(loserUser0.perp_positions[0].quoteAssetAmount.lt(new BN(0)));
-		console.log(loserUser0.perp_positions[0]);
+		assert(loserUser0.perpPositions[0].baseAssetAmount.gt(new BN(0)));
+		assert(loserUser0.perpPositions[0].quoteAssetAmount.lt(new BN(0)));
+		console.log(loserUser0.perpPositions[0]);
 
 		const txSig = await clearingHouseLoser.settleExpiredPosition(
 			await clearingHouseLoser.getUserAccountPublicKey(),
@@ -452,10 +452,10 @@ describe('delist market', () => {
 
 		await clearingHouseLoser.fetchAccounts();
 		const loserUser = clearingHouseLoser.getUserAccount();
-		// console.log(loserUser.perp_positions[0]);
-		assert(loserUser.perp_positions[0].baseAssetAmount.eq(new BN(0)));
-		assert(loserUser.perp_positions[0].quoteAssetAmount.eq(new BN(0)));
-		const marketAfter0 = clearingHouse.getMarketAccount(marketIndex);
+		// console.log(loserUser.perpPositions[0]);
+		assert(loserUser.perpPositions[0].baseAssetAmount.eq(new BN(0)));
+		assert(loserUser.perpPositions[0].quoteAssetAmount.eq(new BN(0)));
+		const marketAfter0 = clearingHouse.getPerpMarketAccount(marketIndex);
 
 		const finalPnlResultMin0 = new BN(999978435 - 1090);
 		console.log(marketAfter0.pnlPool.balance.toString());
@@ -470,9 +470,9 @@ describe('delist market', () => {
 		await printTxLogs(connection, txSig2);
 		await clearingHouse.fetchAccounts();
 		const winnerUser = clearingHouse.getUserAccount();
-		// console.log(winnerUser.perp_positions[0]);
-		assert(winnerUser.perp_positions[0].baseAssetAmount.eq(new BN(0)));
-		// assert(winnerUser.perp_positions[0].quoteAssetAmount.gt(new BN(0))); // todo they lose money too after fees
+		// console.log(winnerUser.perpPositions[0]);
+		assert(winnerUser.perpPositions[0].baseAssetAmount.eq(new BN(0)));
+		// assert(winnerUser.perpPositions[0].quoteAssetAmount.gt(new BN(0))); // todo they lose money too after fees
 
 		// await clearingHouse.settlePNL(
 		// 	await clearingHouseLoser.getUserAccountPublicKey(),
@@ -480,7 +480,7 @@ describe('delist market', () => {
 		// 	marketIndex
 		// );
 
-		const marketAfter = clearingHouse.getMarketAccount(marketIndex);
+		const marketAfter = clearingHouse.getPerpMarketAccount(marketIndex);
 
 		const finalPnlResultMin = new BN(985673294 - 1090);
 		console.log('pnlPool:', marketAfter.pnlPool.balance.toString());

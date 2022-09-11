@@ -659,19 +659,19 @@ pub struct ResolveBankruptcy<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(bank_index: u64,)]
+#[instruction(spot_market_index: u64,)]
 pub struct ResolvePerpPnlDeficit<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     #[account(
         mut,
-        seeds = [b"bank_vault".as_ref(), bank_index.to_le_bytes().as_ref()],
+        seeds = [b"spot_market_vault".as_ref(), spot_market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub bank_vault: Box<Account<'info, TokenAccount>>,
+    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
-        seeds = [b"insurance_fund_vault".as_ref(), bank_index.to_le_bytes().as_ref()], // todo: bank_index=0 hardcode for perps?
+        seeds = [b"insurance_fund_vault".as_ref(), spot_market_index.to_le_bytes().as_ref()], // todo: market_index=0 hardcode for perps?
         bump,
     )]
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,

@@ -9,7 +9,7 @@ use crate::math::spot_balance::{
     get_interest_token_amount, get_spot_balance, get_token_amount, InterestAccumulated,
 };
 use crate::math_error;
-use crate::state::market::{MarketStatus, PerpMarket};
+use crate::state::market::PerpMarket;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::validate;
 use std::cmp::max;
@@ -315,7 +315,7 @@ mod test {
         QUOTE_PRECISION, QUOTE_PRECISION_I128, SPOT_CUMULATIVE_INTEREST_PRECISION,
         SPOT_INTEREST_PRECISION, SPOT_UTILIZATION_PRECISION, SPOT_WEIGHT_PRECISION,
     };
-    use crate::state::market::{PerpMarket, AMM};
+    use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;

@@ -20,7 +20,7 @@ use crate::math::helpers::on_the_hour_update;
 use crate::math::oracle;
 use crate::math_error;
 use crate::state::events::{FundingPaymentRecord, FundingRateRecord};
-use crate::state::market::{PerpMarket, AMM, ContractType, MarketStatus};
+use crate::state::market::{ContractType, MarketStatus, PerpMarket, AMM};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::state::OracleGuardRails;

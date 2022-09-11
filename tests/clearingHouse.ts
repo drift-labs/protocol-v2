@@ -292,11 +292,11 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(48004)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(48004)));
 
-		console.log(market.amm.PerpPosition);
+		console.log(market.amm.marketPosition);
 		assert.ok(
-			market.amm.PerpPosition.baseAssetAmount.eq(new BN(-480000000000000))
+			market.amm.marketPosition.baseAssetAmount.eq(new BN(-480000000000000))
 		);
-		assert.ok(market.amm.PerpPosition.quoteAssetAmount.eq(new BN(48052613)));
+		assert.ok(market.amm.marketPosition.quoteAssetAmount.eq(new BN(48052613)));
 
 		await eventSubscriber.awaitTx(txSig);
 		const orderActionRecord =
@@ -388,12 +388,12 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(72007)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(72007)));
 
-		console.log(market.amm.PerpPosition);
+		console.log(market.amm.marketPosition);
 		assert.ok(
-			market.amm.PerpPosition.baseAssetAmount.eq(new BN(-240000000000000))
+			market.amm.marketPosition.baseAssetAmount.eq(new BN(-240000000000000))
 		);
-		assert.ok(market.amm.PerpPosition.quoteAssetAmount.eq(new BN(24073160)));
-		assert.ok(market.amm.PerpPosition.quoteEntryAmount.eq(new BN(24002305)));
+		assert.ok(market.amm.marketPosition.quoteAssetAmount.eq(new BN(24073160)));
+		assert.ok(market.amm.marketPosition.quoteEntryAmount.eq(new BN(24002305)));
 
 		await eventSubscriber.awaitTx(txSig);
 		const orderActionRecord =
@@ -457,11 +457,11 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(120007)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120007)));
 
-		console.log(market.amm.PerpPosition);
+		console.log(market.amm.marketPosition);
 		assert.ok(
-			market.amm.PerpPosition.baseAssetAmount.eq(new BN(240000000000000))
+			market.amm.marketPosition.baseAssetAmount.eq(new BN(240000000000000))
 		);
-		assert.ok(market.amm.PerpPosition.quoteAssetAmount.eq(new BN(-23878840)));
+		assert.ok(market.amm.marketPosition.quoteAssetAmount.eq(new BN(-23878840)));
 
 		await eventSubscriber.awaitTx(txSig);
 		const orderActionRecord =

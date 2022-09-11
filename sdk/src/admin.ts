@@ -268,10 +268,10 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async moveAmmToPrice(
-		marketIndex: BN,
+		perpMarketIndex: BN,
 		targetPrice: BN
 	): Promise<TransactionSignature> {
-		const market = this.getPerpMarketAccount(marketIndex);
+		const market = this.getPerpMarketAccount(perpMarketIndex);
 
 		const [direction, tradeSize, _] = calculateTargetPriceTrade(
 			market,
@@ -291,7 +291,7 @@ export class Admin extends ClearingHouse {
 
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
-			marketIndex
+			perpMarketIndex
 		);
 
 		return await this.program.rpc.moveAmmPrice(
@@ -301,7 +301,7 @@ export class Admin extends ClearingHouse {
 				accounts: {
 					state: await this.getStatePublicKey(),
 					admin: this.wallet.publicKey,
-					market: marketPublicKey,
+					perpMarket: marketPublicKey,
 				},
 			}
 		);
@@ -746,14 +746,17 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMarketExpiry(
-		marketIndex: BN,
+		perpMarketIndex: BN,
 		expiryTs: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMarketExpiry(expiryTs, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
-				market: await getMarketPublicKey(this.program.programId, marketIndex),
+				perpMarket: await getMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
 			},
 		});
 	}

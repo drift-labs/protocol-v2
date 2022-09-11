@@ -1147,7 +1147,7 @@
           "isSigner": true
         },
         {
-          "name": "bankVault",
+          "name": "spotMarketVault",
           "isMut": true,
           "isSigner": false
         },
@@ -1169,11 +1169,11 @@
       ],
       "args": [
         {
-          "name": "bankIndex",
+          "name": "spotMarketIndex",
           "type": "u64"
         },
         {
-          "name": "marketIndex",
+          "name": "perpMarketIndex",
           "type": "u64"
         }
       ]
@@ -1298,7 +1298,7 @@
           "isSigner": true
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -1328,7 +1328,7 @@
           "isSigner": true
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -1354,12 +1354,12 @@
           "isSigner": true
         },
         {
-          "name": "bank",
+          "name": "spotMarket",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "bankVault",
+          "name": "spotMarketVault",
           "isMut": true,
           "isSigner": false
         },
@@ -1369,7 +1369,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         },
@@ -2996,8 +2996,24 @@
             "type": "publicKey"
           },
           {
-            "name": "initialized",
-            "type": "bool"
+            "name": "status",
+            "type": {
+              "defined": "MarketStatus"
+            }
+          },
+          {
+            "name": "contractType",
+            "type": {
+              "defined": "ContractType"
+            }
+          },
+          {
+            "name": "settlementPrice",
+            "type": "i128"
+          },
+          {
+            "name": "expiryTs",
+            "type": "i64"
           },
           {
             "name": "amm",
@@ -3072,7 +3088,19 @@
             "type": "u128"
           },
           {
+            "name": "unrealizedMaxImbalance",
+            "type": "u128"
+          },
+          {
             "name": "liquidationFee",
+            "type": "u128"
+          },
+          {
+            "name": "quoteMaxInsurance",
+            "type": "u128"
+          },
+          {
+            "name": "quoteSettledInsurance",
             "type": "u128"
           },
           {
@@ -3234,119 +3262,6 @@
           {
             "name": "initialLiabilityWeight",
             "type": "u128"
-<<<<<<< HEAD
-          },
-          {
-            "name": "maintenanceLiabilityWeight",
-            "type": "u128"
-          },
-          {
-            "name": "imfFactor",
-            "type": "u128"
-          },
-          {
-            "name": "liquidationFee",
-            "type": "u128"
-          },
-          {
-            "name": "liquidationIfFactor",
-            "type": "u32"
-          },
-          {
-            "name": "withdrawGuardThreshold",
-            "type": "u128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "InsuranceFundStake",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "authority",
-            "type": "publicKey"
-          },
-          {
-            "name": "bankIndex",
-            "type": "u64"
-          },
-          {
-            "name": "ifShares",
-            "type": "u128"
-          },
-          {
-            "name": "ifBase",
-            "type": "u128"
-          },
-          {
-            "name": "lastValidTs",
-            "type": "i64"
-          },
-          {
-            "name": "lastWithdrawRequestShares",
-            "type": "u128"
-          },
-          {
-            "name": "lastWithdrawRequestValue",
-            "type": "u64"
-          },
-          {
-            "name": "lastWithdrawRequestTs",
-            "type": "i64"
-          },
-          {
-            "name": "costBasis",
-            "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "Market",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "marketIndex",
-            "type": "u64"
-          },
-          {
-            "name": "pubkey",
-            "type": "publicKey"
-          },
-          {
-            "name": "status",
-            "type": {
-              "defined": "MarketStatus"
-            }
-          },
-          {
-            "name": "contractType",
-            "type": {
-              "defined": "ContractType"
-            }
-          },
-          {
-            "name": "settlementPrice",
-            "type": "i128"
-          },
-          {
-            "name": "expiryTs",
-            "type": "i64"
-          },
-          {
-            "name": "amm",
-            "type": {
-              "defined": "AMM"
-            }
-          },
-          {
-            "name": "baseAssetAmountLong",
-            "type": "i128"
-=======
->>>>>>> master
           },
           {
             "name": "maintenanceLiabilityWeight",
@@ -3431,33 +3346,12 @@
             "type": "publicKey"
           },
           {
-<<<<<<< HEAD
-            "name": "unrealizedMaxImbalance",
-            "type": "u128"
-          },
-          {
-            "name": "liquidationFee",
-            "type": "u128"
-          },
-          {
-            "name": "quoteMaxInsurance",
-            "type": "u128"
-          },
-          {
-            "name": "quoteSettledInsurance",
-            "type": "u128"
-          },
-          {
-            "name": "padding0",
-            "type": "u32"
-=======
             "name": "serumBids",
             "type": "publicKey"
           },
           {
             "name": "serumAsks",
             "type": "publicKey"
->>>>>>> master
           },
           {
             "name": "serumBaseVault",
@@ -3725,7 +3619,7 @@
           },
           {
             "name": "totalReferrerReward",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "fees",
@@ -4172,7 +4066,7 @@
             "type": "u128"
           },
           {
-            "name": "PerpPositionPerLp",
+            "name": "marketPositionPerLp",
             "type": {
               "defined": "PerpPosition"
             }
@@ -4254,7 +4148,7 @@
             "type": "u128"
           },
           {
-            "name": "PerpPosition",
+            "name": "marketPosition",
             "type": {
               "defined": "PerpPosition"
             }
@@ -4589,7 +4483,7 @@
           },
           {
             "name": "totalLpFees",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "totalFeeRebate",
@@ -4597,11 +4491,11 @@
           },
           {
             "name": "totalTokenDiscount",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "totalRefereeDiscount",
-            "type": "u128"
+            "type": "u64"
           }
         ]
       }
@@ -5115,16 +5009,25 @@
       }
     },
     {
-<<<<<<< HEAD
-      "name": "MarketStatus",
-=======
       "name": "SpotFulfillmentMethod",
->>>>>>> master
       "type": {
         "kind": "enum",
         "variants": [
           {
-<<<<<<< HEAD
+            "name": "SerumV3"
+          },
+          {
+            "name": "Match"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
             "name": "Uninitialized"
           },
           {
@@ -5149,12 +5052,6 @@
           },
           {
             "name": "Future"
-=======
-            "name": "SerumV3"
-          },
-          {
-            "name": "Match"
->>>>>>> master
           }
         ]
       }
@@ -6065,12 +5962,12 @@
           "index": false
         },
         {
-          "name": "marketIndex",
+          "name": "spotMarketIndex",
           "type": "u64",
           "index": false
         },
         {
-          "name": "marketIndex",
+          "name": "perpMarketIndex",
           "type": "u64",
           "index": false
         },
@@ -6815,5 +6712,8 @@
       "name": "InvalidSerumFulfillmentConfig",
       "msg": "InvalidSerumFulfillmentConfig"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "3v1iEjbSSLSSYyt1pmx4UB5rqJGurmz71RibXF7X6UF3"
+  }
 }

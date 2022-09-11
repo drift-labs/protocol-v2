@@ -10,12 +10,12 @@ use crate::controller::position::{
     update_amm_and_lp_market_position, update_position_and_market, update_quote_asset_amount,
     PositionDirection,
 };
+use crate::controller::repeg::update_market_status;
 use crate::controller::serum::{invoke_new_order, invoke_settle_funds, SerumFulfillmentParams};
 use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::spot_position::{
     decrease_spot_open_bids_and_asks, increase_spot_open_bids_and_asks,
 };
-use crate::controller::repeg::update_market_status;
 
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;

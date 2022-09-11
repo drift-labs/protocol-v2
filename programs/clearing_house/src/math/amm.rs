@@ -1608,7 +1608,7 @@ mod test {
             market_index: 0,
             base_asset_amount: -(122950819670000 / 2_i128),
             quote_asset_amount: 153688524588, // $25,000 entry price
-            ..PerpPerpPosition::default()
+            ..PerpPosition::default()
         };
 
         let market = PerpMarket {

@@ -1,5 +1,5 @@
 use crate::state::oracle_map::OracleMap;
-use crate::state::user::{PerpPosition, Order};
+use crate::state::user::{Order, PerpPosition};
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
 
@@ -28,23 +28,23 @@ pub mod delisting_test {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION,
         AMM_RESERVE_PRECISION_I128,
-        SPOT_CUMULATIVE_INTEREST_PRECISION,
-        SPOT_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
         BASE_PRECISION,
         BASE_PRECISION_I128,
         MARK_PRICE_PRECISION,
         PEG_PRECISION,
         QUOTE_PRECISION_I128,
         //  QUOTE_PRECISION_U64,
+        SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
-    use crate::state::spot_market::{SpotMarket, SpotBalanceType};
-    use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::market::{PerpMarket, MarketStatus, PoolBalance, AMM};
+    use crate::state::market::{MarketStatus, PerpMarket, PoolBalance, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+    use crate::state::spot_market_map::SpotMarketMap;
 
     use crate::state::oracle::OracleSource;
-    use crate::state::user::{OrderStatus, OrderType, User, SpotPosition, UserStats};
+    use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::tests::utils::*;
 
     use crate::controller::orders::cancel_order;
@@ -259,7 +259,7 @@ pub mod delisting_test {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // net users are short
-       let mut market = PerpMarket {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -318,19 +318,29 @@ pub mod delisting_test {
 
         // attempt to delist healthy market
         assert_eq!(market.expiry_ts, 0);
-        assert!(
-            settle_expired_market(0, &market_map, &mut oracle_map, &spot_market_map, &state, &clock,)
-                .is_err()
-        );
+        assert!(settle_expired_market(
+            0,
+            &market_map,
+            &mut oracle_map,
+            &spot_market_map,
+            &state,
+            &clock,
+        )
+        .is_err());
 
         market.expiry_ts = clock.unix_timestamp + 100;
         assert_eq!(clock.unix_timestamp, 1662065595);
 
         // attempt to delist too early
-        assert!(
-            settle_expired_market(0, &market_map, &mut oracle_map, &spot_market_map, &state, &clock,)
-                .is_err()
-        );
+        assert!(settle_expired_market(
+            0,
+            &market_map,
+            &mut oracle_map,
+            &spot_market_map,
+            &state,
+            &clock,
+        )
+        .is_err());
     }
 
     #[test]
@@ -358,7 +368,7 @@ pub mod delisting_test {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // net users are short
-       let mut market = PerpMarket {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -426,7 +436,15 @@ pub mod delisting_test {
         assert_eq!(market.settlement_price, 0);
 
         // put in settlement mode
-        settle_expired_market(0, &market_map, &mut oracle_map, &spot_market_map, &state, &clock).unwrap();
+        settle_expired_market(
+            0,
+            &market_map,
+            &mut oracle_map,
+            &spot_market_map,
+            &state,
+            &clock,
+        )
+        .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price > 0, true);
@@ -459,7 +477,7 @@ pub mod delisting_test {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // net users are short
-       let mut market = PerpMarket {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -527,7 +545,15 @@ pub mod delisting_test {
         assert_eq!(market.settlement_price, 0);
 
         // put in settlement mode
-        settle_expired_market(0, &market_map, &mut oracle_map, &spot_market_map, &state, &clock).unwrap();
+        settle_expired_market(
+            0,
+            &market_map,
+            &mut oracle_map,
+            &spot_market_map,
+            &state,
+            &clock,
+        )
+        .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price > 0, true);
@@ -564,7 +590,7 @@ pub mod delisting_test {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // net users are short
-       let mut market = PerpMarket {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -633,7 +659,15 @@ pub mod delisting_test {
         assert_eq!(market.settlement_price, 0);
 
         // put in settlement mode
-        settle_expired_market(0, &market_map, &mut oracle_map, &spot_market_map, &state, &clock).unwrap();
+        settle_expired_market(
+            0,
+            &market_map,
+            &mut oracle_map,
+            &spot_market_map,
+            &state,
+            &clock,
+        )
+        .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price > 0, true);
@@ -670,7 +704,7 @@ pub mod delisting_test {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // net users are short
-       let mut market = PerpMarket {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -739,7 +773,15 @@ pub mod delisting_test {
         assert_eq!(market.settlement_price, 0);
 
         // put in settlement mode
-        settle_expired_market(0, &market_map, &mut oracle_map, &spot_market_map, &state, &clock).unwrap();
+        settle_expired_market(
+            0,
+            &market_map,
+            &mut oracle_map,
+            &spot_market_map,
+            &state,
+            &clock,
+        )
+        .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price > 0, true);
@@ -772,7 +814,7 @@ pub mod delisting_test {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // net users are short
-       let mut market = PerpMarket {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -855,6 +897,7 @@ pub mod delisting_test {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
                 balance: 100 * SPOT_INTEREST_PRECISION,
+                ..SpotPosition::default()
             }),
             ..User::default()
         };
@@ -896,7 +939,15 @@ pub mod delisting_test {
         assert_eq!(margin_requirement, 7500000);
 
         // put in settlement mode
-        settle_expired_market(0, &market_map, &mut oracle_map, &spot_market_map, &state, &clock).unwrap();
+        settle_expired_market(
+            0,
+            &market_map,
+            &mut oracle_map,
+            &spot_market_map,
+            &state,
+            &clock,
+        )
+        .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price > 0, true);
@@ -1006,7 +1057,7 @@ pub mod delisting_test {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // net users are short
-       let mut market = PerpMarket {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -1090,7 +1141,6 @@ pub mod delisting_test {
                 balance_type: SpotBalanceType::Deposit,
                 balance: 100 * SPOT_INTEREST_PRECISION,
                 ..SpotPosition::default()
-
             }),
             ..User::default()
         };
@@ -1132,7 +1182,15 @@ pub mod delisting_test {
         assert_eq!(margin_requirement, 7500000);
 
         // put in settlement mode
-        settle_expired_market(0, &market_map, &mut oracle_map, &spot_market_map, &state, &clock).unwrap();
+        settle_expired_market(
+            0,
+            &market_map,
+            &mut oracle_map,
+            &spot_market_map,
+            &state,
+            &clock,
+        )
+        .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price > 0, true);
@@ -1243,7 +1301,7 @@ pub mod delisting_test {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // net users are short
-       let mut market = PerpMarket {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -1327,7 +1385,6 @@ pub mod delisting_test {
                 balance_type: SpotBalanceType::Deposit,
                 balance: 100 * SPOT_INTEREST_PRECISION,
                 ..SpotPosition::default()
-
             }),
             ..User::default()
         };
@@ -1356,7 +1413,15 @@ pub mod delisting_test {
         assert_eq!(market.settlement_price, 0);
 
         // put in settlement mode
-        settle_expired_market(0, &market_map, &mut oracle_map, &spot_market_map, &state, &clock).unwrap();
+        settle_expired_market(
+            0,
+            &market_map,
+            &mut oracle_map,
+            &spot_market_map,
+            &state,
+            &clock,
+        )
+        .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price != 0, true);
@@ -1464,7 +1529,7 @@ pub mod delisting_test {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // net users are short
-       let mut market = PerpMarket {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -1549,7 +1614,6 @@ pub mod delisting_test {
                 balance_type: SpotBalanceType::Deposit,
                 balance: 20000 * SPOT_INTEREST_PRECISION,
                 ..SpotPosition::default()
-
             }),
             ..User::default()
         };
@@ -1579,7 +1643,6 @@ pub mod delisting_test {
                 balance_type: SpotBalanceType::Deposit,
                 balance: 200000 * SPOT_INTEREST_PRECISION,
                 ..SpotPosition::default()
-
             }),
             ..User::default()
         };
@@ -1621,7 +1684,15 @@ pub mod delisting_test {
         assert_eq!(margin_requirement, 10005000000);
 
         // put in settlement mode
-        settle_expired_market(0, &market_map, &mut oracle_map, &spot_market_map, &state, &clock).unwrap();
+        settle_expired_market(
+            0,
+            &market_map,
+            &mut oracle_map,
+            &spot_market_map,
+            &state,
+            &clock,
+        )
+        .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price != 0, true);
@@ -1657,7 +1728,10 @@ pub mod delisting_test {
             let orig_short_balance = shorter.spot_positions[0].balance;
 
             assert_eq!(orig_short_balance, 200000000000);
-            assert_eq!(shorter.perp_positions[0].base_asset_amount, -10000000000000000);
+            assert_eq!(
+                shorter.perp_positions[0].base_asset_amount,
+                -10000000000000000
+            );
             assert_eq!(shorter.perp_positions[0].quote_asset_amount, 20000000000);
             drop(market);
 
@@ -1792,7 +1866,7 @@ pub mod delisting_test {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // net users are short
-       let mut market = PerpMarket {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -1878,7 +1952,6 @@ pub mod delisting_test {
                 balance_type: SpotBalanceType::Deposit,
                 balance: 20000 * SPOT_INTEREST_PRECISION,
                 ..SpotPosition::default()
-
             }),
             ..User::default()
         };
@@ -1908,7 +1981,6 @@ pub mod delisting_test {
                 balance_type: SpotBalanceType::Deposit,
                 balance: 20000 * SPOT_INTEREST_PRECISION,
                 ..SpotPosition::default()
-
             }),
             ..User::default()
         };
@@ -1963,7 +2035,15 @@ pub mod delisting_test {
         assert_eq!(margin_requirement_short, 5_002_500_000);
 
         // put in settlement mode
-        settle_expired_market(0, &market_map, &mut oracle_map, &spot_market_map, &state, &clock).unwrap();
+        settle_expired_market(
+            0,
+            &market_map,
+            &mut oracle_map,
+            &spot_market_map,
+            &state,
+            &clock,
+        )
+        .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price != 0, true);
@@ -2157,7 +2237,7 @@ pub mod delisting_test {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // net users are short
-       let mut market = PerpMarket {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -2272,7 +2352,6 @@ pub mod delisting_test {
                 balance_type: SpotBalanceType::Deposit,
                 balance: 20000 * SPOT_INTEREST_PRECISION,
                 ..SpotPosition::default()
-
             }),
             ..User::default()
         };
@@ -2283,7 +2362,6 @@ pub mod delisting_test {
                 balance_type: SpotBalanceType::Deposit,
                 balance: 20000 * SPOT_INTEREST_PRECISION,
                 ..SpotPosition::default()
-
             }),
             ..User::default()
         };
@@ -2322,7 +2400,15 @@ pub mod delisting_test {
         assert_eq!(margin_requirement, 1005000000);
 
         // put in settlement mode
-        settle_expired_market(0, &market_map, &mut oracle_map, &spot_market_map, &state, &clock).unwrap();
+        settle_expired_market(
+            0,
+            &market_map,
+            &mut oracle_map,
+            &spot_market_map,
+            &state,
+            &clock,
+        )
+        .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price != 0, true);
@@ -2358,7 +2444,10 @@ pub mod delisting_test {
             let orig_short_balance = shorter.spot_positions[0].balance;
 
             assert_eq!(orig_short_balance, 20000000000);
-            assert_eq!(shorter.perp_positions[0].base_asset_amount, -10000000000000000);
+            assert_eq!(
+                shorter.perp_positions[0].base_asset_amount,
+                -10000000000000000
+            );
             assert_eq!(shorter.perp_positions[0].quote_asset_amount, 97000000000);
 
             let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
@@ -2689,8 +2778,14 @@ pub mod delisting_test {
                 liquidator.perp_positions[0].base_asset_amount,
                 -10000000000000000
             );
-            assert_eq!(liquidator.perp_positions[0].quote_asset_amount, 100449990000);
-            assert_eq!(liquidator.perp_positions[0].quote_entry_amount, 120250000000);
+            assert_eq!(
+                liquidator.perp_positions[0].quote_asset_amount,
+                100449990000
+            );
+            assert_eq!(
+                liquidator.perp_positions[0].quote_entry_amount,
+                120250000000
+            );
             assert_eq!(liquidator.perp_positions[0].open_orders, 0);
 
             settle_expired_position(
