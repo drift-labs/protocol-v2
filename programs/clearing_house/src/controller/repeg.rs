@@ -99,13 +99,8 @@ pub fn update_amms(
 
     let updated = true; // todo
     for (_key, market_account_loader) in market_map.0.iter_mut() {
-        msg!("_key: {}", _key);
         let market = &mut load_mut!(market_account_loader)?;
-        msg!("market: {}", market.market_index);
-
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-        msg!("oracle: {}", oracle_price_data.price);
-
         _update_amm(market, oracle_price_data, state, now, clock_slot)?;
     }
 
@@ -146,24 +141,20 @@ pub fn _update_amm(
         return Ok(0);
     }
 
-    msg!("1");
-
     let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
 
     let mut amm_update_cost = 0;
     if curve_update_intensity > 0 {
-        msg!("2");
-
         let (optimal_peg, fee_budget, check_lower_bound) =
             repeg::calculate_optimal_peg_and_budget(market, oracle_price_data)?;
-        msg!("3");
 
+        // todo examine stack trace error
+        msg!("working");
         let (repegged_market, repegged_cost) =
             repeg::adjust_amm(market, optimal_peg, fee_budget, true)?;
-        msg!("3");
+        msg!("working2");
 
         let cost_applied = apply_cost_to_market(market, repegged_cost, check_lower_bound)?;
-        msg!("3");
 
         if cost_applied {
             market.amm.base_asset_reserve = repegged_market.amm.base_asset_reserve;
@@ -176,7 +167,6 @@ pub fn _update_amm(
             amm_update_cost = repegged_cost;
         }
     }
-    msg!("4");
 
     let is_oracle_valid = amm::is_oracle_valid(
         &market.amm,
@@ -191,7 +181,6 @@ pub fn _update_amm(
         oracle_price_data,
         Some(mark_price_after),
     )?;
-    msg!("5");
 
     if is_oracle_valid {
         market.amm.last_update_slot = clock_slot;
@@ -199,10 +188,8 @@ pub fn _update_amm(
     } else {
         market.amm.last_oracle_valid = false;
     }
-    msg!("6");
 
     update_spreads(&mut market.amm, mark_price_after)?;
-    msg!("7");
 
     Ok(amm_update_cost)
 }

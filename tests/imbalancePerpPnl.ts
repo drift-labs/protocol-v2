@@ -38,7 +38,6 @@ import {
 	createUserWithUSDCAndWSOLAccount,
 	initializeSolAssetBank,
 	printTxLogs,
-	getFeedData,
 	sleep,
 } from './testHelpers';
 import {
@@ -357,7 +356,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 				new BN(0),
 				new BN(0)
 			);
-			// await printTxLogs(connection, txSig);
+			await printTxLogs(connection, txSig);
 		} catch (e) {
 			console.log('failed clearingHouseLoserc.openPosition');
 
@@ -616,7 +615,6 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const marketIndex = new BN(0);
 		const slot = await connection.getSlot();
 		const now = await connection.getBlockTime(slot);
-		const expiryTs = new BN(now + 3);
 
 		try {
 			const txSig = await clearingHouse.updateAMMs([new BN(0)]);
@@ -648,7 +646,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 				QUOTE_PRECISION,
 				QUOTE_PRECISION
 			);
-			// await printTxLogs(connection, tx1);
+			await printTxLogs(connection, tx1);
 		} catch (e) {
 			console.error(e);
 		}
@@ -747,9 +745,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		});
 
 		//    'Program failed to complete: Access violation in stack frame 11 at address 0x20000bff0 of size 8 by instruction #88129',
-
 		const txSig = await clearingHouseLoser.placeAndTake(orderParams);
-		// await printTxLogs(connection, txSig);
+		await printTxLogs(connection, txSig);
 
 		const market1 = clearingHouse.getMarketAccount(new BN(0));
 

@@ -195,13 +195,6 @@ export function calculateNetUserImbalance(
 		BankBalanceType.DEPOSIT
 	);
 
-	console.log(
-		netUserPositionValue.toString(),
-		netUserCostBasis.toString(),
-		userEntitledPnl.toString(),
-		pnlPool.toString()
-	);
-
 	const imbalance = userEntitledPnl.sub(pnlPool);
 
 	return imbalance;

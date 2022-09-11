@@ -4,9 +4,9 @@ if [ "$1" != "--skip-build" ]
     cp target/idl/clearing_house.json sdk/src/idl/  
 fi
 
-test_files=(
-  delistMarket.ts delistMarketLiq.ts
+test_files=(  
   imbalancePerpPnl.ts
+  delistMarket.ts delistMarketLiq.ts
   liquidityProvider.ts
   insuranceFundStake.ts
   liquidateBorrow.ts

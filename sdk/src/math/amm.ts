@@ -461,14 +461,6 @@ export function calculateSpreadBN(
 		shortSpread *= MAX_INVENTORY_SKEW;
 	}
 
-	console.log(
-		'calculateSpreadBN:',
-		maxTargetSpread,
-		longSpread,
-		shortSpread,
-		lastOracleMarkSpreadPct.toNumber()
-	);
-
 	const totalSpread = longSpread + shortSpread;
 	if (totalSpread > maxTargetSpread) {
 		if (longSpread > shortSpread) {
@@ -479,13 +471,6 @@ export function calculateSpreadBN(
 			longSpread = maxTargetSpread - shortSpread;
 		}
 	}
-	console.log(
-		'calculateSpreadBN after:',
-		maxTargetSpread,
-		longSpread,
-		shortSpread,
-		lastOracleMarkSpreadPct.toNumber()
-	);
 
 	return [longSpread, shortSpread];
 }
