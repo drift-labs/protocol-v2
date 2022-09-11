@@ -432,6 +432,11 @@ pub fn settle_revenue_to_insurance_fund(
         token_amount = depositors_claim.checked_div(2).ok_or_else(math_error!())?;
     }
 
+    if spot_market.user_if_shares > 0 {
+        let capped_apr_amount = cast_to_u128(insurance_vault_amount * 10 / 365 / 24)?;
+        token_amount = token_amount.min(capped_apr_amount);
+    }
+
     let insurance_fund_token_amount = cast_to_u64(get_proportion_u128(
         token_amount,
         SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_NUMERATOR,

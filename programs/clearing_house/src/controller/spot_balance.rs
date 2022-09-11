@@ -900,8 +900,10 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(if_tokens_3 - (settle_amount as u128), 1689);
         assert_eq!(settle_amount, 625);
+        assert_eq!(spot_market.user_if_shares, 0);
+        assert_eq!(spot_market.total_if_shares, 0);
+        assert_eq!(if_tokens_3 - (settle_amount as u128), 1689);
         assert_eq!(spot_market.revenue_pool.balance, 0);
         assert_eq!(spot_market.utilization_twap, 462007);
 
@@ -1227,7 +1229,8 @@ mod test {
         )
         .unwrap();
         assert_eq!(settle_amount, 229742505997);
-
+        assert_eq!(spot_market.user_if_shares, 0);
+        assert_eq!(spot_market.total_if_shares, 0);
         if_balance_2 += settle_amount;
         assert_eq!(if_balance_2, 229742505997);
         assert_eq!(if_tokens_3 - (settle_amount as u128), 996619988395); // w/ update interest for settle_spot_market_to_if

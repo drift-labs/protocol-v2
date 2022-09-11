@@ -3432,6 +3432,7 @@ pub mod clearing_house {
             spot_market.last_revenue_settle_ts,
             spot_market.revenue_settle_period,
         )?;
+
         validate!(
             time_until_next_update == 0,
             ErrorCode::DefaultError,
