@@ -5,7 +5,7 @@ import {
 	setFeedPrice,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 	getFeedData,
 	sleep,
 } from './testHelpers';
@@ -15,7 +15,6 @@ import {
 	BASE_PRECISION,
 	BN,
 	OracleSource,
-	QUOTE_ASSET_BANK_INDEX,
 	calculateWorstCaseBaseAssetAmount,
 	calculateMarketMarginRatio,
 	AMM_TO_QUOTE_PRECISION_RATIO,
@@ -25,7 +24,11 @@ import {
 	calculatePrice,
 } from '../sdk';
 import { assert } from 'chai';
-import { MAX_LEVERAGE, PositionDirection } from '../sdk/src';
+import {
+	MAX_LEVERAGE,
+	PositionDirection,
+	QUOTE_SPOT_MARKET_INDEX,
+} from '../sdk/src';
 
 describe('User Account', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -71,14 +74,14 @@ describe('User Account', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: [new BN(0)],
-			bankIndexes: [new BN(0)],
+			perpMarketIndexes: [new BN(0)],
+			spotMarketIndexes: [new BN(0)],
 			oracleInfos: [{ publicKey: solUsdOracle, source: OracleSource.PYTH }],
 		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 		await clearingHouse.updateAuctionDuration(0, 0);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -175,7 +178,7 @@ describe('User Account', () => {
 	it('After Deposit', async () => {
 		await clearingHouse.deposit(
 			usdcAmount,
-			QUOTE_ASSET_BANK_INDEX,
+			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
 		);
 
@@ -204,9 +207,9 @@ describe('User Account', () => {
 		);
 		await clearingHouse.fetchAccounts();
 		await userAccount.fetchAccounts();
-		const marketPosition = userAccount.getUserPosition(marketIndex);
+		const PerpPosition = userAccount.getUserPosition(marketIndex);
 
-		const market = clearingHouse.getMarketAccount(marketPosition.marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(PerpPosition.marketIndex);
 
 		const oraclePrice = clearingHouse.getOracleDataForMarket(
 			market.marketIndex
@@ -242,7 +245,7 @@ describe('User Account', () => {
 		);
 
 		const worstCaseBaseAssetAmount =
-			calculateWorstCaseBaseAssetAmount(marketPosition);
+			calculateWorstCaseBaseAssetAmount(PerpPosition);
 
 		const worstCaseAssetValue = worstCaseBaseAssetAmount
 			.abs()
@@ -282,9 +285,9 @@ describe('User Account', () => {
 			ammInitialQuoteAssetAmount.mul(new BN(11)).div(new BN(10)),
 			marketIndex
 		);
-		const marketPosition = userAccount.getUserPosition(marketIndex);
+		const PerpPosition = userAccount.getUserPosition(marketIndex);
 
-		const market = clearingHouse.getMarketAccount(marketPosition.marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(PerpPosition.marketIndex);
 
 		const oraclePrice = clearingHouse.getOracleDataForMarket(
 			market.marketIndex

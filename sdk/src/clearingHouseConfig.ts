@@ -14,8 +14,8 @@ export type ClearingHouseConfig = {
 	txSenderConfig?: TxSenderConfig;
 	userIds?: number[];
 	activeUserId?: number;
-	marketIndexes?: BN[];
-	bankIndexes?: BN[];
+	perpMarketIndexes?: BN[];
+	spotMarketIndexes?: BN[];
 	oracleInfos?: OracleInfo[];
 	env?: DriftEnv;
 	userStats?: boolean;

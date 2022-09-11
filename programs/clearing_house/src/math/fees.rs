@@ -211,6 +211,74 @@ pub fn calculate_fee_for_fulfillment_with_match(
     })
 }
 
+pub struct SerumFillFees {
+    pub user_fee: u128,
+    pub fee_to_market: u128,
+    pub fee_pool_delta: i128,
+    pub filler_reward: u128,
+}
+
+pub fn calculate_fee_for_fulfillment_with_serum(
+    quote_asset_amount: u128,
+    fee_structure: &FeeStructure,
+    order_ts: i64,
+    now: i64,
+    reward_filler: bool,
+    serum_fee: u128,
+    serum_referrer_rebate: u128,
+    fee_pool_amount: u128,
+) -> ClearingHouseResult<SerumFillFees> {
+    let fee = quote_asset_amount
+        .checked_mul(fee_structure.fee_numerator)
+        .ok_or_else(math_error!())?
+        .checked_div(fee_structure.fee_denominator)
+        .ok_or_else(math_error!())?;
+
+    let serum_fee_plus_referrer_rebate = serum_fee
+        .checked_add(serum_referrer_rebate)
+        .ok_or_else(math_error!())?;
+
+    let user_fee = fee.max(serum_fee_plus_referrer_rebate);
+
+    let filler_reward = if reward_filler {
+        let user_fee_available = user_fee
+            .checked_sub(serum_fee_plus_referrer_rebate)
+            .ok_or_else(math_error!())?;
+
+        // can only pay the filler immediately if
+        // 1. there are fees already in the fee pool
+        // 2. the user_fee is greater than the serum_fee_plus_referrer_rebate
+        let available_fee = user_fee_available.max(fee_pool_amount);
+
+        calculate_filler_reward(
+            user_fee,
+            order_ts,
+            now,
+            &fee_structure.filler_reward_structure,
+        )?
+        .min(available_fee)
+    } else {
+        0
+    };
+
+    let fee_to_market = user_fee
+        .checked_sub(serum_fee)
+        .ok_or_else(math_error!())?
+        .checked_sub(filler_reward)
+        .ok_or_else(math_error!())?;
+
+    let fee_pool_delta = cast_to_i128(fee_to_market)?
+        .checked_sub(cast_to_i128(serum_referrer_rebate)?)
+        .ok_or_else(math_error!())?;
+
+    Ok(SerumFillFees {
+        user_fee,
+        fee_to_market,
+        filler_reward,
+        fee_pool_delta,
+    })
+}
+
 #[cfg(test)]
 mod test {
 
@@ -436,6 +504,160 @@ mod test {
             assert_eq!(filler_reward, 0);
             assert_eq!(referrer_reward, 10000);
             assert_eq!(referee_discount, 10000);
+        }
+    }
+
+    mod calculate_fee_for_fulfillment_with_serum {
+        use crate::math::constants::QUOTE_PRECISION;
+        use crate::math::fees::{calculate_fee_for_fulfillment_with_serum, SerumFillFees};
+        use crate::state::state::FeeStructure;
+
+        #[test]
+        fn no_filler() {
+            let quote_asset_amount = 100 * QUOTE_PRECISION;
+
+            let serum_fee = 32000_u128; // 3.2 bps
+
+            let serum_referrer_rebate = 8000_u128; // .8 bps
+
+            let fee_pool_token_amount = 0_u128;
+
+            let fee_structure = FeeStructure::default();
+
+            let SerumFillFees {
+                user_fee,
+                fee_to_market,
+                fee_pool_delta,
+                filler_reward,
+            } = calculate_fee_for_fulfillment_with_serum(
+                quote_asset_amount,
+                &fee_structure,
+                0,
+                0,
+                false,
+                serum_fee,
+                serum_referrer_rebate,
+                fee_pool_token_amount,
+            )
+            .unwrap();
+
+            assert_eq!(user_fee, 100000);
+            assert_eq!(fee_to_market, 68000);
+            assert_eq!(fee_pool_delta, 60000);
+            assert_eq!(filler_reward, 0);
+        }
+
+        #[test]
+        fn filler_reward_from_excess_user_fee() {
+            let quote_asset_amount = 100 * QUOTE_PRECISION;
+
+            let serum_fee = 32000_u128; // 3.2 bps
+
+            let serum_referrer_rebate = 8000_u128; // .8 bps
+
+            let fee_pool_token_amount = 0_u128;
+
+            let fee_structure = FeeStructure::default();
+
+            let SerumFillFees {
+                user_fee,
+                fee_to_market,
+                fee_pool_delta,
+                filler_reward,
+            } = calculate_fee_for_fulfillment_with_serum(
+                quote_asset_amount,
+                &fee_structure,
+                0,
+                0,
+                true,
+                serum_fee,
+                serum_referrer_rebate,
+                fee_pool_token_amount,
+            )
+            .unwrap();
+
+            assert_eq!(user_fee, 100000);
+            assert_eq!(fee_to_market, 58000);
+            assert_eq!(fee_pool_delta, 50000);
+            assert_eq!(filler_reward, 10000);
+        }
+
+        #[test]
+        fn filler_reward_from_fee_pool() {
+            let quote_asset_amount = 100 * QUOTE_PRECISION;
+
+            let serum_fee = 32000_u128; // 3.2 bps
+
+            let serum_referrer_rebate = 8000_u128; // .8 bps
+
+            let fee_pool_token_amount = 10000_u128;
+
+            let fee_structure = FeeStructure {
+                fee_numerator: 4,
+                fee_denominator: 10000,
+                ..FeeStructure::default()
+            };
+
+            let SerumFillFees {
+                user_fee,
+                fee_to_market,
+                fee_pool_delta,
+                filler_reward,
+            } = calculate_fee_for_fulfillment_with_serum(
+                quote_asset_amount,
+                &fee_structure,
+                0,
+                0,
+                true,
+                serum_fee,
+                serum_referrer_rebate,
+                fee_pool_token_amount,
+            )
+            .unwrap();
+
+            assert_eq!(user_fee, 40000);
+            assert_eq!(fee_to_market, 4000);
+            assert_eq!(fee_pool_delta, -4000);
+            assert_eq!(filler_reward, 4000);
+        }
+
+        #[test]
+        fn filler_reward_from_smaller_fee_pool() {
+            let quote_asset_amount = 100 * QUOTE_PRECISION;
+
+            let serum_fee = 32000_u128; // 3.2 bps
+
+            let serum_referrer_rebate = 8000_u128; // .8 bps
+
+            let fee_pool_token_amount = 2000_u128;
+
+            let fee_structure = FeeStructure {
+                fee_numerator: 4,
+                fee_denominator: 10000,
+                ..FeeStructure::default()
+            };
+
+            let SerumFillFees {
+                user_fee,
+                fee_to_market,
+                fee_pool_delta,
+                filler_reward,
+            } = calculate_fee_for_fulfillment_with_serum(
+                quote_asset_amount,
+                &fee_structure,
+                0,
+                0,
+                true,
+                serum_fee,
+                serum_referrer_rebate,
+                fee_pool_token_amount,
+            )
+            .unwrap();
+
+            assert_eq!(user_fee, 40000);
+            assert_eq!(fee_to_market, 6000);
+            assert_eq!(fee_pool_delta, -2000);
+            assert_eq!(filler_reward, 2000);
         }
     }
 }

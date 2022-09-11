@@ -15,7 +15,7 @@ use crate::math::orders::standardize_base_asset_amount;
 use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
 use crate::math::quote_asset::reserve_to_asset_amount;
 use crate::math_error;
-use crate::state::market::{Market, AMM};
+use crate::state::market::{PerpMarket, AMM};
 use crate::state::oracle::OraclePriceData;
 use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
 use crate::validate;
@@ -60,7 +60,7 @@ pub fn calculate_bid_ask_bounds(sqrt_k: u128) -> ClearingHouseResult<(u128, u128
     Ok((bid_bounded_base, ask_bounded_base))
 }
 
-pub fn calculate_terminal_price(market: &mut Market) -> ClearingHouseResult<u128> {
+pub fn calculate_terminal_price(market: &mut PerpMarket) -> ClearingHouseResult<u128> {
     let swap_direction = if market.amm.net_base_asset_amount > 0 {
         SwapDirection::Add
     } else {
@@ -1076,7 +1076,7 @@ pub fn is_oracle_valid(
 }
 
 pub fn calculate_budgeted_k_scale(
-    market: &mut Market,
+    market: &mut PerpMarket,
     budget: i128,
     increase_max: i128,
 ) -> ClearingHouseResult<(u128, u128)> {
@@ -1253,7 +1253,7 @@ pub fn _calculate_budgeted_k_scale(
 /// Increasing k costs the protocol money because it reduces slippage and improves the exit price for net market position
 /// Decreasing k costs the protocol money because it increases slippage and hurts the exit price for net market position
 pub fn adjust_k_cost(
-    market: &mut Market,
+    market: &mut PerpMarket,
     update_k_result: &UpdateKResult,
 ) -> ClearingHouseResult<i128> {
     let mut market_clone = *market;
@@ -1282,7 +1282,7 @@ pub fn adjust_k_cost(
 /// Increasing k costs the protocol money because it reduces slippage and improves the exit price for net market position
 /// Decreasing k costs the protocol money because it increases slippage and hurts the exit price for net market position
 pub fn adjust_k_cost_and_update(
-    market: &mut Market,
+    market: &mut PerpMarket,
     update_k_result: &UpdateKResult,
 ) -> ClearingHouseResult<i128> {
     // Find the net market value before adjusting k
@@ -1308,7 +1308,7 @@ pub struct UpdateKResult {
 }
 
 pub fn get_update_k_result(
-    market: &Market,
+    market: &PerpMarket,
     new_sqrt_k: bn::U192,
     bound_update: bool,
 ) -> ClearingHouseResult<UpdateKResult> {
@@ -1371,7 +1371,7 @@ pub fn get_update_k_result(
     })
 }
 
-pub fn update_k(market: &mut Market, update_k_result: &UpdateKResult) -> ClearingHouseResult {
+pub fn update_k(market: &mut PerpMarket, update_k_result: &UpdateKResult) -> ClearingHouseResult {
     market.amm.base_asset_reserve = update_k_result.base_asset_reserve;
     market.amm.quote_asset_reserve = update_k_result.quote_asset_reserve;
     market.amm.sqrt_k = update_k_result.sqrt_k;
@@ -1557,7 +1557,7 @@ mod test {
     use crate::controller::lp::mint_lp_shares;
     use crate::controller::lp::settle_lp_position;
     use crate::math::constants::{K_BPS_INCREASE_MAX, MARK_PRICE_PRECISION, QUOTE_PRECISION_I128};
-    use crate::state::user::MarketPosition;
+    use crate::state::user::PerpPosition;
 
     #[test]
     fn calculate_settlement_price_test() {
@@ -1604,14 +1604,14 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
-        let market_position = MarketPosition {
+        let market_position = PerpPosition {
             market_index: 0,
             base_asset_amount: -(122950819670000 / 2_i128),
             quote_asset_amount: 153688524588, // $25,000 entry price
-            ..MarketPosition::default()
+            ..PerpPerpPosition::default()
         };
 
-        let market = Market {
+        let market = PerpMarket {
             market_index: 0,
             amm: AMM {
                 base_asset_reserve: 5122950819670000,
@@ -1629,7 +1629,7 @@ mod test {
             imf_factor: 1000, // 1_000/1_000_000 = .001
             unrealized_initial_asset_weight: 100,
             unrealized_maintenance_asset_weight: 100,
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         let mut settlement_price =
@@ -2096,9 +2096,9 @@ mod test {
             quote_asset_reserve: init_reserves,
             ..AMM::default()
         };
-        let market = Market {
+        let market = PerpMarket {
             amm,
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         let new_sqrt_k = U192::from(AMM_RESERVE_PRECISION);
@@ -2362,7 +2362,7 @@ mod test {
 
     #[test]
     fn calculate_k_tests() {
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 5122950819670000,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
@@ -2371,7 +2371,7 @@ mod test {
                 net_base_asset_amount: -122950819670000,
                 ..AMM::default()
             },
-            ..Market::default()
+            ..PerpMarket::default()
         };
         // increase k by .25%
         let update_k_up =
@@ -2492,7 +2492,7 @@ mod test {
 
     #[test]
     fn calculate_k_tests_wrapper_fcn() {
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: AMM_RESERVE_PRECISION * 55414,
                 quote_asset_reserve: AMM_RESERVE_PRECISION * 55530,
@@ -2501,7 +2501,7 @@ mod test {
                 net_base_asset_amount: (AMM_RESERVE_PRECISION * 66) as i128,
                 ..AMM::default()
             },
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         let (numer1, denom1) = calculate_budgeted_k_scale(
@@ -2521,7 +2521,7 @@ mod test {
 
     #[test]
     fn calculate_k_with_lps_tests() {
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -2535,21 +2535,21 @@ mod test {
             },
             margin_ratio_initial: 1000,
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 10) as i128,
-            ..Market::default()
+            ..PerpMarket::default()
         };
         // let (t_price, _t_qar, _t_bar) = calculate_terminal_price_and_reserves(&market.amm).unwrap();
         // market.amm.terminal_quote_asset_reserve = _t_qar;
 
-        let mut position = MarketPosition {
-            ..MarketPosition::default()
+        let mut position = PerpPosition {
+            ..PerpPosition::default()
         };
 
         mint_lp_shares(&mut position, &mut market, AMM_RESERVE_PRECISION, 0).unwrap();
 
-        market.amm.market_position_per_lp = MarketPosition {
+        market.amm.market_position_per_lp = PerpPosition {
             base_asset_amount: 1,
             quote_asset_amount: -QUOTE_PRECISION_I128,
-            ..MarketPosition::default()
+            ..PerpPosition::default()
         };
 
         let mark_price = market.amm.mark_price().unwrap();

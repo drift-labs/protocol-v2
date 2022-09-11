@@ -3,10 +3,13 @@ use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
 use crate::math::amm::calculate_price;
 use crate::math::casting::cast;
-use crate::math::constants::MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO;
+use crate::math::constants::{
+    BID_ASK_SPREAD_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
+};
 use crate::math::position::calculate_entry_price;
 use crate::math_error;
-use crate::state::market::Market;
+use crate::state::market::PerpMarket;
+use crate::state::oracle::OraclePriceData;
 use crate::state::user::Order;
 use solana_program::msg;
 use std::cmp::min;
@@ -14,7 +17,7 @@ use std::cmp::min;
 /// for bid (direction == Long), the auction start price is based on the bid reserves
 /// for ask (direction == Short), the auction start price is based on the ask reserves
 pub fn calculate_auction_start_price(
-    market: &Market,
+    market: &PerpMarket,
     direction: PositionDirection,
 ) -> ClearingHouseResult<u128> {
     let (base_asset_reserves, quote_asset_reserves) = match direction {
@@ -38,7 +41,7 @@ pub fn calculate_auction_start_price(
 }
 
 pub fn calculate_auction_end_price(
-    market: &Market,
+    market: &PerpMarket,
     direction: PositionDirection,
     base_asset_amount: u128,
 ) -> ClearingHouseResult<u128> {
@@ -53,6 +56,26 @@ pub fn calculate_auction_end_price(
     let auction_end_price = calculate_entry_price(quote_asset_amount, base_asset_amount)?;
 
     Ok(auction_end_price)
+}
+
+pub fn calculate_spot_auction_end_price(
+    oracle_price: &OraclePriceData,
+    direction: PositionDirection,
+) -> ClearingHouseResult<u128> {
+    let numerator = match direction {
+        PositionDirection::Long => {
+            BID_ASK_SPREAD_PRECISION + BID_ASK_SPREAD_PRECISION / 100 // 1%
+        }
+        PositionDirection::Short => BID_ASK_SPREAD_PRECISION - BID_ASK_SPREAD_PRECISION / 100,
+    };
+
+    oracle_price
+        .price
+        .unsigned_abs()
+        .checked_mul(numerator)
+        .ok_or_else(math_error!())?
+        .checked_div(BID_ASK_SPREAD_PRECISION)
+        .ok_or_else(math_error!())
 }
 
 pub fn calculate_auction_price(order: &Order, slot: u64) -> ClearingHouseResult<u128> {

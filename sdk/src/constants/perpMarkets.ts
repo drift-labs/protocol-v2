@@ -2,7 +2,7 @@ import { BN, OracleSource } from '../';
 import { DriftEnv } from '../';
 import { PublicKey } from '@solana/web3.js';
 
-export type MarketConfig = {
+export type PerpMarketConfig = {
 	fullName?: string;
 	category?: string[];
 	symbol: string;
@@ -13,7 +13,7 @@ export type MarketConfig = {
 	oracleSource: OracleSource;
 };
 
-export const DevnetMarkets: MarketConfig[] = [
+export const DevnetPerpMarkets: PerpMarketConfig[] = [
 	{
 		fullName: 'Solana',
 		category: ['L1', 'Infra'],
@@ -46,9 +46,9 @@ export const DevnetMarkets: MarketConfig[] = [
 	},
 ];
 
-export const MainnetMarkets: MarketConfig[] = [];
+export const MainnetMarkets: PerpMarketConfig[] = [];
 
-export const Markets: { [key in DriftEnv]: MarketConfig[] } = {
-	devnet: DevnetMarkets,
+export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
+	devnet: DevnetPerpMarkets,
 	'mainnet-beta': [],
 };

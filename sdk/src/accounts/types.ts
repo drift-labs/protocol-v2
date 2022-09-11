@@ -1,6 +1,6 @@
 import {
-	BankAccount,
-	MarketAccount,
+	SpotMarketAccount,
+	PerpMarketAccount,
 	OracleSource,
 	StateAccount,
 	UserAccount,
@@ -26,8 +26,8 @@ export class NotSubscribedError extends Error {
 
 export interface ClearingHouseAccountEvents {
 	stateAccountUpdate: (payload: StateAccount) => void;
-	marketAccountUpdate: (payload: MarketAccount) => void;
-	bankAccountUpdate: (payload: BankAccount) => void;
+	perpMarketAccountUpdate: (payload: PerpMarketAccount) => void;
+	spotMarketAccountUpdate: (payload: SpotMarketAccount) => void;
 	oraclePriceUpdate: (publicKey: PublicKey, data: OraclePriceData) => void;
 	userAccountUpdate: (payload: UserAccount) => void;
 	update: void;
@@ -42,16 +42,18 @@ export interface ClearingHouseAccountSubscriber {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	addMarket(marketIndex: BN): Promise<boolean>;
-	addBank(bankIndex: BN): Promise<boolean>;
+	addPerpMarket(marketIndex: BN): Promise<boolean>;
+	addSpotMarket(marketIndex: BN): Promise<boolean>;
 	addOracle(oracleInfo: OracleInfo): Promise<boolean>;
 
 	getStateAccountAndSlot(): DataAndSlot<StateAccount>;
 	getMarketAccountAndSlot(
 		marketIndex: BN
-	): DataAndSlot<MarketAccount> | undefined;
-	getMarketAccountsAndSlots(): DataAndSlot<MarketAccount>[];
-	getBankAccountAndSlot(bankIndex: BN): DataAndSlot<BankAccount> | undefined;
+	): DataAndSlot<PerpMarketAccount> | undefined;
+	getMarketAccountsAndSlots(): DataAndSlot<PerpMarketAccount>[];
+	getSpotMarketAccountAndSlot(
+		marketIndex: BN
+	): DataAndSlot<SpotMarketAccount> | undefined;
 	getOraclePriceDataAndSlot(
 		oraclePublicKey: PublicKey
 	): DataAndSlot<OraclePriceData> | undefined;

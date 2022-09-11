@@ -7,6 +7,7 @@ fi
 test_files=(  
   imbalancePerpPnl.ts
   delistMarket.ts delistMarketLiq.ts
+  serumTest.ts
   liquidityProvider.ts
   insuranceFundStake.ts
   liquidateBorrow.ts

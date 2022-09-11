@@ -213,13 +213,13 @@ async function crank(mock = true, actions = ['liq'], chProgram?) {
 		);
 		console.log('openPos Success');
 
-		const marketPosition = userAccount.userPositionsAccount.positions[0];
-		console.log(marketPosition, marketIndex);
-		assert(marketIndex.eq(marketPosition.marketIndex));
-		const liqPrice = userAccount.liquidationPrice(marketPosition, 'mid');
+		const PerpPosition = userAccount.userPositionsAccount.perp_positions[0];
+		console.log(PerpPosition, marketIndex);
+		assert(marketIndex.eq(PerpPosition.marketIndex));
+		const liqPrice = userAccount.liquidationPrice(PerpPosition, 'mid');
 
 		if (liqPrice.gt(new BN(0))) {
-			await clearingHouse.moveAmmToPrice(marketPosition.marketIndex, liqPrice);
+			await clearingHouse.moveAmmToPrice(PerpPosition.marketIndex, liqPrice);
 			console.log('movePos Success');
 		}
 

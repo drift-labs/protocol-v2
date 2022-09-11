@@ -309,7 +309,9 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 		await clearingHouse.fetchAccounts();
 		const userAccount = clearingHouse.getUserAccount();
-		assert(userAccount.positions[0].baseAssetAmount.abs().eq(BASE_PRECISION));
+		assert(
+			userAccount.perp_positions[0].baseAssetAmount.abs().eq(BASE_PRECISION)
+		);
 
 		const marketAccount = clearingHouse.getMarketAccount(0);
 		assert(marketAccount.amm.totalFee.gt(ZERO));
@@ -528,19 +530,19 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		let market0 = clearingHouse.getMarketAccount(new BN(0));
 		const winnerUser = clearingHouse.getUserAccount();
 		const loserUser = clearingHouseLoser.getUserAccount();
-		console.log(winnerUser.positions[0].quoteAssetAmount.toString());
-		console.log(loserUser.positions[0].quoteAssetAmount.toString());
+		console.log(winnerUser.perp_positions[0].quoteAssetAmount.toString());
+		console.log(loserUser.perp_positions[0].quoteAssetAmount.toString());
 
 		// TODO: quoteAssetAmountShort!= sum of users
 		assert(
 			market0.amm.quoteAssetAmountShort.eq(
-				winnerUser.positions[0].quoteAssetAmount
+				winnerUser.perp_positions[0].quoteAssetAmount
 			)
 		);
 
 		assert(
 			market0.amm.quoteAssetAmountLong.eq(
-				loserUser.positions[0].quoteAssetAmount
+				loserUser.perp_positions[0].quoteAssetAmount
 			)
 		);
 		const oraclePriceData0 = clearingHouse.getOracleDataForMarket(
@@ -861,9 +863,9 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	// it('liq and settle expired market position', async () => {
 	// 	const marketIndex = new BN(0);
 	// 	const loserUser0 = clearingHouseLoser.getUserAccount();
-	// 	assert(loserUser0.positions[0].baseAssetAmount.gt(new BN(0)));
-	// 	assert(loserUser0.positions[0].quoteAssetAmount.lt(new BN(0)));
-	// 	// console.log(loserUser0.positions[0]);
+	// 	assert(loserUser0.perp_positions[0].baseAssetAmount.gt(new BN(0)));
+	// 	assert(loserUser0.perp_positions[0].quoteAssetAmount.lt(new BN(0)));
+	// 	// console.log(loserUser0.perp_positions[0]);
 
 	// 	const liquidatorClearingHouseUser = new ClearingHouseUser({
 	// 		clearingHouse: liquidatorClearingHouse,
@@ -927,9 +929,9 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 	// 	await clearingHouseLoser.fetchAccounts();
 	// 	const loserUser = clearingHouseLoser.getUserAccount();
-	// 	// console.log(loserUser.positions[0]);
-	// 	assert(loserUser.positions[0].baseAssetAmount.eq(new BN(0)));
-	// 	assert(loserUser.positions[0].quoteAssetAmount.eq(new BN(0)));
+	// 	// console.log(loserUser.perp_positions[0]);
+	// 	assert(loserUser.perp_positions[0].baseAssetAmount.eq(new BN(0)));
+	// 	assert(loserUser.perp_positions[0].quoteAssetAmount.eq(new BN(0)));
 	// 	const marketAfter0 = clearingHouse.getMarketAccount(marketIndex);
 
 	// 	const finalPnlResultMin0 = new BN(1415296436 - 11090);

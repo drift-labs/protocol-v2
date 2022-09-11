@@ -14,7 +14,7 @@ import { OracleSource } from '../sdk';
 import {
 	mockOracle,
 	mockUSDCMint,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 } from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
 
@@ -42,14 +42,14 @@ describe('admin', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: [new BN(0)],
-			bankIndexes: [new BN(0)],
+			perpMarketIndexes: [new BN(0)],
+			spotMarketIndexes: [new BN(0)],
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const solUsd = await mockOracle(1);
@@ -65,15 +65,15 @@ describe('admin', () => {
 
 	it('Update Amm Jit', async () => {
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getMarketAccount(0).amm.ammJitIntensity == 0);
+		assert(clearingHouse.getPerpMarketAccount(0).amm.ammJitIntensity == 0);
 
 		await clearingHouse.updateAmmJitIntensity(new BN(0), 100);
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getMarketAccount(0).amm.ammJitIntensity == 100);
+		assert(clearingHouse.getPerpMarketAccount(0).amm.ammJitIntensity == 100);
 
 		await clearingHouse.updateAmmJitIntensity(new BN(0), 50);
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getMarketAccount(0).amm.ammJitIntensity == 50);
+		assert(clearingHouse.getPerpMarketAccount(0).amm.ammJitIntensity == 50);
 	});
 
 	it('Update Margin Ratio', async () => {
@@ -87,7 +87,7 @@ describe('admin', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		const market = clearingHouse.getMarketAccount(0);
+		const market = clearingHouse.getPerpMarketAccount(0);
 
 		assert(market.marginRatioInitial === marginRatioInitial);
 		assert(market.marginRatioMaintenance === marginRatioMaintenance);
@@ -213,7 +213,7 @@ describe('admin', () => {
 		const state = clearingHouse.getStateAccount();
 
 		assert(
-			JSON.stringify(newFeeStructure) === JSON.stringify(state.feeStructure)
+			JSON.stringify(newFeeStructure) === JSON.stringify(state.perpFeeStructure)
 		);
 	});
 
@@ -231,7 +231,7 @@ describe('admin', () => {
 		assert(
 			JSON.stringify(newStructure) ===
 				JSON.stringify(
-					clearingHouse.getStateAccount().feeStructure.fillerRewardStructure
+					clearingHouse.getStateAccount().perpFeeStructure.fillerRewardStructure
 				)
 		);
 	});
@@ -294,7 +294,7 @@ describe('admin', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		const market = clearingHouse.getMarketAccount(0);
+		const market = clearingHouse.getPerpMarketAccount(0);
 		assert(market.amm.oracle.equals(PublicKey.default));
 		assert(
 			JSON.stringify(market.amm.oracleSource) ===
@@ -311,7 +311,7 @@ describe('admin', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		const market = clearingHouse.getMarketAccount(0);
+		const market = clearingHouse.getPerpMarketAccount(0);
 		assert(market.amm.minimumQuoteAssetTradeSize.eq(minimumTradeSize));
 	});
 
@@ -324,7 +324,7 @@ describe('admin', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		const market = clearingHouse.getMarketAccount(0);
+		const market = clearingHouse.getPerpMarketAccount(0);
 		assert(market.amm.baseAssetAmountStepSize.eq(stepSize));
 	});
 

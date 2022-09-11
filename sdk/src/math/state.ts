@@ -8,7 +8,7 @@ import { StateAccount } from '../types';
  */
 export function getExchangeFee(state: StateAccount): number {
 	const exchangeFee =
-		state.feeStructure.feeNumerator.toNumber() /
-		state.feeStructure.feeDenominator.toNumber();
+		state.perpFeeStructure.feeNumerator.toNumber() /
+		state.perpFeeStructure.feeDenominator.toNumber();
 	return exchangeFee;
 }

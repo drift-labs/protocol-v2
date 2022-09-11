@@ -19,7 +19,7 @@ import {
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 	createFundedKeyPair,
 	createUserWithUSDCAccount,
 } from './testHelpers';
@@ -79,7 +79,7 @@ describe('referrer', () => {
 		solOracle = await mockOracle(100);
 
 		const marketIndexes = [new BN(0)];
-		const bankIndexes = [new BN(0)];
+		const spotMarketIndexes = [new BN(0)];
 		const oracleInfos = [
 			{
 				publicKey: solOracle,
@@ -94,8 +94,8 @@ describe('referrer', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 			userStats: true,
 		});
@@ -114,7 +114,7 @@ describe('referrer', () => {
 			new BN(100).mul(PEG_PRECISION)
 		);
 
-		await initializeQuoteAssetBank(referrerClearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(referrerClearingHouse, usdcMint.publicKey);
 
 		await referrerClearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -137,8 +137,8 @@ describe('referrer', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 			userStats: true,
 		});
@@ -150,7 +150,7 @@ describe('referrer', () => {
 			chProgram,
 			usdcAmount,
 			marketIndexes,
-			bankIndexes,
+			spotMarketIndexes,
 			oracleInfos
 		);
 	});
@@ -217,7 +217,7 @@ describe('referrer', () => {
 		assert(referrerStats.totalReferrerReward.eq(new BN(5000)));
 
 		const referrerPosition = referrerClearingHouse.getUser().getUserAccount()
-			.positions[0];
+			.perpPositions[0];
 		assert(referrerPosition.quoteAssetAmount.eq(new BN(5000)));
 
 		const refereeStats = refereeClearingHouse.getUserStats().getAccount();

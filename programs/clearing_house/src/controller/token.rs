@@ -1,3 +1,4 @@
+use crate::signer::get_signer_seeds;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
@@ -9,10 +10,7 @@ pub fn send_from_program_vault<'info>(
     nonce: u8,
     amount: u64,
 ) -> Result<()> {
-    let signature_seeds = [
-        b"clearing_house_signer".as_ref(),
-        bytemuck::bytes_of(&nonce),
-    ];
+    let signature_seeds = get_signer_seeds(&nonce);
     let signers = &[&signature_seeds[..]];
     let cpi_accounts = Transfer {
         from: from.to_account_info().clone(),

@@ -14,9 +14,9 @@ use crate::math::margin::{
     MarginRequirementType,
 };
 use crate::math_error;
-use crate::state::bank::{BankBalance, BankBalanceType};
 use crate::state::oracle::{OraclePriceData, OracleSource};
-use crate::state::user::MarketPosition;
+use crate::state::spot_market::{SpotBalance, SpotBalanceType};
+use crate::state::user::PerpPosition;
 use crate::{
     AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, MARGIN_PRECISION, MARK_PRICE_PRECISION,
 };
@@ -51,7 +51,7 @@ impl Default for ContractType {
 #[account(zero_copy)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(packed)]
-pub struct Market {
+pub struct PerpMarket {
     pub market_index: u64,
     pub pubkey: Pubkey,
     pub status: MarketStatus,
@@ -87,7 +87,7 @@ pub struct Market {
     pub padding4: u128,
 }
 
-impl Market {
+impl PerpMarket {
     pub fn get_margin_ratio(
         &self,
         size: u128,
@@ -109,24 +109,35 @@ impl Market {
         Ok(margin_ratio as u32)
     }
 
+    pub fn get_initial_leverage_ratio(&self, margin_type: MarginRequirementType) -> u128 {
+        match margin_type {
+            MarginRequirementType::Initial => {
+                MARGIN_PRECISION * MARGIN_PRECISION / self.margin_ratio_initial as u128
+            }
+            MarginRequirementType::Maintenance => {
+                MARGIN_PRECISION * MARGIN_PRECISION / self.margin_ratio_maintenance as u128
+            }
+        }
+    }
+
     pub fn default_test() -> Self {
         let amm = AMM::default_test();
-        Market {
+        PerpMarket {
             amm,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            ..Market::default()
+            ..PerpMarket::default()
         }
     }
 
     pub fn default_btc_test() -> Self {
         let amm = AMM::default_btc_test();
-        Market {
+        PerpMarket {
             amm,
             margin_ratio_initial: 1000,    // 10x
             margin_ratio_maintenance: 500, // 5x
-            status: MarketStatus::Initialized,
-            ..Market::default()
+            status: MarketStatus::Initialized,   
+            ..PerpMarket::default()
         }
     }
 
@@ -201,9 +212,9 @@ pub struct PoolBalance {
     pub balance: u128,
 }
 
-impl BankBalance for PoolBalance {
-    fn balance_type(&self) -> &BankBalanceType {
-        &BankBalanceType::Deposit
+impl SpotBalance for PoolBalance {
+    fn balance_type(&self) -> &SpotBalanceType {
+        &SpotBalanceType::Deposit
     }
 
     fn balance(&self) -> u128 {
@@ -220,7 +231,7 @@ impl BankBalance for PoolBalance {
         Ok(())
     }
 
-    fn update_balance_type(&mut self, _balance_type: BankBalanceType) -> ClearingHouseResult {
+    fn update_balance_type(&mut self, _balance_type: SpotBalanceType) -> ClearingHouseResult {
         Err(ErrorCode::CantUpdatePoolBalanceType)
     }
 }
@@ -259,7 +270,7 @@ pub struct AMM {
     pub net_unsettled_lp_base_asset_amount: i128,
     pub lp_cooldown_time: i64,
     pub user_lp_shares: u128,
-    pub market_position_per_lp: MarketPosition,
+    pub market_position_per_lp: PerpPosition,
     pub amm_jit_intensity: u8,
 
     // funding
@@ -286,7 +297,7 @@ pub struct AMM {
     pub base_asset_amount_step_size: u128,
 
     // market making
-    pub market_position: MarketPosition,
+    pub market_position: PerpPosition,
     pub base_spread: u16,
     pub long_spread: u128,
     pub short_spread: u128,

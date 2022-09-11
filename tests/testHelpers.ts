@@ -21,8 +21,8 @@ import buffer from 'buffer';
 import { BN, Wallet, OraclePriceData, OracleInfo } from '../sdk';
 import {
 	Admin,
-	BANK_RATE_PRECISION,
-	BANK_WEIGHT_PRECISION,
+	SPOT_MARKET_RATE_PRECISION,
+	SPOT_MARKET_WEIGHT_PRECISION,
 	MARK_PRICE_PRECISION,
 	QUOTE_PRECISION,
 	ClearingHouse,
@@ -220,8 +220,8 @@ export async function initializeAndSubscribeClearingHouse(
 			commitment: 'confirmed',
 		},
 		activeUserId: 0,
-		marketIndexes,
-		bankIndexes,
+		perpMarketIndexes: marketIndexes,
+		spotMarketIndexes: bankIndexes,
 		oracleInfos,
 	});
 	await clearingHouse.subscribe();
@@ -394,8 +394,8 @@ export async function initUserAccounts(
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: bankIndexes,
 			oracleInfos,
 		});
 
@@ -767,21 +767,21 @@ export async function getTokenAmountAsBN(
 	);
 }
 
-export async function initializeQuoteAssetBank(
+export async function initializeQuoteSpotMarket(
 	admin: Admin,
 	usdcMint: PublicKey
 ): Promise<void> {
-	const optimalUtilization = BANK_RATE_PRECISION.div(new BN(2)); // 50% utilization
-	const optimalRate = BANK_RATE_PRECISION;
-	const maxRate = BANK_RATE_PRECISION;
-	const initialAssetWeight = BANK_WEIGHT_PRECISION;
-	const maintenanceAssetWeight = BANK_WEIGHT_PRECISION;
-	const initialLiabilityWeight = BANK_WEIGHT_PRECISION;
-	const maintenanceLiabilityWeight = BANK_WEIGHT_PRECISION;
+	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(new BN(2)); // 50% utilization
+	const optimalRate = SPOT_MARKET_RATE_PRECISION;
+	const maxRate = SPOT_MARKET_RATE_PRECISION;
+	const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION;
+	const maintenanceAssetWeight = SPOT_MARKET_WEIGHT_PRECISION;
+	const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION;
+	const maintenanceLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION;
 	const imfFactor = new BN(0);
-	const bankIndex = admin.getStateAccount().numberOfBanks;
+	const marketIndex = admin.getStateAccount().numberOfSpotMarkets;
 
-	await admin.initializeBank(
+	await admin.initializeSpotMarket(
 		usdcMint,
 		optimalUtilization,
 		optimalRate,
@@ -794,34 +794,34 @@ export async function initializeQuoteAssetBank(
 		maintenanceLiabilityWeight,
 		imfFactor
 	);
-	await admin.updateBankWithdrawGuardThreshold(
-		bankIndex,
+	await admin.updateWithdrawGuardThreshold(
+		marketIndex,
 		new BN(10 ** 10).mul(QUOTE_PRECISION)
 	);
 }
 
-export async function initializeSolAssetBank(
+export async function initializeSolSpotMarket(
 	admin: Admin,
 	solOracle: PublicKey
-): Promise<void> {
-	const optimalUtilization = BANK_RATE_PRECISION.div(new BN(2)); // 50% utilization
-	const optimalRate = BANK_RATE_PRECISION.mul(new BN(20)); // 2000% APR
-	const maxRate = BANK_RATE_PRECISION.mul(new BN(50)); // 5000% APR
-	const initialAssetWeight = BANK_WEIGHT_PRECISION.mul(new BN(8)).div(
+): Promise<string> {
+	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(new BN(2)); // 50% utilization
+	const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)); // 2000% APR
+	const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(50)); // 5000% APR
+	const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(new BN(8)).div(
 		new BN(10)
 	);
-	const maintenanceAssetWeight = BANK_WEIGHT_PRECISION.mul(new BN(9)).div(
-		new BN(10)
-	);
-	const initialLiabilityWeight = BANK_WEIGHT_PRECISION.mul(new BN(12)).div(
-		new BN(10)
-	);
-	const maintenanceLiabilityWeight = BANK_WEIGHT_PRECISION.mul(new BN(11)).div(
-		new BN(10)
-	);
-	const bankIndex = admin.getStateAccount().numberOfBanks;
+	const maintenanceAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(
+		new BN(9)
+	).div(new BN(10));
+	const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(
+		new BN(12)
+	).div(new BN(10));
+	const maintenanceLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(
+		new BN(11)
+	).div(new BN(10));
+	const marketIndex = admin.getStateAccount().numberOfSpotMarkets;
 
-	await admin.initializeBank(
+	const txSig = await admin.initializeSpotMarket(
 		NATIVE_MINT,
 		optimalUtilization,
 		optimalRate,
@@ -833,8 +833,9 @@ export async function initializeSolAssetBank(
 		initialLiabilityWeight,
 		maintenanceLiabilityWeight
 	);
-	await admin.updateBankWithdrawGuardThreshold(
-		bankIndex,
+	await admin.updateWithdrawGuardThreshold(
+		marketIndex,
 		new BN(10 ** 10).mul(QUOTE_PRECISION)
 	);
+	return txSig;
 }

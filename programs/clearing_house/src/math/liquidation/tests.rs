@@ -42,17 +42,17 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
 
 mod calculate_liability_transfer_to_cover_margin_shortage {
     use crate::math::constants::{
-        BANK_WEIGHT_PRECISION, LIQUIDATION_FEE_PRECISION, MARK_PRICE_PRECISION_I128,
-        QUOTE_PRECISION,
+        LIQUIDATION_FEE_PRECISION, MARK_PRICE_PRECISION_I128, QUOTE_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::math::liquidation::calculate_liability_transfer_to_cover_margin_shortage;
 
     #[test]
     pub fn zero_asset_and_liability_fee() {
         let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
-        let asset_weight = 8 * BANK_WEIGHT_PRECISION / 10; // .8
+        let asset_weight = 8 * SPOT_WEIGHT_PRECISION / 10; // .8
         let asset_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
-        let liability_weight = 12 * BANK_WEIGHT_PRECISION / 10; // 1.2
+        let liability_weight = 12 * SPOT_WEIGHT_PRECISION / 10; // 1.2
         let liability_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
         let liability_decimals = 9;
         let liability_price = 100 * MARK_PRICE_PRECISION_I128;
@@ -74,9 +74,9 @@ mod calculate_liability_transfer_to_cover_margin_shortage {
     #[test]
     pub fn one_percent_asset_and_liability_fee() {
         let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
-        let asset_weight = 8 * BANK_WEIGHT_PRECISION / 10; // .8
+        let asset_weight = 8 * SPOT_WEIGHT_PRECISION / 10; // .8
         let asset_liquidation_multiplier = 110 * LIQUIDATION_FEE_PRECISION / 100;
-        let liability_weight = 12 * BANK_WEIGHT_PRECISION / 10; // 1.2
+        let liability_weight = 12 * SPOT_WEIGHT_PRECISION / 10; // 1.2
         let liability_liquidation_multiplier = 90 * LIQUIDATION_FEE_PRECISION / 100;
         let liability_decimals = 9;
         let liability_price = 100 * MARK_PRICE_PRECISION_I128;
@@ -209,15 +209,15 @@ mod calculate_asset_transfer_for_liability_transfer {
 mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
     use crate::math::constants::{BASE_PRECISION_I128, QUOTE_PRECISION_I128};
     use crate::math::liquidation::calculate_funding_rate_deltas_to_resolve_bankruptcy;
-    use crate::state::market::Market;
+    use crate::state::market::PerpMarket;
 
     #[test]
     fn total_base_asset_amount_is_zero() {
         let loss = -QUOTE_PRECISION_I128;
-        let market = Market {
+        let market = PerpMarket {
             base_asset_amount_long: 0,
             base_asset_amount_short: 0,
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         let cumulative_funding_rate_delta =
@@ -229,10 +229,10 @@ mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
     #[test]
     fn total_base_asset_amount_not_zero() {
         let loss = -100 * QUOTE_PRECISION_I128;
-        let market = Market {
+        let market = PerpMarket {
             base_asset_amount_long: 7 * BASE_PRECISION_I128,
             base_asset_amount_short: -4 * BASE_PRECISION_I128,
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         let cumulative_funding_rate_delta =
@@ -244,22 +244,23 @@ mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
 
 mod calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy {
     use crate::math::constants::{
-        BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION, QUOTE_PRECISION,
+        QUOTE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
     };
     use crate::math::liquidation::calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy;
-    use crate::state::bank::Bank;
+    use crate::state::spot_market::SpotMarket;
 
     #[test]
     fn zero_total_deposits() {
         let loss = 100 * QUOTE_PRECISION;
-        let bank = Bank {
+        let spot_market = SpotMarket {
             deposit_balance: 0,
-            cumulative_deposit_interest: 1111 * BANK_CUMULATIVE_INTEREST_PRECISION / 1000,
-            ..Bank::default()
+            cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+            ..SpotMarket::default()
         };
 
         let delta =
-            calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(loss, &bank).unwrap();
+            calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(loss, &spot_market)
+                .unwrap();
 
         assert_eq!(delta, 0);
     }
@@ -267,15 +268,16 @@ mod calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy {
     #[test]
     fn non_zero_total_deposits() {
         let loss = 11 * QUOTE_PRECISION;
-        let bank = Bank {
-            deposit_balance: 120 * BANK_INTEREST_PRECISION,
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+        let spot_market = SpotMarket {
+            deposit_balance: 120 * SPOT_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
-            ..Bank::default()
+            ..SpotMarket::default()
         };
 
         let delta =
-            calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(loss, &bank).unwrap();
+            calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(loss, &spot_market)
+                .unwrap();
 
         assert_eq!(delta, 916666666);
     }

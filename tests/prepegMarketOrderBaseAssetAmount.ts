@@ -38,7 +38,7 @@ import {
 	mockUSDCMint,
 	setFeedPrice,
 	getOraclePriceData,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 } from './testHelpers';
 
 describe('prepeg', () => {
@@ -68,7 +68,7 @@ describe('prepeg', () => {
 	const usdcAmount = new BN(10000 * 10 ** 6);
 
 	let marketIndexes;
-	let bankIndexes;
+	let spotMarketIndexes;
 	let oracleInfos;
 	let solUsd;
 	const mockOracles = [];
@@ -85,7 +85,7 @@ describe('prepeg', () => {
 			mockOracles.push(thisUsd);
 		}
 
-		bankIndexes = [new BN(0)];
+		spotMarketIndexes = [new BN(0)];
 		marketIndexes = mockOracles.map((_, i) => new BN(i));
 		oracleInfos = mockOracles.map((oracle) => {
 			return { publicKey: oracle, source: OracleSource.PYTH };
@@ -99,8 +99,8 @@ describe('prepeg', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 
@@ -108,7 +108,7 @@ describe('prepeg', () => {
 		await clearingHouse.updateAuctionDuration(0, 0);
 
 		await clearingHouse.subscribe();
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		await clearingHouse.initializeMarket(
@@ -163,7 +163,7 @@ describe('prepeg', () => {
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(497450500000000);
 		const direction = PositionDirection.LONG;
-		const market0 = clearingHouse.getMarketAccount(0);
+		const market0 = clearingHouse.getPerpMarketAccount(0);
 
 		// await setFeedPrice(anchor.workspace.Pyth, 1.01, solUsd);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
@@ -172,7 +172,7 @@ describe('prepeg', () => {
 			anchor.workspace.Pyth,
 			solUsd
 		);
-		const position0Before = clearingHouse.getUserAccount().positions[0];
+		const position0Before = clearingHouse.getUserAccount().perpPositions[0];
 		console.log(position0Before.quoteAssetAmount.eq(ZERO));
 
 		const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
@@ -225,7 +225,7 @@ describe('prepeg', () => {
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
 				.logMessages
 		);
-		const market = clearingHouse.getMarketAccount(0);
+		const market = clearingHouse.getPerpMarketAccount(0);
 
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 
@@ -238,19 +238,19 @@ describe('prepeg', () => {
 			convertToNumber(calculateMarkPrice(market, oraclePriceData))
 		);
 
-		const position0 = clearingHouse.getUserAccount().positions[0];
+		const position0 = clearingHouse.getUserAccount().perpPositions[0];
 
 		console.log(position0.quoteAssetAmount.toString());
 		assert.ok(position0.quoteEntryAmount.eq(new BN(-49999074)));
 		assert.ok(acquiredQuoteAssetAmount.eq(position0.quoteEntryAmount.abs()));
 
 		console.log(
-			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toString()
+			clearingHouse.getUserAccount().perpPositions[0].baseAssetAmount.toString()
 		);
 		assert.ok(
 			clearingHouse
 				.getUserAccount()
-				.positions[0].baseAssetAmount.eq(baseAssetAmount)
+				.perpPositions[0].baseAssetAmount.eq(baseAssetAmount)
 		);
 
 		console.log('sqrtK:', market.amm.sqrtK.toString());
@@ -283,7 +283,7 @@ describe('prepeg', () => {
 	it('Long even more', async () => {
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(497450503674885 / 50);
-		const market0 = clearingHouse.getMarketAccount(0);
+		const market0 = clearingHouse.getPerpMarketAccount(0);
 
 		await setFeedPrice(anchor.workspace.Pyth, 1.0281, solUsd);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
@@ -405,7 +405,7 @@ describe('prepeg', () => {
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
 				.logMessages
 		);
-		const market = clearingHouse.getMarketAccount(0);
+		const market = clearingHouse.getPerpMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
 			'after trade bid/ask:',
@@ -458,7 +458,7 @@ describe('prepeg', () => {
 		// console.log(orderRecord);
 
 		await clearingHouse.fetchAccounts();
-		const position0 = clearingHouse.getUserAccount().positions[0];
+		const position0 = clearingHouse.getUserAccount().perpPositions[0];
 		const position0qea = position0.quoteEntryAmount;
 		console.log(
 			'position0qea:',
@@ -516,7 +516,7 @@ describe('prepeg', () => {
 	it('Reduce long position', async () => {
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(248725250000000);
-		const market0 = clearingHouse.getMarketAccount(0);
+		const market0 = clearingHouse.getPerpMarketAccount(0);
 		const orderParams = getMarketOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
@@ -570,7 +570,7 @@ describe('prepeg', () => {
 				.logMessages
 		);
 
-		const market = clearingHouse.getMarketAccount(0);
+		const market = clearingHouse.getPerpMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
 			'after trade bid/ask:',
@@ -582,7 +582,7 @@ describe('prepeg', () => {
 		);
 
 		console.log(
-			clearingHouse.getUserAccount().positions[0].baseAssetAmount.toNumber()
+			clearingHouse.getUserAccount().perpPositions[0].baseAssetAmount.toNumber()
 		);
 
 		console.log(market.amm.netBaseAssetAmount.toString());
@@ -600,7 +600,7 @@ describe('prepeg', () => {
 			const thisUsd = mockOracles[i];
 			const marketIndex = new BN(i);
 			const baseAssetAmount = new BN(31.02765 * 10e13);
-			const market0 = clearingHouse.getMarketAccount(i);
+			const market0 = clearingHouse.getPerpMarketAccount(i);
 			const orderParams = getMarketOrderParams({
 				marketIndex,
 				direction: PositionDirection.LONG,
@@ -652,7 +652,7 @@ describe('prepeg', () => {
 				assert(false);
 			}
 
-			const market = clearingHouse.getMarketAccount(i);
+			const market = clearingHouse.getPerpMarketAccount(i);
 			const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 			console.log(
 				'after trade bid/ask:',
@@ -673,10 +673,10 @@ describe('prepeg', () => {
 		for (let i = 1; i <= 4; i++) {
 			console.log(
 				'user market',
-				user.positions[i].marketIndex.toString(),
+				user.perpPositions[i].marketIndex.toString(),
 				' base position',
 				'=',
-				user.positions[i].baseAssetAmount.toNumber() / 1e13
+				user.perpPositions[i].baseAssetAmount.toNumber() / 1e13
 			);
 			const thisUsd = mockOracles[i];
 			const curPrice = (await getFeedData(anchor.workspace.Pyth, thisUsd))
@@ -690,7 +690,7 @@ describe('prepeg', () => {
 		const orderParams = getMarketOrderParams({
 			marketIndex: new BN(0),
 			direction: PositionDirection.SHORT,
-			baseAssetAmount: user.positions[0].baseAssetAmount.div(new BN(2)),
+			baseAssetAmount: user.perpPositions[0].baseAssetAmount.div(new BN(2)),
 		});
 
 		const txSig = await clearingHouse.placeAndTake(orderParams);

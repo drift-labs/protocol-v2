@@ -7,20 +7,18 @@ use crate::load_mut;
 use crate::math::amm;
 use crate::math::repeg;
 use crate::math_error;
-use crate::state::bank_map::BankMap;
-use crate::state::market::{Market, MarketStatus};
-use crate::state::market_map::MarketMap;
+use crate::state::market::{PerpMarket, MarketStatus};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
-
-use crate::controller::bank_balance::update_bank_balances;
+use crate::state::perp_market_map::PerpMarketMap;
+use crate::state::spot_market_map::SpotMarketMap;
+use crate::controller::spot_balance::update_spot_balances;
 use crate::math::amm::get_update_k_result;
-use crate::math::bank_balance::get_token_amount;
+use crate::math::spot_balance::get_token_amount;
 use crate::math::bn;
 use crate::math::constants::{
-    K_BPS_UPDATE_SCALE, ONE_HOUR_I128, QUOTE_ASSET_BANK_INDEX, QUOTE_PRECISION,
+    K_BPS_UPDATE_SCALE, ONE_HOUR_I128, QUOTE_SPOT_MARKET_INDEX, QUOTE_PRECISION,
 };
-use crate::state::bank::BankBalanceType;
 use crate::state::state::{OracleGuardRails, State};
 use crate::validate;
 use anchor_lang::prelude::AccountInfo;
@@ -29,7 +27,7 @@ use solana_program::msg;
 use std::cmp::min;
 
 pub fn repeg(
-    market: &mut Market,
+    market: &mut PerpMarket,
     price_oracle: &AccountInfo,
     new_peg_candidate: u128,
     clock_slot: u64,
@@ -88,7 +86,7 @@ pub fn repeg(
 }
 
 pub fn update_amms(
-    market_map: &mut MarketMap,
+    perp_market_map: &mut PerpMarketMap,
     oracle_map: &mut OracleMap,
     state: &State,
     clock: &Clock,
@@ -98,7 +96,7 @@ pub fn update_amms(
     let now = clock.unix_timestamp;
 
     let updated = true; // todo
-    for (_key, market_account_loader) in market_map.0.iter_mut() {
+    for (_key, market_account_loader) in perp_market_map.0.iter_mut() {
         let market = &mut load_mut!(market_account_loader)?;
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
         _update_amm(market, oracle_price_data, state, now, clock_slot)?;
@@ -109,12 +107,12 @@ pub fn update_amms(
 
 pub fn update_amm(
     market_index: u64,
-    market_map: &MarketMap,
+    perp_market_map: &PerpMarketMap,
     oracle_map: &mut OracleMap,
     state: &State,
     clock: &Clock,
 ) -> ClearingHouseResult<i128> {
-    let market = &mut market_map.get_ref_mut(&market_index)?;
+    let market = &mut perp_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
 
     let cost_of_update = _update_amm(
@@ -131,7 +129,7 @@ pub fn update_amm(
 }
 
 pub fn _update_amm(
-    market: &mut Market,
+    market: &mut PerpMarket,
     oracle_price_data: &OraclePriceData,
     state: &State,
     now: i64,
@@ -195,7 +193,7 @@ pub fn _update_amm(
 }
 
 pub fn apply_cost_to_market(
-    market: &mut Market,
+    market: &mut PerpMarket,
     cost: i128,
     check_lower_bound: bool,
 ) -> ClearingHouseResult<bool> {
@@ -238,7 +236,7 @@ pub fn apply_cost_to_market(
     Ok(true)
 }
 
-pub fn update_market_status(market: &mut Market, now: i64) -> ClearingHouseResult {
+pub fn update_market_status(market: &mut PerpMarket, now: i64) -> ClearingHouseResult {
     if market.expiry_ts != 0 {
         if market.expiry_ts <= now {
             market.status = MarketStatus::Settlement;
@@ -257,9 +255,9 @@ pub fn update_market_status(market: &mut Market, now: i64) -> ClearingHouseResul
 
 pub fn settle_expired_market(
     market_index: u64,
-    market_map: &MarketMap,
+    market_map: &PerpMarketMap,
     _oracle_map: &mut OracleMap,
-    bank_map: &BankMap,
+    spot_market_map: &SpotMarketMap,
     _state: &State,
     clock: &Clock,
 ) -> ClearingHouseResult {
@@ -286,7 +284,7 @@ pub fn settle_expired_market(
         "Outstanding LP in market"
     )?;
 
-    let bank = &mut bank_map.get_ref_mut(&QUOTE_ASSET_BANK_INDEX)?;
+    let bank = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
     let fee_reserved_for_protocol = cast_to_i128(
         repeg::get_total_fee_lower_bound(market)?
             .checked_sub(market.amm.total_fee_withdrawn)
@@ -302,7 +300,7 @@ pub fn settle_expired_market(
     let available_fee_pool = cast_to_i128(get_token_amount(
         market.amm.fee_pool.balance,
         bank,
-        &BankBalanceType::Deposit,
+        &SpotBalanceType::Deposit,
     )?)?
     .checked_sub(fee_reserved_for_protocol)
     .ok_or_else(math_error!())?
@@ -310,17 +308,17 @@ pub fn settle_expired_market(
 
     let fee_pool_transfer = budget.min(available_fee_pool);
 
-    update_bank_balances(
+    update_spot_balances(
         fee_pool_transfer.unsigned_abs(),
-        &BankBalanceType::Borrow,
+        &SpotBalanceType::Borrow,
         bank,
         &mut market.amm.fee_pool,
         false,
     )?;
 
-    update_bank_balances(
+    update_spot_balances(
         fee_pool_transfer.unsigned_abs(),
-        &BankBalanceType::Deposit,
+        &SpotBalanceType::Deposit,
         bank,
         &mut market.pnl_pool,
         false,
@@ -357,7 +355,7 @@ pub fn settle_expired_market(
     }
 
     let pnl_pool_amount =
-        get_token_amount(market.pnl_pool.balance, bank, &BankBalanceType::Deposit)?;
+        get_token_amount(market.pnl_pool.balance, bank, &SpotBalanceType::Deposit)?;
 
     validate!(
         10_u128.pow(bank.decimals as u32) == QUOTE_PRECISION,
@@ -395,7 +393,7 @@ mod test {
     use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
     #[test]
     pub fn update_amm_test() {
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 630153846154000,
@@ -413,7 +411,7 @@ mod test {
             },
             status: MarketStatus::Initialized,
             margin_ratio_initial: 555, // max 1/.0555 = 18.018018018x leverage
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         let state = State {
@@ -509,7 +507,7 @@ mod test {
 
     #[test]
     pub fn update_amm_test_bad_oracle() {
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 630153846154000,
@@ -526,7 +524,7 @@ mod test {
                 ..AMM::default()
             },
             margin_ratio_initial: 555, // max 1/.0555 = 18.018018018x leverage
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         let state = State {
@@ -572,7 +570,7 @@ mod test {
         let now = 1662800000 + 60;
         let slot = 81680085;
 
-        let mut market = Market::default_btc_test();
+        let mut market = PerpMarket::default_btc_test();
         assert_eq!(market.amm.net_base_asset_amount, -10000000000000);
 
         let state = State {
@@ -699,7 +697,7 @@ mod test {
         let now = 1662800000 + 60;
         let slot = 81680085;
 
-        let mut market = Market::default_btc_test();
+        let mut market = PerpMarket::default_btc_test();
         market.amm.total_fee_minus_distributions = -(10000 * QUOTE_PRECISION as i128);
         assert_eq!(market.amm.net_base_asset_amount, -10000000000000);
 

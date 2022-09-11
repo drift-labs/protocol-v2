@@ -194,7 +194,7 @@ describe('liquidity providing', () => {
 			market.marketIndex
 		);
 
-		const position = traderClearingHouse.getUserAccount().positions[0];
+		const position = traderClearingHouse.getUserAccount().perp_positions[0];
 		console.log(
 			'trader position:',
 			position.baseAssetAmount.toString(),
@@ -220,7 +220,7 @@ describe('liquidity providing', () => {
 		);
 
 		// lp now has a long
-		const newLpPosition = clearingHouseUser.getUserAccount().positions[0];
+		const newLpPosition = clearingHouseUser.getUserAccount().perp_positions[0];
 		console.log(
 			'lp position:',
 			newLpPosition.baseAssetAmount.toString(),
