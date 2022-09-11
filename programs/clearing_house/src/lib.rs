@@ -1550,7 +1550,6 @@ pub mod clearing_house {
             maker_stats.as_ref(),
             maker_order_id,
             &Clock::get()?,
-            &ctx.accounts.state.spot_fee_structure,
             serum_fulfillment_params,
         )?;
 

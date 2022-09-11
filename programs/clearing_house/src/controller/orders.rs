@@ -2186,7 +2186,6 @@ pub fn fill_spot_order(
     maker_stats: Option<&AccountLoader<UserStats>>,
     maker_order_id: Option<u64>,
     clock: &Clock,
-    fee_structure: &FeeStructure,
     serum_fulfillment_params: Option<SerumFulfillmentParams>,
 ) -> ClearingHouseResult<u128> {
     let now = clock.unix_timestamp;
@@ -2307,7 +2306,7 @@ pub fn fill_spot_order(
         oracle_map,
         now,
         slot,
-        fee_structure,
+        &state.spot_fee_structure,
         serum_fulfillment_params,
     )?;
 

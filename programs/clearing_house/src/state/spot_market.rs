@@ -176,6 +176,10 @@ impl SpotMarket {
             market_index: 1,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            initial_liability_weight: 120,
+            maintenance_liability_weight: 110,
+            initial_asset_weight: 80,
+            maintenance_asset_weight: 90,
             decimals: 9,
             ..SpotMarket::default()
         }
@@ -186,6 +190,10 @@ impl SpotMarket {
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
+            initial_liability_weight: 100,
+            maintenance_liability_weight: 100,
+            initial_asset_weight: 100,
+            maintenance_asset_weight: 100,
             ..SpotMarket::default()
         }
     }
