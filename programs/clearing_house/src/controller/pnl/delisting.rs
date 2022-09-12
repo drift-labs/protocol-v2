@@ -31,6 +31,7 @@ pub mod delisting_test {
         BASE_PRECISION,
         BASE_PRECISION_I128,
         MARK_PRICE_PRECISION,
+        MARK_PRICE_PRECISION_I128,
         PEG_PRECISION,
         QUOTE_PRECISION_I128,
         //  QUOTE_PRECISION_U64,
@@ -2932,7 +2933,9 @@ pub mod delisting_test {
                 market.amm.cumulative_social_loss
             );
 
-            let net_pnl = calculate_net_user_pnl(&market.amm, 0).unwrap();
+            let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
+            assert_eq!(oracle_price_data.price, 100 * MARK_PRICE_PRECISION_I128);
+            let net_pnl = calculate_net_user_pnl(&market.amm, oracle_price_data.price).unwrap();
             assert_eq!(net_pnl, 0);
 
             drop(market);

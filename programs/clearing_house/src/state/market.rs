@@ -368,8 +368,13 @@ impl AMM {
             net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
             mark_std: MARK_PRICE_PRECISION as u64,
 
+            quote_asset_amount_long: 0,
+            quote_asset_amount_short: 19_000_000_000, // short 1 BTC @ $19000
+
             last_oracle_price_twap_ts: 1662800000,
             last_mark_price_twap_ts: 1662800000,
+
+            last_oracle_price: (19_400 * MARK_PRICE_PRECISION) as i128,
             last_oracle_price_twap: (19_400 * MARK_PRICE_PRECISION) as i128,
             curve_update_intensity: 100,
 

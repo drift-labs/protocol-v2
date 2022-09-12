@@ -1465,6 +1465,12 @@ pub fn calculate_max_base_asset_amount_fillable(
 }
 
 pub fn calculate_net_user_pnl(amm: &AMM, oracle_price: i128) -> ClearingHouseResult<i128> {
+    validate!(
+        oracle_price > 0,
+        ErrorCode::DefaultError,
+        "oracle_price <= 0",
+    )?;
+
     let net_user_base_asset_value = amm
         .net_base_asset_amount
         .checked_mul(oracle_price)
@@ -1558,6 +1564,49 @@ mod test {
     use crate::controller::lp::settle_lp_position;
     use crate::math::constants::{K_BPS_INCREASE_MAX, MARK_PRICE_PRECISION, QUOTE_PRECISION_I128};
     use crate::state::user::PerpPosition;
+
+    #[test]
+    fn calculate_net_user_pnl_test() {
+        let prev = 1656682258;
+        let _now = prev + 3600;
+
+        let px = 32 * MARK_PRICE_PRECISION;
+
+        let mut amm = AMM {
+            base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+            peg_multiplier: PEG_PRECISION,
+            last_oracle_price_twap: px as i128,
+            last_oracle_price_twap_ts: prev,
+            mark_std: MARK_PRICE_PRECISION as u64,
+            last_mark_price_twap_ts: prev,
+            funding_period: 3600_i64,
+            ..AMM::default_test()
+        };
+
+        let oracle_price_data = OraclePriceData {
+            price: (34 * MARK_PRICE_PRECISION) as i128,
+            confidence: MARK_PRICE_PRECISION / 100,
+            delay: 1,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let net_user_pnl = calculate_net_user_pnl(&amm, oracle_price_data.price).unwrap();
+        assert_eq!(net_user_pnl, 0);
+
+        amm.cumulative_social_loss = QUOTE_PRECISION_I128;
+        let net_user_pnl = calculate_net_user_pnl(&amm, oracle_price_data.price).unwrap();
+        assert_eq!(net_user_pnl, -QUOTE_PRECISION_I128);
+
+        let market = PerpMarket::default_btc_test();
+        let net_user_pnl =
+            calculate_net_user_pnl(&market.amm, market.amm.last_oracle_price).unwrap();
+        assert_eq!(net_user_pnl, -400000000); // down $400
+
+        let net_user_pnl =
+            calculate_net_user_pnl(&market.amm, 17501 * MARK_PRICE_PRECISION_I128).unwrap();
+        assert_eq!(net_user_pnl, 1499000000); // up $1499
+    }
 
     #[test]
     fn calculate_settlement_price_test() {
