@@ -1620,15 +1620,15 @@ pub fn fulfill_order_with_match(
                     .checked_sub(referrer_stats.next_epoch_ts)
                     .ok_or_else(math_error!())?
                     .checked_div(EPOCH_DURATION)
-                    .ok_or_else(math_error!())? + 1;
+                    .ok_or_else(math_error!())?
+                    + 1;
 
                 referrer_stats.next_epoch_ts = referrer_stats
                     .next_epoch_ts
                     .checked_add(EPOCH_DURATION * n_epoch_durations)
                     .ok_or_else(math_error!())?;
-                
-                referrer_stats.current_epoch_referrer_reward = 0;
 
+                referrer_stats.current_epoch_referrer_reward = 0;
             }
         }
     }
