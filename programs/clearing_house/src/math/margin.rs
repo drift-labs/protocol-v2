@@ -229,7 +229,7 @@ pub fn calculate_perp_position_value_and_pnl(
             quote_asset_amount,
             open_asks,
             open_bids,
-            // this is ok because no other values are used in the future computations
+            // todo double check: this is ok because no other values are used in the future computations
             ..PerpPosition::default()
         }
     } else {

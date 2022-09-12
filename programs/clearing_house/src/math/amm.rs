@@ -1570,9 +1570,9 @@ mod test {
         let net_user_pnl = calculate_net_user_pnl(&amm, oracle_price_data.price).unwrap();
         assert_eq!(net_user_pnl, 0);
 
-        amm.cumulative_social_loss = QUOTE_PRECISION_I128;
+        amm.cumulative_social_loss = -QUOTE_PRECISION_I128;
         let net_user_pnl = calculate_net_user_pnl(&amm, oracle_price_data.price).unwrap();
-        assert_eq!(net_user_pnl, -QUOTE_PRECISION_I128);
+        assert_eq!(net_user_pnl, QUOTE_PRECISION_I128);
 
         let market = PerpMarket::default_btc_test();
         let net_user_pnl =

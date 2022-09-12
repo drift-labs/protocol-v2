@@ -87,6 +87,16 @@ pub struct PerpMarket {
 }
 
 impl PerpMarket {
+    pub fn is_active(&self, now: i64) -> ClearingHouseResult<bool> {
+        let status_ok = self.status != MarketStatus::Settlement;
+        let is_active = self.expiry_ts == 0 || self.expiry_ts < now;
+        Ok(is_active && status_ok)
+    }
+
+    pub fn is_reduce_only(&self) -> ClearingHouseResult<bool> {
+        Ok(self.status == MarketStatus::ReduceOnly)
+    }
+
     pub fn get_margin_ratio(
         &self,
         size: u128,

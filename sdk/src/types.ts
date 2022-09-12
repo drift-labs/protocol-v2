@@ -4,7 +4,6 @@ import { BN, ZERO } from '.';
 // # Utility Types / Enums / Constants
 
 export class MarketStatus {
-	static readonly UNINITIALIZED = { uninitialized: {} };
 	static readonly INITIALIZED = { initialized: {} };
 	static readonly REDUCEONLY = { reduceonly: {} };
 	static readonly SETTLEMENT = { settlement: {} };

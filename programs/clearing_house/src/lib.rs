@@ -424,10 +424,6 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
 
-        if market.status != MarketStatus::Initialized {
-            return Err(ErrorCode::MarketIndexAlreadyInitialized.into());
-        }
-
         if amm_base_asset_reserve != amm_quote_asset_reserve {
             return Err(ErrorCode::InvalidInitialPeg.into());
         }
@@ -732,22 +728,7 @@ pub mod clearing_house {
 
             let spot_position = user.force_get_spot_position_mut(spot_market.market_index)?;
 
-            let mut force_reduce_only = false;
-            if spot_market.status != MarketStatus::Initialized {
-                if spot_market.status == MarketStatus::ReduceOnly {
-                    force_reduce_only = true;
-                } else {
-                    return Err(ErrorCode::InvalidSpotMarketAccount.into());
-                }
-            }
-
-            if force_reduce_only || reduce_only {
-                validate!(
-                    spot_position.balance_type == SpotBalanceType::Deposit,
-                    ErrorCode::InsufficientCollateral,
-                    "Action doesn't satisfy Reduce Only",
-                )?;
-            }
+            let force_reduce_only = spot_market.is_reduce_only()?;
 
             // if reduce only, have to compare ix amount to current deposit amount
             let amount = if (force_reduce_only || reduce_only)
@@ -2031,6 +2012,8 @@ pub mod clearing_house {
         perp_market_index: u64,
     ) -> Result<()> {
         let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+
         validate!(spot_market_index == 0, ErrorCode::InvalidSpotMarketAccount)?;
         let state = &ctx.accounts.state;
 
@@ -2060,6 +2043,12 @@ pub mod clearing_house {
         let pay_from_insurance = {
             let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
             let perp_market = &mut market_map.get_ref_mut(&perp_market_index)?;
+
+            validate!(
+                perp_market.is_active(now)?,
+                ErrorCode::DefaultError,
+                "Market is in settlement mode",
+            )?;
 
             controller::insurance::resolve_perp_pnl_deficit(
                 spot_market_vault_amount,

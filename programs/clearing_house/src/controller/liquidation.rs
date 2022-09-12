@@ -1348,6 +1348,7 @@ pub fn resolve_perp_bankruptcy(
         .get_perp_position(market_index)
         .unwrap()
         .quote_asset_amount;
+
     validate!(
         loss < 0,
         ErrorCode::InvalidPerpPositionToLiquidate,

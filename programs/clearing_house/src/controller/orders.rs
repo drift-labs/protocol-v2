@@ -27,7 +27,7 @@ use crate::math::auction::{
     is_auction_complete,
 };
 use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::PERP_DECIMALS;
+use crate::math::constants::{PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
@@ -49,7 +49,7 @@ use crate::print_error;
 use crate::state::events::{get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::market::{MarketStatus, PerpMarket};
+use crate::state::market::PerpMarket;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -119,7 +119,7 @@ pub fn place_order(
     let market = &perp_market_map.get_ref(&market_index)?;
 
     validate!(
-        market.status != MarketStatus::Settlement,
+        market.is_active(now)?,
         ErrorCode::DefaultError,
         "Market is in settlement mode",
     )?;
@@ -183,15 +183,7 @@ pub fn place_order(
         "must be perp order"
     )?;
 
-    let force_reduce_only = if market.status != MarketStatus::Initialized {
-        if market.status == MarketStatus::ReduceOnly {
-            true
-        } else {
-            return Err(ErrorCode::InvalidMarketAccount);
-        }
-    } else {
-        false
-    };
+    let force_reduce_only = market.is_reduce_only()?;
 
     let new_order = Order {
         status: OrderStatus::Open,
@@ -531,7 +523,7 @@ pub fn fill_order(
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         controller::validate::validate_market_account(market)?;
         validate!(
-            market.status != MarketStatus::Settlement,
+            market.is_active(now)?,
             ErrorCode::DefaultError,
             "Market is in settlement mode",
         )?;
@@ -2089,7 +2081,7 @@ pub fn place_spot_order(
     };
 
     validate!(
-        params.market_index != 0,
+        params.market_index != QUOTE_SPOT_MARKET_INDEX,
         ErrorCode::InvalidOrder,
         "can not place order for quote asset"
     )?;
@@ -2100,15 +2092,7 @@ pub fn place_spot_order(
         "must be spot order"
     )?;
 
-    let force_reduce_only = if spot_market.status != MarketStatus::Initialized {
-        if spot_market.status == MarketStatus::ReduceOnly {
-            true
-        } else {
-            return Err(ErrorCode::InvalidMarketAccount);
-        }
-    } else {
-        false
-    };
+    let force_reduce_only = spot_market.is_reduce_only()?;
 
     let new_order = Order {
         status: OrderStatus::Open,

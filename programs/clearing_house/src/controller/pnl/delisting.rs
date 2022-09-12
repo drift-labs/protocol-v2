@@ -14,6 +14,7 @@ pub mod delisting_test {
     use crate::controller::liquidation::resolve_perp_bankruptcy;
     use crate::controller::liquidation::{liquidate_perp, liquidate_perp_pnl_for_deposit};
 
+    use crate::math::funding::calculate_funding_payment;
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral,
         calculate_perp_position_value_and_pnl,
@@ -28,6 +29,7 @@ pub mod delisting_test {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION,
         AMM_RESERVE_PRECISION_I128,
+        AMM_TO_QUOTE_PRECISION_RATIO_I128,
         BASE_PRECISION,
         BASE_PRECISION_I128,
         MARK_PRICE_PRECISION,
@@ -2589,6 +2591,7 @@ pub mod delisting_test {
 
                 assert_eq!(market.amm.quote_asset_amount_long, 20000010000);
                 assert_eq!(market.amm.quote_asset_amount_short, 77199990000);
+                assert_eq!(market.amm.cumulative_social_loss, 0);
 
                 drop(market);
             }
@@ -2647,6 +2650,7 @@ pub mod delisting_test {
             )
             .unwrap();
 
+            assert_eq!(shorter.perp_positions[0].base_asset_amount, 0);
             assert_eq!(shorter.spot_positions[0].balance < orig_short_balance, true);
             assert_eq!(shorter.spot_positions[0].balance, 0);
 
@@ -2654,6 +2658,7 @@ pub mod delisting_test {
             assert_eq!(shorter_loss, 20000000000); //$16629 loss
 
             let market = market_map.get_ref_mut(&0).unwrap();
+            assert_eq!(market.amm.cumulative_social_loss, -3449990000);
             assert_eq!(market.base_asset_amount_long, 2000000000000000);
             assert_eq!(market.base_asset_amount_short, 0);
             assert_eq!(market.amm.net_base_asset_amount, 2000000000000000);
@@ -2713,9 +2718,21 @@ pub mod delisting_test {
             assert_eq!(longer.spot_positions[0].balance, 20000000000);
             assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
             assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
+            assert_eq!(longer.perp_positions[0].last_cumulative_funding_rate, 0);
+
+            assert_eq!(market.amm.cumulative_funding_rate_long, 1724995000000000);
+            let longer_funding_payment = calculate_funding_payment(
+                market.amm.cumulative_funding_rate_long,
+                &longer.perp_positions[0],
+            )
+            .unwrap()
+            .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+            .unwrap();
+            assert_eq!(longer_funding_payment, -3449990000);
 
             assert_eq!(market.amm.quote_asset_amount_long, 20000010000);
             assert_eq!(market.amm.quote_asset_amount_short, -23250000000);
+            assert_eq!(market.amm.cumulative_social_loss, -3449990000);
 
             drop(market);
 
@@ -2732,6 +2749,7 @@ pub mod delisting_test {
             .unwrap();
             assert_eq!(longer.perp_positions[0].quote_asset_amount, 0);
             assert_eq!(longer.perp_positions[0].base_asset_amount, 0);
+            assert_eq!(longer.perp_positions[0].last_cumulative_funding_rate, 0);
 
             assert_eq!(longer.spot_positions[0].balance > 100000000, true);
             assert_eq!(longer.spot_positions[0].balance, 40775960000); //$40775
@@ -2767,6 +2785,7 @@ pub mod delisting_test {
             assert_eq!(longer.perp_positions[0].base_asset_amount, 0);
             assert_eq!(longer.perp_positions[0].quote_asset_amount, 0);
             assert_eq!(longer.perp_positions[0].quote_entry_amount, 0);
+            assert_eq!(longer.perp_positions[0].last_cumulative_funding_rate, 0);
         }
     }
 }

@@ -358,12 +358,20 @@ export class ClearingHouseUser {
 					perpPosition.openBids = perpPosition.openBids.add(openBids);
 				}
 
+				let valuationPrice = this.getOracleDataForMarket(
+					market.marketIndex
+				).price;
+
+				if (isVariant(market.status, 'settlement')) {
+					valuationPrice = market.settlementPrice;
+				}
+
 				const worstCaseBaseAssetAmount =
 					calculateWorstCaseBaseAssetAmount(perpPosition);
 
 				const worstCaseAssetValue = worstCaseBaseAssetAmount
 					.abs()
-					.mul(this.getOracleDataForMarket(market.marketIndex).price)
+					.mul(valuationPrice)
 					.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
 
 				return marginRequirement.add(
