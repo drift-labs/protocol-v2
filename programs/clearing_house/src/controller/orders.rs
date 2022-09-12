@@ -26,7 +26,7 @@ use crate::math::auction::{
     is_auction_complete,
 };
 use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::PERP_DECIMALS;
+use crate::math::constants::{EPOCH_DURATION, PERP_DECIMALS};
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
@@ -1198,6 +1198,7 @@ pub fn fulfill_order_with_amm(
         now,
         filler.is_some(),
         reward_referrer,
+        referrer_stats,
         quote_asset_amount_surplus,
         order_post_only,
     )?;
@@ -1540,6 +1541,7 @@ pub fn fulfill_order_with_match(
         now,
         filler.is_some(),
         reward_referrer,
+        &referrer_stats,
     )?;
 
     // Increment the markets house's total fee variables
@@ -1612,6 +1614,17 @@ pub fn fulfill_order_with_match(
             update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
 
             referrer_stats.increment_total_referrer_reward(cast(referrer_reward)?)?;
+
+            if now > referrer_stats.next_epoch_ts {
+                referrer_stats.next_epoch_ts = referrer_stats
+                    .next_epoch_ts
+                    .checked_add(EPOCH_DURATION)
+                    .ok_or_else(math_error!())?;
+            }
+
+            if referrer_stats.next_epoch_ts > now {
+                referrer_stats.current_epoch_score = 0;
+            }
         }
     }
 
@@ -2687,6 +2700,7 @@ pub fn fulfill_spot_order_with_match(
         now,
         filler.is_some(),
         false,
+        &None,
     )?;
 
     // Update taker state

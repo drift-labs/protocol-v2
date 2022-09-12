@@ -6,7 +6,7 @@ use crate::controller::position::{add_new_position, get_position_index, Position
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::calculate_rolling_sum;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
-use crate::math::casting::cast_to_i128;
+use crate::math::casting::{cast_to_i128, cast_to_u32};
 use crate::math::constants::{QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY_I128};
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
@@ -587,6 +587,9 @@ pub struct UserStats {
     pub is_referrer: bool,
     pub referrer: Pubkey,
     pub total_referrer_reward: u64,
+    pub current_epoch: u64,
+    pub current_epoch_score: u32,
+    pub next_epoch_ts: i64,
 
     pub fees: UserFees,
 
@@ -696,6 +699,11 @@ impl UserStats {
         self.total_referrer_reward = self
             .total_referrer_reward
             .checked_add(reward)
+            .ok_or_else(math_error!())?;
+
+        self.current_epoch_score = self
+            .current_epoch_score
+            .checked_add(cast_to_u32(reward)?)
             .ok_or_else(math_error!())?;
 
         Ok(())

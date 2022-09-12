@@ -1,9 +1,11 @@
 use crate::error::ClearingHouseResult;
 use crate::math::casting::cast_to_u128;
+use crate::math::constants::DEFAULT_MAX_REFERRER_REWARD_PER_EPOCH;
 use crate::math::helpers::get_proportion_u128;
 use crate::math_error;
 use crate::state::state::FeeStructure;
 use crate::state::state::OrderFillerRewardStructure;
+use crate::state::user::UserStats;
 use num_integer::Roots;
 use solana_program::msg;
 use std::cmp::{max, min};
@@ -27,6 +29,7 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
     now: i64,
     reward_filler: bool,
     reward_referrer: bool,
+    referrer_stats: &mut Option<&mut UserStats>,
     quote_asset_amount_surplus: i128,
     is_post_only: bool,
 ) -> ClearingHouseResult<FillFees> {
@@ -59,7 +62,11 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
             .ok_or_else(math_error!())?;
 
         let (referrer_reward, referee_discount) = if reward_referrer {
-            calculate_referrer_reward_and_referee_discount(fee, fee_structure)?
+            calculate_referrer_reward_and_referee_discount(
+                fee,
+                fee_structure,
+                referrer_stats.unwrap(),
+            )?
         } else {
             (0, 0)
         };
@@ -103,13 +110,29 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
 fn calculate_referrer_reward_and_referee_discount(
     fee: u128,
     fee_structure: &FeeStructure,
+    referrer_stats: &UserStats,
 ) -> ClearingHouseResult<(u128, u128)> {
+    let referrer_reward = match referrer_stats {
+        Some(referrer_stats) => {
+            let max_referrer_reward_from_fee = get_proportion_u128(
+                fee,
+                fee_structure.referral_discount.referrer_reward_numerator,
+                fee_structure.referral_discount.referrer_reward_denominator,
+            )?;
+
+            let max_referrer_reward_in_epoch = cast_to_u128(
+                DEFAULT_MAX_REFERRER_REWARD_PER_EPOCH
+                    .checked_sub(referrer_stats.current_epoch_score)
+                    .ok_or_else(math_error!())?
+                    .max(0),
+            )?;
+            max_referrer_reward_from_fee.min(max_referrer_reward_in_epoch)
+        }
+        None => 0,
+    };
+
     Ok((
-        get_proportion_u128(
-            fee,
-            fee_structure.referral_discount.referrer_reward_numerator,
-            fee_structure.referral_discount.referrer_reward_denominator,
-        )?,
+        referrer_reward,
         get_proportion_u128(
             fee,
             fee_structure.referral_discount.referee_discount_numerator,
@@ -160,6 +183,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     now: i64,
     reward_filler: bool,
     reward_referrer: bool,
+    referrer_stats: &Option<&mut UserStats>,
 ) -> ClearingHouseResult<FillFees> {
     let fee = quote_asset_amount
         .checked_mul(fee_structure.fee_numerator)
@@ -173,8 +197,9 @@ pub fn calculate_fee_for_fulfillment_with_match(
         .checked_div(fee_structure.maker_rebate_denominator)
         .ok_or_else(math_error!())?;
 
-    let (referrer_reward, referee_discount) = if reward_referrer {
-        calculate_referrer_reward_and_referee_discount(fee, fee_structure)?
+    let (referrer_reward, referee_discount) = if reward_referrer && referrer_stats.is_some() {
+        let ref_stats = referrer_stats.unwrap();
+        calculate_referrer_reward_and_referee_discount(fee, fee_structure, ref_stats)?
     } else {
         (0, 0)
     };
@@ -306,6 +331,7 @@ mod test {
                 0,
                 false,
                 false,
+                &None,
             )
             .unwrap();
 
@@ -341,6 +367,7 @@ mod test {
                 0,
                 true,
                 false,
+                &None,
             )
             .unwrap();
 
@@ -375,6 +402,7 @@ mod test {
                 0,
                 true,
                 false,
+                &None,
             )
             .unwrap();
 
@@ -409,6 +437,7 @@ mod test {
                 60,
                 true,
                 false,
+                &None,
             )
             .unwrap();
 
@@ -449,6 +478,7 @@ mod test {
                 0,
                 false,
                 true,
+                &None,
             )
             .unwrap();
 
