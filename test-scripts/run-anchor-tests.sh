@@ -5,6 +5,7 @@ if [ "$1" != "--skip-build" ]
 fi
 
 test_files=(
+  triggerSpotOrder.ts
   serumTest.ts
   liquidityProvider.ts
   insuranceFundStake.ts

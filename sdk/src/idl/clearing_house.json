@@ -788,6 +788,37 @@
       ]
     },
     {
+      "name": "triggerSpotOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderId",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "placeSpotOrder",
       "accounts": [
         {
@@ -3415,7 +3446,7 @@
           },
           {
             "name": "totalReferrerReward",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "fees",
@@ -4275,7 +4306,7 @@
           },
           {
             "name": "totalLpFees",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "totalFeeRebate",
@@ -4283,11 +4314,11 @@
           },
           {
             "name": "totalTokenDiscount",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "totalRefereeDiscount",
-            "type": "u128"
+            "type": "u64"
           }
         ]
       }

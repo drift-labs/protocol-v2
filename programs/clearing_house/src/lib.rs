@@ -1461,6 +1461,33 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
+    pub fn trigger_spot_order<'info>(ctx: Context<TriggerOrder>, order_id: u64) -> Result<()> {
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let spot_market_market =
+            SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
+        PerpMarketMap::load(
+            &MarketSet::new(),
+            &MarketSet::new(),
+            remaining_accounts_iter,
+        )?;
+
+        controller::orders::trigger_spot_order(
+            order_id,
+            &ctx.accounts.state,
+            &ctx.accounts.user,
+            &spot_market_market,
+            &mut oracle_map,
+            &ctx.accounts.filler,
+            &Clock::get()?,
+        )?;
+
+        Ok(())
+    }
+
     pub fn place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;

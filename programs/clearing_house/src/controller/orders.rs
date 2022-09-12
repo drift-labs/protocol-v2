@@ -1790,8 +1790,8 @@ pub fn trigger_order(
         .position(|order| order.order_id == order_id)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
-    let (order_status, market_index) =
-        get_struct_values!(user.orders[order_index], status, market_index);
+    let (order_status, market_index, market_type) =
+        get_struct_values!(user.orders[order_index], status, market_index, market_type);
 
     validate!(
         order_status == OrderStatus::Open,
@@ -1803,6 +1803,12 @@ pub fn trigger_order(
         user.orders[order_index].must_be_triggered(),
         ErrorCode::OrderNotTriggerable,
         "Order is not triggerable"
+    )?;
+
+    validate!(
+        market_type == MarketType::Perp,
+        ErrorCode::InvalidOrder,
+        "Order must be a perp order"
     )?;
 
     let market = &mut market_map.get_ref_mut(&market_index)?;
@@ -3217,4 +3223,134 @@ pub fn fulfill_spot_order_with_serum(
     }
 
     Ok(base_asset_amount_filled)
+}
+
+pub fn trigger_spot_order(
+    order_id: u64,
+    state: &State,
+    user: &AccountLoader<User>,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    filler: &AccountLoader<User>,
+    clock: &Clock,
+) -> ClearingHouseResult {
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
+
+    let filler_key = filler.key();
+    let user_key = user.key();
+    let user = &mut load_mut!(user)?;
+
+    let order_index = user
+        .orders
+        .iter()
+        .position(|order| order.order_id == order_id)
+        .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
+
+    let (order_status, market_index, market_type, order_direction) = get_struct_values!(
+        user.orders[order_index],
+        status,
+        market_index,
+        market_type,
+        direction
+    );
+
+    validate!(
+        order_status == OrderStatus::Open,
+        ErrorCode::OrderNotOpen,
+        "Order not open"
+    )?;
+
+    validate!(
+        user.orders[order_index].must_be_triggered(),
+        ErrorCode::OrderNotTriggerable,
+        "Order is not triggerable"
+    )?;
+
+    validate!(
+        market_type == MarketType::Spot,
+        ErrorCode::InvalidOrder,
+        "Order must be a spot order"
+    )?;
+
+    let market = spot_market_map.get_ref(&market_index)?;
+    let oracle_price_data = &oracle_map.get_price_data(&market.oracle)?;
+
+    // TODO check
+    let oracle_price = oracle_price_data.price;
+
+    let order_slot = user.orders[order_index].slot;
+    let auction_duration = user.orders[order_index].auction_duration;
+    validate!(
+        is_auction_complete(order_slot, auction_duration, slot)?,
+        ErrorCode::OrderDidNotSatisfyTriggerCondition,
+        "Auction duration must elapse before triggering"
+    )?;
+
+    let can_trigger =
+        order_satisfies_trigger_condition(&user.orders[order_index], oracle_price.unsigned_abs());
+    validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
+
+    {
+        let direction = user.orders[order_index].direction;
+        let base_asset_amount = user.orders[order_index].base_asset_amount;
+
+        user.orders[order_index].triggered = true;
+        user.orders[order_index].slot = slot;
+        let order_type = user.orders[order_index].order_type;
+        if let OrderType::TriggerMarket = order_type {
+            let auction_start_price = oracle_price_data.price.unsigned_abs();
+            let auction_end_price =
+                calculate_spot_auction_end_price(oracle_price_data, order_direction)?;
+            user.orders[order_index].auction_start_price = auction_start_price;
+            user.orders[order_index].auction_end_price = auction_end_price;
+        }
+
+        let user_position = user.force_get_spot_position_mut(market_index)?;
+        increase_spot_open_bids_and_asks(user_position, &direction, base_asset_amount)?;
+    }
+
+    let is_filler_taker = user_key == filler_key;
+    let mut filler = if !is_filler_taker {
+        Some(load_mut!(filler)?)
+    } else {
+        None
+    };
+
+    let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
+    let filler_reward = pay_keeper_flat_reward_for_spot(
+        user,
+        filler.as_deref_mut(),
+        &mut quote_market,
+        state.spot_fee_structure.cancel_order_fee,
+    )?;
+
+    let order_action_record = get_order_action_record(
+        now,
+        OrderAction::Trigger,
+        OrderActionExplanation::None,
+        market_index,
+        Some(filler_key),
+        None,
+        Some(filler_reward),
+        None,
+        None,
+        None,
+        Some(filler_reward),
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(user_key),
+        Some(user.orders[order_index]),
+        None,
+        None,
+        None,
+        None,
+        oracle_price,
+    )?;
+    emit!(order_action_record);
+
+    Ok(())
 }
