@@ -5089,9 +5089,6 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "Uninitialized"
-          },
-          {
             "name": "Initialized"
           },
           {
@@ -6773,8 +6770,5 @@
       "name": "InvalidSerumFulfillmentConfig",
       "msg": "InvalidSerumFulfillmentConfig"
     }
-  ],
-  "metadata": {
-    "address": "3v1iEjbSSLSSYyt1pmx4UB5rqJGurmz71RibXF7X6UF3"
-  }
+  ]
 }

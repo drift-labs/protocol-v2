@@ -158,11 +158,6 @@ impl<'a> PerpMarketMap<'a> {
                 return Err(ErrorCode::MarketWrongMutability);
             }
 
-            // if is_initialized != &[1] {
-            //     return Err(ErrorCode::MarketIndexNotInitialized);
-            // }
-            // todo^?
-
             perp_market_map.0.insert(market_index, account_loader);
         }
 

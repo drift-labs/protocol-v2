@@ -1494,20 +1494,6 @@ pub fn calculate_settlement_price(
     target_price: i128,
     pnl_pool_amount: u128,
 ) -> ClearingHouseResult<i128> {
-    // let long_unsettled_pnl = amm
-    //     .quote_asset_amount_long
-    //     .checked_sub(amm.quote_entry_amount_long)
-    //     .ok_or_else(math_error!())?;
-
-    // let short_unsettled_pnl = amm
-    //     .quote_asset_amount_short
-    //     .checked_sub(amm.quote_entry_amount_short)
-    //     .ok_or_else(math_error!())?;
-
-    // let total_unsettled_pnl = long_unsettled_pnl
-    //     .checked_add(short_unsettled_pnl)
-    //     .ok_or_else(math_error!())?;
-
     if amm.net_base_asset_amount == 0 {
         return Ok(target_price);
     }
@@ -1517,15 +1503,6 @@ pub fn calculate_settlement_price(
 
     // net_user_unrealized_pnl negative = surplus in market
     // net_user_unrealized_pnl positive = settlement price needs to differ from oracle
-
-    let price_sign_mult = 1;
-
-    // if amm.quote_asset_amount_long > amm.quote_asset_amount_short {
-    //     1
-    // } else {
-    //     -1
-    // };
-
     let best_settlement_price = -(amm
         .quote_asset_amount_long
         .checked_add(amm.quote_asset_amount_short)
@@ -1535,8 +1512,7 @@ pub fn calculate_settlement_price(
         .checked_mul(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)
         .ok_or_else(math_error!())?
         .checked_div(amm.net_base_asset_amount)
-        .ok_or_else(math_error!())?)
-        * price_sign_mult;
+        .ok_or_else(math_error!())?);
 
     let settlement_price = if amm.net_base_asset_amount > 0 {
         // net longs only get as high as oracle_price
@@ -1606,6 +1582,172 @@ mod test {
         let net_user_pnl =
             calculate_net_user_pnl(&market.amm, 17501 * MARK_PRICE_PRECISION_I128).unwrap();
         assert_eq!(net_user_pnl, 1499000000); // up $1499
+    }
+
+    #[test]
+    fn calculate_settlement_price_long_imbalance_with_loss_test() {
+        let prev = 1656682258;
+        let _now = prev + 3600;
+
+        // imbalanced short, no longs
+        // btc
+        let oracle_price_data = OraclePriceData {
+            price: (22050 * MARK_PRICE_PRECISION) as i128,
+            confidence: 0,
+            delay: 2,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let market_position = PerpPosition {
+            market_index: 0,
+            base_asset_amount: (122950819670000 / 2_i128),
+            quote_asset_amount: -193688524588, // $31506 entry price
+            ..PerpPosition::default()
+        };
+
+        let market = PerpMarket {
+            market_index: 0,
+            amm: AMM {
+                base_asset_reserve: 5122950819670000,
+                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 22_100_000,
+                net_base_asset_amount: (122950819670000_i128),
+                max_spread: 1000,
+                quote_asset_amount_long: market_position.quote_asset_amount * 2,
+                // assume someone else has other half same entry,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            imf_factor: 1000, // 1_000/1_000_000 = .001
+            unrealized_initial_asset_weight: 100,
+            unrealized_maintenance_asset_weight: 100,
+            ..PerpMarket::default()
+        };
+
+        let mut settlement_price =
+            calculate_settlement_price(&market.amm, oracle_price_data.price, 0).unwrap();
+
+        let mark_price = market.amm.mark_price().unwrap();
+        let (terminal_price, _, _) = calculate_terminal_price_and_reserves(&market.amm).unwrap();
+        let oracle_price = oracle_price_data.price;
+
+        assert_eq!(settlement_price, 220499999999999);
+        assert_eq!(terminal_price, 200766845703451);
+        assert_eq!(oracle_price, 220500000000000);
+        assert_eq!(mark_price, 210519296000087);
+
+        settlement_price = calculate_settlement_price(
+            &market.amm,
+            oracle_price_data.price,
+            111_111_110, // $111
+        )
+        .unwrap();
+
+        assert_eq!(settlement_price, 220499999999999); // same price
+
+        settlement_price = calculate_settlement_price(
+            &market.amm,
+            oracle_price_data.price,
+            1_111_111_110, // $1,111
+        )
+        .unwrap();
+
+        assert_eq!(settlement_price, 220499999999999); // same price again
+
+        settlement_price = calculate_settlement_price(
+            &market.amm,
+            oracle_price_data.price,
+            111_111_110 * QUOTE_PRECISION,
+        )
+        .unwrap();
+
+        assert_eq!(settlement_price, 220499999999999);
+        assert_eq!(settlement_price, oracle_price - 1); // more longs than shorts, bias = -1
+    }
+
+    #[test]
+    fn calculate_settlement_price_long_imbalance_test() {
+        let prev = 1656682258;
+        let _now = prev + 3600;
+
+        // imbalanced short, no longs
+        // btc
+        let oracle_price_data = OraclePriceData {
+            price: (22050 * MARK_PRICE_PRECISION) as i128,
+            confidence: 0,
+            delay: 2,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let market_position = PerpPosition {
+            market_index: 0,
+            base_asset_amount: (122950819670000 / 2_i128),
+            quote_asset_amount: -103688524588, // $16,866.66 entry price
+            ..PerpPosition::default()
+        };
+
+        let market = PerpMarket {
+            market_index: 0,
+            amm: AMM {
+                base_asset_reserve: 5122950819670000,
+                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 22_100_000,
+                net_base_asset_amount: (122950819670000_i128),
+                max_spread: 1000,
+                quote_asset_amount_long: market_position.quote_asset_amount * 2,
+                // assume someone else has other half same entry,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            imf_factor: 1000, // 1_000/1_000_000 = .001
+            unrealized_initial_asset_weight: 100,
+            unrealized_maintenance_asset_weight: 100,
+            ..PerpMarket::default()
+        };
+
+        let mut settlement_price =
+            calculate_settlement_price(&market.amm, oracle_price_data.price, 0).unwrap();
+
+        let mark_price = market.amm.mark_price().unwrap();
+        let (terminal_price, _, _) = calculate_terminal_price_and_reserves(&market.amm).unwrap();
+        let oracle_price = oracle_price_data.price;
+
+        assert_eq!(settlement_price, 168666666666069);
+        assert_eq!(terminal_price, 200766845703451);
+        assert_eq!(oracle_price, 220500000000000);
+        assert_eq!(mark_price, 210519296000087);
+
+        settlement_price = calculate_settlement_price(
+            &market.amm,
+            oracle_price_data.price,
+            111_111_110, // $111
+        )
+        .unwrap();
+
+        assert_eq!(settlement_price, 168757037035537); // better price
+
+        settlement_price = calculate_settlement_price(
+            &market.amm,
+            oracle_price_data.price,
+            1_111_111_110, // $1,111
+        )
+        .unwrap();
+
+        assert_eq!(settlement_price, 169570370368884); // even better price
+
+        settlement_price = calculate_settlement_price(
+            &market.amm,
+            oracle_price_data.price,
+            111_111_110 * QUOTE_PRECISION,
+        )
+        .unwrap();
+
+        assert_eq!(settlement_price, 220499999999999);
+        assert_eq!(settlement_price, oracle_price - 1); // more longs than shorts, bias = -1
     }
 
     #[test]

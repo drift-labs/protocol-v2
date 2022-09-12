@@ -207,9 +207,9 @@ describe('User Account', () => {
 		);
 		await clearingHouse.fetchAccounts();
 		await userAccount.fetchAccounts();
-		const PerpPosition = userAccount.getUserPosition(marketIndex);
+		const perpPosition = userAccount.getUserPosition(marketIndex);
 
-		const market = clearingHouse.getPerpMarketAccount(PerpPosition.marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(perpPosition.marketIndex);
 
 		const oraclePrice = clearingHouse.getOracleDataForMarket(
 			market.marketIndex
@@ -245,7 +245,7 @@ describe('User Account', () => {
 		);
 
 		const worstCaseBaseAssetAmount =
-			calculateWorstCaseBaseAssetAmount(PerpPosition);
+			calculateWorstCaseBaseAssetAmount(perpPosition);
 
 		const worstCaseAssetValue = worstCaseBaseAssetAmount
 			.abs()
@@ -285,9 +285,9 @@ describe('User Account', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount.mul(new BN(11)).div(new BN(10))
 		);
-		const PerpPosition = userAccount.getUserPosition(marketIndex);
+		const perpPosition = userAccount.getUserPosition(marketIndex);
 
-		const market = clearingHouse.getPerpMarketAccount(PerpPosition.marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(perpPosition.marketIndex);
 
 		const oraclePrice = clearingHouse.getOracleDataForMarket(
 			market.marketIndex

@@ -8,9 +8,7 @@ use crate::load_mut;
 use crate::math::amm;
 use crate::math::amm::get_update_k_result;
 use crate::math::bn;
-use crate::math::constants::{
-    K_BPS_UPDATE_SCALE, ONE_HOUR_I128, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX,
-};
+use crate::math::constants::{K_BPS_UPDATE_SCALE, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::repeg;
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
@@ -124,8 +122,6 @@ pub fn update_amm(
         clock.slot,
     )?;
 
-    update_market_status(market, clock.unix_timestamp)?;
-
     Ok(cost_of_update)
 }
 
@@ -136,7 +132,7 @@ pub fn _update_amm(
     now: i64,
     clock_slot: u64,
 ) -> ClearingHouseResult<i128> {
-    if market.status == MarketStatus::Settlement || market.status == MarketStatus::Uninitialized {
+    if market.status == MarketStatus::Settlement {
         return Ok(0);
     }
 
@@ -237,23 +233,6 @@ pub fn apply_cost_to_market(
     Ok(true)
 }
 
-pub fn update_market_status(market: &mut PerpMarket, now: i64) -> ClearingHouseResult {
-    if market.expiry_ts != 0 {
-        if market.expiry_ts <= now {
-            market.status = MarketStatus::Settlement;
-        } else if market
-            .expiry_ts
-            .checked_sub(now)
-            .ok_or_else(math_error!())?
-            < ONE_HOUR_I128 as i64
-        {
-            market.status = MarketStatus::ReduceOnly;
-        }
-    }
-
-    Ok(())
-}
-
 pub fn settle_expired_market(
     market_index: u64,
     market_map: &PerpMarketMap,
@@ -285,7 +264,7 @@ pub fn settle_expired_market(
         "Outstanding LP in market"
     )?;
 
-    let bank = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
+    let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
     let fee_reserved_for_protocol = cast_to_i128(
         repeg::get_total_fee_lower_bound(market)?
             .checked_sub(market.amm.total_fee_withdrawn)
@@ -300,7 +279,7 @@ pub fn settle_expired_market(
 
     let available_fee_pool = cast_to_i128(get_token_amount(
         market.amm.fee_pool.balance,
-        bank,
+        spot_market,
         &SpotBalanceType::Deposit,
     )?)?
     .checked_sub(fee_reserved_for_protocol)
@@ -312,7 +291,7 @@ pub fn settle_expired_market(
     update_spot_balances(
         fee_pool_transfer.unsigned_abs(),
         &SpotBalanceType::Borrow,
-        bank,
+        spot_market,
         &mut market.amm.fee_pool,
         false,
     )?;
@@ -320,7 +299,7 @@ pub fn settle_expired_market(
     update_spot_balances(
         fee_pool_transfer.unsigned_abs(),
         &SpotBalanceType::Deposit,
-        bank,
+        spot_market,
         &mut market.pnl_pool,
         false,
     )?;
@@ -355,11 +334,14 @@ pub fn settle_expired_market(
         }
     }
 
-    let pnl_pool_amount =
-        get_token_amount(market.pnl_pool.balance, bank, &SpotBalanceType::Deposit)?;
+    let pnl_pool_amount = get_token_amount(
+        market.pnl_pool.balance,
+        spot_market,
+        &SpotBalanceType::Deposit,
+    )?;
 
     validate!(
-        10_u128.pow(bank.decimals as u32) == QUOTE_PRECISION,
+        10_u128.pow(spot_market.decimals as u32) == QUOTE_PRECISION,
         ErrorCode::DefaultError,
         "Only support bank.decimals == QUOTE_PRECISION"
     )?;

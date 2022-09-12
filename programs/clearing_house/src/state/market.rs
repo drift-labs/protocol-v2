@@ -24,7 +24,6 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum MarketStatus {
-    Uninitialized,
     Initialized,
     ReduceOnly,
     Settlement,
@@ -32,7 +31,7 @@ pub enum MarketStatus {
 
 impl Default for MarketStatus {
     fn default() -> Self {
-        MarketStatus::Uninitialized
+        MarketStatus::Initialized
     }
 }
 
@@ -151,7 +150,7 @@ impl PerpMarket {
             MarginRequirementType::Maintenance => self.unrealized_maintenance_asset_weight as u128,
         };
 
-        if self.unrealized_max_imbalance > 0 {
+        if margin_type == MarginRequirementType::Initial && self.unrealized_max_imbalance > 0 {
             let net_unsettled_pnl =
                 amm::calculate_net_user_pnl(&self.amm, self.amm.last_oracle_price)?;
             if net_unsettled_pnl > cast_to_i128(self.unrealized_max_imbalance)? {

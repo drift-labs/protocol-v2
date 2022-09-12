@@ -10,7 +10,6 @@ use crate::controller::position::{
     update_amm_and_lp_market_position, update_position_and_market, update_quote_asset_amount,
     PositionDirection,
 };
-use crate::controller::repeg::update_market_status;
 use crate::controller::serum::{invoke_new_order, invoke_settle_funds, SerumFulfillmentParams};
 use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::spot_position::{
@@ -530,8 +529,13 @@ pub fn fill_order(
     let oracle_price: i128;
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
-        update_market_status(market, now)?;
         controller::validate::validate_market_account(market)?;
+        validate!(
+            market.status != MarketStatus::Settlement,
+            ErrorCode::DefaultError,
+            "Market is in settlement mode",
+        )?;
+
         validate!(
             ((oracle_map.slot == market.amm.last_update_slot && market.amm.last_oracle_valid)
                 || market.amm.curve_update_intensity == 0),

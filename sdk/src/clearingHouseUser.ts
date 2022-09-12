@@ -314,30 +314,30 @@ export class ClearingHouseUser {
 	 */
 	public getMarginRequirement(type: MarginCategory): BN {
 		return this.getUserAccount()
-			.perpPositions.reduce((marginRequirement, PerpPosition) => {
+			.perpPositions.reduce((marginRequirement, perpPosition) => {
 				const market = this.clearingHouse.getPerpMarketAccount(
-					PerpPosition.marketIndex
+					perpPosition.marketIndex
 				);
 
-				if (PerpPosition.lpShares.gt(ZERO)) {
+				if (perpPosition.lpShares.gt(ZERO)) {
 					// is an lp
 					// clone so we dont mutate the position
-					PerpPosition = this.getClonedPosition(PerpPosition);
+					perpPosition = this.getClonedPosition(perpPosition);
 
 					// settle position
 					const [settledPosition, dustBaa, _] = this.getSettledLPPosition(
 						market.marketIndex
 					);
-					PerpPosition.baseAssetAmount =
+					perpPosition.baseAssetAmount =
 						settledPosition.baseAssetAmount.add(dustBaa);
-					PerpPosition.quoteAssetAmount = settledPosition.quoteAssetAmount;
+					perpPosition.quoteAssetAmount = settledPosition.quoteAssetAmount;
 
 					// open orders
 					let openAsks;
 					if (market.amm.maxBaseAssetReserve > market.amm.baseAssetReserve) {
 						openAsks = market.amm.maxBaseAssetReserve
 							.sub(market.amm.baseAssetReserve)
-							.mul(PerpPosition.lpShares)
+							.mul(perpPosition.lpShares)
 							.div(market.amm.sqrtK)
 							.mul(new BN(-1));
 					} else {
@@ -348,18 +348,18 @@ export class ClearingHouseUser {
 					if (market.amm.minBaseAssetReserve < market.amm.baseAssetReserve) {
 						openBids = market.amm.baseAssetReserve
 							.sub(market.amm.minBaseAssetReserve)
-							.mul(PerpPosition.lpShares)
+							.mul(perpPosition.lpShares)
 							.div(market.amm.sqrtK);
 					} else {
 						openBids = ZERO;
 					}
 
-					PerpPosition.openAsks = PerpPosition.openAsks.add(openAsks);
-					PerpPosition.openBids = PerpPosition.openBids.add(openBids);
+					perpPosition.openAsks = perpPosition.openAsks.add(openAsks);
+					perpPosition.openBids = perpPosition.openBids.add(openBids);
 				}
 
 				const worstCaseBaseAssetAmount =
-					calculateWorstCaseBaseAssetAmount(PerpPosition);
+					calculateWorstCaseBaseAssetAmount(perpPosition);
 
 				const worstCaseAssetValue = worstCaseBaseAssetAmount
 					.abs()
@@ -410,13 +410,13 @@ export class ClearingHouseUser {
 			.perpPositions.filter((pos) =>
 				marketIndex ? pos.marketIndex === marketIndex : true
 			)
-			.reduce((unrealizedPnl, PerpPosition) => {
+			.reduce((unrealizedPnl, perpPosition) => {
 				const market = this.clearingHouse.getPerpMarketAccount(
-					PerpPosition.marketIndex
+					perpPosition.marketIndex
 				);
 				let positionUnrealizedPnl = calculatePositionPNL(
 					market,
-					PerpPosition,
+					perpPosition,
 					withFunding,
 					this.getOracleDataForMarket(market.marketIndex)
 				);
@@ -448,11 +448,11 @@ export class ClearingHouseUser {
 			.perpPositions.filter((pos) =>
 				marketIndex ? pos.marketIndex === marketIndex : true
 			)
-			.reduce((pnl, PerpPosition) => {
+			.reduce((pnl, perpPosition) => {
 				const market = this.clearingHouse.getPerpMarketAccount(
-					PerpPosition.marketIndex
+					perpPosition.marketIndex
 				);
-				return pnl.add(calculatePositionFundingPNL(market, PerpPosition));
+				return pnl.add(calculatePositionFundingPNL(market, perpPosition));
 			}, ZERO);
 	}
 
@@ -588,13 +588,13 @@ export class ClearingHouseUser {
 	 */
 	getTotalPositionValue(): BN {
 		return this.getUserAccount().perpPositions.reduce(
-			(positionValue, PerpPosition) => {
+			(positionValue, perpPosition) => {
 				const market = this.clearingHouse.getPerpMarketAccount(
-					PerpPosition.marketIndex
+					perpPosition.marketIndex
 				);
 				const posVal = calculateBaseAssetValueWithOracle(
 					market,
-					PerpPosition,
+					perpPosition,
 					this.getOracleDataForMarket(market.marketIndex)
 				);
 
@@ -794,7 +794,7 @@ export class ClearingHouseUser {
 	 * @returns Precision : MARK_PRICE_PRECISION
 	 */
 	public liquidationPrice(
-		PerpPosition: Pick<PerpPosition, 'marketIndex'>,
+		perpPosition: Pick<PerpPosition, 'marketIndex'>,
 		positionBaseSizeChange: BN = ZERO
 	): BN {
 		// solves formula for example canBeLiquidated below
@@ -813,11 +813,11 @@ export class ClearingHouseUser {
 
 		// calculate the total position value ignoring any value from the target market of the trade
 		const totalPositionValueExcludingTargetMarket =
-			this.getTotalPositionValueExcludingMarket(PerpPosition.marketIndex);
+			this.getTotalPositionValueExcludingMarket(perpPosition.marketIndex);
 
 		const currentPerpPosition =
-			this.getUserPosition(PerpPosition.marketIndex) ||
-			this.getEmptyPosition(PerpPosition.marketIndex);
+			this.getUserPosition(perpPosition.marketIndex) ||
+			this.getEmptyPosition(perpPosition.marketIndex);
 
 		const currentPerpPositionBaseSize = currentPerpPosition.baseAssetAmount;
 
@@ -827,7 +827,7 @@ export class ClearingHouseUser {
 
 		// calculate position for current market after trade
 		const proposedPerpPosition: PerpPosition = {
-			marketIndex: PerpPosition.marketIndex,
+			marketIndex: perpPosition.marketIndex,
 			baseAssetAmount: proposedBaseAssetAmount,
 			remainderBaseAssetAmount: ZERO,
 			quoteAssetAmount: new BN(0),
@@ -862,7 +862,7 @@ export class ClearingHouseUser {
 		const marginRequirementExcludingTargetMarket =
 			this.getUserAccount().perpPositions.reduce(
 				(totalMarginRequirement, position) => {
-					if (!position.marketIndex.eq(PerpPosition.marketIndex)) {
+					if (!position.marketIndex.eq(perpPosition.marketIndex)) {
 						const market = this.clearingHouse.getPerpMarketAccount(
 							position.marketIndex
 						);
@@ -946,8 +946,8 @@ export class ClearingHouseUser {
 		let markPriceAfterTrade;
 		if (positionBaseSizeChange.eq(ZERO)) {
 			markPriceAfterTrade = calculateMarkPrice(
-				this.clearingHouse.getPerpMarketAccount(PerpPosition.marketIndex),
-				this.getOracleDataForMarket(PerpPosition.marketIndex)
+				this.clearingHouse.getPerpMarketAccount(perpPosition.marketIndex),
+				this.getOracleDataForMarket(perpPosition.marketIndex)
 			);
 		} else {
 			const direction = positionBaseSizeChange.gt(ZERO)
@@ -956,9 +956,9 @@ export class ClearingHouseUser {
 			markPriceAfterTrade = calculateTradeSlippage(
 				direction,
 				positionBaseSizeChange.abs(),
-				this.clearingHouse.getPerpMarketAccount(PerpPosition.marketIndex),
+				this.clearingHouse.getPerpMarketAccount(perpPosition.marketIndex),
 				'base',
-				this.getOracleDataForMarket(PerpPosition.marketIndex)
+				this.getOracleDataForMarket(perpPosition.marketIndex)
 			)[3]; // newPrice after swap
 		}
 

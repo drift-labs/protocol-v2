@@ -532,23 +532,38 @@ pub fn resolve_perp_pnl_deficit(
         excess_user_pnl_imbalance
     )?;
 
-    let max_revenue_withdraw_allowed = cast_to_i128(
+    let max_revenue_withdraw_per_period = cast_to_i128(
         market
             .max_revenue_withdraw_per_period
             .checked_sub(market.revenue_withdraw_since_last_settle)
             .ok_or_else(math_error!())?,
     )?;
     validate!(
-        max_revenue_withdraw_allowed > 0,
+        max_revenue_withdraw_per_period > 0,
         ErrorCode::DefaultError,
         "max_revenue_withdraw_per_period={} as already been reached",
-        max_revenue_withdraw_allowed
+        max_revenue_withdraw_per_period
+    )?;
+
+    let max_insurance_withdraw = cast_to_i128(
+        market
+            .quote_max_insurance
+            .checked_sub(market.quote_settled_insurance)
+            .ok_or_else(math_error!())?,
+    )?;
+
+    validate!(
+        max_insurance_withdraw > 0,
+        ErrorCode::DefaultError,
+        "max_insurance_withdraw={}/{} as already been reached",
+        market.quote_settled_insurance,
+        market.quote_max_insurance,
     )?;
 
     let insurance_withdraw = excess_user_pnl_imbalance
-        .min(max_revenue_withdraw_allowed)
-        .min(cast_to_i128(insurance_vault_amount.saturating_sub(1))?)
-        .max(0);
+        .min(max_revenue_withdraw_per_period)
+        .min(max_insurance_withdraw)
+        .min(cast_to_i128(insurance_vault_amount.saturating_sub(1))?);
 
     validate!(
         insurance_withdraw > 0,
@@ -568,6 +583,19 @@ pub fn resolve_perp_pnl_deficit(
         .revenue_withdraw_since_last_settle
         .checked_add(insurance_withdraw.unsigned_abs())
         .ok_or_else(math_error!())?;
+
+    market.quote_settled_insurance = market
+        .quote_settled_insurance
+        .checked_add(insurance_withdraw.unsigned_abs())
+        .ok_or_else(math_error!())?;
+
+    validate!(
+        market.quote_settled_insurance <= market.quote_max_insurance,
+        ErrorCode::DefaultError,
+        "quote_settled_insurance breached its max {}/{}",
+        market.quote_settled_insurance,
+        market.quote_max_insurance,
+    )?;
 
     market.last_revenue_withdraw_ts = now;
 
