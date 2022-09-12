@@ -29,7 +29,7 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
     now: i64,
     reward_filler: bool,
     reward_referrer: bool,
-    referrer_stats: &mut Option<&mut UserStats>,
+    referrer_stats: &Option<&mut UserStats>,
     quote_asset_amount_surplus: i128,
     is_post_only: bool,
 ) -> ClearingHouseResult<FillFees> {
@@ -62,11 +62,7 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
             .ok_or_else(math_error!())?;
 
         let (referrer_reward, referee_discount) = if reward_referrer {
-            calculate_referrer_reward_and_referee_discount(
-                fee,
-                fee_structure,
-                referrer_stats.unwrap(),
-            )?
+            calculate_referrer_reward_and_referee_discount(fee, fee_structure, referrer_stats)?
         } else {
             (0, 0)
         };
@@ -110,35 +106,34 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
 fn calculate_referrer_reward_and_referee_discount(
     fee: u128,
     fee_structure: &FeeStructure,
-    referrer_stats: &UserStats,
+    referrer_stats: &Option<&mut UserStats>,
 ) -> ClearingHouseResult<(u128, u128)> {
+    let max_referrer_reward_from_fee = get_proportion_u128(
+        fee,
+        fee_structure.referral_discount.referrer_reward_numerator,
+        fee_structure.referral_discount.referrer_reward_denominator,
+    )?;
+
     let referrer_reward = match referrer_stats {
         Some(referrer_stats) => {
-            let max_referrer_reward_from_fee = get_proportion_u128(
-                fee,
-                fee_structure.referral_discount.referrer_reward_numerator,
-                fee_structure.referral_discount.referrer_reward_denominator,
-            )?;
-
             let max_referrer_reward_in_epoch = cast_to_u128(
                 DEFAULT_MAX_REFERRER_REWARD_PER_EPOCH
-                    .checked_sub(referrer_stats.current_epoch_score)
+                    .checked_sub(referrer_stats.current_epoch_referrer_reward)
                     .ok_or_else(math_error!())?
                     .max(0),
             )?;
             max_referrer_reward_from_fee.min(max_referrer_reward_in_epoch)
         }
-        None => 0,
+        None => max_referrer_reward_from_fee,
     };
 
-    Ok((
-        referrer_reward,
-        get_proportion_u128(
-            fee,
-            fee_structure.referral_discount.referee_discount_numerator,
-            fee_structure.referral_discount.referee_discount_denominator,
-        )?,
-    ))
+    let referee_discount = get_proportion_u128(
+        fee,
+        fee_structure.referral_discount.referee_discount_numerator,
+        fee_structure.referral_discount.referee_discount_denominator,
+    )?;
+
+    Ok((referrer_reward, referee_discount))
 }
 
 fn calculate_filler_reward(
@@ -197,9 +192,8 @@ pub fn calculate_fee_for_fulfillment_with_match(
         .checked_div(fee_structure.maker_rebate_denominator)
         .ok_or_else(math_error!())?;
 
-    let (referrer_reward, referee_discount) = if reward_referrer && referrer_stats.is_some() {
-        let ref_stats = referrer_stats.unwrap();
-        calculate_referrer_reward_and_referee_discount(fee, fee_structure, ref_stats)?
+    let (referrer_reward, referee_discount) = if reward_referrer {
+        calculate_referrer_reward_and_referee_discount(fee, fee_structure, referrer_stats)?
     } else {
         (0, 0)
     };
@@ -524,6 +518,7 @@ mod test {
                 60,
                 false,
                 true,
+                &None,
                 0,
                 false,
             )
