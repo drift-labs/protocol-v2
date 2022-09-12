@@ -359,22 +359,22 @@ pub fn update_mark_twap(
         None => (trade_price, trade_price),
     };
 
-    // let (bid_price_capped_update, ask_price_capped_update) = (
-    //     cast_to_u128(sanitize_new_price(
-    //         cast_to_i128(bid_price)?,
-    //         cast_to_i128(amm.last_bid_price_twap)?,
-    //     )?)?,
-    //     cast_to_u128(sanitize_new_price(
-    //         cast_to_i128(ask_price)?,
-    //         cast_to_i128(amm.last_ask_price_twap)?,
-    //     )?)?,
-    // );
+    let (bid_price_capped_update, ask_price_capped_update) = (
+        cast_to_u128(sanitize_new_price(
+            cast_to_i128(bid_price)?,
+            cast_to_i128(amm.last_bid_price_twap)?,
+        )?)?,
+        cast_to_u128(sanitize_new_price(
+            cast_to_i128(ask_price)?,
+            cast_to_i128(amm.last_ask_price_twap)?,
+        )?)?,
+    );
 
     // update bid and ask twaps
     let bid_twap = calculate_new_twap(
         amm,
         now,
-        bid_price,
+        bid_price_capped_update,
         amm.last_bid_price_twap,
         amm.funding_period,
     )?;
@@ -383,7 +383,7 @@ pub fn update_mark_twap(
     let ask_twap = calculate_new_twap(
         amm,
         now,
-        ask_price,
+        ask_price_capped_update,
         amm.last_ask_price_twap,
         amm.funding_period,
     )?;
@@ -399,7 +399,10 @@ pub fn update_mark_twap(
     amm.last_mark_price_twap_5min = calculate_new_twap(
         amm,
         now,
-        bid_price.checked_add(ask_price).ok_or_else(math_error!())? / 2,
+        bid_price_capped_update
+            .checked_add(ask_price_capped_update)
+            .ok_or_else(math_error!())?
+            / 2,
         amm.last_mark_price_twap_5min,
         60 * 5,
     )?;
@@ -438,35 +441,34 @@ pub fn calculate_new_twap(
     Ok(new_twap)
 }
 
-pub fn sanitize_new_price(
-    oracle_price: i128,
-    last_oracle_price_twap: i128,
-) -> ClearingHouseResult<i128> {
-    let new_oracle_price_spread = oracle_price
-        .checked_sub(last_oracle_price_twap)
+pub fn sanitize_new_price(new_price: i128, last_price_twap: i128) -> ClearingHouseResult<i128> {
+    // when/if twap is 0, dont try to normalize new_price
+    if last_price_twap == 0 {
+        return Ok(new_price);
+    }
+
+    let new_price_spread = new_price
+        .checked_sub(last_price_twap)
         .ok_or_else(math_error!())?;
 
     // cap new oracle update to 33% delta from twap
-    let oracle_price_33pct = last_oracle_price_twap
-        .checked_div(3)
-        .ok_or_else(math_error!())?;
+    let price_twap_33pct = last_price_twap.checked_div(3).ok_or_else(math_error!())?;
 
-    let capped_oracle_update_price =
-        if new_oracle_price_spread.unsigned_abs() > oracle_price_33pct.unsigned_abs() {
-            if oracle_price > last_oracle_price_twap {
-                last_oracle_price_twap
-                    .checked_add(oracle_price_33pct)
-                    .ok_or_else(math_error!())?
-            } else {
-                last_oracle_price_twap
-                    .checked_sub(oracle_price_33pct)
-                    .ok_or_else(math_error!())?
-            }
+    let capped_update_price = if new_price_spread.unsigned_abs() > price_twap_33pct.unsigned_abs() {
+        if new_price > last_price_twap {
+            last_price_twap
+                .checked_add(price_twap_33pct)
+                .ok_or_else(math_error!())?
         } else {
-            oracle_price
-        };
+            last_price_twap
+                .checked_sub(price_twap_33pct)
+                .ok_or_else(math_error!())?
+        }
+    } else {
+        new_price
+    };
 
-    Ok(capped_oracle_update_price)
+    Ok(capped_update_price)
 }
 
 pub fn update_oracle_price_twap(
