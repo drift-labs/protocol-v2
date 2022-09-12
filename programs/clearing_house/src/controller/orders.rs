@@ -16,6 +16,9 @@ use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::spot_position::{
     decrease_spot_open_bids_and_asks, increase_spot_open_bids_and_asks,
 };
+use crate::math::constants::{
+    MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128, QUOTE_SPOT_MARKET_INDEX,
+};
 
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
@@ -27,7 +30,7 @@ use crate::math::auction::{
     calculate_auction_end_price, calculate_auction_start_price, calculate_spot_auction_end_price,
     is_auction_complete,
 };
-use crate::math::casting::{cast, cast_to_i128};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
 use crate::math::constants::PERP_DECIMALS;
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
@@ -193,6 +196,7 @@ pub fn place_order(
         order_id: get_then_update_id!(user, next_order_id),
         user_order_id: params.user_order_id,
         market_index: params.market_index,
+        quote_spot_market_index: params.quote_spot_market_index,
         price: params.price,
         existing_position_direction,
         base_asset_amount: order_base_asset_amount,
@@ -2488,6 +2492,8 @@ fn fulfill_spot_order(
         calculate_free_collateral(user, perp_market_map, spot_market_map, oracle_map)?;
 
     let base_market = user.orders[user_order_index].market_index;
+    let quote_market = user.orders[user_order_index].quote_spot_market_index;
+
     let spot_position_index = user.get_spot_position_index(base_market)?;
     let token_amount = user.spot_positions[spot_position_index]
         .get_token_amount(spot_market_map.get_ref(&base_market)?.deref())?;
@@ -2535,7 +2541,7 @@ fn fulfill_spot_order(
         slot,
     )?;
 
-    let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
+    let mut quote_market = spot_market_map.get_ref_mut(&quote_market)?;
     let mut base_market = spot_market_map.get_ref_mut(&base_market)?;
 
     let mut order_records: Vec<OrderActionRecord> = vec![];
@@ -2617,6 +2623,58 @@ fn fulfill_spot_order(
     Ok((base_asset_amount, base_asset_amount != 0))
 }
 
+pub fn derive_oracle_price_data_with_quote_market(
+    oracle_map: &mut OracleMap,
+    base_market: &mut SpotMarket,
+    quote_market: &mut SpotMarket,
+    price_only: bool,
+) -> ClearingHouseResult<OraclePriceData> {
+    let oracle_price_data: OraclePriceData = if quote_market.market_index != QUOTE_SPOT_MARKET_INDEX
+    {
+        let base_oracle_data = oracle_map.get_price_data(&base_market.oracle)?;
+        let quote_oracle_data = oracle_map.get_price_data(&quote_market.oracle)?;
+
+        let oracle_price = base_oracle_data
+            .price
+            .checked_mul(MARK_PRICE_PRECISION_I128)
+            .ok_or_else(math_error!())?
+            .checked_div(quote_oracle_data.price)
+            .ok_or_else(math_error!())?;
+
+        let oracle_confidence = base_oracle_data
+            .confidence
+            .checked_add(
+                quote_oracle_data
+                    .confidence
+                    .checked_mul(MARK_PRICE_PRECISION)
+                    .ok_or_else(math_error!())?
+                    .checked_div(cast_to_u128(base_oracle_data.price)?)
+                    .ok_or_else(math_error!())?,
+            )
+            .ok_or_else(math_error!())?
+            .checked_mul(MARK_PRICE_PRECISION)
+            .ok_or_else(math_error!())?
+            .checked_div(cast_to_u128(quote_oracle_data.price)?)
+            .ok_or_else(math_error!())?;
+
+        let delay = base_oracle_data.delay.max(quote_oracle_data.delay);
+        let has_sufficient_number_of_data_points = base_oracle_data
+            .has_sufficient_number_of_data_points
+            && quote_oracle_data.has_sufficient_number_of_data_points;
+
+        OraclePriceData {
+            price: oracle_price,
+            confidence: oracle_confidence,
+            delay,
+            has_sufficient_number_of_data_points,
+        }
+    } else {
+        *oracle_map.get_price_data(&base_market.oracle)
+    };
+
+    Ok(oracle_price_data)
+}
+
 pub fn fulfill_spot_order_with_match(
     base_market: &mut SpotMarket,
     quote_market: &mut SpotMarket,
@@ -2645,7 +2703,11 @@ pub fn fulfill_spot_order_with_match(
     }
 
     let market_index = taker.orders[taker_order_index].market_index;
-    let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
+
+    let oracle_price =
+        derive_oracle_price_data_with_quote_market(oracle_map, base_market, quote_market, true)?
+            .price;
+
     let taker_price =
         taker.orders[taker_order_index].get_limit_price(Some(oracle_price), slot, None)?;
     let taker_base_asset_amount =

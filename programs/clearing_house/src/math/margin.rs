@@ -1,7 +1,8 @@
 use crate::error::ClearingHouseResult;
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION_I128, MARGIN_PRECISION,
-    SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION,
+    MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128, QUOTE_SPOT_MARKET_INDEX, SPOT_IMF_PRECISION,
+    SPOT_WEIGHT_PRECISION,
 };
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
@@ -11,7 +12,7 @@ use crate::math_error;
 
 use crate::state::user::User;
 
-use crate::math::casting::cast_to_i128;
+use crate::math::casting::{cast_to_i128, cast_to_u128};
 use crate::math::funding::calculate_funding_payment;
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::spot_balance::{
@@ -389,12 +390,30 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
 
-        let (perp_margin_requirement, weighted_pnl) = calculate_perp_position_value_and_pnl(
-            market_position,
-            market,
-            oracle_price_data,
-            margin_requirement_type,
-        )?;
+        let (mut perp_margin_requirement, mut weighted_pnl) =
+            calculate_perp_position_value_and_pnl(
+                market_position,
+                market,
+                oracle_price_data,
+                margin_requirement_type,
+            )?;
+
+        if market.quote_spot_market_index != QUOTE_SPOT_MARKET_INDEX {
+            let spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
+            let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+
+            perp_margin_requirement = perp_margin_requirement
+                .checked_mul(cast_to_u128(oracle_price_data.price)?)
+                .ok_or_else(math_error!())?
+                .checked_div(MARK_PRICE_PRECISION)
+                .ok_or_else(math_error!())?;
+
+            weighted_pnl = weighted_pnl
+                .checked_mul(oracle_price_data.price)
+                .ok_or_else(math_error!())?
+                .checked_div(MARK_PRICE_PRECISION_I128)
+                .ok_or_else(math_error!())?;
+        }
 
         margin_requirement = margin_requirement
             .checked_add(perp_margin_requirement)

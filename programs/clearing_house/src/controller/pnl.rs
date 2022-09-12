@@ -46,17 +46,13 @@ pub fn settle_pnl(
     validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
 
     {
-        let spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
+        let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
+        let spot_market = &mut spot_market_map.get_ref_mut(&perp_market.quote_spot_market_index)?;
         update_spot_market_cumulative_interest(spot_market, now)?;
+        crate::controller::lp::settle_lp(user, user_key, &mut perp_market, now)?;
+        settle_funding_payment(user, user_key, &mut perp_market, now)?;
+        drop(perp_market);
     }
-
-    let mut market = perp_market_map.get_ref_mut(&market_index)?;
-
-    crate::controller::lp::settle_lp(user, user_key, &mut market, now)?;
-
-    settle_funding_payment(user, user_key, &mut market, now)?;
-
-    drop(market);
 
     // cannot settle pnl this way on a user who is in liquidation territory
     if !(meets_maintenance_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?)
@@ -66,8 +62,16 @@ pub fn settle_pnl(
 
     let position_index = get_position_index(&user.perp_positions, market_index)?;
 
-    let spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
     let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
+    let spot_market = &mut spot_market_map.get_ref_mut(&perp_market.quote_spot_market_index)?;
+
+    validate!(
+        spot_market.market_index == perp_market.quote_spot_market_index,
+        ErrorCode::DefaultError,
+        "invalid quote market passed {}, does not equal perp_market's quote market = {}",
+        spot_market.market_index,
+        perp_market.quote_spot_market_index
+    )?;
 
     // todo, check amm updated
     validate!(

@@ -485,6 +485,7 @@ pub mod clearing_house {
             expiry_ts: 0,
             pubkey: *market_pubkey,
             market_index,
+            quote_spot_market_index: QUOTE_SPOT_MARKET_INDEX,
             base_asset_amount_long: 0,
             base_asset_amount_short: 0,
             // base_asset_amount: 0,
@@ -1506,16 +1507,21 @@ pub mod clearing_house {
         fulfillment_type: Option<SpotFulfillmentType>,
         maker_order_id: Option<u64>,
     ) -> Result<()> {
-        let (order_id, market_index) = {
+        let (order_id, market_index, quote_spot_market_index) = {
             let user = &load!(ctx.accounts.user)?;
             // if there is no order id, use the users last order id
             let order_id = order_id.unwrap_or_else(|| user.get_last_order_id());
-            let market_index = user
-                .get_order(order_id)
+            let order = user.get_order(order_id);
+
+            let market_index = order
                 .map(|order| order.market_index)
                 .ok_or(ErrorCode::OrderDoesNotExist)?;
 
-            (order_id, market_index)
+            let quote_spot_market_index = order
+                .map(|order| order.quote_spot_market_index)
+                .ok_or(ErrorCode::OrderDoesNotExist)?;
+
+            (order_id, market_index, quote_spot_market_index)
         };
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
@@ -1541,7 +1547,9 @@ pub mod clearing_house {
         let serum_fulfillment_params = match fulfillment_type {
             Some(SpotFulfillmentType::SerumV3) => {
                 let base_market = spot_market_map.get_ref(&market_index)?;
-                let quote_market = spot_market_map.get_quote_spot_market()?;
+                // let quote_market = spot_market_map.get_quote_spot_market()?;
+                let quote_market = spot_market_map.get_ref(&quote_spot_market_index)?;
+
                 get_serum_fulfillment_accounts(
                     remaining_accounts_iter,
                     &ctx.accounts.state,

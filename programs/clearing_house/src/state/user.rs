@@ -363,6 +363,7 @@ pub struct Order {
     pub order_id: u64,
     pub user_order_id: u8,
     pub market_index: u64,
+    pub spot_quote_market_index: u64,
     pub price: u128,
     pub existing_position_direction: PositionDirection,
     pub base_asset_amount: u128,

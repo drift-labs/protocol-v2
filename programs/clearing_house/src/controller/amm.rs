@@ -350,6 +350,14 @@ pub fn update_pool_balances(
     user_unsettled_pnl: i128,
     now: i64,
 ) -> ClearingHouseResult<i128> {
+    validate!(
+        spot_market.market_index == market.quote_spot_market_index,
+        ErrorCode::DefaultError,
+        "invalid quote market passed {} != market's {}",
+        spot_market.market_index,
+        market.quote_spot_market_index
+    )?;
+
     // current spot_market balance of amm fee pool
     let amm_fee_pool_token_amount = cast_to_i128(get_token_amount(
         market.amm.fee_pool.balance(),

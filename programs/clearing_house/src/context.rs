@@ -472,6 +472,7 @@ pub struct OrderParams {
     pub base_asset_amount: u128,
     pub price: u128,
     pub market_index: u64,
+    pub quote_spot_market_index: u64,
     pub reduce_only: bool,
     pub post_only: bool,
     pub immediate_or_cancel: bool,

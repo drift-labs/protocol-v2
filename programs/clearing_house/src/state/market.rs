@@ -53,6 +53,7 @@ impl Default for ContractType {
 #[repr(packed)]
 pub struct PerpMarket {
     pub market_index: u64,
+    pub quote_spot_market_index: u64,
     pub pubkey: Pubkey,
     pub status: MarketStatus,
     pub contract_type: ContractType,
