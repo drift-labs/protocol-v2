@@ -18,7 +18,7 @@ use crate::math::margin::{
 };
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
-use crate::state::market::PoolBalance;
+use crate::state::market::{MarketStatus, PoolBalance};
 use crate::state::oracle::OracleSource;
 use solana_program::msg;
 
@@ -28,6 +28,9 @@ use solana_program::msg;
 pub struct SpotMarket {
     pub market_index: u64,
     pub pubkey: Pubkey,
+    pub status: MarketStatus,
+    pub expiry_ts: i64, // iff market in reduce only mode
+
     pub oracle: Pubkey,
     pub oracle_source: OracleSource,
     pub mint: Pubkey,

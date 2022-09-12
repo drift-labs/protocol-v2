@@ -264,6 +264,8 @@ pub mod clearing_house {
         **spot_market = SpotMarket {
             market_index: spot_market_index,
             pubkey: spot_market_pubkey,
+            status: MarketStatus::Initialized,
+            expiry_ts: 0,
             oracle: ctx.accounts.oracle.key(),
             oracle_source,
             mint: ctx.accounts.spot_market_mint.key(),
@@ -640,6 +642,12 @@ pub mod clearing_house {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         controller::spot_balance::update_spot_market_cumulative_interest(spot_market, now)?;
 
+        validate!(
+            spot_market.status == MarketStatus::Initialized,
+            ErrorCode::DefaultError,
+            "spot_market in reduce only mode",
+        )?;
+
         let spot_position = user.force_get_spot_position_mut(spot_market.market_index)?;
 
         // if reduce only, have to compare ix amount to current borrow amount
@@ -724,8 +732,27 @@ pub mod clearing_house {
 
             let spot_position = user.force_get_spot_position_mut(spot_market.market_index)?;
 
+            let mut force_reduce_only = false;
+            if spot_market.status != MarketStatus::Initialized {
+                if spot_market.status == MarketStatus::ReduceOnly {
+                    force_reduce_only = true;
+                } else {
+                    return Err(ErrorCode::InvalidSpotMarketAccount.into());
+                }
+            }
+
+            if force_reduce_only || reduce_only {
+                validate!(
+                    spot_position.balance_type == SpotBalanceType::Deposit,
+                    ErrorCode::InsufficientCollateral,
+                    "Action doesn't satisfy Reduce Only",
+                )?;
+            }
+
             // if reduce only, have to compare ix amount to current deposit amount
-            let amount = if reduce_only && spot_position.balance_type == SpotBalanceType::Deposit {
+            let amount = if (force_reduce_only || reduce_only)
+                && spot_position.balance_type == SpotBalanceType::Deposit
+            {
                 let borrow_token_amount = get_token_amount(
                     spot_position.balance,
                     spot_market,
@@ -756,6 +783,7 @@ pub mod clearing_house {
         user.being_liquidated = false;
 
         let spot_market = spot_market_map.get_ref(&market_index)?;
+
         controller::token::send_from_program_vault(
             &ctx.accounts.token_program,
             &ctx.accounts.spot_market_vault,
@@ -915,6 +943,25 @@ pub mod clearing_house {
         let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
         let now = Clock::get()?.unix_timestamp;
         controller::spot_balance::update_spot_market_cumulative_interest(spot_market, now)?;
+        Ok(())
+    }
+
+    pub fn update_spot_market_expiry(
+        ctx: Context<UpdateSpotMarketCumulativeInterest>,
+        expiry_ts: i64,
+    ) -> Result<()> {
+        let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+        let now = Clock::get()?.unix_timestamp;
+
+        validate!(
+            now < expiry_ts,
+            ErrorCode::DefaultError,
+            "Market expiry ts must later than current clock timestamp"
+        )?;
+
+        spot_market.status = MarketStatus::ReduceOnly;
+        spot_market.expiry_ts = expiry_ts;
+
         Ok(())
     }
 

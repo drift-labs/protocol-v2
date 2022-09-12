@@ -184,6 +184,16 @@ pub fn place_order(
         "must be perp order"
     )?;
 
+    let force_reduce_only = if market.status != MarketStatus::Initialized {
+        if market.status == MarketStatus::ReduceOnly {
+            true
+        } else {
+            return Err(ErrorCode::InvalidMarketAccount);
+        }
+    } else {
+        false
+    };
+
     let new_order = Order {
         status: OrderStatus::Open,
         order_type: params.order_type,
@@ -200,7 +210,7 @@ pub fn place_order(
         quote_asset_amount_filled: 0,
         fee: 0,
         direction: params.direction,
-        reduce_only: params.reduce_only,
+        reduce_only: params.reduce_only || force_reduce_only,
         trigger_price: params.trigger_price,
         trigger_condition: params.trigger_condition,
         triggered: false,
@@ -2086,6 +2096,16 @@ pub fn place_spot_order(
         "must be spot order"
     )?;
 
+    let force_reduce_only = if spot_market.status != MarketStatus::Initialized {
+        if spot_market.status == MarketStatus::ReduceOnly {
+            true
+        } else {
+            return Err(ErrorCode::InvalidMarketAccount);
+        }
+    } else {
+        false
+    };
+
     let new_order = Order {
         status: OrderStatus::Open,
         order_type: params.order_type,
@@ -2102,7 +2122,7 @@ pub fn place_spot_order(
         quote_asset_amount_filled: 0,
         fee: 0,
         direction: params.direction,
-        reduce_only: params.reduce_only,
+        reduce_only: params.reduce_only || force_reduce_only,
         trigger_price: params.trigger_price,
         trigger_condition: params.trigger_condition,
         triggered: false,
