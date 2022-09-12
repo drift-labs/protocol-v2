@@ -1354,7 +1354,7 @@ pub fn update_k(market: &mut PerpMarket, update_k_result: &UpdateKResult) -> Cle
     } else {
         SwapDirection::Remove
     };
-    let (new_terminal_quote_reserve, _new_terminal_base_reserve) = calculate_swap_output(
+    let (new_terminal_quote_reserve, new_terminal_base_reserve) = calculate_swap_output(
         market.amm.net_base_asset_amount.unsigned_abs(),
         market.amm.base_asset_reserve,
         swap_direction,
@@ -1364,7 +1364,7 @@ pub fn update_k(market: &mut PerpMarket, update_k_result: &UpdateKResult) -> Cle
     market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
 
     let (min_base_asset_reserve, max_base_asset_reserve) =
-        calculate_bid_ask_bounds(market.amm.sqrt_k)?; // todo: use _new_terminal_base_reserve?
+        calculate_bid_ask_bounds(new_terminal_base_reserve)?;
     market.amm.min_base_asset_reserve = min_base_asset_reserve;
     market.amm.max_base_asset_reserve = max_base_asset_reserve;
 

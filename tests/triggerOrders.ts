@@ -117,9 +117,9 @@ describe('trigger orders', () => {
 
 	beforeEach(async () => {
 		await fillerClearingHouse.moveAmmPrice(
+			ZERO,
 			ammInitialBaseAssetReserve,
-			ammInitialQuoteAssetReserve,
-			ZERO
+			ammInitialQuoteAssetReserve
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 1, solUsd);
 	});
@@ -608,9 +608,9 @@ describe('trigger orders', () => {
 		}
 
 		await fillerClearingHouse.moveAmmPrice(
+			marketIndex,
 			ammInitialBaseAssetReserve.div(new BN(10)),
-			ammInitialQuoteAssetReserve,
-			marketIndex
+			ammInitialQuoteAssetReserve
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 2.01, solUsd);
 
@@ -805,9 +805,9 @@ describe('trigger orders', () => {
 		}
 
 		await fillerClearingHouse.moveAmmPrice(
+			marketIndex,
 			ammInitialBaseAssetReserve.mul(new BN(10)),
-			ammInitialQuoteAssetReserve,
-			marketIndex
+			ammInitialQuoteAssetReserve
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 0.49, solUsd);
 

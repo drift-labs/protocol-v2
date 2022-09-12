@@ -44,8 +44,8 @@ pub mod clearing_house {
     use std::option::Option::Some;
 
     use crate::controller::lp::burn_lp_shares;
-
     use crate::controller::position::{add_new_position, get_position_index};
+    use crate::controller::validate::validate_market_account;
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
@@ -2028,9 +2028,17 @@ pub mod clearing_house {
         ctx: Context<MoveAMMPrice>,
         base_asset_reserve: u128,
         quote_asset_reserve: u128,
+        sqrt_k: u128,
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
-        controller::amm::move_price(&mut market.amm, base_asset_reserve, quote_asset_reserve)?;
+        controller::amm::move_price(
+            &mut market.amm,
+            base_asset_reserve,
+            quote_asset_reserve,
+            sqrt_k,
+        )?;
+        validate_market_account(market)?;
+
         Ok(())
     }
 

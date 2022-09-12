@@ -1250,6 +1250,10 @@
         {
           "name": "quoteAssetReserve",
           "type": "u128"
+        },
+        {
+          "name": "sqrtK",
+          "type": "u128"
         }
       ]
     },

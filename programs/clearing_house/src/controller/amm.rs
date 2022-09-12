@@ -565,22 +565,33 @@ pub fn move_price(
     amm: &mut AMM,
     base_asset_reserve: u128,
     quote_asset_reserve: u128,
+    sqrt_k: u128,
 ) -> ClearingHouseResult {
     amm.base_asset_reserve = base_asset_reserve;
-    amm.quote_asset_reserve = quote_asset_reserve;
 
-    let k = bn::U256::from(base_asset_reserve)
-        .checked_mul(bn::U256::from(quote_asset_reserve))
+    let k = bn::U256::from(sqrt_k)
+        .checked_mul(bn::U256::from(sqrt_k))
         .ok_or_else(math_error!())?;
 
-    let new_sqrt_k = k.integer_sqrt().try_to_u128()?;
-    amm.sqrt_k = new_sqrt_k;
+    amm.quote_asset_reserve = k
+        .checked_div(bn::U256::from(base_asset_reserve))
+        .ok_or_else(math_error!())?
+        .try_to_u128()?;
+
+    validate!(
+        (cast_to_i128(quote_asset_reserve)? - cast_to_i128(amm.quote_asset_reserve)?).abs() < 100,
+        ErrorCode::DefaultError,
+        "quote_asset_reserve passed doesnt reconcile enough"
+    )?;
+
+    amm.sqrt_k = sqrt_k;
+
+    let (_, terminal_quote_reserves, terminal_base_reserves) =
+        amm::calculate_terminal_price_and_reserves(amm)?;
+    amm.terminal_quote_asset_reserve = terminal_quote_reserves;
 
     let (min_base_asset_reserve, max_base_asset_reserve) =
-        amm::calculate_bid_ask_bounds(amm.base_asset_reserve)?;
-
-    let (_, terminal_quote_reserves, _) = amm::calculate_terminal_price_and_reserves(amm)?;
-    amm.terminal_quote_asset_reserve = terminal_quote_reserves;
+        amm::calculate_bid_ask_bounds(terminal_base_reserves)?;
 
     amm.max_base_asset_reserve = max_base_asset_reserve;
     amm.min_base_asset_reserve = min_base_asset_reserve;
