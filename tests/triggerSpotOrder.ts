@@ -111,9 +111,9 @@ describe('trigger orders', () => {
 
 	beforeEach(async () => {
 		await fillerClearingHouse.moveAmmPrice(
+			ZERO,
 			ammInitialBaseAssetReserve,
-			ammInitialQuoteAssetReserve,
-			ZERO
+			ammInitialQuoteAssetReserve
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 1, solUsd);
 	});
