@@ -181,7 +181,7 @@ export declare type InsuranceFundRecord = {
 	marketIndex: BN;
 	userIfFactor: BN;
 	totalIfFactor: BN;
-	bankVaultAmountBefore: BN;
+	vaultAmountBefore: BN;
 	insuranceVaultAmountBefore: BN;
 	amount: BN;
 	totalIfSharesBefore: BN;
