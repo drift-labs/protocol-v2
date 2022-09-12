@@ -281,9 +281,9 @@ describe('User Account', () => {
 
 	it('After Position Price Moves', async () => {
 		await clearingHouse.moveAmmPrice(
+			marketIndex,
 			ammInitialBaseAssetAmount,
-			ammInitialQuoteAssetAmount.mul(new BN(11)).div(new BN(10)),
-			marketIndex
+			ammInitialQuoteAssetAmount.mul(new BN(11)).div(new BN(10))
 		);
 		const PerpPosition = userAccount.getUserPosition(marketIndex);
 

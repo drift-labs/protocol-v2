@@ -113,9 +113,9 @@ describe('oracle offset', () => {
 
 	beforeEach(async () => {
 		await fillerClearingHouse.moveAmmPrice(
+			ZERO,
 			ammInitialBaseAssetReserve,
-			ammInitialQuoteAssetReserve,
-			ZERO
+			ammInitialQuoteAssetReserve
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 1, solUsd);
 	});
@@ -176,9 +176,9 @@ describe('oracle offset', () => {
 		await clearingHouse.placeOrder(orderParams);
 
 		await fillerClearingHouse.moveAmmPrice(
+			marketIndex,
 			ammInitialBaseAssetReserve.mul(new BN(11)).div(new BN(10)),
-			ammInitialQuoteAssetReserve,
-			marketIndex
+			ammInitialQuoteAssetReserve
 		);
 
 		await clearingHouseUser.fetchAccounts();
@@ -250,9 +250,9 @@ describe('oracle offset', () => {
 		await clearingHouse.placeOrder(orderParams);
 
 		await fillerClearingHouse.moveAmmPrice(
+			marketIndex,
 			ammInitialBaseAssetReserve.mul(new BN(11)).div(new BN(10)),
-			ammInitialQuoteAssetReserve,
-			marketIndex
+			ammInitialQuoteAssetReserve
 		);
 
 		await clearingHouseUser.fetchAccounts();
@@ -323,9 +323,9 @@ describe('oracle offset', () => {
 		await clearingHouse.placeOrder(orderParams);
 
 		await fillerClearingHouse.moveAmmPrice(
+			marketIndex,
 			ammInitialBaseAssetReserve,
-			ammInitialQuoteAssetReserve.mul(new BN(11)).div(new BN(10)),
-			marketIndex
+			ammInitialQuoteAssetReserve.mul(new BN(11)).div(new BN(10))
 		);
 
 		await clearingHouseUser.fetchAccounts();
@@ -396,9 +396,9 @@ describe('oracle offset', () => {
 		await clearingHouse.placeOrder(orderParams);
 
 		await fillerClearingHouse.moveAmmPrice(
+			marketIndex,
 			ammInitialBaseAssetReserve,
-			ammInitialQuoteAssetReserve.mul(new BN(11)).div(new BN(10)),
-			marketIndex
+			ammInitialQuoteAssetReserve.mul(new BN(11)).div(new BN(10))
 		);
 
 		await clearingHouseUser.fetchAccounts();

@@ -788,6 +788,37 @@
       ]
     },
     {
+      "name": "triggerSpotOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderId",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "placeSpotOrder",
       "accounts": [
         {
@@ -1310,6 +1341,10 @@
         },
         {
           "name": "quoteAssetReserve",
+          "type": "u128"
+        },
+        {
+          "name": "sqrtK",
           "type": "u128"
         }
       ]

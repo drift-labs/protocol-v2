@@ -4,25 +4,26 @@ if [ "$1" != "--skip-build" ]
     cp target/idl/clearing_house.json sdk/src/idl/  
 fi
 
-test_files=(  
-#   imbalancePerpPnl.ts
+test_files=(
+  imbalancePerpPnl.ts
   delistMarket.ts delistMarketLiq.ts
-#   serumTest.ts
-#   liquidityProvider.ts
-#   insuranceFundStake.ts
-#   liquidateBorrow.ts
-#   liquidateBorrowSocialLoss.ts
-#   referrer.ts
-#   liquidatePerpPnlForDeposit.ts liquidateBorrowForPerpPnl.ts
-#   liquidatePerp.ts
-#   order.ts bankDepositWithdraw.ts 
-#   prepegMarketOrderBaseAssetAmount.ts updateAMM.ts repegAndSpread.ts 
-#   clearingHouse.ts 
-#   ordersWithSpread.ts
-#   marketOrder.ts triggerOrders.ts stopLimits.ts userOrderId.ts postOnly.ts
-#   roundInFavorBaseAsset.ts marketOrderBaseAssetAmount.ts oracleOffsetOrders.ts
-#   subaccounts.ts pyth.ts userAccount.ts admin.ts updateK.ts adminWithdraw.ts
-#   curve.ts roundInFavor.ts cappedSymFunding.ts
+  triggerSpotOrder.ts
+  serumTest.ts
+  liquidityProvider.ts
+  insuranceFundStake.ts
+  liquidateBorrow.ts
+  liquidateBorrowSocialLoss.ts
+  referrer.ts
+  liquidatePerpPnlForDeposit.ts liquidateBorrowForPerpPnl.ts
+  liquidatePerp.ts
+  order.ts bankDepositWithdraw.ts prepegMarketOrderBaseAssetAmount.ts
+  updateAMM.ts repegAndSpread.ts 
+  clearingHouse.ts 
+  ordersWithSpread.ts
+  marketOrder.ts triggerOrders.ts stopLimits.ts userOrderId.ts postOnly.ts
+  roundInFavorBaseAsset.ts marketOrderBaseAssetAmount.ts oracleOffsetOrders.ts
+  subaccounts.ts pyth.ts userAccount.ts admin.ts updateK.ts adminWithdraw.ts
+  curve.ts roundInFavor.ts cappedSymFunding.ts
 )
 
 for test_file in ${test_files[@]}; do

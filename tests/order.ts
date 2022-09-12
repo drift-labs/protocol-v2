@@ -1097,10 +1097,14 @@ describe('orders', () => {
 		);
 		// move price to make liquidity for order @ $1.05 (5%)
 		setFeedPrice(anchor.workspace.Pyth, newPrice, solUsd);
-		await clearingHouse.moveAmmToPrice(
-			marketIndex,
-			new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
-		);
+		try {
+			await clearingHouse.moveAmmToPrice(
+				marketIndex,
+				new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
+			);
+		} catch (e) {
+			console.error(e);
+		}
 
 		const order = clearingHouseUser.getUserAccount().orders[0];
 		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(

@@ -13,38 +13,28 @@ import {
 	PositionDirection,
 	ClearingHouseUser,
 	Wallet,
-	EventSubscriber,
+	OrderTriggerCondition,
+	getTriggerMarketOrderParams,
 } from '../sdk/src';
 
 import {
-	initializeQuoteSpotMarket,
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPrice,
+	initializeQuoteSpotMarket,
+	initializeSolSpotMarket,
 } from './testHelpers';
-import {
-	BASE_PRECISION,
-	calculateMarkPrice,
-	getLimitOrderParams,
-	isVariant,
-	OracleSource,
-	ZERO,
-} from '../sdk';
+import { BASE_PRECISION, OracleSource, ZERO } from '../sdk';
 
-describe('post only', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		commitment: 'confirmed',
-		preflightCommitment: 'confirmed',
-	});
+describe('trigger orders', () => {
+	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.ClearingHouse as Program;
 
 	let fillerClearingHouse: Admin;
 	let fillerClearingHouseUser: ClearingHouseUser;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
-	eventSubscriber.subscribe();
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -61,6 +51,7 @@ describe('post only', () => {
 	const usdcAmount = new BN(10 * 10 ** 6);
 
 	let solUsd;
+
 	let marketIndexes;
 	let spotMarketIndexes;
 	let oracleInfos;
@@ -70,10 +61,14 @@ describe('post only', () => {
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
 		solUsd = await mockOracle(1);
-
 		marketIndexes = [new BN(0)];
-		spotMarketIndexes = [new BN(0)];
-		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
+		spotMarketIndexes = [new BN(0), new BN(1)];
+		oracleInfos = [
+			{
+				publicKey: solUsd,
+				source: OracleSource.PYTH,
+			},
+		];
 
 		fillerClearingHouse = new Admin({
 			connection,
@@ -90,6 +85,7 @@ describe('post only', () => {
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
 		await fillerClearingHouse.subscribe();
 		await initializeQuoteSpotMarket(fillerClearingHouse, usdcMint.publicKey);
+		await initializeSolSpotMarket(fillerClearingHouse, solUsd);
 		await fillerClearingHouse.updateAuctionDuration(new BN(0), new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -100,8 +96,6 @@ describe('post only', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
-
-		await fillerClearingHouse.updateMarketBaseSpread(new BN(0), 500);
 
 		await fillerClearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -117,9 +111,9 @@ describe('post only', () => {
 
 	beforeEach(async () => {
 		await fillerClearingHouse.moveAmmPrice(
-			ZERO,
 			ammInitialBaseAssetReserve,
-			ammInitialQuoteAssetReserve
+			ammInitialQuoteAssetReserve,
+			ZERO
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 1, solUsd);
 	});
@@ -127,10 +121,9 @@ describe('post only', () => {
 	after(async () => {
 		await fillerClearingHouse.unsubscribe();
 		await fillerClearingHouseUser.unsubscribe();
-		await eventSubscriber.unsubscribe();
 	});
 
-	it('long', async () => {
+	it('trigger order with below condition', async () => {
 		const keypair = new Keypair();
 		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
 		const wallet = new Wallet(keypair);
@@ -142,7 +135,7 @@ describe('post only', () => {
 		);
 		const clearingHouse = new ClearingHouse({
 			connection,
-			wallet,
+			wallet: wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -151,7 +144,6 @@ describe('post only', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
-			userStats: true,
 		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -164,60 +156,48 @@ describe('post only', () => {
 		});
 		await clearingHouseUser.subscribe();
 
-		const marketIndex = new BN(0);
+		const marketIndex = new BN(1);
 		const baseAssetAmount = BASE_PRECISION;
-		const markPrice = calculateMarkPrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
-		);
-		const makerOrderParams = getLimitOrderParams({
+
+		const stopOrderParams = getTriggerMarketOrderParams({
 			marketIndex,
-			direction: PositionDirection.LONG,
+			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: markPrice,
+			triggerPrice: MARK_PRICE_PRECISION.div(new BN(2)),
+			triggerCondition: OrderTriggerCondition.BELOW,
 			userOrderId: 1,
-			postOnly: true,
 		});
-		await clearingHouse.placeOrder(makerOrderParams);
+		await clearingHouse.placeSpotOrder(stopOrderParams);
+
 		await clearingHouseUser.fetchAccounts();
-		const order = clearingHouseUser.getOrderByUserOrderId(1);
+		let order = clearingHouseUser.getOrderByUserOrderId(1);
 
-		assert(order.postOnly);
-		const newOraclePrice = 0.98;
-		setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
-		await fillerClearingHouse.moveAmmToPrice(
-			marketIndex,
-			new BN(newOraclePrice * MARK_PRICE_PRECISION.toNumber())
-		);
+		const newOraclePrice = 0.49;
+		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.triggerSpotOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
 		);
 
-		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
-		const position = clearingHouseUser.getUserPosition(marketIndex);
-		assert(position.baseAssetAmount.eq(baseAssetAmount));
-		assert(position.quoteEntryAmount.eq(new BN(-1000001)));
-		assert(position.quoteAssetAmount.eq(new BN(-1000001)));
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
-		assert(
-			clearingHouse.getUserStats().getAccount().fees.totalFeePaid.eq(ZERO)
-		);
-
 		await fillerClearingHouse.fetchAccounts();
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
-		assert(isVariant(orderRecord.action, 'fill'));
-		assert(orderRecord.takerFee.eq(ZERO));
-		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(19506)));
+		order = clearingHouseUser.getOrderByUserOrderId(1);
+		assert(order.triggered);
+
+		const userQuoteTokenAmount = clearingHouse.getQuoteAssetTokenAmount();
+		assert(userQuoteTokenAmount.eq(new BN(9990000)));
+		const fillerQuoteTokenAmount =
+			fillerClearingHouse.getQuoteAssetTokenAmount();
+		assert(fillerQuoteTokenAmount.eq(new BN(10010000)));
 
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();
 	});
 
-	it('short', async () => {
+	it('trigger order with above condition', async () => {
 		const keypair = new Keypair();
 		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
 		const wallet = new Wallet(keypair);
@@ -229,7 +209,7 @@ describe('post only', () => {
 		);
 		const clearingHouse = new ClearingHouse({
 			connection,
-			wallet,
+			wallet: wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -238,7 +218,6 @@ describe('post only', () => {
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
-			userStats: true,
 		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -251,54 +230,42 @@ describe('post only', () => {
 		});
 		await clearingHouseUser.subscribe();
 
-		const marketIndex = new BN(0);
+		const marketIndex = new BN(1);
 		const baseAssetAmount = BASE_PRECISION;
-		const markPrice = calculateMarkPrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
-		);
-		const makerOrderParams = getLimitOrderParams({
+
+		const stopOrderParams = getTriggerMarketOrderParams({
 			marketIndex,
-			direction: PositionDirection.SHORT,
+			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			price: markPrice,
+			triggerPrice: MARK_PRICE_PRECISION.mul(new BN(2)),
+			triggerCondition: OrderTriggerCondition.ABOVE,
 			userOrderId: 1,
-			postOnly: true,
 		});
-		await clearingHouse.placeOrder(makerOrderParams);
+		await clearingHouse.placeSpotOrder(stopOrderParams);
+
 		await clearingHouseUser.fetchAccounts();
-		const order = clearingHouseUser.getOrderByUserOrderId(1);
+		let order = clearingHouseUser.getOrderByUserOrderId(1);
 
-		assert(order.postOnly);
+		const newOraclePrice = 2.01;
+		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 
-		const newOraclePrice = 1.02;
-		setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
-		await fillerClearingHouse.moveAmmToPrice(
-			marketIndex,
-			new BN(newOraclePrice * MARK_PRICE_PRECISION.toNumber())
-		);
-
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.triggerSpotOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
 		);
 
-		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
-		const position = clearingHouseUser.getUserPosition(marketIndex);
-		assert(position.baseAssetAmount.abs().eq(baseAssetAmount));
-		assert(position.quoteEntryAmount.eq(new BN(1000000)));
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
-		assert(
-			clearingHouse.getUserStats().getAccount().fees.totalFeePaid.eq(ZERO)
-		);
-
 		await fillerClearingHouse.fetchAccounts();
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
-		assert(isVariant(orderRecord.action, 'fill'));
-		assert(orderRecord.takerFee.eq(new BN(0)));
-		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(19490)));
+		order = clearingHouseUser.getOrderByUserOrderId(1);
+		assert(order.triggered);
+
+		const userQuoteTokenAmount = clearingHouse.getQuoteAssetTokenAmount();
+		assert(userQuoteTokenAmount.eq(new BN(9990000)));
+		const fillerQuoteTokenAmount =
+			fillerClearingHouse.getQuoteAssetTokenAmount();
+		assert(fillerQuoteTokenAmount.eq(new BN(10020000)));
 
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();

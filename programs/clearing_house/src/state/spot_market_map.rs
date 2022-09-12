@@ -19,7 +19,10 @@ impl<'a> SpotMarketMap<'a> {
             .get(market_index)
             .ok_or(ErrorCode::SpotMarketNotFound)?
             .load()
-            .or(Err(ErrorCode::UnableToLoadSpotMarketAccount))
+            .map_err(|e| {
+                solana_program::msg!("{:?}", e);
+                ErrorCode::UnableToLoadSpotMarketAccount
+            })
     }
 
     pub fn get_ref_mut(&self, market_index: &u64) -> ClearingHouseResult<RefMut<SpotMarket>> {
@@ -27,7 +30,10 @@ impl<'a> SpotMarketMap<'a> {
             .get(market_index)
             .ok_or(ErrorCode::SpotMarketNotFound)?
             .load_mut()
-            .or(Err(ErrorCode::UnableToLoadSpotMarketAccount))
+            .map_err(|e| {
+                solana_program::msg!("{:?}", e);
+                ErrorCode::UnableToLoadSpotMarketAccount
+            })
     }
 
     pub fn get_quote_spot_market(&self) -> ClearingHouseResult<Ref<SpotMarket>> {

@@ -44,8 +44,8 @@ pub mod clearing_house {
     use std::option::Option::Some;
 
     use crate::controller::lp::burn_lp_shares;
-
     use crate::controller::position::{add_new_position, get_position_index};
+    use crate::controller::validate::validate_market_account;
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
@@ -1072,6 +1072,14 @@ pub mod clearing_house {
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
 
+            validate!(
+                n_shares >= market.amm.base_asset_amount_step_size,
+                ErrorCode::DefaultError,
+                "minting {} shares is less than step size {}",
+                n_shares,
+                market.amm.base_asset_amount_step_size,
+            )?;
+
             // standardize n shares to mint
             let n_shares = crate::math::orders::standardize_base_asset_amount(
                 n_shares,
@@ -1469,6 +1477,33 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
+    pub fn trigger_spot_order<'info>(ctx: Context<TriggerOrder>, order_id: u64) -> Result<()> {
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let spot_market_market =
+            SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
+        PerpMarketMap::load(
+            &MarketSet::new(),
+            &MarketSet::new(),
+            remaining_accounts_iter,
+        )?;
+
+        controller::orders::trigger_spot_order(
+            order_id,
+            &ctx.accounts.state,
+            &ctx.accounts.user,
+            &spot_market_market,
+            &mut oracle_map,
+            &ctx.accounts.filler,
+            &Clock::get()?,
+        )?;
+
+        Ok(())
+    }
+
     pub fn place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
@@ -1566,7 +1601,6 @@ pub mod clearing_house {
             maker_stats.as_ref(),
             maker_order_id,
             &Clock::get()?,
-            &ctx.accounts.state.spot_fee_structure,
             serum_fulfillment_params,
         )?;
 
@@ -2176,9 +2210,17 @@ pub mod clearing_house {
         ctx: Context<MoveAMMPrice>,
         base_asset_reserve: u128,
         quote_asset_reserve: u128,
+        sqrt_k: u128,
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.perp_market)?;
-        controller::amm::move_price(&mut market.amm, base_asset_reserve, quote_asset_reserve)?;
+        controller::amm::move_price(
+            &mut market.amm,
+            base_asset_reserve,
+            quote_asset_reserve,
+            sqrt_k,
+        )?;
+        validate_market_account(market)?;
+
         Ok(())
     }
 

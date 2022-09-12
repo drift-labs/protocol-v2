@@ -62,7 +62,7 @@ describe('liquidate perp and lp', () => {
 	);
 
 	const usdcAmount = new BN(10 * 10 ** 6);
-	const nLpShares = new BN(100_000);
+	const nLpShares = new BN(10000000);
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
