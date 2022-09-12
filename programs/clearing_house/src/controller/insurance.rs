@@ -11,7 +11,8 @@ use crate::error::ErrorCode;
 use crate::math::amm::calculate_net_user_pnl;
 use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128, cast_to_u32, cast_to_u64};
 use crate::math::constants::{
-    SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
+    MAX_APR_PER_REVENUE_SETTLE_PRECISION, MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT,
+    ONE_YEAR, SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_NUMERATOR,
 };
 use crate::math::helpers::get_proportion_u128;
@@ -405,15 +406,15 @@ pub fn settle_revenue_to_insurance_fund(
     update_spot_market_cumulative_interest(spot_market, now)?;
 
     validate!(
-        spot_market.user_if_factor <= spot_market.total_if_factor,
+        spot_market.revenue_settle_period > 0,
         ErrorCode::DefaultError,
-        "invalid if_factor settings on spot market"
+        "invalid revenue_settle_period settings on spot market"
     )?;
 
     validate!(
-        spot_market.user_if_factor > 0 || spot_market.total_if_factor > 0,
+        spot_market.user_if_factor <= spot_market.total_if_factor,
         ErrorCode::DefaultError,
-        "if_factor = 0 for this spot market"
+        "invalid if_factor settings on spot market"
     )?;
 
     let depositors_claim = cast_to_u128(validate_spot_market_amounts(
@@ -433,7 +434,12 @@ pub fn settle_revenue_to_insurance_fund(
     }
 
     if spot_market.user_if_shares > 0 {
-        let capped_apr_amount = cast_to_u128(insurance_vault_amount * 10 / 365 / 24)?;
+        let capped_apr_amount = cast_to_u128(
+            insurance_vault_amount * MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT
+                / MAX_APR_PER_REVENUE_SETTLE_PRECISION
+                / cast_to_u64(ONE_YEAR)?
+                / cast_to_u64(spot_market.revenue_settle_period)?,
+        )?;
         token_amount = token_amount.min(capped_apr_amount);
     }
 

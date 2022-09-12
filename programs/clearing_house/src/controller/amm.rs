@@ -1152,6 +1152,7 @@ mod test {
         assert_eq!(spot_market.deposit_balance, 10100000001);
 
         spot_market.total_if_factor = 1;
+        spot_market.revenue_settle_period = 1;
         let res = settle_revenue_to_insurance_fund(
             spot_market_vault_amount,
             0,
