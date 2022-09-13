@@ -773,8 +773,10 @@ export class ClearingHouseUser {
 		return this.getTotalCollateral().mul(TEN_THOUSAND).div(totalPositionValue);
 	}
 
-	public canBeLiquidated(): [boolean, BN] {
+	public canBeLiquidated(): boolean {
 		const totalCollateral = this.getTotalCollateral();
+
+		// if user being liq'd, can continue to be liq'd until total collateral above the margin requirement plus buffer
 		let liquidationBuffer = undefined;
 		if (this.getUserAccount().beingLiquidated) {
 			liquidationBuffer = new BN(
@@ -783,9 +785,7 @@ export class ClearingHouseUser {
 		}
 		const maintenanceRequirement =
 			this.getMaintenanceMarginRequirement(liquidationBuffer);
-		const marginRatio = this.getMarginRatio();
-		const canLiquidate = totalCollateral.lt(maintenanceRequirement);
-		return [canLiquidate, marginRatio];
+		return totalCollateral.lt(maintenanceRequirement);
 	}
 
 	/**
