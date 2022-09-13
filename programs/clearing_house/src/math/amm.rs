@@ -39,22 +39,25 @@ pub fn calculate_price(
         .try_to_u128()
 }
 
-pub fn calculate_bid_ask_bounds(sqrt_k: u128) -> ClearingHouseResult<(u128, u128)> {
-    let sqrt_2_precision = 10_000_u128;
-    let sqrt_2 = 14_142;
+pub fn calculate_bid_ask_bounds(
+    concentration_coef: u128,
+    sqrt_k: u128,
+) -> ClearingHouseResult<(u128, u128)> {
+    let concentration_precision = 10_000_u128;
+    // let concentration_coef = 14_142;
 
     // worse case if all asks are filled (max reserve)
     let ask_bounded_base = sqrt_k
-        .checked_mul(sqrt_2)
+        .checked_mul(concentration_coef)
         .ok_or_else(math_error!())?
-        .checked_div(sqrt_2_precision)
+        .checked_div(concentration_precision)
         .ok_or_else(math_error!())?;
 
     // worse case if all bids are filled (min reserve)
     let bid_bounded_base = sqrt_k
-        .checked_mul(sqrt_2_precision)
+        .checked_mul(concentration_precision)
         .ok_or_else(math_error!())?
-        .checked_div(sqrt_2)
+        .checked_div(concentration_coef)
         .ok_or_else(math_error!())?;
 
     Ok((bid_bounded_base, ask_bounded_base))
@@ -1364,7 +1367,7 @@ pub fn update_k(market: &mut PerpMarket, update_k_result: &UpdateKResult) -> Cle
     market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
 
     let (min_base_asset_reserve, max_base_asset_reserve) =
-        calculate_bid_ask_bounds(new_terminal_base_reserve)?;
+        calculate_bid_ask_bounds(market.amm.concentration_coef, new_terminal_base_reserve)?;
     market.amm.min_base_asset_reserve = min_base_asset_reserve;
     market.amm.max_base_asset_reserve = max_base_asset_reserve;
 
@@ -2136,6 +2139,7 @@ mod test {
             amm: AMM {
                 base_asset_reserve: 5122950819670000,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                concentration_coef: 14_142,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
                 net_base_asset_amount: -122950819670000,

@@ -777,6 +777,7 @@ mod test {
                 total_fee: 607476,
                 total_exchange_fee: 0, // new fee pool lowerbound
                 funding_period: 3600,
+                concentration_coef: 14_142,
 
                 ..AMM::default()
             },

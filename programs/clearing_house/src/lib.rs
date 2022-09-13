@@ -433,13 +433,15 @@ pub mod clearing_house {
             amm_peg_multiplier,
         )?;
 
+        let concentration_coef = 14_142;
+
         // Verify there's no overflow
         let _k = bn::U192::from(amm_base_asset_reserve)
             .checked_mul(bn::U192::from(amm_quote_asset_reserve))
             .ok_or_else(math_error!())?;
 
         let (min_base_asset_reserve, max_base_asset_reserve) =
-            amm::calculate_bid_ask_bounds(amm_base_asset_reserve)?;
+            amm::calculate_bid_ask_bounds(concentration_coef, amm_base_asset_reserve)?;
 
         // Verify oracle is readable
         let OraclePriceData {
@@ -527,6 +529,7 @@ pub mod clearing_house {
                 last_mark_price_twap_5min: init_mark_price,
                 last_mark_price_twap_ts: now,
                 sqrt_k: amm_base_asset_reserve,
+                concentration_coef,
                 min_base_asset_reserve,
                 max_base_asset_reserve,
                 peg_multiplier: amm_peg_multiplier,

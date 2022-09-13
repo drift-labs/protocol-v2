@@ -204,6 +204,7 @@ pub struct AMM {
 
     pub base_asset_reserve: u128,
     pub quote_asset_reserve: u128,
+    pub concentration_coef: u128,
     pub min_base_asset_reserve: u128,
     pub max_base_asset_reserve: u128,
     pub sqrt_k: u128,
@@ -290,6 +291,7 @@ impl AMM {
             base_asset_reserve: default_reserves,
             quote_asset_reserve: default_reserves,
             sqrt_k: default_reserves,
+            concentration_coef: 14_142,
             base_asset_amount_step_size: 1,
             max_base_asset_reserve: u128::MAX,
             min_base_asset_reserve: 0,
@@ -311,6 +313,7 @@ impl AMM {
 
             peg_multiplier: 19_400_000,
 
+            concentration_coef: 14_142,
             max_base_asset_reserve: 90 * AMM_RESERVE_PRECISION,
             min_base_asset_reserve: 45 * AMM_RESERVE_PRECISION,
 
