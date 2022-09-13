@@ -404,6 +404,7 @@ export type StateAccount = {
 	signerNonce: number;
 	maxAuctionDuration: number;
 	minAuctionDuration: number;
+	liquidationMarginBufferRatio: number;
 };
 
 export type PerpMarketAccount = {

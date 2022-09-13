@@ -312,7 +312,10 @@ export class ClearingHouseUser {
 	/**
 	 * @returns The margin requirement of a certain type (Initial or Maintenance) in USDC. : QUOTE_PRECISION
 	 */
-	public getMarginRequirement(type: MarginCategory): BN {
+	public getMarginRequirement(
+		type: MarginCategory,
+		liquidationBuffer?: BN
+	): BN {
 		return this.getUserAccount()
 			.perpPositions.reduce((marginRequirement, perpPosition) => {
 				const market = this.clearingHouse.getPerpMarketAccount(
@@ -374,21 +377,29 @@ export class ClearingHouseUser {
 					.mul(valuationPrice)
 					.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
 
-				return marginRequirement.add(
-					worstCaseAssetValue
-						.mul(
-							new BN(
-								calculateMarketMarginRatio(
-									market,
-									worstCaseBaseAssetAmount.abs(),
-									type
-								)
+				const positionMarginRequirement = worstCaseAssetValue
+					.mul(
+						new BN(
+							calculateMarketMarginRatio(
+								market,
+								worstCaseBaseAssetAmount.abs(),
+								type
 							)
 						)
-						.div(MARGIN_PRECISION)
-				);
+					)
+					.div(MARGIN_PRECISION);
+
+				if (liquidationBuffer !== undefined) {
+					positionMarginRequirement.add(
+						worstCaseAssetValue.mul(liquidationBuffer).div(MARGIN_PRECISION)
+					);
+				}
+
+				return marginRequirement.add(positionMarginRequirement);
 			}, ZERO)
-			.add(this.getSpotMarketLiabilityValue(undefined, type));
+			.add(
+				this.getSpotMarketLiabilityValue(undefined, type, liquidationBuffer)
+			);
 	}
 
 	/**
@@ -401,8 +412,8 @@ export class ClearingHouseUser {
 	/**
 	 * @returns The maintenance margin requirement in USDC. : QUOTE_PRECISION
 	 */
-	public getMaintenanceMarginRequirement(): BN {
-		return this.getMarginRequirement('Maintenance');
+	public getMaintenanceMarginRequirement(liquidationBuffer?: BN): BN {
+		return this.getMarginRequirement('Maintenance', liquidationBuffer);
 	}
 
 	/**
@@ -466,7 +477,8 @@ export class ClearingHouseUser {
 
 	public getSpotMarketLiabilityValue(
 		marketIndex?: BN,
-		withWeightMarginCategory?: MarginCategory
+		withWeightMarginCategory?: MarginCategory,
+		liquidationBuffer?: BN
 	): BN {
 		return this.getUserAccount().spotPositions.reduce(
 			(totalLiabilityValue, spotPosition) => {
@@ -503,11 +515,16 @@ export class ClearingHouseUser {
 					);
 
 				if (withWeightMarginCategory !== undefined) {
-					const weight = calculateLiabilityWeight(
+					let weight = calculateLiabilityWeight(
 						tokenAmount,
 						spotMarketAccount,
 						withWeightMarginCategory
 					);
+
+					if (liquidationBuffer !== undefined) {
+						weight = weight.add(liquidationBuffer);
+					}
+
 					liabilityValue = liabilityValue
 						.mul(weight)
 						.div(SPOT_MARKET_WEIGHT_PRECISION);
@@ -756,13 +773,19 @@ export class ClearingHouseUser {
 		return this.getTotalCollateral().mul(TEN_THOUSAND).div(totalPositionValue);
 	}
 
-	public canBeLiquidated(): [boolean, BN] {
+	public canBeLiquidated(): boolean {
 		const totalCollateral = this.getTotalCollateral();
-		const partialMaintenanceRequirement =
-			this.getMaintenanceMarginRequirement();
-		const marginRatio = this.getMarginRatio();
-		const canLiquidate = totalCollateral.lt(partialMaintenanceRequirement);
-		return [canLiquidate, marginRatio];
+
+		// if user being liq'd, can continue to be liq'd until total collateral above the margin requirement plus buffer
+		let liquidationBuffer = undefined;
+		if (this.getUserAccount().beingLiquidated) {
+			liquidationBuffer = new BN(
+				this.clearingHouse.getStateAccount().liquidationMarginBufferRatio
+			);
+		}
+		const maintenanceRequirement =
+			this.getMaintenanceMarginRequirement(liquidationBuffer);
+		return totalCollateral.lt(maintenanceRequirement);
 	}
 
 	/**

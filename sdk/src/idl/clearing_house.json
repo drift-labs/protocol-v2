@@ -3562,7 +3562,7 @@
           },
           {
             "name": "liquidationMarginBufferRatio",
-            "type": "u8"
+            "type": "u32"
           },
           {
             "name": "signer",

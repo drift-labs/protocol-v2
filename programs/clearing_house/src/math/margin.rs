@@ -171,7 +171,7 @@ pub fn calculate_perp_position_value_and_pnl(
     market: &PerpMarket,
     oracle_price_data: &OraclePriceData,
     margin_requirement_type: MarginRequirementType,
-) -> ClearingHouseResult<(u128, i128)> {
+) -> ClearingHouseResult<(u128, i128, u128)> {
     let unrealized_funding = calculate_funding_payment(
         if market_position.base_asset_amount > 0 {
             market.amm.cumulative_funding_rate_long
@@ -276,7 +276,11 @@ pub fn calculate_perp_position_value_and_pnl(
         .checked_div(SPOT_WEIGHT_PRECISION as i128)
         .ok_or_else(math_error!())?;
 
-    Ok((margin_requirement, weighted_unrealized_pnl))
+    Ok((
+        margin_requirement,
+        weighted_unrealized_pnl,
+        worse_case_base_asset_value,
+    ))
 }
 
 pub fn calculate_margin_requirement_and_total_collateral(
@@ -285,9 +289,11 @@ pub fn calculate_margin_requirement_and_total_collateral(
     margin_requirement_type: MarginRequirementType,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
-) -> ClearingHouseResult<(u128, i128)> {
+    margin_buffer_ratio: Option<u128>,
+) -> ClearingHouseResult<(u128, i128, u128)> {
     let mut total_collateral: i128 = 0;
     let mut margin_requirement: u128 = 0;
+    let mut margin_requirement_plus_buffer: u128 = 0;
 
     for spot_position in user.spot_positions.iter() {
         if spot_position.balance == 0 && spot_position.open_orders == 0 {
@@ -312,7 +318,17 @@ pub fn calculate_margin_requirement_and_total_collateral(
                 SpotBalanceType::Borrow => {
                     margin_requirement = margin_requirement
                         .checked_add(token_amount)
-                        .ok_or_else(math_error!())?
+                        .ok_or_else(math_error!())?;
+
+                    if let Some(margin_buffer_ratio) = margin_buffer_ratio {
+                        margin_requirement_plus_buffer = margin_requirement_plus_buffer
+                            .checked_add(calculate_margin_requirement_with_buffer(
+                                token_amount,
+                                token_amount,
+                                margin_buffer_ratio,
+                            )?)
+                            .ok_or_else(math_error!())?;
+                    }
                 }
             }
         } else {
@@ -358,6 +374,16 @@ pub fn calculate_margin_requirement_and_total_collateral(
                     margin_requirement = margin_requirement
                         .checked_add(weighted_token_value)
                         .ok_or_else(math_error!())?;
+
+                    if let Some(margin_buffer_ratio) = margin_buffer_ratio {
+                        margin_requirement_plus_buffer = margin_requirement_plus_buffer
+                            .checked_add(calculate_margin_requirement_with_buffer(
+                                weighted_token_value,
+                                worst_case_token_value.unsigned_abs(),
+                                margin_buffer_ratio,
+                            )?)
+                            .ok_or_else(math_error!())?;
+                    }
                 }
             }
 
@@ -370,7 +396,17 @@ pub fn calculate_margin_requirement_and_total_collateral(
                 false => {
                     margin_requirement = margin_requirement
                         .checked_add(worst_cast_quote_token_amount.unsigned_abs())
-                        .ok_or_else(math_error!())?
+                        .ok_or_else(math_error!())?;
+
+                    if let Some(margin_buffer_ratio) = margin_buffer_ratio {
+                        margin_requirement_plus_buffer = margin_requirement_plus_buffer
+                            .checked_add(calculate_margin_requirement_with_buffer(
+                                worst_cast_quote_token_amount.unsigned_abs(),
+                                worst_cast_quote_token_amount.unsigned_abs(),
+                                margin_buffer_ratio,
+                            )?)
+                            .ok_or_else(math_error!())?;
+                    }
                 }
             }
         }
@@ -389,23 +425,53 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
 
-        let (perp_margin_requirement, weighted_pnl) = calculate_perp_position_value_and_pnl(
-            market_position,
-            market,
-            oracle_price_data,
-            margin_requirement_type,
-        )?;
+        let (perp_margin_requirement, weighted_pnl, worst_case_base_asset_value) =
+            calculate_perp_position_value_and_pnl(
+                market_position,
+                market,
+                oracle_price_data,
+                margin_requirement_type,
+            )?;
 
         margin_requirement = margin_requirement
             .checked_add(perp_margin_requirement)
             .ok_or_else(math_error!())?;
+
+        if let Some(margin_buffer_ratio) = margin_buffer_ratio {
+            margin_requirement_plus_buffer = margin_requirement_plus_buffer
+                .checked_add(calculate_margin_requirement_with_buffer(
+                    perp_margin_requirement,
+                    worst_case_base_asset_value,
+                    margin_buffer_ratio,
+                )?)
+                .ok_or_else(math_error!())?;
+        }
 
         total_collateral = total_collateral
             .checked_add(weighted_pnl)
             .ok_or_else(math_error!())?;
     }
 
-    Ok((margin_requirement, total_collateral))
+    Ok((
+        margin_requirement,
+        total_collateral,
+        margin_requirement_plus_buffer,
+    ))
+}
+
+fn calculate_margin_requirement_with_buffer(
+    margin_requirement: u128,
+    liability_value: u128,
+    buffer_ratio: u128,
+) -> ClearingHouseResult<u128> {
+    margin_requirement
+        .checked_add(
+            liability_value
+                .checked_mul(buffer_ratio)
+                .ok_or_else(math_error!())?
+                / MARGIN_PRECISION,
+        )
+        .ok_or_else(math_error!())
 }
 
 pub fn calculate_net_quote_balance(
@@ -468,13 +534,15 @@ pub fn meets_initial_margin_requirement(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<bool> {
-    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
-        user,
-        perp_market_map,
-        MarginRequirementType::Initial,
-        spot_market_map,
-        oracle_map,
-    )?;
+    let (margin_requirement, total_collateral, _) =
+        calculate_margin_requirement_and_total_collateral(
+            user,
+            perp_market_map,
+            MarginRequirementType::Initial,
+            spot_market_map,
+            oracle_map,
+            None,
+        )?;
     Ok(total_collateral >= cast_to_i128(margin_requirement)?)
 }
 
@@ -484,13 +552,15 @@ pub fn meets_maintenance_margin_requirement(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<bool> {
-    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
-        user,
-        perp_market_map,
-        MarginRequirementType::Maintenance,
-        spot_market_map,
-        oracle_map,
-    )?;
+    let (margin_requirement, total_collateral, _) =
+        calculate_margin_requirement_and_total_collateral(
+            user,
+            perp_market_map,
+            MarginRequirementType::Maintenance,
+            spot_market_map,
+            oracle_map,
+            None,
+        )?;
 
     Ok(total_collateral >= cast_to_i128(margin_requirement)?)
 }
@@ -501,13 +571,15 @@ pub fn calculate_free_collateral(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<i128> {
-    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
-        user,
-        perp_market_map,
-        MarginRequirementType::Initial,
-        spot_market_map,
-        oracle_map,
-    )?;
+    let (margin_requirement, total_collateral, _) =
+        calculate_margin_requirement_and_total_collateral(
+            user,
+            perp_market_map,
+            MarginRequirementType::Initial,
+            spot_market_map,
+            oracle_map,
+            None,
+        )?;
 
     total_collateral
         .checked_sub(cast_to_i128(margin_requirement)?)
