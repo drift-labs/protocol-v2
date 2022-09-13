@@ -1,8 +1,5 @@
 use crate::controller::spot_balance::{
-    update_revenue_pool_balances,
-    update_spot_balances,
-    update_spot_market_cumulative_interest,
-    // validate_spot_balances
+    update_revenue_pool_balances, update_spot_balances, update_spot_market_cumulative_interest,
 };
 use crate::math::spot_balance::get_token_amount;
 
@@ -435,10 +432,15 @@ pub fn settle_revenue_to_insurance_fund(
 
     if spot_market.user_if_shares > 0 {
         let capped_apr_amount = cast_to_u128(
-            insurance_vault_amount * MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT
-                / MAX_APR_PER_REVENUE_SETTLE_PRECISION
-                / cast_to_u64(ONE_YEAR)?
-                / cast_to_u64(spot_market.revenue_settle_period)?,
+            insurance_vault_amount
+                .checked_mul(MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT)
+                .ok_or_else(math_error!())?
+                .checked_div(MAX_APR_PER_REVENUE_SETTLE_PRECISION)
+                .ok_or_else(math_error!())?
+                .checked_div(cast_to_u64(ONE_YEAR)?)
+                .ok_or_else(math_error!())?
+                .checked_div(cast_to_u64(spot_market.revenue_settle_period)?)
+                .ok_or_else(math_error!())?,
         )?;
         token_amount = token_amount.min(capped_apr_amount);
     }

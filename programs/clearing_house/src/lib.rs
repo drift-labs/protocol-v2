@@ -2367,6 +2367,7 @@ pub mod clearing_house {
             "Bank token balances must be equal before and after"
         )?;
 
+        ctx.accounts.spot_market_vault.reload()?;
         math::spot_balance::validate_spot_balances(spot_market)?;
 
         Ok(())

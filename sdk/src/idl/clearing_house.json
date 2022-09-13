@@ -5624,6 +5624,13 @@
           "index": false
         },
         {
+          "name": "marketType",
+          "type": {
+            "defined": "MarketType"
+          },
+          "index": false
+        },
+        {
           "name": "filler",
           "type": {
             "option": "publicKey"

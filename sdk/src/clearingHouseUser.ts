@@ -1072,20 +1072,20 @@ export class ClearingHouseUser {
 			if (!targetingSameSide) {
 				const market =
 					this.clearingHouse.getPerpMarketAccount(targetMarketIndex);
-				const PerpPositionValue = this.getPositionValue(
+				const perpPositionValue = this.getPositionValue(
 					targetMarketIndex,
 					oracleData
 				);
 				const totalCollateral = this.getTotalCollateral();
 				const marginRequirement = this.getInitialMarginRequirement();
-				const marginFreedByClosing = PerpPositionValue.mul(
-					new BN(market.marginRatioInitial)
-				).div(MARGIN_PRECISION);
+				const marginFreedByClosing = perpPositionValue
+					.mul(new BN(market.marginRatioInitial))
+					.div(MARGIN_PRECISION);
 				const marginRequirementAfterClosing =
 					marginRequirement.sub(marginFreedByClosing);
 
 				if (marginRequirementAfterClosing.gt(totalCollateral)) {
-					maxPositionSize = PerpPositionValue;
+					maxPositionSize = perpPositionValue;
 				} else {
 					const freeCollateralAfterClose = totalCollateral.sub(
 						marginRequirementAfterClosing
@@ -1093,7 +1093,7 @@ export class ClearingHouseUser {
 					const buyingPowerAfterClose = freeCollateralAfterClose
 						.mul(this.getMaxLeverage(targetMarketIndex))
 						.div(TEN_THOUSAND);
-					maxPositionSize = PerpPositionValue.add(buyingPowerAfterClose);
+					maxPositionSize = perpPositionValue.add(buyingPowerAfterClose);
 				}
 			} else {
 				// do nothing if targetting same side
