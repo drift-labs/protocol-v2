@@ -596,6 +596,9 @@ pub fn move_price(
     amm.max_base_asset_reserve = max_base_asset_reserve;
     amm.min_base_asset_reserve = min_base_asset_reserve;
 
+    let mark_price_after = amm.mark_price()?;
+    update_spreads(amm, mark_price_after)?;
+
     Ok(())
 }
 
