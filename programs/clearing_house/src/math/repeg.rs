@@ -297,12 +297,12 @@ pub fn adjust_amm(
     optimal_peg: u128,
     budget: u128,
     adjust_k: bool,
-) -> ClearingHouseResult<(PerpMarket, i128)> {
+) -> ClearingHouseResult<(Box<PerpMarket>, i128)> {
     let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
 
     // return early
     if optimal_peg == market.amm.peg_multiplier || curve_update_intensity == 0 {
-        return Ok((*market, 0));
+        return Ok((Box::new(*market), 0));
     }
 
     let delta_peg = cast_to_i128(optimal_peg)?
@@ -316,7 +316,7 @@ pub fn adjust_amm(
 
     let budget_i128 = cast_to_i128(budget)?;
 
-    let mut market_clone = *market;
+    let mut market_clone = Box::new(*market);
     let mut budget_delta_peg: i128;
     let mut budget_delta_peg_magnitude: u128 = 0;
     let cost: i128;
