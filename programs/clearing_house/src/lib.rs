@@ -8,7 +8,7 @@ use borsh::BorshSerialize;
 use context::*;
 use error::ErrorCode;
 use math::{amm, bn, constants::*, margin::*};
-use state::oracle::{get_oracle_price, OracleSource};
+use state::oracle::{get_oracle_price, HistOracleData, OracleSource};
 
 use crate::math::amm::get_update_k_result;
 use crate::state::events::{LPAction, LPRecord};
@@ -58,7 +58,7 @@ pub mod clearing_house {
     use crate::state::events::{CurveRecord, DepositRecord};
     use crate::state::events::{DepositDirection, NewUserRecord};
     use crate::state::market::{PerpMarket, PoolBalance};
-    use crate::state::oracle::OraclePriceData;
+    use crate::state::oracle::{get_pyth_price, get_switchboard_price, OraclePriceData};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::{
         get_market_set, get_market_set_for_user_positions, get_market_set_from_list, MarketSet,
@@ -258,9 +258,18 @@ pub mod clearing_house {
 
         let spot_market = &mut ctx.accounts.spot_market.load_init()?;
         let now = cast(Clock::get()?.unix_timestamp).or(Err(ErrorCode::UnableToCastUnixTime))?;
+        let slot = cast(Clock::get()?.slot).or(Err(ErrorCode::UnableToCastUnixTime))?;
+
+        // Verify oracle is readable
+        let oracle_price_data = match oracle_source {
+            OracleSource::Pyth => get_pyth_price(&ctx.accounts.oracle, slot).unwrap(),
+            OracleSource::Switchboard => get_switchboard_price(&ctx.accounts.oracle, slot).unwrap(),
+            OracleSource::QuoteAsset => panic!(),
+        };
 
         let decimals = ctx.accounts.spot_market_mint.decimals;
         let order_step_size = 10_u128.pow(2 + (decimals - 6) as u32); // 10 for usdc/btc, 10000 for sol
+
         **spot_market = SpotMarket {
             market_index: spot_market_index,
             pubkey: spot_market_pubkey,
@@ -268,6 +277,7 @@ pub mod clearing_house {
             expiry_ts: 0,
             oracle: ctx.accounts.oracle.key(),
             oracle_source,
+            hist_oracle_info: HistOracleData::default_with_current_oracle(oracle_price_data),
             mint: ctx.accounts.spot_market_mint.key(),
             vault: *ctx.accounts.spot_market_vault.to_account_info().key,
             insurance_fund_vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
@@ -448,14 +458,10 @@ pub mod clearing_house {
             delay: oracle_delay,
             ..
         } = match oracle_source {
-            OracleSource::Pyth => market
-                .amm
-                .get_pyth_price(&ctx.accounts.oracle, clock_slot)
-                .unwrap(),
-            OracleSource::Switchboard => market
-                .amm
-                .get_switchboard_price(&ctx.accounts.oracle, clock_slot)
-                .unwrap(),
+            OracleSource::Pyth => get_pyth_price(&ctx.accounts.oracle, clock_slot).unwrap(),
+            OracleSource::Switchboard => {
+                get_switchboard_price(&ctx.accounts.oracle, clock_slot).unwrap()
+            }
             OracleSource::QuoteAsset => panic!(),
         };
 

@@ -18,7 +18,7 @@ use crate::math::margin::{
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
 use crate::state::market::{MarketStatus, PoolBalance};
-use crate::state::oracle::OracleSource;
+use crate::state::oracle::{HistOracleData, OracleSource};
 use solana_program::msg;
 
 #[account(zero_copy)]
@@ -32,6 +32,7 @@ pub struct SpotMarket {
 
     pub oracle: Pubkey,
     pub oracle_source: OracleSource,
+    pub hist_oracle_info: HistOracleData,
     pub mint: Pubkey,
     pub vault: Pubkey,
     pub insurance_fund_vault: Pubkey,

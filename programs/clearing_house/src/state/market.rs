@@ -294,11 +294,6 @@ pub struct AMM {
     pub cumulative_repeg_rebate_short: u128,
     pub cumulative_social_loss: i128,
 
-    pub mark_std: u64,
-    pub last_mark_price_twap: u128,
-    pub last_mark_price_twap_5min: u128,
-    pub last_mark_price_twap_ts: i64,
-
     // trade constraints
     pub minimum_quote_asset_trade_size: u128,
     pub max_base_asset_amount_ratio: u16,
@@ -316,14 +311,18 @@ pub struct AMM {
     pub bid_base_asset_reserve: u128,
     pub bid_quote_asset_reserve: u128,
 
-    pub last_bid_price_twap: u128,
-    pub last_ask_price_twap: u128,
-
     pub long_intensity_count: u16,
     pub long_intensity_volume: u64,
     pub short_intensity_count: u16,
     pub short_intensity_volume: u64,
     pub curve_update_intensity: u8,
+    pub mark_std: u64,
+
+    pub last_bid_price_twap: u128,
+    pub last_ask_price_twap: u128,
+    pub last_mark_price_twap: u128,
+    pub last_mark_price_twap_5min: u128,
+    pub last_mark_price_twap_ts: i64,
 
     // fee tracking
     pub total_fee: i128,

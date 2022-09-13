@@ -9,6 +9,42 @@ use std::cmp::max;
 use switchboard_v2::decimal::SwitchboardDecimal;
 use switchboard_v2::AggregatorAccountData;
 
+#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
+pub struct HistOracleData {
+    pub last_oracle_price: i128,
+    pub last_oracle_conf_pct: u64,
+    pub last_oracle_delay: i64,
+    pub last_oracle_normalised_price: i128,
+    pub last_oracle_price_twap: i128,
+    pub last_oracle_price_twap_5min: i128,
+    pub last_oracle_price_twap_ts: i64,
+
+    pub last_bid_price: u128,
+    pub last_ask_price: u128,
+    pub last_bid_price_twap: u128,
+    pub last_ask_price_twap: u128,
+    pub last_mark_price_twap: u128,
+    pub last_mark_price_twap_5min: u128,
+    pub last_mark_price_twap_ts: i64,
+
+    pub last_oracle_mark_spread_pct: i128,
+
+    pub last_update_slot: u64,
+    pub last_oracle_valid: bool,
+}
+
+impl HistOracleData {
+    pub fn default_with_current_oracle(oracle_price_data: OraclePriceData) -> Self {
+        HistOracleData {
+            last_oracle_price: oracle_price_data.price,
+            last_oracle_delay: oracle_price_data.delay,
+            last_oracle_normalised_price: oracle_price_data.price,
+            last_oracle_valid: false,
+            ..HistOracleData::default()
+        }
+    }
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
 pub enum OracleSource {
     Pyth,
