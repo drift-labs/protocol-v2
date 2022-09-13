@@ -8,7 +8,7 @@ pub mod liquidate_perp {
         PEG_PRECISION, QUOTE_PRECISION_I128, SPOT_CUMULATIVE_INTEREST_PRECISION,
         SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
-    use crate::state::market::{PerpMarket, AMM};
+    use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
@@ -61,7 +61,7 @@ pub mod liquidate_perp {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -195,7 +195,7 @@ pub mod liquidate_perp {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -329,7 +329,7 @@ pub mod liquidate_perp {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -459,7 +459,7 @@ pub mod liquidate_perp {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -591,7 +591,7 @@ pub mod liquidate_perp {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -1076,7 +1076,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         QUOTE_PRECISION_I128, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
         SPOT_WEIGHT_PRECISION,
     };
-    use crate::state::market::{PerpMarket, AMM};
+    use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
@@ -1129,7 +1129,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             unrealized_initial_asset_weight: 8000,
             unrealized_maintenance_asset_weight: 9000,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -1270,7 +1270,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             unrealized_initial_asset_weight: 8000,
             unrealized_maintenance_asset_weight: 9000,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -1411,7 +1411,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             unrealized_initial_asset_weight: 8000,
             unrealized_maintenance_asset_weight: 9000,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -1522,7 +1522,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         QUOTE_PRECISION_I128, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
         SPOT_WEIGHT_PRECISION,
     };
-    use crate::state::market::{PerpMarket, AMM};
+    use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
@@ -1575,7 +1575,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             unrealized_initial_asset_weight: 8000,
             unrealized_maintenance_asset_weight: 9000,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -1716,7 +1716,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             unrealized_initial_asset_weight: 8000,
             unrealized_maintenance_asset_weight: 9000,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -1857,7 +1857,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             unrealized_initial_asset_weight: 8000,
             unrealized_maintenance_asset_weight: 9000,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -1970,7 +1970,7 @@ pub mod resolve_perp_bankruptcy {
         LIQUIDATION_FEE_PRECISION, PEG_PRECISION, QUOTE_PRECISION_I128,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
-    use crate::state::market::{PerpMarket, AMM};
+    use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
@@ -2024,7 +2024,7 @@ pub mod resolve_perp_bankruptcy {
             margin_ratio_maintenance: 500,
             base_asset_amount_long: 5 * BASE_PRECISION_I128,
             base_asset_amount_short: -5 * BASE_PRECISION_I128,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -2089,6 +2089,7 @@ pub mod resolve_perp_bankruptcy {
         let mut expected_market = market;
         expected_market.amm.cumulative_funding_rate_long = 1010 * FUNDING_RATE_PRECISION_I128;
         expected_market.amm.cumulative_funding_rate_short = -1010 * FUNDING_RATE_PRECISION_I128;
+        expected_market.amm.cumulative_social_loss = -100000000;
 
         resolve_perp_bankruptcy(
             0,
@@ -2186,7 +2187,7 @@ pub mod resolve_borrow_bankruptcy {
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::spot_balance::get_token_amount;
-    use crate::state::market::{PerpMarket, AMM};
+    use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
@@ -2240,7 +2241,7 @@ pub mod resolve_borrow_bankruptcy {
             margin_ratio_maintenance: 500,
             base_asset_amount_long: 5 * BASE_PRECISION_I128,
             base_asset_amount_short: -5 * BASE_PRECISION_I128,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };

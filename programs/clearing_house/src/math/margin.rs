@@ -17,7 +17,7 @@ use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::spot_balance::{
     get_balance_value_and_token_amount, get_token_amount, get_token_value,
 };
-use crate::state::market::PerpMarket;
+use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -229,17 +229,21 @@ pub fn calculate_perp_position_value_and_pnl(
             quote_asset_amount,
             open_asks,
             open_bids,
-            // this is ok because no other values are used in the future computations
+            // todo double check: this is ok because no other values are used in the future computations
             ..PerpPosition::default()
         }
     } else {
         *market_position
     };
 
-    let (_, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
-        &market_position,
-        oracle_price_data.price,
-    )?;
+    let valuation_price = if market.status == MarketStatus::Settlement {
+        market.settlement_price
+    } else {
+        oracle_price_data.price
+    };
+
+    let (_, unrealized_pnl) =
+        calculate_base_asset_value_and_pnl_with_oracle_price(&market_position, valuation_price)?;
 
     let total_unrealized_pnl = unrealized_funding
         .checked_add(unrealized_pnl)
@@ -249,7 +253,7 @@ pub fn calculate_perp_position_value_and_pnl(
 
     let worse_case_base_asset_value = calculate_base_asset_value_with_oracle_price(
         worst_case_base_asset_amount,
-        oracle_price_data.price,
+        valuation_price,
     )?;
 
     let margin_ratio = market.get_margin_ratio(

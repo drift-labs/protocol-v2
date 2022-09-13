@@ -2,6 +2,18 @@ import { PublicKey, Transaction } from '@solana/web3.js';
 import { BN, ZERO } from '.';
 
 // # Utility Types / Enums / Constants
+
+export class MarketStatus {
+	static readonly INITIALIZED = { initialized: {} };
+	static readonly REDUCEONLY = { reduceonly: {} };
+	static readonly SETTLEMENT = { settlement: {} };
+}
+
+export class ContractType {
+	static readonly PERPETUAL = { perpetual: {} };
+	static readonly FUTURE = { future: {} };
+}
+
 export class SwapDirection {
 	static readonly ADD = { add: {} };
 	static readonly REMOVE = { remove: {} };
@@ -160,6 +172,19 @@ export type CurveRecord = {
 	openInterest: BN;
 	oraclePrice: BN;
 	tradeId: BN;
+};
+
+export declare type InsuranceFundRecord = {
+	ts: BN;
+	bankIndex: BN;
+	marketIndex: BN;
+	userIfFactor: BN;
+	totalIfFactor: BN;
+	vaultAmountBefore: BN;
+	insuranceVaultAmountBefore: BN;
+	amount: BN;
+	totalIfSharesBefore: BN;
+	totalIfSharesAfter: BN;
 };
 
 export type LPRecord = {
@@ -382,7 +407,10 @@ export type StateAccount = {
 };
 
 export type PerpMarketAccount = {
-	initialized: boolean;
+	status: MarketStatus;
+	contractType: ContractType;
+	expiryTs: BN;
+	settlementPrice: BN;
 	marketIndex: BN;
 	pubkey: PublicKey;
 	amm: AMM;
@@ -397,8 +425,14 @@ export type PerpMarketAccount = {
 	liquidationFee: BN;
 	imfFactor: BN;
 	unrealizedImfFactor: BN;
+	unrealizedMaxImbalance: BN;
 	unrealizedInitialAssetWeight: number;
 	unrealizedMaintenanceAssetWeight: number;
+	revenueWithdrawSinceLastSettle: BN;
+	maxRevenueWithdrawPerPeriod: BN;
+	lastRevenueWithdrawTs: BN;
+	quoteSettledInsurance: BN;
+	quoteMaxInsurance: BN;
 };
 
 export type SpotMarketAccount = {
@@ -501,6 +535,7 @@ export type AMM = {
 	totalMmFee: BN;
 	netRevenueSinceLastFunding: BN;
 	lastUpdateSlot: BN;
+	lastOracleValid: boolean;
 	lastBidPriceTwap: BN;
 	lastAskPriceTwap: BN;
 	longSpread: BN;
@@ -511,6 +546,7 @@ export type AMM = {
 	ammJitIntensity: number;
 	maxBaseAssetReserve: BN;
 	minBaseAssetReserve: BN;
+	cumulativeSocialLoss: BN;
 };
 
 // # User Account Types

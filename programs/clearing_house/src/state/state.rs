@@ -49,6 +49,7 @@ pub struct State {
     pub max_perp_auction_duration: u8,
     pub min_spot_auction_duration: u8,
     pub max_spot_auction_duration: u8,
+    pub settlement_duration: u16,
     pub liquidation_margin_buffer_ratio: u8,
     pub signer: Pubkey,
     pub signer_nonce: u8,

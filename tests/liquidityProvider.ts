@@ -31,8 +31,8 @@ import {
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
+	setFeedPrice,
 } from './testHelpers';
-import { setFeedPrice } from '../stress/mockPythUtils';
 
 async function adjustOraclePostSwap(baa, swapDirection, market) {
 	const price = calculatePrice(
@@ -1230,7 +1230,7 @@ describe('liquidity providing', () => {
 
 	// // TODO
 	// it('provides and removes liquidity too fast', async () => {
-	// 	const market = clearingHouse.getMarketAccount(0);
+	// 	const market = clearingHouse.getPerpMarketAccount(0);
 
 	// 	const lpShares = new BN(100 * AMM_RESERVE_PRECISION);
 	// 	const addLpIx = await clearingHouse.getAddLiquidityIx(
@@ -1338,7 +1338,7 @@ describe('liquidity providing', () => {
 		assert(!post_upnl.eq(upnl));
 
 		// other sht was updated
-		const market = clearingHouse.getMarketAccount(new BN(0));
+		const market = clearingHouse.getPerpMarketAccount(new BN(0));
 		assert(market.amm.netBaseAssetAmount.eq(position.lastNetBaseAssetAmount));
 		assert(
 			market.amm.totalFeeMinusDistributions.eq(

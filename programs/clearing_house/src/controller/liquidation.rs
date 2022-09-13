@@ -34,6 +34,7 @@ use crate::state::events::{
     LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord, LiquidationRecord, LiquidationType,
     OrderActionExplanation, PerpBankruptcyRecord,
 };
+use crate::state::market::MarketStatus;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotBalanceType;
@@ -181,7 +182,13 @@ pub fn liquidate_perp(
     }
 
     let market = market_map.get_ref(&market_index)?;
-    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+
+    let oracle_price = if market.status == MarketStatus::Settlement {
+        market.settlement_price
+    } else {
+        oracle_map.get_price_data(&market.amm.oracle)?.price
+    };
+
     drop(market);
 
     // burning lp shares = removing open bids/asks
@@ -1341,6 +1348,7 @@ pub fn resolve_perp_bankruptcy(
         .get_perp_position(market_index)
         .unwrap()
         .quote_asset_amount;
+
     validate!(
         loss < 0,
         ErrorCode::InvalidPerpPositionToLiquidate,
@@ -1355,11 +1363,29 @@ pub fn resolve_perp_bankruptcy(
         oracle_map,
     )?;
 
-    // todo: add spot market's insurance fund draw attempt here (before social loss)
+    // spot market's insurance fund draw attempt here (before social loss)
     // subtract 1 so insurance_fund_vault_balance always stays >= 1
-    let if_payment = loss.unsigned_abs().min(cast_to_u128(
-        insurance_fund_vault_balance.saturating_sub(1),
-    )?);
+
+    let if_payment = {
+        let mut market = perp_market_map.get_ref_mut(&market_index)?;
+        let max_insurance_withdraw = market
+            .quote_max_insurance
+            .checked_sub(market.quote_settled_insurance)
+            .ok_or_else(math_error!())?;
+
+        let _if_payment = loss
+            .unsigned_abs()
+            .min(cast_to_u128(
+                insurance_fund_vault_balance.saturating_sub(1),
+            )?)
+            .min(max_insurance_withdraw);
+
+        market.quote_settled_insurance = market
+            .quote_settled_insurance
+            .checked_add(_if_payment)
+            .ok_or_else(math_error!())?;
+        _if_payment
+    };
 
     let loss_to_socialize = loss
         .checked_add(cast_to_i128(if_payment)?)
@@ -1377,6 +1403,12 @@ pub fn resolve_perp_bankruptcy(
             user.quote_asset_amount = 0;
 
             let mut market = perp_market_map.get_ref_mut(&market_index)?;
+
+            market.amm.cumulative_social_loss = market
+                .amm
+                .cumulative_social_loss
+                .checked_add(loss_to_socialize)
+                .ok_or_else(math_error!())?;
 
             market.amm.cumulative_funding_rate_long = market
                 .amm

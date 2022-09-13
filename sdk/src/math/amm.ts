@@ -418,7 +418,10 @@ export function calculateSpreadBN(
 		);
 	}
 
-	const maxTargetSpread: number = maxSpread;
+	const maxTargetSpread: number = Math.max(
+		maxSpread,
+		lastOracleMarkSpreadPct.abs().toNumber()
+	);
 
 	const MAX_INVENTORY_SKEW = 5;
 

@@ -15,6 +15,7 @@ use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::spot_position::{
     decrease_spot_open_bids_and_asks, increase_spot_open_bids_and_asks,
 };
+
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::get_struct_values;
@@ -26,7 +27,7 @@ use crate::math::auction::{
     is_auction_complete,
 };
 use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::PERP_DECIMALS;
+use crate::math::constants::{PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
@@ -116,6 +117,13 @@ pub fn place_order(
 
     let market_index = params.market_index;
     let market = &perp_market_map.get_ref(&market_index)?;
+    let force_reduce_only = market.is_reduce_only()?;
+
+    validate!(
+        market.is_active(now)?,
+        ErrorCode::DefaultError,
+        "Market is in settlement mode",
+    )?;
 
     let position_index = get_position_index(&user.perp_positions, market_index)
         .or_else(|_| add_new_position(&mut user.perp_positions, market_index))?;
@@ -133,7 +141,7 @@ pub fn place_order(
             market.amm.base_asset_amount_step_size,
         )?;
 
-        let base_asset_amount = if params.reduce_only {
+        let base_asset_amount = if params.reduce_only || force_reduce_only {
             calculate_base_asset_amount_for_reduce_only_order(
                 standardized_base_asset_amount,
                 params.direction,
@@ -192,7 +200,7 @@ pub fn place_order(
         quote_asset_amount_filled: 0,
         fee: 0,
         direction: params.direction,
-        reduce_only: params.reduce_only,
+        reduce_only: params.reduce_only || force_reduce_only,
         trigger_price: params.trigger_price,
         trigger_condition: params.trigger_condition,
         triggered: false,
@@ -231,6 +239,10 @@ pub fn place_order(
 
     if !meets_initial_maintenance_requirement && !risk_decreasing {
         return Err(ErrorCode::InsufficientCollateral);
+    }
+
+    if force_reduce_only && !risk_decreasing {
+        return Err(ErrorCode::InvalidOrder);
     }
 
     let (taker, taker_order, taker_pnl, maker, maker_order, maker_pnl) =
@@ -510,9 +522,16 @@ pub fn fill_order(
     let oracle_mark_spread_pct_before: i128;
     let is_oracle_valid: bool;
     let oracle_price: i128;
+    let market_is_reduce_only: bool;
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
+        market_is_reduce_only = market.is_reduce_only()?;
         controller::validate::validate_market_account(market)?;
+        validate!(
+            market.is_active(now)?,
+            ErrorCode::DefaultError,
+            "Market is in settlement mode",
+        )?;
 
         validate!(
             ((oracle_map.slot == market.amm.last_update_slot && market.amm.last_oracle_valid)
@@ -659,6 +678,7 @@ pub fn fill_order(
         valid_oracle_price,
         now,
         slot,
+        market_is_reduce_only,
     )?;
 
     if should_cancel_order_after_fulfill(user, order_index, slot)? {
@@ -927,6 +947,7 @@ fn fulfill_order(
     valid_oracle_price: Option<i128>,
     now: i64,
     slot: u64,
+    market_is_reduce_only: bool,
 ) -> ClearingHouseResult<(u128, bool, bool)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -941,7 +962,7 @@ fn fulfill_order(
 
     let free_collateral =
         calculate_free_collateral(user, perp_market_map, spot_market_map, oracle_map)?;
-    if free_collateral < 0 && !risk_decreasing {
+    if !risk_decreasing && (free_collateral < 0 || market_is_reduce_only) {
         cancel_risk_increasing_order(
             user,
             user_order_index,
@@ -2001,6 +2022,7 @@ pub fn place_spot_order(
 
     let market_index = params.market_index;
     let spot_market = &spot_market_map.get_ref(&market_index)?;
+    let force_reduce_only = spot_market.is_reduce_only()?;
 
     let spot_position_index = user
         .get_spot_position_index(market_index)
@@ -2021,7 +2043,7 @@ pub fn place_spot_order(
         let standardized_base_asset_amount =
             standardize_base_asset_amount(params.base_asset_amount, spot_market.order_step_size)?;
 
-        let base_asset_amount = if params.reduce_only {
+        let base_asset_amount = if params.reduce_only || force_reduce_only {
             calculate_base_asset_amount_for_reduce_only_order(
                 standardized_base_asset_amount,
                 params.direction,
@@ -2067,7 +2089,7 @@ pub fn place_spot_order(
     };
 
     validate!(
-        params.market_index != 0,
+        params.market_index != QUOTE_SPOT_MARKET_INDEX,
         ErrorCode::InvalidOrder,
         "can not place order for quote asset"
     )?;
@@ -2094,7 +2116,7 @@ pub fn place_spot_order(
         quote_asset_amount_filled: 0,
         fee: 0,
         direction: params.direction,
-        reduce_only: params.reduce_only,
+        reduce_only: params.reduce_only || force_reduce_only,
         trigger_price: params.trigger_price,
         trigger_condition: params.trigger_condition,
         triggered: false,

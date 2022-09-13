@@ -254,7 +254,7 @@ export class Admin extends ClearingHouse {
 				accounts: {
 					state: await this.getStatePublicKey(),
 					admin: this.wallet.publicKey,
-					market: marketPublicKey,
+					perpMarket: marketPublicKey,
 				},
 			}
 		);
@@ -275,10 +275,10 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async moveAmmToPrice(
-		marketIndex: BN,
+		perpMarketIndex: BN,
 		targetPrice: BN
 	): Promise<TransactionSignature> {
-		const market = this.getPerpMarketAccount(marketIndex);
+		const market = this.getPerpMarketAccount(perpMarketIndex);
 
 		const [direction, tradeSize, _] = calculateTargetPriceTrade(
 			market,
@@ -298,7 +298,7 @@ export class Admin extends ClearingHouse {
 
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
-			marketIndex
+			perpMarketIndex
 		);
 
 		return await this.program.rpc.moveAmmPrice(
@@ -309,7 +309,7 @@ export class Admin extends ClearingHouse {
 				accounts: {
 					state: await this.getStatePublicKey(),
 					admin: this.wallet.publicKey,
-					market: marketPublicKey,
+					perpMarket: marketPublicKey,
 				},
 			}
 		);
@@ -753,6 +753,22 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
+	public async updateMarketExpiry(
+		perpMarketIndex: BN,
+		expiryTs: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateMarketExpiry(expiryTs, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				perpMarket: await getMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
+	}
+
 	public async updateWhitelistMint(
 		whitelistMint?: PublicKey
 	): Promise<TransactionSignature> {
@@ -859,12 +875,16 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
-	public async updateMarketMaxRevenueWithdrawPerPeroid(
+	public async updateMarketMaxImbalances(
 		marketIndex: BN,
-		maxRevenueWithdrawPerPeriod: number
+		unrealizedMaxImbalance: BN,
+		maxRevenueWithdrawPerPeriod: BN,
+		quoteMaxInsurance: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateMarketMaxRevenueWithdrawPerPeroid(
+		return await this.program.rpc.updateMarketMaxImbalances(
+			unrealizedMaxImbalance,
 			maxRevenueWithdrawPerPeriod,
+			quoteMaxInsurance,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
