@@ -1,6 +1,5 @@
 use crate::error::ClearingHouseResult;
 use crate::math::casting::cast_to_u128;
-use crate::math::constants::DEFAULT_MAX_REFERRER_REWARD_PER_EPOCH;
 use crate::math::helpers::get_proportion_u128;
 use crate::math_error;
 use crate::state::state::FeeStructure;
@@ -117,7 +116,9 @@ fn calculate_referrer_reward_and_referee_discount(
     let referrer_reward = match referrer_stats {
         Some(referrer_stats) => {
             let max_referrer_reward_in_epoch = cast_to_u128(
-                DEFAULT_MAX_REFERRER_REWARD_PER_EPOCH
+                fee_structure
+                    .referral_discount
+                    .referrer_reward_epoch_upper_bound
                     .checked_sub(referrer_stats.current_epoch_referrer_reward)
                     .ok_or_else(math_error!())?
                     .max(0),
@@ -451,6 +452,7 @@ mod test {
                 referral_discount: ReferralDiscount {
                     referrer_reward_numerator: 1,
                     referrer_reward_denominator: 10,
+                    referrer_reward_epoch_upper_bound: 4_000_000_000,
                     referee_discount_numerator: 1,
                     referee_discount_denominator: 10,
                 },
@@ -498,6 +500,7 @@ mod test {
                 referral_discount: ReferralDiscount {
                     referrer_reward_numerator: 1,
                     referrer_reward_denominator: 10,
+                    referrer_reward_epoch_upper_bound: 4_000_000_000,
                     referee_discount_numerator: 1,
                     referee_discount_denominator: 10,
                 },

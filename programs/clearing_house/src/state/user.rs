@@ -587,7 +587,7 @@ pub struct UserStats {
     pub is_referrer: bool,
     pub referrer: Pubkey,
     pub total_referrer_reward: u64,
-    pub current_epoch_referrer_reward: u32,
+    pub current_epoch_referrer_reward: u64,
     pub current_epoch: u64,
     pub next_epoch_ts: i64,
 
@@ -703,7 +703,7 @@ impl UserStats {
 
         self.current_epoch_referrer_reward = self
             .current_epoch_referrer_reward
-            .checked_add(cast_to_u32(reward)?)
+            .checked_add(reward)
             .ok_or_else(math_error!())?;
 
         Ok(())
