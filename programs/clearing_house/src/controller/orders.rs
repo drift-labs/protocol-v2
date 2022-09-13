@@ -241,6 +241,10 @@ pub fn place_order(
         return Err(ErrorCode::InsufficientCollateral);
     }
 
+    if force_reduce_only && !risk_decreasing {
+        return Err(ErrorCode::InvalidOrder);
+    }
+
     let (taker, taker_order, taker_pnl, maker, maker_order, maker_pnl) =
         get_taker_and_maker_for_order_record(&user_key, &new_order, None);
 
