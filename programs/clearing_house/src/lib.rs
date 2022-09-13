@@ -2268,11 +2268,8 @@ pub mod clearing_house {
             "Market expiry ts must later than current clock timestamp"
         )?;
 
-        // if Perpetual market has expiry_ts set, automatically enter reduce only
-        if market.contract_type == ContractType::Perpetual {
-            market.status = MarketStatus::ReduceOnly;
-        }
-
+        // automatically enter reduce only
+        market.status = MarketStatus::ReduceOnly;
         market.expiry_ts = expiry_ts;
 
         Ok(())

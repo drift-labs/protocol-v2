@@ -117,6 +117,7 @@ pub fn place_order(
 
     let market_index = params.market_index;
     let market = &perp_market_map.get_ref(&market_index)?;
+    let force_reduce_only = market.is_reduce_only()?;
 
     validate!(
         market.is_active(now)?,
@@ -140,7 +141,7 @@ pub fn place_order(
             market.amm.base_asset_amount_step_size,
         )?;
 
-        let base_asset_amount = if params.reduce_only {
+        let base_asset_amount = if params.reduce_only || force_reduce_only {
             calculate_base_asset_amount_for_reduce_only_order(
                 standardized_base_asset_amount,
                 params.direction,
@@ -182,8 +183,6 @@ pub fn place_order(
         ErrorCode::InvalidOrder,
         "must be perp order"
     )?;
-
-    let force_reduce_only = market.is_reduce_only()?;
 
     let new_order = Order {
         status: OrderStatus::Open,
@@ -2015,6 +2014,7 @@ pub fn place_spot_order(
 
     let market_index = params.market_index;
     let spot_market = &spot_market_map.get_ref(&market_index)?;
+    let force_reduce_only = spot_market.is_reduce_only()?;
 
     let spot_position_index = user
         .get_spot_position_index(market_index)
@@ -2035,7 +2035,7 @@ pub fn place_spot_order(
         let standardized_base_asset_amount =
             standardize_base_asset_amount(params.base_asset_amount, spot_market.order_step_size)?;
 
-        let base_asset_amount = if params.reduce_only {
+        let base_asset_amount = if params.reduce_only || force_reduce_only {
             calculate_base_asset_amount_for_reduce_only_order(
                 standardized_base_asset_amount,
                 params.direction,
@@ -2091,8 +2091,6 @@ pub fn place_spot_order(
         ErrorCode::InvalidOrder,
         "must be spot order"
     )?;
-
-    let force_reduce_only = spot_market.is_reduce_only()?;
 
     let new_order = Order {
         status: OrderStatus::Open,

@@ -1367,17 +1367,24 @@ pub fn resolve_perp_bankruptcy(
     // subtract 1 so insurance_fund_vault_balance always stays >= 1
 
     let if_payment = {
-        let market = perp_market_map.get_ref(&market_index)?;
+        let mut market = perp_market_map.get_ref_mut(&market_index)?;
         let max_insurance_withdraw = market
             .quote_max_insurance
             .checked_sub(market.quote_settled_insurance)
             .ok_or_else(math_error!())?;
 
-        loss.unsigned_abs()
+        let _if_payment = loss
+            .unsigned_abs()
             .min(cast_to_u128(
                 insurance_fund_vault_balance.saturating_sub(1),
             )?)
-            .min(max_insurance_withdraw)
+            .min(max_insurance_withdraw);
+
+        market.quote_settled_insurance = market
+            .quote_settled_insurance
+            .checked_add(_if_payment)
+            .ok_or_else(math_error!())?;
+        _if_payment
     };
 
     let loss_to_socialize = loss
