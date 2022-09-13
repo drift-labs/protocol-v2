@@ -1928,6 +1928,32 @@
       ]
     },
     {
+      "name": "updateConcentrationCoef",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "concentrationCoef",
+          "type": "u128"
+        }
+      ]
+    },
+    {
       "name": "updateCurveUpdateIntensity",
       "accounts": [
         {
@@ -3845,6 +3871,10 @@
             "type": "u128"
           },
           {
+            "name": "concentrationCoef",
+            "type": "u128"
+          },
+          {
             "name": "minBaseAssetReserve",
             "type": "u128"
           },
@@ -5356,6 +5386,13 @@
         {
           "name": "marketIndex",
           "type": "u64",
+          "index": false
+        },
+        {
+          "name": "marketType",
+          "type": {
+            "defined": "MarketType"
+          },
           "index": false
         },
         {

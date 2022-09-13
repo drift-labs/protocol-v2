@@ -7,9 +7,9 @@ use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
-    K_BPS_DECREASE_MAX, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, MARK_PRICE_PRECISION,
-    MARK_PRICE_PRECISION_I128, MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION,
-    PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION,
+    CONCENTRATION_PRECISION, K_BPS_DECREASE_MAX, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE,
+    MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128, MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
+    ONE_HOUR_I128, PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
@@ -43,19 +43,16 @@ pub fn calculate_bid_ask_bounds(
     concentration_coef: u128,
     sqrt_k: u128,
 ) -> ClearingHouseResult<(u128, u128)> {
-    let concentration_precision = 10_000_u128;
-    // let concentration_coef = 14_142;
-
     // worse case if all asks are filled (max reserve)
     let ask_bounded_base = sqrt_k
         .checked_mul(concentration_coef)
         .ok_or_else(math_error!())?
-        .checked_div(concentration_precision)
+        .checked_div(CONCENTRATION_PRECISION)
         .ok_or_else(math_error!())?;
 
     // worse case if all bids are filled (min reserve)
     let bid_bounded_base = sqrt_k
-        .checked_mul(concentration_precision)
+        .checked_mul(CONCENTRATION_PRECISION)
         .ok_or_else(math_error!())?
         .checked_div(concentration_coef)
         .ok_or_else(math_error!())?;
@@ -1445,7 +1442,9 @@ mod test {
     use crate::controller::lp::burn_lp_shares;
     use crate::controller::lp::mint_lp_shares;
     use crate::controller::lp::settle_lp_position;
-    use crate::math::constants::{MARK_PRICE_PRECISION, QUOTE_PRECISION_I128};
+    use crate::math::constants::{
+        MARK_PRICE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, QUOTE_PRECISION_I128,
+    };
     use crate::state::user::PerpPosition;
 
     #[test]
@@ -2139,7 +2138,7 @@ mod test {
             amm: AMM {
                 base_asset_reserve: 5122950819670000,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-                concentration_coef: 14_142,
+                concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
                 net_base_asset_amount: -122950819670000,

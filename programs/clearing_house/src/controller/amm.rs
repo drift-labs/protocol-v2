@@ -631,8 +631,8 @@ mod test {
     use super::*;
     use crate::controller::insurance::settle_revenue_to_insurance_fund;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
+        AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
+        QUOTE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
     };
     use crate::state::market::PoolBalance;
     #[test]
@@ -643,7 +643,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
-                concentration_coef: 14_142,
+                concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
                 net_base_asset_amount: -122950819670000,
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
                 curve_update_intensity: 100,

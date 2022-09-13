@@ -433,7 +433,7 @@ pub mod clearing_house {
             amm_peg_multiplier,
         )?;
 
-        let concentration_coef = 14_142;
+        let concentration_coef = MAX_CONCENTRATION_COEFFICIENT;
 
         // Verify there's no overflow
         let _k = bn::U192::from(amm_base_asset_reserve)
@@ -2812,6 +2812,29 @@ pub mod clearing_house {
         let market = &mut load_mut!(ctx.accounts.market)?;
         market.unrealized_initial_asset_weight = unrealized_initial_asset_weight;
         market.unrealized_maintenance_asset_weight = unrealized_maintenance_asset_weight;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_concentration_coef(
+        ctx: Context<AdminUpdateMarket>,
+        concentration_coef: u128,
+    ) -> Result<()> {
+        validate!(
+            concentration_coef > CONCENTRATION_PRECISION,
+            ErrorCode::DefaultError,
+            "invalid concentration_coef: must be greater than CONCENTRATION_PRECISION",
+        )?;
+        validate!(
+            concentration_coef <= MAX_CONCENTRATION_COEFFICIENT,
+            ErrorCode::DefaultError,
+            "invalid concentration_coef: must be less than sqrt(2), e.g. MAX_CONCENTRATION_COEFFICIENT / CONCENTRATION_PRECISION",
+        )?;
+
+        let market = &mut load_mut!(ctx.accounts.market)?;
+        market.amm.concentration_coef = concentration_coef;
         Ok(())
     }
 

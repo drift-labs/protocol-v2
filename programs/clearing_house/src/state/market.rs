@@ -19,6 +19,7 @@ use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::user::PerpPosition;
 use crate::{
     AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, MARGIN_PRECISION, MARK_PRICE_PRECISION,
+    MAX_CONCENTRATION_COEFFICIENT,
 };
 
 #[account(zero_copy)]
@@ -291,7 +292,7 @@ impl AMM {
             base_asset_reserve: default_reserves,
             quote_asset_reserve: default_reserves,
             sqrt_k: default_reserves,
-            concentration_coef: 14_142,
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
             base_asset_amount_step_size: 1,
             max_base_asset_reserve: u128::MAX,
             min_base_asset_reserve: 0,
@@ -313,7 +314,7 @@ impl AMM {
 
             peg_multiplier: 19_400_000,
 
-            concentration_coef: 14_142,
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
             max_base_asset_reserve: 90 * AMM_RESERVE_PRECISION,
             min_base_asset_reserve: 45 * AMM_RESERVE_PRECISION,
 
