@@ -3332,7 +3332,7 @@
           },
           {
             "name": "liquidationMarginBufferRatio",
-            "type": "u8"
+            "type": "u32"
           },
           {
             "name": "signer",
@@ -5356,6 +5356,13 @@
         {
           "name": "marketIndex",
           "type": "u64",
+          "index": false
+        },
+        {
+          "name": "marketType",
+          "type": {
+            "defined": "MarketType"
+          },
           "index": false
         },
         {

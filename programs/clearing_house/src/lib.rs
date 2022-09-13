@@ -114,7 +114,7 @@ pub mod clearing_house {
             max_perp_auction_duration: 60,
             min_spot_auction_duration: 0,
             max_spot_auction_duration: 60,
-            liquidation_margin_buffer_ratio: 50, // 2%
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50, // 2%
             signer: clearing_house_signer,
             signer_nonce: clearing_house_signer_nonce,
             padding0: 0,
