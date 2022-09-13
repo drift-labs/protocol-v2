@@ -518,8 +518,10 @@ pub fn fill_order(
     let oracle_mark_spread_pct_before: i128;
     let is_oracle_valid: bool;
     let oracle_price: i128;
+    let market_is_reduce_only: bool;
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
+        market_is_reduce_only = market.is_reduce_only()?;
         controller::validate::validate_market_account(market)?;
         validate!(
             market.is_active(now)?,
@@ -672,6 +674,7 @@ pub fn fill_order(
         valid_oracle_price,
         now,
         slot,
+        market_is_reduce_only,
     )?;
 
     if should_cancel_order_after_fulfill(user, order_index, slot)? {
@@ -940,6 +943,7 @@ fn fulfill_order(
     valid_oracle_price: Option<i128>,
     now: i64,
     slot: u64,
+    market_is_reduce_only: bool,
 ) -> ClearingHouseResult<(u128, bool, bool)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -954,7 +958,7 @@ fn fulfill_order(
 
     let free_collateral =
         calculate_free_collateral(user, perp_market_map, spot_market_map, oracle_map)?;
-    if free_collateral < 0 && !risk_decreasing {
+    if !risk_decreasing && (free_collateral < 0 || market_is_reduce_only) {
         cancel_risk_increasing_order(
             user,
             user_order_index,
