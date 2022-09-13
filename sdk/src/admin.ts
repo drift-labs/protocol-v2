@@ -20,6 +20,7 @@ import {
 	getSerumOpenOrdersPublicKey,
 	getSerumFulfillmentConfigPublicKey,
 } from './addresses/pda';
+import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { ClearingHouse } from './clearingHouse';
 import { PEG_PRECISION, ZERO } from './constants/numericConstants';
@@ -231,18 +232,24 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async moveAmmPrice(
+		marketIndex: BN,
 		baseAssetReserve: BN,
 		quoteAssetReserve: BN,
-		marketIndex: BN
+		sqrtK?: BN
 	): Promise<TransactionSignature> {
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
 			marketIndex
 		);
 
+		if (sqrtK == undefined) {
+			sqrtK = squareRootBN(baseAssetReserve.mul(quoteAssetReserve));
+		}
+
 		return await this.program.rpc.moveAmmPrice(
 			baseAssetReserve,
 			quoteAssetReserve,
+			sqrtK,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -297,6 +304,7 @@ export class Admin extends ClearingHouse {
 		return await this.program.rpc.moveAmmPrice(
 			newBaseAssetAmount,
 			newQuoteAssetAmount,
+			market.amm.sqrtK,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),

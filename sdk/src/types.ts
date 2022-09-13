@@ -1,5 +1,5 @@
 import { PublicKey, Transaction } from '@solana/web3.js';
-import { BN, ZERO } from '.';
+import { BN, ZERO, QUOTE_SPOT_MARKET_INDEX } from '.';
 
 // # Utility Types / Enums / Constants
 
@@ -648,6 +648,7 @@ export type OrderParams = {
 	baseAssetAmount: BN;
 	price: BN;
 	marketIndex: BN;
+	quoteSpotMarketIndex: BN;
 	reduceOnly: boolean;
 	postOnly: boolean;
 	immediateOrCancel: boolean;
@@ -678,6 +679,7 @@ export const DefaultOrderParams = {
 	baseAssetAmount: ZERO,
 	price: ZERO,
 	marketIndex: ZERO,
+	quoteSpotMarketIndex: QUOTE_SPOT_MARKET_INDEX,
 	reduceOnly: false,
 	postOnly: false,
 	immediateOrCancel: false,

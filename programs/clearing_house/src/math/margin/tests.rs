@@ -23,8 +23,8 @@ mod test {
     #[test]
     fn spot_market_asset_weight() {
         let mut spot_market = SpotMarket {
-            initial_asset_weight: 90,
-            initial_liability_weight: 110,
+            initial_asset_weight: 9000,
+            initial_liability_weight: 11000,
             decimals: 6,
             imf_factor: 0,
             ..SpotMarket::default()
@@ -34,25 +34,25 @@ mod test {
         let asset_weight = spot_market
             .get_asset_weight(size, &MarginRequirementType::Initial)
             .unwrap();
-        assert_eq!(asset_weight, 90);
+        assert_eq!(asset_weight, 9000);
 
         let lib_weight = spot_market
             .get_liability_weight(size, &MarginRequirementType::Initial)
             .unwrap();
-        assert_eq!(lib_weight, 110);
+        assert_eq!(lib_weight, 11000);
 
         spot_market.imf_factor = 10;
         let asset_weight = spot_market
             .get_asset_weight(size, &MarginRequirementType::Initial)
             .unwrap();
-        assert_eq!(asset_weight, 90);
+        assert_eq!(asset_weight, 9000);
 
         let lib_weight = spot_market
             .get_liability_weight(size, &MarginRequirementType::Initial)
             .unwrap();
-        assert_eq!(lib_weight, 110);
+        assert_eq!(lib_weight, 11003);
 
-        let same_asset_weight_diff_imf_factor = 83;
+        let same_asset_weight_diff_imf_factor = 8357;
         let asset_weight = spot_market
             .get_asset_weight(size * 1_000_000, &MarginRequirementType::Initial)
             .unwrap();
@@ -67,18 +67,18 @@ mod test {
         let lib_weight = spot_market
             .get_liability_weight(size, &MarginRequirementType::Initial)
             .unwrap();
-        assert_eq!(lib_weight, 140);
+        assert_eq!(lib_weight, 14052);
 
         spot_market.imf_factor = SPOT_IMF_PRECISION / 10;
         let asset_weight = spot_market
             .get_asset_weight(size, &MarginRequirementType::Initial)
             .unwrap();
-        assert_eq!(asset_weight, 26);
+        assert_eq!(asset_weight, 2642);
 
         let lib_weight = spot_market
             .get_liability_weight(size, &MarginRequirementType::Initial)
             .unwrap();
-        assert_eq!(lib_weight, 415);
+        assert_eq!(lib_weight, 41522);
     }
 
     #[test]
@@ -120,8 +120,8 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unrealized_initial_asset_weight: 100,
-            unrealized_maintenance_asset_weight: 100,
+            unrealized_initial_asset_weight: 10000,
+            unrealized_maintenance_asset_weight: 10000,
             ..PerpMarket::default()
         };
 
@@ -197,8 +197,8 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unrealized_initial_asset_weight: 100,
-            unrealized_maintenance_asset_weight: 100,
+            unrealized_initial_asset_weight: 10000,
+            unrealized_maintenance_asset_weight: 10000,
             ..PerpMarket::default()
         };
 
@@ -253,7 +253,7 @@ mod test {
         let uaw = market
             .get_unrealized_asset_weight(position_unrealized_pnl, MarginRequirementType::Initial)
             .unwrap();
-        assert_eq!(uaw, 95);
+        assert_eq!(uaw, 9559);
 
         let (pmr, upnl) = calculate_perp_position_value_and_pnl(
             &market_position,
@@ -289,19 +289,19 @@ mod test {
             market
                 .get_unrealized_asset_weight(position_unrealized_pnl, margin_requirement_type)
                 .unwrap(),
-            95
+            9517
         );
         assert_eq!(
             market
                 .get_unrealized_asset_weight(position_unrealized_pnl * 10, margin_requirement_type)
                 .unwrap(),
-            73
+            7369
         );
         assert_eq!(
             market
                 .get_unrealized_asset_weight(position_unrealized_pnl * 100, margin_requirement_type)
                 .unwrap(),
-            43
+            4300
         );
         assert_eq!(
             market
@@ -310,7 +310,7 @@ mod test {
                     margin_requirement_type
                 )
                 .unwrap(),
-            18
+            1855
         );
         assert_eq!(
             market
@@ -319,7 +319,7 @@ mod test {
                     margin_requirement_type
                 )
                 .unwrap(),
-            6
+            663
         );
         //nice that 18000 < 60000
 
@@ -330,7 +330,7 @@ mod test {
                     margin_requirement_type
                 )
                 .unwrap(),
-            0 // todo want to reduce to zero once sufficiently sized?
+            78
         );
         assert_eq!(position_unrealized_pnl * 800000, 19421311476000000); // 1.9 billion
 
@@ -345,9 +345,9 @@ mod test {
         let uaw_2 = market
             .get_unrealized_asset_weight(upnl_2, MarginRequirementType::Initial)
             .unwrap();
-        assert_eq!(uaw_2, 95);
+        assert_eq!(uaw_2, 9548);
 
-        assert_eq!(upnl_2, 23068647541);
+        assert_eq!(upnl_2, 23107500000);
         assert!(upnl_2 > upnl);
         assert!(pmr_2 > 0);
         assert_eq!(pmr_2, 13238206966); //$12940.5737702000
@@ -377,8 +377,8 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unrealized_initial_asset_weight: 100,
-            unrealized_maintenance_asset_weight: 100,
+            unrealized_initial_asset_weight: 10000,
+            unrealized_maintenance_asset_weight: 10000,
             ..PerpMarket::default()
         };
 
@@ -442,8 +442,8 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unrealized_initial_asset_weight: 100,
-            unrealized_maintenance_asset_weight: 100,
+            unrealized_initial_asset_weight: 10000,
+            unrealized_maintenance_asset_weight: 10000,
             ..PerpMarket::default()
         };
 

@@ -281,9 +281,9 @@ describe('User Account', () => {
 
 	it('After Position Price Moves', async () => {
 		await clearingHouse.moveAmmPrice(
+			marketIndex,
 			ammInitialBaseAssetAmount,
-			ammInitialQuoteAssetAmount.mul(new BN(11)).div(new BN(10)),
-			marketIndex
+			ammInitialQuoteAssetAmount.mul(new BN(11)).div(new BN(10))
 		);
 		const PerpPosition = userAccount.getUserPosition(marketIndex);
 
@@ -323,8 +323,8 @@ describe('User Account', () => {
 			convertToNumber(oraclePrice2)
 		);
 
-		const expectedPNL = new BN(4949474);
-		const expectedTotalCollateral = new BN(24949474);
+		const expectedPNL = new BN(4949473);
+		const expectedTotalCollateral = new BN(24949473);
 		const expectedBuyingPower = new BN(69747645);
 		const expectedFreeCollateral = new BN(13949529);
 		const expectedLeverage = new BN(22044);

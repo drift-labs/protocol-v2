@@ -142,9 +142,9 @@ describe('amm spread: market order', () => {
 
 	beforeEach(async () => {
 		await clearingHouse.moveAmmPrice(
+			ZERO,
 			ammInitialBaseAssetReserve,
-			ammInitialQuoteAssetReserve,
-			ZERO
+			ammInitialQuoteAssetReserve
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 1, solUsd);
 	});

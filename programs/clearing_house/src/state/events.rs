@@ -2,9 +2,9 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::controller::position::PositionDirection;
-use crate::error::ClearingHouseResult;
+use crate::error::{ClearingHouseResult, ErrorCode::DefaultError};
 use crate::math::casting::{cast, cast_to_i64, cast_to_u64};
-use crate::state::user::Order;
+use crate::state::user::{MarketType, Order};
 use anchor_lang::Discriminator;
 use std::io::Write;
 
@@ -113,6 +113,7 @@ pub struct OrderActionRecord {
     pub action: OrderAction,
     pub action_explanation: OrderActionExplanation,
     pub market_index: u64,
+    pub market_type: MarketType,
 
     pub filler: Option<Pubkey>,
     pub filler_reward: Option<u64>,
@@ -180,6 +181,13 @@ pub fn get_order_action_record(
         action,
         action_explanation,
         market_index,
+        market_type: if let Some(taker_order) = taker_order {
+            taker_order.market_type
+        } else if let Some(maker_order) = maker_order {
+            maker_order.market_type
+        } else {
+            return Err(DefaultError);
+        },
         filler,
         filler_reward: match filler_reward {
             Some(filler_reward) => Some(cast(filler_reward)?),
