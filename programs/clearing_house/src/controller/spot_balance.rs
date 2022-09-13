@@ -315,7 +315,7 @@ mod test {
         QUOTE_PRECISION, QUOTE_PRECISION_I128, SPOT_CUMULATIVE_INTEREST_PRECISION,
         SPOT_INTEREST_PRECISION, SPOT_UTILIZATION_PRECISION, SPOT_WEIGHT_PRECISION,
     };
-    use crate::state::market::{PerpMarket, AMM};
+    use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
@@ -366,7 +366,7 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -694,7 +694,7 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -734,6 +734,7 @@ mod test {
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: SPOT_INTEREST_PRECISION,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            revenue_settle_period: 1,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
@@ -891,6 +892,7 @@ mod test {
         // settle IF pool to 100% utilization boundary
         assert_eq!(spot_market.revenue_pool.balance, 385);
         assert_eq!(spot_market.utilization_twap, 462007);
+        spot_market.revenue_settle_period = 1;
 
         let settle_amount = settle_revenue_to_insurance_fund(
             deposit_tokens_3 as u64,
@@ -900,8 +902,10 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(if_tokens_3 - (settle_amount as u128), 1689);
         assert_eq!(settle_amount, 625);
+        assert_eq!(spot_market.user_if_shares, 0);
+        assert_eq!(spot_market.total_if_shares, 0);
+        assert_eq!(if_tokens_3 - (settle_amount as u128), 1689);
         assert_eq!(spot_market.revenue_pool.balance, 0);
         assert_eq!(spot_market.utilization_twap, 462007);
 
@@ -1019,7 +1023,7 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             open_interest: 1,
-            initialized: true,
+            status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -1219,6 +1223,7 @@ mod test {
         // settle IF pool to 100% utilization boundary
         // only half of depositors available claim was settled (to protect vault)
         assert_eq!(spot_market.revenue_pool.balance, 102149084835);
+        spot_market.revenue_settle_period = 1;
         let settle_amount = settle_revenue_to_insurance_fund(
             deposit_tokens_3 as u64,
             if_tokens_3 as u64,
@@ -1227,7 +1232,8 @@ mod test {
         )
         .unwrap();
         assert_eq!(settle_amount, 229742505997);
-
+        assert_eq!(spot_market.user_if_shares, 0);
+        assert_eq!(spot_market.total_if_shares, 0);
         if_balance_2 += settle_amount;
         assert_eq!(if_balance_2, 229742505997);
         assert_eq!(if_tokens_3 - (settle_amount as u128), 996619988395); // w/ update interest for settle_spot_market_to_if

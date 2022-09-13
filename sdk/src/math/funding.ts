@@ -5,7 +5,7 @@ import {
 	QUOTE_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
-import { PerpMarketAccount } from '../types';
+import { PerpMarketAccount, isVariant } from '../types';
 import { calculateMarkPrice } from './market';
 import { OraclePriceData } from '../oracles/types';
 
@@ -29,7 +29,7 @@ export async function calculateAllEstimatedFundingRate(
 	const hoursInDay = new BN(24);
 	const ONE = new BN(1);
 
-	if (!market.initialized) {
+	if (isVariant(market.status, 'uninitialized')) {
 		return [ZERO, ZERO, ZERO, ZERO, ZERO];
 	}
 

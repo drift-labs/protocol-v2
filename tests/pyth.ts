@@ -10,6 +10,7 @@ import {
 	mockUSDCMint,
 	setFeedPrice,
 	initializeQuoteSpotMarket,
+	initUserAccounts,
 } from './testHelpers';
 
 import {
@@ -31,8 +32,6 @@ import {
 	ClearingHouseUser,
 	QUOTE_SPOT_MARKET_INDEX,
 } from '../sdk/src';
-
-import { initUserAccounts } from '../stress/stressUtils';
 
 async function updateFundingRateHelper(
 	clearingHouse: ClearingHouse,

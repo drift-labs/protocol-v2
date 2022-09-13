@@ -20,7 +20,7 @@ use crate::math::helpers::on_the_hour_update;
 use crate::math::oracle;
 use crate::math_error;
 use crate::state::events::{FundingPaymentRecord, FundingRateRecord};
-use crate::state::market::{PerpMarket, AMM};
+use crate::state::market::{MarketStatus, PerpMarket, AMM};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::state::OracleGuardRails;
@@ -136,6 +136,10 @@ pub fn update_funding_rate(
     funding_paused: bool,
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<bool> {
+    if market.status != MarketStatus::Initialized {
+        return Ok(false);
+    }
+
     let mark_price = match precomputed_mark_price {
         Some(mark_price) => mark_price,
         None => market.amm.mark_price()?,
@@ -217,13 +221,7 @@ pub fn update_funding_rate(
 
         // todo: finish robust tests
         if market.amm.curve_update_intensity > 0 {
-            formulaic_update_k(
-                market,
-                oracle_price_data,
-                funding_imbalance_cost,
-                now,
-                mark_price,
-            )?;
+            formulaic_update_k(market, oracle_price_data, funding_imbalance_cost, now)?;
         }
 
         market.amm.cumulative_funding_rate_long = market

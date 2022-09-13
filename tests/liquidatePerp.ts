@@ -5,6 +5,7 @@ import {
 	getLimitOrderParams,
 	isVariant,
 	OracleSource,
+	QUOTE_PRECISION,
 	ZERO,
 } from '../sdk';
 import { assert } from 'chai';
@@ -168,6 +169,7 @@ describe('liquidate perp and lp', () => {
 	});
 
 	it('liquidate', async () => {
+		const marketIndex = 0;
 		const lpShares = clearingHouse.getUserAccount().perpPositions[0].lpShares;
 		assert(lpShares.eq(nLpShares));
 
@@ -265,6 +267,21 @@ describe('liquidate perp and lp', () => {
 			assert(err.message.includes('0x17de'));
 		}
 
+		const tx1 = await clearingHouse.updateMarketMaxImbalances(
+			new BN(marketIndex),
+			new BN(40000).mul(QUOTE_PRECISION),
+			QUOTE_PRECISION,
+			QUOTE_PRECISION
+		);
+		await printTxLogs(connection, tx1);
+
+		await clearingHouse.fetchAccounts();
+		const marketBeforeBankruptcy =
+			clearingHouse.getPerpMarketAccount(marketIndex);
+		assert(marketBeforeBankruptcy.revenueWithdrawSinceLastSettle.eq(ZERO));
+		assert(marketBeforeBankruptcy.quoteSettledInsurance.eq(ZERO));
+		assert(marketBeforeBankruptcy.quoteMaxInsurance.eq(QUOTE_PRECISION));
+		assert(marketBeforeBankruptcy.amm.cumulativeSocialLoss.eq(ZERO));
 		await liquidatorClearingHouse.resolvePerpBankruptcy(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
@@ -272,6 +289,13 @@ describe('liquidate perp and lp', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
+		// all social loss
+		const marketAfterBankruptcy =
+			clearingHouse.getPerpMarketAccount(marketIndex);
+		assert(marketAfterBankruptcy.revenueWithdrawSinceLastSettle.eq(ZERO));
+		assert(marketAfterBankruptcy.quoteSettledInsurance.eq(ZERO));
+		assert(marketAfterBankruptcy.quoteMaxInsurance.eq(QUOTE_PRECISION));
+		assert(marketAfterBankruptcy.amm.cumulativeSocialLoss.eq(new BN(-6088113)));
 
 		assert(!clearingHouse.getUserAccount().bankrupt);
 		assert(!clearingHouse.getUserAccount().beingLiquidated);

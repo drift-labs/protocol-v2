@@ -2,16 +2,24 @@ use crate::error::*;
 use crate::math::casting::cast_to_i128;
 
 use crate::controller::amm::update_spreads;
+use crate::controller::spot_balance::update_spot_balances;
 use crate::error::ErrorCode;
 use crate::load_mut;
 use crate::math::amm;
+use crate::math::amm::get_update_k_result;
+use crate::math::bn;
+use crate::math::constants::{K_BPS_UPDATE_SCALE, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::repeg;
+use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
-use crate::state::market::PerpMarket;
+use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
+use crate::state::spot_market::SpotBalanceType;
+use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::{OracleGuardRails, State};
+use crate::validate;
 use anchor_lang::prelude::AccountInfo;
 use anchor_lang::prelude::*;
 use solana_program::msg;
@@ -105,13 +113,16 @@ pub fn update_amm(
 ) -> ClearingHouseResult<i128> {
     let market = &mut perp_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-    _update_amm(
+
+    let cost_of_update = _update_amm(
         market,
         oracle_price_data,
         state,
         clock.unix_timestamp,
         clock.slot,
-    )
+    )?;
+
+    Ok(cost_of_update)
 }
 
 pub fn _update_amm(
@@ -121,13 +132,17 @@ pub fn _update_amm(
     now: i64,
     clock_slot: u64,
 ) -> ClearingHouseResult<i128> {
-    // 0-100
+    if market.status == MarketStatus::Settlement {
+        return Ok(0);
+    }
+
     let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
 
     let mut amm_update_cost = 0;
     if curve_update_intensity > 0 {
         let (optimal_peg, fee_budget, check_lower_bound) =
             repeg::calculate_optimal_peg_and_budget(market, oracle_price_data)?;
+
         let (repegged_market, repegged_cost) =
             repeg::adjust_amm(market, optimal_peg, fee_budget, true)?;
 
@@ -144,6 +159,7 @@ pub fn _update_amm(
             amm_update_cost = repegged_cost;
         }
     }
+
     let is_oracle_valid = amm::is_oracle_valid(
         &market.amm,
         oracle_price_data,
@@ -214,6 +230,136 @@ pub fn apply_cost_to_market(
     Ok(true)
 }
 
+pub fn settle_expired_market(
+    market_index: u64,
+    market_map: &PerpMarketMap,
+    _oracle_map: &mut OracleMap,
+    spot_market_map: &SpotMarketMap,
+    _state: &State,
+    clock: &Clock,
+) -> ClearingHouseResult {
+    let now = clock.unix_timestamp;
+    let market = &mut market_map.get_ref_mut(&market_index)?;
+
+    validate!(
+        market.expiry_ts != 0,
+        ErrorCode::DefaultError,
+        "Market isn't set to expire"
+    )?;
+
+    validate!(
+        market.expiry_ts <= now,
+        ErrorCode::DefaultError,
+        "Market hasn't expired yet (expiry={} > now{})",
+        market.expiry_ts,
+        now
+    )?;
+
+    validate!(
+        market.amm.net_unsettled_lp_base_asset_amount == 0 && market.amm.user_lp_shares == 0,
+        ErrorCode::DefaultError,
+        "Outstanding LP in market"
+    )?;
+
+    let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
+    let fee_reserved_for_protocol = cast_to_i128(
+        repeg::get_total_fee_lower_bound(market)?
+            .checked_sub(market.amm.total_fee_withdrawn)
+            .ok_or_else(math_error!())?,
+    )?;
+    let budget = market
+        .amm
+        .total_fee_minus_distributions
+        .checked_sub(fee_reserved_for_protocol)
+        .ok_or_else(math_error!())?
+        .max(0);
+
+    let available_fee_pool = cast_to_i128(get_token_amount(
+        market.amm.fee_pool.balance,
+        spot_market,
+        &SpotBalanceType::Deposit,
+    )?)?
+    .checked_sub(fee_reserved_for_protocol)
+    .ok_or_else(math_error!())?
+    .max(0);
+
+    let fee_pool_transfer = budget.min(available_fee_pool);
+
+    update_spot_balances(
+        fee_pool_transfer.unsigned_abs(),
+        &SpotBalanceType::Borrow,
+        spot_market,
+        &mut market.amm.fee_pool,
+        false,
+    )?;
+
+    update_spot_balances(
+        fee_pool_transfer.unsigned_abs(),
+        &SpotBalanceType::Deposit,
+        spot_market,
+        &mut market.pnl_pool,
+        false,
+    )?;
+
+    if budget > 0 {
+        let (k_scale_numerator, k_scale_denominator) = amm::calculate_budgeted_k_scale(
+            market,
+            cast_to_i128(budget)?,
+            K_BPS_UPDATE_SCALE * 100,
+        )?;
+
+        let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
+            .checked_mul(bn::U192::from(k_scale_numerator))
+            .ok_or_else(math_error!())?
+            .checked_div(bn::U192::from(k_scale_denominator))
+            .ok_or_else(math_error!())?;
+
+        let update_k_result = get_update_k_result(market, new_sqrt_k, true)?;
+
+        let adjustment_cost = amm::adjust_k_cost(market, &update_k_result)?;
+
+        let cost_applied = apply_cost_to_market(market, adjustment_cost, true)?;
+
+        validate!(
+            cost_applied,
+            ErrorCode::DefaultError,
+            "Issue applying k increase on market"
+        )?;
+
+        if cost_applied {
+            amm::update_k(market, &update_k_result)?;
+        }
+    }
+
+    let pnl_pool_amount = get_token_amount(
+        market.pnl_pool.balance,
+        spot_market,
+        &SpotBalanceType::Deposit,
+    )?;
+
+    validate!(
+        10_u128.pow(spot_market.decimals as u32) == QUOTE_PRECISION,
+        ErrorCode::DefaultError,
+        "Only support bank.decimals == QUOTE_PRECISION"
+    )?;
+
+    let target_settlement_price = market.amm.last_oracle_price_twap;
+    validate!(
+        target_settlement_price > 0,
+        ErrorCode::DefaultError,
+        "target_settlement_price <= 0 {}",
+        target_settlement_price
+    )?;
+
+    let settlement_price =
+        amm::calculate_settlement_price(&market.amm, target_settlement_price, pnl_pool_amount)?;
+
+    market.settlement_price = settlement_price;
+    market.status = MarketStatus::Settlement;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -243,6 +389,7 @@ mod test {
                 max_spread: 55500,
                 ..AMM::default()
             },
+            status: MarketStatus::Initialized,
             margin_ratio_initial: 555, // max 1/.0555 = 18.018018018x leverage
             ..PerpMarket::default()
         };
@@ -436,13 +583,13 @@ mod test {
 
         let cost_of_update =
             _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
-        let mark_price_after = market.amm.mark_price().unwrap();
-        assert_eq!(mark_price_before < mark_price_after, true);
-        assert_eq!(mark_price_after, 188500004355075);
-
-        assert_eq!(cost_of_update, -42993230); // amm wins when price increases
-        assert_eq!(market.amm.long_spread, 125);
         assert_eq!(market.amm.short_spread, 690);
+        assert_eq!(market.amm.long_spread, 125);
+        assert_eq!(cost_of_update, -42993230); // amm wins when price increases
+
+        let mark_price_after = market.amm.mark_price().unwrap();
+        assert_eq!(mark_price_after, 188500004355075);
+        assert_eq!(mark_price_before < mark_price_after, true);
 
         // add large confidence
         let oracle_price_data = OraclePriceData {
@@ -564,13 +711,13 @@ mod test {
 
         let cost_of_update =
             _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
-        let mark_price_after = market.amm.mark_price().unwrap();
-        assert_eq!(mark_price_before < mark_price_after, true);
-        assert_eq!(mark_price_after, 188500004355075);
-
-        assert_eq!(cost_of_update, -42993230); // amm wins when price increases
         assert_eq!(market.amm.long_spread, 285);
         assert_eq!(market.amm.short_spread, 690);
+        assert_eq!(cost_of_update, -42993230); // amm wins when price increases
+
+        let mark_price_after = market.amm.mark_price().unwrap();
+        assert_eq!(mark_price_after, 188500004355075);
+        assert_eq!(mark_price_before < mark_price_after, true);
 
         // add large confidence
         let oracle_price_data = OraclePriceData {

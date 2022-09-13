@@ -135,7 +135,7 @@ describe('clearing_house', () => {
 			marketPublicKey
 		)) as MarketAccount;
 
-		assert.ok(market.initialized);
+		assert.ok(market.status);
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(0)));
 		assert.ok(market.openInterest.eq(new BN(0)));
 
@@ -181,9 +181,11 @@ describe('clearing_house', () => {
 		assert.ok(quoteAssetBankVault.amount.eq(usdcAmount));
 
 		assert.ok(user.positions.length == 5);
-		assert.ok(user.positions[0].baseAssetAmount.toNumber() === 0);
-		assert.ok(user.positions[0].quoteEntryAmount.toNumber() === 0);
-		assert.ok(user.positions[0].lastCumulativeFundingRate.toNumber() === 0);
+		assert.ok(user.perp_positions[0].baseAssetAmount.toNumber() === 0);
+		assert.ok(user.perp_positions[0].quoteEntryAmount.toNumber() === 0);
+		assert.ok(
+			user.perp_positions[0].lastCumulativeFundingRate.toNumber() === 0
+		);
 
 		await eventSubscriber.awaitTx(txSig);
 		const depositRecord =
@@ -296,7 +298,7 @@ describe('clearing_house', () => {
 		);
 
 		const ogCostBasis = user.perpPositions[0].quoteAssetAmount.add(
-			unrealizedPnl //.add(user0.positions[0].unsettledPnl)
+			unrealizedPnl //.add(user0.perp_positions[0].unsettledPnl)
 		);
 		console.log('ogCostBasis:', ogCostBasis.toString());
 		assert(ogCostBasis.eq(user.perpPositions[0].quoteEntryAmount));

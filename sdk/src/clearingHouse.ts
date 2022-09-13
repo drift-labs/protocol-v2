@@ -1297,10 +1297,10 @@ export class ClearingHouse {
 
 		if (sharesToBurn == undefined) {
 			const userAccount = this.getUserAccount();
-			const marketPosition = userAccount.perpPositions.filter((position) =>
+			const perpPosition = userAccount.perpPositions.filter((position) =>
 				position.marketIndex.eq(marketIndex)
 			)[0];
-			sharesToBurn = marketPosition.lpShares;
+			sharesToBurn = perpPosition.lpShares;
 			console.log('burning lp shares:', sharesToBurn.toString());
 		}
 
@@ -1492,6 +1492,54 @@ export class ClearingHouse {
 		const remainingAccounts = oracleAccountInfos.concat(marketAccountInfos);
 
 		return await this.program.instruction.updateAmms(marketIndexes, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async settleExpiredMarket(
+		marketIndex: BN
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(await this.getSettleExpiredMarketIx(marketIndex)),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getSettleExpiredMarketIx(
+		marketIndex: BN
+	): Promise<TransactionInstruction> {
+		const marketAccountInfos = [];
+		const oracleAccountInfos = [];
+		const spotMarketAccountInfos = [];
+		const market = this.getPerpMarketAccount(marketIndex);
+		marketAccountInfos.push({
+			pubkey: market.pubkey,
+			isWritable: true,
+			isSigner: false,
+		});
+		oracleAccountInfos.push({
+			pubkey: market.amm.oracle,
+			isWritable: false,
+			isSigner: false,
+		});
+
+		spotMarketAccountInfos.push({
+			pubkey: this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX).pubkey,
+			isSigner: false,
+			isWritable: true,
+		});
+
+		const remainingAccounts = oracleAccountInfos
+			.concat(spotMarketAccountInfos)
+			.concat(marketAccountInfos);
+
+		return await this.program.instruction.settleExpiredMarket(marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				authority: this.wallet.publicKey,
@@ -2470,6 +2518,103 @@ export class ClearingHouse {
 		});
 	}
 
+	public async settleExpiredPosition(
+		settleeUserAccountPublicKey: PublicKey,
+		settleeUserAccount: UserAccount,
+		marketIndex: BN
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(
+				await this.getSettleExpiredPositionIx(
+					settleeUserAccountPublicKey,
+					settleeUserAccount,
+					marketIndex
+				)
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getSettleExpiredPositionIx(
+		settleeUserAccountPublicKey: PublicKey,
+		settleeUserAccount: UserAccount,
+		marketIndex: BN
+	): Promise<TransactionInstruction> {
+		const marketAccountMap = new Map<number, AccountMeta>();
+		const oracleAccountMap = new Map<string, AccountMeta>();
+		const spotMarketAccountMap = new Map<number, AccountMeta>();
+		for (const position of settleeUserAccount.perpPositions) {
+			if (!positionIsAvailable(position)) {
+				const market = this.getPerpMarketAccount(position.marketIndex);
+				marketAccountMap.set(position.marketIndex.toNumber(), {
+					pubkey: market.pubkey,
+					isWritable: false,
+					isSigner: false,
+				});
+				oracleAccountMap.set(market.amm.oracle.toString(), {
+					pubkey: market.amm.oracle,
+					isWritable: false,
+					isSigner: false,
+				});
+			}
+		}
+
+		for (const userBankBalance of settleeUserAccount.spotPositions) {
+			if (!userBankBalance.balance.eq(ZERO)) {
+				const bankAccount = this.getSpotMarketAccount(
+					userBankBalance.marketIndex
+				);
+				spotMarketAccountMap.set(userBankBalance.marketIndex.toNumber(), {
+					pubkey: bankAccount.pubkey,
+					isSigner: false,
+					isWritable: false,
+				});
+				if (!bankAccount.marketIndex.eq(ZERO)) {
+					oracleAccountMap.set(bankAccount.oracle.toString(), {
+						pubkey: bankAccount.oracle,
+						isSigner: false,
+						isWritable: false,
+					});
+				}
+			}
+		}
+
+		const marketAccount = this.getPerpMarketAccount(marketIndex.toNumber());
+		marketAccountMap.set(marketIndex.toNumber(), {
+			pubkey: marketAccount.pubkey,
+			isSigner: false,
+			isWritable: true,
+		});
+		oracleAccountMap.set(marketAccount.amm.oracle.toString(), {
+			pubkey: marketAccount.amm.oracle,
+			isSigner: false,
+			isWritable: false,
+		});
+
+		spotMarketAccountMap.set(QUOTE_SPOT_MARKET_INDEX.toNumber(), {
+			pubkey: this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX).pubkey,
+			isSigner: false,
+			isWritable: true,
+		});
+
+		const remainingAccounts = [
+			...oracleAccountMap.values(),
+			...spotMarketAccountMap.values(),
+			...marketAccountMap.values(),
+		];
+
+		return await this.program.instruction.settleExpiredPosition(marketIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				authority: this.wallet.publicKey,
+				user: settleeUserAccountPublicKey,
+			},
+			remainingAccounts: remainingAccounts,
+		});
+	}
+
 	public async liquidatePerp(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
@@ -3204,5 +3349,47 @@ export class ClearingHouse {
 			},
 			remainingAccounts,
 		});
+	}
+
+	public async resolvePerpPnlDeficit(
+		spotMarketIndex: BN,
+		perpMarketIndex: BN
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(
+				await this.getResolvePerpPnlDeficitIx(spotMarketIndex, perpMarketIndex)
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getResolvePerpPnlDeficitIx(
+		spotMarketIndex: BN,
+		perpMarketIndex: BN
+	): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			writablePerpMarketIndex: perpMarketIndex,
+			writableSpotMarketIndex: spotMarketIndex,
+		});
+
+		const spotMarket = this.getSpotMarketAccount(spotMarketIndex);
+
+		return await this.program.instruction.resolvePerpPnlDeficit(
+			spotMarketIndex,
+			perpMarketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					authority: this.wallet.publicKey,
+					spotMarketVault: spotMarket.vault,
+					insuranceFundVault: spotMarket.insuranceFundVault,
+					clearingHouseSigner: this.getSignerPublicKey(),
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+				remainingAccounts: remainingAccounts,
+			}
+		);
 	}
 }
