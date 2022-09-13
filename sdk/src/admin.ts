@@ -254,7 +254,7 @@ export class Admin extends ClearingHouse {
 				accounts: {
 					state: await this.getStatePublicKey(),
 					admin: this.wallet.publicKey,
-					market: marketPublicKey,
+					perpMarket: marketPublicKey,
 				},
 			}
 		);
