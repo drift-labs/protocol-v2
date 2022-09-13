@@ -493,8 +493,8 @@ pub mod clearing_house {
             revenue_withdraw_since_last_settle: 0,
             max_revenue_withdraw_per_period: 0,
             last_revenue_withdraw_ts: now,
-            unrealized_initial_asset_weight: 100,     // 100%
-            unrealized_maintenance_asset_weight: 100, // 100%
+            unrealized_initial_asset_weight: cast(SPOT_WEIGHT_PRECISION)?, // 100%
+            unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION)?, // 100%
             unrealized_imf_factor: 0,
             liquidation_fee,
             padding0: 0,
@@ -2788,16 +2788,16 @@ pub mod clearing_house {
     )]
     pub fn update_market_unrealized_asset_weight(
         ctx: Context<AdminUpdateMarket>,
-        unrealized_initial_asset_weight: u8,
-        unrealized_maintenance_asset_weight: u8,
+        unrealized_initial_asset_weight: u32,
+        unrealized_maintenance_asset_weight: u32,
     ) -> Result<()> {
         validate!(
-            unrealized_initial_asset_weight <= 100,
+            unrealized_initial_asset_weight <= cast(SPOT_WEIGHT_PRECISION)?,
             ErrorCode::DefaultError,
             "invalid unrealized_initial_asset_weight",
         )?;
         validate!(
-            unrealized_maintenance_asset_weight <= 100,
+            unrealized_maintenance_asset_weight <= cast(SPOT_WEIGHT_PRECISION)?,
             ErrorCode::DefaultError,
             "invalid unrealized_maintenance_asset_weight",
         )?;

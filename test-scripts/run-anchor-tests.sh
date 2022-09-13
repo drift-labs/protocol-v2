@@ -14,7 +14,7 @@ test_files=(
   referrer.ts
   liquidatePerpPnlForDeposit.ts liquidateBorrowForPerpPnl.ts
   liquidatePerp.ts
-  order.ts bankDepositWithdraw.ts prepegMarketOrderBaseAssetAmount.ts
+  order.ts spotDepositWithdraw.ts prepegMarketOrderBaseAssetAmount.ts
   updateAMM.ts repegAndSpread.ts 
   clearingHouse.ts 
   ordersWithSpread.ts

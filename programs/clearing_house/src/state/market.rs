@@ -7,8 +7,8 @@ use switchboard_v2::AggregatorAccountData;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
-use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::constants::LIQUIDATION_FEE_PRECISION;
+use crate::math::constants::{AMM_RESERVE_PRECISION, SPOT_WEIGHT_PRECISION};
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
@@ -42,8 +42,8 @@ pub struct PerpMarket {
     pub max_revenue_withdraw_per_period: u128,
     pub last_revenue_withdraw_ts: i64,
     pub imf_factor: u128,
-    pub unrealized_initial_asset_weight: u8,
-    pub unrealized_maintenance_asset_weight: u8,
+    pub unrealized_initial_asset_weight: u32,
+    pub unrealized_maintenance_asset_weight: u32,
     pub unrealized_imf_factor: u128,
     pub liquidation_fee: u128,
 
@@ -134,7 +134,7 @@ impl PerpMarket {
                 }
             }
         } else {
-            100
+            SPOT_WEIGHT_PRECISION
         };
 
         Ok(unrealized_asset_weight)

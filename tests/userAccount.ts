@@ -327,8 +327,8 @@ describe('User Account', () => {
 			convertToNumber(oraclePrice2)
 		);
 
-		const expectedPNL = new BN(4949474);
-		const expectedTotalCollateral = new BN(24949474);
+		const expectedPNL = new BN(4949473);
+		const expectedTotalCollateral = new BN(24949473);
 		const expectedBuyingPower = new BN(69747645);
 		const expectedFreeCollateral = new BN(13949529);
 		const expectedLeverage = new BN(22044);

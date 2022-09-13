@@ -76,18 +76,18 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
     margin_shortage
         .checked_mul(numerator_scale)
         .ok_or_else(math_error!())?
-        .checked_mul(MARK_PRICE_PRECISION * SPOT_WEIGHT_PRECISION * 1000)
+        .checked_mul(MARK_PRICE_PRECISION * SPOT_WEIGHT_PRECISION * 10)
         .ok_or_else(math_error!())?
         .checked_div(
             liability_price
                 .unsigned_abs()
                 .checked_mul(
                     liability_weight
-                        .checked_mul(1000) // multiply market weights by extra 1000 to increase precision
+                        .checked_mul(10) // multiply market weights by extra 10 to increase precision
                         .ok_or_else(math_error!())?
                         .checked_sub(
                             asset_weight
-                                .checked_mul(1000)
+                                .checked_mul(10)
                                 .ok_or_else(math_error!())?
                                 .checked_mul(asset_liquidation_multiplier)
                                 .ok_or_else(math_error!())?

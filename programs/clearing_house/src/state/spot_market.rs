@@ -9,8 +9,7 @@ use crate::error::ClearingHouseResult;
 #[cfg(test)]
 use crate::math::constants::SPOT_CUMULATIVE_INTEREST_PRECISION;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
-    MARGIN_PRECISION_TO_SPOT_WEIGHT_PRECISION_RATIO, SPOT_WEIGHT_PRECISION,
+    AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, SPOT_WEIGHT_PRECISION,
 };
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
@@ -150,8 +149,6 @@ impl SpotMarket {
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
         };
         liability_weight
-            .checked_mul(MARGIN_PRECISION_TO_SPOT_WEIGHT_PRECISION_RATIO)
-            .ok_or_else(math_error!())?
             .checked_sub(MARGIN_PRECISION)
             .ok_or_else(math_error!())
     }
@@ -176,10 +173,10 @@ impl SpotMarket {
             market_index: 1,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            initial_liability_weight: 120,
-            maintenance_liability_weight: 110,
-            initial_asset_weight: 80,
-            maintenance_asset_weight: 90,
+            initial_liability_weight: 12000,
+            maintenance_liability_weight: 11000,
+            initial_asset_weight: 8000,
+            maintenance_asset_weight: 9000,
             decimals: 9,
             ..SpotMarket::default()
         }
@@ -190,10 +187,10 @@ impl SpotMarket {
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
-            initial_liability_weight: 100,
-            maintenance_liability_weight: 100,
-            initial_asset_weight: 100,
-            maintenance_asset_weight: 100,
+            initial_liability_weight: 10000,
+            maintenance_liability_weight: 10000,
+            initial_asset_weight: 10000,
+            maintenance_asset_weight: 10000,
             ..SpotMarket::default()
         }
     }

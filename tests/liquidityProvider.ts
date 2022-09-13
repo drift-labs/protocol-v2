@@ -276,7 +276,7 @@ describe('liquidity providing', () => {
 
 		const newInitMarginReq = clearingHouseUser.getInitialMarginRequirement();
 		console.log(initMarginReq.toString(), '->', newInitMarginReq.toString());
-		assert(newInitMarginReq.eq(new BN(8284000)));
+		assert(newInitMarginReq.eq(new BN(8283999)));
 
 		// ensure margin calcs didnt modify user position
 		const _position = clearingHouseUser.getUserPosition(ZERO);

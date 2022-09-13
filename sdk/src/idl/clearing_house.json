@@ -1919,11 +1919,11 @@
       "args": [
         {
           "name": "unrealizedInitialAssetWeight",
-          "type": "u8"
+          "type": "u32"
         },
         {
           "name": "unrealizedMaintenanceAssetWeight",
-          "type": "u8"
+          "type": "u32"
         }
       ]
     },
@@ -2924,11 +2924,11 @@
           },
           {
             "name": "unrealizedInitialAssetWeight",
-            "type": "u8"
+            "type": "u32"
           },
           {
             "name": "unrealizedMaintenanceAssetWeight",
-            "type": "u8"
+            "type": "u32"
           },
           {
             "name": "unrealizedImfFactor",
