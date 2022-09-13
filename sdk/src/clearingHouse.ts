@@ -2525,7 +2525,7 @@ export class ClearingHouse {
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
 			wrapInTx(
-				await this.settleExpiredPositionIx(
+				await this.getSettleExpiredPositionIx(
 					settleeUserAccountPublicKey,
 					settleeUserAccount,
 					marketIndex
@@ -2537,7 +2537,7 @@ export class ClearingHouse {
 		return txSig;
 	}
 
-	public async settleExpiredPositionIx(
+	public async getSettleExpiredPositionIx(
 		settleeUserAccountPublicKey: PublicKey,
 		settleeUserAccount: UserAccount,
 		marketIndex: BN
