@@ -2093,6 +2093,7 @@ pub fn place_spot_order(
         order_id: get_then_update_id!(user, next_order_id),
         user_order_id: params.user_order_id,
         market_index: params.market_index,
+        quote_spot_market_index: params.quote_spot_market_index,
         price: params.price,
         existing_position_direction,
         base_asset_amount: order_base_asset_amount,
@@ -2627,12 +2628,11 @@ pub fn derive_oracle_price_data_with_quote_market(
     oracle_map: &mut OracleMap,
     base_market: &mut SpotMarket,
     quote_market: &mut SpotMarket,
-    price_only: bool,
 ) -> ClearingHouseResult<OraclePriceData> {
     let oracle_price_data: OraclePriceData = if quote_market.market_index != QUOTE_SPOT_MARKET_INDEX
     {
-        let base_oracle_data = oracle_map.get_price_data(&base_market.oracle)?;
-        let quote_oracle_data = oracle_map.get_price_data(&quote_market.oracle)?;
+        let (base_oracle_data, quote_oracle_data) =
+            oracle_map.get_price_datas(&base_market.oracle, &quote_market.oracle)?;
 
         let oracle_price = base_oracle_data
             .price
@@ -2669,7 +2669,7 @@ pub fn derive_oracle_price_data_with_quote_market(
             has_sufficient_number_of_data_points,
         }
     } else {
-        *oracle_map.get_price_data(&base_market.oracle)
+        *oracle_map.get_price_data(&base_market.oracle)?
     };
 
     Ok(oracle_price_data)
@@ -2705,8 +2705,7 @@ pub fn fulfill_spot_order_with_match(
     let market_index = taker.orders[taker_order_index].market_index;
 
     let oracle_price =
-        derive_oracle_price_data_with_quote_market(oracle_map, base_market, quote_market, true)?
-            .price;
+        derive_oracle_price_data_with_quote_market(oracle_map, base_market, quote_market)?.price;
 
     let taker_price =
         taker.orders[taker_order_index].get_limit_price(Some(oracle_price), slot, None)?;

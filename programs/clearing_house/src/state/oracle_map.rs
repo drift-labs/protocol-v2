@@ -35,6 +35,50 @@ impl<'a> OracleMap<'a> {
             .clone())
     }
 
+    pub fn get_price_datas(
+        &mut self,
+        pubkey: &Pubkey,
+        pubkey2: &Pubkey,
+    ) -> ClearingHouseResult<(OraclePriceData, OraclePriceData)> {
+        let price1 = if pubkey == &Pubkey::default() {
+            self.quote_asset_price_data
+        } else if self.price_data.contains_key(pubkey) {
+            *self.price_data.get(pubkey).unwrap()
+        } else {
+            let (account_info, oracle_source) = match self.oracles.get(pubkey) {
+                Some(AccountInfoAndOracleSource {
+                    account_info,
+                    oracle_source,
+                }) => (account_info, oracle_source),
+                None => {
+                    return Err(ErrorCode::OracleNotFound);
+                }
+            };
+
+            get_oracle_price(oracle_source, account_info, self.slot)?
+        };
+
+        let price2 = if pubkey2 == &Pubkey::default() {
+            self.quote_asset_price_data
+        } else if self.price_data.contains_key(pubkey2) {
+            *self.price_data.get(pubkey2).unwrap()
+        } else {
+            let (account_info, oracle_source) = match self.oracles.get(pubkey2) {
+                Some(AccountInfoAndOracleSource {
+                    account_info,
+                    oracle_source,
+                }) => (account_info, oracle_source),
+                None => {
+                    return Err(ErrorCode::OracleNotFound);
+                }
+            };
+
+            get_oracle_price(oracle_source, account_info, self.slot)?
+        };
+
+        Ok((price1, price2))
+    }
+
     pub fn get_price_data(&mut self, pubkey: &Pubkey) -> ClearingHouseResult<&OraclePriceData> {
         if pubkey == &Pubkey::default() {
             return Ok(&self.quote_asset_price_data);
