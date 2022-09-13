@@ -425,6 +425,7 @@ export class ClearingHouseUser {
 		marketIndex?: BN,
 		withWeightMarginCategory?: MarginCategory
 	): BN {
+		const quoteSpotMarket = this.clearingHouse.getQuoteSpotMarketAccount();
 		return this.getUserAccount()
 			.perpPositions.filter((pos) =>
 				marketIndex ? pos.marketIndex === marketIndex : true
@@ -433,11 +434,13 @@ export class ClearingHouseUser {
 				const market = this.clearingHouse.getPerpMarketAccount(
 					perpPosition.marketIndex
 				);
+				const oraclePriceData = this.getOracleDataForMarket(market.marketIndex);
+
 				let positionUnrealizedPnl = calculatePositionPNL(
 					market,
 					perpPosition,
 					withFunding,
-					this.getOracleDataForMarket(market.marketIndex)
+					oraclePriceData
 				);
 
 				if (withWeightMarginCategory !== undefined) {
@@ -446,8 +449,10 @@ export class ClearingHouseUser {
 							.mul(
 								calculateUnrealizedAssetWeight(
 									market,
+									quoteSpotMarket,
 									positionUnrealizedPnl,
-									withWeightMarginCategory
+									withWeightMarginCategory,
+									oraclePriceData
 								)
 							)
 							.div(new BN(SPOT_MARKET_WEIGHT_PRECISION));

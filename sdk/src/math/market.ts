@@ -22,6 +22,7 @@ import {
 	BASE_PRECISION,
 	MARGIN_PRECISION,
 	PRICE_TO_QUOTE_PRECISION,
+	ZERO,
 } from '../constants/numericConstants';
 import { getTokenAmount } from './spotBalance';
 
@@ -145,17 +146,33 @@ export function calculateMarketMarginRatio(
 
 export function calculateUnrealizedAssetWeight(
 	market: PerpMarketAccount,
+	quoteSpotMarket: SpotMarketAccount,
 	unrealizedPnl: BN,
-	marginCategory: MarginCategory
+	marginCategory: MarginCategory,
+	oraclePriceData: OraclePriceData
 ): BN {
 	let assetWeight: BN;
-
 	switch (marginCategory) {
 		case 'Initial':
+			assetWeight = new BN(market.unrealizedInitialAssetWeight);
+
+			if (market.unrealizedMaxImbalance.gt(ZERO)) {
+				const netUnsettledPnl = calculateNetUserImbalance(
+					market,
+					quoteSpotMarket,
+					oraclePriceData
+				);
+				if (netUnsettledPnl.gt(market.unrealizedMaxImbalance)) {
+					assetWeight = assetWeight
+						.mul(market.unrealizedMaxImbalance)
+						.div(netUnsettledPnl);
+				}
+			}
+
 			assetWeight = calculateSizeDiscountAssetWeight(
 				unrealizedPnl,
 				market.unrealizedImfFactor,
-				new BN(market.unrealizedInitialAssetWeight)
+				assetWeight
 			);
 			break;
 		case 'Maintenance':
