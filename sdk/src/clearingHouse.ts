@@ -2476,7 +2476,7 @@ export class ClearingHouse {
 		marketIndex: BN,
 		maxBaseAssetAmount: BN
 	): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(
+		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
 				await this.getLiquidatePerpIx(
 					userAccountPublicKey,
@@ -2488,6 +2488,7 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
+		this.marketLastSlotCache.set(marketIndex.toNumber(), slot);
 		return txSig;
 	}
 
@@ -2587,7 +2588,7 @@ export class ClearingHouse {
 		liabilitymarketIndex: BN,
 		maxLiabilityTransfer: BN
 	): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(
+		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
 				await this.getLiquidateBorrowForPerpPnlIx(
 					userAccountPublicKey,
@@ -2600,6 +2601,7 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
+		this.marketLastSlotCache.set(perpMarketIndex.toNumber(), slot);
 		return txSig;
 	}
 
@@ -2638,22 +2640,23 @@ export class ClearingHouse {
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		perpMarketIndex: BN,
-		assetmarketIndex: BN,
+		assetMarketIndex: BN,
 		maxPnlTransfer: BN
 	): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(
+		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
 				await this.getLiquidatePerpPnlForDepositIx(
 					userAccountPublicKey,
 					userAccount,
 					perpMarketIndex,
-					assetmarketIndex,
+					assetMarketIndex,
 					maxPnlTransfer
 				)
 			),
 			[],
 			this.opts
 		);
+		this.marketLastSlotCache.set(perpMarketIndex.toNumber(), slot);
 		return txSig;
 	}
 
@@ -2661,7 +2664,7 @@ export class ClearingHouse {
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		perpMarketIndex: BN,
-		assetmarketIndex: BN,
+		assetMarketIndex: BN,
 		maxPnlTransfer: BN
 	): Promise<TransactionInstruction> {
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
@@ -2669,12 +2672,12 @@ export class ClearingHouse {
 		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			counterPartyUserAccount: userAccount,
 			writablePerpMarketIndex: perpMarketIndex,
-			writableSpotMarketIndexes: [assetmarketIndex],
+			writableSpotMarketIndexes: [assetMarketIndex],
 		});
 
 		return await this.program.instruction.liquidatePerpPnlForDeposit(
 			perpMarketIndex,
-			assetmarketIndex,
+			assetMarketIndex,
 			maxPnlTransfer,
 			{
 				accounts: {
