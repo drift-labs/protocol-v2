@@ -299,13 +299,11 @@ pub fn adjust_amm(
     adjust_k: bool,
 ) -> ClearingHouseResult<(PerpMarket, i128)> {
     let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
-    msg!("working_inside0");
 
     // return early
     if optimal_peg == market.amm.peg_multiplier || curve_update_intensity == 0 {
         return Ok((*market, 0));
     }
-    msg!("working_inside01");
 
     let delta_peg = cast_to_i128(optimal_peg)?
         .checked_sub(cast_to_i128(market.amm.peg_multiplier)?)
@@ -323,7 +321,6 @@ pub fn adjust_amm(
     let mut budget_delta_peg_magnitude: u128 = 0;
     let cost: i128;
     let new_peg: u128;
-    msg!("working_inside02");
 
     if per_peg_cost != 0 {
         budget_delta_peg = budget_i128
@@ -331,7 +328,6 @@ pub fn adjust_amm(
             .ok_or_else(math_error!())?;
         budget_delta_peg_magnitude = budget_delta_peg.unsigned_abs();
     }
-    msg!("working_inside1");
 
     if (per_peg_cost == 0 || per_peg_cost > 0 && delta_peg < 0 || per_peg_cost < 0 && delta_peg > 0)
         || (budget_delta_peg_magnitude > delta_peg.unsigned_abs())
@@ -341,8 +337,6 @@ pub fn adjust_amm(
         cost = calculate_repeg_cost(&market_clone.amm, new_peg)?;
     } else {
         // use full budget peg
-        msg!("working_inside2");
-
         let can_lower_k = market.amm.can_lower_k()?;
 
         // equivalent to (but cheaper than) scaling down by .1%
