@@ -91,31 +91,31 @@ export function calculateBaseAssetValue(
  */
 export function calculatePositionPNL(
 	market: PerpMarketAccount,
-	PerpPosition: PerpPosition,
+	perpPosition: PerpPosition,
 	withFunding = false,
 	oraclePriceData: OraclePriceData
 ): BN {
-	if (PerpPosition.baseAssetAmount.eq(ZERO)) {
-		return PerpPosition.quoteAssetAmount;
+	if (perpPosition.baseAssetAmount.eq(ZERO)) {
+		return perpPosition.quoteAssetAmount;
 	}
 
 	const baseAssetValue = calculateBaseAssetValueWithOracle(
 		market,
-		PerpPosition,
+		perpPosition,
 		oraclePriceData
 	);
 
-	const baseAssetValueSign = PerpPosition.baseAssetAmount.isNeg()
+	const baseAssetValueSign = perpPosition.baseAssetAmount.isNeg()
 		? new BN(-1)
 		: new BN(1);
 	let pnl = baseAssetValue
 		.mul(baseAssetValueSign)
-		.add(PerpPosition.quoteAssetAmount);
+		.add(perpPosition.quoteAssetAmount);
 
 	if (withFunding) {
 		const fundingRatePnL = calculatePositionFundingPNL(
 			market,
-			PerpPosition
+			perpPosition
 		).div(PRICE_TO_QUOTE_PRECISION);
 
 		pnl = pnl.add(fundingRatePnL);
@@ -126,25 +126,25 @@ export function calculatePositionPNL(
 
 export function calculateUnsettledPnl(
 	market: PerpMarketAccount,
-	PerpPosition: PerpPosition,
+	perpPosition: PerpPosition,
 	oraclePriceData: OraclePriceData
 ): BN {
 	const unrealizedPnl = calculatePositionPNL(
 		market,
-		PerpPosition,
+		perpPosition,
 		true,
 		oraclePriceData
 	);
 
 	let unsettledPnl = unrealizedPnl;
 	if (unrealizedPnl.gt(ZERO)) {
-		const fundingPnL = calculatePositionFundingPNL(market, PerpPosition).div(
+		const fundingPnL = calculatePositionFundingPNL(market, perpPosition).div(
 			PRICE_TO_QUOTE_PRECISION
 		);
 
 		const maxPositivePnl = BN.max(
-			PerpPosition.quoteAssetAmount
-				.sub(PerpPosition.quoteEntryAmount)
+			perpPosition.quoteAssetAmount
+				.sub(perpPosition.quoteEntryAmount)
 				.add(fundingPnL),
 			ZERO
 		);
@@ -162,22 +162,22 @@ export function calculateUnsettledPnl(
  */
 export function calculatePositionFundingPNL(
 	market: PerpMarketAccount,
-	PerpPosition: PerpPosition
+	perpPosition: PerpPosition
 ): BN {
-	if (PerpPosition.baseAssetAmount.eq(ZERO)) {
+	if (perpPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
 	}
 
 	let ammCumulativeFundingRate: BN;
-	if (PerpPosition.baseAssetAmount.gt(ZERO)) {
+	if (perpPosition.baseAssetAmount.gt(ZERO)) {
 		ammCumulativeFundingRate = market.amm.cumulativeFundingRateLong;
 	} else {
 		ammCumulativeFundingRate = market.amm.cumulativeFundingRateShort;
 	}
 
 	const perPositionFundingRate = ammCumulativeFundingRate
-		.sub(PerpPosition.lastCumulativeFundingRate)
-		.mul(PerpPosition.baseAssetAmount)
+		.sub(perpPosition.lastCumulativeFundingRate)
+		.mul(perpPosition.baseAssetAmount)
 		.div(AMM_RESERVE_PRECISION)
 		.div(FUNDING_PAYMENT_PRECISION)
 		.mul(new BN(-1));

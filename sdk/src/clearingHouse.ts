@@ -1297,10 +1297,10 @@ export class ClearingHouse {
 
 		if (sharesToBurn == undefined) {
 			const userAccount = this.getUserAccount();
-			const PerpPosition = userAccount.perpPositions.filter((position) =>
+			const perpPosition = userAccount.perpPositions.filter((position) =>
 				position.marketIndex.eq(marketIndex)
 			)[0];
-			sharesToBurn = PerpPosition.lpShares;
+			sharesToBurn = perpPosition.lpShares;
 			console.log('burning lp shares:', sharesToBurn.toString());
 		}
 

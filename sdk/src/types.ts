@@ -4,7 +4,6 @@ import { BN, ZERO, QUOTE_SPOT_MARKET_INDEX } from '.';
 // # Utility Types / Enums / Constants
 
 export class MarketStatus {
-	static readonly UNINITIALIZED = { uninitialized: {} };
 	static readonly INITIALIZED = { initialized: {} };
 	static readonly REDUCEONLY = { reduceonly: {} };
 	static readonly SETTLEMENT = { settlement: {} };
@@ -181,7 +180,7 @@ export declare type InsuranceFundRecord = {
 	marketIndex: BN;
 	userIfFactor: BN;
 	totalIfFactor: BN;
-	bankVaultAmountBefore: BN;
+	vaultAmountBefore: BN;
 	insuranceVaultAmountBefore: BN;
 	amount: BN;
 	totalIfSharesBefore: BN;

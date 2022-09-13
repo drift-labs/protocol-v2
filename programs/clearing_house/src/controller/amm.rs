@@ -332,13 +332,13 @@ pub fn formulaic_update_k(
 }
 
 pub fn get_fee_pool_tokens(
-    market: &mut PerpMarket,
-    bank: &mut SpotMarket,
+    perp_market: &mut PerpMarket,
+    spot_market: &mut SpotMarket,
 ) -> ClearingHouseResult<i128> {
     let amm_fee_pool_token_amount = cast_to_i128(get_token_amount(
-        market.amm.fee_pool.balance(),
-        bank,
-        market.amm.fee_pool.balance_type(),
+        perp_market.amm.fee_pool.balance(),
+        spot_market,
+        perp_market.amm.fee_pool.balance_type(),
     )?)?;
 
     Ok(amm_fee_pool_token_amount)
@@ -602,18 +602,6 @@ pub fn update_pnl_pool_and_user_balance(
         unrealized_pnl_with_fee
     };
 
-    update_spot_balances(
-        pnl_to_settle_with_user.unsigned_abs(),
-        if pnl_to_settle_with_user < 0 {
-            &SpotBalanceType::Deposit
-        } else {
-            &SpotBalanceType::Borrow
-        },
-        bank,
-        &mut market.pnl_pool,
-        false,
-    )?;
-
     validate!(
         unrealized_pnl_with_fee == pnl_to_settle_with_user,
         ErrorCode::DefaultError,
@@ -635,6 +623,18 @@ pub fn update_pnl_pool_and_user_balance(
         );
         return Ok(0);
     }
+
+    update_spot_balances(
+        pnl_to_settle_with_user.unsigned_abs(),
+        if pnl_to_settle_with_user < 0 {
+            &SpotBalanceType::Deposit
+        } else {
+            &SpotBalanceType::Borrow
+        },
+        bank,
+        &mut market.pnl_pool,
+        false,
+    )?;
 
     update_spot_balances(
         pnl_to_settle_with_user.unsigned_abs(),
@@ -1163,6 +1163,7 @@ mod test {
         assert_eq!(spot_market.deposit_balance, 10100000001);
 
         spot_market.total_if_factor = 1;
+        spot_market.revenue_settle_period = 1;
         let res = settle_revenue_to_insurance_fund(
             spot_market_vault_amount,
             0,

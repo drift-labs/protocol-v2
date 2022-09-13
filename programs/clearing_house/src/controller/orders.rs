@@ -10,14 +10,13 @@ use crate::controller::position::{
     update_amm_and_lp_market_position, update_position_and_market, update_quote_asset_amount,
     PositionDirection,
 };
-use crate::controller::repeg::update_market_status;
 use crate::controller::serum::{invoke_new_order, invoke_settle_funds, SerumFulfillmentParams};
 use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::spot_position::{
     decrease_spot_open_bids_and_asks, increase_spot_open_bids_and_asks,
 };
 use crate::math::constants::{
-    MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128, QUOTE_SPOT_MARKET_INDEX,
+    MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
 };
 
 use crate::error::ClearingHouseResult;
@@ -31,7 +30,6 @@ use crate::math::auction::{
     is_auction_complete,
 };
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128};
-use crate::math::constants::PERP_DECIMALS;
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
@@ -53,7 +51,7 @@ use crate::print_error;
 use crate::state::events::{get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::market::{MarketStatus, PerpMarket};
+use crate::state::market::PerpMarket;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -123,7 +121,7 @@ pub fn place_order(
     let market = &perp_market_map.get_ref(&market_index)?;
 
     validate!(
-        market.status != MarketStatus::Settlement,
+        market.is_active(now)?,
         ErrorCode::DefaultError,
         "Market is in settlement mode",
     )?;
@@ -187,6 +185,8 @@ pub fn place_order(
         "must be perp order"
     )?;
 
+    let force_reduce_only = market.is_reduce_only()?;
+
     let new_order = Order {
         status: OrderStatus::Open,
         order_type: params.order_type,
@@ -204,7 +204,7 @@ pub fn place_order(
         quote_asset_amount_filled: 0,
         fee: 0,
         direction: params.direction,
-        reduce_only: params.reduce_only,
+        reduce_only: params.reduce_only || force_reduce_only,
         trigger_price: params.trigger_price,
         trigger_condition: params.trigger_condition,
         triggered: false,
@@ -524,8 +524,13 @@ pub fn fill_order(
     let oracle_price: i128;
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
-        update_market_status(market, now)?;
         controller::validate::validate_market_account(market)?;
+        validate!(
+            market.is_active(now)?,
+            ErrorCode::DefaultError,
+            "Market is in settlement mode",
+        )?;
+
         validate!(
             ((oracle_map.slot == market.amm.last_update_slot && market.amm.last_oracle_valid)
                 || market.amm.curve_update_intensity == 0),
@@ -2079,7 +2084,7 @@ pub fn place_spot_order(
     };
 
     validate!(
-        params.market_index != 0,
+        params.market_index != QUOTE_SPOT_MARKET_INDEX,
         ErrorCode::InvalidOrder,
         "can not place order for quote asset"
     )?;
@@ -2089,6 +2094,8 @@ pub fn place_spot_order(
         ErrorCode::InvalidOrder,
         "must be spot order"
     )?;
+
+    let force_reduce_only = spot_market.is_reduce_only()?;
 
     let new_order = Order {
         status: OrderStatus::Open,
@@ -2107,7 +2114,7 @@ pub fn place_spot_order(
         quote_asset_amount_filled: 0,
         fee: 0,
         direction: params.direction,
-        reduce_only: params.reduce_only,
+        reduce_only: params.reduce_only || force_reduce_only,
         trigger_price: params.trigger_price,
         trigger_condition: params.trigger_condition,
         triggered: false,

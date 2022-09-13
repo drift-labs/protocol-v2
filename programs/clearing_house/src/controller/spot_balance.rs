@@ -734,6 +734,7 @@ mod test {
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: SPOT_INTEREST_PRECISION,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            revenue_settle_period: 1,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
@@ -891,6 +892,7 @@ mod test {
         // settle IF pool to 100% utilization boundary
         assert_eq!(spot_market.revenue_pool.balance, 385);
         assert_eq!(spot_market.utilization_twap, 462007);
+        spot_market.revenue_settle_period = 1;
 
         let settle_amount = settle_revenue_to_insurance_fund(
             deposit_tokens_3 as u64,
@@ -1221,6 +1223,7 @@ mod test {
         // settle IF pool to 100% utilization boundary
         // only half of depositors available claim was settled (to protect vault)
         assert_eq!(spot_market.revenue_pool.balance, 102149084835);
+        spot_market.revenue_settle_period = 1;
         let settle_amount = settle_revenue_to_insurance_fund(
             deposit_tokens_3 as u64,
             if_tokens_3 as u64,

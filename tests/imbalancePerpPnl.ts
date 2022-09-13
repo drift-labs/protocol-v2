@@ -809,7 +809,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			'InsuranceFundRecord'
 		)[0];
 		console.log(ifRecord);
-		assert(ifRecord.bankVaultAmountBefore.eq(new BN('13000000000')));
+		assert(ifRecord.vaultAmountBefore.eq(new BN('13000000000')));
 		assert(ifRecord.insuranceVaultAmountBefore.eq(new BN('1010000')));
 		assert(ifRecord.amount.eq(new BN('-1000000')));
 

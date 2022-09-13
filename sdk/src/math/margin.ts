@@ -78,7 +78,7 @@ export function calculateSizeDiscountAssetWeight(
 }
 
 export function calculateOraclePriceForPerpMargin(
-	PerpPosition: PerpPosition,
+	perpPosition: PerpPosition,
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
@@ -94,7 +94,7 @@ export function calculateOraclePriceForPerpMargin(
 	);
 
 	let marginPrice: BN;
-	if (PerpPosition.baseAssetAmount.gt(ZERO)) {
+	if (perpPosition.baseAssetAmount.gt(ZERO)) {
 		marginPrice = oraclePriceData.price.sub(oraclePriceOffset);
 	} else {
 		marginPrice = oraclePriceData.price.add(oraclePriceOffset);
@@ -105,20 +105,20 @@ export function calculateOraclePriceForPerpMargin(
 
 export function calculateBaseAssetValueWithOracle(
 	market: PerpMarketAccount,
-	PerpPosition: PerpPosition,
+	perpPosition: PerpPosition,
 	oraclePriceData: OraclePriceData
 ): BN {
-	return PerpPosition.baseAssetAmount
+	return perpPosition.baseAssetAmount
 		.abs()
 		.mul(oraclePriceData.price)
 		.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
 }
 
 export function calculateWorstCaseBaseAssetAmount(
-	PerpPosition: PerpPosition
+	perpPosition: PerpPosition
 ): BN {
-	const allBids = PerpPosition.baseAssetAmount.add(PerpPosition.openBids);
-	const allAsks = PerpPosition.baseAssetAmount.add(PerpPosition.openAsks);
+	const allBids = perpPosition.baseAssetAmount.add(perpPosition.openBids);
+	const allAsks = perpPosition.baseAssetAmount.add(perpPosition.openAsks);
 
 	if (allBids.abs().gt(allAsks.abs())) {
 		return allBids;

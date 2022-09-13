@@ -170,8 +170,8 @@ pub fn settle_expired_position(
     let fee_structure = &state.perp_fee_structure;
 
     {
-        let bank = &mut spot_market_map.get_quote_spot_market_mut()?;
-        update_spot_market_cumulative_interest(bank, now)?;
+        let quote_spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
+        update_spot_market_cumulative_interest(quote_spot_market, now)?;
     }
 
     settle_funding_payment(
@@ -209,7 +209,12 @@ pub fn settle_expired_position(
         "User must first cancel open orders for expired market"
     )?;
 
-    let _oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+    validate!(
+        user.perp_positions[position_index].lp_shares == 0,
+        ErrorCode::DefaultError,
+        "User must first burn lp shares for expired market"
+    )?;
+
     let (base_asset_value, unrealized_pnl) =
         calculate_base_asset_value_and_pnl_with_settlement_price(
             &user.perp_positions[position_index],

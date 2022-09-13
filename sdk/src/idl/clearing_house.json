@@ -459,6 +459,22 @@
       "args": []
     },
     {
+      "name": "updateSpotMarketExpiry",
+      "accounts": [
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "expiryTs",
+          "type": "i64"
+        }
+      ]
+    },
+    {
       "name": "settleLp",
       "accounts": [
         {
@@ -3179,6 +3195,16 @@
             "type": "publicKey"
           },
           {
+            "name": "status",
+            "type": {
+              "defined": "MarketStatus"
+            }
+          },
+          {
+            "name": "expiryTs",
+            "type": "i64"
+          },
+          {
             "name": "oracle",
             "type": "publicKey"
           },
@@ -5074,9 +5100,6 @@
       "type": {
         "kind": "enum",
         "variants": [
-          {
-            "name": "Uninitialized"
-          },
           {
             "name": "Initialized"
           },

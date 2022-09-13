@@ -31,8 +31,8 @@ import {
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
+	setFeedPrice,
 } from './testHelpers';
-import { setFeedPrice } from '../stress/mockPythUtils';
 
 async function adjustOraclePostSwap(baa, swapDirection, market) {
 	const price = calculatePrice(
