@@ -2166,7 +2166,7 @@
       ],
       "args": [
         {
-          "name": "concentrationCoef",
+          "name": "concentrationScale",
           "type": "u128"
         }
       ]
@@ -3613,12 +3613,12 @@
             "type": "u8"
           },
           {
-            "name": "settlementDuration",
-            "type": "u16"
-          },
-          {
             "name": "liquidationMarginBufferRatio",
             "type": "u32"
+          },
+          {
+            "name": "settlementDuration",
+            "type": "u16"
           },
           {
             "name": "signer",
