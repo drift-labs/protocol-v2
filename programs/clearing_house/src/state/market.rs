@@ -27,6 +27,7 @@ pub enum MarketStatus {
     Initialized,
     ReduceOnly,
     Settlement,
+    Delisted,
 }
 
 impl Default for MarketStatus {

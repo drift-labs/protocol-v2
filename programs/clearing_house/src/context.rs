@@ -178,6 +178,20 @@ pub struct InitializeUser<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(
+    user_id: u8,
+)]
+pub struct UpdateUserName<'info> {
+    #[account(
+        mut,
+        seeds = [b"user", authority.key.as_ref(), user_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct InitializeMarket<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,

@@ -5,9 +5,13 @@ pub mod liquidate_perp {
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION,
-        PEG_PRECISION, QUOTE_PRECISION_I128, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        MARGIN_PRECISION, PEG_PRECISION, QUOTE_PRECISION_I128, SPOT_CUMULATIVE_INTEREST_PRECISION,
         SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
+    use crate::math::margin::{
+        calculate_margin_requirement_and_total_collateral, MarginRequirementType,
+    };
+    use crate::math::position::calculate_base_asset_value_with_oracle_price;
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
@@ -670,22 +674,44 @@ pub mod liquidate_perp {
             &mut oracle_map,
             slot,
             now,
-            100,
+            MARGIN_PRECISION as u32 / 50,
             0,
         )
         .unwrap();
 
-        assert_eq!(user.perp_positions[0].base_asset_amount, 7125000000000);
-        assert_eq!(user.perp_positions[0].quote_asset_amount, -72537500);
-        assert_eq!(user.perp_positions[0].quote_entry_amount, -71250000);
+        assert_eq!(user.perp_positions[0].base_asset_amount, 5000000000000);
+        assert_eq!(user.perp_positions[0].quote_asset_amount, -51500000);
+        assert_eq!(user.perp_positions[0].quote_entry_amount, -50000000);
         assert_eq!(user.perp_positions[0].open_orders, 0);
         assert_eq!(user.perp_positions[0].open_bids, 0);
 
+        let (_, total_collateral, _) = calculate_margin_requirement_and_total_collateral(
+            &user,
+            &perp_market_map,
+            MarginRequirementType::Maintenance,
+            &spot_market_map,
+            &mut oracle_map,
+            None,
+        )
+        .unwrap();
+
+        let oracle_price = oracle_map.get_price_data(&oracle_price_key).unwrap().price;
+
+        let perp_value = calculate_base_asset_value_with_oracle_price(
+            user.perp_positions[0].base_asset_amount,
+            oracle_price,
+        )
+        .unwrap();
+
+        let margin_ratio = total_collateral.unsigned_abs() * MARGIN_PRECISION / perp_value;
+
+        assert_eq!(margin_ratio, 700);
+
         assert_eq!(
             liquidator.perp_positions[0].base_asset_amount,
-            12875000000000
+            15000000000000
         );
-        assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -127462500);
+        assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -148500000);
     }
 }
 
@@ -694,9 +720,13 @@ pub mod liquidate_borrow {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        LIQUIDATION_FEE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
+    use crate::math::margin::{
+        calculate_margin_requirement_and_total_collateral, MarginRequirementType,
+    };
+    use crate::math::spot_balance::{get_token_amount, get_token_value};
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
@@ -707,6 +737,7 @@ pub mod liquidate_borrow {
     use crate::tests::utils::*;
     use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
+    use std::ops::Deref;
     use std::str::FromStr;
 
     #[test]
@@ -1047,23 +1078,47 @@ pub mod liquidate_borrow {
             &spot_market_map,
             &mut oracle_map,
             now,
-            100,
+            MARGIN_PRECISION as u32 / 50, // 2%
         )
         .unwrap();
 
-        assert_eq!(user.spot_positions[0].balance, 43322223);
-        assert_eq!(user.spot_positions[1].balance, 383838);
+        assert_eq!(user.spot_positions[0].balance, 46117618);
+        assert_eq!(user.spot_positions[1].balance, 411764);
+
+        let (_, total_collateral, _) = calculate_margin_requirement_and_total_collateral(
+            &user,
+            &market_map,
+            MarginRequirementType::Maintenance,
+            &spot_market_map,
+            &mut oracle_map,
+            None,
+        )
+        .unwrap();
+
+        let token_amount = get_token_amount(
+            user.spot_positions[1].balance,
+            spot_market_map.get_ref(&1).unwrap().deref(),
+            &user.spot_positions[1].balance_type,
+        )
+        .unwrap();
+        let oracle_price_data = oracle_map.get_price_data(&sol_oracle_price_key).unwrap();
+        let token_value = get_token_value(token_amount as i128, 6, oracle_price_data).unwrap();
+
+        let margin_ratio =
+            total_collateral.unsigned_abs() * MARGIN_PRECISION / token_value.unsigned_abs();
+
+        assert_eq!(margin_ratio, 11200); // 112%
 
         assert_eq!(
             liquidator.spot_positions[0].balance_type,
             SpotBalanceType::Deposit
         );
-        assert_eq!(liquidator.spot_positions[0].balance, 161677777);
+        assert_eq!(liquidator.spot_positions[0].balance, 158882382);
         assert_eq!(
             liquidator.spot_positions[1].balance_type,
             SpotBalanceType::Borrow
         );
-        assert_eq!(liquidator.spot_positions[1].balance, 616162);
+        assert_eq!(liquidator.spot_positions[1].balance, 588236);
     }
 }
 
@@ -1072,10 +1127,14 @@ pub mod liquidate_borrow_for_perp_pnl {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
-        QUOTE_PRECISION_I128, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
+        PEG_PRECISION, QUOTE_PRECISION_I128, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
+    use crate::math::margin::{
+        calculate_margin_requirement_and_total_collateral, MarginRequirementType,
+    };
+    use crate::math::spot_balance::{get_token_amount, get_token_value};
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
@@ -1087,6 +1146,7 @@ pub mod liquidate_borrow_for_perp_pnl {
     use crate::tests::utils::*;
     use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
+    use std::ops::Deref;
     use std::str::FromStr;
 
     #[test]
@@ -1126,8 +1186,8 @@ pub mod liquidate_borrow_for_perp_pnl {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            unrealized_initial_asset_weight: 8000,
-            unrealized_maintenance_asset_weight: 9000,
+            unrealized_initial_asset_weight: 9000,
+            unrealized_maintenance_asset_weight: 10000,
             open_interest: 1,
             status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
@@ -1267,8 +1327,8 @@ pub mod liquidate_borrow_for_perp_pnl {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            unrealized_initial_asset_weight: 8000,
-            unrealized_maintenance_asset_weight: 9000,
+            unrealized_initial_asset_weight: 9000,
+            unrealized_maintenance_asset_weight: 10000,
             open_interest: 1,
             status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
@@ -1324,7 +1384,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                quote_asset_amount: 110 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: 105 * QUOTE_PRECISION_I128 as i128,
                 ..PerpPosition::default()
             }),
             spot_positions,
@@ -1356,19 +1416,43 @@ pub mod liquidate_borrow_for_perp_pnl {
             &spot_market_map,
             &mut oracle_map,
             now,
-            100,
+            MARGIN_PRECISION as u32 / 50,
         )
         .unwrap();
 
-        assert_eq!(user.spot_positions[0].balance, 363492);
-        assert_eq!(user.perp_positions[0].quote_asset_amount, 45648442);
+        assert_eq!(user.spot_positions[0].balance, 357739);
+        assert_eq!(user.perp_positions[0].quote_asset_amount, 40066807);
+
+        let (_, total_collateral, _) = calculate_margin_requirement_and_total_collateral(
+            &user,
+            &market_map,
+            MarginRequirementType::Maintenance,
+            &spot_market_map,
+            &mut oracle_map,
+            None,
+        )
+        .unwrap();
+
+        let token_amount = get_token_amount(
+            user.spot_positions[0].balance,
+            spot_market_map.get_ref(&1).unwrap().deref(),
+            &user.spot_positions[0].balance_type,
+        )
+        .unwrap();
+        let oracle_price_data = oracle_map.get_price_data(&sol_oracle_price_key).unwrap();
+        let token_value = get_token_value(token_amount as i128, 6, oracle_price_data).unwrap();
+
+        let margin_ratio =
+            total_collateral.unsigned_abs() * MARGIN_PRECISION / token_value.unsigned_abs();
+
+        assert_eq!(margin_ratio, 11200); // ~112%
 
         assert_eq!(
             liquidator.spot_positions[1].balance_type,
             SpotBalanceType::Borrow
         );
-        assert_eq!(liquidator.spot_positions[1].balance, 636508);
-        assert_eq!(liquidator.perp_positions[0].quote_asset_amount, 64351558);
+        assert_eq!(liquidator.spot_positions[1].balance, 642261);
+        assert_eq!(liquidator.perp_positions[0].quote_asset_amount, 64933193);
     }
 
     #[test]
@@ -1407,9 +1491,8 @@ pub mod liquidate_borrow_for_perp_pnl {
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
-            unrealized_initial_asset_weight: 8000,
-            unrealized_maintenance_asset_weight: 9000,
+            unrealized_initial_asset_weight: 9000,
+            unrealized_maintenance_asset_weight: 10000,
             open_interest: 1,
             status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
@@ -1518,9 +1601,9 @@ pub mod liquidate_perp_pnl_for_deposit {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
-        QUOTE_PRECISION_I128, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
+        PEG_PRECISION, QUOTE_PRECISION_I128, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::OracleSource;
@@ -1572,8 +1655,8 @@ pub mod liquidate_perp_pnl_for_deposit {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            unrealized_initial_asset_weight: 8000,
-            unrealized_maintenance_asset_weight: 9000,
+            unrealized_initial_asset_weight: 9000,
+            unrealized_maintenance_asset_weight: 10000,
             open_interest: 1,
             status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
@@ -1713,8 +1796,8 @@ pub mod liquidate_perp_pnl_for_deposit {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            unrealized_initial_asset_weight: 8000,
-            unrealized_maintenance_asset_weight: 9000,
+            unrealized_initial_asset_weight: 9000,
+            unrealized_maintenance_asset_weight: 10000,
             open_interest: 1,
             status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
@@ -1802,7 +1885,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             &spot_market_map,
             &mut oracle_map,
             now,
-            10,
+            MARGIN_PRECISION as u32 / 50,
         )
         .unwrap();
 
@@ -1854,8 +1937,8 @@ pub mod liquidate_perp_pnl_for_deposit {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            unrealized_initial_asset_weight: 8000,
-            unrealized_maintenance_asset_weight: 9000,
+            unrealized_initial_asset_weight: 9000,
+            unrealized_maintenance_asset_weight: 10000,
             open_interest: 1,
             status: MarketStatus::Initialized,
             liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,

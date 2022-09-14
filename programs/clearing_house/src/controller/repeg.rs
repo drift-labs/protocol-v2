@@ -143,7 +143,6 @@ pub fn _update_amm(
         let (optimal_peg, fee_budget, check_lower_bound) =
             repeg::calculate_optimal_peg_and_budget(market, oracle_price_data)?;
 
-        // todo: examine stack trace error (crispo)
         let (repegged_market, repegged_cost) =
             repeg::adjust_amm(market, optimal_peg, fee_budget, true)?;
 

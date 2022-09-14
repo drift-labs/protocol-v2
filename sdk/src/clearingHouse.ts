@@ -459,6 +459,19 @@ export class ClearingHouse {
 		});
 	}
 
+	public async updateUserName(
+		name: string,
+		userId = 0
+	): Promise<TransactionSignature> {
+		const nameBuffer = encodeName(name);
+		return await this.program.rpc.updateUserName(userId, nameBuffer, {
+			accounts: {
+				user: await this.getUserAccountPublicKey(),
+				authority: this.wallet.publicKey,
+			},
+		});
+	}
+
 	public getUser(userId?: number): ClearingHouseUser {
 		userId = userId ?? this.activeUserId;
 		if (!this.users.has(userId)) {
@@ -1516,7 +1529,7 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const marketAccountInfos = [];
 		const oracleAccountInfos = [];
-		const bankAccountInfos = [];
+		const spotMarketAccountInfos = [];
 		const market = this.getPerpMarketAccount(marketIndex);
 		marketAccountInfos.push({
 			pubkey: market.pubkey,
@@ -1529,14 +1542,14 @@ export class ClearingHouse {
 			isSigner: false,
 		});
 
-		bankAccountInfos.push({
+		spotMarketAccountInfos.push({
 			pubkey: this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX).pubkey,
 			isSigner: false,
 			isWritable: true,
 		});
 
 		const remainingAccounts = oracleAccountInfos
-			.concat(bankAccountInfos)
+			.concat(spotMarketAccountInfos)
 			.concat(marketAccountInfos);
 
 		return await this.program.instruction.settleExpiredMarket(marketIndex, {
@@ -2525,7 +2538,7 @@ export class ClearingHouse {
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
 			wrapInTx(
-				await this.settleExpiredPositionIx(
+				await this.getSettleExpiredPositionIx(
 					settleeUserAccountPublicKey,
 					settleeUserAccount,
 					marketIndex
@@ -2537,14 +2550,14 @@ export class ClearingHouse {
 		return txSig;
 	}
 
-	public async settleExpiredPositionIx(
+	public async getSettleExpiredPositionIx(
 		settleeUserAccountPublicKey: PublicKey,
 		settleeUserAccount: UserAccount,
 		marketIndex: BN
 	): Promise<TransactionInstruction> {
 		const marketAccountMap = new Map<number, AccountMeta>();
 		const oracleAccountMap = new Map<string, AccountMeta>();
-		const bankAccountMap = new Map<number, AccountMeta>();
+		const spotMarketAccountMap = new Map<number, AccountMeta>();
 		for (const position of settleeUserAccount.perpPositions) {
 			if (!positionIsAvailable(position)) {
 				const market = this.getPerpMarketAccount(position.marketIndex);
@@ -2562,11 +2575,11 @@ export class ClearingHouse {
 		}
 
 		for (const userBankBalance of settleeUserAccount.spotPositions) {
-			if (!userBankBalance.balance.eq(QUOTE_SPOT_MARKET_INDEX)) {
+			if (!userBankBalance.balance.eq(ZERO)) {
 				const bankAccount = this.getSpotMarketAccount(
 					userBankBalance.marketIndex
 				);
-				bankAccountMap.set(userBankBalance.marketIndex.toNumber(), {
+				spotMarketAccountMap.set(userBankBalance.marketIndex.toNumber(), {
 					pubkey: bankAccount.pubkey,
 					isSigner: false,
 					isWritable: false,
@@ -2593,7 +2606,7 @@ export class ClearingHouse {
 			isWritable: false,
 		});
 
-		bankAccountMap.set(QUOTE_SPOT_MARKET_INDEX.toNumber(), {
+		spotMarketAccountMap.set(QUOTE_SPOT_MARKET_INDEX.toNumber(), {
 			pubkey: this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX).pubkey,
 			isSigner: false,
 			isWritable: true,
@@ -2601,7 +2614,7 @@ export class ClearingHouse {
 
 		const remainingAccounts = [
 			...oracleAccountMap.values(),
-			...bankAccountMap.values(),
+			...spotMarketAccountMap.values(),
 			...marketAccountMap.values(),
 		];
 

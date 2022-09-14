@@ -20,7 +20,7 @@ use crate::math::helpers::on_the_hour_update;
 use crate::math::oracle;
 use crate::math_error;
 use crate::state::events::{FundingPaymentRecord, FundingRateRecord};
-use crate::state::market::{ContractType, MarketStatus, PerpMarket, AMM};
+use crate::state::market::{MarketStatus, PerpMarket, AMM};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::state::OracleGuardRails;
@@ -136,8 +136,7 @@ pub fn update_funding_rate(
     funding_paused: bool,
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<bool> {
-    if market.contract_type != ContractType::Perpetual || market.status != MarketStatus::Initialized
-    {
+    if market.status != MarketStatus::Initialized {
         return Ok(false);
     }
 

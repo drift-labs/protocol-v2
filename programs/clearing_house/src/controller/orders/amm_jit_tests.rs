@@ -183,6 +183,7 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
@@ -357,6 +358,7 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
@@ -522,6 +524,7 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
@@ -680,6 +683,7 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
@@ -852,6 +856,7 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
@@ -1046,6 +1051,7 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
@@ -1241,6 +1247,7 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
@@ -1436,6 +1443,7 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
@@ -1697,6 +1705,7 @@ pub mod amm_jit {
                 None,
                 now,
                 slot,
+                false,
             )
             .unwrap();
 
@@ -1967,6 +1976,7 @@ pub mod amm_jit {
                 None,
                 now,
                 slot,
+                false,
             )
             .unwrap();
 

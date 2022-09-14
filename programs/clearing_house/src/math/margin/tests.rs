@@ -133,7 +133,7 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (_, unrealized_pnl) = calculate_perp_position_value_and_pnl(
+        let (_, unrealized_pnl, _) = calculate_perp_position_value_and_pnl(
             &market_position,
             &market,
             &oracle_price_data,
@@ -255,7 +255,7 @@ mod test {
             .unwrap();
         assert_eq!(uaw, 9559);
 
-        let (pmr, upnl) = calculate_perp_position_value_and_pnl(
+        let (pmr, upnl, _) = calculate_perp_position_value_and_pnl(
             &market_position,
             &market,
             &oracle_price_data,
@@ -334,7 +334,7 @@ mod test {
         );
         assert_eq!(position_unrealized_pnl * 800000, 19421311476000000); // 1.9 billion
 
-        let (pmr_2, upnl_2) = calculate_perp_position_value_and_pnl(
+        let (pmr_2, upnl_2, _) = calculate_perp_position_value_and_pnl(
             &market_position,
             &market,
             &oracle_price_data,
@@ -394,7 +394,7 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (pmr, _) = calculate_perp_position_value_and_pnl(
+        let (pmr, _, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
             &oracle_price_data,
@@ -415,7 +415,7 @@ mod test {
         market.amm.quote_asset_reserve = new_qar;
         market.amm.base_asset_reserve = new_bar;
 
-        let (pmr2, _) = calculate_perp_position_value_and_pnl(
+        let (pmr2, _, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
             &oracle_price_data,
@@ -459,7 +459,7 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
-        let (pmr, _) = calculate_perp_position_value_and_pnl(
+        let (pmr, _, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
             &oracle_price_data,
@@ -479,7 +479,7 @@ mod test {
         market.amm.quote_asset_reserve = new_qar;
         market.amm.base_asset_reserve = new_bar;
 
-        let (pmr2, _) = calculate_perp_position_value_and_pnl(
+        let (pmr2, _, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
             &oracle_price_data,
@@ -588,13 +588,14 @@ mod calculate_margin_requirement_and_total_collateral {
             ..User::default()
         };
 
-        let (margin_requirement, total_collateral) =
+        let (margin_requirement, total_collateral, _) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &market_map,
                 MarginRequirementType::Initial,
                 &spot_market_map,
                 &mut oracle_map,
+                None,
             )
             .unwrap();
 
@@ -675,13 +676,14 @@ mod calculate_margin_requirement_and_total_collateral {
             ..User::default()
         };
 
-        let (margin_requirement, total_collateral) =
+        let (margin_requirement, total_collateral, _) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &market_map,
                 MarginRequirementType::Initial,
                 &spot_market_map,
                 &mut oracle_map,
+                None,
             )
             .unwrap();
 
@@ -763,13 +765,14 @@ mod calculate_margin_requirement_and_total_collateral {
             ..User::default()
         };
 
-        let (margin_requirement, total_collateral) =
+        let (margin_requirement, total_collateral, _) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &market_map,
                 MarginRequirementType::Initial,
                 &spot_market_map,
                 &mut oracle_map,
+                None,
             )
             .unwrap();
 

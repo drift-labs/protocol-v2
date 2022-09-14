@@ -49,7 +49,6 @@ pub mod clearing_house {
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
-    use crate::math::liquidation::validate_user_not_being_liquidated;
     use crate::math::spot_balance::get_token_amount;
     use crate::optional_accounts::{
         get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
@@ -116,8 +115,8 @@ pub mod clearing_house {
             max_perp_auction_duration: 60,
             min_spot_auction_duration: 0,
             max_spot_auction_duration: 60,
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50, // 2%
             settlement_duration: 0, // extra duration after market expiry to allow settlement
-            liquidation_margin_buffer_ratio: 50, // 2%
             signer: clearing_house_signer,
             signer_nonce: clearing_house_signer_nonce,
             padding0: 0,
@@ -635,6 +634,8 @@ pub mod clearing_house {
         if amount == 0 {
             return Err(ErrorCode::InsufficientDeposit.into());
         }
+
+        validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
 
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         controller::spot_balance::update_spot_market_cumulative_interest(spot_market, now)?;
@@ -1769,7 +1770,7 @@ pub mod clearing_house {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
 
-        validate_user_not_being_liquidated(
+        math::liquidation::validate_user_not_being_liquidated(
             user,
             &market_map,
             &spot_market_map,
@@ -2276,11 +2277,8 @@ pub mod clearing_house {
             "Market expiry ts must later than current clock timestamp"
         )?;
 
-        // if Perpetual market has expiry_ts set, automatically enter reduce only
-        if market.contract_type == ContractType::Perpetual {
-            market.status = MarketStatus::ReduceOnly;
-        }
-
+        // automatically enter reduce only
+        market.status = MarketStatus::ReduceOnly;
         market.expiry_ts = expiry_ts;
 
         Ok(())
@@ -2307,9 +2305,29 @@ pub mod clearing_house {
         )?;
 
         validate!(
-            market.status == MarketStatus::Settlement && market.open_interest == 0,
+            market.status == MarketStatus::Settlement,
             ErrorCode::DefaultError,
-            "Market must be 100% settled"
+            "Market must in Settlement"
+        )?;
+
+        validate!(
+            market.base_asset_amount_long == 0
+                && market.base_asset_amount_short == 0
+                && market.open_interest == 0,
+            ErrorCode::DefaultError,
+            "outstanding base_asset_amounts must be balanced"
+        )?;
+
+        validate!(
+            math::amm::calculate_net_user_cost_basis(&market.amm)? == 0,
+            ErrorCode::DefaultError,
+            "outstanding quote_asset_amounts must be balanced"
+        )?;
+
+        validate!(
+            now > market.expiry_ts + TWENTY_FOUR_HOUR,
+            ErrorCode::DefaultError,
+            "must be TWENTY_FOUR_HOUR after market.expiry_ts"
         )?;
 
         let depositors_amount_before: u64 = cast(get_token_amount(
@@ -2378,7 +2396,10 @@ pub mod clearing_house {
             "Bank token balances must be equal before and after"
         )?;
 
+        ctx.accounts.spot_market_vault.reload()?;
         math::spot_balance::validate_spot_balances(spot_market)?;
+
+        market.status = MarketStatus::Delisted;
 
         Ok(())
     }
@@ -2725,6 +2746,16 @@ pub mod clearing_house {
             ..UserStats::default()
         };
 
+        Ok(())
+    }
+
+    pub fn update_user_name(
+        ctx: Context<UpdateUserName>,
+        _user_id: u8,
+        name: [u8; 32],
+    ) -> Result<()> {
+        let mut user = load_mut!(ctx.accounts.user)?;
+        user.name = name;
         Ok(())
     }
 
@@ -3522,6 +3553,12 @@ pub mod clearing_house {
     ) -> Result<()> {
         let state = &ctx.accounts.state;
         let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+        validate!(
+            spot_market.revenue_settle_period > 0,
+            ErrorCode::DefaultError,
+            "invalid revenue_settle_period settings on spot market"
+        )?;
 
         let spot_vault_amount = ctx.accounts.spot_market_vault.amount;
         let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;

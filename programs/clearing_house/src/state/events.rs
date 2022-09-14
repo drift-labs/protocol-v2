@@ -432,7 +432,6 @@ pub struct InsuranceFundRecord {
     pub ts: i64,
     pub spot_market_index: u64,
     pub perp_market_index: u64,
-
     pub user_if_factor: u32,
     pub total_if_factor: u32,
     pub vault_amount_before: u64,
