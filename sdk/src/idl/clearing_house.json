@@ -459,6 +459,22 @@
       "args": []
     },
     {
+      "name": "updateSpotMarketExpiry",
+      "accounts": [
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "expiryTs",
+          "type": "i64"
+        }
+      ]
+    },
+    {
       "name": "settleLp",
       "accounts": [
         {
@@ -956,6 +972,53 @@
       ]
     },
     {
+      "name": "settleExpiredMarket",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "settleExpiredPosition",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "liquidatePerp",
       "accounts": [
         {
@@ -1118,6 +1181,51 @@
       ]
     },
     {
+      "name": "resolvePerpPnlDeficit",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "spotMarketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "perpMarketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "resolvePerpBankruptcy",
       "accounts": [
         {
@@ -1237,7 +1345,7 @@
           "isSigner": true
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -1256,6 +1364,78 @@
           "type": "u128"
         }
       ]
+    },
+    {
+      "name": "updateMarketExpiry",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "expiryTs",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "settleExpiredMarketPoolsToRevenuePool",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "recipient",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
     },
     {
       "name": "withdrawFromMarketToInsuranceVault",
@@ -1575,6 +1755,36 @@
       "args": []
     },
     {
+      "name": "updateUserName",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "userId",
+          "type": "u8"
+        },
+        {
+          "name": "name",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "settleFundingPayment",
       "accounts": [
         {
@@ -1678,7 +1888,7 @@
       ]
     },
     {
-      "name": "updateMarketMaxRevenueWithdrawPerPeriod",
+      "name": "updateMarketMaxImbalances",
       "accounts": [
         {
           "name": "admin",
@@ -1698,7 +1908,15 @@
       ],
       "args": [
         {
+          "name": "unrealizedMaxImbalance",
+          "type": "u128"
+        },
+        {
           "name": "maxRevenueWithdrawPerPeriod",
+          "type": "u128"
+        },
+        {
+          "name": "quoteMaxInsurance",
           "type": "u128"
         }
       ]
@@ -2885,8 +3103,24 @@
             "type": "publicKey"
           },
           {
-            "name": "initialized",
-            "type": "bool"
+            "name": "status",
+            "type": {
+              "defined": "MarketStatus"
+            }
+          },
+          {
+            "name": "contractType",
+            "type": {
+              "defined": "ContractType"
+            }
+          },
+          {
+            "name": "settlementPrice",
+            "type": "i128"
+          },
+          {
+            "name": "expiryTs",
+            "type": "i64"
           },
           {
             "name": "amm",
@@ -2961,7 +3195,19 @@
             "type": "u128"
           },
           {
+            "name": "unrealizedMaxImbalance",
+            "type": "u128"
+          },
+          {
             "name": "liquidationFee",
+            "type": "u128"
+          },
+          {
+            "name": "quoteMaxInsurance",
+            "type": "u128"
+          },
+          {
+            "name": "quoteSettledInsurance",
             "type": "u128"
           },
           {
@@ -2999,6 +3245,16 @@
           {
             "name": "pubkey",
             "type": "publicKey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "MarketStatus"
+            }
+          },
+          {
+            "name": "expiryTs",
+            "type": "i64"
           },
           {
             "name": "oracle",
@@ -3357,8 +3613,12 @@
             "type": "u8"
           },
           {
+            "name": "settlementDuration",
+            "type": "u16"
+          },
+          {
             "name": "liquidationMarginBufferRatio",
-            "type": "u8"
+            "type": "u32"
           },
           {
             "name": "signer",
@@ -3971,6 +4231,10 @@
           {
             "name": "cumulativeRepegRebateShort",
             "type": "u128"
+          },
+          {
+            "name": "cumulativeSocialLoss",
+            "type": "i128"
           },
           {
             "name": "markStd",
@@ -4875,6 +5139,37 @@
           },
           {
             "name": "Match"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Initialized"
+          },
+          {
+            "name": "ReduceOnly"
+          },
+          {
+            "name": "Settlement"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ContractType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Perpetual"
+          },
+          {
+            "name": "Future"
           }
         ]
       }
@@ -5792,7 +6087,12 @@
           "index": false
         },
         {
-          "name": "marketIndex",
+          "name": "spotMarketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "perpMarketIndex",
           "type": "u64",
           "index": false
         },
@@ -5828,7 +6128,7 @@
         },
         {
           "name": "amount",
-          "type": "u64",
+          "type": "i64",
           "index": false
         }
       ]
@@ -6484,7 +6784,7 @@
     },
     {
       "code": 6116,
-      "name": "CantLPWithMarketPosition",
+      "name": "CantLPWithPerpPosition",
       "msg": "Cant LP with a market position"
     },
     {

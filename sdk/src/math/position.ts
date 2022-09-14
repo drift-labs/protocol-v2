@@ -84,38 +84,38 @@ export function calculateBaseAssetValue(
  * calculatePositionPNL
  * = BaseAssetAmount * (Avg Exit Price - Avg Entry Price)
  * @param market
- * @param marketPosition
+ * @param PerpPosition
  * @param withFunding (adds unrealized funding payment pnl to result)
  * @param oraclePriceData
  * @returns BaseAssetAmount : Precision QUOTE_PRECISION
  */
 export function calculatePositionPNL(
 	market: PerpMarketAccount,
-	marketPosition: PerpPosition,
+	perpPosition: PerpPosition,
 	withFunding = false,
 	oraclePriceData: OraclePriceData
 ): BN {
-	if (marketPosition.baseAssetAmount.eq(ZERO)) {
-		return marketPosition.quoteAssetAmount;
+	if (perpPosition.baseAssetAmount.eq(ZERO)) {
+		return perpPosition.quoteAssetAmount;
 	}
 
 	const baseAssetValue = calculateBaseAssetValueWithOracle(
 		market,
-		marketPosition,
+		perpPosition,
 		oraclePriceData
 	);
 
-	const baseAssetValueSign = marketPosition.baseAssetAmount.isNeg()
+	const baseAssetValueSign = perpPosition.baseAssetAmount.isNeg()
 		? new BN(-1)
 		: new BN(1);
 	let pnl = baseAssetValue
 		.mul(baseAssetValueSign)
-		.add(marketPosition.quoteAssetAmount);
+		.add(perpPosition.quoteAssetAmount);
 
 	if (withFunding) {
 		const fundingRatePnL = calculatePositionFundingPNL(
 			market,
-			marketPosition
+			perpPosition
 		).div(PRICE_TO_QUOTE_PRECISION);
 
 		pnl = pnl.add(fundingRatePnL);
@@ -126,25 +126,25 @@ export function calculatePositionPNL(
 
 export function calculateUnsettledPnl(
 	market: PerpMarketAccount,
-	marketPosition: PerpPosition,
+	perpPosition: PerpPosition,
 	oraclePriceData: OraclePriceData
 ): BN {
 	const unrealizedPnl = calculatePositionPNL(
 		market,
-		marketPosition,
+		perpPosition,
 		true,
 		oraclePriceData
 	);
 
 	let unsettledPnl = unrealizedPnl;
 	if (unrealizedPnl.gt(ZERO)) {
-		const fundingPnL = calculatePositionFundingPNL(market, marketPosition).div(
+		const fundingPnL = calculatePositionFundingPNL(market, perpPosition).div(
 			PRICE_TO_QUOTE_PRECISION
 		);
 
 		const maxPositivePnl = BN.max(
-			marketPosition.quoteAssetAmount
-				.sub(marketPosition.quoteEntryAmount)
+			perpPosition.quoteAssetAmount
+				.sub(perpPosition.quoteEntryAmount)
 				.add(fundingPnL),
 			ZERO
 		);
@@ -157,27 +157,27 @@ export function calculateUnsettledPnl(
 /**
  *
  * @param market
- * @param marketPosition
+ * @param PerpPosition
  * @returns // TODO-PRECISION
  */
 export function calculatePositionFundingPNL(
 	market: PerpMarketAccount,
-	marketPosition: PerpPosition
+	perpPosition: PerpPosition
 ): BN {
-	if (marketPosition.baseAssetAmount.eq(ZERO)) {
+	if (perpPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
 	}
 
 	let ammCumulativeFundingRate: BN;
-	if (marketPosition.baseAssetAmount.gt(ZERO)) {
+	if (perpPosition.baseAssetAmount.gt(ZERO)) {
 		ammCumulativeFundingRate = market.amm.cumulativeFundingRateLong;
 	} else {
 		ammCumulativeFundingRate = market.amm.cumulativeFundingRateShort;
 	}
 
 	const perPositionFundingRate = ammCumulativeFundingRate
-		.sub(marketPosition.lastCumulativeFundingRate)
-		.mul(marketPosition.baseAssetAmount)
+		.sub(perpPosition.lastCumulativeFundingRate)
+		.mul(perpPosition.baseAssetAmount)
 		.div(AMM_RESERVE_PRECISION)
 		.div(FUNDING_PAYMENT_PRECISION)
 		.mul(new BN(-1));

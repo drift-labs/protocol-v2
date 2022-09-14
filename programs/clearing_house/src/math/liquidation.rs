@@ -204,18 +204,17 @@ pub fn is_user_being_liquidated(
     market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
-    liquidation_margin_buffer_ratio: u8,
+    liquidation_margin_buffer_ratio: u32,
 ) -> ClearingHouseResult<bool> {
-    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
-        user,
-        market_map,
-        MarginRequirementType::Maintenance,
-        spot_market_map,
-        oracle_map,
-    )?;
-
-    let margin_requirement_plus_buffer =
-        get_margin_requirement_plus_buffer(margin_requirement, liquidation_margin_buffer_ratio)?;
+    let (_, total_collateral, margin_requirement_plus_buffer) =
+        calculate_margin_requirement_and_total_collateral(
+            user,
+            market_map,
+            MarginRequirementType::Maintenance,
+            spot_market_map,
+            oracle_map,
+            Some(liquidation_margin_buffer_ratio as u128),
+        )?;
 
     Ok(total_collateral <= cast(margin_requirement_plus_buffer)?)
 }
@@ -238,7 +237,7 @@ pub fn validate_user_not_being_liquidated(
     market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
-    liquidation_margin_buffer_ratio: u8,
+    liquidation_margin_buffer_ratio: u32,
 ) -> ClearingHouseResult {
     if !user.being_liquidated {
         return Ok(());

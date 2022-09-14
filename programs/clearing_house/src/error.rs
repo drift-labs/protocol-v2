@@ -238,7 +238,7 @@ pub enum ErrorCode {
     #[msg("Insufficient LP tokens")]
     InsufficientLPTokens,
     #[msg("Cant LP with a market position")]
-    CantLPWithMarketPosition,
+    CantLPWithPerpPosition,
     #[msg("Unable to burn LP tokens")]
     UnableToBurnLPTokens,
     #[msg("Trying to remove liqudity too fast after adding it")]

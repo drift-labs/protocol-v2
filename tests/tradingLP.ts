@@ -15,7 +15,7 @@ import {
 } from '../sdk/src';
 
 import {
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
@@ -62,7 +62,7 @@ async function createNewUser(
 
 	if (walletFlag) {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 	}
 
 	await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -177,7 +177,7 @@ describe('liquidity providing', () => {
 	});
 
 	it('lp trades with short', async () => {
-		let market = clearingHouse.getMarketAccount(ZERO);
+		let market = clearingHouse.getPerpMarketAccount(ZERO);
 
 		console.log('adding liquidity...');
 		const _sig = await clearingHouse.addLiquidity(
@@ -194,7 +194,7 @@ describe('liquidity providing', () => {
 			market.marketIndex
 		);
 
-		const position = traderClearingHouse.getUserAccount().positions[0];
+		const position = traderClearingHouse.getUserAccount().perp_positions[0];
 		console.log(
 			'trader position:',
 			position.baseAssetAmount.toString(),
@@ -220,7 +220,7 @@ describe('liquidity providing', () => {
 		);
 
 		// lp now has a long
-		const newLpPosition = clearingHouseUser.getUserAccount().positions[0];
+		const newLpPosition = clearingHouseUser.getUserAccount().perp_positions[0];
 		console.log(
 			'lp position:',
 			newLpPosition.baseAssetAmount.toString(),
@@ -230,7 +230,7 @@ describe('liquidity providing', () => {
 		assert(newLpPosition.quoteAssetAmount.lt(ZERO));
 		// is still an lp
 		assert(newLpPosition.lpShares.gt(ZERO));
-		market = clearingHouse.getMarketAccount(ZERO);
+		market = clearingHouse.getPerpMarketAccount(ZERO);
 
 		console.log('done!');
 	});

@@ -270,16 +270,16 @@ describe('AMM Curve', () => {
 
 		const newPeg = marketData.amm.pegMultiplier;
 
-		const userMarketPosition = userAccount.getUserAccount().perpPositions[0];
+		const userPerpPosition = userAccount.getUserAccount().perpPositions[0];
 		const linearApproxCostToAMM = convertToNumber(
 			newPeg
 				.sub(oldPeg)
-				.mul(userMarketPosition.baseAssetAmount)
+				.mul(userPerpPosition.baseAssetAmount)
 				.div(PEG_PRECISION),
 			BASE_PRECISION
 		);
 
-		// console.log('cur user position:', convertBaseAssetAmountToNumber(userMarketPosition.baseAssetAmount));
+		// console.log('cur user position:', convertBaseAssetAmountToNumber(userPerpPosition.baseAssetAmount));
 
 		const totalCostToAMMChain = showCurve(marketIndex);
 
@@ -331,14 +331,14 @@ describe('AMM Curve', () => {
 		const marketData = clearingHouse.getPerpMarketAccount(marketIndex);
 		const newPeg = marketData.amm.pegMultiplier;
 
-		const userMarketPosition = userAccount.getUserAccount().perpPositions[0];
+		const userPerpPosition = userAccount.getUserAccount().perpPositions[0];
 
 		console.log('\n post repeg: \n --------');
 
 		const linearApproxCostToAMM = convertToNumber(
 			newPeg
 				.sub(oldPeg)
-				.mul(userMarketPosition.baseAssetAmount)
+				.mul(userPerpPosition.baseAssetAmount)
 				.div(PEG_PRECISION),
 			BASE_PRECISION
 		);
