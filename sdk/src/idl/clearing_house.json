@@ -3845,16 +3845,6 @@
             "type": "u64"
           },
           {
-            "name": "orderIds",
-            "type": {
-              "vec": "u64"
-            }
-          },
-          {
-            "name": "canceledOrdersFee",
-            "type": "u128"
-          },
-          {
             "name": "oraclePrice",
             "type": "i128"
           },
@@ -5960,6 +5950,13 @@
         {
           "name": "bankrupt",
           "type": "bool",
+          "index": false
+        },
+        {
+          "name": "canceledOrderIds",
+          "type": {
+            "vec": "u64"
+          },
           "index": false
         },
         {

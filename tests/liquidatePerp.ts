@@ -224,7 +224,7 @@ describe('liquidate perp and lp', () => {
 		assert(liquidationRecord.liquidationId === 1);
 		assert(isVariant(liquidationRecord.liquidationType, 'liquidatePerp'));
 		assert(liquidationRecord.liquidatePerp.marketIndex.eq(ZERO));
-		assert(liquidationRecord.liquidatePerp.orderIds.length === 32);
+		assert(liquidationRecord.canceledOrderIds.length === 32);
 		assert(
 			liquidationRecord.liquidatePerp.oraclePrice.eq(
 				MARK_PRICE_PRECISION.div(new BN(10))
@@ -251,11 +251,12 @@ describe('liquidate perp and lp', () => {
 			clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount
 		);
 
+		await clearingHouse.fetchAccounts();
 		assert(clearingHouse.getUserAccount().bankrupt);
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-6088113))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-5768113))
 		);
 
 		// try to add liq when bankrupt -- should fail
@@ -295,7 +296,7 @@ describe('liquidate perp and lp', () => {
 		assert(marketAfterBankruptcy.revenueWithdrawSinceLastSettle.eq(ZERO));
 		assert(marketAfterBankruptcy.quoteSettledInsurance.eq(ZERO));
 		assert(marketAfterBankruptcy.quoteMaxInsurance.eq(QUOTE_PRECISION));
-		assert(marketAfterBankruptcy.amm.cumulativeSocialLoss.eq(new BN(-6088113)));
+		assert(marketAfterBankruptcy.amm.cumulativeSocialLoss.eq(new BN(-5768113)));
 
 		assert(!clearingHouse.getUserAccount().bankrupt);
 		assert(!clearingHouse.getUserAccount().beingLiquidated);
@@ -308,15 +309,18 @@ describe('liquidate perp and lp', () => {
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(isVariant(perpBankruptcyRecord.liquidationType, 'perpBankruptcy'));
 		assert(perpBankruptcyRecord.perpBankruptcy.marketIndex.eq(ZERO));
-		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-6088113)));
+		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-5768113)));
+		console.log(
+			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.toString()
+		);
 		assert(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.eq(
-				new BN(34789200000000)
+				new BN(32960600000000)
 			)
 		);
 
 		const market = clearingHouse.getPerpMarketAccount(0);
-		assert(market.amm.cumulativeFundingRateLong.eq(new BN(34789200000000)));
-		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-34789200000000)));
+		assert(market.amm.cumulativeFundingRateLong.eq(new BN(32960600000000)));
+		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-32960600000000)));
 	});
 });
