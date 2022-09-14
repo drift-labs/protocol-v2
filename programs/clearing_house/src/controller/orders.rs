@@ -1541,7 +1541,7 @@ pub fn fulfill_order_with_match(
         now,
         filler.is_some(),
         reward_referrer,
-        &referrer_stats,
+        referrer_stats,
     )?;
 
     // Increment the markets house's total fee variables
