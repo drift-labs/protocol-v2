@@ -143,13 +143,4 @@ describe('subaccounts', () => {
 		assert(depositRecord.to === null);
 		assert(depositRecord.from.equals(fromUser));
 	});
-
-	it('User name', async () => {
-		const userId = 0;
-		const name = 'lil perp v2';
-		await clearingHouse.updateUserName(name, userId);
-
-		await clearingHouse.fetchAccounts();
-		assert(decodeName(clearingHouse.getUserAccount().name) === name);
-	});
 });

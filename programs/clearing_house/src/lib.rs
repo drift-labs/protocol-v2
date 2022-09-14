@@ -345,7 +345,7 @@ pub mod clearing_house {
             OracleSource::QuoteAsset => panic!(),
         };
 
-        let max_spread = margin_ratio_initial * (100 - 5) / 2; // init 10% below the oracle price threshold
+        let max_spread = (margin_ratio_initial * (100 - 5) / 2); // init 10% below the oracle price threshold
 
         validate_margin(
             margin_ratio_initial,
@@ -2098,16 +2098,6 @@ pub mod clearing_house {
             ..UserStats::default()
         };
 
-        Ok(())
-    }
-
-    pub fn update_user_name(
-        ctx: Context<UpdateUserName>,
-        _user_id: u8,
-        name: [u8; 32],
-    ) -> Result<()> {
-        let mut user = load_mut!(ctx.accounts.user)?;
-        user.name = name;
         Ok(())
     }
 
