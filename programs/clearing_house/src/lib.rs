@@ -2718,6 +2718,16 @@ pub mod clearing_house {
         Ok(())
     }
 
+    pub fn update_user_name(
+        ctx: Context<UpdateUserName>,
+        _user_id: u8,
+        name: [u8; 32],
+    ) -> Result<()> {
+        let mut user = load_mut!(ctx.accounts.user)?;
+        user.name = name;
+        Ok(())
+    }
+
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]

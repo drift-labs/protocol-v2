@@ -459,6 +459,19 @@ export class ClearingHouse {
 		});
 	}
 
+	public async updateUserName(
+		name: string,
+		userId = 0
+	): Promise<TransactionSignature> {
+		const nameBuffer = encodeName(name);
+		return await this.program.rpc.updateUserName(userId, nameBuffer, {
+			accounts: {
+				user: await this.getUserAccountPublicKey(),
+				authority: this.wallet.publicKey,
+			},
+		});
+	}
+
 	public getUser(userId?: number): ClearingHouseUser {
 		userId = userId ?? this.activeUserId;
 		if (!this.users.has(userId)) {
