@@ -19,7 +19,7 @@ use crate::math::liquidation::{
     calculate_funding_rate_deltas_to_resolve_bankruptcy,
     calculate_liability_transfer_implied_by_asset_amount,
     calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
-    LiquidationMultiplierType,
+    is_user_being_liquidated, LiquidationMultiplierType,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, meets_initial_margin_requirement,
@@ -68,9 +68,15 @@ pub fn liquidate_perp(
     validate!(!user.bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
 
     validate!(
-        !liquidator.being_liquidated,
+        !is_user_being_liquidated(
+            liquidator,
+            market_map,
+            spot_market_map,
+            oracle_map,
+            liquidation_margin_buffer_ratio
+        )?,
         ErrorCode::UserIsBeingLiquidated,
-        "liquidator bankrupt",
+        "liquidator being liquidated",
     )?;
 
     validate!(
@@ -278,13 +284,18 @@ pub fn liquidate_perp(
         .unsigned_abs();
 
     let liquidation_fee = market_map.get_ref(&market_index)?.liquidation_fee;
-    let base_asset_amount_to_cover_margin_shortage =
+    let base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount(
         calculate_base_asset_amount_to_cover_margin_shortage(
             margin_shortage,
             margin_ratio_with_buffer,
             liquidation_fee,
             oracle_price,
-        )?;
+        )?,
+        market_map
+            .get_ref(&market_index)?
+            .amm
+            .base_asset_amount_step_size,
+    )?;
 
     let base_asset_amount = user_base_asset_amount
         .min(liquidator_max_base_asset_amount)
