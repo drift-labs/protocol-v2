@@ -67,12 +67,6 @@ pub fn liquidate_perp(
     validate!(!user.bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
 
     validate!(
-        !liquidator.being_liquidated,
-        ErrorCode::UserIsBeingLiquidated,
-        "liquidator bankrupt",
-    )?;
-
-    validate!(
         !liquidator.bankrupt,
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
@@ -248,14 +242,18 @@ pub fn liquidate_perp(
         .ok_or_else(math_error!())?
         .unsigned_abs();
 
-    let liquidation_fee = perp_market_map.get_ref(&market_index)?.liquidation_fee;
-    let base_asset_amount_to_cover_margin_shortage =
+    let market = perp_market_map.get_ref(&market_index)?;
+    let liquidation_fee = market.liquidation_fee;
+    let base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount(
         calculate_base_asset_amount_to_cover_margin_shortage(
             margin_shortage,
             margin_ratio_with_buffer,
             liquidation_fee,
             oracle_price,
-        )?;
+        )?,
+        market.amm.base_asset_amount_step_size,
+    )?;
+    drop(market);
 
     let base_asset_amount = user_base_asset_amount
         .min(liquidator_max_base_asset_amount)
@@ -385,12 +383,6 @@ pub fn liquidate_borrow(
     liquidation_margin_buffer_ratio: u32,
 ) -> ClearingHouseResult {
     validate!(!user.bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
-
-    validate!(
-        !liquidator.being_liquidated,
-        ErrorCode::UserIsBeingLiquidated,
-        "liquidator bankrupt",
-    )?;
 
     validate!(
         !liquidator.bankrupt,
@@ -746,12 +738,6 @@ pub fn liquidate_borrow_for_perp_pnl(
     liquidation_margin_buffer_ratio: u32,
 ) -> ClearingHouseResult {
     validate!(!user.bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
-
-    validate!(
-        !liquidator.being_liquidated,
-        ErrorCode::UserIsBeingLiquidated,
-        "liquidator bankrupt",
-    )?;
 
     validate!(
         !liquidator.bankrupt,
@@ -1111,12 +1097,6 @@ pub fn liquidate_perp_pnl_for_deposit(
     liquidation_margin_buffer_ratio: u32,
 ) -> ClearingHouseResult {
     validate!(!user.bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
-
-    validate!(
-        !liquidator.being_liquidated,
-        ErrorCode::UserIsBeingLiquidated,
-        "liquidator bankrupt",
-    )?;
 
     validate!(
         !liquidator.bankrupt,

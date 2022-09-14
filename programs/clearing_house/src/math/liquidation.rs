@@ -215,8 +215,9 @@ pub fn is_user_being_liquidated(
             oracle_map,
             Some(liquidation_margin_buffer_ratio as u128),
         )?;
+    let is_being_liquidated = total_collateral <= cast(margin_requirement_plus_buffer)?;
 
-    Ok(total_collateral <= cast(margin_requirement_plus_buffer)?)
+    Ok(is_being_liquidated)
 }
 
 pub fn get_margin_requirement_plus_buffer(

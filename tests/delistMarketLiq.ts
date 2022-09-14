@@ -367,7 +367,7 @@ describe('delist market, liquidation of expired position', () => {
 			usdcMint,
 			chProgram,
 			solAmount,
-			usdcAmount.mul(new BN(10)),
+			usdcAmount.mul(new BN(100)),
 			[new BN(0)],
 			[new BN(0), new BN(1)],
 			[
@@ -386,7 +386,7 @@ describe('delist market, liquidation of expired position', () => {
 			liquidatorClearingHouseWSOLAccount
 		);
 		await liquidatorClearingHouse.deposit(
-			usdcAmount.mul(new BN(10)),
+			usdcAmount.mul(new BN(100)),
 			new BN(0),
 			liquidatorClearingHouseWUSDCAccount
 		);
@@ -529,6 +529,11 @@ describe('delist market, liquidation of expired position', () => {
 		});
 		await liquidatorClearingHouseUser.subscribe();
 
+		await liquidatorClearingHouse.fetchAccounts();
+		await liquidatorClearingHouseUser.fetchAccounts();
+		await clearingHouseLoser.fetchAccounts();
+		await clearingHouseLoserUser.fetchAccounts();
+
 		const liquidatorClearingHouseValue = convertToNumber(
 			liquidatorClearingHouseUser.getTotalCollateral(),
 			QUOTE_PRECISION
@@ -538,14 +543,52 @@ describe('delist market, liquidation of expired position', () => {
 			liquidatorClearingHouseValue.toString()
 		);
 
-		const txSigLiq = await liquidatorClearingHouse.liquidatePerp(
-			await clearingHouseLoser.getUserAccountPublicKey(),
-			clearingHouseLoser.getUserAccount(),
-			marketIndex,
-			BASE_PRECISION.mul(new BN(290))
+		const clearingHouseLoserUserValue = convertToNumber(
+			clearingHouseLoserUser.getTotalCollateral(),
+			QUOTE_PRECISION
+		);
+		console.log(
+			'clearingHouseLoserUserValue:',
+			clearingHouseLoserUserValue.toString()
+		);
+		console.log(
+			'clearingHouseLoser.baseamount',
+			clearingHouseLoser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.toString()
 		);
 
-		console.log(txSigLiq);
+		try {
+			const txSigLiq = await liquidatorClearingHouse.liquidatePerp(
+				await clearingHouseLoser.getUserAccountPublicKey(),
+				clearingHouseLoser.getUserAccount(),
+				marketIndex,
+				BASE_PRECISION.mul(new BN(290))
+			);
+
+			console.log(txSigLiq);
+		} catch (e) {
+			console.error(e);
+		}
+		await liquidatorClearingHouse.fetchAccounts();
+		await liquidatorClearingHouseUser.fetchAccounts();
+		await clearingHouseLoser.fetchAccounts();
+		await clearingHouseLoserUser.fetchAccounts();
+
+		const clearingHouseLoserUserValueAfter = convertToNumber(
+			clearingHouseLoserUser.getTotalCollateral(),
+			QUOTE_PRECISION
+		);
+		console.log(
+			'clearingHouseLoserUserValueAfter:',
+			clearingHouseLoserUserValueAfter.toString()
+		);
+		console.log(
+			'clearingHouseLoser.baseamount',
+			clearingHouseLoser
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.toString()
+		);
 
 		const liquidatorClearingHouseValueAfter = convertToNumber(
 			liquidatorClearingHouseUser.getTotalCollateral(),
@@ -555,6 +598,21 @@ describe('delist market, liquidation of expired position', () => {
 			'liquidatorClearingHouseValueAfter:',
 			liquidatorClearingHouseValueAfter.toString()
 		);
+		const loserMaintMarginReq =
+			clearingHouseLoserUser.getMaintenanceMarginRequirement();
+		console.log('loserMaintMarginReq:', loserMaintMarginReq.toNumber());
+
+		const liqBuf =
+			clearingHouseLoser.getStateAccount().liquidationMarginBufferRatio;
+		console.log('liqBuf:', liqBuf);
+
+		const loserMaintMarginReqWBuf =
+			clearingHouseLoserUser.getMaintenanceMarginRequirement(new BN(liqBuf));
+		console.log('loserMaintMarginReqWBuf:', loserMaintMarginReqWBuf.toNumber());
+
+		assert(loserMaintMarginReq.sub(new BN(480027403)).abs().lt(new BN(27403)));
+
+		assert(!clearingHouseLoser.getUserAccount().bankrupt);
 
 		console.log('settle position clearingHouseLoser');
 		const txSig = await clearingHouseLoser.settleExpiredPosition(
@@ -589,8 +647,9 @@ describe('delist market, liquidation of expired position', () => {
 		assert(loserUser.perpPositions[0].quoteAssetAmount.eq(new BN(0)));
 		const marketAfter0 = clearingHouse.getPerpMarketAccount(marketIndex);
 
-		const finalPnlResultMin0 = new BN(1415296436 - 11090);
-		const finalPnlResultMax0 = new BN(1415296436 + 111090);
+		// old 1415296436
+		const finalPnlResultMin0 = new BN(1414277260 - 11090);
+		const finalPnlResultMax0 = new BN(1414277260 + 111090);
 
 		console.log(marketAfter0.pnlPool.balance.toString());
 		assert(marketAfter0.pnlPool.balance.gt(finalPnlResultMin0));

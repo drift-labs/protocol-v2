@@ -584,6 +584,8 @@ describe('insurance fund stake', () => {
 		console.log('insuranceVaultAmount:', insuranceVaultAmountBefore.toString());
 		assert(insuranceVaultAmountBefore.eq(ONE));
 
+		await clearingHouse.updateSpotMarketRevenueSettlePeriod(new BN(0), ONE);
+
 		try {
 			const txSig = await clearingHouse.settleRevenueToInsuranceFund(new BN(0));
 			console.log(
@@ -833,7 +835,7 @@ describe('insurance fund stake', () => {
 		);
 		assert(!prevTC.eq(newTC));
 
-		assert(clearingHouseUser.canBeLiquidated()[0]);
+		assert(clearingHouseUser.canBeLiquidated());
 
 		const beforecbb0 = clearingHouse.getUserAccount().spotPositions[0];
 		const beforecbb1 = clearingHouse.getUserAccount().spotPositions[1];

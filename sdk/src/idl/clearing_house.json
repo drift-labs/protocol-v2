@@ -5116,6 +5116,9 @@
           },
           {
             "name": "Settlement"
+          },
+          {
+            "name": "Delisted"
           }
         ]
       }

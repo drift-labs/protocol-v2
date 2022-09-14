@@ -7,6 +7,7 @@ export class MarketStatus {
 	static readonly INITIALIZED = { initialized: {} };
 	static readonly REDUCEONLY = { reduceonly: {} };
 	static readonly SETTLEMENT = { settlement: {} };
+	static readonly DELISTED = { delisted: {} };
 }
 
 export class ContractType {
