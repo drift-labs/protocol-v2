@@ -19,7 +19,7 @@ use crate::math::liquidation::{
     calculate_funding_rate_deltas_to_resolve_bankruptcy,
     calculate_liability_transfer_implied_by_asset_amount,
     calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
-    is_user_being_liquidated, LiquidationMultiplierType,
+    LiquidationMultiplierType,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, meets_initial_margin_requirement,
@@ -66,18 +66,6 @@ pub fn liquidate_perp(
     cancel_order_fee: u128,
 ) -> ClearingHouseResult {
     validate!(!user.bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
-
-    validate!(
-        !is_user_being_liquidated(
-            liquidator,
-            market_map,
-            spot_market_map,
-            oracle_map,
-            liquidation_margin_buffer_ratio
-        )?,
-        ErrorCode::UserIsBeingLiquidated,
-        "liquidator being liquidated",
-    )?;
 
     validate!(
         !liquidator.bankrupt,
@@ -283,7 +271,8 @@ pub fn liquidate_perp(
         .ok_or_else(math_error!())?
         .unsigned_abs();
 
-    let liquidation_fee = market_map.get_ref(&market_index)?.liquidation_fee;
+    let market = market_map.get_ref(&market_index)?;
+    let liquidation_fee = market.liquidation_fee;
     let base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount(
         calculate_base_asset_amount_to_cover_margin_shortage(
             margin_shortage,
@@ -291,11 +280,9 @@ pub fn liquidate_perp(
             liquidation_fee,
             oracle_price,
         )?,
-        market_map
-            .get_ref(&market_index)?
-            .amm
-            .base_asset_amount_step_size,
+        market.amm.base_asset_amount_step_size,
     )?;
+    drop(market);
 
     let base_asset_amount = user_base_asset_amount
         .min(liquidator_max_base_asset_amount)
@@ -425,12 +412,6 @@ pub fn liquidate_borrow(
     liquidation_margin_buffer_ratio: u32,
 ) -> ClearingHouseResult {
     validate!(!user.bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
-
-    validate!(
-        !liquidator.being_liquidated,
-        ErrorCode::UserIsBeingLiquidated,
-        "liquidator bankrupt",
-    )?;
 
     validate!(
         !liquidator.bankrupt,
@@ -729,12 +710,6 @@ pub fn liquidate_borrow_for_perp_pnl(
     validate!(!user.bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
 
     validate!(
-        !liquidator.being_liquidated,
-        ErrorCode::UserIsBeingLiquidated,
-        "liquidator bankrupt",
-    )?;
-
-    validate!(
         !liquidator.bankrupt,
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
@@ -1030,12 +1005,6 @@ pub fn liquidate_perp_pnl_for_deposit(
     liquidation_margin_buffer_ratio: u32,
 ) -> ClearingHouseResult {
     validate!(!user.bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
-
-    validate!(
-        !liquidator.being_liquidated,
-        ErrorCode::UserIsBeingLiquidated,
-        "liquidator bankrupt",
-    )?;
 
     validate!(
         !liquidator.bankrupt,
