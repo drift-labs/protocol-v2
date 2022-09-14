@@ -49,7 +49,6 @@ pub mod clearing_house {
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
-    use crate::math::liquidation::validate_user_not_being_liquidated;
     use crate::math::spot_balance::get_token_amount;
     use crate::optional_accounts::{
         get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
@@ -1763,7 +1762,7 @@ pub mod clearing_house {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
 
-        validate_user_not_being_liquidated(
+        math::liquidation::validate_user_not_being_liquidated(
             user,
             &market_map,
             &spot_market_map,
@@ -2298,9 +2297,29 @@ pub mod clearing_house {
         )?;
 
         validate!(
-            market.status == MarketStatus::Settlement && market.open_interest == 0,
+            market.status == MarketStatus::Settlement,
             ErrorCode::DefaultError,
-            "Market must be 100% settled"
+            "Market must in Settlement"
+        )?;
+
+        validate!(
+            market.base_asset_amount_long == 0
+                && market.base_asset_amount_short == 0
+                && market.open_interest == 0,
+            ErrorCode::DefaultError,
+            "outstanding base_asset_amounts must be balanced"
+        )?;
+
+        validate!(
+            math::amm::calculate_net_user_cost_basis(&market.amm)? == 0,
+            ErrorCode::DefaultError,
+            "outstanding quote_asset_amounts must be balanced"
+        )?;
+
+        validate!(
+            now > market.expiry_ts + TWENTY_FOUR_HOUR,
+            ErrorCode::DefaultError,
+            "must be TWENTY_FOUR_HOUR after market.expiry_ts"
         )?;
 
         let depositors_amount_before: u64 = cast(get_token_amount(
@@ -2371,6 +2390,8 @@ pub mod clearing_house {
 
         ctx.accounts.spot_market_vault.reload()?;
         math::spot_balance::validate_spot_balances(spot_market)?;
+
+        market.status = MarketStatus::Delisted;
 
         Ok(())
     }

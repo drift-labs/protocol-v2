@@ -1466,6 +1466,14 @@ pub fn calculate_max_base_asset_amount_fillable(
     )
 }
 
+pub fn calculate_net_user_cost_basis(amm: &AMM) -> ClearingHouseResult<i128> {
+    amm.quote_asset_amount_long
+        .checked_add(amm.quote_asset_amount_short)
+        .ok_or_else(math_error!())?
+        .checked_sub(amm.cumulative_social_loss)
+        .ok_or_else(math_error!())
+}
+
 pub fn calculate_net_user_pnl(amm: &AMM, oracle_price: i128) -> ClearingHouseResult<i128> {
     validate!(
         oracle_price > 0,
@@ -1481,13 +1489,7 @@ pub fn calculate_net_user_pnl(amm: &AMM, oracle_price: i128) -> ClearingHouseRes
         .ok_or_else(math_error!())?;
 
     net_user_base_asset_value
-        .checked_add(
-            amm.quote_asset_amount_long
-                .checked_add(amm.quote_asset_amount_short)
-                .ok_or_else(math_error!())?
-                .checked_sub(amm.cumulative_social_loss)
-                .ok_or_else(math_error!())?,
-        )
+        .checked_add(calculate_net_user_cost_basis(amm)?)
         .ok_or_else(math_error!())
 }
 
