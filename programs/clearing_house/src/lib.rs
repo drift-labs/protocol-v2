@@ -3546,6 +3546,12 @@ pub mod clearing_house {
         let state = &ctx.accounts.state;
         let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 
+        validate!(
+            spot_market.revenue_settle_period > 0,
+            ErrorCode::DefaultError,
+            "invalid revenue_settle_period settings on spot market"
+        )?;
+
         let spot_vault_amount = ctx.accounts.spot_market_vault.amount;
         let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;
 

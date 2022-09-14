@@ -675,6 +675,25 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
+	public async updateSpotMarketRevenueSettlePeriod(
+		marketIndex: BN,
+		revenueSettlePeriod: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSpotMarketRevenueSettlePeriod(
+			revenueSettlePeriod,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						marketIndex
+					),
+				},
+			}
+		);
+	}
+
 	public async updateInsuranceWithdrawEscrowPeriod(
 		marketIndex: BN,
 		insuranceWithdrawEscrowPeriod: BN
