@@ -69,7 +69,7 @@ pub struct SpotMarket {
     pub imf_factor: u128,
 
     pub liquidation_fee: u128,
-    pub liquidation_if_factor: u32, // percentage of liquidation transfer for total insurance
+    pub liquidation_if_factor: u128, // percentage of liquidation transfer for total insurance
     pub withdraw_guard_threshold: u128, // no withdraw limits/guards when deposits below this threshold
 
     pub order_step_size: u128,

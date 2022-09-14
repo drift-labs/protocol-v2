@@ -76,6 +76,7 @@ pub struct PerpMarket {
     pub unrealized_imf_factor: u128,
     pub unrealized_max_imbalance: u128,
     pub liquidation_fee: u128,
+    pub if_liquidation_fee: u128,
     pub quote_max_insurance: u128,
     pub quote_settled_insurance: u128,
     // upgrade-ability
@@ -332,6 +333,7 @@ pub struct AMM {
     pub total_fee_minus_distributions: i128,
     pub total_fee_withdrawn: u128,
     pub net_revenue_since_last_funding: i64,
+    pub total_liquidation_fee: u128,
     pub fee_pool: PoolBalance,
     pub last_update_slot: u64,
     pub last_oracle_valid: bool,

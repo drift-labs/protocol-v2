@@ -502,6 +502,7 @@ pub mod clearing_house {
             unrealized_imf_factor: 0,
             unrealized_max_imbalance: 0,
             liquidation_fee,
+            if_liquidation_fee: 0,
             quote_max_insurance: 0,
             quote_settled_insurance: 0,
             padding0: 0,
@@ -543,6 +544,7 @@ pub mod clearing_house {
                 total_fee_minus_distributions: 0,
                 total_mm_fee: 0,
                 total_exchange_fee: 0,
+                total_liquidation_fee: 0,
                 net_revenue_since_last_funding: 0,
                 minimum_quote_asset_trade_size: 10000000,
                 last_oracle_price_twap_ts: now,
@@ -3125,7 +3127,7 @@ pub mod clearing_house {
 
         spot_market.user_if_factor = user_if_factor;
         spot_market.total_if_factor = total_if_factor;
-        spot_market.liquidation_if_factor = liquidation_if_factor;
+        spot_market.liquidation_if_factor = liquidation_if_factor as u128;
 
         Ok(())
     }
