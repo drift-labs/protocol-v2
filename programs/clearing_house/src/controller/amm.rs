@@ -709,27 +709,73 @@ mod test {
         assert_eq!(market.amm.min_base_asset_reserve, 3535567812190637);
         assert_eq!(market.amm.max_base_asset_reserve, 7071000000000000);
 
+        let (orig_open_bids, orig_open_asks) =
+            amm::calculate_market_open_bids_asks(&market.amm).unwrap();
+        assert_eq!(orig_open_bids, 1587383007479363);
+        assert_eq!(orig_open_asks, -1948049180330000);
+
         let new_scale = 2;
         update_concentration_coef(&mut market.amm, new_scale).unwrap();
         assert_eq!(market.amm.min_base_asset_reserve, 4142158893215143);
         assert_eq!(market.amm.max_base_asset_reserve, 6035500000000000);
 
-        // market.amm.net_base_asset_amount = 0;
+        let new_scale = 5;
+        update_concentration_coef(&mut market.amm, new_scale).unwrap();
+        assert_eq!(market.amm.min_base_asset_reserve, 4617487348084666);
+        assert_eq!(market.amm.max_base_asset_reserve, 5414200000000000);
+        let new_sqrt_k = market.amm.sqrt_k * new_scale;
+        let update_k_result =
+            get_update_k_result(&market, bn::U192::from(new_sqrt_k), false).unwrap();
+        let adjustment_cost = amm::adjust_k_cost(&mut market, &update_k_result).unwrap();
+        assert_eq!(adjustment_cost, 11_575_563);
 
-        // let new_scale = 20;
-        // update_concentration_coef(&mut market.amm, new_scale).unwrap();
-        // assert_eq!(market.amm.min_base_asset_reserve, 4898551008611652);
-        // assert_eq!(market.amm.max_base_asset_reserve, 5103550000000000);
+        amm::update_k(&mut market, &update_k_result).unwrap();
+        assert_eq!(market.amm.sqrt_k, new_sqrt_k);
 
-        // let new_scale = AMM_RESERVE_PRECISION; // too large, err
-        // assert!(update_concentration_coef(&mut market.amm, new_scale).is_err());
-        // assert_eq!(market.amm.min_base_asset_reserve, 4898551008611652);
-        // assert_eq!(market.amm.max_base_asset_reserve, 5103550000000000);
+        let (open_bids, open_asks) = amm::calculate_market_open_bids_asks(&market.amm).unwrap();
+        assert_eq!(open_bids, 2073138274516378);
+        assert_eq!(open_asks, -1988790163935851);
 
-        // let new_scale = 140000; // near limit, very little liquidity
-        // update_concentration_coef(&mut market.amm, new_scale).unwrap();
-        // assert_eq!(market.amm.min_base_asset_reserve, 4999990000019999);
-        // assert_eq!(market.amm.max_base_asset_reserve, 5000010000000000);
+        assert_eq!(orig_open_bids - open_bids, -485755267037015);
+        assert_eq!(orig_open_asks - open_asks, 40740983605851);
+
+        let new_scale = 100; // moves boundary to prevent net_base_asset_amount to close
+        assert!(update_concentration_coef(&mut market.amm, new_scale).is_err());
+
+        // differe default market
+
+        let mut market_balanced = PerpMarket::default_test();
+        assert_eq!(market_balanced.amm.net_base_asset_amount, 0);
+        assert_eq!(market_balanced.amm.sqrt_k, 1000000000000000);
+
+        let new_scale = 20;
+        update_concentration_coef(&mut market_balanced.amm, new_scale).unwrap();
+        assert_eq!(market_balanced.amm.min_base_asset_reserve, 979710201722330);
+        assert_eq!(market_balanced.amm.max_base_asset_reserve, 1020710000000000);
+
+        let new_scale = AMM_RESERVE_PRECISION; // too large, err
+        assert!(update_concentration_coef(&mut market_balanced.amm, new_scale).is_err());
+        assert_eq!(market_balanced.amm.min_base_asset_reserve, 979710201722330);
+        assert_eq!(market_balanced.amm.max_base_asset_reserve, 1020710000000000);
+
+        let new_scale = 140000; // near limit, very little liquidity
+        update_concentration_coef(&mut market_balanced.amm, new_scale).unwrap();
+        assert_eq!(market_balanced.amm.min_base_asset_reserve, 999998000003999);
+        assert_eq!(market_balanced.amm.max_base_asset_reserve, 1000002000000000);
+
+        let new_sqrt_k = market_balanced.amm.sqrt_k * new_scale;
+        let update_k_result =
+            get_update_k_result(&market_balanced, bn::U192::from(new_sqrt_k), false).unwrap();
+        let adjustment_cost = amm::adjust_k_cost(&mut market_balanced, &update_k_result).unwrap();
+        assert_eq!(adjustment_cost, 0);
+
+        amm::update_k(&mut market_balanced, &update_k_result).unwrap();
+        assert_eq!(market_balanced.amm.sqrt_k, new_sqrt_k);
+
+        let (open_bids, open_asks) =
+            amm::calculate_market_open_bids_asks(&market_balanced.amm).unwrap();
+        assert_eq!(open_bids, 279999440001120);
+        assert_eq!(open_asks, -280000000000000);
     }
 
     #[test]
