@@ -19,6 +19,7 @@ import {
 	calculateSizeDiscountAssetWeight,
 	calculateSizePremiumLiabilityWeight,
 } from './margin';
+import { OraclePriceData } from '../oracles/types';
 
 export function getBalance(
 	tokenAmount: BN,
@@ -52,6 +53,31 @@ export function getTokenAmount(
 		: spotMarket.cumulativeBorrowInterest;
 
 	return balanceAmount.mul(cumulativeInterest).div(precisionDecrease);
+}
+
+export function getSignedTokenAmount(
+	tokenAmount: BN,
+	balanceType: SpotBalanceType
+): BN {
+	if (isVariant(balanceType, 'deposit')) {
+		return tokenAmount;
+	} else {
+		return tokenAmount.abs().neg();
+	}
+}
+
+export function getTokenValue(
+	tokenAmount: BN,
+	spotDecimals: number,
+	oraclePriceData: OraclePriceData
+): BN {
+	if (tokenAmount.eq(ZERO)) {
+		return ZERO;
+	}
+
+	const precisionDecrease = TEN.pow(new BN(10 + spotDecimals - 6));
+
+	return tokenAmount.mul(oraclePriceData.price).div(precisionDecrease);
 }
 
 export function calculateAssetWeight(

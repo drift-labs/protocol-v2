@@ -1292,7 +1292,7 @@ describe('orders', () => {
 		const newMarkPrice1 = calculateMarkPrice(newMarket1); // 0 liquidity at current mark price
 
 		const userTC = clearingHouseUser.getTotalCollateral();
-		const userTPV = clearingHouseUser.getTotalPositionValue();
+		const userTPV = clearingHouseUser.getTotalPerpPositionValue();
 
 		const userLeverage = clearingHouseUser.getLeverage();
 		const postPosition = clearingHouseUser.getUserPosition(marketIndex);

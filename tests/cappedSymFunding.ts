@@ -274,7 +274,7 @@ async function cappedSymFundingScenario(
 	const uA = userAccount.getUserAccount();
 	console.log(
 		'userAccount.getTotalPositionValue():',
-		userAccount.getTotalPositionValue().toString(),
+		userAccount.getTotalPerpPositionValue().toString(),
 		uA.perpPositions[0].marketIndex.toNumber(),
 		':',
 		uA.perpPositions[0].baseAssetAmount.toString(),
@@ -286,7 +286,7 @@ async function cappedSymFundingScenario(
 
 	console.log(
 		'userAccount2.getTotalPositionValue():',
-		userAccount2.getTotalPositionValue().toString(),
+		userAccount2.getTotalPerpPositionValue().toString(),
 		uA2.perpPositions[0].marketIndex.toNumber(),
 		':',
 		uA2.perpPositions[0].baseAssetAmount.toString(),
@@ -295,14 +295,14 @@ async function cappedSymFundingScenario(
 	);
 
 	if (longShortSizes[0] != 0) {
-		assert(!userAccount.getTotalPositionValue().eq(new BN(0)));
+		assert(!userAccount.getTotalPerpPositionValue().eq(new BN(0)));
 	} else {
-		assert(userAccount.getTotalPositionValue().eq(new BN(0)));
+		assert(userAccount.getTotalPerpPositionValue().eq(new BN(0)));
 	}
 	if (longShortSizes[1] != 0) {
-		assert(!userAccount2.getTotalPositionValue().eq(new BN(0)));
+		assert(!userAccount2.getTotalPerpPositionValue().eq(new BN(0)));
 	} else {
-		assert(userAccount2.getTotalPositionValue().eq(new BN(0)));
+		assert(userAccount2.getTotalPerpPositionValue().eq(new BN(0)));
 	}
 
 	await clearingHouse.fetchAccounts();
@@ -414,13 +414,13 @@ async function cappedSymFundingScenario(
 	await userAccount2.fetchAccounts();
 
 	console.log(
-		userAccount.getTotalPositionValue().toString(),
+		userAccount.getTotalPerpPositionValue().toString(),
 		',',
-		userAccount2.getTotalPositionValue().toString()
+		userAccount2.getTotalPerpPositionValue().toString()
 	);
 
-	assert(userAccount.getTotalPositionValue().eq(new BN(0)));
-	assert(userAccount2.getTotalPositionValue().eq(new BN(0)));
+	assert(userAccount.getTotalPerpPositionValue().eq(new BN(0)));
+	assert(userAccount2.getTotalPerpPositionValue().eq(new BN(0)));
 
 	return [
 		fundingRateLong,
