@@ -114,6 +114,10 @@ export function isOneOfVariant(object: unknown, types: string[]) {
 	}, false);
 }
 
+export function getVariant(object: unknown): string {
+	return Object.keys(object)[0];
+}
+
 export enum TradeSide {
 	None = 0,
 	Buy = 1,
