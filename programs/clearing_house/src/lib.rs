@@ -2820,21 +2820,17 @@ pub mod clearing_house {
     )]
     pub fn update_concentration_coef(
         ctx: Context<AdminUpdateMarket>,
-        concentration_coef: u128,
+        concentration_scale: u128,
     ) -> Result<()> {
         validate!(
-            concentration_coef > CONCENTRATION_PRECISION,
+            concentration_scale > 0,
             ErrorCode::DefaultError,
-            "invalid concentration_coef: must be greater than CONCENTRATION_PRECISION",
-        )?;
-        validate!(
-            concentration_coef <= MAX_CONCENTRATION_COEFFICIENT,
-            ErrorCode::DefaultError,
-            "invalid concentration_coef: must be less than sqrt(2), e.g. MAX_CONCENTRATION_COEFFICIENT / CONCENTRATION_PRECISION",
+            "invalid concentration_scale",
         )?;
 
         let market = &mut load_mut!(ctx.accounts.market)?;
-        market.amm.concentration_coef = concentration_coef;
+        controller::amm::update_concentration_coef(&mut market.amm, concentration_scale)?;
+
         Ok(())
     }
 

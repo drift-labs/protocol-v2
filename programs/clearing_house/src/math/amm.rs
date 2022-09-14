@@ -1423,12 +1423,16 @@ pub fn calculate_max_base_asset_amount_fillable(
 
     // one fill can only take up to half of side's liquidity
     let max_base_asset_amount_on_side = match order_direction {
-        PositionDirection::Long => amm
-            .base_asset_reserve
-            .saturating_sub(amm.min_base_asset_reserve) / 2,
-        PositionDirection::Short => amm
-            .max_base_asset_reserve
-            .saturating_sub(amm.base_asset_reserve) / 2,
+        PositionDirection::Long => {
+            amm.base_asset_reserve
+                .saturating_sub(amm.min_base_asset_reserve)
+                / 2
+        }
+        PositionDirection::Short => {
+            amm.max_base_asset_reserve
+                .saturating_sub(amm.base_asset_reserve)
+                / 2
+        }
     };
 
     standardize_base_asset_amount(
