@@ -635,6 +635,8 @@ pub mod clearing_house {
             return Err(ErrorCode::InsufficientDeposit.into());
         }
 
+        validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         controller::spot_balance::update_spot_market_cumulative_interest(spot_market, now)?;
 
