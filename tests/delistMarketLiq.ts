@@ -647,14 +647,9 @@ describe('delist market, liquidation of expired position', () => {
 		assert(loserUser.perpPositions[0].quoteAssetAmount.eq(new BN(0)));
 		const marketAfter0 = clearingHouse.getPerpMarketAccount(marketIndex);
 
-<<<<<<< HEAD
-		const finalPnlResultMin0 = new BN(1415296436 - 11090);
-		const finalPnlResultMax0 = new BN(1415296436 + 111090);
-=======
 		// old 1415296436
 		const finalPnlResultMin0 = new BN(1414277260 - 11090);
 		const finalPnlResultMax0 = new BN(1414277260 + 111090);
->>>>>>> master
 
 		console.log(marketAfter0.pnlPool.balance.toString());
 		assert(marketAfter0.pnlPool.balance.gt(finalPnlResultMin0));

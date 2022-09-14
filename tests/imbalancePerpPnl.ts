@@ -445,7 +445,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const newAmm00 = calculateUpdatedAMM(market00.amm, oraclePriceData00Again);
 		const [bid0After, ask0After] = calculateBidAskPrice(
 			newAmm00,
-			oraclePriceData00Again
+			oraclePriceData00Again,
+			false
 		);
 		console.log('bid0After:', bid0After.toString(), ask0After.toString());
 		assert(bid0After.eq(new BN(2481260112483)));
