@@ -139,7 +139,6 @@ pub mod liquidate_perp {
             slot,
             now,
             10,
-            0,
         )
         .unwrap();
 
@@ -273,7 +272,6 @@ pub mod liquidate_perp {
             slot,
             now,
             10,
-            0,
         )
         .unwrap();
 
@@ -411,7 +409,6 @@ pub mod liquidate_perp {
             slot,
             now,
             255,
-            0,
         )
         .unwrap();
 
@@ -537,7 +534,6 @@ pub mod liquidate_perp {
             slot,
             now,
             10,
-            0,
         )
         .unwrap();
 
@@ -675,7 +671,6 @@ pub mod liquidate_perp {
             slot,
             now,
             MARGIN_PRECISION as u32 / 50,
-            0,
         )
         .unwrap();
 
@@ -840,6 +835,7 @@ pub mod liquidate_borrow {
             &spot_market_map,
             &mut oracle_map,
             now,
+            slot,
             10,
         )
         .unwrap();
@@ -959,6 +955,7 @@ pub mod liquidate_borrow {
             &spot_market_map,
             &mut oracle_map,
             now,
+            slot,
             10,
         )
         .unwrap();
@@ -1078,6 +1075,7 @@ pub mod liquidate_borrow {
             &spot_market_map,
             &mut oracle_map,
             now,
+            slot,
             MARGIN_PRECISION as u32 / 50, // 2%
         )
         .unwrap();
@@ -1275,6 +1273,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             &spot_market_map,
             &mut oracle_map,
             now,
+            slot,
             10,
         )
         .unwrap();
@@ -1416,6 +1415,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             &spot_market_map,
             &mut oracle_map,
             now,
+            slot,
             MARGIN_PRECISION as u32 / 50,
         )
         .unwrap();
@@ -1580,6 +1580,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             &spot_market_map,
             &mut oracle_map,
             now,
+            slot,
             10,
         )
         .unwrap();
@@ -1744,6 +1745,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             &spot_market_map,
             &mut oracle_map,
             now,
+            slot,
             10,
         )
         .unwrap();
@@ -1885,6 +1887,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             &spot_market_map,
             &mut oracle_map,
             now,
+            slot,
             MARGIN_PRECISION as u32 / 50,
         )
         .unwrap();
@@ -2026,6 +2029,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             &spot_market_map,
             &mut oracle_map,
             now,
+            slot,
             10,
         )
         .unwrap();

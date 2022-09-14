@@ -241,6 +241,7 @@ export type LiquidationRecord = {
 	marginRequirement: BN;
 	totalCollateral: BN;
 	liquidationId: number;
+	canceledOrderIds: BN[];
 	liquidatePerp: LiquidatePerpRecord;
 	liquidateBorrow: LiquidateBorrowRecord;
 	liquidateBorrowForPerpPnl: LiquidateBorrowForPerpPnlRecord;
@@ -268,14 +269,12 @@ export class LiquidationType {
 
 export type LiquidatePerpRecord = {
 	marketIndex: BN;
-	orderIds: BN[];
 	oraclePrice: BN;
 	baseAssetAmount: BN;
 	quoteAssetAmount: BN;
 	lpShares: BN;
 	userPnl: BN;
 	liquidatorPnl: BN;
-	canceledOrdersFee: BN;
 	userOrderId: BN;
 	liquidatorOrderId: BN;
 	fillRecordId: BN;

@@ -1838,7 +1838,6 @@ pub mod clearing_house {
             slot,
             now,
             ctx.accounts.state.liquidation_margin_buffer_ratio,
-            ctx.accounts.state.perp_fee_structure.cancel_order_fee,
         )?;
 
         Ok(())
@@ -1892,6 +1891,7 @@ pub mod clearing_house {
             &spot_market_map,
             &mut oracle_map,
             now,
+            clock.slot,
             ctx.accounts.state.liquidation_margin_buffer_ratio,
         )?;
 
@@ -1945,6 +1945,7 @@ pub mod clearing_house {
             &spot_market_map,
             &mut oracle_map,
             now,
+            clock.slot,
             ctx.accounts.state.liquidation_margin_buffer_ratio,
         )?;
 
@@ -1998,6 +1999,7 @@ pub mod clearing_house {
             &spot_market_map,
             &mut oracle_map,
             now,
+            clock.slot,
             ctx.accounts.state.liquidation_margin_buffer_ratio,
         )?;
 
