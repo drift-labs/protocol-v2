@@ -2357,7 +2357,6 @@ pub mod delisting_test {
                 clock.slot,
                 clock.unix_timestamp,
                 10,
-                0,
             )
             .unwrap();
 
@@ -2439,6 +2438,7 @@ pub mod delisting_test {
                 &spot_market_map,
                 &mut oracle_map,
                 clock.unix_timestamp,
+                clock.slot,
                 10,
             )
             .unwrap();
@@ -2528,6 +2528,7 @@ pub mod delisting_test {
                 &spot_market_map,
                 &mut oracle_map,
                 clock.unix_timestamp,
+                clock.slot,
                 10,
             )
             .unwrap();
