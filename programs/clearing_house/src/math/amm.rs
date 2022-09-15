@@ -7,9 +7,9 @@ use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
-    K_BPS_DECREASE_MAX, K_BPS_UPDATE_SCALE, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128,
-    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION, PRICE_TO_PEG_PRECISION_RATIO,
-    PRICE_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
+    CONCENTRATION_PRECISION, K_BPS_DECREASE_MAX, K_BPS_UPDATE_SCALE, MARK_PRICE_PRECISION,
+    MARK_PRICE_PRECISION_I128, MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION,
+    PRICE_TO_PEG_PRECISION_RATIO, PRICE_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
@@ -39,22 +39,22 @@ pub fn calculate_price(
         .try_to_u128()
 }
 
-pub fn calculate_bid_ask_bounds(sqrt_k: u128) -> ClearingHouseResult<(u128, u128)> {
-    let sqrt_2_precision = 10_000_u128;
-    let sqrt_2 = 14_142;
-
+pub fn calculate_bid_ask_bounds(
+    concentration_coef: u128,
+    sqrt_k: u128,
+) -> ClearingHouseResult<(u128, u128)> {
     // worse case if all asks are filled (max reserve)
     let ask_bounded_base = sqrt_k
-        .checked_mul(sqrt_2)
+        .checked_mul(concentration_coef)
         .ok_or_else(math_error!())?
-        .checked_div(sqrt_2_precision)
+        .checked_div(CONCENTRATION_PRECISION)
         .ok_or_else(math_error!())?;
 
     // worse case if all bids are filled (min reserve)
     let bid_bounded_base = sqrt_k
-        .checked_mul(sqrt_2_precision)
+        .checked_mul(CONCENTRATION_PRECISION)
         .ok_or_else(math_error!())?
-        .checked_div(sqrt_2)
+        .checked_div(concentration_coef)
         .ok_or_else(math_error!())?;
 
     Ok((bid_bounded_base, ask_bounded_base))
@@ -1393,7 +1393,7 @@ pub fn update_k(market: &mut PerpMarket, update_k_result: &UpdateKResult) -> Cle
     market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
 
     let (min_base_asset_reserve, max_base_asset_reserve) =
-        calculate_bid_ask_bounds(new_terminal_base_reserve)?;
+        calculate_bid_ask_bounds(market.amm.concentration_coef, new_terminal_base_reserve)?;
     market.amm.min_base_asset_reserve = min_base_asset_reserve;
     market.amm.max_base_asset_reserve = max_base_asset_reserve;
 
@@ -1451,13 +1451,19 @@ pub fn calculate_max_base_asset_amount_fillable(
     order_direction: &PositionDirection,
 ) -> ClearingHouseResult<u128> {
     let max_fill_size = amm.base_asset_reserve / amm.max_base_asset_amount_ratio as u128;
+
+    // one fill can only take up to half of side's liquidity
     let max_base_asset_amount_on_side = match order_direction {
-        PositionDirection::Long => amm
-            .base_asset_reserve
-            .saturating_sub(amm.min_base_asset_reserve),
-        PositionDirection::Short => amm
-            .max_base_asset_reserve
-            .saturating_sub(amm.base_asset_reserve),
+        PositionDirection::Long => {
+            amm.base_asset_reserve
+                .saturating_sub(amm.min_base_asset_reserve)
+                / 2
+        }
+        PositionDirection::Short => {
+            amm.max_base_asset_reserve
+                .saturating_sub(amm.base_asset_reserve)
+                / 2
+        }
     };
 
     standardize_base_asset_amount(
@@ -1542,7 +1548,10 @@ mod test {
     use crate::controller::lp::burn_lp_shares;
     use crate::controller::lp::mint_lp_shares;
     use crate::controller::lp::settle_lp_position;
-    use crate::math::constants::{K_BPS_INCREASE_MAX, MARK_PRICE_PRECISION, QUOTE_PRECISION_I128};
+    use crate::math::constants::{
+        K_BPS_INCREASE_MAX, MARK_PRICE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
+        QUOTE_PRECISION_I128,
+    };
     use crate::state::user::PerpPosition;
 
     #[test]
@@ -2561,6 +2570,7 @@ mod test {
             amm: AMM {
                 base_asset_reserve: 5122950819670000,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
                 net_base_asset_amount: -122950819670000,

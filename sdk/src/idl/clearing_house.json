@@ -2146,6 +2146,32 @@
       ]
     },
     {
+      "name": "updateConcentrationCoef",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "concentrationScale",
+          "type": "u128"
+        }
+      ]
+    },
+    {
       "name": "updateCurveUpdateIntensity",
       "accounts": [
         {
@@ -3853,16 +3879,6 @@
             "type": "u64"
           },
           {
-            "name": "orderIds",
-            "type": {
-              "vec": "u64"
-            }
-          },
-          {
-            "name": "canceledOrdersFee",
-            "type": "u128"
-          },
-          {
             "name": "oraclePrice",
             "type": "i128"
           },
@@ -4110,6 +4126,10 @@
           },
           {
             "name": "quoteAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "concentrationCoef",
             "type": "u128"
           },
           {
@@ -5972,6 +5992,13 @@
         {
           "name": "bankrupt",
           "type": "bool",
+          "index": false
+        },
+        {
+          "name": "canceledOrderIds",
+          "type": {
+            "vec": "u64"
+          },
           "index": false
         },
         {
