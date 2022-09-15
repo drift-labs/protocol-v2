@@ -433,13 +433,15 @@ pub mod clearing_house {
             amm_peg_multiplier,
         )?;
 
+        let concentration_coef = MAX_CONCENTRATION_COEFFICIENT;
+
         // Verify there's no overflow
         let _k = bn::U192::from(amm_base_asset_reserve)
             .checked_mul(bn::U192::from(amm_quote_asset_reserve))
             .ok_or_else(math_error!())?;
 
         let (min_base_asset_reserve, max_base_asset_reserve) =
-            amm::calculate_bid_ask_bounds(amm_base_asset_reserve)?;
+            amm::calculate_bid_ask_bounds(concentration_coef, amm_base_asset_reserve)?;
 
         // Verify oracle is readable
         let OraclePriceData {
@@ -534,6 +536,7 @@ pub mod clearing_house {
                 last_mark_price_twap_5min: init_mark_price,
                 last_mark_price_twap_ts: now,
                 sqrt_k: amm_base_asset_reserve,
+                concentration_coef,
                 min_base_asset_reserve,
                 max_base_asset_reserve,
                 peg_multiplier: amm_peg_multiplier,
@@ -3211,6 +3214,39 @@ pub mod clearing_house {
         let market = &mut load_mut!(ctx.accounts.market)?;
         market.unrealized_initial_asset_weight = unrealized_initial_asset_weight;
         market.unrealized_maintenance_asset_weight = unrealized_maintenance_asset_weight;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_concentration_coef(
+        ctx: Context<AdminUpdateMarket>,
+        concentration_scale: u128,
+    ) -> Result<()> {
+        validate!(
+            concentration_scale > 0,
+            ErrorCode::DefaultError,
+            "invalid concentration_scale",
+        )?;
+
+        let market = &mut load_mut!(ctx.accounts.market)?;
+        let prev_concentration_coef = market.amm.concentration_coef;
+        controller::amm::update_concentration_coef(&mut market.amm, concentration_scale)?;
+        let new_concentration_coef = market.amm.concentration_coef;
+
+        msg!(
+            "market.amm.concentration_coef: {} -> {}",
+            prev_concentration_coef,
+            new_concentration_coef
+        );
+
+        validate!(
+            prev_concentration_coef != new_concentration_coef,
+            ErrorCode::DefaultError,
+            "concentration_coef unchanged",
+        )?;
+
         Ok(())
     }
 

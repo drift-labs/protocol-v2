@@ -274,6 +274,19 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
+	public async updateConcentrationScale(
+		marketIndex: BN,
+		concentrationScale: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateConcentrationScale(concentrationScale, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				admin: this.wallet.publicKey,
+				market: await getMarketPublicKey(this.program.programId, marketIndex),
+			},
+		});
+	}
+
 	public async moveAmmToPrice(
 		perpMarketIndex: BN,
 		targetPrice: BN
