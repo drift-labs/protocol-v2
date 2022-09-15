@@ -204,6 +204,149 @@ describe('DLOB Perp Tests', () => {
 		expect(countBids).to.equal(testCases.length);
 	});
 
+	it('Test proper bids on multiple markets', () => {
+		const vAsk = new BN(15);
+		const vBid = new BN(10);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const marketIndex0 = new BN(0);
+		const marketIndex1 = new BN(1);
+
+		const slot = 12;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)),
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+		const testCases = [
+			{
+				expectedIdx: 3,
+				isVamm: false,
+				orderId: new BN(5),
+				price: new BN(0),
+				direction: PositionDirection.LONG,
+				orderType: OrderType.MARKET,
+				marketIndex: marketIndex0,
+			},
+			{
+				expectedIdx: 4,
+				isVamm: false,
+				orderId: new BN(6),
+				price: new BN(0),
+				direction: PositionDirection.LONG,
+				orderType: OrderType.MARKET,
+				marketIndex: marketIndex0,
+			},
+			{
+				expectedIdx: 5,
+				isVamm: false,
+				orderId: new BN(7),
+				price: new BN(0),
+				direction: PositionDirection.LONG,
+				orderType: OrderType.MARKET,
+				marketIndex: marketIndex1,
+			},
+			{
+				expectedIdx: 0,
+				isVamm: false,
+				orderId: new BN(1),
+				price: new BN(12),
+				direction: PositionDirection.LONG,
+				orderType: OrderType.LIMIT,
+				marketIndex: marketIndex0,
+			},
+			{
+				expectedIdx: 1,
+				isVamm: false,
+				orderId: new BN(2),
+				price: new BN(11),
+				direction: PositionDirection.LONG,
+				orderType: OrderType.LIMIT,
+				marketIndex: marketIndex0,
+			},
+			{
+				expectedIdx: 7,
+				isVamm: false,
+				orderId: new BN(3),
+				price: new BN(8),
+				direction: PositionDirection.LONG,
+				orderType: OrderType.LIMIT,
+				marketIndex: marketIndex0,
+			},
+			{
+				expectedIdx: 6,
+				isVamm: false,
+				orderId: new BN(4),
+				price: new BN(9),
+				direction: PositionDirection.LONG,
+				orderType: OrderType.LIMIT,
+				marketIndex: marketIndex1,
+			},
+		];
+
+		for (const t of testCases) {
+			if (t.isVamm) {
+				continue;
+			}
+			insertOrderToDLOB(
+				dlob,
+				Keypair.generate().publicKey,
+				t.orderType || OrderType.LIMIT,
+				MarketType.PERP,
+				t.orderId || new BN(0), // orderId
+				t.marketIndex,
+				t.price || new BN(0), // price
+				BASE_PRECISION, // quantity
+				t.direction || PositionDirection.LONG,
+				vBid,
+				vAsk
+			);
+		}
+
+		const bids0 = dlob.getBids(
+			marketIndex0,
+			vBid,
+			slot,
+			MarketType.PERP,
+			oracle
+		);
+		let countBids0 = 0;
+		for (const bid of bids0) {
+			console.log(
+				` . vAMMNode? ${bid.isVammNode()}, ${JSON.stringify(
+					bid.order?.orderType
+				)} , ${bid.order?.orderId.toString()} , vammTestgetPRice: ${bid.getPrice(
+					oracle,
+					slot
+				)}, price: ${bid.order?.price.toString()}, quantity: ${bid.order?.baseAssetAmountFilled.toString()}/${bid.order?.baseAssetAmount.toString()}`
+			);
+			countBids0++;
+		}
+		expect(countBids0).to.equal(6);
+
+		const bids1 = dlob.getBids(
+			marketIndex1,
+			vBid,
+			slot,
+			MarketType.PERP,
+			oracle
+		);
+		let countBids1 = 0;
+		for (const bid of bids1) {
+			console.log(
+				` . vAMMNode? ${bid.isVammNode()}, ${JSON.stringify(
+					bid.order?.orderType
+				)} , ${bid.order?.orderId.toString()} , vammTestgetPRice: ${bid.getPrice(
+					oracle,
+					slot
+				)}, price: ${bid.order?.price.toString()}, quantity: ${bid.order?.baseAssetAmountFilled.toString()}/${bid.order?.baseAssetAmount.toString()}`
+			);
+
+			countBids1++;
+		}
+		expect(countBids1).to.equal(3);
+	});
+
 	it('Test proper asks', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
