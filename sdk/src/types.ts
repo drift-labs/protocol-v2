@@ -620,6 +620,7 @@ export type Order = {
 	orderId: BN;
 	userOrderId: number;
 	marketIndex: BN;
+	quoteSpotMarketIndex: BN;
 	price: BN;
 	baseAssetAmount: BN;
 	baseAssetAmountFilled: BN;

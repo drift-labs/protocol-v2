@@ -18,6 +18,7 @@ use crate::controller::spot_position::{
 use crate::math::constants::{
     MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
 };
+use crate::math::helpers::get_proportion_u128;
 
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
@@ -2033,52 +2034,100 @@ pub fn place_spot_order(
         }
     }
 
-    let market_index = params.market_index;
-    let spot_market = &spot_market_map.get_ref(&market_index)?;
-    let force_reduce_only = spot_market.is_reduce_only()?;
+    // update_spot_market_for_order_sides(user, spot_market_map, oracle_map, params)?;
 
-    let spot_position_index = user
-        .get_spot_position_index(market_index)
-        .or_else(|_| user.add_spot_position(market_index, SpotBalanceType::Deposit))?;
+    let base_spot_market_index = params.market_index;
+    let base_spot_market = &spot_market_map.get_ref(&base_spot_market_index)?;
 
-    let oracle_price_data = *oracle_map.get_price_data(&spot_market.oracle)?;
-    let (worst_case_token_amount_before, _) = user.spot_positions[spot_position_index]
-        .get_worst_case_token_amounts(spot_market, &oracle_price_data, None)?;
+    let quote_spot_market_index = params.quote_spot_market_index;
+    let quote_spot_market = &spot_market_map.get_ref(&quote_spot_market_index)?;
+
+    let force_reduce_only =
+        base_spot_market.is_reduce_only()? || quote_spot_market.is_reduce_only()?;
+
+    let base_spot_position_index = user
+        .get_spot_position_index(base_spot_market_index)
+        .or_else(|_| user.add_spot_position(base_spot_market_index, SpotBalanceType::Deposit))?;
+
+    let oracle_price_data = derive_oracle_price_data_with_quote_market(
+        oracle_map,
+        &base_spot_market,
+        &quote_spot_market,
+    )?;
+
+    let worst_case_token_amount_before = user.spot_positions[base_spot_position_index]
+        .get_worst_case_token_amount(base_spot_market, None)?;
 
     let signed_token_amount =
-        user.spot_positions[spot_position_index].get_signed_token_amount(spot_market)?;
+        user.spot_positions[base_spot_position_index].get_signed_token_amount(base_spot_market)?;
 
     // Increment open orders for existing position
     let (existing_position_direction, order_base_asset_amount) = {
-        let spot_position = &mut user.spot_positions[spot_position_index];
-        spot_position.open_orders += 1;
+        let base_asset_amount = {
+            let spot_position = &mut user.spot_positions[base_spot_position_index];
+            spot_position.open_orders += 1;
 
-        let standardized_base_asset_amount =
-            standardize_base_asset_amount(params.base_asset_amount, spot_market.order_step_size)?;
+            let standardized_base_asset_amount = standardize_base_asset_amount(
+                params.base_asset_amount,
+                base_spot_market.order_step_size,
+            )?;
 
-        let base_asset_amount = if params.reduce_only || force_reduce_only {
-            calculate_base_asset_amount_for_reduce_only_order(
-                standardized_base_asset_amount,
-                params.direction,
-                signed_token_amount,
-            )
-        } else {
-            standardized_base_asset_amount
+            let base_asset_amount = if params.reduce_only || force_reduce_only {
+                calculate_base_asset_amount_for_reduce_only_order(
+                    standardized_base_asset_amount,
+                    params.direction,
+                    signed_token_amount,
+                )
+            } else {
+                standardized_base_asset_amount
+            };
+
+            validate!(
+                is_multiple_of_step_size(base_asset_amount, base_spot_market.order_step_size)?,
+                ErrorCode::InvalidOrder,
+                "Order base asset amount ({}), is not a multiple of step size ({})",
+                base_asset_amount,
+                base_spot_market.order_step_size
+            )?;
+
+            if !matches!(
+                &params.order_type,
+                OrderType::TriggerMarket | OrderType::TriggerLimit
+            ) {
+                increase_spot_open_bids_and_asks(
+                    spot_position,
+                    &params.direction,
+                    base_asset_amount,
+                )?;
+            }
+
+            base_asset_amount
         };
 
-        validate!(
-            is_multiple_of_step_size(base_asset_amount, spot_market.order_step_size)?,
-            ErrorCode::InvalidOrder,
-            "Order base asset amount ({}), is not a multiple of step size ({})",
-            base_asset_amount,
-            spot_market.order_step_size
-        )?;
+        {
+            let quote_spot_position_index = user
+                .get_spot_position_index(quote_spot_market_index)
+                .or_else(|_| {
+                user.add_spot_position(quote_spot_market_index, SpotBalanceType::Deposit)
+            })?;
 
-        if !matches!(
-            &params.order_type,
-            OrderType::TriggerMarket | OrderType::TriggerLimit
-        ) {
-            increase_spot_open_bids_and_asks(spot_position, &params.direction, base_asset_amount)?;
+            let signed_quote_token_amount = user.spot_positions[quote_spot_position_index]
+                .get_signed_token_amount(quote_spot_market)?;
+
+            let quote_spot_position = &mut user.spot_positions[quote_spot_position_index];
+            quote_spot_position.open_orders += 1;
+            increase_spot_open_bids_and_asks(
+                quote_spot_position,
+                &(match params.direction {
+                    PositionDirection::Long => PositionDirection::Short,
+                    PositionDirection::Short => PositionDirection::Long,
+                }),
+                get_proportion_u128(
+                    base_asset_amount,
+                    oracle_price_data.price.unsigned_abs(),
+                    MARK_PRICE_PRECISION,
+                )?,
+            )?;
         }
 
         let existing_position_direction = if signed_token_amount >= 0 {
@@ -2112,8 +2161,6 @@ pub fn place_spot_order(
         ErrorCode::InvalidOrder,
         "must be spot order"
     )?;
-
-    let force_reduce_only = spot_market.is_reduce_only()?;
 
     let new_order = Order {
         status: OrderStatus::Open,
@@ -2153,17 +2200,17 @@ pub fn place_spot_order(
         &new_order,
         valid_oracle_price,
         slot,
-        spot_market.order_step_size,
-        spot_market.get_margin_ratio(&MarginRequirementType::Initial)?,
-        spot_market.get_margin_ratio(&MarginRequirementType::Maintenance)?,
+        base_spot_market.order_step_size,
+        base_spot_market.get_margin_ratio(&MarginRequirementType::Initial)?,
+        base_spot_market.get_margin_ratio(&MarginRequirementType::Maintenance)?,
         state.min_order_quote_asset_amount,
-        spot_market.decimals as u32,
+        base_spot_market.decimals as u32,
     )?;
 
     user.orders[new_order_index] = new_order;
 
-    let (worst_case_token_amount_after, _) = user.spot_positions[spot_position_index]
-        .get_worst_case_token_amounts(spot_market, &oracle_price_data, None)?;
+    let worst_case_token_amount_after = user.spot_positions[base_spot_position_index]
+        .get_worst_case_token_amount(base_spot_market, None)?;
 
     // Order fails if it's risk increasing and it brings the user collateral below the margin requirement
     let risk_decreasing = worst_case_token_amount_after.unsigned_abs()
@@ -2658,8 +2705,8 @@ fn fulfill_spot_order(
 
 pub fn derive_oracle_price_data_with_quote_market(
     oracle_map: &mut OracleMap,
-    base_market: &mut SpotMarket,
-    quote_market: &mut SpotMarket,
+    base_market: &SpotMarket,
+    quote_market: &SpotMarket,
 ) -> ClearingHouseResult<OraclePriceData> {
     let oracle_price_data: OraclePriceData = if quote_market.market_index != QUOTE_SPOT_MARKET_INDEX
     {

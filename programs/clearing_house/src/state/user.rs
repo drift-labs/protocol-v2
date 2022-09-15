@@ -229,6 +229,31 @@ impl SpotPosition {
             Ok((token_amount_all_asks_fill, worst_case_quote_token_amount))
         }
     }
+
+    pub fn get_worst_case_token_amount(
+        &self,
+        spot_market: &SpotMarket,
+        token_amount: Option<i128>,
+    ) -> ClearingHouseResult<i128> {
+        let token_amount = match token_amount {
+            Some(token_amount) => token_amount,
+            None => self.get_signed_token_amount(spot_market)?,
+        };
+
+        let token_amount_all_bids_fill = token_amount
+            .checked_add(self.open_bids)
+            .ok_or_else(math_error!())?;
+
+        let token_amount_all_asks_fill = token_amount
+            .checked_add(self.open_asks)
+            .ok_or_else(math_error!())?;
+
+        if token_amount_all_bids_fill.abs() > token_amount_all_asks_fill.abs() {
+            Ok(token_amount_all_bids_fill)
+        } else {
+            Ok(token_amount_all_asks_fill)
+        }
+    }
 }
 
 #[zero_copy]

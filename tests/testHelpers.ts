@@ -802,7 +802,8 @@ export async function initializeQuoteSpotMarket(
 
 export async function initializeSolSpotMarket(
 	admin: Admin,
-	solOracle: PublicKey
+	solOracle: PublicKey,
+	mint: PublicKey = NATIVE_MINT
 ): Promise<string> {
 	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(new BN(2)); // 50% utilization
 	const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)); // 2000% APR
@@ -822,11 +823,52 @@ export async function initializeSolSpotMarket(
 	const marketIndex = admin.getStateAccount().numberOfSpotMarkets;
 
 	const txSig = await admin.initializeSpotMarket(
-		NATIVE_MINT,
+		mint,
 		optimalUtilization,
 		optimalRate,
 		maxRate,
 		solOracle,
+		OracleSource.QUOTE_ASSET,
+		initialAssetWeight,
+		maintenanceAssetWeight,
+		initialLiabilityWeight,
+		maintenanceLiabilityWeight
+	);
+	await admin.updateWithdrawGuardThreshold(
+		marketIndex,
+		new BN(10 ** 10).mul(QUOTE_PRECISION)
+	);
+	return txSig;
+}
+
+export async function initializeEthSpotMarket(
+	admin: Admin,
+	ethOracle: PublicKey,
+	mint: PublicKey = NATIVE_MINT
+): Promise<string> {
+	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(new BN(2)); // 50% utilization
+	const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(1)); // 100% APR
+	const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(2)); // 200% APR
+	const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(new BN(8)).div(
+		new BN(10)
+	);
+	const maintenanceAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(
+		new BN(9)
+	).div(new BN(10));
+	const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(
+		new BN(12)
+	).div(new BN(10));
+	const maintenanceLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(
+		new BN(11)
+	).div(new BN(10));
+	const marketIndex = admin.getStateAccount().numberOfSpotMarkets;
+
+	const txSig = await admin.initializeSpotMarket(
+		mint,
+		optimalUtilization,
+		optimalRate,
+		maxRate,
+		ethOracle,
 		OracleSource.QUOTE_ASSET,
 		initialAssetWeight,
 		maintenanceAssetWeight,

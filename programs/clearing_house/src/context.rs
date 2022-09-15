@@ -86,7 +86,7 @@ pub struct InitializeSpotMarket<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(market_index: u64)]
+#[instruction(market_index: u64, quote_spot_market_index: u64)]
 pub struct InitializeSerumFulfillmentConfig<'info> {
     #[account(
         seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
@@ -94,7 +94,7 @@ pub struct InitializeSerumFulfillmentConfig<'info> {
     )]
     pub base_spot_market: AccountLoader<'info, SpotMarket>,
     #[account(
-        seeds = [b"spot_market", 0_u64.to_le_bytes().as_ref()],
+        seeds = [b"spot_market", quote_spot_market_index.to_le_bytes().as_ref()],
         bump,
     )]
     pub quote_spot_market: AccountLoader<'info, SpotMarket>,

@@ -538,6 +538,7 @@ export class ClearingHouse {
 		writableSpotMarketIndex?: BN;
 		readablePerpMarketIndex?: BN;
 		readableSpotMarketIndex?: BN;
+		readableQuoteSpotMarketIndex?: BN;
 	}): AccountMeta[] {
 		const userAccountAndSlot = this.getUserAccountAndSlot();
 		if (!userAccountAndSlot) {
@@ -650,6 +651,27 @@ export class ClearingHouse {
 				isWritable: false,
 			});
 			if (!spotMarketAccount.marketIndex.eq(ZERO)) {
+				oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
+					pubkey: spotMarketAccount.oracle,
+					isSigner: false,
+					isWritable: false,
+				});
+			}
+		}
+
+		if (
+			params.readableQuoteSpotMarketIndex &&
+			!params.readableQuoteSpotMarketIndex.eq(QUOTE_SPOT_MARKET_INDEX)
+		) {
+			const spotMarketAccount = this.getSpotMarketAccount(
+				params.readableQuoteSpotMarketIndex
+			);
+			spotMarketAccountMap.set(params.readableQuoteSpotMarketIndex.toNumber(), {
+				pubkey: spotMarketAccount.pubkey,
+				isSigner: false,
+				isWritable: false,
+			});
+			if (!spotMarketAccount.marketIndex.eq(QUOTE_SPOT_MARKET_INDEX)) {
 				oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
 					pubkey: spotMarketAccount.oracle,
 					isSigner: false,
@@ -1784,6 +1806,7 @@ export class ClearingHouse {
 
 		const remainingAccounts = this.getRemainingAccounts({
 			readableSpotMarketIndex: orderParams.marketIndex,
+			readableQuoteSpotMarketIndex: orderParams.quoteSpotMarketIndex,
 		});
 
 		return await this.program.instruction.placeSpotOrder(orderParams, {
@@ -1844,6 +1867,12 @@ export class ClearingHouse {
 					order.orderId.eq(userAccount.nextOrderId.sub(ONE))
 			  ).marketIndex;
 
+		const quoteSpotMarketIndex = order
+			? order.quoteSpotMarketIndex
+			: userAccount.orders.find((order) =>
+					order.orderId.eq(userAccount.nextOrderId.sub(ONE))
+			  ).quoteSpotMarketIndex;
+
 		const oracleAccountMap = new Map<string, AccountMeta>();
 		const spotMarketAccountMap = new Map<number, AccountMeta>();
 		const perpMarketAccountMap = new Map<number, AccountMeta>();
@@ -1899,12 +1928,19 @@ export class ClearingHouse {
 				isSigner: false,
 			});
 		}
-		const quoteMarketAccount = this.getQuoteSpotMarketAccount();
+		const quoteMarketAccount = this.getSpotMarketAccount(quoteSpotMarketIndex);
 		spotMarketAccountMap.set(quoteMarketAccount.marketIndex.toNumber(), {
 			pubkey: quoteMarketAccount.pubkey,
 			isWritable: true,
 			isSigner: false,
 		});
+		if (!quoteMarketAccount.oracle.equals(PublicKey.default)) {
+			oracleAccountMap.set(quoteMarketAccount.oracle.toString(), {
+				pubkey: quoteMarketAccount.oracle,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
 
 		const remainingAccounts = [
 			...oracleAccountMap.values(),

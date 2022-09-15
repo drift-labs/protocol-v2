@@ -145,6 +145,7 @@ export class Admin extends ClearingHouse {
 
 	public async initializeSerumFulfillmentConfig(
 		marketIndex: BN,
+		quoteSpotMarketIndex: BN,
 		serumMarket: PublicKey,
 		serumProgram: PublicKey
 	): Promise<TransactionSignature> {
@@ -160,12 +161,14 @@ export class Admin extends ClearingHouse {
 
 		return await this.program.rpc.initializeSerumFulfillmentConfig(
 			marketIndex,
+			quoteSpotMarketIndex,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					baseSpotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
-					quoteSpotMarket: this.getQuoteSpotMarketAccount().pubkey,
+					quoteSpotMarket:
+						this.getSpotMarketAccount(quoteSpotMarketIndex).pubkey,
 					clearingHouseSigner: this.getSignerPublicKey(),
 					serumProgram,
 					serumMarket,

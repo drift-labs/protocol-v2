@@ -255,6 +255,7 @@ pub struct AMM {
     // oracle
     pub oracle: Pubkey,
     pub oracle_source: OracleSource,
+    pub oracle_quote_spot_market_index: u64,
     pub last_oracle_price: i128,
     pub last_oracle_conf_pct: u64,
     pub last_oracle_delay: i64,

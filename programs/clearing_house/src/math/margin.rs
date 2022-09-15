@@ -309,6 +309,11 @@ pub fn calculate_margin_requirement_and_total_collateral(
                 &spot_market,
                 &spot_position.balance_type,
             )?;
+            msg!(
+                "spot market={} : token_amount={}",
+                spot_market.market_index,
+                token_amount
+            );
 
             match spot_position.balance_type {
                 SpotBalanceType::Deposit => {
@@ -344,6 +349,22 @@ pub fn calculate_margin_requirement_and_total_collateral(
                 spot_market.decimals,
                 oracle_price_data,
             )?;
+
+            msg!(
+                "spot market={} : worst_case_token_amount={}",
+                spot_market.market_index,
+                worst_case_token_amount
+            );
+            msg!(
+                "spot market={} : worst_cast_quote_token_amount={}",
+                spot_market.market_index,
+                worst_cast_quote_token_amount
+            );
+            msg!(
+                "spot market={} : worst_case_token_value={}",
+                spot_market.market_index,
+                worst_case_token_value
+            );
 
             match worst_case_token_amount > 0 {
                 true => {
@@ -452,6 +473,11 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
             //todo: worst_case_base_asset_value?
         }
+        msg!(
+            "perp market={} : perp_margin_requirement={}",
+            market.market_index,
+            perp_margin_requirement
+        );
 
         margin_requirement = margin_requirement
             .checked_add(perp_margin_requirement)
@@ -563,6 +589,11 @@ pub fn meets_initial_margin_requirement(
             oracle_map,
             None,
         )?;
+    msg!(
+        "margin_requirement={}, total_collateral={}",
+        margin_requirement,
+        total_collateral,
+    );
     Ok(total_collateral >= cast_to_i128(margin_requirement)?)
 }
 

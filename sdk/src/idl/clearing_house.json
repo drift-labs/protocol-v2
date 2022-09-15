@@ -220,6 +220,10 @@
         {
           "name": "marketIndex",
           "type": "u64"
+        },
+        {
+          "name": "quoteSpotMarketIndex",
+          "type": "u64"
         }
       ]
     },
@@ -4087,6 +4091,10 @@
             "type": {
               "defined": "OracleSource"
             }
+          },
+          {
+            "name": "oracleQuoteSpotMarketIndex",
+            "type": "u64"
           },
           {
             "name": "lastOraclePrice",

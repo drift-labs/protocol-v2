@@ -312,11 +312,18 @@ pub mod clearing_house {
     pub fn initialize_serum_fulfillment_config(
         ctx: Context<InitializeSerumFulfillmentConfig>,
         market_index: u64,
+        quote_spot_market_index: u64,
     ) -> Result<()> {
         validate!(
             market_index != 0,
             ErrorCode::DefaultError,
             "Cant add serum market to quote asset"
+        )?;
+
+        validate!(
+            market_index != quote_spot_market_index,
+            ErrorCode::DefaultError,
+            "Cant add serum market with base asset == quote asset"
         )?;
 
         let base_spot_market = load!(&ctx.accounts.base_spot_market)?;
@@ -334,7 +341,7 @@ pub mod clearing_house {
         validate!(
             identity(market_state.coin_mint) == base_spot_market.mint.to_aligned_bytes(),
             ErrorCode::InvalidSerumMarket,
-            "Invalid base mint"
+            "Invalid base mint {} != {}"
         )?;
 
         validate!(
@@ -514,6 +521,7 @@ pub mod clearing_house {
             amm: AMM {
                 oracle: *ctx.accounts.oracle.key,
                 oracle_source,
+                oracle_quote_spot_market_index: QUOTE_SPOT_MARKET_INDEX,
                 base_asset_reserve: amm_base_asset_reserve,
                 quote_asset_reserve: amm_quote_asset_reserve,
                 terminal_quote_asset_reserve: amm_quote_asset_reserve,
@@ -1594,7 +1602,7 @@ pub mod clearing_house {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
         let mut writable_spot_markets = SpotMarketSet::new();
-        writable_spot_markets.insert(QUOTE_SPOT_MARKET_INDEX);
+        writable_spot_markets.insert(quote_spot_market_index);
         writable_spot_markets.insert(market_index);
         let spot_market_map = SpotMarketMap::load(&writable_spot_markets, remaining_accounts_iter)?;
         let market_map = PerpMarketMap::load(
