@@ -563,7 +563,9 @@ pub fn get_total_fee_lower_bound(market: &PerpMarket) -> ClearingHouseResult<u12
 mod test {
     use super::*;
     use crate::controller::amm::SwapDirection;
-    use crate::math::constants::{AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION};
+    use crate::math::constants::{
+        AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, QUOTE_PRECISION,
+    };
     #[test]
     fn calc_peg_tests() {
         let qar = AMM_RESERVE_PRECISION;
@@ -776,6 +778,7 @@ mod test {
                 total_fee: 607476,
                 total_exchange_fee: 0, // new fee pool lowerbound
                 funding_period: 3600,
+                concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
 
                 ..AMM::default()
             },

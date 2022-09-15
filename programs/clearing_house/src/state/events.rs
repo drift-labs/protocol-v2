@@ -326,6 +326,7 @@ pub struct LiquidationRecord {
     pub total_collateral: i128,
     pub liquidation_id: u16,
     pub bankrupt: bool,
+    pub canceled_order_ids: Vec<u64>,
     pub liquidate_perp: LiquidatePerpRecord,
     pub liquidate_borrow: LiquidateBorrowRecord,
     pub liquidate_borrow_for_perp_pnl: LiquidateBorrowForPerpPnlRecord,
@@ -354,8 +355,6 @@ impl Default for LiquidationType {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
 pub struct LiquidatePerpRecord {
     pub market_index: u64,
-    pub order_ids: Vec<u64>,
-    pub canceled_orders_fee: u128,
     pub oracle_price: i128,
     pub base_asset_amount: i128,
     pub quote_asset_amount: i128,

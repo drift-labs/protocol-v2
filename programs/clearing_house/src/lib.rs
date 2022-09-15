@@ -49,7 +49,6 @@ pub mod clearing_house {
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
-    use crate::math::liquidation::validate_user_not_being_liquidated;
     use crate::math::spot_balance::get_token_amount;
     use crate::optional_accounts::{
         get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
@@ -116,8 +115,8 @@ pub mod clearing_house {
             max_perp_auction_duration: 60,
             min_spot_auction_duration: 0,
             max_spot_auction_duration: 60,
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50, // 2%
             settlement_duration: 0, // extra duration after market expiry to allow settlement
-            liquidation_margin_buffer_ratio: 50, // 2%
             signer: clearing_house_signer,
             signer_nonce: clearing_house_signer_nonce,
             padding0: 0,
@@ -444,13 +443,15 @@ pub mod clearing_house {
             amm_peg_multiplier,
         )?;
 
+        let concentration_coef = MAX_CONCENTRATION_COEFFICIENT;
+
         // Verify there's no overflow
         let _k = bn::U192::from(amm_base_asset_reserve)
             .checked_mul(bn::U192::from(amm_quote_asset_reserve))
             .ok_or_else(math_error!())?;
 
         let (min_base_asset_reserve, max_base_asset_reserve) =
-            amm::calculate_bid_ask_bounds(amm_base_asset_reserve)?;
+            amm::calculate_bid_ask_bounds(concentration_coef, amm_base_asset_reserve)?;
 
         // Verify oracle is readable
         let OraclePriceData {
@@ -541,6 +542,7 @@ pub mod clearing_house {
                 last_mark_price_twap_5min: init_mark_price,
                 last_mark_price_twap_ts: now,
                 sqrt_k: amm_base_asset_reserve,
+                concentration_coef,
                 min_base_asset_reserve,
                 max_base_asset_reserve,
                 peg_multiplier: amm_peg_multiplier,
@@ -640,6 +642,8 @@ pub mod clearing_house {
         if amount == 0 {
             return Err(ErrorCode::InsufficientDeposit.into());
         }
+
+        validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
 
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         controller::spot_balance::update_spot_market_cumulative_interest(spot_market, now)?;
@@ -1767,7 +1771,7 @@ pub mod clearing_house {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
 
-        validate_user_not_being_liquidated(
+        math::liquidation::validate_user_not_being_liquidated(
             user,
             &market_map,
             &spot_market_map,
@@ -1842,7 +1846,6 @@ pub mod clearing_house {
             slot,
             now,
             ctx.accounts.state.liquidation_margin_buffer_ratio,
-            ctx.accounts.state.perp_fee_structure.cancel_order_fee,
         )?;
 
         Ok(())
@@ -1896,6 +1899,7 @@ pub mod clearing_house {
             &spot_market_map,
             &mut oracle_map,
             now,
+            clock.slot,
             ctx.accounts.state.liquidation_margin_buffer_ratio,
         )?;
 
@@ -1949,6 +1953,7 @@ pub mod clearing_house {
             &spot_market_map,
             &mut oracle_map,
             now,
+            clock.slot,
             ctx.accounts.state.liquidation_margin_buffer_ratio,
         )?;
 
@@ -2002,6 +2007,7 @@ pub mod clearing_house {
             &spot_market_map,
             &mut oracle_map,
             now,
+            clock.slot,
             ctx.accounts.state.liquidation_margin_buffer_ratio,
         )?;
 
@@ -2302,9 +2308,29 @@ pub mod clearing_house {
         )?;
 
         validate!(
-            market.status == MarketStatus::Settlement && market.open_interest == 0,
+            market.status == MarketStatus::Settlement,
             ErrorCode::DefaultError,
-            "Market must be 100% settled"
+            "Market must in Settlement"
+        )?;
+
+        validate!(
+            market.base_asset_amount_long == 0
+                && market.base_asset_amount_short == 0
+                && market.open_interest == 0,
+            ErrorCode::DefaultError,
+            "outstanding base_asset_amounts must be balanced"
+        )?;
+
+        validate!(
+            math::amm::calculate_net_user_cost_basis(&market.amm)? == 0,
+            ErrorCode::DefaultError,
+            "outstanding quote_asset_amounts must be balanced"
+        )?;
+
+        validate!(
+            now > market.expiry_ts + TWENTY_FOUR_HOUR,
+            ErrorCode::DefaultError,
+            "must be TWENTY_FOUR_HOUR after market.expiry_ts"
         )?;
 
         let depositors_amount_before: u64 = cast(get_token_amount(
@@ -2375,6 +2401,8 @@ pub mod clearing_house {
 
         ctx.accounts.spot_market_vault.reload()?;
         math::spot_balance::validate_spot_balances(spot_market)?;
+
+        market.status = MarketStatus::Delisted;
 
         Ok(())
     }
@@ -2721,6 +2749,16 @@ pub mod clearing_house {
             ..UserStats::default()
         };
 
+        Ok(())
+    }
+
+    pub fn update_user_name(
+        ctx: Context<UpdateUserName>,
+        _user_id: u8,
+        name: [u8; 32],
+    ) -> Result<()> {
+        let mut user = load_mut!(ctx.accounts.user)?;
+        user.name = name;
         Ok(())
     }
 
@@ -3188,6 +3226,39 @@ pub mod clearing_house {
     #[access_control(
         market_initialized(&ctx.accounts.market)
     )]
+    pub fn update_concentration_coef(
+        ctx: Context<AdminUpdateMarket>,
+        concentration_scale: u128,
+    ) -> Result<()> {
+        validate!(
+            concentration_scale > 0,
+            ErrorCode::DefaultError,
+            "invalid concentration_scale",
+        )?;
+
+        let market = &mut load_mut!(ctx.accounts.market)?;
+        let prev_concentration_coef = market.amm.concentration_coef;
+        controller::amm::update_concentration_coef(&mut market.amm, concentration_scale)?;
+        let new_concentration_coef = market.amm.concentration_coef;
+
+        msg!(
+            "market.amm.concentration_coef: {} -> {}",
+            prev_concentration_coef,
+            new_concentration_coef
+        );
+
+        validate!(
+            prev_concentration_coef != new_concentration_coef,
+            ErrorCode::DefaultError,
+            "concentration_coef unchanged",
+        )?;
+
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
     pub fn update_curve_update_intensity(
         ctx: Context<AdminUpdateMarket>,
         curve_update_intensity: u8,
@@ -3518,6 +3589,12 @@ pub mod clearing_house {
     ) -> Result<()> {
         let state = &ctx.accounts.state;
         let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+        validate!(
+            spot_market.revenue_settle_period > 0,
+            ErrorCode::DefaultError,
+            "invalid revenue_settle_period settings on spot market"
+        )?;
 
         let spot_vault_amount = ctx.accounts.spot_market_vault.amount;
         let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;

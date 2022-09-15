@@ -1056,13 +1056,15 @@ fn fulfill_order(
         emit!(order_record)
     }
 
-    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
-        user,
-        perp_market_map,
-        MarginRequirementType::Maintenance,
-        spot_market_map,
-        oracle_map,
-    )?;
+    let (margin_requirement, total_collateral, _) =
+        calculate_margin_requirement_and_total_collateral(
+            user,
+            perp_market_map,
+            MarginRequirementType::Maintenance,
+            spot_market_map,
+            oracle_map,
+            None,
+        )?;
     if total_collateral < cast_to_i128(margin_requirement)? {
         msg!(
             "taker breached maintenance requirements (margin requirement {}) (total_collateral {})",
@@ -2616,13 +2618,15 @@ fn fulfill_spot_order(
         emit!(order_record)
     }
 
-    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
-        user,
-        perp_market_map,
-        MarginRequirementType::Maintenance,
-        spot_market_map,
-        oracle_map,
-    )?;
+    let (margin_requirement, total_collateral, _) =
+        calculate_margin_requirement_and_total_collateral(
+            user,
+            perp_market_map,
+            MarginRequirementType::Maintenance,
+            spot_market_map,
+            oracle_map,
+            None,
+        )?;
 
     if total_collateral < cast_to_i128(margin_requirement)? {
         msg!(

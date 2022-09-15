@@ -7,6 +7,7 @@ export class MarketStatus {
 	static readonly INITIALIZED = { initialized: {} };
 	static readonly REDUCEONLY = { reduceonly: {} };
 	static readonly SETTLEMENT = { settlement: {} };
+	static readonly DELISTED = { delisted: {} };
 }
 
 export class ContractType {
@@ -241,6 +242,7 @@ export type LiquidationRecord = {
 	marginRequirement: BN;
 	totalCollateral: BN;
 	liquidationId: number;
+	canceledOrderIds: BN[];
 	liquidatePerp: LiquidatePerpRecord;
 	liquidateBorrow: LiquidateBorrowRecord;
 	liquidateBorrowForPerpPnl: LiquidateBorrowForPerpPnlRecord;
@@ -268,14 +270,12 @@ export class LiquidationType {
 
 export type LiquidatePerpRecord = {
 	marketIndex: BN;
-	orderIds: BN[];
 	oraclePrice: BN;
 	baseAssetAmount: BN;
 	quoteAssetAmount: BN;
 	lpShares: BN;
 	userPnl: BN;
 	liquidatorPnl: BN;
-	canceledOrdersFee: BN;
 	userOrderId: BN;
 	liquidatorOrderId: BN;
 	fillRecordId: BN;
@@ -404,6 +404,7 @@ export type StateAccount = {
 	signerNonce: number;
 	maxAuctionDuration: number;
 	minAuctionDuration: number;
+	liquidationMarginBufferRatio: number;
 };
 
 export type PerpMarketAccount = {
