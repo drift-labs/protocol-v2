@@ -3267,6 +3267,12 @@
             }
           },
           {
+            "name": "histOracleInfo",
+            "type": {
+              "defined": "HistOracleData"
+            }
+          },
+          {
             "name": "mint",
             "type": "publicKey"
           },
@@ -4227,22 +4233,6 @@
             "type": "i128"
           },
           {
-            "name": "markStd",
-            "type": "u64"
-          },
-          {
-            "name": "lastMarkPriceTwap",
-            "type": "u128"
-          },
-          {
-            "name": "lastMarkPriceTwap5min",
-            "type": "u128"
-          },
-          {
-            "name": "lastMarkPriceTwapTs",
-            "type": "i64"
-          },
-          {
             "name": "minimumQuoteAssetTradeSize",
             "type": "u128"
           },
@@ -4297,14 +4287,6 @@
             "type": "u128"
           },
           {
-            "name": "lastBidPriceTwap",
-            "type": "u128"
-          },
-          {
-            "name": "lastAskPriceTwap",
-            "type": "u128"
-          },
-          {
             "name": "longIntensityCount",
             "type": "u16"
           },
@@ -4323,6 +4305,30 @@
           {
             "name": "curveUpdateIntensity",
             "type": "u8"
+          },
+          {
+            "name": "markStd",
+            "type": "u64"
+          },
+          {
+            "name": "lastBidPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastAskPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastMarkPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastMarkPriceTwap5min",
+            "type": "u128"
+          },
+          {
+            "name": "lastMarkPriceTwapTs",
+            "type": "i64"
           },
           {
             "name": "totalFee",
@@ -4377,6 +4383,82 @@
           {
             "name": "padding3",
             "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "HistOracleData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lastOraclePrice",
+            "type": "i128"
+          },
+          {
+            "name": "lastOracleConfPct",
+            "type": "u64"
+          },
+          {
+            "name": "lastOracleDelay",
+            "type": "i64"
+          },
+          {
+            "name": "lastOracleNormalisedPrice",
+            "type": "i128"
+          },
+          {
+            "name": "lastOraclePriceTwap",
+            "type": "i128"
+          },
+          {
+            "name": "lastOraclePriceTwap5min",
+            "type": "i128"
+          },
+          {
+            "name": "lastOraclePriceTwapTs",
+            "type": "i64"
+          },
+          {
+            "name": "lastBidPrice",
+            "type": "u128"
+          },
+          {
+            "name": "lastAskPrice",
+            "type": "u128"
+          },
+          {
+            "name": "lastBidPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastAskPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastMarkPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastMarkPriceTwap5min",
+            "type": "u128"
+          },
+          {
+            "name": "lastMarkPriceTwapTs",
+            "type": "i64"
+          },
+          {
+            "name": "lastOracleMarkSpreadPct",
+            "type": "i128"
+          },
+          {
+            "name": "lastUpdateSlot",
+            "type": "u64"
+          },
+          {
+            "name": "lastOracleValid",
+            "type": "bool"
           }
         ]
       }

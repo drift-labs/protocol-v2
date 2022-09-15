@@ -160,6 +160,7 @@ pub mod clearing_house {
         )?;
 
         let spot_market_index = get_then_update_id!(state, number_of_spot_markets);
+        let hist_data_default;
         if spot_market_index == 0 {
             validate!(
                 initial_asset_weight == SPOT_WEIGHT_PRECISION,
@@ -206,6 +207,8 @@ pub mod clearing_house {
                 ErrorCode::InvalidSpotMarketInitialization,
                 "For quote asset spot market, mint decimals must be 6"
             )?;
+            hist_data_default = HistOracleData::default();
+
         } else {
             validate!(
                 initial_asset_weight > 0 && initial_asset_weight < SPOT_WEIGHT_PRECISION,
@@ -241,30 +244,26 @@ pub mod clearing_house {
                 "Mint decimals must be greater than or equal to 6"
             )?;
 
-            let oracle_price = get_oracle_price(
+            let oracle_price_data = get_oracle_price(
                 &oracle_source,
                 &ctx.accounts.oracle,
                 cast(Clock::get()?.unix_timestamp)?,
             );
 
             validate!(
-                oracle_price.is_ok(),
+                oracle_price_data.is_ok(),
                 ErrorCode::InvalidSpotMarketInitialization,
                 "Unable to read oracle price for {}",
                 ctx.accounts.oracle.key,
             )?;
+
+            hist_data_default = HistOracleData::default_with_current_oracle(oracle_price_data?);
         }
 
         let spot_market = &mut ctx.accounts.spot_market.load_init()?;
-        let now = cast(Clock::get()?.unix_timestamp).or(Err(ErrorCode::UnableToCastUnixTime))?;
-        let slot = cast(Clock::get()?.slot).or(Err(ErrorCode::UnableToCastUnixTime))?;
-
-        // Verify oracle is readable
-        let oracle_price_data = match oracle_source {
-            OracleSource::Pyth => get_pyth_price(&ctx.accounts.oracle, slot).unwrap(),
-            OracleSource::Switchboard => get_switchboard_price(&ctx.accounts.oracle, slot).unwrap(),
-            OracleSource::QuoteAsset => panic!(),
-        };
+        let clock = Clock::get()?;
+        let now = cast(clock.unix_timestamp).or(Err(ErrorCode::UnableToCastUnixTime))?;
+        // let slot = clock.slot;
 
         let decimals = ctx.accounts.spot_market_mint.decimals;
         let order_step_size = 10_u128.pow(2 + (decimals - 6) as u32); // 10 for usdc/btc, 10000 for sol
@@ -276,7 +275,7 @@ pub mod clearing_house {
             expiry_ts: 0,
             oracle: ctx.accounts.oracle.key(),
             oracle_source,
-            hist_oracle_info: HistOracleData::default_with_current_oracle(oracle_price_data),
+            hist_oracle_info: hist_data_default,
             mint: ctx.accounts.spot_market_mint.key(),
             vault: *ctx.accounts.spot_market_vault.to_account_info().key,
             insurance_fund_vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
