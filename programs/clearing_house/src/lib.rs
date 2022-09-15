@@ -92,17 +92,6 @@ pub mod clearing_house {
             exchange_paused: false,
             admin_controls_prices,
             insurance_vault: insurance_vault.key(),
-            margin_ratio_initial: 2000, // unit is 20% (+2 decimal places)
-            margin_ratio_partial: 625,
-            margin_ratio_maintenance: 500,
-            partial_liquidation_close_percentage_numerator: 25,
-            partial_liquidation_close_percentage_denominator: 100,
-            partial_liquidation_penalty_percentage_numerator: 25,
-            partial_liquidation_penalty_percentage_denominator: 1000,
-            full_liquidation_penalty_percentage_numerator: 1,
-            full_liquidation_penalty_percentage_denominator: 1,
-            partial_liquidation_liquidator_share_denominator: 2,
-            full_liquidation_liquidator_share_denominator: 20,
             perp_fee_structure: FeeStructure::default(),
             spot_fee_structure: FeeStructure::default(),
             whitelist_mint: Pubkey::default(),
@@ -3281,68 +3270,6 @@ pub mod clearing_house {
     ) -> Result<()> {
         let market = &mut ctx.accounts.market.load_mut()?;
         market.amm.lp_cooldown_time = lp_cooldown_time;
-        Ok(())
-    }
-
-    pub fn update_partial_liquidation_close_percentage(
-        ctx: Context<AdminUpdateState>,
-        numerator: u128,
-        denominator: u128,
-    ) -> Result<()> {
-        ctx.accounts
-            .state
-            .partial_liquidation_close_percentage_numerator = numerator;
-        ctx.accounts
-            .state
-            .partial_liquidation_close_percentage_denominator = denominator;
-        Ok(())
-    }
-
-    pub fn update_partial_liquidation_penalty_percentage(
-        ctx: Context<AdminUpdateState>,
-        numerator: u128,
-        denominator: u128,
-    ) -> Result<()> {
-        ctx.accounts
-            .state
-            .partial_liquidation_penalty_percentage_numerator = numerator;
-        ctx.accounts
-            .state
-            .partial_liquidation_penalty_percentage_denominator = denominator;
-        Ok(())
-    }
-
-    pub fn update_full_liquidation_penalty_percentage(
-        ctx: Context<AdminUpdateState>,
-        numerator: u128,
-        denominator: u128,
-    ) -> Result<()> {
-        ctx.accounts
-            .state
-            .full_liquidation_penalty_percentage_numerator = numerator;
-        ctx.accounts
-            .state
-            .full_liquidation_penalty_percentage_denominator = denominator;
-        Ok(())
-    }
-
-    pub fn update_partial_liquidation_liquidator_share_denominator(
-        ctx: Context<AdminUpdateState>,
-        denominator: u64,
-    ) -> Result<()> {
-        ctx.accounts
-            .state
-            .partial_liquidation_liquidator_share_denominator = denominator;
-        Ok(())
-    }
-
-    pub fn update_full_liquidation_liquidator_share_denominator(
-        ctx: Context<AdminUpdateState>,
-        denominator: u64,
-    ) -> Result<()> {
-        ctx.accounts
-            .state
-            .full_liquidation_liquidator_share_denominator = denominator;
         Ok(())
     }
 

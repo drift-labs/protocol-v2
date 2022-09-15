@@ -380,17 +380,6 @@ export type StateAccount = {
 	exchangePaused: boolean;
 	adminControlsPrices: boolean;
 	insuranceVault: PublicKey;
-	marginRatioInitial: BN;
-	marginRatioMaintenance: BN;
-	marginRatioPartial: BN;
-	partialLiquidationClosePercentageNumerator: BN;
-	partialLiquidationClosePercentageDenominator: BN;
-	partialLiquidationPenaltyPercentageNumerator: BN;
-	partialLiquidationPenaltyPercentageDenominator: BN;
-	fullLiquidationPenaltyPercentageNumerator: BN;
-	fullLiquidationPenaltyPercentageDenominator: BN;
-	partialLiquidationLiquidatorShareDenominator: BN;
-	fullLiquidationLiquidatorShareDenominator: BN;
 	perpFeeStructure: FeeStructure;
 	spotFeeStructure: FeeStructure;
 	totalFee: BN;
