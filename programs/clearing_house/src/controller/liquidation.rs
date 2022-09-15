@@ -379,6 +379,7 @@ pub fn liquidate_perp(
             user_order_id,
             liquidator_order_id,
             fill_record_id,
+            if_fee: cast(if_fee.abs())?,
         },
         ..LiquidationRecord::default()
     });
@@ -576,6 +577,7 @@ pub fn liquidate_borrow(
                         liability_market_index,
                         liability_price,
                         liability_transfer: 0,
+                        if_fee: 0,
                     },
                     ..LiquidationRecord::default()
                 });
@@ -727,6 +729,7 @@ pub fn liquidate_borrow(
             liability_market_index,
             liability_price,
             liability_transfer,
+            if_fee: cast(if_fee)?,
         },
         ..LiquidationRecord::default()
     });
@@ -853,7 +856,6 @@ pub fn liquidate_borrow_for_perp_pnl(
         liability_decimals,
         liability_weight,
         liability_liquidation_multiplier,
-        liquidation_if_fee,
     ) = {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
         update_spot_market_cumulative_interest(&mut liability_market, now)?;
@@ -884,7 +886,6 @@ pub fn liquidate_borrow_for_perp_pnl(
                 liability_market.liquidation_fee,
                 LiquidationMultiplierType::Discount,
             )?,
-            liability_market.liquidation_if_factor,
         )
     };
 
@@ -987,7 +988,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             liability_liquidation_multiplier,
             liability_decimals,
             liability_price,
-            liquidation_if_fee,
+            0,
         )?;
 
     // Given the user's deposit amount, how much borrow can be transferred?
@@ -1339,7 +1340,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             pnl_liquidation_multiplier,
             quote_decimals,
             quote_price,
-            0,
+            0, // no if fee
         )?;
 
     // Given the user's deposit amount, how much borrow can be transferred?

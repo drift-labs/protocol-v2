@@ -610,7 +610,7 @@ describe('delist market, liquidation of expired position', () => {
 			clearingHouseLoserUser.getMaintenanceMarginRequirement(new BN(liqBuf));
 		console.log('loserMaintMarginReqWBuf:', loserMaintMarginReqWBuf.toNumber());
 
-		assert(loserMaintMarginReq.sub(new BN(480027403)).abs().lt(new BN(27403)));
+		assert(loserMaintMarginReq.sub(new BN(453307643)).abs().lt(new BN(27403)));
 
 		assert(!clearingHouseLoser.getUserAccount().bankrupt);
 
@@ -648,8 +648,8 @@ describe('delist market, liquidation of expired position', () => {
 		const marketAfter0 = clearingHouse.getPerpMarketAccount(marketIndex);
 
 		// old 1415296436
-		const finalPnlResultMin0 = new BN(1414277260 - 11090);
-		const finalPnlResultMax0 = new BN(1414277260 + 111090);
+		const finalPnlResultMin0 = new BN(1446637831 - 11090);
+		const finalPnlResultMax0 = new BN(1446637831 + 111090);
 
 		console.log(marketAfter0.pnlPool.balance.toString());
 		assert(marketAfter0.pnlPool.balance.gt(finalPnlResultMin0));

@@ -45,18 +45,19 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
                 .checked_mul(
                     margin_ratio
                         .checked_sub(liquidation_fee)
-                        .ok_or_else(math_error!())?
-                        .checked_sub(
-                            if_liquidation_fee
-                                .checked_mul(margin_ratio)
-                                .ok_or_else(math_error!())?
-                                .checked_div(LIQUIDATION_FEE_PRECISION)
-                                .ok_or_else(math_error!())?,
-                        )
                         .ok_or_else(math_error!())?,
                 )
                 .ok_or_else(math_error!())?
                 .checked_div(LIQUIDATION_FEE_PRECISION)
+                .ok_or_else(math_error!())?
+                .checked_sub(
+                    oracle_price
+                        .unsigned_abs()
+                        .checked_mul(if_liquidation_fee)
+                        .ok_or_else(math_error!())?
+                        .checked_div(LIQUIDATION_FEE_PRECISION)
+                        .ok_or_else(math_error!())?,
+                )
                 .ok_or_else(math_error!())?,
         )
         .ok_or_else(math_error!())

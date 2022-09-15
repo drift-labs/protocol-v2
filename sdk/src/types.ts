@@ -279,6 +279,7 @@ export type LiquidatePerpRecord = {
 	userOrderId: BN;
 	liquidatorOrderId: BN;
 	fillRecordId: BN;
+	ifFee: BN;
 };
 
 export type LiquidateBorrowRecord = {
@@ -288,6 +289,7 @@ export type LiquidateBorrowRecord = {
 	liabilityMarketIndex: BN;
 	liabilityPrice: BN;
 	liabilityTransfer: BN;
+	ifFee: BN;
 };
 
 export type LiquidateBorrowForPerpPnlRecord = {

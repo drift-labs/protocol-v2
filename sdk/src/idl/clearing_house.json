@@ -1944,6 +1944,10 @@
         {
           "name": "liquidationFee",
           "type": "u128"
+        },
+        {
+          "name": "ifLiquidationFee",
+          "type": "u128"
         }
       ]
     },
@@ -3177,6 +3181,10 @@
             "type": "u128"
           },
           {
+            "name": "ifLiquidationFee",
+            "type": "u128"
+          },
+          {
             "name": "quoteMaxInsurance",
             "type": "u128"
           },
@@ -3368,7 +3376,7 @@
           },
           {
             "name": "liquidationIfFactor",
-            "type": "u32"
+            "type": "u128"
           },
           {
             "name": "withdrawGuardThreshold",
@@ -3879,6 +3887,10 @@
           {
             "name": "liquidatorOrderId",
             "type": "u64"
+          },
+          {
+            "name": "ifFee",
+            "type": "u64"
           }
         ]
       }
@@ -3911,6 +3923,10 @@
           {
             "name": "liabilityTransfer",
             "type": "u128"
+          },
+          {
+            "name": "ifFee",
+            "type": "u64"
           }
         ]
       }
@@ -4317,6 +4333,10 @@
           {
             "name": "netRevenueSinceLastFunding",
             "type": "i64"
+          },
+          {
+            "name": "totalLiquidationFee",
+            "type": "u128"
           },
           {
             "name": "feePool",

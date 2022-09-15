@@ -298,7 +298,7 @@ pub mod clearing_house {
             maintenance_liability_weight,
             imf_factor,
             liquidation_fee,
-            liquidation_if_factor: 0,
+            liquidation_if_factor: LIQUIDATION_FEE_PRECISION / 100, // 1%
             withdraw_guard_threshold: 0,
             order_step_size,
             next_fill_record_id: 1,
@@ -501,7 +501,7 @@ pub mod clearing_house {
             unrealized_imf_factor: 0,
             unrealized_max_imbalance: 0,
             liquidation_fee,
-            if_liquidation_fee: 0,
+            if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
             quote_max_insurance: 0,
             quote_settled_insurance: 0,
             padding0: 0,
@@ -3042,12 +3042,19 @@ pub mod clearing_house {
     pub fn update_perp_liquidation_fee(
         ctx: Context<AdminUpdateMarket>,
         liquidation_fee: u128,
+        if_liquidation_fee: u128,
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
         validate!(
             liquidation_fee < LIQUIDATION_FEE_PRECISION,
             ErrorCode::DefaultError,
             "Liquidation fee must be less than 100%"
+        )?;
+
+        validate!(
+            if_liquidation_fee < LIQUIDATION_FEE_PRECISION,
+            ErrorCode::DefaultError,
+            "If liquidation fee must be less than 100%"
         )?;
 
         validate_margin(
@@ -3058,6 +3065,7 @@ pub mod clearing_house {
         )?;
 
         market.liquidation_fee = liquidation_fee;
+        market.if_liquidation_fee = if_liquidation_fee;
         Ok(())
     }
 

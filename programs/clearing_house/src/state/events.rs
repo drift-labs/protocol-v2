@@ -364,6 +364,7 @@ pub struct LiquidatePerpRecord {
     pub fill_record_id: u64,
     pub user_order_id: u64,
     pub liquidator_order_id: u64,
+    pub if_fee: u64,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
@@ -374,6 +375,7 @@ pub struct LiquidateBorrowRecord {
     pub liability_market_index: u64,
     pub liability_price: i128,
     pub liability_transfer: u128,
+    pub if_fee: u64,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]

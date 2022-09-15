@@ -61,7 +61,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
         let margin_ratio = MARGIN_PRECISION as u32 / 10; // 10x leverage
         let liquidation_fee = LIQUIDATION_FEE_PRECISION / 100; // 1 percent
         let oracle_price = 100 * MARK_PRICE_PRECISION_I128; // $100 / base
-        let if_liquidation_fee = LIQUIDATION_FEE_PRECISION / 100; // 1 percentx
+        let if_liquidation_fee = LIQUIDATION_FEE_PRECISION / 100; // 1 percent
         let base_asset_amount = calculate_base_asset_amount_to_cover_margin_shortage(
             margin_shortage,
             margin_ratio,
@@ -89,14 +89,14 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
             * liquidation_fee
             / LIQUIDATION_FEE_PRECISION;
 
-        let if_fee_consume_collateral = if_fee * margin_ratio as u128 / MARGIN_PRECISION;
+        let if_fee_consume_collateral = if_fee;
 
         assert_eq!(
             freed_collateral - negative_pnl - if_fee_consume_collateral,
-            10000001 // ~$10
+            10000000 // ~$10
         );
 
-        assert_eq!(base_asset_amount, 11235955056179); // must lose 10/9 base
+        assert_eq!(base_asset_amount, 12500000000000); // must lose 10/9 base
     }
 }
 
