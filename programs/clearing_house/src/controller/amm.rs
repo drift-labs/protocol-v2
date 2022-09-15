@@ -244,7 +244,6 @@ pub fn update_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u
 pub fn update_concentration_coef(amm: &mut AMM, scale: u128) -> ClearingHouseResult {
     validate!(scale > 0, ErrorCode::DefaultError, "invalid scale",)?;
 
-    let _prev_concentration_coef = amm.concentration_coef;
     let new_concentration_coef =
         CONCENTRATION_PRECISION + (MAX_CONCENTRATION_COEFFICIENT - CONCENTRATION_PRECISION) / scale;
 
@@ -266,8 +265,9 @@ pub fn update_concentration_coef(amm: &mut AMM, scale: u128) -> ClearingHouseRes
         "invalid terminal_quote_reserves",
     )?;
 
-    amm.terminal_quote_asset_reserve = terminal_quote_reserves;
-
+    // updating the concentration_coef changes the min/max base_asset_reserve
+    // doing so adds ability to improve amm constant product curve's slippage
+    // by increasing k as same factor as scale w/o increasing imbalance risk
     let (min_base_asset_reserve, max_base_asset_reserve) =
         amm::calculate_bid_ask_bounds(amm.concentration_coef, terminal_base_reserves)?;
 
@@ -281,7 +281,7 @@ pub fn update_concentration_coef(amm: &mut AMM, scale: u128) -> ClearingHouseRes
     validate!(
         max_bids > amm.net_base_asset_amount && max_asks < amm.net_base_asset_amount,
         ErrorCode::DefaultError,
-        "amm.net_base_asset_amount exceeds liquidity after concentration adj"
+        "amm.net_base_asset_amount exceeds the unload liquidity available after concentration adjustment"
     )?;
 
     Ok(())

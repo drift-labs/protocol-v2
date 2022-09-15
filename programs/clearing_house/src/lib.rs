@@ -3208,7 +3208,21 @@ pub mod clearing_house {
         )?;
 
         let market = &mut load_mut!(ctx.accounts.market)?;
+        let prev_concentration_coef = market.amm.concentration_coef;
         controller::amm::update_concentration_coef(&mut market.amm, concentration_scale)?;
+        let new_concentration_coef = market.amm.concentration_coef;
+
+        msg!(
+            "market.amm.concentration_coef: {} -> {}",
+            prev_concentration_coef,
+            new_concentration_coef
+        );
+
+        validate!(
+            prev_concentration_coef != new_concentration_coef,
+            ErrorCode::DefaultError,
+            "concentration_coef unchanged",
+        )?;
 
         Ok(())
     }
