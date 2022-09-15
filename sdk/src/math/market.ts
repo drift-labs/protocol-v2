@@ -68,7 +68,7 @@ export function calculateBidPrice(
  * Calculates market ask price
  *
  * @param market
- * @return bidPrice : Precision MARK_PRICE_PRECISION
+ * @return askPrice : Precision MARK_PRICE_PRECISION
  */
 export function calculateAskPrice(
 	market: PerpMarketAccount,

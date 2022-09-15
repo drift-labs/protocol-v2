@@ -48,6 +48,7 @@ export class OrderType {
 	static readonly MARKET = { market: {} };
 }
 
+export declare type MarketTypeStr = 'perp' | 'spot';
 export class MarketType {
 	static readonly SPOT = { spot: {} };
 	static readonly PERP = { perp: {} };
