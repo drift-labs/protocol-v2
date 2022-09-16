@@ -99,7 +99,7 @@ export function calculateBudgetedKBN(
 	const denom2 = pegged_y_d_d;
 
 	// protocol is spending to increase k
-	if(C.lt(ZERO)) {
+	if (C.lt(ZERO)) {
 		// thus denom1 is negative and solution is unstable
 		if (denom1.lt(pegged_y_d_d.abs())) {
 			console.log('budget cost exceeds stable K solution');

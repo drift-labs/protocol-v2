@@ -29,17 +29,11 @@ import { calculateBaseAssetValueWithOracle } from './margin';
  * @returns Base Asset Value. : Precision QUOTE_PRECISION
  */
 export function calculateBaseAssetValue(
-<<<<<<< Updated upstream
 	market: PerpMarketAccount,
 	userPosition: PerpPosition,
-	oraclePriceData: OraclePriceData
-=======
-	market: MarketAccount,
-	userPosition: UserPosition,
 	oraclePriceData: OraclePriceData,
-	useSpread=true,
-	skipUpdate=false,
->>>>>>> Stashed changes
+	useSpread = true,
+	skipUpdate = false
 ): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
@@ -48,26 +42,26 @@ export function calculateBaseAssetValue(
 	const directionToClose = findDirectionToClose(userPosition);
 	let prepegAmm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
 
-	if (!skipUpdate){
-	if (market.amm.baseSpread > 0 && useSpread) {
-		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
-			calculateUpdatedAMMSpreadReserves(
-				market.amm,
-				directionToClose,
-				oraclePriceData
-			);
-		prepegAmm = {
-			baseAssetReserve,
-			quoteAssetReserve,
-			sqrtK: sqrtK,
-			pegMultiplier: newPeg,
-		};
+	if (!skipUpdate) {
+		if (market.amm.baseSpread > 0 && useSpread) {
+			const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
+				calculateUpdatedAMMSpreadReserves(
+					market.amm,
+					directionToClose,
+					oraclePriceData
+				);
+			prepegAmm = {
+				baseAssetReserve,
+				quoteAssetReserve,
+				sqrtK: sqrtK,
+				pegMultiplier: newPeg,
+			};
+		} else {
+			prepegAmm = calculateUpdatedAMM(market.amm, oraclePriceData);
+		}
 	} else {
-		prepegAmm = calculateUpdatedAMM(market.amm, oraclePriceData);
+		prepegAmm = market.amm;
 	}
-} else {
-	prepegAmm = market.amm;
-}
 
 	const [newQuoteAssetReserve, _] = calculateAmmReservesAfterSwap(
 		prepegAmm,
@@ -148,12 +142,12 @@ export function calculateUnsettledPnl(
 		oraclePriceData
 	);
 
-	let unsettledPnl = unrealizedPnl;
-	if (unrealizedPnl.gt(ZERO)) {
-		const fundingPnL = calculatePositionFundingPNL(market, perpPosition).div(
-			PRICE_TO_QUOTE_PRECISION
-		);
+	const fundingPnL = calculatePositionFundingPNL(market, perpPosition).div(
+		PRICE_TO_QUOTE_PRECISION
+	);
 
+	let unsettledPnl = unrealizedPnl.add(fundingPnL);
+	if (unrealizedPnl.gt(ZERO)) {
 		const maxPositivePnl = BN.max(
 			perpPosition.quoteAssetAmount
 				.sub(perpPosition.quoteEntryAmount)
