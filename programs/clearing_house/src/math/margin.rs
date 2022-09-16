@@ -26,7 +26,7 @@ use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{PerpPosition, SpotPosition};
 use num_integer::Roots;
 use solana_program::msg;
-use std::cmp::{max, min};
+use std::cmp::{max, min, Ordering};
 
 #[cfg(test)]
 mod tests;
@@ -358,8 +358,8 @@ pub fn calculate_margin_requirement_and_total_collateral(
                 oracle_price_data,
             )?;
 
-            match worst_case_token_amount > 0 {
-                true => {
+            match worst_case_token_amount.cmp(&0) {
+                Ordering::Greater => {
                     let weighted_token_value = worst_case_token_value
                         .unsigned_abs()
                         .checked_mul(spot_market.get_asset_weight(
@@ -374,7 +374,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
                         .checked_add(cast_to_i128(weighted_token_value)?)
                         .ok_or_else(math_error!())?;
                 }
-                false => {
+                Ordering::Less => {
                     let liability_weight =
                         user_custom_margin_ratio.max(spot_market.get_liability_weight(
                             worst_case_token_amount.unsigned_abs(),
@@ -402,15 +402,16 @@ pub fn calculate_margin_requirement_and_total_collateral(
                             .ok_or_else(math_error!())?;
                     }
                 }
+                Ordering::Equal => {}
             }
 
-            match worst_cast_quote_token_amount > 0 {
-                true => {
+            match worst_cast_quote_token_amount.cmp(&0) {
+                Ordering::Greater => {
                     total_collateral = total_collateral
                         .checked_add(cast_to_i128(worst_cast_quote_token_amount)?)
                         .ok_or_else(math_error!())?
                 }
-                false => {
+                Ordering::Less => {
                     let liability_weight = user_custom_margin_ratio.max(SPOT_WEIGHT_PRECISION);
                     let weighted_token_value = worst_cast_quote_token_amount
                         .unsigned_abs()
@@ -433,6 +434,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
                             .ok_or_else(math_error!())?;
                     }
                 }
+                Ordering::Equal => {}
             }
         }
     }
