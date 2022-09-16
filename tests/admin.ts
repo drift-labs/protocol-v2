@@ -14,7 +14,7 @@ import { OracleSource } from '../sdk';
 import {
 	mockOracle,
 	mockUSDCMint,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 } from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
 
@@ -42,15 +42,15 @@ describe('admin', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: [new BN(0)],
-			bankIndexes: [new BN(0)],
+			perpMarketIndexes: [new BN(0)],
+			spotMarketIndexes: [new BN(0)],
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
+		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -65,15 +65,15 @@ describe('admin', () => {
 
 	it('Update Amm Jit', async () => {
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getMarketAccount(0).amm.ammJitIntensity == 0);
+		assert(clearingHouse.getPerpMarketAccount(0).amm.ammJitIntensity == 0);
 
 		await clearingHouse.updateAmmJitIntensity(new BN(0), 100);
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getMarketAccount(0).amm.ammJitIntensity == 100);
+		assert(clearingHouse.getPerpMarketAccount(0).amm.ammJitIntensity == 100);
 
 		await clearingHouse.updateAmmJitIntensity(new BN(0), 50);
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getMarketAccount(0).amm.ammJitIntensity == 50);
+		assert(clearingHouse.getPerpMarketAccount(0).amm.ammJitIntensity == 50);
 	});
 
 	it('Update Margin Ratio', async () => {
@@ -87,82 +87,10 @@ describe('admin', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		const market = clearingHouse.getMarketAccount(0);
+		const market = clearingHouse.getPerpMarketAccount(0);
 
 		assert(market.marginRatioInitial === marginRatioInitial);
 		assert(market.marginRatioMaintenance === marginRatioMaintenance);
-	});
-
-	it('Update Partial Liquidation Close Percentages', async () => {
-		const numerator = new BN(1);
-		const denominator = new BN(10);
-
-		await clearingHouse.updatePartialLiquidationClosePercentage(
-			numerator,
-			denominator
-		);
-
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
-
-		assert(state.partialLiquidationClosePercentageNumerator.eq(numerator));
-		assert(state.partialLiquidationClosePercentageDenominator.eq(denominator));
-	});
-
-	it('Update Partial Liquidation Penalty Percentages', async () => {
-		const numerator = new BN(1);
-		const denominator = new BN(10);
-
-		await clearingHouse.updatePartialLiquidationPenaltyPercentage(
-			numerator,
-			denominator
-		);
-
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
-
-		assert(state.partialLiquidationPenaltyPercentageNumerator.eq(numerator));
-		assert(
-			state.partialLiquidationPenaltyPercentageDenominator.eq(denominator)
-		);
-	});
-
-	it('Update Full Liquidation Penalty Percentages', async () => {
-		const numerator = new BN(1);
-		const denominator = new BN(10);
-
-		await clearingHouse.updateFullLiquidationPenaltyPercentage(
-			numerator,
-			denominator
-		);
-
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
-
-		assert(state.fullLiquidationPenaltyPercentageNumerator.eq(numerator));
-		assert(state.fullLiquidationPenaltyPercentageDenominator.eq(denominator));
-	});
-
-	it('Update Partial Liquidation Share Denominator', async () => {
-		const denominator = new BN(10);
-
-		await clearingHouse.updatePartialLiquidationShareDenominator(denominator);
-
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
-
-		assert(state.partialLiquidationLiquidatorShareDenominator.eq(denominator));
-	});
-
-	it('Update Full Liquidation Share Denominator', async () => {
-		const denominator = new BN(10);
-
-		await clearingHouse.updateFullLiquidationShareDenominator(denominator);
-
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
-
-		assert(state.fullLiquidationLiquidatorShareDenominator.eq(denominator));
 	});
 
 	it('Update fee', async () => {
@@ -204,7 +132,7 @@ describe('admin', () => {
 				rewardDenominator: new BN(1),
 				timeBasedRewardLowerBound: new BN(1),
 			},
-			cancelOrderFee: new BN(0),
+			flatFillerFee: new BN(0),
 		};
 
 		await clearingHouse.updateFee(newFeeStructure);
@@ -213,7 +141,7 @@ describe('admin', () => {
 		const state = clearingHouse.getStateAccount();
 
 		assert(
-			JSON.stringify(newFeeStructure) === JSON.stringify(state.feeStructure)
+			JSON.stringify(newFeeStructure) === JSON.stringify(state.perpFeeStructure)
 		);
 	});
 
@@ -231,7 +159,7 @@ describe('admin', () => {
 		assert(
 			JSON.stringify(newStructure) ===
 				JSON.stringify(
-					clearingHouse.getStateAccount().feeStructure.fillerRewardStructure
+					clearingHouse.getStateAccount().perpFeeStructure.fillerRewardStructure
 				)
 		);
 	});
@@ -294,7 +222,7 @@ describe('admin', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		const market = clearingHouse.getMarketAccount(0);
+		const market = clearingHouse.getPerpMarketAccount(0);
 		assert(market.amm.oracle.equals(PublicKey.default));
 		assert(
 			JSON.stringify(market.amm.oracleSource) ===
@@ -311,7 +239,7 @@ describe('admin', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		const market = clearingHouse.getMarketAccount(0);
+		const market = clearingHouse.getPerpMarketAccount(0);
 		assert(market.amm.minimumQuoteAssetTradeSize.eq(minimumTradeSize));
 	});
 
@@ -324,7 +252,7 @@ describe('admin', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		const market = clearingHouse.getMarketAccount(0);
+		const market = clearingHouse.getPerpMarketAccount(0);
 		assert(market.amm.baseAssetAmountStepSize.eq(stepSize));
 	});
 

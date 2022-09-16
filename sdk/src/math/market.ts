@@ -1,10 +1,10 @@
 import { BN } from '@project-serum/anchor';
 import {
-	MarketAccount,
+	PerpMarketAccount,
 	PositionDirection,
 	MarginCategory,
-	BankAccount,
-	BankBalanceType,
+	SpotMarketAccount,
+	SpotBalanceType,
 } from '../types';
 import {
 	calculateAmmReservesAfterSwap,
@@ -18,8 +18,13 @@ import {
 	calculateSizePremiumLiabilityWeight,
 } from './margin';
 import { OraclePriceData } from '../oracles/types';
-import { MARGIN_PRECISION } from '../constants/numericConstants';
-import { getTokenAmount } from './bankBalance';
+import {
+	BASE_PRECISION,
+	MARGIN_PRECISION,
+	PRICE_TO_QUOTE_PRECISION,
+	ZERO,
+} from '../constants/numericConstants';
+import { getTokenAmount } from './spotBalance';
 
 /**
  * Calculates market mark price
@@ -28,7 +33,7 @@ import { getTokenAmount } from './bankBalance';
  * @return markPrice : Precision MARK_PRICE_PRECISION
  */
 export function calculateMarkPrice(
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
 	const newAmm = calculateUpdatedAMM(market.amm, oraclePriceData);
@@ -46,7 +51,7 @@ export function calculateMarkPrice(
  * @return bidPrice : Precision MARK_PRICE_PRECISION
  */
 export function calculateBidPrice(
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
 	const { baseAssetReserve, quoteAssetReserve, newPeg } =
@@ -66,7 +71,7 @@ export function calculateBidPrice(
  * @return bidPrice : Precision MARK_PRICE_PRECISION
  */
 export function calculateAskPrice(
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
 	const { baseAssetReserve, quoteAssetReserve, newPeg } =
@@ -82,8 +87,8 @@ export function calculateAskPrice(
 export function calculateNewMarketAfterTrade(
 	baseAssetAmount: BN,
 	direction: PositionDirection,
-	market: MarketAccount
-): MarketAccount {
+	market: PerpMarketAccount
+): PerpMarketAccount {
 	const [newQuoteAssetReserve, newBaseAssetReserve] =
 		calculateAmmReservesAfterSwap(
 			market.amm,
@@ -102,7 +107,7 @@ export function calculateNewMarketAfterTrade(
 }
 
 export function calculateMarkOracleSpread(
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
 	const markPrice = calculateMarkPrice(market, oraclePriceData);
@@ -117,7 +122,7 @@ export function calculateOracleSpread(
 }
 
 export function calculateMarketMarginRatio(
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	size: BN,
 	marginCategory: MarginCategory
 ): number {
@@ -140,18 +145,34 @@ export function calculateMarketMarginRatio(
 }
 
 export function calculateUnrealizedAssetWeight(
-	market: MarketAccount,
+	market: PerpMarketAccount,
+	quoteSpotMarket: SpotMarketAccount,
 	unrealizedPnl: BN,
-	marginCategory: MarginCategory
+	marginCategory: MarginCategory,
+	oraclePriceData: OraclePriceData
 ): BN {
 	let assetWeight: BN;
-
 	switch (marginCategory) {
 		case 'Initial':
+			assetWeight = new BN(market.unrealizedInitialAssetWeight);
+
+			if (market.unrealizedMaxImbalance.gt(ZERO)) {
+				const netUnsettledPnl = calculateNetUserImbalance(
+					market,
+					quoteSpotMarket,
+					oraclePriceData
+				);
+				if (netUnsettledPnl.gt(market.unrealizedMaxImbalance)) {
+					assetWeight = assetWeight
+						.mul(market.unrealizedMaxImbalance)
+						.div(netUnsettledPnl);
+				}
+			}
+
 			assetWeight = calculateSizeDiscountAssetWeight(
 				unrealizedPnl,
 				market.unrealizedImfFactor,
-				new BN(market.unrealizedInitialAssetWeight)
+				assetWeight
 			);
 			break;
 		case 'Maintenance':
@@ -163,8 +184,39 @@ export function calculateUnrealizedAssetWeight(
 }
 
 export function calculateMarketAvailablePNL(
-	market: MarketAccount,
-	bank: BankAccount
+	perpMarket: PerpMarketAccount,
+	spotMarket: SpotMarketAccount
 ): BN {
-	return getTokenAmount(market.pnlPool.balance, bank, BankBalanceType.DEPOSIT);
+	return getTokenAmount(
+		perpMarket.pnlPool.balance,
+		spotMarket,
+		SpotBalanceType.DEPOSIT
+	);
+}
+
+export function calculateNetUserImbalance(
+	market: PerpMarketAccount,
+	bank: SpotMarketAccount,
+	oraclePriceData: OraclePriceData
+): BN {
+	const netUserPositionValue = market.amm.netBaseAssetAmount
+		.mul(oraclePriceData.price)
+		.div(BASE_PRECISION)
+		.div(PRICE_TO_QUOTE_PRECISION);
+
+	const netUserCostBasis = market.amm.quoteAssetAmountLong
+		.add(market.amm.quoteAssetAmountShort)
+		.sub(market.amm.cumulativeSocialLoss);
+
+	const userEntitledPnl = netUserPositionValue.add(netUserCostBasis);
+
+	const pnlPool = getTokenAmount(
+		market.pnlPool.balance,
+		bank,
+		SpotBalanceType.DEPOSIT
+	);
+
+	const imbalance = userEntitledPnl.sub(pnlPool);
+
+	return imbalance;
 }

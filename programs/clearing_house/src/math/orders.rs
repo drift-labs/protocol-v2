@@ -13,13 +13,16 @@ use crate::math::auction::is_auction_complete;
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{MARGIN_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
 use crate::math::position::calculate_entry_price;
+
 use crate::math_error;
-use crate::state::market::Market;
+use crate::state::market::{PerpMarket, AMM};
+
+use crate::state::spot_market::SpotBalanceType;
 use crate::state::user::{Order, OrderStatus, OrderTriggerCondition, OrderType, User};
 
 pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     order: &Order,
-    market: &Market,
+    market: &PerpMarket,
     valid_oracle_price: Option<i128>,
     slot: u64,
 ) -> ClearingHouseResult<u128> {
@@ -27,7 +30,8 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
         return Ok(0);
     }
 
-    let limit_price = order.get_limit_price(&market.amm, valid_oracle_price, slot)?;
+    let limit_price = order.get_limit_price(valid_oracle_price, slot, Some(&market.amm))?;
+
     let base_asset_amount =
         calculate_base_asset_amount_to_fill_up_to_limit_price(order, market, limit_price)?;
     let max_base_asset_amount =
@@ -38,7 +42,7 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
 
 pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
     order: &Order,
-    market: &Market,
+    market: &PerpMarket,
     limit_price: u128,
 ) -> ClearingHouseResult<u128> {
     let base_asset_amount_unfilled = order.get_base_asset_amount_unfilled()?;
@@ -217,27 +221,37 @@ pub fn should_expire_order(
     user: &User,
     user_order_index: usize,
     slot: u64,
-    max_auction_duration: u8,
 ) -> ClearingHouseResult<bool> {
     let order = &user.orders[user_order_index];
-    if order.order_type != OrderType::Market || order.status != OrderStatus::Open {
+    if order.status != OrderStatus::Open
+        || order.time_in_force == 0
+        || matches!(
+            order.order_type,
+            OrderType::TriggerMarket | OrderType::TriggerLimit
+        )
+    {
         return Ok(false);
     }
 
     let slots_elapsed = slot.checked_sub(order.slot).ok_or_else(math_error!())?;
-    Ok(slots_elapsed > cast(max_auction_duration)?)
+    Ok(slots_elapsed > cast(order.time_in_force)?)
 }
 
 pub fn order_breaches_oracle_price_limits(
-    market: &Market,
     order: &Order,
     oracle_price: i128,
     slot: u64,
+    margin_ratio_initial: u128,
+    margin_ratio_maintenance: u128,
+    amm: Option<&AMM>,
 ) -> ClearingHouseResult<bool> {
-    let order_limit_price = order.get_limit_price(&market.amm, Some(oracle_price), slot)?;
+    let order_limit_price = order.get_limit_price(Some(oracle_price), slot, amm)?;
     let oracle_price = oracle_price.unsigned_abs();
 
-    let max_percent_diff = market.margin_ratio_initial as u128 / 2;
+    let max_percent_diff = margin_ratio_initial
+        .checked_sub(margin_ratio_maintenance)
+        .ok_or_else(math_error!())?;
+
     match order.direction {
         PositionDirection::Long => {
             if order_limit_price <= oracle_price {
@@ -297,6 +311,24 @@ pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u128) -> b
         OrderTriggerCondition::Above => oracle_price > order.trigger_price,
         OrderTriggerCondition::Below => oracle_price < order.trigger_price,
     }
+}
+
+pub fn is_spot_order_risk_decreasing(
+    order: &Order,
+    balance_type: &SpotBalanceType,
+    token_amount: u128,
+) -> ClearingHouseResult<bool> {
+    let risk_decreasing = match (balance_type, order.direction) {
+        (SpotBalanceType::Deposit, PositionDirection::Short) => {
+            order.base_asset_amount < token_amount.checked_mul(2).ok_or_else(math_error!())?
+        }
+        (SpotBalanceType::Borrow, PositionDirection::Long) => {
+            order.base_asset_amount < token_amount.checked_mul(2).ok_or_else(math_error!())?
+        }
+        (_, _) => false,
+    };
+
+    Ok(risk_decreasing)
 }
 
 pub fn is_order_risk_decreasing(
@@ -554,14 +586,14 @@ mod test {
             MARGIN_PRECISION, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128,
         };
         use crate::math::orders::order_breaches_oracle_price_limits;
-        use crate::state::market::Market;
+        use crate::state::market::PerpMarket;
         use crate::state::user::Order;
 
         #[test]
         fn bid_does_not_breach() {
-            let market = Market {
+            let _market = PerpMarket {
                 margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
-                ..Market::default()
+                ..PerpMarket::default()
             };
 
             let order = Order {
@@ -573,17 +605,26 @@ mod test {
 
             let slot = 0;
 
-            let result =
-                order_breaches_oracle_price_limits(&market, &order, oracle_price, slot).unwrap();
+            let margin_ratio_initial = MARGIN_PRECISION / 10;
+            let margin_ratio_maintenance = MARGIN_PRECISION / 20;
+            let result = order_breaches_oracle_price_limits(
+                &order,
+                oracle_price,
+                slot,
+                margin_ratio_initial,
+                margin_ratio_maintenance,
+                None,
+            )
+            .unwrap();
 
             assert!(!result)
         }
 
         #[test]
         fn bid_does_not_breach_4_99_percent_move() {
-            let market = Market {
+            let _market = PerpMarket {
                 margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
-                ..Market::default()
+                ..PerpMarket::default()
             };
 
             let order = Order {
@@ -595,17 +636,27 @@ mod test {
 
             let slot = 0;
 
-            let result =
-                order_breaches_oracle_price_limits(&market, &order, oracle_price, slot).unwrap();
+            let margin_ratio_initial = MARGIN_PRECISION / 10;
+            let margin_ratio_maintenance = MARGIN_PRECISION / 20;
+            let result = order_breaches_oracle_price_limits(
+                &order,
+                oracle_price,
+                slot,
+                margin_ratio_initial,
+                margin_ratio_maintenance,
+                None,
+            )
+            .unwrap();
 
             assert!(!result)
         }
 
         #[test]
         fn bid_breaches() {
-            let market = Market {
+            let _market = PerpMarket {
                 margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
-                ..Market::default()
+                margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
+                ..PerpMarket::default()
             };
 
             let order = Order {
@@ -618,17 +669,27 @@ mod test {
 
             let slot = 0;
 
-            let result =
-                order_breaches_oracle_price_limits(&market, &order, oracle_price, slot).unwrap();
+            let margin_ratio_initial = MARGIN_PRECISION / 10;
+            let margin_ratio_maintenance = MARGIN_PRECISION / 20;
+            let result = order_breaches_oracle_price_limits(
+                &order,
+                oracle_price,
+                slot,
+                margin_ratio_initial,
+                margin_ratio_maintenance,
+                None,
+            )
+            .unwrap();
 
             assert!(result)
         }
 
         #[test]
         fn ask_does_not_breach() {
-            let market = Market {
+            let _market = PerpMarket {
                 margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
-                ..Market::default()
+                margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
+                ..PerpMarket::default()
             };
 
             let order = Order {
@@ -641,17 +702,27 @@ mod test {
 
             let slot = 0;
 
-            let result =
-                order_breaches_oracle_price_limits(&market, &order, oracle_price, slot).unwrap();
+            let margin_ratio_initial = MARGIN_PRECISION / 10;
+            let margin_ratio_maintenance = MARGIN_PRECISION / 20;
+            let result = order_breaches_oracle_price_limits(
+                &order,
+                oracle_price,
+                slot,
+                margin_ratio_initial,
+                margin_ratio_maintenance,
+                None,
+            )
+            .unwrap();
 
             assert!(!result)
         }
 
         #[test]
         fn ask_does_not_breach_4_99_percent_move() {
-            let market = Market {
+            let _market = PerpMarket {
                 margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
-                ..Market::default()
+                margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
+                ..PerpMarket::default()
             };
 
             let order = Order {
@@ -664,17 +735,27 @@ mod test {
 
             let slot = 0;
 
-            let result =
-                order_breaches_oracle_price_limits(&market, &order, oracle_price, slot).unwrap();
+            let margin_ratio_initial = MARGIN_PRECISION / 10;
+            let margin_ratio_maintenance = MARGIN_PRECISION / 20;
+            let result = order_breaches_oracle_price_limits(
+                &order,
+                oracle_price,
+                slot,
+                margin_ratio_initial,
+                margin_ratio_maintenance,
+                None,
+            )
+            .unwrap();
 
             assert!(!result)
         }
 
         #[test]
         fn ask_breaches() {
-            let market = Market {
+            let _market = PerpMarket {
                 margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
-                ..Market::default()
+                margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
+                ..PerpMarket::default()
             };
 
             let order = Order {
@@ -687,8 +768,17 @@ mod test {
 
             let slot = 0;
 
-            let result =
-                order_breaches_oracle_price_limits(&market, &order, oracle_price, slot).unwrap();
+            let margin_ratio_initial = MARGIN_PRECISION / 10;
+            let margin_ratio_maintenance = MARGIN_PRECISION / 20;
+            let result = order_breaches_oracle_price_limits(
+                &order,
+                oracle_price,
+                slot,
+                margin_ratio_initial,
+                margin_ratio_maintenance,
+                None,
+            )
+            .unwrap();
 
             assert!(result)
         }

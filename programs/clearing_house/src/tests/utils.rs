@@ -1,11 +1,11 @@
-use crate::state::user::{MarketPosition, Order, UserBankBalance};
+use crate::state::user::{Order, PerpPosition, SpotPosition};
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::{Owner, ZeroCopy};
 use bytes::BytesMut;
 use pyth::pc::Price;
 
-pub fn get_positions(position: MarketPosition) -> [MarketPosition; 5] {
-    let mut positions = [MarketPosition::default(); 5];
+pub fn get_positions(position: PerpPosition) -> [PerpPosition; 5] {
+    let mut positions = [PerpPosition::default(); 5];
     positions[0] = position;
     positions
 }
@@ -16,10 +16,10 @@ pub fn get_orders(order: Order) -> [Order; 32] {
     orders
 }
 
-pub fn get_bank_balances(bank_balance: UserBankBalance) -> [UserBankBalance; 8] {
-    let mut bank_balances = [UserBankBalance::default(); 8];
-    bank_balances[0] = bank_balance;
-    bank_balances
+pub fn get_spot_positions(spot_position: SpotPosition) -> [SpotPosition; 8] {
+    let mut spot_positions = [SpotPosition::default(); 8];
+    spot_positions[0] = spot_position;
+    spot_positions
 }
 
 pub fn get_account_bytes<T: bytemuck::Pod>(account: &mut T) -> BytesMut {

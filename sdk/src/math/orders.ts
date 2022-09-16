@@ -2,7 +2,7 @@ import { ClearingHouseUser } from '../clearingHouseUser';
 import {
 	isOneOfVariant,
 	isVariant,
-	MarketAccount,
+	PerpMarketAccount,
 	Order,
 	PositionDirection,
 } from '../types';
@@ -131,7 +131,7 @@ export function standardizeBaseAssetAmount(
 
 export function getLimitPrice(
 	order: Order,
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
 	slot: number
 ): BN {
@@ -161,10 +161,9 @@ export function getLimitPrice(
 
 export function isFillableByVAMM(
 	order: Order,
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
-	slot: number,
-	maxAuctionDuration: number
+	slot: number
 ): boolean {
 	return (
 		(isAuctionComplete(order, slot) &&
@@ -174,13 +173,13 @@ export function isFillableByVAMM(
 				oraclePriceData,
 				slot
 			).eq(ZERO)) ||
-		isOrderExpired(order, slot, maxAuctionDuration)
+		isOrderExpired(order, slot)
 	);
 }
 
 export function calculateBaseAssetAmountForAmmToFulfill(
 	order: Order,
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
 	slot: number
 ): BN {
@@ -209,7 +208,7 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 
 export function calculateBaseAssetAmountToFillUpToLimitPrice(
 	order: Order,
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	limitPrice: BN,
 	oraclePriceData: OraclePriceData
 ): BN {
@@ -246,17 +245,14 @@ function isSameDirection(
 	);
 }
 
-export function isOrderExpired(
-	order: Order,
-	slot: number,
-	maxAuctionDuration: number
-): boolean {
+export function isOrderExpired(order: Order, slot: number): boolean {
 	if (
-		!isVariant(order.orderType, 'market') ||
-		!isVariant(order.status, 'open')
+		isOneOfVariant(order.orderType, ['triggerMarket', 'market']) ||
+		!isVariant(order.status, 'open') ||
+		order.timeInForce === 0
 	) {
 		return false;
 	}
 
-	return new BN(slot).sub(order.slot).gt(new BN(maxAuctionDuration));
+	return new BN(slot).sub(order.slot).gt(new BN(order.timeInForce));
 }

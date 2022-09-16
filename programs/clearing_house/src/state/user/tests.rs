@@ -2,134 +2,435 @@ mod get_unsettled_pnl {
     use crate::math::constants::{
         BASE_PRECISION_I128, MARK_PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
     };
-    use crate::state::user::{MarketPosition, User};
+    use crate::state::user::{PerpPosition, User};
     use crate::tests::utils::get_positions;
 
     #[test]
     fn long_negative_unrealized_pnl() {
         let user = User {
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 base_asset_amount: BASE_PRECISION_I128,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I128,
                 quote_entry_amount: -100 * QUOTE_PRECISION_I128,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
             ..User::default()
         };
         let oracle_price = 50 * MARK_PRICE_PRECISION_I128;
-        let unsettled_pnl = user.positions[0].get_unsettled_pnl(oracle_price).unwrap();
+        let unsettled_pnl = user.perp_positions[0]
+            .get_unsettled_pnl(oracle_price)
+            .unwrap();
         assert_eq!(unsettled_pnl, -50 * QUOTE_PRECISION_I128);
     }
 
     #[test]
     fn long_positive_unrealized_pnl_more_than_max_pnl_to_settle() {
         let user = User {
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 base_asset_amount: BASE_PRECISION_I128,
                 quote_asset_amount: -50 * QUOTE_PRECISION_I128,
                 quote_entry_amount: -100 * QUOTE_PRECISION_I128,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
             ..User::default()
         };
         let oracle_price = 150 * MARK_PRICE_PRECISION_I128;
-        let unsettled_pnl = user.positions[0].get_unsettled_pnl(oracle_price).unwrap();
+        let unsettled_pnl = user.perp_positions[0]
+            .get_unsettled_pnl(oracle_price)
+            .unwrap();
         assert_eq!(unsettled_pnl, 50 * QUOTE_PRECISION_I128);
     }
 
     #[test]
     fn long_positive_unrealized_pnl_less_than_max_pnl_to_settle() {
         let user = User {
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 base_asset_amount: BASE_PRECISION_I128,
                 quote_asset_amount: -50 * QUOTE_PRECISION_I128,
                 quote_entry_amount: -100 * QUOTE_PRECISION_I128,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
             ..User::default()
         };
         let oracle_price = 75 * MARK_PRICE_PRECISION_I128;
-        let unsettled_pnl = user.positions[0].get_unsettled_pnl(oracle_price).unwrap();
+        let unsettled_pnl = user.perp_positions[0]
+            .get_unsettled_pnl(oracle_price)
+            .unwrap();
         assert_eq!(unsettled_pnl, 25 * QUOTE_PRECISION_I128);
     }
 
     #[test]
     fn long_no_negative_pnl_if_already_settled_to_oracle() {
         let user = User {
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 base_asset_amount: BASE_PRECISION_I128,
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 quote_entry_amount: -100 * QUOTE_PRECISION_I128,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
             ..User::default()
         };
         let oracle_price = 150 * MARK_PRICE_PRECISION_I128;
-        let unsettled_pnl = user.positions[0].get_unsettled_pnl(oracle_price).unwrap();
+        let unsettled_pnl = user.perp_positions[0]
+            .get_unsettled_pnl(oracle_price)
+            .unwrap();
         assert_eq!(unsettled_pnl, 0);
     }
 
     #[test]
     fn short_negative_unrealized_pnl() {
         let user = User {
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 base_asset_amount: -BASE_PRECISION_I128,
                 quote_asset_amount: 100 * QUOTE_PRECISION_I128,
                 quote_entry_amount: 100 * QUOTE_PRECISION_I128,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
             ..User::default()
         };
         let oracle_price = 150 * MARK_PRICE_PRECISION_I128;
-        let unsettled_pnl = user.positions[0].get_unsettled_pnl(oracle_price).unwrap();
+        let unsettled_pnl = user.perp_positions[0]
+            .get_unsettled_pnl(oracle_price)
+            .unwrap();
         assert_eq!(unsettled_pnl, -50 * QUOTE_PRECISION_I128);
     }
 
     #[test]
     fn short_positive_unrealized_pnl_more_than_max_pnl_to_settle() {
         let user = User {
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 base_asset_amount: -BASE_PRECISION_I128,
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 quote_entry_amount: 100 * QUOTE_PRECISION_I128,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
             ..User::default()
         };
         let oracle_price = 50 * MARK_PRICE_PRECISION_I128;
-        let unsettled_pnl = user.positions[0].get_unsettled_pnl(oracle_price).unwrap();
+        let unsettled_pnl = user.perp_positions[0]
+            .get_unsettled_pnl(oracle_price)
+            .unwrap();
         assert_eq!(unsettled_pnl, 50 * QUOTE_PRECISION_I128);
     }
 
     #[test]
     fn short_positive_unrealized_pnl_less_than_max_pnl_to_settle() {
         let user = User {
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 base_asset_amount: -BASE_PRECISION_I128,
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 quote_entry_amount: 100 * QUOTE_PRECISION_I128,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
             ..User::default()
         };
         let oracle_price = 125 * MARK_PRICE_PRECISION_I128;
-        let unsettled_pnl = user.positions[0].get_unsettled_pnl(oracle_price).unwrap();
+        let unsettled_pnl = user.perp_positions[0]
+            .get_unsettled_pnl(oracle_price)
+            .unwrap();
         assert_eq!(unsettled_pnl, 25 * QUOTE_PRECISION_I128);
     }
 
     #[test]
     fn short_no_negative_pnl_if_already_settled_to_oracle() {
         let user = User {
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 base_asset_amount: -BASE_PRECISION_I128,
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 quote_entry_amount: 100 * QUOTE_PRECISION_I128,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
             ..User::default()
         };
         let oracle_price = 150 * MARK_PRICE_PRECISION_I128;
-        let unsettled_pnl = user.positions[0].get_unsettled_pnl(oracle_price).unwrap();
+        let unsettled_pnl = user.perp_positions[0]
+            .get_unsettled_pnl(oracle_price)
+            .unwrap();
         assert_eq!(unsettled_pnl, 0);
+    }
+}
+
+mod get_worst_case_token_amounts {
+    use crate::math::constants::{
+        MARK_PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_INTEREST_PRECISION,
+    };
+    use crate::state::oracle::{OraclePriceData, OracleSource};
+    use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+    use crate::state::user::SpotPosition;
+
+    #[test]
+    fn no_token_open_bid() {
+        let spot_position = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            balance: 0,
+            open_orders: 1,
+            open_bids: 10_i128.pow(9),
+            open_asks: 0,
+        };
+
+        let spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            ..SpotMarket::default()
+        };
+
+        let oracle_price_data = OraclePriceData {
+            price: 100 * MARK_PRICE_PRECISION_I128,
+            confidence: 1,
+            delay: 0,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
+            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None)
+            .unwrap();
+
+        assert_eq!(worst_case_token_amount, 10_i128.pow(9));
+        assert_eq!(worst_case_quote_token_amount, -100 * QUOTE_PRECISION_I128);
+    }
+
+    #[test]
+    fn no_token_open_ask() {
+        let spot_position = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            balance: 0,
+            open_orders: 1,
+            open_bids: 0,
+            open_asks: -(10_i128.pow(9)),
+        };
+
+        let spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            ..SpotMarket::default()
+        };
+
+        let oracle_price_data = OraclePriceData {
+            price: 100 * MARK_PRICE_PRECISION_I128,
+            confidence: 1,
+            delay: 0,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
+            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None)
+            .unwrap();
+
+        assert_eq!(worst_case_token_amount, -(10_i128.pow(9)));
+        assert_eq!(worst_case_quote_token_amount, 100 * QUOTE_PRECISION_I128);
+    }
+
+    #[test]
+    fn deposit_and_open_ask() {
+        let spot_position = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            balance: 2 * SPOT_INTEREST_PRECISION,
+            open_orders: 1,
+            open_bids: 0,
+            open_asks: -(10_i128.pow(9)),
+        };
+
+        let spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            ..SpotMarket::default()
+        };
+
+        let oracle_price_data = OraclePriceData {
+            price: 100 * MARK_PRICE_PRECISION_I128,
+            confidence: 1,
+            delay: 0,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
+            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None)
+            .unwrap();
+
+        assert_eq!(worst_case_token_amount, 2 * 10_i128.pow(9));
+        assert_eq!(worst_case_quote_token_amount, 0);
+    }
+
+    #[test]
+    fn deposit_and_open_ask_flips_to_borrow() {
+        let spot_position = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            balance: SPOT_INTEREST_PRECISION,
+            open_orders: 1,
+            open_bids: 0,
+            open_asks: -2 * 10_i128.pow(9),
+        };
+
+        let spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            ..SpotMarket::default()
+        };
+
+        let oracle_price_data = OraclePriceData {
+            price: 100 * MARK_PRICE_PRECISION_I128,
+            confidence: 1,
+            delay: 0,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
+            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None)
+            .unwrap();
+
+        assert_eq!(worst_case_token_amount, -(10_i128.pow(9)));
+        assert_eq!(worst_case_quote_token_amount, 200 * QUOTE_PRECISION_I128);
+    }
+
+    #[test]
+    fn deposit_and_open_bid() {
+        let spot_position = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            balance: 2 * SPOT_INTEREST_PRECISION,
+            open_orders: 1,
+            open_bids: 0,
+            open_asks: 10_i128.pow(9),
+        };
+
+        let spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            ..SpotMarket::default()
+        };
+
+        let oracle_price_data = OraclePriceData {
+            price: 100 * MARK_PRICE_PRECISION_I128,
+            confidence: 1,
+            delay: 0,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
+            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None)
+            .unwrap();
+
+        assert_eq!(worst_case_token_amount, 3 * 10_i128.pow(9));
+        assert_eq!(worst_case_quote_token_amount, -100 * QUOTE_PRECISION_I128);
+    }
+
+    #[test]
+    fn borrow_and_open_bid() {
+        let spot_position = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Borrow,
+            balance: 2 * SPOT_INTEREST_PRECISION,
+            open_orders: 1,
+            open_bids: 10_i128.pow(9),
+            open_asks: 0,
+        };
+
+        let spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            ..SpotMarket::default()
+        };
+
+        let oracle_price_data = OraclePriceData {
+            price: 100 * MARK_PRICE_PRECISION_I128,
+            confidence: 1,
+            delay: 0,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
+            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None)
+            .unwrap();
+
+        assert_eq!(worst_case_token_amount, -2 * 10_i128.pow(9));
+        assert_eq!(worst_case_quote_token_amount, 0);
+    }
+
+    #[test]
+    fn borrow_and_open_bid_flips_to_deposit() {
+        let spot_position = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Borrow,
+            balance: 2 * SPOT_INTEREST_PRECISION,
+            open_orders: 1,
+            open_bids: 5 * 10_i128.pow(9),
+            open_asks: 0,
+        };
+
+        let spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            ..SpotMarket::default()
+        };
+
+        let oracle_price_data = OraclePriceData {
+            price: 100 * MARK_PRICE_PRECISION_I128,
+            confidence: 1,
+            delay: 0,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
+            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None)
+            .unwrap();
+
+        assert_eq!(worst_case_token_amount, 3 * 10_i128.pow(9));
+        assert_eq!(worst_case_quote_token_amount, -500 * QUOTE_PRECISION_I128);
+    }
+
+    #[test]
+    fn borrow_and_open_ask() {
+        let spot_position = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Borrow,
+            balance: 2 * SPOT_INTEREST_PRECISION,
+            open_orders: 1,
+            open_bids: 0,
+            open_asks: -(10_i128.pow(9)),
+        };
+
+        let spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            ..SpotMarket::default()
+        };
+
+        let oracle_price_data = OraclePriceData {
+            price: 100 * MARK_PRICE_PRECISION_I128,
+            confidence: 1,
+            delay: 0,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let (worst_case_token_amount, worst_case_quote_token_amount) = spot_position
+            .get_worst_case_token_amounts(&spot_market, &oracle_price_data, None)
+            .unwrap();
+
+        assert_eq!(worst_case_token_amount, -3 * 10_i128.pow(9));
+        assert_eq!(worst_case_quote_token_amount, 100 * QUOTE_PRECISION_I128);
     }
 }

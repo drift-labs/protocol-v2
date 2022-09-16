@@ -4,7 +4,7 @@ import { Program } from '@project-serum/anchor';
 import { Admin, TokenFaucet } from '../sdk/src';
 import { BN } from '../sdk';
 import { Keypair, PublicKey } from '@solana/web3.js';
-import { initializeQuoteAssetBank, mockUSDCMint } from './testHelpers';
+import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 describe('token faucet', () => {
@@ -96,7 +96,7 @@ describe('token faucet', () => {
 
 		await clearingHouse.initialize(state.mint, false);
 		await clearingHouse.subscribe();
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 		await clearingHouse.initializeUserAccountForDevnet(
 			0,
 			'crisp',

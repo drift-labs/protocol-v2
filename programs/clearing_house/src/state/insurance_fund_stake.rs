@@ -5,7 +5,7 @@ use anchor_lang::prelude::*;
 #[repr(packed)]
 pub struct InsuranceFundStake {
     pub authority: Pubkey,
-    pub bank_index: u64,
+    pub market_index: u64,
 
     pub if_shares: u128,
     pub if_base: u128, // exponent for if_shares decimal places (for rebase)

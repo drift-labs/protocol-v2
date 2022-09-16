@@ -5,7 +5,7 @@ import {
 	setFeedPrice,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 	getFeedData,
 	sleep,
 } from './testHelpers';
@@ -15,7 +15,6 @@ import {
 	BASE_PRECISION,
 	BN,
 	OracleSource,
-	QUOTE_ASSET_BANK_INDEX,
 	calculateWorstCaseBaseAssetAmount,
 	calculateMarketMarginRatio,
 	AMM_TO_QUOTE_PRECISION_RATIO,
@@ -25,7 +24,11 @@ import {
 	calculatePrice,
 } from '../sdk';
 import { assert } from 'chai';
-import { MAX_LEVERAGE, PositionDirection } from '../sdk/src';
+import {
+	MAX_LEVERAGE,
+	PositionDirection,
+	QUOTE_SPOT_MARKET_INDEX,
+} from '../sdk/src';
 
 describe('User Account', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -71,15 +74,15 @@ describe('User Account', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: [new BN(0)],
-			bankIndexes: [new BN(0)],
+			perpMarketIndexes: [new BN(0)],
+			spotMarketIndexes: [new BN(0)],
 			oracleInfos: [{ publicKey: solUsdOracle, source: OracleSource.PYTH }],
 		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateAuctionDuration(0, 0);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
+		await clearingHouse.updatePerpAuctionDuration(0);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -175,7 +178,7 @@ describe('User Account', () => {
 	it('After Deposit', async () => {
 		await clearingHouse.deposit(
 			usdcAmount,
-			QUOTE_ASSET_BANK_INDEX,
+			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
 		);
 
@@ -202,11 +205,11 @@ describe('User Account', () => {
 			BASE_PRECISION,
 			marketIndex
 		);
-		clearingHouse.fetchAccounts();
-		userAccount.fetchAccounts();
-		const marketPosition = userAccount.getUserPosition(marketIndex);
+		await clearingHouse.fetchAccounts();
+		await userAccount.fetchAccounts();
+		const perpPosition = userAccount.getUserPosition(marketIndex);
 
-		const market = clearingHouse.getMarketAccount(marketPosition.marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(perpPosition.marketIndex);
 
 		const oraclePrice = clearingHouse.getOracleDataForMarket(
 			market.marketIndex
@@ -228,7 +231,7 @@ describe('User Account', () => {
 		);
 		await sleep(5000);
 
-		clearingHouse.fetchAccounts();
+		await clearingHouse.fetchAccounts();
 		const oracleP2 = await getFeedData(anchor.workspace.Pyth, solUsdOracle);
 		console.log('oracleP2:', oracleP2.price);
 		const oraclePrice2 = clearingHouse.getOracleDataForMarket(
@@ -242,7 +245,7 @@ describe('User Account', () => {
 		);
 
 		const worstCaseBaseAssetAmount =
-			calculateWorstCaseBaseAssetAmount(marketPosition);
+			calculateWorstCaseBaseAssetAmount(perpPosition);
 
 		const worstCaseAssetValue = worstCaseBaseAssetAmount
 			.abs()
@@ -278,13 +281,13 @@ describe('User Account', () => {
 
 	it('After Position Price Moves', async () => {
 		await clearingHouse.moveAmmPrice(
+			marketIndex,
 			ammInitialBaseAssetAmount,
-			ammInitialQuoteAssetAmount.mul(new BN(11)).div(new BN(10)),
-			marketIndex
+			ammInitialQuoteAssetAmount.mul(new BN(11)).div(new BN(10))
 		);
-		const marketPosition = userAccount.getUserPosition(marketIndex);
+		const perpPosition = userAccount.getUserPosition(marketIndex);
 
-		const market = clearingHouse.getMarketAccount(marketPosition.marketIndex);
+		const market = clearingHouse.getPerpMarketAccount(perpPosition.marketIndex);
 
 		const oraclePrice = clearingHouse.getOracleDataForMarket(
 			market.marketIndex
@@ -307,7 +310,7 @@ describe('User Account', () => {
 		);
 		await sleep(5000);
 
-		clearingHouse.fetchAccounts();
+		await clearingHouse.fetchAccounts();
 		const oracleP2 = await getFeedData(anchor.workspace.Pyth, solUsdOracle);
 		console.log('oracleP2:', oracleP2.price);
 		const oraclePrice2 = clearingHouse.getOracleDataForMarket(
@@ -320,8 +323,8 @@ describe('User Account', () => {
 			convertToNumber(oraclePrice2)
 		);
 
-		const expectedPNL = new BN(4949474);
-		const expectedTotalCollateral = new BN(24949474);
+		const expectedPNL = new BN(4949473);
+		const expectedTotalCollateral = new BN(24949473);
 		const expectedBuyingPower = new BN(69747645);
 		const expectedFreeCollateral = new BN(13949529);
 		const expectedLeverage = new BN(22044);

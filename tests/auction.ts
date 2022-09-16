@@ -16,7 +16,7 @@ import {
 } from '../sdk/src';
 
 import {
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
@@ -74,15 +74,15 @@ describe('amm spread: market order', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: bankIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
+		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -142,9 +142,9 @@ describe('amm spread: market order', () => {
 
 	beforeEach(async () => {
 		await clearingHouse.moveAmmPrice(
+			ZERO,
 			ammInitialBaseAssetReserve,
-			ammInitialQuoteAssetReserve,
-			ZERO
+			ammInitialQuoteAssetReserve
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 1, solUsd);
 	});

@@ -15,7 +15,7 @@ import {
 	EventSubscriber,
 	MARK_PRICE_PRECISION,
 	getTokenAmount,
-	BankBalanceType,
+	SpotBalanceType,
 	isVariant,
 } from '../sdk/src';
 
@@ -24,11 +24,12 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPrice,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
-	initializeSolAssetBank,
+	initializeSolSpotMarket,
 } from './testHelpers';
+import { ONE } from '../sdk';
 
 describe('liquidate borrow', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -74,8 +75,8 @@ describe('liquidate borrow', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes: [],
-			bankIndexes: [new BN(0), new BN(1)],
+			perpMarketIndexes: [],
+			spotMarketIndexes: [new BN(0), new BN(1)],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
@@ -87,8 +88,8 @@ describe('liquidate borrow', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
-		await initializeQuoteAssetBank(clearingHouse, usdcMint.publicKey);
-		await initializeSolAssetBank(clearingHouse, solOracle);
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
+		await initializeSolSpotMarket(clearingHouse, solOracle);
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -113,10 +114,10 @@ describe('liquidate borrow', () => {
 				]
 			);
 
-		const bankIndex = new BN(1);
+		const marketIndex = new BN(1);
 		await liquidatorClearingHouse.deposit(
 			solAmount,
-			bankIndex,
+			marketIndex,
 			liquidatorClearingHouseWSOLAccount
 		);
 		const solBorrow = new BN(5 * 10 ** 8);
@@ -131,8 +132,8 @@ describe('liquidate borrow', () => {
 
 	it('liquidate', async () => {
 		await setFeedPrice(anchor.workspace.Pyth, 190, solOracle);
-		const bankBefore = clearingHouse.getBankAccount(0);
-		const bank1Before = clearingHouse.getBankAccount(1);
+		const spotMarketBefore = clearingHouse.getSpotMarketAccount(0);
+		const spotMarket1Before = clearingHouse.getSpotMarketAccount(1);
 
 		const txSig = await liquidatorClearingHouse.liquidateBorrow(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -159,22 +160,22 @@ describe('liquidate borrow', () => {
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
 		assert(
 			isVariant(
-				clearingHouse.getUserAccount().bankBalances[0].balanceType,
+				clearingHouse.getUserAccount().spotPositions[0].balanceType,
 				'deposit'
 			)
 		);
-		assert(clearingHouse.getUserAccount().bankBalances[0].balance.gt(ZERO));
+		assert(clearingHouse.getUserAccount().spotPositions[0].balance.gt(ZERO));
 		// assert(
-		// 	clearingHouse.getUserAccount().bankBalances[1].balance.gt(new BN(2))
+		// 	clearingHouse.getUserAccount().spotPositions[1].balance.gt(new BN(2))
 		// );
 		// assert(
 		// 	isVariant(
-		// 		clearingHouse.getUserAccount().bankBalances[0].balanceType,
+		// 		clearingHouse.getUserAccount().spotPositions[0].balanceType,
 		// 		'borrow'
 		// 	)
 		// );
 		console.log(
-			clearingHouse.getUserAccount().bankBalances[0].balance.toString()
+			clearingHouse.getUserAccount().spotPositions[0].balance.toString()
 		);
 
 		const liquidationRecord =
@@ -184,97 +185,115 @@ describe('liquidate borrow', () => {
 		assert(
 			liquidationRecord.liquidateBorrow.assetPrice.eq(MARK_PRICE_PRECISION)
 		);
-		assert(liquidationRecord.liquidateBorrow.assetBankIndex.eq(ZERO));
-		console.log(liquidationRecord.liquidateBorrow.assetTransfer.toString());
+		assert(liquidationRecord.liquidateBorrow.assetMarketIndex.eq(ZERO));
+		console.log(
+			'asset transfer',
+			liquidationRecord.liquidateBorrow.assetTransfer.toString()
+		);
 
 		// todo, why?
+		console.log(liquidationRecord.liquidateBorrow.assetTransfer.toString());
 		assert(
-			liquidationRecord.liquidateBorrow.assetTransfer.lt(new BN(66904819))
-		);
-		assert(
-			liquidationRecord.liquidateBorrow.assetTransfer.gt(new BN(64904819))
+			liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(58828575)) ||
+				liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(58827950))
 		);
 		assert(
 			liquidationRecord.liquidateBorrow.liabilityPrice.eq(
 				new BN(190).mul(MARK_PRICE_PRECISION)
 			)
 		);
-		assert(liquidationRecord.liquidateBorrow.liabilityBankIndex.eq(new BN(1)));
-		console.log(liquidationRecord.liquidateBorrow.liabilityTransfer.toString());
 		assert(
-			liquidationRecord.liquidateBorrow.liabilityTransfer.lt(new BN(347871052))
+			liquidationRecord.liquidateBorrow.liabilityMarketIndex.eq(new BN(1))
+		);
+		console.log(
+			'liability transfer',
+			liquidationRecord.liquidateBorrow.liabilityTransfer.toString()
 		);
 		assert(
-			liquidationRecord.liquidateBorrow.liabilityTransfer.gt(new BN(345871052))
+			liquidationRecord.liquidateBorrow.liabilityTransfer.eq(
+				new BN(309620791)
+			) ||
+				liquidationRecord.liquidateBorrow.liabilityTransfer.eq(
+					new BN(309624080)
+				)
+		);
+
+		// if fee costs 1/100th of liability transfer
+		assert(
+			liquidationRecord.liquidateBorrow.ifFee.eq(
+				liquidationRecord.liquidateBorrow.liabilityTransfer.div(new BN(100))
+			)
 		);
 		await clearingHouse.fetchAccounts();
-		const bank = clearingHouse.getBankAccount(0);
-		const bank1 = clearingHouse.getBankAccount(1);
+		const spotMarket = clearingHouse.getSpotMarketAccount(0);
+		const spotMarket1 = clearingHouse.getSpotMarketAccount(1);
 
 		console.log(
-			'usdc borrows in bank:',
+			'usdc borrows in spotMarket:',
 			getTokenAmount(
-				bankBefore.borrowBalance,
-				bankBefore,
-				BankBalanceType.BORROW
+				spotMarketBefore.borrowBalance,
+				spotMarketBefore,
+				SpotBalanceType.BORROW
 			).toString(),
 			'->',
 			getTokenAmount(
-				bank.borrowBalance,
-				bank,
-				BankBalanceType.BORROW
+				spotMarket.borrowBalance,
+				spotMarket,
+				SpotBalanceType.BORROW
 			).toString()
 		);
 
 		console.log(
-			'usdc deposits in bank:',
+			'usdc deposits in spotMarket:',
 			getTokenAmount(
-				bankBefore.depositBalance,
-				bankBefore,
-				BankBalanceType.DEPOSIT
+				spotMarketBefore.depositBalance,
+				spotMarketBefore,
+				SpotBalanceType.DEPOSIT
 			).toString(),
 			'->',
 			getTokenAmount(
-				bank.depositBalance,
-				bank,
-				BankBalanceType.DEPOSIT
+				spotMarket.depositBalance,
+				spotMarket,
+				SpotBalanceType.DEPOSIT
 			).toString()
 		);
 
 		console.log(
-			'sol borrows in bank:',
+			'sol borrows in spotMarket:',
 			getTokenAmount(
-				bank1Before.borrowBalance,
-				bank1Before,
-				BankBalanceType.BORROW
+				spotMarket1Before.borrowBalance,
+				spotMarket1Before,
+				SpotBalanceType.BORROW
 			).toString(),
 			'->',
 			getTokenAmount(
-				bank1.borrowBalance,
-				bank1,
-				BankBalanceType.BORROW
+				spotMarket1.borrowBalance,
+				spotMarket1,
+				SpotBalanceType.BORROW
 			).toString()
 		);
 
 		console.log(
-			'sol deposits in bank:',
+			'sol deposits in spotMarket:',
 			getTokenAmount(
-				bank1Before.depositBalance,
-				bank1Before,
-				BankBalanceType.DEPOSIT
+				spotMarket1Before.depositBalance,
+				spotMarket1Before,
+				SpotBalanceType.DEPOSIT
 			).toString(),
 			'->',
 			getTokenAmount(
-				bank1.depositBalance,
-				bank1,
-				BankBalanceType.DEPOSIT
+				spotMarket1.depositBalance,
+				spotMarket1,
+				SpotBalanceType.DEPOSIT
 			).toString()
 		);
 
-		const netBalanceBefore = bank1Before.depositBalance.sub(
-			bank1Before.borrowBalance
+		const netBalanceBefore = spotMarket1Before.depositBalance.sub(
+			spotMarket1Before.borrowBalance
 		);
-		const netBalanceAfter = bank1.depositBalance.sub(bank1.borrowBalance);
+		const netBalanceAfter = spotMarket1.depositBalance.sub(
+			spotMarket1.borrowBalance
+		);
 
 		console.log(
 			'netBalance:',
@@ -282,6 +301,6 @@ describe('liquidate borrow', () => {
 			'->',
 			netBalanceAfter.toString()
 		);
-		assert(netBalanceBefore.eq(netBalanceAfter));
+		assert(netBalanceBefore.sub(netBalanceAfter).lte(ONE));
 	});
 });
