@@ -195,24 +195,24 @@ export function calculateMarketAvailablePNL(
 }
 
 export function calculateNetUserImbalance(
-	market: PerpMarketAccount,
-	bank: SpotMarketAccount,
+	perpMarket: PerpMarketAccount,
+	spotMarket: SpotMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
-	const netUserPositionValue = market.amm.netBaseAssetAmount
+	const netUserPositionValue = perpMarket.amm.netBaseAssetAmount
 		.mul(oraclePriceData.price)
 		.div(BASE_PRECISION)
 		.div(PRICE_TO_QUOTE_PRECISION);
 
-	const netUserCostBasis = market.amm.quoteAssetAmountLong
-		.add(market.amm.quoteAssetAmountShort)
-		.sub(market.amm.cumulativeSocialLoss);
+	const netUserCostBasis = perpMarket.amm.quoteAssetAmountLong
+		.add(perpMarket.amm.quoteAssetAmountShort)
+		.sub(perpMarket.amm.cumulativeSocialLoss);
 
 	const userEntitledPnl = netUserPositionValue.add(netUserCostBasis);
 
 	const pnlPool = getTokenAmount(
-		market.pnlPool.balance,
-		bank,
+		perpMarket.pnlPool.balance,
+		spotMarket,
 		SpotBalanceType.DEPOSIT
 	);
 
