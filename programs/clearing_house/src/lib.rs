@@ -207,7 +207,7 @@ pub mod clearing_house {
                 ErrorCode::InvalidSpotMarketInitialization,
                 "For quote asset spot market, mint decimals must be 6"
             )?;
-            hist_data_default = HistOracleData::default();
+            hist_data_default = HistOracleData::default_false();
 
         } else {
             validate!(
@@ -263,7 +263,6 @@ pub mod clearing_house {
         let spot_market = &mut ctx.accounts.spot_market.load_init()?;
         let clock = Clock::get()?;
         let now = cast(clock.unix_timestamp).or(Err(ErrorCode::UnableToCastUnixTime))?;
-        // let slot = clock.slot;
 
         let decimals = ctx.accounts.spot_market_mint.decimals;
         let order_step_size = 10_u128.pow(2 + (decimals - 6) as u32); // 10 for usdc/btc, 10000 for sol

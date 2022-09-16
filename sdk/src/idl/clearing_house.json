@@ -4393,6 +4393,10 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "lastOracleValid",
+            "type": "bool"
+          },
+          {
             "name": "lastOraclePrice",
             "type": "i128"
           },
@@ -4403,10 +4407,6 @@
           {
             "name": "lastOracleDelay",
             "type": "i64"
-          },
-          {
-            "name": "lastOracleNormalisedPrice",
-            "type": "i128"
           },
           {
             "name": "lastOraclePriceTwap",
@@ -4421,44 +4421,36 @@
             "type": "i64"
           },
           {
-            "name": "lastBidPrice",
+            "name": "lastIndexBidPrice",
             "type": "u128"
           },
           {
-            "name": "lastAskPrice",
+            "name": "lastIndexAskPrice",
             "type": "u128"
           },
           {
-            "name": "lastBidPriceTwap",
+            "name": "lastIndexBidPriceTwap",
             "type": "u128"
           },
           {
-            "name": "lastAskPriceTwap",
+            "name": "lastIndexAskPriceTwap",
             "type": "u128"
           },
           {
-            "name": "lastMarkPriceTwap",
+            "name": "lastIndexPriceTwap",
             "type": "u128"
           },
           {
-            "name": "lastMarkPriceTwap5min",
+            "name": "lastIndexPriceTwap5min",
             "type": "u128"
           },
           {
-            "name": "lastMarkPriceTwapTs",
+            "name": "lastIndexPriceTwapTs",
             "type": "i64"
           },
           {
-            "name": "lastOracleMarkSpreadPct",
+            "name": "lastOracleIndexSpreadPct",
             "type": "i128"
-          },
-          {
-            "name": "lastUpdateSlot",
-            "type": "u64"
-          },
-          {
-            "name": "lastOracleValid",
-            "type": "bool"
           }
         ]
       }
