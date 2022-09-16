@@ -758,10 +758,10 @@ export class ClearingHouse {
 		);
 	}
 
-	private async checkIfAccountExists(account: PublicKey) {
+	private async checkIfAccountExists(account: PublicKey): Promise<boolean> {
 		try {
 			const accountInfo = await this.connection.getAccountInfo(account);
-			return accountInfo && true;
+			return accountInfo != null;
 		} catch (e) {
 			// Doesn't already exist
 			return false;
@@ -860,6 +860,49 @@ export class ClearingHouse {
 		);
 
 		result.signers.push(wrappedSolAccount);
+
+		return result;
+	}
+
+	private async getTokenAccountCreationIxs(
+		tokenMintAddress: PublicKey
+	): Promise<{
+		ixs: anchor.web3.TransactionInstruction[];
+		signers: Signer[];
+		pubkey: PublicKey;
+	}> {
+		const accountKeypair = new Keypair();
+
+		const result = {
+			ixs: [],
+			signers: [],
+			pubkey: accountKeypair.publicKey,
+		};
+
+		const rentSpaceLamports = new BN(LAMPORTS_PER_SOL / 100);
+
+		const authority = this.wallet.publicKey;
+
+		result.ixs.push(
+			SystemProgram.createAccount({
+				fromPubkey: authority,
+				newAccountPubkey: accountKeypair.publicKey,
+				lamports: rentSpaceLamports.toNumber(),
+				space: 165,
+				programId: TOKEN_PROGRAM_ID,
+			})
+		);
+
+		result.ixs.push(
+			Token.createInitAccountInstruction(
+				TOKEN_PROGRAM_ID,
+				tokenMintAddress,
+				accountKeypair.publicKey,
+				authority
+			)
+		);
+
+		result.signers.push(accountKeypair);
 
 		return result;
 	}
@@ -1021,6 +1064,22 @@ export class ClearingHouse {
 			});
 
 			signers.forEach((signer) => additionalSigners.push(signer));
+		} else {
+			const accountExists = await this.checkIfAccountExists(userTokenAccount);
+
+			if (!accountExists) {
+				const { ixs, signers, pubkey } = await this.getTokenAccountCreationIxs(
+					bank.mint
+				);
+
+				userTokenAccount = pubkey;
+
+				ixs.forEach((ix) => {
+					tx.add(ix);
+				});
+
+				signers.forEach((signer) => additionalSigners.push(signer));
+			}
 		}
 
 		const withdrawCollateral = await this.getWithdrawIx(
