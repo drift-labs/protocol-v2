@@ -1,13 +1,13 @@
 use solana_program::msg;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::amm::calculate_weighted_average;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
 use crate::math::constants::{SPOT_INTEREST_PRECISION, TWENTY_FOUR_HOUR};
 use crate::math::spot_balance::{
     calculate_accumulated_interest, calculate_utilization, check_withdraw_limits,
     get_interest_token_amount, get_spot_balance, get_token_amount, InterestAccumulated,
 };
+use crate::math::stats::calculate_weighted_average;
 use crate::math_error;
 use crate::state::market::PerpMarket;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};

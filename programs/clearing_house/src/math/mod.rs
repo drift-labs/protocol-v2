@@ -25,4 +25,5 @@ pub mod repeg;
 pub mod serum;
 pub mod slippage;
 pub mod spot_balance;
+pub mod stats;
 pub mod withdrawal;

@@ -207,8 +207,7 @@ pub mod clearing_house {
                 ErrorCode::InvalidSpotMarketInitialization,
                 "For quote asset spot market, mint decimals must be 6"
             )?;
-            hist_data_default = HistOracleData::default_false();
-
+            hist_data_default = HistOracleData::default();
         } else {
             validate!(
                 initial_asset_weight > 0 && initial_asset_weight < SPOT_WEIGHT_PRECISION,

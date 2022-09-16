@@ -14,6 +14,7 @@ use crate::math::constants::{
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
 use crate::math::quote_asset::reserve_to_asset_amount;
+use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
 use crate::math_error;
 use crate::state::market::{PerpMarket, AMM};
 use crate::state::oracle::OraclePriceData;
@@ -372,19 +373,19 @@ pub fn update_mark_twap(
 
     // update bid and ask twaps
     let bid_twap = calculate_new_twap(
-        amm,
-        now,
         bid_price_capped_update,
+        now,
         amm.last_bid_price_twap,
+        amm.last_mark_price_twap_ts,
         amm.funding_period,
     )?;
     amm.last_bid_price_twap = bid_twap;
 
     let ask_twap = calculate_new_twap(
-        amm,
-        now,
         ask_price_capped_update,
+        now,
         amm.last_ask_price_twap,
+        amm.last_mark_price_twap_ts,
         amm.funding_period,
     )?;
 
@@ -397,48 +398,19 @@ pub fn update_mark_twap(
 
     amm.last_mark_price_twap = mid_twap;
     amm.last_mark_price_twap_5min = calculate_new_twap(
-        amm,
-        now,
         bid_price_capped_update
             .checked_add(ask_price_capped_update)
             .ok_or_else(math_error!())?
             / 2,
+        now,
         amm.last_mark_price_twap_5min,
+        amm.last_mark_price_twap_ts,
         60 * 5,
     )?;
 
     amm.last_mark_price_twap_ts = now;
 
     Ok(mid_twap)
-}
-
-pub fn calculate_new_twap(
-    amm: &AMM,
-    now: i64,
-    current_price: u128,
-    last_twap: u128,
-    period: i64,
-) -> ClearingHouseResult<u128> {
-    let since_last = cast_to_i128(max(
-        1,
-        now.checked_sub(amm.last_mark_price_twap_ts)
-            .ok_or_else(math_error!())?,
-    ))?;
-    let from_start = max(
-        1,
-        cast_to_i128(period)?
-            .checked_sub(since_last)
-            .ok_or_else(math_error!())?,
-    );
-
-    let new_twap: u128 = cast(calculate_weighted_average(
-        cast(current_price)?,
-        cast(last_twap)?,
-        since_last,
-        from_start,
-    )?)?;
-
-    Ok(new_twap)
 }
 
 pub fn sanitize_new_price(new_price: i128, last_price_twap: i128) -> ClearingHouseResult<i128> {
@@ -597,23 +569,6 @@ pub fn calculate_new_oracle_price_twap(
     )?;
 
     Ok(new_twap)
-}
-
-pub fn calculate_weighted_average(
-    data1: i128,
-    data2: i128,
-    weight1: i128,
-    weight2: i128,
-) -> ClearingHouseResult<i128> {
-    let denominator = weight1.checked_add(weight2).ok_or_else(math_error!())?;
-    let prev_twap_99 = data1.checked_mul(weight1).ok_or_else(math_error!())?;
-    let latest_price_01 = data2.checked_mul(weight2).ok_or_else(math_error!())?;
-
-    prev_twap_99
-        .checked_add(latest_price_01)
-        .ok_or_else(math_error!())?
-        .checked_div(denominator)
-        .ok_or_else(math_error!())
 }
 
 pub fn update_amm_mark_std(
