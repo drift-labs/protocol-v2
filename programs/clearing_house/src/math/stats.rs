@@ -1,9 +1,8 @@
-use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::error::ClearingHouseResult;
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math_error;
-use crate::validate;
 use solana_program::msg;
-use std::cmp::{max, min};
+use std::cmp::max;
 
 pub fn calculate_weighted_average(
     data1: i128,

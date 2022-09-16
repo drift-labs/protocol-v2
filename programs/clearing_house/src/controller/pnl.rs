@@ -47,7 +47,7 @@ pub fn settle_pnl(
 
     {
         let spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
-        update_spot_market_cumulative_interest(spot_market, now)?;
+        update_spot_market_cumulative_interest(spot_market, None, now)?;
     }
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
@@ -167,7 +167,7 @@ pub fn settle_expired_position(
 
     {
         let quote_spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
-        update_spot_market_cumulative_interest(quote_spot_market, now)?;
+        update_spot_market_cumulative_interest(quote_spot_market, None, now)?;
     }
 
     settle_funding_payment(

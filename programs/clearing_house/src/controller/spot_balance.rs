@@ -1,21 +1,23 @@
 use solana_program::msg;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
-use crate::math::constants::{SPOT_INTEREST_PRECISION, TWENTY_FOUR_HOUR};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
+use crate::math::constants::{ONE_HOUR, SPOT_INTEREST_PRECISION, TWENTY_FOUR_HOUR};
 use crate::math::spot_balance::{
     calculate_accumulated_interest, calculate_utilization, check_withdraw_limits,
     get_interest_token_amount, get_spot_balance, get_token_amount, InterestAccumulated,
 };
-use crate::math::stats::calculate_weighted_average;
+use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
 use crate::math_error;
 use crate::state::market::PerpMarket;
+use crate::state::oracle::OraclePriceData;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::validate;
 use std::cmp::max;
 
 pub fn update_spot_market_twap_stats(
     spot_market: &mut SpotMarket,
+    oracle_price_data: Option<&OraclePriceData>,
     now: i64,
 ) -> ClearingHouseResult {
     let since_last = cast_to_i128(max(
@@ -64,11 +66,48 @@ pub fn update_spot_market_twap_stats(
         from_start,
     )?)?;
 
+    if oracle_price_data.is_some() {
+        let oracle_price_data = match oracle_price_data {
+            Some(oracle_price_data) => oracle_price_data,
+            None => panic!(), // None => &OraclePriceData::default_usd(),
+        };
+
+        let capped_oracle_update_price = cast_to_u128(oracle_price_data.price)?;
+
+        let oracle_price_twap = calculate_new_twap(
+            capped_oracle_update_price,
+            now,
+            cast_to_u128(spot_market.hist_oracle_info.last_oracle_price_twap)?,
+            spot_market.hist_oracle_info.last_oracle_price_twap_ts,
+            ONE_HOUR as i64,
+        )?;
+
+        let oracle_price_twap_5min = calculate_new_twap(
+            capped_oracle_update_price,
+            now,
+            cast_to_u128(spot_market.hist_oracle_info.last_oracle_price_twap_5min)?,
+            spot_market.hist_oracle_info.last_oracle_price_twap_ts,
+            (60 * 5) as i64,
+        )?;
+
+        spot_market.hist_oracle_info.last_oracle_price_twap = cast_to_i128(oracle_price_twap)?;
+        spot_market.hist_oracle_info.last_oracle_price_twap_5min =
+            cast_to_i128(oracle_price_twap_5min)?;
+
+        spot_market.hist_oracle_info.last_oracle_price = oracle_price_data.price;
+        spot_market.hist_oracle_info.last_oracle_conf = oracle_price_data.confidence;
+        spot_market.hist_oracle_info.last_oracle_delay = oracle_price_data.delay;
+        spot_market.hist_oracle_info.last_oracle_price_twap_ts = now;
+    }
+
+    spot_market.last_twap_ts = cast_to_u64(now)?;
+
     Ok(())
 }
 
 pub fn update_spot_market_cumulative_interest(
     spot_market: &mut SpotMarket,
+    oracle_price_data: Option<&OraclePriceData>,
     now: i64,
 ) -> ClearingHouseResult {
     let InterestAccumulated {
@@ -111,8 +150,7 @@ pub fn update_spot_market_cumulative_interest(
         }
     }
 
-    update_spot_market_twap_stats(spot_market, now)?;
-    spot_market.last_twap_ts = cast_to_u64(now)?;
+    update_spot_market_twap_stats(spot_market, oracle_price_data, now)?;
 
     Ok(())
 }
@@ -495,11 +533,12 @@ mod test {
         assert_eq!(user.spot_positions[0].market_index, 0);
 
         let old_twap = spot_market.deposit_token_twap;
-        update_spot_market_cumulative_interest(&mut spot_market, now + 3600).unwrap();
+        update_spot_market_cumulative_interest(&mut spot_market, None, now + 3600).unwrap();
         assert_eq!(spot_market.deposit_token_twap, 495833);
-        update_spot_market_cumulative_interest(&mut spot_market, now + 3600 * 24).unwrap();
+        update_spot_market_cumulative_interest(&mut spot_market, None, now + 3600 * 24).unwrap();
         assert_eq!(spot_market.deposit_token_twap, 403993); // little bit slower than 1 day
-        update_spot_market_cumulative_interest(&mut spot_market, now + 3600 * 48 + 100).unwrap();
+        update_spot_market_cumulative_interest(&mut spot_market, None, now + 3600 * 48 + 100)
+            .unwrap();
         let new_twap = spot_market.deposit_token_twap;
         assert!(old_twap >= new_twap);
         assert_eq!(new_twap, 400000);
@@ -519,9 +558,9 @@ mod test {
 
         spot_market.last_interest_ts = now as u64;
         spot_market.last_twap_ts = now as u64;
-        update_spot_market_cumulative_interest(&mut spot_market, now + 3600).unwrap();
+        update_spot_market_cumulative_interest(&mut spot_market, None, now + 3600).unwrap();
         assert_eq!(spot_market.deposit_token_twap, 4167066666); //$4167.06
-        update_spot_market_cumulative_interest(&mut spot_market, now + 3600 * 44).unwrap();
+        update_spot_market_cumulative_interest(&mut spot_market, None, now + 3600 * 44).unwrap();
         assert_eq!(spot_market.deposit_token_twap, 99999780925); //$4167.06
 
         // tiny whale who will grow
@@ -606,7 +645,8 @@ mod test {
         assert_eq!(sol_spot_market.deposit_balance, 50000000);
         assert_eq!(sol_spot_market.borrow_balance, 8000002);
         assert_eq!(sol_spot_market.borrow_token_twap, 0);
-        update_spot_market_cumulative_interest(&mut sol_spot_market, now + 3655 * 24).unwrap();
+        update_spot_market_cumulative_interest(&mut sol_spot_market, None, now + 3655 * 24)
+            .unwrap();
         assert_eq!(sol_spot_market.deposit_token_twap, 500067287978);
         assert_eq!(sol_spot_market.borrow_token_twap, 80072095947);
 
@@ -777,7 +817,7 @@ mod test {
         assert_eq!(spot_market.borrow_balance, 125001);
         assert_eq!(spot_market.utilization_twap, 0);
 
-        update_spot_market_cumulative_interest(&mut spot_market, now + 100).unwrap();
+        update_spot_market_cumulative_interest(&mut spot_market, None, now + 100).unwrap();
 
         assert_eq!(spot_market.revenue_pool.balance, 0);
         assert_eq!(spot_market.cumulative_deposit_interest, 10000019799);
@@ -809,7 +849,7 @@ mod test {
         assert_eq!(borrow_tokens_1, 125002);
         assert_eq!(if_tokens_1, 0);
 
-        update_spot_market_cumulative_interest(&mut spot_market, now + 7500).unwrap();
+        update_spot_market_cumulative_interest(&mut spot_market, None, now + 7500).unwrap();
 
         assert_eq!(spot_market.last_interest_ts, 7500);
         assert_eq!(spot_market.last_twap_ts, 7500);
@@ -848,8 +888,12 @@ mod test {
             0
         );
 
-        update_spot_market_cumulative_interest(&mut spot_market, now + 750 + (60 * 60 * 24 * 365))
-            .unwrap();
+        update_spot_market_cumulative_interest(
+            &mut spot_market,
+            None,
+            now + 750 + (60 * 60 * 24 * 365),
+        )
+        .unwrap();
 
         now = now + 750 + (60 * 60 * 24 * 365);
 
@@ -947,7 +991,7 @@ mod test {
         assert_eq!(if_tokens_4, 0);
 
         // one more day later, twap update
-        update_spot_market_cumulative_interest(&mut spot_market, now + 60 + (60 * 60 * 24))
+        update_spot_market_cumulative_interest(&mut spot_market, None, now + 60 + (60 * 60 * 24))
             .unwrap();
 
         let deposit_tokens_5 = get_token_amount(
@@ -1106,7 +1150,7 @@ mod test {
         assert_eq!(spot_market.borrow_balance, 540510000001);
         assert_eq!(spot_market.utilization_twap, 0);
 
-        update_spot_market_cumulative_interest(&mut spot_market, now + 100).unwrap();
+        update_spot_market_cumulative_interest(&mut spot_market, None, now + 100).unwrap();
 
         assert_eq!(spot_market.revenue_pool.balance, 3844266);
         assert_eq!(spot_market.cumulative_deposit_interest, 10000346004);
@@ -1138,7 +1182,7 @@ mod test {
         assert_eq!(borrow_tokens_1, 540548444855);
         assert_eq!(if_tokens_1, 3844399);
 
-        update_spot_market_cumulative_interest(&mut spot_market, now + 7500).unwrap();
+        update_spot_market_cumulative_interest(&mut spot_market, None, now + 7500).unwrap();
 
         assert_eq!(spot_market.last_interest_ts, 7500);
         assert_eq!(spot_market.last_twap_ts, 7500);
@@ -1177,8 +1221,12 @@ mod test {
             3631
         );
 
-        update_spot_market_cumulative_interest(&mut spot_market, now + 750 + (60 * 60 * 24 * 365))
-            .unwrap();
+        update_spot_market_cumulative_interest(
+            &mut spot_market,
+            None,
+            now + 750 + (60 * 60 * 24 * 365),
+        )
+        .unwrap();
 
         now = now + 750 + (60 * 60 * 24 * 365);
 

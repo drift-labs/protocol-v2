@@ -424,7 +424,9 @@ pub fn liquidate_borrow(
 
     let (asset_amount, asset_price, asset_decimals, asset_weight, asset_liquidation_multiplier) = {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
-        update_spot_market_cumulative_interest(&mut asset_market, now)?;
+        let asset_price_data = oracle_map.get_price_data(&asset_market.oracle)?;
+
+        update_spot_market_cumulative_interest(&mut asset_market, Some(asset_price_data), now)?;
 
         let spot_deposit_position = user.get_spot_position(asset_market_index).unwrap();
 
@@ -441,8 +443,7 @@ pub fn liquidate_borrow(
         )?;
 
         // TODO add oracle checks
-        let asset_price = oracle_map.get_price_data(&asset_market.oracle)?.price;
-
+        let asset_price = asset_price_data.price;
         (
             token_amount,
             asset_price,
@@ -463,7 +464,13 @@ pub fn liquidate_borrow(
         liability_liquidation_multiplier,
     ) = {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
-        update_spot_market_cumulative_interest(&mut liability_market, now)?;
+        let liability_price_data = oracle_map.get_price_data(&liability_market.oracle)?;
+
+        update_spot_market_cumulative_interest(
+            &mut liability_market,
+            Some(liability_price_data),
+            now,
+        )?;
 
         let spot_position = user.get_spot_position(liability_market_index).unwrap();
 
@@ -480,7 +487,7 @@ pub fn liquidate_borrow(
         )?;
 
         // TODO add oracle checks
-        let liability_price = oracle_map.get_price_data(&liability_market.oracle)?.price;
+        let liability_price = liability_price_data.price;
 
         (
             token_amount,
@@ -843,7 +850,13 @@ pub fn liquidate_borrow_for_perp_pnl(
         liability_liquidation_multiplier,
     ) = {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
-        update_spot_market_cumulative_interest(&mut liability_market, now)?;
+        let liability_price_data = oracle_map.get_price_data(&liability_market.oracle)?;
+
+        update_spot_market_cumulative_interest(
+            &mut liability_market,
+            Some(liability_price_data),
+            now,
+        )?;
 
         let spot_position = user.get_spot_position(liability_market_index).unwrap();
 
@@ -860,11 +873,10 @@ pub fn liquidate_borrow_for_perp_pnl(
         )?;
 
         // TODO add oracle checks
-        let liability_price = oracle_map.get_price_data(&liability_market.oracle)?.price;
 
         (
             token_amount,
-            liability_price,
+            liability_price_data.price,
             liability_market.decimals,
             liability_market.maintenance_liability_weight,
             calculate_liquidation_multiplier(
@@ -1150,7 +1162,11 @@ pub fn liquidate_perp_pnl_for_deposit(
 
     let (asset_amount, asset_price, asset_decimals, asset_weight, asset_liquidation_multiplier) = {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
-        update_spot_market_cumulative_interest(&mut asset_market, now)?;
+
+        // TODO add oracle checks
+        let oracle_price_data = oracle_map.get_price_data(&asset_market.oracle)?;
+        let token_price = oracle_price_data.price;
+        update_spot_market_cumulative_interest(&mut asset_market, Some(oracle_price_data), now)?;
 
         let spot_position = user.get_spot_position(asset_market_index).unwrap();
 
@@ -1165,9 +1181,6 @@ pub fn liquidate_perp_pnl_for_deposit(
             &asset_market,
             &spot_position.balance_type,
         )?;
-
-        // TODO add oracle checks
-        let token_price = oracle_map.get_price_data(&asset_market.oracle)?.price;
 
         (
             token_amount,

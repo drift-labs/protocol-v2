@@ -160,7 +160,18 @@ pub mod clearing_house {
         )?;
 
         let spot_market_index = get_then_update_id!(state, number_of_spot_markets);
-        let hist_data_default;
+
+        let oracle_price_data = get_oracle_price(
+            &oracle_source,
+            &ctx.accounts.oracle,
+            cast(Clock::get()?.unix_timestamp)?,
+        );
+
+        let hist_data_default = if spot_market_index == 0 {
+            HistOracleData::default();
+        } else {
+            HistOracleData::default_with_current_oracle(oracle_price_data?);
+        };
         if spot_market_index == 0 {
             validate!(
                 initial_asset_weight == SPOT_WEIGHT_PRECISION,
@@ -207,7 +218,6 @@ pub mod clearing_house {
                 ErrorCode::InvalidSpotMarketInitialization,
                 "For quote asset spot market, mint decimals must be 6"
             )?;
-            hist_data_default = HistOracleData::default();
         } else {
             validate!(
                 initial_asset_weight > 0 && initial_asset_weight < SPOT_WEIGHT_PRECISION,
@@ -243,20 +253,12 @@ pub mod clearing_house {
                 "Mint decimals must be greater than or equal to 6"
             )?;
 
-            let oracle_price_data = get_oracle_price(
-                &oracle_source,
-                &ctx.accounts.oracle,
-                cast(Clock::get()?.unix_timestamp)?,
-            );
-
             validate!(
                 oracle_price_data.is_ok(),
                 ErrorCode::InvalidSpotMarketInitialization,
                 "Unable to read oracle price for {}",
                 ctx.accounts.oracle.key,
             )?;
-
-            hist_data_default = HistOracleData::default_with_current_oracle(oracle_price_data?);
         }
 
         let spot_market = &mut ctx.accounts.spot_market.load_init()?;
@@ -643,7 +645,13 @@ pub mod clearing_house {
         validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
 
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
-        controller::spot_balance::update_spot_market_cumulative_interest(spot_market, now)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+
+        controller::spot_balance::update_spot_market_cumulative_interest(
+            spot_market,
+            Some(oracle_price_data),
+            now,
+        )?;
 
         validate!(
             spot_market.status == MarketStatus::Initialized,
@@ -680,8 +688,7 @@ pub mod clearing_house {
             &ctx.accounts.authority,
             amount,
         )?;
-
-        let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
+        let oracle_price = oracle_price_data.price;
         let deposit_record = DepositRecord {
             ts: now,
             user_authority: user.authority,
@@ -731,7 +738,13 @@ pub mod clearing_house {
 
         let amount = {
             let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
-            controller::spot_balance::update_spot_market_cumulative_interest(spot_market, now)?;
+            let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+
+            controller::spot_balance::update_spot_market_cumulative_interest(
+                spot_market,
+                Some(oracle_price_data),
+                now,
+            )?;
 
             let spot_position = user.force_get_spot_position_mut(spot_market.market_index)?;
 
@@ -789,7 +802,7 @@ pub mod clearing_house {
             )?;
         }
 
-        if !(total_collateral >= cast_to_i128(margin_requirement)?) {
+        if total_collateral < cast_to_i128(margin_requirement)? {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
 
@@ -866,8 +879,10 @@ pub mod clearing_house {
 
         {
             let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+            let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
             controller::spot_balance::update_spot_market_cumulative_interest(
                 spot_market,
+                Some(oracle_price_data),
                 clock.unix_timestamp,
             )?;
         }
@@ -953,7 +968,7 @@ pub mod clearing_house {
     ) -> Result<()> {
         let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
         let now = Clock::get()?.unix_timestamp;
-        controller::spot_balance::update_spot_market_cumulative_interest(spot_market, now)?;
+        controller::spot_balance::update_spot_market_cumulative_interest(spot_market, None, now)?;
         Ok(())
     }
 
@@ -2319,7 +2334,10 @@ pub mod clearing_house {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
-        controller::spot_balance::update_spot_market_cumulative_interest(spot_market, now)?;
+        // todo: add oracle_data
+        // controller::spot_balance::update_spot_market_cumulative_interest(
+        //     spot_market,
+        //     now)?;
 
         validate!(
             spot_market.market_index == QUOTE_SPOT_MARKET_INDEX,

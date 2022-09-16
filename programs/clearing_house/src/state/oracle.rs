@@ -59,6 +59,17 @@ pub struct OraclePriceData {
     pub has_sufficient_number_of_data_points: bool,
 }
 
+impl OraclePriceData {
+    pub fn default_usd() -> Self {
+        OraclePriceData {
+            price: MARK_PRICE_PRECISION_I128,
+            confidence: 1,
+            delay: 0,
+            has_sufficient_number_of_data_points: true,
+        }
+    }
+}
+
 pub fn get_oracle_price(
     oracle_source: &OracleSource,
     price_oracle: &AccountInfo,
