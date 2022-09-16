@@ -344,9 +344,11 @@ impl PerpPosition {
                 .quote_asset_amount
                 .checked_sub(self.quote_entry_amount)
                 .map(|delta| delta.max(0))
+                .ok_or_else(math_error!())?
+                .checked_add(pnl_pool_excess.max(0))
                 .ok_or_else(math_error!())?;
 
-            Ok(unrealized_pnl.min(max_positive_pnl.max(pnl_pool_excess)))
+            Ok(unrealized_pnl.min(max_positive_pnl))
         } else {
             Ok(unrealized_pnl)
         }

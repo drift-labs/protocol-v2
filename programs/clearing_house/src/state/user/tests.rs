@@ -1,7 +1,8 @@
 mod get_claimable_pnl {
     use crate::math::constants::{
-        BASE_PRECISION_I128, MARK_PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
+        BASE_PRECISION_I128, MARK_PRICE_PRECISION_I128, QUOTE_PRECISION, QUOTE_PRECISION_I128,
     };
+    use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
     use crate::state::user::{PerpPosition, User};
     use crate::tests::utils::get_positions;
 
@@ -42,6 +43,34 @@ mod get_claimable_pnl {
     }
 
     #[test]
+    fn long_positive_unrealized_pnl_more_than_max_pnl_and_pool_excess_to_settle() {
+        let user = User {
+            perp_positions: get_positions(PerpPosition {
+                base_asset_amount: BASE_PRECISION_I128,
+                quote_asset_amount: -50 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                ..PerpPosition::default()
+            }),
+            ..User::default()
+        };
+        let oracle_price = 150 * MARK_PRICE_PRECISION_I128;
+        let (base_asset_value, unrealized_pnl) =
+            calculate_base_asset_value_and_pnl_with_oracle_price(
+                &user.perp_positions[0],
+                oracle_price,
+            )
+            .unwrap();
+        assert_eq!(base_asset_value, 150 * QUOTE_PRECISION);
+        assert_eq!(unrealized_pnl, 100 * QUOTE_PRECISION_I128);
+
+        let excess_pnl_pool = 49 * QUOTE_PRECISION_I128;
+        let unsettled_pnl = user.perp_positions[0]
+            .get_claimable_pnl(oracle_price, excess_pnl_pool)
+            .unwrap();
+        assert_eq!(unsettled_pnl, 99 * QUOTE_PRECISION_I128);
+    }
+
+    #[test]
     fn long_positive_unrealized_pnl_less_than_max_pnl_to_settle() {
         let user = User {
             perp_positions: get_positions(PerpPosition {
@@ -55,6 +84,24 @@ mod get_claimable_pnl {
         let oracle_price = 75 * MARK_PRICE_PRECISION_I128;
         let unsettled_pnl = user.perp_positions[0]
             .get_claimable_pnl(oracle_price, 0)
+            .unwrap();
+        assert_eq!(unsettled_pnl, 25 * QUOTE_PRECISION_I128);
+    }
+
+    #[test]
+    fn long_positive_unrealized_pnl_less_than_max_pnl_and_pool_excess_to_settle() {
+        let user = User {
+            perp_positions: get_positions(PerpPosition {
+                base_asset_amount: BASE_PRECISION_I128,
+                quote_asset_amount: -50 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                ..PerpPosition::default()
+            }),
+            ..User::default()
+        };
+        let oracle_price = 75 * MARK_PRICE_PRECISION_I128;
+        let unsettled_pnl = user.perp_positions[0]
+            .get_claimable_pnl(oracle_price, QUOTE_PRECISION_I128)
             .unwrap();
         assert_eq!(unsettled_pnl, 25 * QUOTE_PRECISION_I128);
     }
