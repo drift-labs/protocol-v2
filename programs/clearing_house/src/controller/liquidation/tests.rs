@@ -730,6 +730,9 @@ pub mod liquidate_perp {
             18000000000000
         );
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -178200000);
+
+        let market_after = perp_market_map.get_ref(&0).unwrap();
+        assert_eq!(market_after.amm.total_liquidation_fee, 1800000)
     }
 }
 
