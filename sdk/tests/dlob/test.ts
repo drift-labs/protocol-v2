@@ -57,6 +57,7 @@ function insertOrderToDLOB(
 			auctionDuration: 10,
 			auctionStartPrice,
 			auctionEndPrice,
+			timeInForce: 30,
 		},
 		userAccount
 	);
@@ -106,6 +107,7 @@ function insertTriggerOrderToDLOB(
 			auctionDuration: 10,
 			auctionStartPrice,
 			auctionEndPrice,
+			timeInForce: 30,
 		},
 		userAccount
 	);
