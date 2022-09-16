@@ -2491,7 +2491,7 @@ pub mod fill_order {
 
         let state = State {
             min_perp_auction_duration: 1,
-            max_perp_auction_duration: 10,
+            default_market_order_time_in_force: 10,
             ..State::default()
         };
 
@@ -2615,7 +2615,7 @@ pub mod fill_order {
 
         let state = State {
             min_perp_auction_duration: 1,
-            max_perp_auction_duration: 10,
+            default_market_order_time_in_force: 10,
             ..State::default()
         };
 
@@ -4398,8 +4398,7 @@ pub mod fulfill_spot_order {
             AccountLoader::try_from(&filler_stats_account_info).unwrap();
 
         let state = State {
-            min_spot_auction_duration: 1,
-            max_spot_auction_duration: 10,
+            default_spot_auction_duration: 1,
             ..State::default()
         };
 
@@ -4635,8 +4634,7 @@ pub mod fulfill_spot_order {
             AccountLoader::try_from(&filler_stats_account_info).unwrap();
 
         let state = State {
-            min_spot_auction_duration: 1,
-            max_spot_auction_duration: 10,
+            default_spot_auction_duration: 1,
             ..State::default()
         };
 
@@ -4850,8 +4848,7 @@ pub mod fill_spot_order {
             AccountLoader::try_from(&filler_stats_account_info).unwrap();
 
         let state = State {
-            min_spot_auction_duration: 1,
-            max_spot_auction_duration: 10,
+            default_spot_auction_duration: 1,
             ..State::default()
         };
 
@@ -4949,6 +4946,7 @@ pub mod fill_spot_order {
                 auction_end_price: 200 * MARK_PRICE_PRECISION,
                 auction_duration: 5,
                 price: 100 * MARK_PRICE_PRECISION,
+                time_in_force: 10,
                 ..Order::default()
             }),
             spot_positions: taker_spot_positions,
@@ -5009,8 +5007,7 @@ pub mod fill_spot_order {
             AccountLoader::try_from(&filler_stats_account_info).unwrap();
 
         let state = State {
-            min_spot_auction_duration: 1,
-            max_spot_auction_duration: 10,
+            default_spot_auction_duration: 1,
             ..State::default()
         };
 

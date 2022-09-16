@@ -102,7 +102,7 @@ describe('referrer', () => {
 
 		await referrerClearingHouse.initialize(usdcMint.publicKey, true);
 		await referrerClearingHouse.subscribe();
-		await referrerClearingHouse.updateAuctionDuration(0, 10);
+		await referrerClearingHouse.updatePerpAuctionDuration(0, 10);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 

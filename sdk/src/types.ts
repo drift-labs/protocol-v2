@@ -630,6 +630,7 @@ export type Order = {
 	auctionDuration: number;
 	auctionStartPrice: BN;
 	auctionEndPrice: BN;
+	timeInForce: number;
 };
 
 export type OrderParams = {
@@ -647,8 +648,9 @@ export type OrderParams = {
 	triggerCondition: OrderTriggerCondition;
 	positionLimit: BN;
 	oraclePriceOffset: BN;
-	padding0: boolean;
-	padding1: BN;
+	auctionDuration: number | null;
+	timeInForce: number | null;
+	auctionStartPrice: BN | null;
 };
 
 export type NecessaryOrderParams = {
@@ -677,8 +679,9 @@ export const DefaultOrderParams = {
 	triggerCondition: OrderTriggerCondition.ABOVE,
 	positionLimit: ZERO,
 	oraclePriceOffset: ZERO,
-	padding0: ZERO,
-	padding1: ZERO,
+	auctionDuration: null,
+	timeInForce: null,
+	auctionStartPrice: null,
 };
 
 export type MakerInfo = {
@@ -740,7 +743,7 @@ export type FeeStructure = {
 	makerRebateNumerator: BN;
 	makerRebateDenominator: BN;
 	fillerRewardStructure: OrderFillerRewardStructure;
-	cancelOrderFee: BN;
+	flatFillerFee: BN;
 };
 
 export type OracleGuardRails = {

@@ -139,7 +139,7 @@ describe('update amm', () => {
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.updateAuctionDuration(0, 0);
+		await clearingHouse.updatePerpAuctionDuration(0);
 
 		await clearingHouse.subscribe();
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);

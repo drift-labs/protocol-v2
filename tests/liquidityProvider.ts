@@ -219,7 +219,7 @@ describe('liquidity providing', () => {
 			new BN(0)
 		);
 		await clearingHouse.updateLpCooldownTime(new BN(1), new BN(0));
-		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		[traderClearingHouse, traderClearingHouseUser] = await createNewUser(
 			chProgram,
@@ -324,7 +324,7 @@ describe('liquidity providing', () => {
 			PositionDirection.SHORT,
 			tradeSize,
 			market.marketIndex,
-			new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
+			new BN((newPrice * MARK_PRICE_PRECISION.toNumber() * 99) / 100)
 		);
 		await _viewLogs(sig);
 
