@@ -589,10 +589,7 @@ pub mod clearing_house {
             },
         };
 
-        state.number_of_markets = state
-            .number_of_markets
-            .checked_add(1)
-            .ok_or_else(math_error!())?;
+        checked_increment!(state.number_of_markets, 1);
 
         Ok(())
     }
