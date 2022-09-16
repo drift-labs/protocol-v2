@@ -76,13 +76,13 @@ export abstract class OrderNode implements DLOBNode {
 
 	getPrice(oraclePriceData: OraclePriceData, slot: number): BN {
 		if (isOneOfVariant(this.order.marketType, ['spot'])) {
-			/// TODO: this fir spot
+			return getLimitPrice(this.order, oraclePriceData, slot);
 		} else if (isOneOfVariant(this.order.marketType, ['perp'])) {
 			return getLimitPrice(
 				this.order,
-				this.market as PerpMarketAccount,
 				oraclePriceData,
-				slot
+				slot,
+				this.market as PerpMarketAccount
 			);
 		} else {
 			console.error(`Unknown market type: ${this.order.marketType}`);

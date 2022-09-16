@@ -283,12 +283,14 @@ export class DLOB {
 
 		// TODO: verify that crossing nodes indeed include all market nodes? ok it's not, orders will be in one but not thet other zzz
 		// Find all market nodes to fill
-		const marketNodesToFill = this.findMarketNodesToFill(
-			marketIndex,
-			slot,
-			marketType
-		);
-		return crossingNodesToFill.concat(marketNodesToFill);
+		// const marketNodesToFill = this.findMarketNodesToFill(
+		// 	marketIndex,
+		// 	slot,
+		// 	marketType
+		// );
+		// return crossingNodesToFill.concat(marketNodesToFill);
+
+		return crossingNodesToFill;
 	}
 
 	public findCrossingNodesToFill(
@@ -347,9 +349,6 @@ export class DLOB {
 				nextBid = bidGenerator.next();
 				nextAsk = askGenerator.next();
 			} else {
-				console.log('tfff exhaustedSide:', exhaustedSide);
-				// nextBid = bidGenerator.next();
-				// nextAsk = askGenerator.next();
 				break;
 			}
 		}
@@ -435,17 +434,25 @@ export class DLOB {
 		marketType: MarketType,
 		oraclePriceData?: OraclePriceData
 	): Generator<DLOBNode> {
+		if (isVariant(marketType, 'spot') && !oraclePriceData) {
+			throw new Error('Must provide OraclePriceData to get spot asks');
+		}
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		const nodeLists = this.orderLists
 			.get(marketTypeStr)
 			.get(marketIndex.toNumber());
 
-		const generators = [
+		const generatorList = [
 			nodeLists.limit.ask.getGenerator(),
 			nodeLists.floatingLimit.ask.getGenerator(),
 			nodeLists.market.ask.getGenerator(),
-			getVammNodeGenerator(vAsk),
-		].map((generator) => {
+		];
+
+		if (marketTypeStr === 'perp') {
+			generatorList.push(getVammNodeGenerator(vAsk));
+		}
+
+		const askGenerators = generatorList.map((generator) => {
 			return {
 				next: generator.next(),
 				generator,
@@ -454,7 +461,7 @@ export class DLOB {
 
 		let asksExhausted = false;
 		while (!asksExhausted) {
-			const bestGenerator = generators.reduce(
+			const bestGenerator = askGenerators.reduce(
 				(bestGenerator, currentGenerator) => {
 					if (currentGenerator.next.done) {
 						return bestGenerator;
@@ -495,17 +502,24 @@ export class DLOB {
 		marketType: MarketType,
 		oraclePriceData?: OraclePriceData
 	): Generator<DLOBNode> {
+		if (isVariant(marketType, 'spot') && !oraclePriceData) {
+			throw new Error('Must provide OraclePriceData to get spot bids');
+		}
+
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		const nodeLists = this.orderLists
 			.get(marketTypeStr)
 			.get(marketIndex.toNumber());
 
-		const bidGenerators = [
+		const generatorList = [
 			nodeLists.limit.bid.getGenerator(),
 			nodeLists.floatingLimit.bid.getGenerator(),
 			nodeLists.market.bid.getGenerator(),
-			getVammNodeGenerator(vBid),
-		].map((generator) => {
+		];
+		if (marketTypeStr === 'perp') {
+			generatorList.push(getVammNodeGenerator(vBid));
+		}
+		const bidGenerators = generatorList.map((generator) => {
 			return {
 				next: generator.next(),
 				generator,

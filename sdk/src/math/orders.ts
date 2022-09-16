@@ -131,26 +131,36 @@ export function standardizeBaseAssetAmount(
 
 export function getLimitPrice(
 	order: Order,
-	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
-	slot: number
+	slot: number,
+	perpMarket?: PerpMarketAccount
 ): BN {
 	let limitPrice;
 	if (!order.oraclePriceOffset.eq(ZERO)) {
 		limitPrice = oraclePriceData.price.add(order.oraclePriceOffset);
 	} else if (isOneOfVariant(order.orderType, ['market', 'triggerMarket'])) {
-		if (!isAuctionComplete(order, slot)) {
-			limitPrice = getAuctionPrice(order, slot);
-		} else if (!order.price.eq(ZERO)) {
-			limitPrice = order.price;
-		} else if (isVariant(order.direction, 'long')) {
-			const askPrice = calculateAskPrice(market, oraclePriceData);
-			const delta = askPrice.div(new BN(market.amm.maxSlippageRatio));
-			limitPrice = askPrice.add(delta);
+		if (perpMarket) {
+			if (!isAuctionComplete(order, slot)) {
+				limitPrice = getAuctionPrice(order, slot);
+			} else if (!order.price.eq(ZERO)) {
+				limitPrice = order.price;
+			} else if (isVariant(order.direction, 'long')) {
+				const askPrice = calculateAskPrice(perpMarket, oraclePriceData);
+				const delta = askPrice.div(new BN(perpMarket.amm.maxSlippageRatio));
+				limitPrice = askPrice.add(delta);
+			} else {
+				const bidPrice = calculateBidPrice(perpMarket, oraclePriceData);
+				const delta = bidPrice.div(new BN(perpMarket.amm.maxSlippageRatio));
+				limitPrice = bidPrice.sub(delta);
+			}
 		} else {
-			const bidPrice = calculateBidPrice(market, oraclePriceData);
-			const delta = bidPrice.div(new BN(market.amm.maxSlippageRatio));
-			limitPrice = bidPrice.sub(delta);
+			// check oracle validity?
+			const oraclePrice1Pct = oraclePriceData.price.div(new BN(100));
+			if (isVariant(order.direction, 'long')) {
+				limitPrice = oraclePriceData.price.add(oraclePrice1Pct);
+			} else {
+				limitPrice = oraclePriceData.price.sub(oraclePrice1Pct);
+			}
 		}
 	} else {
 		limitPrice = order.price;
@@ -190,7 +200,7 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 		return ZERO;
 	}
 
-	const limitPrice = getLimitPrice(order, market, oraclePriceData, slot);
+	const limitPrice = getLimitPrice(order, oraclePriceData, slot, market);
 	const baseAssetAmount = calculateBaseAssetAmountToFillUpToLimitPrice(
 		order,
 		market,
