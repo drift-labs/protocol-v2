@@ -2619,13 +2619,19 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn update_user_name(
-        ctx: Context<UpdateUserName>,
-        _user_id: u8,
-        name: [u8; 32],
-    ) -> Result<()> {
+    pub fn update_user_name(ctx: Context<UpdateUser>, _user_id: u8, name: [u8; 32]) -> Result<()> {
         let mut user = load_mut!(ctx.accounts.user)?;
         user.name = name;
+        Ok(())
+    }
+
+    pub fn update_user_custom_margin_ratio(
+        ctx: Context<UpdateUser>,
+        _user_id: u8,
+        margin_ratio: u32,
+    ) -> Result<()> {
+        let mut user = load_mut!(ctx.accounts.user)?;
+        user.custom_margin_ratio = margin_ratio;
         Ok(())
     }
 

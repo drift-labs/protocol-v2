@@ -181,7 +181,7 @@ pub struct InitializeUser<'info> {
 #[instruction(
     user_id: u8,
 )]
-pub struct UpdateUserName<'info> {
+pub struct UpdateUser<'info> {
     #[account(
         mut,
         seeds = [b"user", authority.key.as_ref(), user_id.to_le_bytes().as_ref()],
