@@ -1942,7 +1942,7 @@
       ],
       "args": [
         {
-          "name": "liquidationFee",
+          "name": "liquidatorFee",
           "type": "u128"
         },
         {
@@ -1998,7 +1998,11 @@
       ],
       "args": [
         {
-          "name": "liquidationFee",
+          "name": "liquidatorFee",
+          "type": "u128"
+        },
+        {
+          "name": "ifLiquidationFee",
           "type": "u128"
         }
       ]
@@ -2059,10 +2063,6 @@
         },
         {
           "name": "totalIfFactor",
-          "type": "u32"
-        },
-        {
-          "name": "liquidationIfFactor",
           "type": "u32"
         }
       ]
@@ -3177,7 +3177,7 @@
             "type": "u128"
           },
           {
-            "name": "liquidationFee",
+            "name": "liquidatorFee",
             "type": "u128"
           },
           {
@@ -3371,11 +3371,11 @@
             "type": "u128"
           },
           {
-            "name": "liquidationFee",
+            "name": "liquidatorFee",
             "type": "u128"
           },
           {
-            "name": "liquidationIfFactor",
+            "name": "ifLiquidationFee",
             "type": "u128"
           },
           {

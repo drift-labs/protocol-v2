@@ -2511,7 +2511,7 @@ pub mod delisting_test {
                 assert_eq!(market.amm.quote_asset_amount_short, 96999000000);
 
                 // add a liq fee now
-                market.liquidation_fee = 10000;
+                market.liquidator_fee = 10000;
 
                 drop(market);
             }

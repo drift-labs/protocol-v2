@@ -347,8 +347,7 @@ describe('insurance fund stake', () => {
 			await clearingHouse.updateSpotMarketIfFactor(
 				new BN(0),
 				new BN(90000),
-				new BN(100000),
-				new BN(50000)
+				new BN(100000)
 			);
 		} catch (e) {
 			console.log('cant set reserve factor');

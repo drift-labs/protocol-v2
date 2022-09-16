@@ -425,7 +425,8 @@ export type PerpMarketAccount = {
 	marginRatioMaintenance: number;
 	nextFillRecordId: BN;
 	pnlPool: PoolBalance;
-	liquidationFee: BN;
+	liquidatorFee: BN;
+	ifLiquidationFee: BN;
 	imfFactor: BN;
 	unrealizedImfFactor: BN;
 	unrealizedMaxImbalance: BN;
@@ -453,7 +454,7 @@ export type SpotMarketAccount = {
 
 	userIfFactor: BN;
 	totalIfFactor: BN;
-	liquidationIfFactor: BN;
+	ifLiquidationFee: BN;
 
 	decimals: number;
 	optimalUtilization: BN;
@@ -470,7 +471,7 @@ export type SpotMarketAccount = {
 	maintenanceAssetWeight: BN;
 	initialLiabilityWeight: BN;
 	maintenanceLiabilityWeight: BN;
-	liquidationFee: BN;
+	liquidatorFee: BN;
 	imfFactor: BN;
 
 	withdrawGuardThreshold: BN;

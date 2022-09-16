@@ -66,7 +66,7 @@ pub mod liquidate_perp {
             margin_ratio_maintenance: 500,
             open_interest: 1,
             status: MarketStatus::Initialized,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -203,7 +203,7 @@ pub mod liquidate_perp {
             margin_ratio_maintenance: 500,
             open_interest: 1,
             status: MarketStatus::Initialized,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -340,7 +340,7 @@ pub mod liquidate_perp {
             margin_ratio_maintenance: 500,
             open_interest: 1,
             status: MarketStatus::Initialized,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -469,7 +469,7 @@ pub mod liquidate_perp {
             margin_ratio_maintenance: 500,
             open_interest: 1,
             status: MarketStatus::Initialized,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -606,7 +606,7 @@ pub mod liquidate_perp {
             margin_ratio_maintenance: 500,
             open_interest: 1,
             status: MarketStatus::Initialized,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -788,7 +788,7 @@ pub mod liquidate_borrow {
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_INTEREST_PRECISION,
-            liquidation_fee: 0,
+            liquidator_fee: 0,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -805,7 +805,7 @@ pub mod liquidate_borrow {
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: SPOT_INTEREST_PRECISION,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -908,7 +908,7 @@ pub mod liquidate_borrow {
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_INTEREST_PRECISION,
-            liquidation_fee: 0,
+            liquidator_fee: 0,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -925,7 +925,7 @@ pub mod liquidate_borrow {
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: SPOT_INTEREST_PRECISION,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -1028,7 +1028,7 @@ pub mod liquidate_borrow {
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_INTEREST_PRECISION,
-            liquidation_fee: 0,
+            liquidator_fee: 0,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -1045,8 +1045,8 @@ pub mod liquidate_borrow {
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: SPOT_INTEREST_PRECISION,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
-            liquidation_if_factor: LIQUIDATION_FEE_PRECISION / 1000,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -1236,7 +1236,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             unrealized_maintenance_asset_weight: 10000,
             open_interest: 1,
             status: MarketStatus::Initialized,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1250,7 +1250,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_INTEREST_PRECISION,
-            liquidation_fee: 0,
+            liquidator_fee: 0,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -1267,7 +1267,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: SPOT_INTEREST_PRECISION,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -1378,7 +1378,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             unrealized_maintenance_asset_weight: 10000,
             open_interest: 1,
             status: MarketStatus::Initialized,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1392,7 +1392,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_INTEREST_PRECISION,
-            liquidation_fee: 0,
+            liquidator_fee: 0,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -1409,8 +1409,8 @@ pub mod liquidate_borrow_for_perp_pnl {
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: SPOT_INTEREST_PRECISION,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
-            liquidation_if_factor: LIQUIDATION_FEE_PRECISION / 1000,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -1559,7 +1559,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             unrealized_maintenance_asset_weight: 10000,
             open_interest: 1,
             status: MarketStatus::Initialized,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1573,7 +1573,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_INTEREST_PRECISION,
-            liquidation_fee: 0,
+            liquidator_fee: 0,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -1590,7 +1590,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: SPOT_INTEREST_PRECISION,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -1724,7 +1724,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             unrealized_maintenance_asset_weight: 10000,
             open_interest: 1,
             status: MarketStatus::Initialized,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1738,7 +1738,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_INTEREST_PRECISION,
-            liquidation_fee: 0,
+            liquidator_fee: 0,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -1755,7 +1755,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: 0,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -1866,7 +1866,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             unrealized_maintenance_asset_weight: 10000,
             open_interest: 1,
             status: MarketStatus::Initialized,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -1881,7 +1881,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_INTEREST_PRECISION,
-            liquidation_fee: 0,
+            liquidator_fee: 0,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -1898,7 +1898,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: 0,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -2012,7 +2012,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             unrealized_maintenance_asset_weight: 10000,
             open_interest: 1,
             status: MarketStatus::Initialized,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2026,7 +2026,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 200 * SPOT_INTEREST_PRECISION,
-            liquidation_fee: 0,
+            liquidator_fee: 0,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
@@ -2043,7 +2043,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: 0,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -2180,7 +2180,7 @@ pub mod resolve_perp_bankruptcy {
             base_asset_amount_long: 5 * BASE_PRECISION_I128,
             base_asset_amount_short: -5 * BASE_PRECISION_I128,
             status: MarketStatus::Initialized,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2397,7 +2397,7 @@ pub mod resolve_borrow_bankruptcy {
             base_asset_amount_long: 5 * BASE_PRECISION_I128,
             base_asset_amount_short: -5 * BASE_PRECISION_I128,
             status: MarketStatus::Initialized,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);

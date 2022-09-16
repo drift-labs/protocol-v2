@@ -76,7 +76,7 @@ pub struct PerpMarket {
     pub unrealized_maintenance_asset_weight: u32,
     pub unrealized_imf_factor: u128,
     pub unrealized_max_imbalance: u128,
-    pub liquidation_fee: u128,
+    pub liquidator_fee: u128,
     pub if_liquidation_fee: u128,
     pub quote_max_insurance: u128,
     pub quote_settled_insurance: u128,
@@ -207,11 +207,11 @@ impl PerpMarket {
     ) -> ClearingHouseResult<u128> {
         if base_asset_amount >= 0 {
             LIQUIDATION_FEE_PRECISION
-                .checked_sub(self.liquidation_fee)
+                .checked_sub(self.liquidator_fee)
                 .ok_or_else(math_error!())
         } else {
             LIQUIDATION_FEE_PRECISION
-                .checked_add(self.liquidation_fee)
+                .checked_add(self.liquidator_fee)
                 .ok_or_else(math_error!())
         }
     }

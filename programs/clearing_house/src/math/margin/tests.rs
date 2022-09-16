@@ -541,7 +541,7 @@ mod calculate_margin_requirement_and_total_collateral {
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
-            liquidation_fee: 0,
+            liquidator_fee: 0,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -556,7 +556,7 @@ mod calculate_margin_requirement_and_total_collateral {
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
             initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
@@ -629,7 +629,7 @@ mod calculate_margin_requirement_and_total_collateral {
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
-            liquidation_fee: 0,
+            liquidator_fee: 0,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -644,7 +644,7 @@ mod calculate_margin_requirement_and_total_collateral {
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
             initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
@@ -717,7 +717,7 @@ mod calculate_margin_requirement_and_total_collateral {
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
-            liquidation_fee: 0,
+            liquidator_fee: 0,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
@@ -732,7 +732,7 @@ mod calculate_margin_requirement_and_total_collateral {
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
             initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
-            liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
             ..SpotMarket::default()
         };

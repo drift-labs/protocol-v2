@@ -243,7 +243,7 @@ pub fn liquidate_perp(
         .unsigned_abs();
 
     let market = perp_market_map.get_ref(&market_index)?;
-    let liquidation_fee = market.liquidation_fee;
+    let liquidation_fee = market.liquidator_fee;
     let if_liquidation_fee = market.if_liquidation_fee;
     let base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount(
         calculate_base_asset_amount_to_cover_margin_shortage(
@@ -469,7 +469,7 @@ pub fn liquidate_borrow(
             asset_market.decimals,
             asset_market.maintenance_asset_weight,
             calculate_liquidation_multiplier(
-                asset_market.liquidation_fee,
+                asset_market.liquidator_fee,
                 LiquidationMultiplierType::Premium,
             )?,
         )
@@ -509,10 +509,10 @@ pub fn liquidate_borrow(
             liability_market.decimals,
             liability_market.maintenance_liability_weight,
             calculate_liquidation_multiplier(
-                liability_market.liquidation_fee,
+                liability_market.liquidator_fee,
                 LiquidationMultiplierType::Discount,
             )?,
-            liability_market.liquidation_if_factor,
+            liability_market.if_liquidation_fee,
         )
     };
 
@@ -844,7 +844,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             6_u8,
             pnl_asset_weight,
             calculate_liquidation_multiplier(
-                market.liquidation_fee,
+                market.liquidator_fee,
                 LiquidationMultiplierType::Premium,
             )?,
         )
@@ -883,7 +883,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             liability_market.decimals,
             liability_market.maintenance_liability_weight,
             calculate_liquidation_multiplier(
-                liability_market.liquidation_fee,
+                liability_market.liquidator_fee,
                 LiquidationMultiplierType::Discount,
             )?,
         )
@@ -1191,7 +1191,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             asset_market.decimals,
             asset_market.maintenance_asset_weight,
             calculate_liquidation_multiplier(
-                asset_market.liquidation_fee,
+                asset_market.liquidator_fee,
                 LiquidationMultiplierType::Premium,
             )?,
         )
@@ -1239,7 +1239,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             6_u8,
             SPOT_WEIGHT_PRECISION,
             calculate_liquidation_multiplier(
-                market.liquidation_fee,
+                market.liquidator_fee,
                 LiquidationMultiplierType::Discount,
             )?,
         )
