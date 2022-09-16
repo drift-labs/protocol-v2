@@ -2127,6 +2127,7 @@ pub fn place_spot_order(
         .unwrap_or(state.default_spot_auction_duration);
     let time_in_force = match params.time_in_force {
         Some(time_in_force) => time_in_force.max(auction_duration),
+        None if params.order_type == OrderType::Market => state.default_market_order_time_in_force,
         None => 0,
     };
 

@@ -393,8 +393,9 @@ export type StateAccount = {
 	minOrderQuoteAssetAmount: BN;
 	signer: PublicKey;
 	signerNonce: number;
-	maxAuctionDuration: number;
-	minAuctionDuration: number;
+	defaultMarketOrderTimeInForce: number;
+	minPerpAuctionDuration: number;
+	defaultSpotAuctionDuration: number;
 	liquidationMarginBufferRatio: number;
 };
 
