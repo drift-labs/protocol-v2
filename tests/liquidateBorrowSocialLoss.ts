@@ -159,7 +159,7 @@ describe('liquidate borrow w/ social loss', () => {
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
 		assert(clearingHouse.getUserAccount().spotPositions[0].balance.eq(ZERO));
 		assert(
-			clearingHouse.getUserAccount().spotPositions[1].balance.eq(new BN(2))
+			clearingHouse.getUserAccount().spotPositions[1].balance.eq(new BN(5002))
 		);
 
 		console.log(
@@ -187,6 +187,11 @@ describe('liquidate borrow w/ social loss', () => {
 		);
 		assert(
 			liquidationRecord.liquidateBorrow.liabilityTransfer.eq(new BN(500000000))
+		);
+		assert(
+			liquidationRecord.liquidateBorrow.ifFee.eq(
+				liquidationRecord.liquidateBorrow.liabilityTransfer.div(new BN(100))
+			)
 		);
 		await clearingHouse.fetchAccounts();
 		const spotMarket = clearingHouse.getSpotMarketAccount(0);
@@ -264,7 +269,7 @@ describe('liquidate borrow w/ social loss', () => {
 			)
 		);
 
-		const newDepositAmount = getTokenAmount(
+		const depositAmountBefore = getTokenAmount(
 			spotMarket1Before.depositBalance,
 			spotMarket1Before,
 			SpotBalanceType.DEPOSIT
@@ -276,10 +281,10 @@ describe('liquidate borrow w/ social loss', () => {
 			SpotBalanceType.DEPOSIT
 		);
 
-		const interestOfUpdate = currentDepositAmount.sub(newDepositAmount);
+		const interestOfUpdate = currentDepositAmount.sub(depositAmountBefore);
 		console.log('interestOfUpdate:', interestOfUpdate.toString());
-		assert(interestOfUpdate.gt(ZERO));
-		assert(interestOfUpdate.lt(new BN(10000)));
+		assert(interestOfUpdate.lt(ZERO));
+		assert(interestOfUpdate.abs().lt(new BN(10000)));
 	});
 
 	it('resolve bankruptcy', async () => {
@@ -306,7 +311,11 @@ describe('liquidate borrow w/ social loss', () => {
 		assert(isVariant(bankruptcyRecord.liquidationType, 'borrowBankruptcy'));
 		console.log(bankruptcyRecord.borrowBankruptcy);
 		assert(bankruptcyRecord.borrowBankruptcy.marketIndex.eq(ONE));
-		assert(bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(2000)));
+		console.log(bankruptcyRecord.borrowBankruptcy.borrowAmount.toString());
+		assert(
+			bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(5002015)) ||
+				bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(5002012))
+		);
 		const spotMarket = clearingHouse.getSpotMarketAccount(1);
 		assert(
 			spotMarket.cumulativeDepositInterest.eq(

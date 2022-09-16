@@ -595,7 +595,7 @@ export class ClearingHouse {
 			perpMarketAccountMap.set(params.readablePerpMarketIndex.toNumber(), {
 				pubkey: marketAccount.pubkey,
 				isSigner: false,
-				isWritable: true,
+				isWritable: false,
 			});
 			oracleAccountMap.set(marketAccount.amm.oracle.toString(), {
 				pubkey: marketAccount.amm.oracle,

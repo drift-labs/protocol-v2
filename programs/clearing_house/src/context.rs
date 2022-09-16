@@ -491,11 +491,10 @@ pub struct OrderParams {
     pub immediate_or_cancel: bool,
     pub trigger_price: u128,
     pub trigger_condition: OrderTriggerCondition,
-    pub position_limit: u128,
     pub oracle_price_offset: i128,
-    pub auction_duration: u8,
-    pub padding0: bool,
-    pub padding1: bool,
+    pub auction_duration: Option<u8>,
+    pub time_in_force: Option<u8>,
+    pub auction_start_price: Option<u128>,
 }
 
 impl Default for OrderType {

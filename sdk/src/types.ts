@@ -279,6 +279,7 @@ export type LiquidatePerpRecord = {
 	userOrderId: BN;
 	liquidatorOrderId: BN;
 	fillRecordId: BN;
+	ifFee: BN;
 };
 
 export type LiquidateBorrowRecord = {
@@ -288,6 +289,7 @@ export type LiquidateBorrowRecord = {
 	liabilityMarketIndex: BN;
 	liabilityPrice: BN;
 	liabilityTransfer: BN;
+	ifFee: BN;
 };
 
 export type LiquidateBorrowForPerpPnlRecord = {
@@ -378,17 +380,6 @@ export type StateAccount = {
 	exchangePaused: boolean;
 	adminControlsPrices: boolean;
 	insuranceVault: PublicKey;
-	marginRatioInitial: BN;
-	marginRatioMaintenance: BN;
-	marginRatioPartial: BN;
-	partialLiquidationClosePercentageNumerator: BN;
-	partialLiquidationClosePercentageDenominator: BN;
-	partialLiquidationPenaltyPercentageNumerator: BN;
-	partialLiquidationPenaltyPercentageDenominator: BN;
-	fullLiquidationPenaltyPercentageNumerator: BN;
-	fullLiquidationPenaltyPercentageDenominator: BN;
-	partialLiquidationLiquidatorShareDenominator: BN;
-	fullLiquidationLiquidatorShareDenominator: BN;
 	perpFeeStructure: FeeStructure;
 	spotFeeStructure: FeeStructure;
 	totalFee: BN;
@@ -402,8 +393,9 @@ export type StateAccount = {
 	minOrderQuoteAssetAmount: BN;
 	signer: PublicKey;
 	signerNonce: number;
-	maxAuctionDuration: number;
-	minAuctionDuration: number;
+	defaultMarketOrderTimeInForce: number;
+	minPerpAuctionDuration: number;
+	defaultSpotAuctionDuration: number;
 	liquidationMarginBufferRatio: number;
 };
 
@@ -423,7 +415,8 @@ export type PerpMarketAccount = {
 	marginRatioMaintenance: number;
 	nextFillRecordId: BN;
 	pnlPool: PoolBalance;
-	liquidationFee: BN;
+	liquidatorFee: BN;
+	ifLiquidationFee: BN;
 	imfFactor: BN;
 	unrealizedImfFactor: BN;
 	unrealizedMaxImbalance: BN;
@@ -451,7 +444,7 @@ export type SpotMarketAccount = {
 
 	userIfFactor: BN;
 	totalIfFactor: BN;
-	liquidationIfFactor: BN;
+	ifLiquidationFee: BN;
 
 	decimals: number;
 	optimalUtilization: BN;
@@ -468,7 +461,7 @@ export type SpotMarketAccount = {
 	maintenanceAssetWeight: BN;
 	initialLiabilityWeight: BN;
 	maintenanceLiabilityWeight: BN;
-	liquidationFee: BN;
+	liquidatorFee: BN;
 	imfFactor: BN;
 
 	withdrawGuardThreshold: BN;
@@ -638,6 +631,7 @@ export type Order = {
 	auctionDuration: number;
 	auctionStartPrice: BN;
 	auctionEndPrice: BN;
+	timeInForce: number;
 };
 
 export type OrderParams = {
@@ -655,8 +649,9 @@ export type OrderParams = {
 	triggerCondition: OrderTriggerCondition;
 	positionLimit: BN;
 	oraclePriceOffset: BN;
-	padding0: boolean;
-	padding1: BN;
+	auctionDuration: number | null;
+	timeInForce: number | null;
+	auctionStartPrice: BN | null;
 };
 
 export type NecessaryOrderParams = {
@@ -685,8 +680,9 @@ export const DefaultOrderParams = {
 	triggerCondition: OrderTriggerCondition.ABOVE,
 	positionLimit: ZERO,
 	oraclePriceOffset: ZERO,
-	padding0: ZERO,
-	padding1: ZERO,
+	auctionDuration: null,
+	timeInForce: null,
+	auctionStartPrice: null,
 };
 
 export type MakerInfo = {
@@ -748,7 +744,7 @@ export type FeeStructure = {
 	makerRebateNumerator: BN;
 	makerRebateDenominator: BN;
 	fillerRewardStructure: OrderFillerRewardStructure;
-	cancelOrderFee: BN;
+	flatFillerFee: BN;
 };
 
 export type OracleGuardRails = {

@@ -1,7 +1,7 @@
 mod calculate_base_asset_amount_to_cover_margin_shortage {
     use crate::math::constants::{
-        BASE_PRECISION, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, MARK_PRICE_PRECISION_I128,
-        QUOTE_PRECISION,
+        AMM_TO_QUOTE_PRECISION_RATIO, BASE_PRECISION, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
+        MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128, QUOTE_PRECISION,
     };
     use crate::math::liquidation::calculate_base_asset_amount_to_cover_margin_shortage;
 
@@ -15,6 +15,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
             margin_shortage,
             margin_ratio,
             liquidation_fee,
+            0,
             oracle_price,
         )
         .unwrap();
@@ -26,24 +27,83 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
     pub fn one_percent_liquidation_fee() {
         let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
         let margin_ratio = MARGIN_PRECISION as u32 / 10; // 10x leverage
-        let liquidation_fee = LIQUIDATION_FEE_PRECISION / 100; // 0 percent
+        let liquidation_fee = LIQUIDATION_FEE_PRECISION / 100; // 1 percent
         let oracle_price = 100 * MARK_PRICE_PRECISION_I128; // $100 / base
         let base_asset_amount = calculate_base_asset_amount_to_cover_margin_shortage(
             margin_shortage,
             margin_ratio,
             liquidation_fee,
+            0,
             oracle_price,
         )
         .unwrap();
 
+        let freed_collateral = base_asset_amount * oracle_price.unsigned_abs()
+            / MARK_PRICE_PRECISION
+            / AMM_TO_QUOTE_PRECISION_RATIO
+            * margin_ratio as u128
+            / MARGIN_PRECISION;
+
+        let negative_pnl = base_asset_amount * oracle_price.unsigned_abs()
+            / MARK_PRICE_PRECISION
+            / AMM_TO_QUOTE_PRECISION_RATIO
+            * liquidation_fee
+            / LIQUIDATION_FEE_PRECISION;
+
+        assert_eq!(freed_collateral - negative_pnl, 10000000); // ~$10
+
         assert_eq!(base_asset_amount, BASE_PRECISION * 10 / 9); // must lose 10/9 base
+    }
+
+    #[test]
+    pub fn one_percent_liquidation_fee_and_one_percent_if_liquidation_fee() {
+        let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
+        let margin_ratio = MARGIN_PRECISION as u32 / 10; // 10x leverage
+        let liquidation_fee = LIQUIDATION_FEE_PRECISION / 100; // 1 percent
+        let oracle_price = 100 * MARK_PRICE_PRECISION_I128; // $100 / base
+        let if_liquidation_fee = LIQUIDATION_FEE_PRECISION / 100; // 1 percent
+        let base_asset_amount = calculate_base_asset_amount_to_cover_margin_shortage(
+            margin_shortage,
+            margin_ratio,
+            liquidation_fee,
+            if_liquidation_fee,
+            oracle_price,
+        )
+        .unwrap();
+
+        let if_fee = base_asset_amount * oracle_price.unsigned_abs()
+            / MARK_PRICE_PRECISION
+            / AMM_TO_QUOTE_PRECISION_RATIO
+            * if_liquidation_fee
+            / LIQUIDATION_FEE_PRECISION;
+
+        let freed_collateral = base_asset_amount * oracle_price.unsigned_abs()
+            / MARK_PRICE_PRECISION
+            / AMM_TO_QUOTE_PRECISION_RATIO
+            * margin_ratio as u128
+            / MARGIN_PRECISION;
+
+        let negative_pnl = base_asset_amount * oracle_price.unsigned_abs()
+            / MARK_PRICE_PRECISION
+            / AMM_TO_QUOTE_PRECISION_RATIO
+            * liquidation_fee
+            / LIQUIDATION_FEE_PRECISION;
+
+        let if_fee_consume_collateral = if_fee;
+
+        assert_eq!(
+            freed_collateral - negative_pnl - if_fee_consume_collateral,
+            10000000 // ~$10
+        );
+
+        assert_eq!(base_asset_amount, 12500000000000); // must lose 10/9 base
     }
 }
 
 mod calculate_liability_transfer_to_cover_margin_shortage {
     use crate::math::constants::{
-        LIQUIDATION_FEE_PRECISION, MARK_PRICE_PRECISION_I128, QUOTE_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        LIQUIDATION_FEE_PRECISION, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128,
+        QUOTE_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::liquidation::calculate_liability_transfer_to_cover_margin_shortage;
 
@@ -65,6 +125,7 @@ mod calculate_liability_transfer_to_cover_margin_shortage {
             liability_liquidation_multiplier,
             liability_decimals,
             liability_price,
+            0,
         )
         .unwrap();
 
@@ -72,7 +133,7 @@ mod calculate_liability_transfer_to_cover_margin_shortage {
     }
 
     #[test]
-    pub fn one_percent_asset_and_liability_fee() {
+    pub fn ten_percent_asset_and_liability_fee() {
         let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
         let asset_weight = 8 * SPOT_WEIGHT_PRECISION / 10; // .8
         let asset_liquidation_multiplier = 110 * LIQUIDATION_FEE_PRECISION / 100;
@@ -89,10 +150,97 @@ mod calculate_liability_transfer_to_cover_margin_shortage {
             liability_liquidation_multiplier,
             liability_decimals,
             liability_price,
+            0,
         )
         .unwrap();
 
-        assert_eq!(liability_transfer, 449984250); // .25 base
+        assert_eq!(liability_transfer, 449984250);
+    }
+
+    #[test]
+    pub fn zero_asset_and_liability_fee_with_one_percent_if_fee() {
+        let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
+        let asset_weight = 8 * SPOT_WEIGHT_PRECISION / 10; // .8
+        let asset_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
+        let liability_weight = 12 * SPOT_WEIGHT_PRECISION / 10; // 1.2
+        let liability_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
+        let liability_decimals = 9;
+        let liability_price = 100 * MARK_PRICE_PRECISION_I128;
+        let if_liquidation_fee = LIQUIDATION_FEE_PRECISION / 100;
+
+        let liability_transfer = calculate_liability_transfer_to_cover_margin_shortage(
+            margin_shortage,
+            asset_weight,
+            asset_liquidation_multiplier,
+            liability_weight,
+            liability_liquidation_multiplier,
+            liability_decimals,
+            liability_price,
+            if_liquidation_fee,
+        )
+        .unwrap();
+
+        let if_fee = liability_transfer * if_liquidation_fee / LIQUIDATION_FEE_PRECISION;
+
+        let liability_transfer_freed_collateral =
+            liability_transfer * liability_price.unsigned_abs() / MARK_PRICE_PRECISION / 1000
+                * (liability_weight - asset_weight)
+                / SPOT_WEIGHT_PRECISION;
+
+        let if_fee_consumed_collateral =
+            if_fee * liability_price.unsigned_abs() / MARK_PRICE_PRECISION / 1000
+                * liability_weight
+                / SPOT_WEIGHT_PRECISION;
+
+        assert_eq!(
+            liability_transfer_freed_collateral - if_fee_consumed_collateral,
+            10000001
+        );
+        assert_eq!(liability_transfer, 257731958);
+    }
+
+    #[test]
+    pub fn ten_percent_asset_and_liability_fee_with_one_percent_if_fee() {
+        let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
+        let asset_weight = 8 * SPOT_WEIGHT_PRECISION / 10; // .8
+        let asset_liquidation_multiplier = 110 * LIQUIDATION_FEE_PRECISION / 100;
+        let liability_weight = 12 * SPOT_WEIGHT_PRECISION / 10; // 1.2
+        let liability_liquidation_multiplier = 90 * LIQUIDATION_FEE_PRECISION / 100;
+        let liability_decimals = 9;
+        let liability_price = 100 * MARK_PRICE_PRECISION_I128;
+        let if_liquidation_fee = LIQUIDATION_FEE_PRECISION / 100;
+
+        let liability_transfer = calculate_liability_transfer_to_cover_margin_shortage(
+            margin_shortage,
+            asset_weight,
+            asset_liquidation_multiplier,
+            liability_weight,
+            liability_liquidation_multiplier,
+            liability_decimals,
+            liability_price,
+            if_liquidation_fee,
+        )
+        .unwrap();
+
+        let if_fee = liability_transfer * if_liquidation_fee / LIQUIDATION_FEE_PRECISION;
+
+        let liability_transfer_freed_collateral =
+            liability_transfer * liability_price.unsigned_abs() / MARK_PRICE_PRECISION / 1000
+                * (liability_weight
+                    - asset_weight * asset_liquidation_multiplier
+                        / liability_liquidation_multiplier)
+                / SPOT_WEIGHT_PRECISION;
+
+        let if_fee_consumed_collateral =
+            if_fee * liability_price.unsigned_abs() / MARK_PRICE_PRECISION / 1000
+                * liability_weight
+                / SPOT_WEIGHT_PRECISION;
+
+        assert_eq!(
+            liability_transfer_freed_collateral - if_fee_consumed_collateral,
+            10003330 // ~$10
+        );
+        assert_eq!(liability_transfer, 475669504);
     }
 }
 
