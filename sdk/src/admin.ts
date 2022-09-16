@@ -667,14 +667,12 @@ export class Admin extends ClearingHouse {
 	public async updateSpotMarketIfFactor(
 		marketIndex: BN,
 		userIfFactor: BN,
-		totalIfFactor: BN,
-		liquidationIfFactor: BN
+		totalIfFactor: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateSpotMarketIfFactor(
 			marketIndex,
 			userIfFactor,
 			totalIfFactor,
-			liquidationIfFactor,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,

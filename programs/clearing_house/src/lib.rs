@@ -297,8 +297,8 @@ pub mod clearing_house {
             initial_liability_weight,
             maintenance_liability_weight,
             imf_factor,
-            liquidation_fee,
-            liquidation_if_factor: 0,
+            liquidator_fee: liquidation_fee,
+            if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
             withdraw_guard_threshold: 0,
             order_step_size,
             next_fill_record_id: 1,
@@ -502,7 +502,8 @@ pub mod clearing_house {
             unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION)?, // 100%
             unrealized_imf_factor: 0,
             unrealized_max_imbalance: 0,
-            liquidation_fee,
+            liquidator_fee: liquidation_fee,
+            if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
             quote_max_insurance: 0,
             quote_settled_insurance: 0,
             padding0: 0,
@@ -545,6 +546,7 @@ pub mod clearing_house {
                 total_fee_minus_distributions: 0,
                 total_mm_fee: 0,
                 total_exchange_fee: 0,
+                total_liquidation_fee: 0,
                 net_revenue_since_last_funding: 0,
                 minimum_quote_asset_trade_size: 10000000,
                 last_oracle_price_twap_ts: now,
@@ -2973,7 +2975,7 @@ pub mod clearing_house {
         validate_margin(
             margin_ratio_initial,
             margin_ratio_maintenance,
-            market.liquidation_fee,
+            market.liquidator_fee,
             market.amm.max_spread,
         )?;
 
@@ -3042,23 +3044,31 @@ pub mod clearing_house {
     )]
     pub fn update_perp_liquidation_fee(
         ctx: Context<AdminUpdateMarket>,
-        liquidation_fee: u128,
+        liquidator_fee: u128,
+        if_liquidation_fee: u128,
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
         validate!(
-            liquidation_fee < LIQUIDATION_FEE_PRECISION,
+            liquidator_fee < LIQUIDATION_FEE_PRECISION,
             ErrorCode::DefaultError,
             "Liquidation fee must be less than 100%"
+        )?;
+
+        validate!(
+            if_liquidation_fee < LIQUIDATION_FEE_PRECISION,
+            ErrorCode::DefaultError,
+            "If liquidation fee must be less than 100%"
         )?;
 
         validate_margin(
             market.margin_ratio_initial,
             market.margin_ratio_maintenance,
-            liquidation_fee,
+            liquidator_fee,
             market.amm.max_spread,
         )?;
 
-        market.liquidation_fee = liquidation_fee;
+        market.liquidator_fee = liquidator_fee;
+        market.if_liquidation_fee = if_liquidation_fee;
         Ok(())
     }
 
@@ -3073,16 +3083,24 @@ pub mod clearing_house {
 
     pub fn update_spot_market_liquidation_fee(
         ctx: Context<AdminUpdateSpotMarket>,
-        liquidation_fee: u128,
+        liquidator_fee: u128,
+        if_liquidation_fee: u128,
     ) -> Result<()> {
         let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
         validate!(
-            liquidation_fee < LIQUIDATION_FEE_PRECISION,
+            liquidator_fee < LIQUIDATION_FEE_PRECISION,
             ErrorCode::DefaultError,
             "Liquidation fee must be less than 100%"
         )?;
 
-        spot_market.liquidation_fee = liquidation_fee;
+        validate!(
+            if_liquidation_fee <= LIQUIDATION_FEE_PRECISION / 20,
+            ErrorCode::DefaultError,
+            "if_liquidation_fee must be <= 5%"
+        )?;
+
+        spot_market.liquidator_fee = liquidator_fee;
+        spot_market.if_liquidation_fee = if_liquidation_fee;
         Ok(())
     }
 
@@ -3105,7 +3123,6 @@ pub mod clearing_house {
         spot_market_index: u64,
         user_if_factor: u32,
         total_if_factor: u32,
-        liquidation_if_factor: u32,
     ) -> Result<()> {
         let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 
@@ -3127,12 +3144,6 @@ pub mod clearing_house {
             "total_if_factor must be <= 100%"
         )?;
 
-        validate!(
-            liquidation_if_factor <= cast_to_u32(LIQUIDATION_FEE_PRECISION / 20)?,
-            ErrorCode::DefaultError,
-            "liquidation_if_factor must be <= 5%"
-        )?;
-
         msg!(
             "spot_market.user_if_factor: {:?} -> {:?}",
             spot_market.user_if_factor,
@@ -3143,15 +3154,9 @@ pub mod clearing_house {
             spot_market.total_if_factor,
             total_if_factor
         );
-        msg!(
-            "spot_market.liquidation_if_factor: {:?} -> {:?}",
-            spot_market.liquidation_if_factor,
-            liquidation_if_factor
-        );
 
         spot_market.user_if_factor = user_if_factor;
         spot_market.total_if_factor = total_if_factor;
-        spot_market.liquidation_if_factor = liquidation_if_factor;
 
         Ok(())
     }

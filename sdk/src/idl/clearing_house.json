@@ -1942,7 +1942,11 @@
       ],
       "args": [
         {
-          "name": "liquidationFee",
+          "name": "liquidatorFee",
+          "type": "u128"
+        },
+        {
+          "name": "ifLiquidationFee",
           "type": "u128"
         }
       ]
@@ -1994,7 +1998,11 @@
       ],
       "args": [
         {
-          "name": "liquidationFee",
+          "name": "liquidatorFee",
+          "type": "u128"
+        },
+        {
+          "name": "ifLiquidationFee",
           "type": "u128"
         }
       ]
@@ -2055,10 +2063,6 @@
         },
         {
           "name": "totalIfFactor",
-          "type": "u32"
-        },
-        {
-          "name": "liquidationIfFactor",
           "type": "u32"
         }
       ]
@@ -3199,7 +3203,11 @@
             "type": "u128"
           },
           {
-            "name": "liquidationFee",
+            "name": "liquidatorFee",
+            "type": "u128"
+          },
+          {
+            "name": "ifLiquidationFee",
             "type": "u128"
           },
           {
@@ -3389,12 +3397,12 @@
             "type": "u128"
           },
           {
-            "name": "liquidationFee",
+            "name": "liquidatorFee",
             "type": "u128"
           },
           {
-            "name": "liquidationIfFactor",
-            "type": "u32"
+            "name": "ifLiquidationFee",
+            "type": "u128"
           },
           {
             "name": "withdrawGuardThreshold",
@@ -3905,6 +3913,10 @@
           {
             "name": "liquidatorOrderId",
             "type": "u64"
+          },
+          {
+            "name": "ifFee",
+            "type": "u64"
           }
         ]
       }
@@ -3937,6 +3949,10 @@
           {
             "name": "liabilityTransfer",
             "type": "u128"
+          },
+          {
+            "name": "ifFee",
+            "type": "u64"
           }
         ]
       }
@@ -4347,6 +4363,10 @@
           {
             "name": "netRevenueSinceLastFunding",
             "type": "i64"
+          },
+          {
+            "name": "totalLiquidationFee",
+            "type": "u128"
           },
           {
             "name": "feePool",
