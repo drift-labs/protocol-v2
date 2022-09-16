@@ -17,6 +17,8 @@ use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::spot_balance::{
     get_balance_value_and_token_amount, get_token_amount, get_token_value,
 };
+use crate::math::oracle::is_oracle_valid;
+
 use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
@@ -294,6 +296,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
     let mut total_collateral: i128 = 0;
     let mut margin_requirement: u128 = 0;
     let mut margin_requirement_plus_buffer: u128 = 0;
+    let mut _all_oracles_valid = true;
 
     for spot_position in user.spot_positions.iter() {
         if spot_position.balance == 0 && spot_position.open_orders == 0 {
@@ -302,6 +305,12 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
         let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+        // all_oracles_valid = all_oracles_valid && is_oracle_valid(
+        //     spot_market.hist_oracle_info.last_oracle_price_twap,
+        //     oracle_price_data,
+        //     &state.oracle_guard_rails.validity,
+        // )?;
+
         if spot_market.market_index == 0 {
             let token_amount = get_token_amount(
                 spot_position.balance,
@@ -424,7 +433,11 @@ pub fn calculate_margin_requirement_and_total_collateral(
         let market = &perp_market_map.get_ref(&market_position.market_index)?;
 
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-
+        // all_oracles_valid = all_oracles_valid && amm::is_oracle_valid(
+        //     market.amm,
+        //     oracle_price_data,
+        //     &state.oracle_guard_rails.validity,
+        // )?;
         let (perp_margin_requirement, weighted_pnl, worst_case_base_asset_value) =
             calculate_perp_position_value_and_pnl(
                 market_position,

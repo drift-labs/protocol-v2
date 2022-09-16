@@ -759,18 +759,41 @@ pub mod clearing_house {
                 spot_position,
             )?;
 
-            // todo: prevents borrow when spot market's oracle invalid
             amount
         };
 
-        if !meets_initial_margin_requirement(user, &market_map, &spot_market_map, &mut oracle_map)?
-        {
+        let (margin_requirement, total_collateral, _) =
+            calculate_margin_requirement_and_total_collateral(
+                user,
+                &market_map,
+                MarginRequirementType::Maintenance,
+                &spot_market_map,
+                &mut oracle_map,
+                None,
+            )?;
+
+        let spot_market = spot_market_map.get_ref(&market_index)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+
+        if margin_requirement > 0 {
+            let all_oracles_valid = math::oracle::is_oracle_valid(
+                spot_market.hist_oracle_info.last_oracle_price_twap,
+                oracle_price_data,
+                &state.oracle_guard_rails.validity,
+            )?;
+
+            validate!(
+                all_oracles_valid,
+                ErrorCode::InvalidOracle,
+                "An oracle is currently invalid"
+            )?;
+        }
+
+        if !(total_collateral >= cast_to_i128(margin_requirement)?) {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
 
         user.being_liquidated = false;
-
-        let spot_market = spot_market_map.get_ref(&market_index)?;
 
         controller::token::send_from_program_vault(
             &ctx.accounts.token_program,
@@ -781,7 +804,7 @@ pub mod clearing_house {
             amount,
         )?;
 
-        let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
+        let oracle_price = oracle_price_data.price;
 
         let deposit_record = DepositRecord {
             ts: now,

@@ -1,8 +1,14 @@
 use crate::error::ClearingHouseResult;
 use crate::math::amm;
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
+use crate::math::constants::BID_ASK_SPREAD_PRECISION;
+use crate::math_error;
 use crate::state::market::AMM;
 use crate::state::oracle::OraclePriceData;
-use crate::state::state::OracleGuardRails;
+use crate::state::state::{OracleGuardRails, PriceDivergenceGuardRails, ValidityGuardRails};
+use crate::validate;
+use solana_program::msg;
+use std::cmp::{max, min};
 
 pub fn block_operation(
     amm: &AMM,
@@ -47,6 +53,65 @@ pub fn get_oracle_status<'a>(
         is_valid: oracle_is_valid,
         mark_too_divergent: is_oracle_mark_too_divergent,
     })
+}
+
+pub fn is_oracle_valid(
+    last_oracle_twap: i128,
+    oracle_price_data: &OraclePriceData,
+    valid_oracle_guard_rails: &ValidityGuardRails,
+) -> ClearingHouseResult<bool> {
+    let OraclePriceData {
+        price: oracle_price,
+        confidence: oracle_conf,
+        delay: oracle_delay,
+        has_sufficient_number_of_data_points,
+        ..
+    } = *oracle_price_data;
+
+    let is_oracle_price_nonpositive = oracle_price <= 0;
+    if is_oracle_price_nonpositive {
+        msg!("Invalid Oracle: Non-positive (oracle_price <=0)");
+    }
+
+    let is_oracle_price_too_volatile = ((oracle_price
+        .checked_div(max(1, last_oracle_twap))
+        .ok_or_else(math_error!())?)
+    .gt(&valid_oracle_guard_rails.too_volatile_ratio))
+        || ((last_oracle_twap
+            .checked_div(max(1, oracle_price))
+            .ok_or_else(math_error!())?)
+        .gt(&valid_oracle_guard_rails.too_volatile_ratio));
+    if is_oracle_price_too_volatile {
+        msg!(
+            "Invalid Oracle: Too Volatile (last_oracle_price_twap={:?} vs oracle_price={:?})",
+            last_oracle_twap,
+            oracle_price
+        );
+    }
+
+    let conf_pct_of_price = max(1, oracle_conf)
+        .checked_mul(BID_ASK_SPREAD_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_div(cast_to_u128(oracle_price)?)
+        .ok_or_else(math_error!())?;
+
+    let is_conf_too_large =
+        conf_pct_of_price.gt(&valid_oracle_guard_rails.confidence_interval_max_size);
+    if is_conf_too_large {
+        msg!(
+            "Invalid Oracle: Confidence Too Large (is_conf_too_large={:?})",
+            conf_pct_of_price
+        );
+    }
+    let is_stale = oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale);
+    if is_stale {
+        msg!("Invalid Oracle: Stale (oracle_delay={:?})", oracle_delay);
+    }
+    Ok(!(is_stale
+        || !has_sufficient_number_of_data_points
+        || is_oracle_price_nonpositive
+        || is_oracle_price_too_volatile
+        || is_conf_too_large))
 }
 
 #[cfg(test)]
