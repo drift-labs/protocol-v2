@@ -26,13 +26,17 @@ pub fn get_proportion_u128(
     numerator: u128,
     denominator: u128,
 ) -> ClearingHouseResult<u128> {
-    let proportional_value = if numerator > denominator / 2 && denominator >= numerator {
+    let proportional_value = if numerator == denominator {
+        value
+    } else if numerator > denominator / 2 && denominator > numerator {
         value
             .checked_sub(
                 value
                     .checked_mul(denominator - numerator)
                     .ok_or_else(math_error!())?
                     .checked_div(denominator)
+                    .ok_or_else(math_error!())?
+                    .checked_add(1)
                     .ok_or_else(math_error!())?,
             )
             .ok_or_else(math_error!())?

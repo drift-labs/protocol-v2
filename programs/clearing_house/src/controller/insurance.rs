@@ -210,7 +210,8 @@ pub fn request_remove_insurance_fund_stake(
         insurance_fund_stake.last_withdraw_request_shares,
         spot_market.total_if_shares,
         insurance_vault_amount,
-    )?;
+    )?
+    .min(insurance_vault_amount.saturating_sub(1));
 
     validate!(
         insurance_fund_stake.last_withdraw_request_value == 0
@@ -790,7 +791,7 @@ mod test {
         )
         .unwrap();
         assert_eq!(if_stake.last_withdraw_request_shares, if_stake.if_shares);
-        assert_eq!(if_stake.last_withdraw_request_value, 999999); //rounding in favor
+        assert_eq!(if_stake.last_withdraw_request_value, 1000000);
 
         let amount_returned = (remove_insurance_fund_stake(
             if_balance,
@@ -800,14 +801,14 @@ mod test {
             0,
         ))
         .unwrap();
-        assert_eq!(amount_returned, amount - 1);
+        assert_eq!(amount_returned, amount);
         if_balance -= amount_returned;
 
         assert_eq!(if_stake.if_shares, 0);
-        assert_eq!(if_stake.cost_basis, 1);
+        assert_eq!(if_stake.cost_basis, 0);
         assert_eq!(if_stake.last_withdraw_request_shares, 0);
         assert_eq!(if_stake.last_withdraw_request_value, 0);
-        assert_eq!(if_balance, 1000000001);
+        assert_eq!(if_balance, 1000000000);
 
         add_insurance_fund_stake(
             1234,
@@ -875,7 +876,7 @@ mod test {
             0,
         ))
         .unwrap();
-        assert_eq!(amount_returned, expected_amount_returned - 1);
+        assert_eq!(amount_returned, expected_amount_returned);
         assert_eq!(if_stake.if_shares, n_shares * 2 / 3 + 1);
         if_balance -= amount_returned;
 
@@ -918,7 +919,7 @@ mod test {
             0,
         ))
         .unwrap();
-        assert_eq!(amount_returned, 0);
+        assert_eq!(amount_returned, 1);
 
         request_remove_insurance_fund_stake(
             n_shares / 3 - 1,
@@ -942,7 +943,7 @@ mod test {
 
         if_balance -= amount_returned;
 
-        assert_eq!(if_balance, 3);
+        assert_eq!(if_balance, 2);
     }
 
     #[test]
@@ -1158,10 +1159,10 @@ mod test {
 
         // since losses occured during withdraw, worse than expected at time of request
         assert_eq!(amount_returned < (expected_amount_returned - 1), true);
-        assert_eq!(amount_returned, 15_789_473_683); //15k
+        assert_eq!(amount_returned, 15_789_473_684); //15k
         assert_eq!(if_stake.if_shares, n_shares * 2 / 3 + 1);
-        assert_eq!(if_stake.cost_basis, 84_210_526_317); //84k
-        assert_eq!(if_balance, 31_578_947_370); //31k
+        assert_eq!(if_stake.cost_basis, 84_210_526_316); //84k
+        assert_eq!(if_balance, 31_578_947_369); //31k
     }
 
     #[test]
@@ -1234,8 +1235,8 @@ mod test {
         )
         .unwrap();
         let value_at_req = if_stake.last_withdraw_request_value;
-        assert_eq!(value_at_req, 107692722239);
-        assert_eq!(o, 107692722239);
+        assert_eq!(value_at_req, 107692722240);
+        assert_eq!(o, 107692722240);
 
         // not enough time for withdraw
         assert!(remove_insurance_fund_stake(
@@ -1268,13 +1269,13 @@ mod test {
         if_balance -= amount_returned;
 
         assert_eq!(amount_returned < ideal_amount_returned, true);
-        assert_eq!(ideal_amount_returned - amount_returned, 261390103);
+        assert_eq!(ideal_amount_returned - amount_returned, 261390102);
         assert_eq!(amount_returned, value_at_req);
 
         // since gains occured, not passed on to user after request
-        assert_eq!(amount_returned, (expected_amount_returned - 1));
+        assert_eq!(amount_returned, (expected_amount_returned));
         assert_eq!(if_stake.if_shares, 0);
-        assert_eq!(if_balance, 261_390_105); //$261 for protocol/other stakers
+        assert_eq!(if_balance, 261_390_104); //$261 for protocol/other stakers
     }
 
     #[test]
@@ -1533,7 +1534,7 @@ mod test {
         assert_eq!(if_stake.last_withdraw_request_shares, unstake_amt / 1000);
         // (that rebase occurs when you pass in shares you wanna unstake) :/
         assert_eq!(if_stake.if_shares, 40000000);
-        assert_eq!(if_stake.last_withdraw_request_value, 328244);
+        assert_eq!(if_stake.last_withdraw_request_value, 328245);
         assert_eq!(if_stake.last_withdraw_request_ts, 10);
 
         assert_eq!(spot_market.total_if_shares, 60930021);
@@ -1566,12 +1567,12 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(user_expected_amount_for_shares_before_double, 706_073);
-        assert_eq!(protocol_expected_amount_for_shares_before_double, 293_924);
+        assert_eq!(user_expected_amount_for_shares_before_double, 706_074);
+        assert_eq!(protocol_expected_amount_for_shares_before_double, 293_925);
         assert_eq!(
             user_expected_amount_for_shares_before_double
                 + protocol_expected_amount_for_shares_before_double,
-            if_balance - 3 // ok rounding
+            if_balance - 1 // ok rounding
         );
 
         if_balance *= 2; // double the IF vault before withdraw
@@ -1612,28 +1613,28 @@ mod test {
         assert_eq!(if_stake.last_withdraw_request_shares, 0);
         assert_eq!(if_stake.last_withdraw_request_value, 0);
 
-        assert_eq!(amount_returned, 328244);
+        assert_eq!(amount_returned, 328245);
         assert_eq!(spot_market.total_if_shares, 40930021);
         assert_eq!(spot_market.user_if_shares, 23021135);
         assert_eq!(spot_market.if_shares_base, 3);
 
         assert_eq!(
-            protocol_expected_amount_for_shares_after_double - 1,
+            protocol_expected_amount_for_shares_after_double,
             protocol_expected_amount_for_shares_before_double * 2
         );
         assert_eq!(
-            user_expected_amount_for_shares_after_double - 2,
+            user_expected_amount_for_shares_after_double - 1,
             user_expected_amount_for_shares_before_double * 2
         );
         assert_eq!(
             user_expected_amount_for_shares_after_double
                 + protocol_expected_amount_for_shares_after_double,
-            if_balance - 3 // ok rounding
+            if_balance - 1 // ok rounding
         );
 
         assert_eq!(
             protocol_expected_amount_for_shares_after_user_withdraw,
-            875_096
+            875_097
         );
         assert_eq!(
             protocol_expected_amount_for_shares_after_user_withdraw
@@ -1735,7 +1736,7 @@ mod test {
             0,
         ))
         .unwrap();
-        assert_eq!(amount_returned, 499999);
+        assert_eq!(amount_returned, 500000);
         if_balance -= amount_returned;
 
         assert_eq!(if_stake_2.if_base, 0);
@@ -1753,6 +1754,7 @@ mod test {
         assert_eq!(spot_market.if_shares_base, 4);
         assert_eq!(if_stake_2.if_base < spot_market.total_if_shares, true);
         assert_eq!(if_stake_2.if_shares, spot_market.user_if_shares);
+        assert_eq!(if_balance, 500000);
 
         let amount_returned = (remove_insurance_fund_stake(
             if_balance,
@@ -1763,7 +1765,7 @@ mod test {
         ))
         .unwrap();
 
-        assert_eq!(amount_returned, 500000);
+        assert_eq!(amount_returned, if_balance - 1);
         if_balance -= amount_returned;
 
         assert_eq!(if_balance, 1);
