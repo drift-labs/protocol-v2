@@ -2632,7 +2632,7 @@
       ]
     },
     {
-      "name": "updateAuctionDuration",
+      "name": "updatePerpAuctionDuration",
       "accounts": [
         {
           "name": "admin",
@@ -2647,11 +2647,28 @@
       ],
       "args": [
         {
-          "name": "minAuctionDuration",
+          "name": "minPerpAuctionDuration",
           "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotAuctionDuration",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
         },
         {
-          "name": "maxAuctionDuration",
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "defaultSpotAuctionDuration",
           "type": "u8"
         }
       ]
@@ -3448,15 +3465,11 @@
             "type": "u8"
           },
           {
-            "name": "maxPerpAuctionDuration",
+            "name": "defaultMarketOrderTimeInForce",
             "type": "u8"
           },
           {
-            "name": "minSpotAuctionDuration",
-            "type": "u8"
-          },
-          {
-            "name": "maxSpotAuctionDuration",
+            "name": "defaultSpotAuctionDuration",
             "type": "u8"
           },
           {
@@ -3474,14 +3487,6 @@
           {
             "name": "signerNonce",
             "type": "u8"
-          },
-          {
-            "name": "padding0",
-            "type": "u128"
-          },
-          {
-            "name": "padding1",
-            "type": "u128"
           }
         ]
       }
@@ -3686,24 +3691,26 @@
             }
           },
           {
-            "name": "positionLimit",
-            "type": "u128"
-          },
-          {
             "name": "oraclePriceOffset",
             "type": "i128"
           },
           {
             "name": "auctionDuration",
-            "type": "u8"
+            "type": {
+              "option": "u8"
+            }
           },
           {
-            "name": "padding0",
-            "type": "bool"
+            "name": "timeInForce",
+            "type": {
+              "option": "u8"
+            }
           },
           {
-            "name": "padding1",
-            "type": "bool"
+            "name": "auctionStartPrice",
+            "type": {
+              "option": "u128"
+            }
           }
         ]
       }
@@ -4340,7 +4347,7 @@
             }
           },
           {
-            "name": "cancelOrderFee",
+            "name": "flatFillerFee",
             "type": "u128"
           }
         ]
@@ -4714,13 +4721,8 @@
             "type": "u8"
           },
           {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u16",
-                3
-              ]
-            }
+            "name": "timeInForce",
+            "type": "u8"
           }
         ]
       }
@@ -4887,7 +4889,7 @@
             "name": "MarketOrderFilledToLimitPrice"
           },
           {
-            "name": "MarketOrderAuctionExpired"
+            "name": "OrderExpired"
           },
           {
             "name": "CanceledForLiquidation"

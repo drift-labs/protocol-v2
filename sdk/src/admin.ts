@@ -860,13 +860,25 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
-	public async updateAuctionDuration(
-		minDuration: BN | number,
-		maxDuration: BN | number
+	public async updatePerpAuctionDuration(
+		minDuration: BN | number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateAuctionDuration(
+		return await this.program.rpc.updatePerpAuctionDuration(
 			typeof minDuration === 'number' ? minDuration : minDuration.toNumber(),
-			typeof maxDuration === 'number' ? maxDuration : maxDuration.toNumber(),
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
+	public async updateSpotAuctionDuration(
+		defaultAuctionDuration: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSpotAuctionDuration(
+			defaultAuctionDuration,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,

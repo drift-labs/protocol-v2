@@ -22,10 +22,7 @@ use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::amm::is_oracle_valid;
-use crate::math::auction::{
-    calculate_auction_end_price, calculate_auction_start_price, calculate_spot_auction_end_price,
-    is_auction_complete,
-};
+use crate::math::auction::{calculate_auction_end_price, is_auction_complete};
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::fees::{FillFees, SerumFillFees};
@@ -63,7 +60,7 @@ use crate::validate;
 use serum_dex::instruction::{NewOrderInstructionV3, SelfTradeBehavior};
 use serum_dex::matching::Side;
 use std::cell::RefMut;
-use std::cmp::{max, min};
+use std::cmp::max;
 use std::num::NonZeroU64;
 use std::ops::{Deref, DerefMut};
 
@@ -166,10 +163,15 @@ pub fn place_order(
         (existing_position_direction, base_asset_amount)
     };
 
+    let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
     let (auction_start_price, auction_end_price) = if let OrderType::Market = params.order_type {
-        let auction_start_price = calculate_auction_start_price(market, params.direction)?;
+        let auction_start_price = match params.auction_start_price {
+            Some(auction_price) => auction_price,
+            None => oracle_price_data.price.unsigned_abs(),
+        };
+
         let auction_end_price = if params.price == 0 {
-            calculate_auction_end_price(market, params.direction, order_base_asset_amount)?
+            calculate_auction_end_price(oracle_price_data, params.direction)?
         } else {
             params.price
         };
@@ -183,6 +185,17 @@ pub fn place_order(
         ErrorCode::InvalidOrder,
         "must be perp order"
     )?;
+
+    let auction_duration = max(
+        params.auction_duration.unwrap_or(0),
+        state.min_perp_auction_duration,
+    );
+
+    let time_in_force = match params.time_in_force {
+        Some(time_in_force) => time_in_force.max(auction_duration),
+        None if params.order_type == OrderType::Market => state.default_market_order_time_in_force,
+        None => 0,
+    };
 
     let new_order = Order {
         status: OrderStatus::Open,
@@ -209,11 +222,8 @@ pub fn place_order(
         immediate_or_cancel: params.immediate_or_cancel,
         auction_start_price,
         auction_end_price,
-        auction_duration: min(
-            max(state.min_perp_auction_duration, params.auction_duration),
-            state.max_perp_auction_duration,
-        ),
-        padding: [0; 3],
+        auction_duration,
+        time_in_force,
     };
 
     let valid_oracle_price = get_valid_oracle_price(
@@ -579,7 +589,7 @@ pub fn fill_order(
         &user.orders[order_index],
         &mut filler.as_deref_mut(),
         &filler_key,
-        state.perp_fee_structure.cancel_order_fee,
+        state.perp_fee_structure.flat_filler_fee,
         oracle_price,
         now,
         slot,
@@ -605,7 +615,7 @@ pub fn fill_order(
             user,
             filler.as_deref_mut(),
             perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
-            state.perp_fee_structure.cancel_order_fee,
+            state.perp_fee_structure.flat_filler_fee,
         )?;
 
         cancel_order(
@@ -626,8 +636,7 @@ pub fn fill_order(
         return Ok((0, true));
     }
 
-    let should_expire_order =
-        should_expire_order(user, order_index, slot, state.max_perp_auction_duration)?;
+    let should_expire_order = should_expire_order(user, order_index, slot)?;
     if should_expire_order {
         let filler_reward = {
             let mut market = perp_market_map.get_ref_mut(&market_index)?;
@@ -635,7 +644,7 @@ pub fn fill_order(
                 user,
                 filler.as_deref_mut(),
                 market.deref_mut(),
-                state.perp_fee_structure.cancel_order_fee,
+                state.perp_fee_structure.flat_filler_fee,
             )?
         };
 
@@ -648,7 +657,7 @@ pub fn fill_order(
             oracle_map,
             now,
             slot,
-            OrderActionExplanation::MarketOrderAuctionExpired,
+            OrderActionExplanation::OrderExpired,
             Some(&filler_key),
             filler_reward,
             false,
@@ -690,7 +699,7 @@ pub fn fill_order(
                 user,
                 filler.as_deref_mut(),
                 market.deref_mut(),
-                state.perp_fee_structure.cancel_order_fee,
+                state.perp_fee_structure.flat_filler_fee,
             )?
         };
 
@@ -840,8 +849,10 @@ fn sanitize_maker_order<'a>(
         )?
     };
 
+    let should_expire_order = should_expire_order(&maker, maker_order_index, slot)?;
+
     // Dont fulfill with a maker order if oracle has diverged significantly
-    if breaches_oracle_price_limits {
+    if breaches_oracle_price_limits || should_expire_order {
         let filler_reward = {
             let mut market =
                 perp_market_map.get_ref_mut(&maker.orders[maker_order_index].market_index)?;
@@ -853,6 +864,12 @@ fn sanitize_maker_order<'a>(
             )?
         };
 
+        let explanation = if breaches_oracle_price_limits {
+            OrderActionExplanation::OraclePriceBreachedLimitPrice
+        } else {
+            OrderActionExplanation::OrderExpired
+        };
+
         cancel_order(
             maker_order_index,
             maker.deref_mut(),
@@ -862,7 +879,7 @@ fn sanitize_maker_order<'a>(
             oracle_map,
             now,
             slot,
-            OrderActionExplanation::OraclePriceBreachedLimitPrice,
+            explanation,
             Some(filler_key),
             filler_reward,
             false,
@@ -1104,7 +1121,7 @@ fn cancel_risk_increasing_order(
             user,
             filler.as_deref_mut(),
             market.deref_mut(),
-            fee_structure.cancel_order_fee,
+            fee_structure.flat_filler_fee,
         )?
     };
 
@@ -1865,9 +1882,8 @@ pub fn trigger_order(
         user.orders[order_index].slot = slot;
         let order_type = user.orders[order_index].order_type;
         if let OrderType::TriggerMarket = order_type {
-            let auction_start_price = calculate_auction_start_price(market, direction)?;
-            let auction_end_price =
-                calculate_auction_end_price(market, direction, base_asset_amount)?;
+            let auction_start_price = oracle_price_data.price.unsigned_abs();
+            let auction_end_price = calculate_auction_end_price(oracle_price_data, direction)?;
             user.orders[order_index].auction_start_price = auction_start_price;
             user.orders[order_index].auction_end_price = auction_end_price;
         }
@@ -1887,7 +1903,7 @@ pub fn trigger_order(
         user,
         filler.as_deref_mut(),
         market,
-        state.perp_fee_structure.cancel_order_fee,
+        state.perp_fee_structure.flat_filler_fee,
     )?;
 
     let order_action_record = get_order_action_record(
@@ -2079,9 +2095,13 @@ pub fn place_spot_order(
     };
 
     let (auction_start_price, auction_end_price) = if let OrderType::Market = params.order_type {
-        let auction_start_price = oracle_price_data.price.unsigned_abs();
+        let auction_start_price = match params.auction_start_price {
+            Some(auction_start_price) => auction_start_price,
+            None => oracle_price_data.price.unsigned_abs(),
+        };
+
         let auction_end_price = if params.price == 0 {
-            calculate_spot_auction_end_price(&oracle_price_data, params.direction)?
+            calculate_auction_end_price(&oracle_price_data, params.direction)?
         } else {
             params.price
         };
@@ -2101,6 +2121,15 @@ pub fn place_spot_order(
         ErrorCode::InvalidOrder,
         "must be spot order"
     )?;
+
+    let auction_duration = params
+        .auction_duration
+        .unwrap_or(state.default_spot_auction_duration);
+    let time_in_force = match params.time_in_force {
+        Some(time_in_force) => time_in_force.max(auction_duration),
+        None if params.order_type == OrderType::Market => state.default_market_order_time_in_force,
+        None => 0,
+    };
 
     let new_order = Order {
         status: OrderStatus::Open,
@@ -2127,11 +2156,8 @@ pub fn place_spot_order(
         immediate_or_cancel: params.immediate_or_cancel,
         auction_start_price,
         auction_end_price,
-        auction_duration: min(
-            max(state.min_spot_auction_duration, params.auction_duration),
-            state.max_spot_auction_duration,
-        ),
-        padding: [0; 3],
+        auction_duration,
+        time_in_force,
     };
 
     let valid_oracle_price = Some(oracle_price_data.price);
@@ -2284,13 +2310,12 @@ pub fn fill_spot_order(
         &user.orders[order_index],
         &mut filler.as_deref_mut(),
         &filler_key,
-        state.spot_fee_structure.cancel_order_fee,
+        state.spot_fee_structure.flat_filler_fee,
         now,
         slot,
     )?;
 
-    let should_expire_order =
-        should_expire_order(user, order_index, slot, state.max_spot_auction_duration)?;
+    let should_expire_order = should_expire_order(user, order_index, slot)?;
     if should_expire_order {
         let filler_reward = {
             let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
@@ -2298,7 +2323,7 @@ pub fn fill_spot_order(
                 user,
                 filler.as_deref_mut(),
                 &mut quote_market,
-                state.spot_fee_structure.cancel_order_fee,
+                state.spot_fee_structure.flat_filler_fee,
             )?
         };
 
@@ -2311,7 +2336,7 @@ pub fn fill_spot_order(
             oracle_map,
             now,
             slot,
-            OrderActionExplanation::MarketOrderAuctionExpired,
+            OrderActionExplanation::OrderExpired,
             Some(&filler_key),
             filler_reward,
             false,
@@ -2347,7 +2372,7 @@ pub fn fill_spot_order(
                 user,
                 filler.as_deref_mut(),
                 &mut quote_market,
-                state.spot_fee_structure.cancel_order_fee,
+                state.spot_fee_structure.flat_filler_fee,
             )?
         };
 
@@ -2448,7 +2473,9 @@ fn sanitize_spot_maker_order<'a>(
         )?
     };
 
-    if breaches_oracle_price_limits {
+    let should_expire_order = should_expire_order(&maker, maker_order_index, slot)?;
+
+    if breaches_oracle_price_limits || should_expire_order {
         let filler_reward = {
             let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
             pay_keeper_flat_reward_for_spot(
@@ -2457,6 +2484,12 @@ fn sanitize_spot_maker_order<'a>(
                 &mut quote_market,
                 filler_reward,
             )?
+        };
+
+        let explanation = if breaches_oracle_price_limits {
+            OrderActionExplanation::OraclePriceBreachedLimitPrice
+        } else {
+            OrderActionExplanation::OrderExpired
         };
 
         cancel_order(
@@ -2468,7 +2501,7 @@ fn sanitize_spot_maker_order<'a>(
             oracle_map,
             now,
             slot,
-            OrderActionExplanation::OraclePriceBreachedLimitPrice,
+            explanation,
             Some(filler_key),
             filler_reward,
             false,
@@ -2527,7 +2560,7 @@ fn fulfill_spot_order(
                 user,
                 filler.as_deref_mut(),
                 &mut quote_market,
-                fee_structure.cancel_order_fee,
+                fee_structure.flat_filler_fee,
             )?
         };
 
@@ -3327,7 +3360,7 @@ pub fn trigger_spot_order(
         if let OrderType::TriggerMarket = order_type {
             let auction_start_price = oracle_price_data.price.unsigned_abs();
             let auction_end_price =
-                calculate_spot_auction_end_price(oracle_price_data, order_direction)?;
+                calculate_auction_end_price(oracle_price_data, order_direction)?;
             user.orders[order_index].auction_start_price = auction_start_price;
             user.orders[order_index].auction_end_price = auction_end_price;
         }
@@ -3348,7 +3381,7 @@ pub fn trigger_spot_order(
         user,
         filler.as_deref_mut(),
         &mut quote_market,
-        state.spot_fee_structure.cancel_order_fee,
+        state.spot_fee_structure.flat_filler_fee,
     )?;
 
     let order_action_record = get_order_action_record(

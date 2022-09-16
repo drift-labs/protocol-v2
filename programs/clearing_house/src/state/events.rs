@@ -276,7 +276,7 @@ pub enum OrderActionExplanation {
     InsufficientFreeCollateral,
     OraclePriceBreachedLimitPrice,
     MarketOrderFilledToLimitPrice,
-    MarketOrderAuctionExpired,
+    OrderExpired,
     CanceledForLiquidation,
     OrderFilledWithAMM,
     OrderFilledWithMatch,

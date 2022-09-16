@@ -1589,15 +1589,8 @@ pub mod amm_jit {
             ..User::default()
         };
 
-        let auction_start_price =
-            crate::math::auction::calculate_auction_start_price(&market, PositionDirection::Long)
-                .unwrap();
-        let auction_end_price = crate::math::auction::calculate_auction_end_price(
-            &market,
-            PositionDirection::Long,
-            BASE_PRECISION,
-        )
-        .unwrap();
+        let auction_start_price = 950625000000_u128;
+        let auction_end_price = 1321540890000_u128;
         taker.orders[0].auction_start_price = auction_start_price;
         taker.orders[0].auction_end_price = auction_end_price;
         println!("start stop {} {}", auction_start_price, auction_end_price);
@@ -1858,15 +1851,8 @@ pub mod amm_jit {
             ..User::default()
         };
 
-        let auction_start_price =
-            crate::math::auction::calculate_auction_start_price(&market, PositionDirection::Short)
-                .unwrap();
-        let auction_end_price = crate::math::auction::calculate_auction_end_price(
-            &market,
-            PositionDirection::Short,
-            BASE_PRECISION,
-        )
-        .unwrap();
+        let auction_start_price = 1050625000000;
+        let auction_end_price = 795502090000;
         taker.orders[0].auction_start_price = auction_start_price;
         taker.orders[0].auction_end_price = auction_end_price;
         println!("start stop {} {}", auction_start_price, auction_end_price);

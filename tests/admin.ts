@@ -50,7 +50,7 @@ describe('admin', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -132,7 +132,7 @@ describe('admin', () => {
 				rewardDenominator: new BN(1),
 				timeBasedRewardLowerBound: new BN(1),
 			},
-			cancelOrderFee: new BN(0),
+			flatFillerFee: new BN(0),
 		};
 
 		await clearingHouse.updateFee(newFeeStructure);

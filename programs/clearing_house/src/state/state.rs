@@ -35,17 +35,12 @@ pub struct State {
     pub number_of_spot_markets: u64,
     pub min_order_quote_asset_amount: u128, // minimum est. quote_asset_amount for place_order to succeed
     pub min_perp_auction_duration: u8,
-    pub max_perp_auction_duration: u8,
-    pub min_spot_auction_duration: u8,
-    pub max_spot_auction_duration: u8,
+    pub default_market_order_time_in_force: u8,
+    pub default_spot_auction_duration: u8,
     pub liquidation_margin_buffer_ratio: u32,
     pub settlement_duration: u16,
     pub signer: Pubkey,
     pub signer_nonce: u8,
-
-    // upgrade-ability
-    pub padding0: u128,
-    pub padding1: u128,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -94,7 +89,7 @@ pub struct FeeStructure {
     pub maker_rebate_numerator: u128,
     pub maker_rebate_denominator: u128,
     pub filler_reward_structure: OrderFillerRewardStructure,
-    pub cancel_order_fee: u128,
+    pub flat_filler_fee: u128,
 }
 
 impl Default for FeeStructure {
@@ -137,7 +132,7 @@ impl Default for FeeStructure {
                 reward_denominator: 10,
                 time_based_reward_lower_bound: 10_000, // 1 cent
             },
-            cancel_order_fee: 10_000,
+            flat_filler_fee: 10_000,
         }
     }
 }

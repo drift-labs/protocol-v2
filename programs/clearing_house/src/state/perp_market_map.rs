@@ -42,7 +42,6 @@ impl<'a> PerpMarketMap<'a> {
 
     pub fn load<'b, 'c>(
         writable_markets: &'b MarketSet,
-        override_writable_markets: &'b MarketSet,
         account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
     ) -> ClearingHouseResult<PerpMarketMap<'a>> {
         let mut perp_market_map: PerpMarketMap = PerpMarketMap(BTreeMap::new());
@@ -70,16 +69,8 @@ impl<'a> PerpMarketMap<'a> {
                 return Err(ErrorCode::MarketWrongMutability);
             }
 
-            let account_loader: AccountLoader<PerpMarket> = if override_writable_markets
-                .contains(&market_index)
-            {
-                let mut account_info_clone = account_info.clone();
-                account_info_clone.is_writable = true;
-                AccountLoader::try_from(&account_info_clone)
-                    .or(Err(ErrorCode::InvalidMarketAccount))?
-            } else {
-                AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidMarketAccount))?
-            };
+            let account_loader: AccountLoader<PerpMarket> =
+                AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidMarketAccount))?;
 
             perp_market_map.0.insert(market_index, account_loader);
         }

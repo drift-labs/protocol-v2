@@ -380,7 +380,7 @@ pub struct Order {
     pub auction_start_price: u128,
     pub auction_end_price: u128,
     pub auction_duration: u8,
-    pub padding: [u16; 3],
+    pub time_in_force: u8,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
@@ -532,7 +532,7 @@ impl Default for Order {
             auction_start_price: 0,
             auction_end_price: 0,
             auction_duration: 0,
-            padding: [0; 3],
+            time_in_force: 0,
         }
     }
 }
