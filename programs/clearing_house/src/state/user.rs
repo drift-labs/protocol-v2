@@ -329,7 +329,11 @@ impl PerpPosition {
         }
     }
 
-    pub fn get_unsettled_pnl(&self, oracle_price: i128) -> ClearingHouseResult<i128> {
+    pub fn get_unsettled_pnl(
+        &self,
+        oracle_price: i128,
+        max_pnl_pool_excess: i128,
+    ) -> ClearingHouseResult<i128> {
         let (_, unrealized_pnl) =
             calculate_base_asset_value_and_pnl_with_oracle_price(self, oracle_price)?;
 
@@ -342,7 +346,7 @@ impl PerpPosition {
                 .map(|delta| delta.max(0))
                 .ok_or_else(math_error!())?;
 
-            Ok(unrealized_pnl.min(max_positive_pnl))
+            Ok(unrealized_pnl.min(max_positive_pnl.max(max_pnl_pool_excess)))
         } else {
             Ok(unrealized_pnl)
         }
@@ -362,6 +366,8 @@ pub struct Order {
     pub slot: u64,
     pub order_id: u64,
     pub user_order_id: u8,
+    // pub attached_order_id: u8,
+    // pub block_group_order_id: u8,
     pub market_index: u64,
     pub price: u128,
     pub existing_position_direction: PositionDirection,

@@ -18,7 +18,7 @@ mod get_unsettled_pnl {
         };
         let oracle_price = 50 * MARK_PRICE_PRECISION_I128;
         let unsettled_pnl = user.perp_positions[0]
-            .get_unsettled_pnl(oracle_price)
+            .get_unsettled_pnl(oracle_price, 0)
             .unwrap();
         assert_eq!(unsettled_pnl, -50 * QUOTE_PRECISION_I128);
     }
@@ -36,7 +36,7 @@ mod get_unsettled_pnl {
         };
         let oracle_price = 150 * MARK_PRICE_PRECISION_I128;
         let unsettled_pnl = user.perp_positions[0]
-            .get_unsettled_pnl(oracle_price)
+            .get_unsettled_pnl(oracle_price, 0)
             .unwrap();
         assert_eq!(unsettled_pnl, 50 * QUOTE_PRECISION_I128);
     }
@@ -54,7 +54,7 @@ mod get_unsettled_pnl {
         };
         let oracle_price = 75 * MARK_PRICE_PRECISION_I128;
         let unsettled_pnl = user.perp_positions[0]
-            .get_unsettled_pnl(oracle_price)
+            .get_unsettled_pnl(oracle_price, 0)
             .unwrap();
         assert_eq!(unsettled_pnl, 25 * QUOTE_PRECISION_I128);
     }
@@ -72,7 +72,7 @@ mod get_unsettled_pnl {
         };
         let oracle_price = 150 * MARK_PRICE_PRECISION_I128;
         let unsettled_pnl = user.perp_positions[0]
-            .get_unsettled_pnl(oracle_price)
+            .get_unsettled_pnl(oracle_price, 0)
             .unwrap();
         assert_eq!(unsettled_pnl, 0);
     }
@@ -90,7 +90,7 @@ mod get_unsettled_pnl {
         };
         let oracle_price = 150 * MARK_PRICE_PRECISION_I128;
         let unsettled_pnl = user.perp_positions[0]
-            .get_unsettled_pnl(oracle_price)
+            .get_unsettled_pnl(oracle_price, 0)
             .unwrap();
         assert_eq!(unsettled_pnl, -50 * QUOTE_PRECISION_I128);
     }
@@ -108,7 +108,7 @@ mod get_unsettled_pnl {
         };
         let oracle_price = 50 * MARK_PRICE_PRECISION_I128;
         let unsettled_pnl = user.perp_positions[0]
-            .get_unsettled_pnl(oracle_price)
+            .get_unsettled_pnl(oracle_price, 0)
             .unwrap();
         assert_eq!(unsettled_pnl, 50 * QUOTE_PRECISION_I128);
     }
@@ -126,7 +126,7 @@ mod get_unsettled_pnl {
         };
         let oracle_price = 125 * MARK_PRICE_PRECISION_I128;
         let unsettled_pnl = user.perp_positions[0]
-            .get_unsettled_pnl(oracle_price)
+            .get_unsettled_pnl(oracle_price, 0)
             .unwrap();
         assert_eq!(unsettled_pnl, 25 * QUOTE_PRECISION_I128);
     }
@@ -144,7 +144,7 @@ mod get_unsettled_pnl {
         };
         let oracle_price = 150 * MARK_PRICE_PRECISION_I128;
         let unsettled_pnl = user.perp_positions[0]
-            .get_unsettled_pnl(oracle_price)
+            .get_unsettled_pnl(oracle_price, 0)
             .unwrap();
         assert_eq!(unsettled_pnl, 0);
     }

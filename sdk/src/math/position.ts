@@ -29,9 +29,17 @@ import { calculateBaseAssetValueWithOracle } from './margin';
  * @returns Base Asset Value. : Precision QUOTE_PRECISION
  */
 export function calculateBaseAssetValue(
+<<<<<<< Updated upstream
 	market: PerpMarketAccount,
 	userPosition: PerpPosition,
 	oraclePriceData: OraclePriceData
+=======
+	market: MarketAccount,
+	userPosition: UserPosition,
+	oraclePriceData: OraclePriceData,
+	useSpread=true,
+	skipUpdate=false,
+>>>>>>> Stashed changes
 ): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
@@ -40,7 +48,8 @@ export function calculateBaseAssetValue(
 	const directionToClose = findDirectionToClose(userPosition);
 	let prepegAmm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
 
-	if (market.amm.baseSpread > 0) {
+	if (!skipUpdate){
+	if (market.amm.baseSpread > 0 && useSpread) {
 		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
 			calculateUpdatedAMMSpreadReserves(
 				market.amm,
@@ -56,6 +65,9 @@ export function calculateBaseAssetValue(
 	} else {
 		prepegAmm = calculateUpdatedAMM(market.amm, oraclePriceData);
 	}
+} else {
+	prepegAmm = market.amm;
+}
 
 	const [newQuoteAssetReserve, _] = calculateAmmReservesAfterSwap(
 		prepegAmm,
