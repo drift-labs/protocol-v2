@@ -98,7 +98,7 @@ describe('liquidate borrow for perp pnl', () => {
 
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 		await initializeSolSpotMarket(clearingHouse, solOracle);
-		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(0);
 

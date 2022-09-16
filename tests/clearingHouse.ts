@@ -94,7 +94,7 @@ describe('clearing_house', () => {
 
 		await clearingHouse.subscribe();
 		const state = clearingHouse.getStateAccount();
-		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		assert.ok(state.admin.equals(provider.wallet.publicKey));
 

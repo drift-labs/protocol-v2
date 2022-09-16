@@ -58,7 +58,7 @@ describe('subaccounts', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 	});
 
 	after(async () => {

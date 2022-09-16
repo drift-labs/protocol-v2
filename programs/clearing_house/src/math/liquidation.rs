@@ -25,6 +25,7 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
     margin_shortage: u128,
     margin_ratio: u32,
     liquidation_fee: u128,
+    if_liquidation_fee: u128,
     oracle_price: i128,
 ) -> ClearingHouseResult<u128> {
     let margin_ratio = (margin_ratio as u128)
@@ -48,6 +49,15 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
                 )
                 .ok_or_else(math_error!())?
                 .checked_div(LIQUIDATION_FEE_PRECISION)
+                .ok_or_else(math_error!())?
+                .checked_sub(
+                    oracle_price
+                        .unsigned_abs()
+                        .checked_mul(if_liquidation_fee)
+                        .ok_or_else(math_error!())?
+                        .checked_div(LIQUIDATION_FEE_PRECISION)
+                        .ok_or_else(math_error!())?,
+                )
                 .ok_or_else(math_error!())?,
         )
         .ok_or_else(math_error!())
@@ -61,6 +71,7 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
     liability_liquidation_multiplier: u128,
     liability_decimals: u8,
     liability_price: i128,
+    if_liquidation_fee: u128,
 ) -> ClearingHouseResult<u128> {
     // If unsettled pnl asset weight is 1 and quote asset is 1, this calculation breaks
     if asset_weight == liability_weight && asset_weight >= liability_weight {
@@ -94,6 +105,19 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
                                 .checked_div(liability_liquidation_multiplier)
                                 .ok_or_else(math_error!())?,
                         )
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?
+                .checked_sub(
+                    liability_price
+                        .unsigned_abs()
+                        .checked_mul(if_liquidation_fee)
+                        .ok_or_else(math_error!())?
+                        .checked_div(LIQUIDATION_FEE_PRECISION)
+                        .ok_or_else(math_error!())?
+                        .checked_mul(liability_weight)
+                        .ok_or_else(math_error!())?
+                        .checked_mul(10)
                         .ok_or_else(math_error!())?,
                 )
                 .ok_or_else(math_error!())?,

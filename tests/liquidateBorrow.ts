@@ -192,9 +192,10 @@ describe('liquidate borrow', () => {
 		);
 
 		// todo, why?
+		console.log(liquidationRecord.liquidateBorrow.assetTransfer.toString());
 		assert(
-			liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(53337341)) ||
-				liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(53337908))
+			liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(58828575)) ||
+				liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(58827950))
 		);
 		assert(
 			liquidationRecord.liquidateBorrow.liabilityPrice.eq(
@@ -210,11 +211,18 @@ describe('liquidate borrow', () => {
 		);
 		assert(
 			liquidationRecord.liquidateBorrow.liabilityTransfer.eq(
-				new BN(280722850)
+				new BN(309620791)
 			) ||
 				liquidationRecord.liquidateBorrow.liabilityTransfer.eq(
-					new BN(280725833)
+					new BN(309624080)
 				)
+		);
+
+		// if fee costs 1/100th of liability transfer
+		assert(
+			liquidationRecord.liquidateBorrow.ifFee.eq(
+				liquidationRecord.liquidateBorrow.liabilityTransfer.div(new BN(100))
+			)
 		);
 		await clearingHouse.fetchAccounts();
 		const spotMarket = clearingHouse.getSpotMarketAccount(0);

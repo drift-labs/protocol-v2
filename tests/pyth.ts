@@ -203,7 +203,7 @@ describe('pyth-oracle', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		await clearingHouse.initializeUserAccount();
 		userAccount = new ClearingHouseUser({

@@ -82,7 +82,7 @@ describe('User Account', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateAuctionDuration(0, 0);
+		await clearingHouse.updatePerpAuctionDuration(0);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 

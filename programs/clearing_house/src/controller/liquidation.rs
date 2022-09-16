@@ -243,12 +243,14 @@ pub fn liquidate_perp(
         .unsigned_abs();
 
     let market = perp_market_map.get_ref(&market_index)?;
-    let liquidation_fee = market.liquidation_fee;
+    let liquidation_fee = market.liquidator_fee;
+    let if_liquidation_fee = market.if_liquidation_fee;
     let base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount(
         calculate_base_asset_amount_to_cover_margin_shortage(
             margin_shortage,
             margin_ratio_with_buffer,
             liquidation_fee,
+            if_liquidation_fee,
             oracle_price,
         )?,
         market.amm.base_asset_amount_step_size,
@@ -282,6 +284,13 @@ pub fn liquidate_perp(
         .ok_or_else(math_error!())?
         .checked_div(LIQUIDATION_FEE_PRECISION)
         .ok_or_else(math_error!())?;
+    let if_fee = -cast_to_i128(
+        base_asset_value
+            .checked_mul(if_liquidation_fee)
+            .ok_or_else(math_error!())?
+            .checked_div(LIQUIDATION_FEE_PRECISION)
+            .ok_or_else(math_error!())?,
+    )?;
 
     user_stats.update_taker_volume_30d(cast(quote_asset_amount)?, now)?;
     liquidator_stats.update_maker_volume_30d(cast(quote_asset_amount)?, now)?;
@@ -302,8 +311,11 @@ pub fn liquidate_perp(
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
         let user_position = user.get_perp_position_mut(market_index).unwrap();
-        let user_pnl =
+        let mut user_pnl =
             update_position_and_market(user_position, &mut market, &user_position_delta)?;
+
+        update_quote_asset_amount(user_position, &mut market, if_fee)?;
+        user_pnl = user_pnl.checked_add(if_fee).ok_or_else(math_error!())?;
 
         let liquidator_position = liquidator
             .force_get_perp_position_mut(market_index)
@@ -313,6 +325,13 @@ pub fn liquidate_perp(
             &mut market,
             &liquidator_position_delta,
         )?;
+
+        market.amm.total_liquidation_fee = market
+            .amm
+            .total_liquidation_fee
+            .checked_add(if_fee.unsigned_abs())
+            .ok_or_else(math_error!())?;
+
         (user_pnl, liquidator_pnl)
     };
 
@@ -360,6 +379,7 @@ pub fn liquidate_perp(
             user_order_id,
             liquidator_order_id,
             fill_record_id,
+            if_fee: cast(if_fee.abs())?,
         },
         ..LiquidationRecord::default()
     });
@@ -449,7 +469,7 @@ pub fn liquidate_borrow(
             asset_market.decimals,
             asset_market.maintenance_asset_weight,
             calculate_liquidation_multiplier(
-                asset_market.liquidation_fee,
+                asset_market.liquidator_fee,
                 LiquidationMultiplierType::Premium,
             )?,
         )
@@ -461,6 +481,7 @@ pub fn liquidate_borrow(
         liability_decimals,
         liability_weight,
         liability_liquidation_multiplier,
+        liquidation_if_fee,
     ) = {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
         update_spot_market_cumulative_interest(&mut liability_market, now)?;
@@ -488,9 +509,10 @@ pub fn liquidate_borrow(
             liability_market.decimals,
             liability_market.maintenance_liability_weight,
             calculate_liquidation_multiplier(
-                liability_market.liquidation_fee,
+                liability_market.liquidator_fee,
                 LiquidationMultiplierType::Discount,
             )?,
+            liability_market.if_liquidation_fee,
         )
     };
 
@@ -555,6 +577,7 @@ pub fn liquidate_borrow(
                         liability_market_index,
                         liability_price,
                         liability_transfer: 0,
+                        if_fee: 0,
                     },
                     ..LiquidationRecord::default()
                 });
@@ -590,6 +613,7 @@ pub fn liquidate_borrow(
             liability_liquidation_multiplier,
             liability_decimals,
             liability_price,
+            liquidation_if_fee,
         )?;
 
     // Given the user's deposit amount, how much borrow can be transferred?
@@ -621,35 +645,25 @@ pub fn liquidate_borrow(
         liability_price,
     )?;
 
-    let liability_transfer_for_user: u128;
+    let if_fee = liability_transfer
+        .checked_mul(liquidation_if_fee)
+        .ok_or_else(math_error!())?
+        .checked_div(LIQUIDATION_FEE_PRECISION)
+        .ok_or_else(math_error!())?;
     {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
 
-        // part liquidator liability transfer pays to insurance fund
-        // size will be eventually be 0 for sufficiently small liability size
-        let liability_transfer_for_insurance = liability_transfer
-            .checked_mul(liability_market.liquidation_if_factor as u128)
-            .ok_or_else(math_error!())?
-            .checked_div(LIQUIDATION_FEE_PRECISION)
-            .ok_or_else(math_error!())?;
-
-        liability_transfer_for_user = liability_transfer
-            .checked_sub(liability_transfer_for_insurance)
-            .ok_or_else(math_error!())?;
-
-        update_revenue_pool_balances(
-            liability_transfer_for_insurance,
-            &SpotBalanceType::Deposit,
-            &mut liability_market,
-        )?;
-
         update_spot_balances(
-            liability_transfer_for_user,
+            liability_transfer
+                .checked_sub(if_fee)
+                .ok_or_else(math_error!())?,
             &SpotBalanceType::Deposit,
             &mut liability_market,
             user.get_spot_position_mut(liability_market_index).unwrap(),
             false,
         )?;
+
+        update_revenue_pool_balances(if_fee, &SpotBalanceType::Deposit, &mut liability_market)?;
 
         update_spot_balances(
             liability_transfer,
@@ -684,7 +698,7 @@ pub fn liquidate_borrow(
         )?;
     }
 
-    if liability_transfer_for_user >= liability_transfer_to_cover_margin_shortage {
+    if liability_transfer >= liability_transfer_to_cover_margin_shortage {
         user.being_liquidated = false;
     } else {
         user.bankrupt = is_user_bankrupt(user);
@@ -715,6 +729,7 @@ pub fn liquidate_borrow(
             liability_market_index,
             liability_price,
             liability_transfer,
+            if_fee: cast(if_fee)?,
         },
         ..LiquidationRecord::default()
     });
@@ -829,7 +844,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             6_u8,
             pnl_asset_weight,
             calculate_liquidation_multiplier(
-                market.liquidation_fee,
+                market.liquidator_fee,
                 LiquidationMultiplierType::Premium,
             )?,
         )
@@ -868,7 +883,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             liability_market.decimals,
             liability_market.maintenance_liability_weight,
             calculate_liquidation_multiplier(
-                liability_market.liquidation_fee,
+                liability_market.liquidator_fee,
                 LiquidationMultiplierType::Discount,
             )?,
         )
@@ -973,6 +988,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             liability_liquidation_multiplier,
             liability_decimals,
             liability_price,
+            0,
         )?;
 
     // Given the user's deposit amount, how much borrow can be transferred?
@@ -1175,7 +1191,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             asset_market.decimals,
             asset_market.maintenance_asset_weight,
             calculate_liquidation_multiplier(
-                asset_market.liquidation_fee,
+                asset_market.liquidator_fee,
                 LiquidationMultiplierType::Premium,
             )?,
         )
@@ -1223,7 +1239,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             6_u8,
             SPOT_WEIGHT_PRECISION,
             calculate_liquidation_multiplier(
-                market.liquidation_fee,
+                market.liquidator_fee,
                 LiquidationMultiplierType::Discount,
             )?,
         )
@@ -1324,6 +1340,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             pnl_liquidation_multiplier,
             quote_decimals,
             quote_price,
+            0, // no if fee
         )?;
 
     // Given the user's deposit amount, how much borrow can be transferred?
