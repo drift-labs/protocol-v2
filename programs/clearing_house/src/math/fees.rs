@@ -1,5 +1,6 @@
 use crate::error::ClearingHouseResult;
 use crate::math::casting::cast_to_u128;
+use crate::math::constants::MARK_PRICE_PRECISION;
 use crate::math::helpers::get_proportion_u128;
 use crate::math_error;
 use crate::state::state::FeeStructure;
@@ -36,7 +37,13 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
         let filler_reward: u128 = if !reward_filler {
             0
         } else {
-            calculate_filler_reward(fee, order_ts, now, &fee_structure.filler_reward_structure)?
+            calculate_filler_reward(
+                fee,
+                order_ts,
+                now,
+                0,
+                &fee_structure.filler_reward_structure,
+            )?
         };
         let fee_to_market =
             cast_to_i128(fee.checked_sub(filler_reward).ok_or_else(math_error!())?)?;
@@ -71,7 +78,13 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
         let filler_reward: u128 = if !reward_filler {
             0
         } else {
-            calculate_filler_reward(fee, order_ts, now, &fee_structure.filler_reward_structure)?
+            calculate_filler_reward(
+                fee,
+                order_ts,
+                now,
+                0,
+                &fee_structure.filler_reward_structure,
+            )?
         };
 
         let fee_to_market = cast_to_i128(
@@ -122,6 +135,7 @@ fn calculate_filler_reward(
     fee: u128,
     order_ts: i64,
     now: i64,
+    multiplier: u128,
     filler_reward_structure: &OrderFillerRewardStructure,
 ) -> ClearingHouseResult<u128> {
     // incentivize keepers to prioritize filling older orders (rather than just largest orders)
@@ -133,7 +147,17 @@ fn calculate_filler_reward(
         .checked_div(filler_reward_structure.reward_denominator)
         .ok_or_else(math_error!())?;
 
-    let min_time_filler_reward = filler_reward_structure.time_based_reward_lower_bound;
+    let min_time_filler_reward = filler_reward_structure
+        .time_based_reward_lower_bound
+        .checked_mul(
+            multiplier
+                .max(MARK_PRICE_PRECISION)
+                .min(MARK_PRICE_PRECISION * 100),
+        )
+        .ok_or_else(math_error!())?
+        .checked_div(MARK_PRICE_PRECISION)
+        .ok_or_else(math_error!())?;
+
     let time_since_order = max(
         1,
         cast_to_u128(now.checked_sub(order_ts).ok_or_else(math_error!())?)?,
@@ -158,7 +182,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     fee_structure: &FeeStructure,
     order_ts: i64,
     now: i64,
-    reward_filler: bool,
+    filler_multiplier: u128,
     reward_referrer: bool,
 ) -> ClearingHouseResult<FillFees> {
     let fee = quote_asset_amount
@@ -183,10 +207,16 @@ pub fn calculate_fee_for_fulfillment_with_match(
         .checked_sub(referee_discount)
         .ok_or_else(math_error!())?;
 
-    let filler_reward: u128 = if !reward_filler {
+    let filler_reward: u128 = if filler_multiplier == 0 {
         0
     } else {
-        calculate_filler_reward(fee, order_ts, now, &fee_structure.filler_reward_structure)?
+        calculate_filler_reward(
+            fee,
+            order_ts,
+            now,
+            filler_multiplier,
+            &fee_structure.filler_reward_structure,
+        )?
     };
 
     // must be non-negative
@@ -254,6 +284,7 @@ pub fn calculate_fee_for_fulfillment_with_serum(
             user_fee,
             order_ts,
             now,
+            0,
             &fee_structure.filler_reward_structure,
         )?
         .min(available_fee)
@@ -304,7 +335,7 @@ mod test {
                 &FeeStructure::default(),
                 0,
                 0,
-                false,
+                0,
                 false,
             )
             .unwrap();
@@ -339,7 +370,7 @@ mod test {
                 &fee_structure,
                 0,
                 0,
-                true,
+                1,
                 false,
             )
             .unwrap();
@@ -373,7 +404,7 @@ mod test {
                 &fee_structure,
                 0,
                 0,
-                true,
+                1,
                 false,
             )
             .unwrap();
@@ -407,7 +438,7 @@ mod test {
                 &fee_structure,
                 0,
                 60,
-                true,
+                1,
                 false,
             )
             .unwrap();
@@ -447,7 +478,7 @@ mod test {
                 &fee_structure,
                 0,
                 0,
-                false,
+                0,
                 true,
             )
             .unwrap();

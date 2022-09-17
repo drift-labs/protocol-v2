@@ -1,5 +1,7 @@
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math::casting::{cast_to_i128, cast_to_u128};
+use crate::math::constants::MARK_PRICE_PRECISION_I128;
 use crate::math_error;
 use crate::state::user::Order;
 use solana_program::msg;
@@ -51,4 +53,30 @@ pub fn calculate_fill_for_matched_orders(
         .ok_or_else(math_error!())?;
 
     Ok((base_asset_amount, quote_asset_amount))
+}
+
+pub fn calculate_filler_multiplier_for_matched_orders(
+    maker_price: u128,
+    maker_direction: &PositionDirection,
+    oracle_price: i128,
+) -> ClearingHouseResult<u128> {
+    // percentage oracle_price is above maker_price
+    let price_pct_diff = oracle_price
+        .checked_sub(cast_to_i128(maker_price)?)
+        .ok_or_else(math_error!())?
+        .checked_mul(MARK_PRICE_PRECISION_I128)
+        .ok_or_else(math_error!())?
+        .checked_div(oracle_price)
+        .ok_or_else(math_error!())?;
+
+    let ten_bps_pct_diff = MARK_PRICE_PRECISION_I128 / 1000;
+
+    // offer filler multiplier based on price improvement from reasonable baseline
+    let multiplier = match maker_direction {
+        PositionDirection::Long => (-price_pct_diff + ten_bps_pct_diff),
+        PositionDirection::Short => (price_pct_diff - ten_bps_pct_diff),
+    }
+    .min(ten_bps_pct_diff);
+
+    Ok(cast_to_u128(multiplier)?)
 }
