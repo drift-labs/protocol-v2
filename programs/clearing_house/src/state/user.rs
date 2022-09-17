@@ -33,6 +33,7 @@ pub struct User {
     pub next_liquidation_id: u16,
     pub being_liquidated: bool,
     pub bankrupt: bool,
+    pub custom_margin_ratio: u32,
 }
 
 impl User {
