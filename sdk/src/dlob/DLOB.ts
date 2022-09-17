@@ -330,6 +330,18 @@ export class DLOB {
 				slot
 			);
 
+			if (exhaustedSide === 'bid') {
+				nextBid = bidGenerator.next();
+			} else if (exhaustedSide === 'ask') {
+				nextAsk = askGenerator.next();
+			} else if (exhaustedSide === 'both') {
+				nextBid = bidGenerator.next();
+				nextAsk = askGenerator.next();
+			} else {
+				console.error(`invalid exhaustedSide: ${exhaustedSide}`);
+				break;
+			}
+
 			const takerIsMaker =
 				crossingNodes?.makerNode !== undefined &&
 				crossingNodes.node.userAccount.equals(
@@ -339,17 +351,6 @@ export class DLOB {
 			// Verify that each side is different user
 			if (crossingNodes && !takerIsMaker) {
 				nodesToFill.push(crossingNodes);
-			}
-
-			if (exhaustedSide === 'bid') {
-				nextBid = bidGenerator.next();
-			} else if (exhaustedSide === 'ask') {
-				nextAsk = askGenerator.next();
-			} else if (exhaustedSide === 'both') {
-				nextBid = bidGenerator.next();
-				nextAsk = askGenerator.next();
-			} else {
-				break;
 			}
 		}
 		return nodesToFill;
@@ -432,7 +433,7 @@ export class DLOB {
 		vAsk: BN | undefined,
 		slot: number,
 		marketType: MarketType,
-		oraclePriceData?: OraclePriceData
+		oraclePriceData: OraclePriceData
 	): Generator<DLOBNode> {
 		if (isVariant(marketType, 'spot') && !oraclePriceData) {
 			throw new Error('Must provide OraclePriceData to get spot asks');
@@ -500,7 +501,7 @@ export class DLOB {
 		vBid: BN | undefined,
 		slot: number,
 		marketType: MarketType,
-		oraclePriceData?: OraclePriceData
+		oraclePriceData: OraclePriceData
 	): Generator<DLOBNode> {
 		if (isVariant(marketType, 'spot') && !oraclePriceData) {
 			throw new Error('Must provide OraclePriceData to get spot bids');
@@ -574,10 +575,14 @@ export class DLOB {
 		const bidPrice = bidNode.getPrice(oraclePriceData, slot);
 		const askPrice = askNode.getPrice(oraclePriceData, slot);
 
-		// contains market order
+		const bidOrder = bidNode.order;
+		const askOrder = askNode.order;
+
 		const containsMarketOrder =
-			(askNode.order && isOneOfVariant(askNode.order.orderType, ['market'])) ||
-			(bidNode.order && isOneOfVariant(bidNode.order.orderType, ['market']));
+			(askOrder && isVariant(askOrder.orderType, 'market')) ||
+			(bidOrder && isVariant(bidOrder.orderType, 'market'));
+
+		// no market orders, and no crossing orders - return
 		if (!containsMarketOrder && bidPrice.lt(askPrice)) {
 			if (askNode.isVammNode() && !bidNode.isVammNode()) {
 				return {
@@ -594,11 +599,7 @@ export class DLOB {
 			}
 		}
 
-		const bidOrder = bidNode.order;
-		const askOrder = askNode.order;
-
 		// User bid crosses the vamm ask
-		// Cant match orders
 		if (askNode.isVammNode()) {
 			if (!isAuctionComplete(bidOrder, slot)) {
 				return {
@@ -614,7 +615,6 @@ export class DLOB {
 		}
 
 		// User ask crosses the vamm bid
-		// Cant match orders
 		if (bidNode.isVammNode()) {
 			if (!isAuctionComplete(askOrder, slot)) {
 				return {
@@ -645,7 +645,14 @@ export class DLOB {
 			exhaustedSide = 'bid';
 		}
 
-		// update the orders as if they fill
+		// Can't match two maker orders
+		if (bidOrder.postOnly && askOrder.postOnly) {
+			return {
+				exhaustedSide,
+			};
+		}
+
+		// update the orders as if they fill - so we don't try to match them on the next iteration
 		if (exhaustedSide === 'ask') {
 			bidNode.order.baseAssetAmountFilled =
 				bidOrder.baseAssetAmountFilled.add(askBaseRemaining);
@@ -657,13 +664,6 @@ export class DLOB {
 		} else {
 			askNode.order.baseAssetAmountFilled = askOrder.baseAssetAmount;
 			bidNode.order.baseAssetAmountFilled = bidOrder.baseAssetAmount;
-		}
-
-		// Two maker orders cross
-		if (bidOrder.postOnly && askOrder.postOnly) {
-			return {
-				exhaustedSide,
-			};
 		}
 
 		// Bid is maker
@@ -706,9 +706,10 @@ export class DLOB {
 		marketIndex: BN,
 		vAsk: BN | undefined,
 		slot: number,
+		marketType: MarketType,
 		oraclePriceData: OraclePriceData
 	): BN {
-		return this.getAsks(marketIndex, vAsk, slot, oraclePriceData)
+		return this.getAsks(marketIndex, vAsk, slot, marketType, oraclePriceData)
 			.next()
 			.value.getPrice(oraclePriceData, slot);
 	}
@@ -717,9 +718,10 @@ export class DLOB {
 		marketIndex: BN,
 		vBid: BN | undefined,
 		slot: number,
+		marketType: MarketType,
 		oraclePriceData: OraclePriceData
 	): BN {
-		return this.getBids(marketIndex, vBid, slot, oraclePriceData)
+		return this.getBids(marketIndex, vBid, slot, marketType, oraclePriceData)
 			.next()
 			.value.getPrice(oraclePriceData, slot);
 	}
@@ -780,8 +782,20 @@ export class DLOB {
 			const vAsk = calculateAskPrice(market, oraclePriceData);
 			const vBid = calculateBidPrice(market, oraclePriceData);
 
-			const bestAsk = this.getBestAsk(marketIndex, vAsk, slot, oraclePriceData);
-			const bestBid = this.getBestBid(marketIndex, vBid, slot, oraclePriceData);
+			const bestAsk = this.getBestAsk(
+				marketIndex,
+				vAsk,
+				slot,
+				marketType,
+				oraclePriceData
+			);
+			const bestBid = this.getBestBid(
+				marketIndex,
+				vBid,
+				slot,
+				marketType,
+				oraclePriceData
+			);
 			const mid = bestAsk.add(bestBid).div(new BN(2));
 
 			const bidSpread =
@@ -820,12 +834,14 @@ export class DLOB {
 				marketIndex,
 				undefined,
 				slot,
+				marketType,
 				oraclePriceData
 			);
 			const bestBid = this.getBestBid(
 				marketIndex,
 				undefined,
 				slot,
+				marketType,
 				oraclePriceData
 			);
 			const mid = bestAsk.add(bestBid).div(new BN(2));
