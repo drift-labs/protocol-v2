@@ -32,6 +32,16 @@ pub struct DepositRecord {
     pub to: Option<Pubkey>,
 }
 
+#[event]
+pub struct SpotInterestRecord {
+    pub ts: i64,
+    pub market_index: u64,
+    pub deposit_balance: u128,
+    pub cumulative_deposit_interest: u128,
+    pub borrow_balance: u128,
+    pub cumulative_borrow_interest: u128,
+}
+
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum DepositDirection {
     DEPOSIT,

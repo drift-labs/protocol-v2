@@ -1,3 +1,4 @@
+use anchor_lang::prelude::*;
 use solana_program::msg;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
@@ -9,6 +10,7 @@ use crate::math::spot_balance::{
     get_interest_token_amount, get_spot_balance, get_token_amount, InterestAccumulated,
 };
 use crate::math_error;
+use crate::state::events::SpotInterestRecord;
 use crate::state::market::PerpMarket;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::validate;
@@ -108,6 +110,15 @@ pub fn update_spot_market_cumulative_interest(
             )?;
 
             update_revenue_pool_balances(token_amount, &SpotBalanceType::Deposit, spot_market)?;
+
+            emit!(SpotInterestRecord {
+                ts: now,
+                market_index: spot_market.market_index,
+                deposit_balance: spot_market.deposit_balance,
+                cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
+                borrow_balance: spot_market.borrow_balance,
+                cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+            });
         }
     }
 
