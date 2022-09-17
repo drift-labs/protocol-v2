@@ -139,27 +139,29 @@ export function getLimitPrice(
 	if (!order.oraclePriceOffset.eq(ZERO)) {
 		limitPrice = oraclePriceData.price.add(order.oraclePriceOffset);
 	} else if (isOneOfVariant(order.orderType, ['market', 'triggerMarket'])) {
-		if (perpMarket) {
-			if (!isAuctionComplete(order, slot)) {
-				limitPrice = getAuctionPrice(order, slot);
-			} else if (!order.price.eq(ZERO)) {
-				limitPrice = order.price;
-			} else if (isVariant(order.direction, 'long')) {
-				const askPrice = calculateAskPrice(perpMarket, oraclePriceData);
-				const delta = askPrice.div(new BN(perpMarket.amm.maxSlippageRatio));
-				limitPrice = askPrice.add(delta);
-			} else {
-				const bidPrice = calculateBidPrice(perpMarket, oraclePriceData);
-				const delta = bidPrice.div(new BN(perpMarket.amm.maxSlippageRatio));
-				limitPrice = bidPrice.sub(delta);
-			}
+		if (!isAuctionComplete(order, slot)) {
+			limitPrice = getAuctionPrice(order, slot);
+		} else if (!order.price.eq(ZERO)) {
+			limitPrice = order.price;
 		} else {
-			// check oracle validity?
-			const oraclePrice1Pct = oraclePriceData.price.div(new BN(100));
-			if (isVariant(order.direction, 'long')) {
-				limitPrice = oraclePriceData.price.add(oraclePrice1Pct);
+			if (perpMarket) {
+				if (isVariant(order.direction, 'long')) {
+					const askPrice = calculateAskPrice(perpMarket, oraclePriceData);
+					const delta = askPrice.div(new BN(perpMarket.amm.maxSlippageRatio));
+					limitPrice = askPrice.add(delta);
+				} else {
+					const bidPrice = calculateBidPrice(perpMarket, oraclePriceData);
+					const delta = bidPrice.div(new BN(perpMarket.amm.maxSlippageRatio));
+					limitPrice = bidPrice.sub(delta);
+				}
 			} else {
-				limitPrice = oraclePriceData.price.sub(oraclePrice1Pct);
+				// check oracle validity?
+				const oraclePrice1Pct = oraclePriceData.price.div(new BN(100));
+				if (isVariant(order.direction, 'long')) {
+					limitPrice = oraclePriceData.price.add(oraclePrice1Pct);
+				} else {
+					limitPrice = oraclePriceData.price.sub(oraclePrice1Pct);
+				}
 			}
 		}
 	} else {
