@@ -205,7 +205,7 @@ mod get_claimable_pnl {
 
     #[test]
     fn multiple_users_test_no_claimable() {
-        let mut usdc_market = SpotMarket {
+        let usdc_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -217,7 +217,7 @@ mod get_claimable_pnl {
             ..SpotMarket::default()
         };
 
-        let mut perp_market = PerpMarket {
+        let perp_market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
@@ -307,7 +307,7 @@ mod get_claimable_pnl {
 
     #[test]
     fn multiple_users_test_partially_claimable_from_pnl_pool_excess() {
-        let mut usdc_market = SpotMarket {
+        let usdc_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -329,7 +329,7 @@ mod get_claimable_pnl {
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
                 curve_update_intensity: 100,
                 net_base_asset_amount: AMM_RESERVE_PRECISION as i128,
-                quote_asset_amount_long: -250 * QUOTE_PRECISION_I128,
+                quote_asset_amount_long: -249 * QUOTE_PRECISION_I128,
                 quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
                 ..AMM::default()
             },
@@ -352,8 +352,8 @@ mod get_claimable_pnl {
         let user2 = User {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -160 * QUOTE_PRECISION_I128,
+                quote_asset_amount: -149 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -150 * QUOTE_PRECISION_I128,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -380,7 +380,7 @@ mod get_claimable_pnl {
         assert_eq!(pnl_pool_token_amount, 60000000);
 
         let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, oracle_price).unwrap();
-        assert_eq!(net_user_pnl, 50000000);
+        assert_eq!(net_user_pnl, 51000000);
 
         let max_pnl_pool_excess = if net_user_pnl < pnl_pool_token_amount {
             pnl_pool_token_amount
@@ -389,8 +389,8 @@ mod get_claimable_pnl {
         } else {
             0
         };
-        assert_eq!(max_pnl_pool_excess, 10000000);
-        assert_eq!(max_pnl_pool_excess - net_user_pnl, -40000000);
+        assert_eq!(max_pnl_pool_excess, 9_000_000);
+        assert_eq!(max_pnl_pool_excess - net_user_pnl, -42_000_000);
 
         let unsettled_pnl1 = user1.perp_positions[0]
             .get_claimable_pnl(oracle_price, max_pnl_pool_excess)
@@ -406,9 +406,9 @@ mod get_claimable_pnl {
             .unwrap();
         assert_eq!(
             user2.perp_positions[0].get_unrealized_pnl(oracle_price).unwrap(),
-            0
+            1_000_000
         );
-        assert_eq!(unsettled_pnl2, 0);
+        assert_eq!(unsettled_pnl2, 1_000_000);
 
         let unsettled_pnl3 = user3.perp_positions[0]
             .get_claimable_pnl(oracle_price, max_pnl_pool_excess)
@@ -416,14 +416,40 @@ mod get_claimable_pnl {
 
         assert_eq!(
             user3.perp_positions[0].get_unrealized_pnl(oracle_price).unwrap(),
-            50000000
+            50_000_000
         );
-        assert_eq!(unsettled_pnl3, 10000000);
+        assert_eq!(unsettled_pnl3, 9_000_000);
+
+
+        perp_market.amm.quote_asset_amount_long = -250 * QUOTE_PRECISION_I128;
+        let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, oracle_price).unwrap();
+        assert_eq!(net_user_pnl, 50000000);
+        let max_pnl_pool_excess = if net_user_pnl < pnl_pool_token_amount {
+            (pnl_pool_token_amount - QUOTE_PRECISION_I128)
+                .checked_sub(net_user_pnl.max(0))
+                .unwrap()
+        } else {
+            0
+        };
+
+        assert_eq!(max_pnl_pool_excess, 9_000_000);
+
+        let unsettled_pnl3 = user3.perp_positions[0]
+            .get_claimable_pnl(oracle_price, max_pnl_pool_excess)
+            .unwrap();
+
+        assert_eq!(
+            user3.perp_positions[0].get_unrealized_pnl(oracle_price).unwrap(),
+            50_000_000
+        );
+        assert_eq!(unsettled_pnl3, 9_000_000);
+
+
     }
 
     #[test]
     fn multiple_users_test_fully_claimable_from_pnl_pool_excess() {
-        let mut usdc_market = SpotMarket {
+        let usdc_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -435,7 +461,7 @@ mod get_claimable_pnl {
             ..SpotMarket::default()
         };
 
-        let mut perp_market = PerpMarket {
+        let perp_market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
