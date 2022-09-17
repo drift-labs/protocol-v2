@@ -1785,6 +1785,31 @@
       ]
     },
     {
+      "name": "updateUserCustomMarginRatio",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "userId",
+          "type": "u8"
+        },
+        {
+          "name": "marginRatio",
+          "type": "u32"
+        }
+      ]
+    },
+    {
       "name": "settleFundingPayment",
       "accounts": [
         {
@@ -3561,6 +3586,10 @@
           {
             "name": "bankrupt",
             "type": "bool"
+          },
+          {
+            "name": "customMarginRatio",
+            "type": "u32"
           }
         ]
       }
