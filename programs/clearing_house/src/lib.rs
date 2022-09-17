@@ -69,7 +69,6 @@ pub mod clearing_house {
     use crate::state::spot_market_map::{
         get_writable_spot_market_set, SpotMarketMap, SpotMarketSet,
     };
-    use crate::state::state::OrderFillerRewardStructure;
 
     use super::*;
     use crate::state::insurance_fund_stake::InsuranceFundStake;
@@ -92,8 +91,6 @@ pub mod clearing_house {
             exchange_paused: false,
             admin_controls_prices,
             insurance_vault: insurance_vault.key(),
-            perp_fee_structure: FeeStructure::default(),
-            spot_fee_structure: FeeStructure::default(),
             whitelist_mint: Pubkey::default(),
             discount_mint: Pubkey::default(),
             oracle_guard_rails: OracleGuardRails::default(),
@@ -1441,7 +1438,6 @@ pub mod clearing_house {
 
         controller::orders::trigger_spot_order(
             order_id,
-            &ctx.accounts.state,
             &ctx.accounts.user,
             &spot_market_market,
             &mut oracle_map,
@@ -3157,22 +3153,6 @@ pub mod clearing_house {
     ) -> Result<()> {
         let market = &mut ctx.accounts.market.load_mut()?;
         market.amm.lp_cooldown_time = lp_cooldown_time;
-        Ok(())
-    }
-
-    pub fn update_fee(ctx: Context<AdminUpdateState>, fees: FeeStructure) -> Result<()> {
-        ctx.accounts.state.perp_fee_structure = fees;
-        Ok(())
-    }
-
-    pub fn update_order_filler_reward_structure(
-        ctx: Context<AdminUpdateState>,
-        order_filler_reward_structure: OrderFillerRewardStructure,
-    ) -> Result<()> {
-        ctx.accounts
-            .state
-            .perp_fee_structure
-            .filler_reward_structure = order_filler_reward_structure;
         Ok(())
     }
 

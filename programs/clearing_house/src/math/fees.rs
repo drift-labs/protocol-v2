@@ -2,13 +2,13 @@ use crate::error::ClearingHouseResult;
 use crate::math::casting::cast_to_u128;
 use crate::math::helpers::get_proportion_u128;
 use crate::math_error;
-use crate::state::state::FeeStructure;
-use crate::state::state::OrderFillerRewardStructure;
 use num_integer::Roots;
 use solana_program::msg;
 use std::cmp::{max, min};
 
 use super::casting::cast_to_i128;
+use crate::state::fees::{FeeStructure2, FeeTier, OrderFillerRewardStructure};
+use crate::state::user::UserStats;
 
 pub struct FillFees {
     pub user_fee: u128,
@@ -21,8 +21,9 @@ pub struct FillFees {
 }
 
 pub fn calculate_fee_for_order_fulfill_against_amm(
+    user_stats: &UserStats,
     quote_asset_amount: u128,
-    fee_structure: &FeeStructure,
+    fee_structure: &FeeStructure2,
     order_ts: i64,
     now: i64,
     reward_filler: bool,
@@ -30,6 +31,8 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
     quote_asset_amount_surplus: i128,
     is_post_only: bool,
 ) -> ClearingHouseResult<FillFees> {
+    let fee_tier = determine_user_fee_tier(&user_stats, fee_structure);
+
     // if there was a quote_asset_amount_surplus, the order was a maker order and fee_to_market comes from surplus
     if is_post_only {
         let fee = cast_to_u128(quote_asset_amount_surplus)?;
@@ -53,13 +56,13 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
         })
     } else {
         let fee = quote_asset_amount
-            .checked_mul(fee_structure.fee_numerator)
+            .checked_mul(fee_tier.fee_numerator)
             .ok_or_else(math_error!())?
-            .checked_div(fee_structure.fee_denominator)
+            .checked_div(fee_tier.fee_denominator)
             .ok_or_else(math_error!())?;
 
         let (referrer_reward, referee_discount) = if reward_referrer {
-            calculate_referrer_reward_and_referee_discount(fee, fee_structure)?
+            calculate_referrer_reward_and_referee_discount(fee, fee_tier)?
         } else {
             (0, 0)
         };
@@ -102,18 +105,18 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
 
 fn calculate_referrer_reward_and_referee_discount(
     fee: u128,
-    fee_structure: &FeeStructure,
+    fee_tier: &FeeTier,
 ) -> ClearingHouseResult<(u128, u128)> {
     Ok((
         get_proportion_u128(
             fee,
-            fee_structure.referral_discount.referrer_reward_numerator,
-            fee_structure.referral_discount.referrer_reward_denominator,
+            fee_tier.referrer_reward_numerator,
+            fee_tier.referrer_reward_denominator,
         )?,
         get_proportion_u128(
             fee,
-            fee_structure.referral_discount.referee_discount_numerator,
-            fee_structure.referral_discount.referee_discount_denominator,
+            fee_tier.referee_discount_numerator,
+            fee_tier.referee_discount_denominator,
         )?,
     ))
 }
@@ -154,27 +157,32 @@ fn calculate_filler_reward(
 }
 
 pub fn calculate_fee_for_fulfillment_with_match(
+    taker_stats: &UserStats,
+    maker_stats: &UserStats,
     quote_asset_amount: u128,
-    fee_structure: &FeeStructure,
+    fee_structure: &FeeStructure2,
     order_ts: i64,
     now: i64,
     reward_filler: bool,
     reward_referrer: bool,
 ) -> ClearingHouseResult<FillFees> {
+    let taker_fee_tier = determine_user_fee_tier(taker_stats, fee_structure);
+    let maker_fee_tier = determine_user_fee_tier(maker_stats, fee_structure);
+
     let fee = quote_asset_amount
-        .checked_mul(fee_structure.fee_numerator)
+        .checked_mul(taker_fee_tier.fee_numerator)
         .ok_or_else(math_error!())?
-        .checked_div(fee_structure.fee_denominator)
+        .checked_div(taker_fee_tier.fee_denominator)
         .ok_or_else(math_error!())?;
 
-    let maker_rebate = fee
-        .checked_mul(fee_structure.maker_rebate_numerator)
+    let maker_rebate = quote_asset_amount
+        .checked_mul(maker_fee_tier.maker_rebate_numerator)
         .ok_or_else(math_error!())?
-        .checked_div(fee_structure.maker_rebate_denominator)
+        .checked_div(maker_fee_tier.maker_rebate_denominator)
         .ok_or_else(math_error!())?;
 
     let (referrer_reward, referee_discount) = if reward_referrer {
-        calculate_referrer_reward_and_referee_discount(fee, fee_structure)?
+        calculate_referrer_reward_and_referee_discount(fee, taker_fee_tier)?
     } else {
         (0, 0)
     };
@@ -219,8 +227,9 @@ pub struct SerumFillFees {
 }
 
 pub fn calculate_fee_for_fulfillment_with_serum(
+    user_stats: &UserStats,
     quote_asset_amount: u128,
-    fee_structure: &FeeStructure,
+    fee_structure: &FeeStructure2,
     order_ts: i64,
     now: i64,
     reward_filler: bool,
@@ -228,10 +237,12 @@ pub fn calculate_fee_for_fulfillment_with_serum(
     serum_referrer_rebate: u128,
     fee_pool_amount: u128,
 ) -> ClearingHouseResult<SerumFillFees> {
+    let taker_fee_tier = determine_user_fee_tier(user_stats, fee_structure);
+
     let fee = quote_asset_amount
-        .checked_mul(fee_structure.fee_numerator)
+        .checked_mul(taker_fee_tier.fee_numerator)
         .ok_or_else(math_error!())?
-        .checked_div(fee_structure.fee_denominator)
+        .checked_div(taker_fee_tier.fee_denominator)
         .ok_or_else(math_error!())?;
 
     let serum_fee_plus_referrer_rebate = serum_fee
@@ -277,6 +288,14 @@ pub fn calculate_fee_for_fulfillment_with_serum(
         filler_reward,
         fee_pool_delta,
     })
+}
+
+pub fn determine_user_fee_tier<'a>(
+    _user_stats: &UserStats,
+    fee_structure: &'a FeeStructure2,
+) -> &'a FeeTier {
+    // actually pick tier based on user stats
+    return &fee_structure.first_tier;
 }
 
 #[cfg(test)]

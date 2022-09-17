@@ -14,6 +14,7 @@ use crate::math::margin::meets_maintenance_margin_requirement;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_settlement_price;
 use crate::math_error;
 use crate::state::events::SettlePnlRecord;
+use crate::state::fees::PERP_FEE_STRUCTURE;
 use crate::state::market::MarketStatus;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -164,7 +165,7 @@ pub fn settle_expired_position(
         return Err(ErrorCode::InsufficientCollateralForSettlingPNL);
     }
 
-    let fee_structure = &state.perp_fee_structure;
+    let fee_structure = &PERP_FEE_STRUCTURE;
 
     {
         let quote_spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
@@ -219,9 +220,9 @@ pub fn settle_expired_position(
         )?;
 
     let fee = base_asset_value
-        .checked_mul(fee_structure.fee_numerator)
+        .checked_mul(fee_structure.first_tier.fee_numerator)
         .ok_or_else(math_error!())?
-        .checked_div(fee_structure.fee_denominator)
+        .checked_div(fee_structure.first_tier.fee_denominator)
         .ok_or_else(math_error!())?;
 
     let unrealized_pnl_with_fee = unrealized_pnl

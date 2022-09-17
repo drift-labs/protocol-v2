@@ -1,4 +1,5 @@
 pub mod events;
+pub mod fees;
 pub mod fulfillment;
 pub mod insurance_fund_stake;
 pub mod market;
