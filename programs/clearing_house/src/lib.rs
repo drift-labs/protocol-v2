@@ -643,7 +643,7 @@ pub mod clearing_house {
             amount
         };
 
-        controller::spot_balance::update_spot_balances(
+        controller::spot_position::update_spot_position_balance(
             amount as u128,
             &SpotBalanceType::Deposit,
             spot_market,
@@ -726,7 +726,7 @@ pub mod clearing_house {
             };
 
             // prevents withdraw when limits hit
-            controller::spot_balance::update_spot_balances_with_limits(
+            controller::spot_balance::update_spot_position_balance_with_limits(
                 amount as u128,
                 &SpotBalanceType::Borrow,
                 spot_market,
@@ -824,7 +824,7 @@ pub mod clearing_house {
             let from_spot_position =
                 from_user.force_get_spot_position_mut(spot_market.market_index)?;
 
-            controller::spot_balance::update_spot_balances(
+            controller::spot_position::update_spot_position_balance(
                 amount as u128,
                 &SpotBalanceType::Borrow,
                 spot_market,
@@ -869,7 +869,7 @@ pub mod clearing_house {
             let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
             let to_spot_position = to_user.force_get_spot_position_mut(spot_market.market_index)?;
 
-            controller::spot_balance::update_spot_balances(
+            controller::spot_position::update_spot_position_balance(
                 amount as u128,
                 &SpotBalanceType::Deposit,
                 spot_market,

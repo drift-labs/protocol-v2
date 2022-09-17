@@ -168,6 +168,7 @@ mod get_worst_case_token_amounts {
             open_orders: 1,
             open_bids: 10_i128.pow(9),
             open_asks: 0,
+            ..SpotPosition::default()
         };
 
         let spot_market = SpotMarket {
@@ -202,6 +203,7 @@ mod get_worst_case_token_amounts {
             open_orders: 1,
             open_bids: 0,
             open_asks: -(10_i128.pow(9)),
+            ..SpotPosition::default()
         };
 
         let spot_market = SpotMarket {
@@ -236,6 +238,7 @@ mod get_worst_case_token_amounts {
             open_orders: 1,
             open_bids: 0,
             open_asks: -(10_i128.pow(9)),
+            ..SpotPosition::default()
         };
 
         let spot_market = SpotMarket {
@@ -270,6 +273,7 @@ mod get_worst_case_token_amounts {
             open_orders: 1,
             open_bids: 0,
             open_asks: -2 * 10_i128.pow(9),
+            ..SpotPosition::default()
         };
 
         let spot_market = SpotMarket {
@@ -304,6 +308,7 @@ mod get_worst_case_token_amounts {
             open_orders: 1,
             open_bids: 0,
             open_asks: 10_i128.pow(9),
+            ..SpotPosition::default()
         };
 
         let spot_market = SpotMarket {
@@ -338,6 +343,7 @@ mod get_worst_case_token_amounts {
             open_orders: 1,
             open_bids: 10_i128.pow(9),
             open_asks: 0,
+            ..SpotPosition::default()
         };
 
         let spot_market = SpotMarket {
@@ -373,6 +379,7 @@ mod get_worst_case_token_amounts {
             open_orders: 1,
             open_bids: 5 * 10_i128.pow(9),
             open_asks: 0,
+            ..SpotPosition::default()
         };
 
         let spot_market = SpotMarket {
@@ -408,6 +415,7 @@ mod get_worst_case_token_amounts {
             open_orders: 1,
             open_bids: 0,
             open_asks: -(10_i128.pow(9)),
+            ..SpotPosition::default()
         };
 
         let spot_market = SpotMarket {
