@@ -1564,7 +1564,12 @@ pub fn fulfill_order_with_match(
             .unwrap()
             .force_get_perp_position_mut(market.market_index)
             .is_ok();
-    let filler_multiplier = if filler.is_some() { 1 } else { 0 };
+
+    let filler_multiplier = if filler.is_some() {
+        calculate_filler_multiplier_for_matched_orders(maker_price, maker_direction, oracle_price)?
+    } else {
+        0
+    };
 
     let FillFees {
         user_fee: taker_fee,

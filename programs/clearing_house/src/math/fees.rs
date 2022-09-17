@@ -1,6 +1,6 @@
 use crate::error::ClearingHouseResult;
 use crate::math::casting::cast_to_u128;
-use crate::math::constants::MARK_PRICE_PRECISION;
+use crate::math::constants::{BID_ASK_SPREAD_PRECISION, TEN_BPS};
 use crate::math::helpers::get_proportion_u128;
 use crate::math_error;
 use crate::state::state::FeeStructure;
@@ -147,15 +147,17 @@ fn calculate_filler_reward(
         .checked_div(filler_reward_structure.reward_denominator)
         .ok_or_else(math_error!())?;
 
+    let multiplier_precision = BID_ASK_SPREAD_PRECISION / 1000;
+
     let min_time_filler_reward = filler_reward_structure
         .time_based_reward_lower_bound
         .checked_mul(
             multiplier
-                .max(MARK_PRICE_PRECISION)
-                .min(MARK_PRICE_PRECISION * 100),
+                .max(multiplier_precision)
+                .min(multiplier_precision * 100),
         )
         .ok_or_else(math_error!())?
-        .checked_div(MARK_PRICE_PRECISION)
+        .checked_div(multiplier_precision)
         .ok_or_else(math_error!())?;
 
     let time_since_order = max(
