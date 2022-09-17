@@ -7,7 +7,10 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::calculate_rolling_sum;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::cast_to_i128;
-use crate::math::constants::{QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY_I128};
+use crate::math::constants::{
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, MARK_PRICE_PRECISION_I128, QUOTE_SPOT_MARKET_INDEX,
+    THIRTY_DAY_I128,
+};
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
 use crate::math_error;
@@ -329,6 +332,41 @@ impl PerpPosition {
         }
     }
 
+    pub fn get_entry_price(&self) -> ClearingHouseResult<i128> {
+        if self.base_asset_amount == 0 {
+            return Ok(0);
+        }
+
+        (-self.quote_entry_amount)
+            .checked_mul(MARK_PRICE_PRECISION_I128)
+            .ok_or_else(math_error!())?
+            .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+            .ok_or_else(math_error!())?
+            .checked_div(self.base_asset_amount)
+            .ok_or_else(math_error!())
+    }
+
+    pub fn get_cost_basis(&self) -> ClearingHouseResult<i128> {
+        if self.base_asset_amount == 0 {
+            return Ok(0);
+        }
+
+        (-self.quote_asset_amount)
+            .checked_mul(MARK_PRICE_PRECISION_I128)
+            .ok_or_else(math_error!())?
+            .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+            .ok_or_else(math_error!())?
+            .checked_div(self.base_asset_amount)
+            .ok_or_else(math_error!())
+    }
+
+    pub fn get_unrealized_pnl(&self, oracle_price: i128) -> ClearingHouseResult<i128> {
+        let (_, unrealized_pnl) =
+            calculate_base_asset_value_and_pnl_with_oracle_price(self, oracle_price)?;
+
+        Ok(unrealized_pnl)
+    }
+
     pub fn get_claimable_pnl(
         &self,
         oracle_price: i128,
@@ -368,8 +406,6 @@ pub struct Order {
     pub slot: u64,
     pub order_id: u64,
     pub user_order_id: u8,
-    // pub attached_order_id: u8,
-    // pub block_group_order_id: u8,
     pub market_index: u64,
     pub price: u128,
     pub existing_position_direction: PositionDirection,
