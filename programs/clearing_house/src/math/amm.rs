@@ -2642,8 +2642,6 @@ mod test {
             },
             ..PerpMarket::default()
         };
-        // market.amm.base_spread
-
         // increase k by .25%
         let update_k_up =
             get_update_k_result(&market, bn::U192::from(501 * AMM_RESERVE_PRECISION), true)
