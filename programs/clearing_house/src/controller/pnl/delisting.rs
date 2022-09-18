@@ -82,7 +82,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -191,7 +191,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -300,7 +300,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -413,7 +413,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -527,7 +527,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -637,7 +637,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -882,7 +882,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -1128,7 +1128,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -1357,7 +1357,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -1696,7 +1696,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -2070,7 +2070,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {

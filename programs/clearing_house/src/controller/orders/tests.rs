@@ -1476,7 +1476,7 @@ pub mod fulfill_order {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -1817,7 +1817,7 @@ pub mod fulfill_order {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -1961,7 +1961,7 @@ pub mod fulfill_order {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -2398,7 +2398,7 @@ pub mod fill_order {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -4288,7 +4288,7 @@ pub mod fulfill_spot_order {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
         let perp_market_map = PerpMarketMap::empty();
 
@@ -4462,7 +4462,7 @@ pub mod fulfill_spot_order {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
         let perp_market_map = PerpMarketMap::empty();
 
@@ -4740,7 +4740,7 @@ pub mod fill_spot_order {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
         let perp_market_map = PerpMarketMap::empty();
 
@@ -4898,7 +4898,7 @@ pub mod fill_spot_order {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
         let perp_market_map = PerpMarketMap::empty();
 

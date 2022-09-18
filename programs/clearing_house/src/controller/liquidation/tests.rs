@@ -42,7 +42,7 @@ pub mod liquidate_perp {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -179,7 +179,7 @@ pub mod liquidate_perp {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -316,7 +316,7 @@ pub mod liquidate_perp {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -445,7 +445,7 @@ pub mod liquidate_perp {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -582,7 +582,7 @@ pub mod liquidate_perp {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -776,7 +776,7 @@ pub mod liquidate_borrow {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let perp_market_map = PerpMarketMap::empty();
 
@@ -896,7 +896,7 @@ pub mod liquidate_borrow {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let perp_market_map = PerpMarketMap::empty();
 
@@ -1016,7 +1016,7 @@ pub mod liquidate_borrow {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let market_map = PerpMarketMap::empty();
 
@@ -1210,7 +1210,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -1352,7 +1352,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -1534,7 +1534,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -1698,7 +1698,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -1840,7 +1840,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -1986,7 +1986,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -2153,7 +2153,7 @@ pub mod resolve_perp_bankruptcy {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -2370,7 +2370,7 @@ pub mod resolve_borrow_bankruptcy {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {

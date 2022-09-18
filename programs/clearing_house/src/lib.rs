@@ -611,7 +611,7 @@ pub mod clearing_house {
         validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(market_index),
             remaining_accounts_iter,
@@ -706,7 +706,7 @@ pub mod clearing_house {
         validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(market_index),
             remaining_accounts_iter,
@@ -752,11 +752,11 @@ pub mod clearing_house {
             amount
         };
 
-        let (margin_requirement, total_collateral, _) =
+        let (intial_margin_requirement, total_collateral, _) =
             calculate_margin_requirement_and_total_collateral(
                 user,
                 &market_map,
-                MarginRequirementType::Maintenance,
+                MarginRequirementType::Initial,
                 &spot_market_map,
                 &mut oracle_map,
                 None,
@@ -765,21 +765,21 @@ pub mod clearing_house {
         let spot_market = spot_market_map.get_ref(&market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
 
-        if margin_requirement > 0 {
-            let all_oracles_valid = math::oracle::is_oracle_valid(
+        if intial_margin_requirement > 0 {
+            let is_oracle_valid = math::oracle::is_oracle_valid(
                 spot_market.hist_oracle_info.last_oracle_price_twap,
                 oracle_price_data,
                 &state.oracle_guard_rails.validity,
             )?;
 
             validate!(
-                all_oracles_valid,
+                is_oracle_valid,
                 ErrorCode::InvalidOracle,
-                "An oracle is currently invalid"
+                "User attempting to withdraw with outstanding liabilties when an oracle is invalid"
             )?;
         }
 
-        if total_collateral < cast_to_i128(margin_requirement)? {
+        if total_collateral < cast_to_i128(intial_margin_requirement)? {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
 
@@ -843,7 +843,7 @@ pub mod clearing_house {
         )?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(market_index),
             remaining_accounts_iter,
@@ -974,7 +974,7 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
         let _spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
         let market_map =
             PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
@@ -1003,7 +1003,7 @@ pub mod clearing_house {
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
         let _spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
         let market_map =
             PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
@@ -1075,7 +1075,7 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
         let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
 
         let market_map =
@@ -1147,7 +1147,7 @@ pub mod clearing_house {
 
     pub fn place_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
         let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
         let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
@@ -1171,7 +1171,7 @@ pub mod clearing_house {
 
     pub fn cancel_order(ctx: Context<CancelOrder>, order_id: Option<u64>) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
         let spot_market_map = SpotMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
         let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
@@ -1194,7 +1194,7 @@ pub mod clearing_house {
 
     pub fn cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: u8) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
         let spot_market_map = SpotMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
         let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
@@ -1233,7 +1233,7 @@ pub mod clearing_house {
         };
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
         let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
         let market_map =
             PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
@@ -1288,7 +1288,7 @@ pub mod clearing_house {
         maker_order_id: Option<u64>,
     ) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
         let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
 
         let market_map = PerpMarketMap::load(
@@ -1376,7 +1376,7 @@ pub mod clearing_house {
         taker_order_id: u64,
     ) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
         let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
         let market_map = PerpMarketMap::load(
             &get_market_set(params.market_index),
@@ -1453,7 +1453,7 @@ pub mod clearing_house {
     )]
     pub fn trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u64) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
         SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
         let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
@@ -1475,7 +1475,7 @@ pub mod clearing_house {
     )]
     pub fn trigger_spot_order<'info>(ctx: Context<TriggerOrder>, order_id: u64) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
         let spot_market_market =
             SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
         PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
@@ -1495,7 +1495,7 @@ pub mod clearing_house {
 
     pub fn place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
         let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
         let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
@@ -1539,7 +1539,7 @@ pub mod clearing_house {
         };
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
         let mut writable_spot_markets = SpotMarketSet::new();
         writable_spot_markets.insert(QUOTE_SPOT_MARKET_INDEX);
         writable_spot_markets.insert(market_index);
@@ -1599,7 +1599,7 @@ pub mod clearing_house {
         let state = &ctx.accounts.state;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
         let market_map = &mut PerpMarketMap::load(
             &get_market_set_from_list(market_indexes),
             remaining_accounts_iter,
@@ -1616,7 +1616,7 @@ pub mod clearing_house {
     pub fn settle_pnl(ctx: Context<SettlePNL>, market_index: u64) -> Result<()> {
         let clock = Clock::get()?;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
             remaining_accounts_iter,
@@ -1657,7 +1657,7 @@ pub mod clearing_house {
         let _now = clock.unix_timestamp;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
             remaining_accounts_iter,
@@ -1693,7 +1693,7 @@ pub mod clearing_house {
         let state = &ctx.accounts.state;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
             remaining_accounts_iter,
@@ -1756,7 +1756,7 @@ pub mod clearing_house {
         let liquidator_stats = &mut load_mut!(ctx.accounts.liquidator_stats)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
         let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
         let market_map =
             PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
@@ -1805,7 +1805,7 @@ pub mod clearing_house {
         let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
 
         let mut writable_spot_markets = SpotMarketSet::new();
         writable_spot_markets.insert(asset_market_index);
@@ -1856,7 +1856,7 @@ pub mod clearing_house {
         let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
 
         let mut writable_spot_markets = SpotMarketSet::new();
         writable_spot_markets.insert(spot_market_index);
@@ -1906,7 +1906,7 @@ pub mod clearing_house {
         let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
 
         let mut writable_spot_markets = SpotMarketSet::new();
         writable_spot_markets.insert(spot_market_index);
@@ -1944,7 +1944,7 @@ pub mod clearing_house {
         let state = &ctx.accounts.state;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(spot_market_index),
             remaining_accounts_iter,
@@ -2041,7 +2041,7 @@ pub mod clearing_house {
         let state = &ctx.accounts.state;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(quote_spot_market_index),
             remaining_accounts_iter,
@@ -2112,7 +2112,7 @@ pub mod clearing_house {
         let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(market_index),
             remaining_accounts_iter,
@@ -2711,7 +2711,7 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
         let state = &ctx.accounts.state;
-        let mut oracle_map = OracleMap::load_one(&ctx.accounts.oracle, clock_slot)?;
+        let mut oracle_map = OracleMap::load_one(&ctx.accounts.oracle, clock_slot, None)?;
 
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
         controller::repeg::_update_amm(market, oracle_price_data, state, now, clock_slot)?;

@@ -381,7 +381,7 @@ mod test {
             &pyth_program,
             oracle_account_info
         );
-        let _oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let _oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -711,7 +711,7 @@ mod test {
             &pyth_program,
             oracle_account_info
         );
-        let _oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let _oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -1044,7 +1044,7 @@ mod test {
             &pyth_program,
             oracle_account_info
         );
-        let _oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let _oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {

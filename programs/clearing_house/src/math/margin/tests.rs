@@ -527,7 +527,7 @@ mod calculate_margin_requirement_and_total_collateral {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let market_map = PerpMarketMap::empty();
 
@@ -615,7 +615,7 @@ mod calculate_margin_requirement_and_total_collateral {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let market_map = PerpMarketMap::empty();
 
@@ -703,7 +703,7 @@ mod calculate_margin_requirement_and_total_collateral {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let market_map = PerpMarketMap::empty();
 
@@ -792,7 +792,7 @@ mod calculate_margin_requirement_and_total_collateral {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {

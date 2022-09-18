@@ -2,6 +2,7 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::ids::pyth_program;
 use crate::math::constants::MARK_PRICE_PRECISION_I128;
 use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource};
+use crate::state::state::OracleGuardRails;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::Key;
 use std::collections::BTreeMap;
@@ -18,6 +19,7 @@ pub struct OracleMap<'a> {
     oracles: BTreeMap<Pubkey, AccountInfoAndOracleSource<'a>>,
     price_data: BTreeMap<Pubkey, OraclePriceData>,
     pub slot: u64,
+    pub oracle_guard_rails: OracleGuardRails,
     pub quote_asset_price_data: OraclePriceData,
 }
 
@@ -64,6 +66,7 @@ impl<'a> OracleMap<'a> {
     pub fn load<'c>(
         account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
         slot: u64,
+        oracle_guard_rails: Option<OracleGuardRails>,
     ) -> ClearingHouseResult<OracleMap<'a>> {
         let mut oracles: BTreeMap<Pubkey, AccountInfoAndOracleSource<'a>> = BTreeMap::new();
 
@@ -85,10 +88,17 @@ impl<'a> OracleMap<'a> {
             break;
         }
 
+        let ogr: OracleGuardRails = if let Some(o) = oracle_guard_rails {
+            o
+        } else {
+            OracleGuardRails::default()
+        };
+
         Ok(OracleMap {
             oracles,
             price_data: BTreeMap::new(),
             slot,
+            oracle_guard_rails: ogr,
             quote_asset_price_data: OraclePriceData {
                 price: MARK_PRICE_PRECISION_I128,
                 confidence: 1,
@@ -101,6 +111,7 @@ impl<'a> OracleMap<'a> {
     pub fn load_one<'c>(
         account_info: &'c AccountInfo<'a>,
         slot: u64,
+        oracle_guard_rails: Option<OracleGuardRails>,
     ) -> ClearingHouseResult<OracleMap<'a>> {
         let mut oracles: BTreeMap<Pubkey, AccountInfoAndOracleSource<'a>> = BTreeMap::new();
 
@@ -117,10 +128,17 @@ impl<'a> OracleMap<'a> {
             },
         );
 
+        let ogr: OracleGuardRails = if let Some(o) = oracle_guard_rails {
+            o
+        } else {
+            OracleGuardRails::default()
+        };
+
         Ok(OracleMap {
             oracles,
             price_data: BTreeMap::new(),
             slot,
+            oracle_guard_rails: ogr,
             quote_asset_price_data: OraclePriceData {
                 price: MARK_PRICE_PRECISION_I128,
                 confidence: 1,
@@ -138,6 +156,7 @@ impl<'a> OracleMap<'a> {
             oracles: BTreeMap::new(),
             price_data: BTreeMap::new(),
             slot: 0,
+            oracle_guard_rails: OracleGuardRails::default(),
             quote_asset_price_data: OraclePriceData {
                 price: MARK_PRICE_PRECISION_I128,
                 confidence: 1,

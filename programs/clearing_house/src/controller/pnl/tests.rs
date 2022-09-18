@@ -36,7 +36,7 @@ pub fn user_no_position() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -124,7 +124,7 @@ pub fn user_does_not_meet_maintenance_requirement() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -218,7 +218,7 @@ pub fn user_unsettled_negative_pnl() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -323,7 +323,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -428,7 +428,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -533,7 +533,7 @@ pub fn market_fee_pool_receives_portion() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -640,7 +640,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -750,7 +750,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -857,7 +857,7 @@ pub fn user_long_negative_unrealized_pnl() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -964,7 +964,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -1071,7 +1071,7 @@ pub fn user_short_negative_unrealized_pnl() {
         &pyth_program,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
