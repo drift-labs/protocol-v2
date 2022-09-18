@@ -3,12 +3,7 @@ import { Program } from '@project-serum/anchor';
 import { BN } from '../sdk';
 import { assert } from 'chai';
 
-import {
-	Admin,
-	FeeStructure,
-	OracleGuardRails,
-	OrderFillerRewardStructure,
-} from '../sdk/src';
+import { Admin, OracleGuardRails } from '../sdk/src';
 import { OracleSource } from '../sdk';
 
 import {
@@ -91,77 +86,6 @@ describe('admin', () => {
 
 		assert(market.marginRatioInitial === marginRatioInitial);
 		assert(market.marginRatioMaintenance === marginRatioMaintenance);
-	});
-
-	it('Update fee', async () => {
-		const newFeeStructure: FeeStructure = {
-			feeNumerator: new BN(10),
-			feeDenominator: new BN(10),
-			discountTokenTiers: {
-				firstTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-				secondTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-				thirdTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-				fourthTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-			},
-			referralDiscount: {
-				referrerRewardNumerator: new BN(1),
-				referrerRewardDenominator: new BN(1),
-				refereeDiscountNumerator: new BN(1),
-				refereeDiscountDenominator: new BN(1),
-			},
-			makerRebateNumerator: new BN(1),
-			makerRebateDenominator: new BN(1),
-			fillerRewardStructure: {
-				rewardNumerator: new BN(1),
-				rewardDenominator: new BN(1),
-				timeBasedRewardLowerBound: new BN(1),
-			},
-			flatFillerFee: new BN(0),
-		};
-
-		await clearingHouse.updateFee(newFeeStructure);
-
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
-
-		assert(
-			JSON.stringify(newFeeStructure) === JSON.stringify(state.perpFeeStructure)
-		);
-	});
-
-	it('Update order filler reward structure', async () => {
-		const newStructure: OrderFillerRewardStructure = {
-			rewardNumerator: new BN(1),
-			rewardDenominator: new BN(1),
-			timeBasedRewardLowerBound: new BN(1),
-		};
-
-		await clearingHouse.updateOrderFillerRewardStructure(newStructure);
-
-		await clearingHouse.fetchAccounts();
-
-		assert(
-			JSON.stringify(newStructure) ===
-				JSON.stringify(
-					clearingHouse.getStateAccount().perpFeeStructure.fillerRewardStructure
-				)
-		);
 	});
 
 	it('Update oracle guard rails', async () => {

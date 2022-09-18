@@ -1,16 +1,20 @@
+use crate::math::constants::ONE_BPS_DENOMINATOR;
+use crate::state::fees::{FeeStructure2, FeeTier};
 use crate::state::oracle_map::OracleMap;
-use crate::state::state::FeeStructure;
 use crate::state::user::{Order, PerpPosition};
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
 
-fn get_fee_structure() -> FeeStructure {
-    FeeStructure {
-        fee_numerator: 5,
-        fee_denominator: 10000,
-        maker_rebate_numerator: 3,
-        maker_rebate_denominator: 5,
-        ..FeeStructure::default()
+fn get_fee_structure() -> FeeStructure2 {
+    FeeStructure2 {
+        first_tier: FeeTier {
+            fee_numerator: 5,
+            fee_denominator: ONE_BPS_DENOMINATOR,
+            maker_rebate_numerator: 3,
+            maker_rebate_denominator: ONE_BPS_DENOMINATOR,
+            ..FeeTier::default()
+        },
+        ..FeeStructure2::default()
     }
 }
 
@@ -204,7 +208,7 @@ pub mod amm_jit {
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.net_base_asset_amount, 10000000000000);
-        assert_eq!(market_after.amm.total_fee, 2064035);
+        assert_eq!(market_after.amm.total_fee, 2058921);
         assert_eq!(filler_stats.filler_volume_30d, 102284244);
     }
 
@@ -890,9 +894,9 @@ pub mod amm_jit {
         assert!(quote_asset_amount_surplus > 0);
         assert_eq!(quote_asset_amount_surplus, 677570);
 
-        assert_eq!(market_after.amm.total_fee, 713847);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 713847);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, 713847);
+        assert_eq!(market_after.amm.total_fee, 708983);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 708983);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, 708983);
         assert_eq!(market_after.amm.total_mm_fee, 677570);
         assert_eq!(market_after.amm.total_exchange_fee, 36141);
         assert_eq!(market_after.amm.total_fee_withdrawn, 0);
@@ -1086,9 +1090,9 @@ pub mod amm_jit {
         assert!(quote_asset_amount_surplus > 0);
         assert_eq!(quote_asset_amount_surplus, 697892);
 
-        assert_eq!(market_after.amm.total_fee, 736645);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 736645);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, 736645);
+        assert_eq!(market_after.amm.total_fee, 731506);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 731506);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, 731506);
         assert_eq!(market_after.amm.total_mm_fee, 697892);
         assert_eq!(market_after.amm.total_exchange_fee, 38892);
         assert_eq!(market_after.amm.total_fee_withdrawn, 0);
@@ -1282,9 +1286,9 @@ pub mod amm_jit {
         assert!(quote_asset_amount_surplus < 0);
         assert_eq!(quote_asset_amount_surplus, -21582278);
 
-        assert_eq!(market_after.amm.total_fee, -21579653);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, -21579653);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, -21579653);
+        assert_eq!(market_after.amm.total_fee, -21580028);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, -21580028);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, -21580028);
         assert_eq!(market_after.amm.total_mm_fee, -21582278);
         assert_eq!(market_after.amm.total_exchange_fee, 2500);
         assert_eq!(market_after.amm.total_fee_withdrawn, 0);
@@ -1478,9 +1482,9 @@ pub mod amm_jit {
         assert!(quote_asset_amount_surplus < 0);
         assert_eq!(quote_asset_amount_surplus, -16543210);
 
-        assert_eq!(market_after.amm.total_fee, -16517710);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, -16517710);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, -16517710);
+        assert_eq!(market_after.amm.total_fee, -16522210);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, -16522210);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, -16522210);
         assert_eq!(market_after.amm.total_mm_fee, -16543210);
         assert_eq!(market_after.amm.total_exchange_fee, 20000);
         assert_eq!(market_after.amm.total_fee_withdrawn, 0);

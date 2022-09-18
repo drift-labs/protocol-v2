@@ -380,8 +380,6 @@ export type StateAccount = {
 	exchangePaused: boolean;
 	adminControlsPrices: boolean;
 	insuranceVault: PublicKey;
-	perpFeeStructure: FeeStructure;
-	spotFeeStructure: FeeStructure;
 	totalFee: BN;
 	totalFeeWithdrawn: BN;
 	whitelistMint: PublicKey;
@@ -711,43 +709,6 @@ export interface IWallet {
 	publicKey: PublicKey;
 }
 
-export type FeeStructure = {
-	feeNumerator: BN;
-	feeDenominator: BN;
-	discountTokenTiers: {
-		firstTier: {
-			minimumBalance: BN;
-			discountNumerator: BN;
-			discountDenominator: BN;
-		};
-		secondTier: {
-			minimumBalance: BN;
-			discountNumerator: BN;
-			discountDenominator: BN;
-		};
-		thirdTier: {
-			minimumBalance: BN;
-			discountNumerator: BN;
-			discountDenominator: BN;
-		};
-		fourthTier: {
-			minimumBalance: BN;
-			discountNumerator: BN;
-			discountDenominator: BN;
-		};
-	};
-	referralDiscount: {
-		referrerRewardNumerator: BN;
-		referrerRewardDenominator: BN;
-		refereeDiscountNumerator: BN;
-		refereeDiscountDenominator: BN;
-	};
-	makerRebateNumerator: BN;
-	makerRebateDenominator: BN;
-	fillerRewardStructure: OrderFillerRewardStructure;
-	flatFillerFee: BN;
-};
-
 export type OracleGuardRails = {
 	priceDivergence: {
 		markOracleDivergenceNumerator: BN;
@@ -759,12 +720,6 @@ export type OracleGuardRails = {
 		tooVolatileRatio: BN;
 	};
 	useForLiquidations: boolean;
-};
-
-export type OrderFillerRewardStructure = {
-	rewardNumerator: BN;
-	rewardDenominator: BN;
-	timeBasedRewardLowerBound: BN;
 };
 
 export type MarginCategory = 'Initial' | 'Maintenance';

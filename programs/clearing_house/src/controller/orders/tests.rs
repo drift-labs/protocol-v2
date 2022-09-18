@@ -1,17 +1,20 @@
+use crate::state::fees::{FeeStructure2, FeeTier};
 use crate::state::market::MarketStatus;
 use crate::state::oracle_map::OracleMap;
-use crate::state::state::FeeStructure;
 use crate::state::user::{Order, PerpPosition};
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
 
-fn get_fee_structure() -> FeeStructure {
-    FeeStructure {
-        fee_numerator: 5,
-        fee_denominator: 10000,
-        maker_rebate_numerator: 3,
-        maker_rebate_denominator: 5,
-        ..FeeStructure::default()
+fn get_fee_structure() -> FeeStructure2 {
+    FeeStructure2 {
+        first_tier: FeeTier {
+            fee_numerator: 5,
+            fee_denominator: 10000,
+            maker_rebate_numerator: 3,
+            maker_rebate_denominator: 10000,
+            ..FeeTier::default()
+        },
+        ..FeeStructure2::default()
     }
 }
 
@@ -32,7 +35,6 @@ pub mod fulfill_order_with_maker_order {
         QUOTE_PRECISION_U64,
     };
     use crate::state::market::PerpMarket;
-    use crate::state::state::FeeStructure;
     use crate::state::user::{Order, OrderType, PerpPosition, User, UserStats};
     use crate::tests::utils::*;
 
@@ -569,7 +571,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 3_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure2::default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -654,7 +656,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 3_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure2::default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -740,7 +742,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure2::default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -826,7 +828,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure2::default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -912,7 +914,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure2::default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -1020,7 +1022,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure2::default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -1632,14 +1634,14 @@ pub mod fulfill_order {
         assert_eq!(market_after.amm.net_base_asset_amount, 5000000000000);
         assert_eq!(market_after.base_asset_amount_long, 10000000000000);
         assert_eq!(market_after.base_asset_amount_short, -5000000000000);
-        assert_eq!(market_after.amm.quote_asset_amount_long, -100296370);
+        assert_eq!(market_after.amm.quote_asset_amount_long, -100291357);
         assert_eq!(market_after.amm.quote_asset_amount_short, 50015000);
-        assert_eq!(market_after.amm.total_fee, 30113);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 30113);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, 30113);
+        assert_eq!(market_after.amm.total_fee, 25100);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 25100);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, 25100);
 
         assert_eq!(filler_stats.filler_volume_30d, 100251237);
-        assert_eq!(filler.perp_positions[0].quote_asset_amount, 5012);
+        assert_eq!(filler.perp_positions[0].quote_asset_amount, 10025);
     }
 
     #[test]
@@ -4658,7 +4660,7 @@ pub mod fulfill_spot_order {
         expected_maker.spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100060000,
+            balance: 100020000,
             ..SpotPosition::default()
         };
         expected_maker.spot_positions[2] = SpotPosition {
@@ -4697,7 +4699,7 @@ pub mod fulfill_spot_order {
         assert_eq!(*maker_after, expected_maker);
 
         let maker_stats_after = maker_stats_account_loader.load().unwrap();
-        assert_eq!(maker_stats_after.fees.total_fee_rebate, 60000);
+        assert_eq!(maker_stats_after.fees.total_fee_rebate, 20000);
     }
 }
 

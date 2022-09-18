@@ -716,4 +716,10 @@ impl UserStats {
     pub fn has_referrer(&self) -> bool {
         !self.referrer.eq(&Pubkey::default())
     }
+
+    pub fn get_total_30d_volume(&self) -> ClearingHouseResult<u64> {
+        self.taker_volume_30d
+            .checked_add(self.maker_volume_30d)
+            .ok_or_else(math_error!())
+    }
 }
