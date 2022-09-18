@@ -1073,7 +1073,7 @@ fn fulfill_order(
         emit!(order_record)
     }
 
-    let (margin_requirement, total_collateral, _) =
+    let (margin_requirement, total_collateral, _, oracles_valid) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -2651,7 +2651,7 @@ fn fulfill_spot_order(
         emit!(order_record)
     }
 
-    let (margin_requirement, total_collateral, _) =
+    let (margin_requirement, total_collateral, _, oracles_valid) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,

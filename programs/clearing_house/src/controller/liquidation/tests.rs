@@ -696,7 +696,7 @@ pub mod liquidate_perp {
         assert_eq!(user.perp_positions[0].open_orders, 0);
         assert_eq!(user.perp_positions[0].open_bids, 0);
 
-        let (_, total_collateral, margin_requirement_plus_buffer) =
+        let (_, total_collateral, margin_requirement_plus_buffer, oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &perp_market_map,
@@ -1112,7 +1112,7 @@ pub mod liquidate_borrow {
         assert_eq!(user.spot_positions[0].balance, 45558159);
         assert_eq!(user.spot_positions[1].balance, 406768);
 
-        let (margin_requirement, total_collateral, margin_requirement_plus_buffer) =
+        let (margin_requirement, total_collateral, margin_requirement_plus_buffer, oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &market_map,
@@ -1473,7 +1473,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         assert_eq!(user.spot_positions[0].balance, 357739);
         assert_eq!(user.perp_positions[0].quote_asset_amount, 40066807);
 
-        let (_, total_collateral, margin_requirement_plus_buffer) =
+        let (_, total_collateral, margin_requirement_plus_buffer, oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &market_map,

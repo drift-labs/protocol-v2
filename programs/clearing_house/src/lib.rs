@@ -752,7 +752,7 @@ pub mod clearing_house {
             amount
         };
 
-        let (intial_margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 user,
                 &market_map,
@@ -765,21 +765,15 @@ pub mod clearing_house {
         let spot_market = spot_market_map.get_ref(&market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
 
-        if intial_margin_requirement > 0 {
-            let is_oracle_valid = math::oracle::is_oracle_valid(
-                spot_market.hist_oracle_info.last_oracle_price_twap,
-                oracle_price_data,
-                &state.oracle_guard_rails.validity,
-            )?;
-
+        if margin_requirement > 0 {
             validate!(
-                is_oracle_valid,
+                oracles_valid,
                 ErrorCode::InvalidOracle,
                 "User attempting to withdraw with outstanding liabilties when an oracle is invalid"
             )?;
         }
 
-        if total_collateral < cast_to_i128(intial_margin_requirement)? {
+        if total_collateral < cast_to_i128(margin_requirement)? {
             return Err(ErrorCode::InsufficientCollateral.into());
         }
 

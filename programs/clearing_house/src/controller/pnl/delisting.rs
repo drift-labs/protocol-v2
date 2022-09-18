@@ -751,7 +751,7 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Initialized);
         assert_eq!(market.settlement_price, 0);
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 &taker,
                 &market_map,
@@ -782,7 +782,7 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 &taker,
                 &market_map,
@@ -996,7 +996,7 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Initialized);
         assert_eq!(market.settlement_price, 0);
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 &taker,
                 &market_map,
@@ -1027,7 +1027,7 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 &taker,
                 &market_map,
@@ -1259,7 +1259,7 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 &taker,
                 &market_map,
@@ -1501,7 +1501,7 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Initialized);
         assert_eq!(market.settlement_price, 0);
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 &longer,
                 &market_map,
@@ -1597,7 +1597,7 @@ pub mod delisting_test {
             assert_eq!(shorter.perp_positions[0].quote_entry_amount, 0);
         }
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 &longer,
                 &market_map,
@@ -1841,7 +1841,7 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Initialized);
         assert_eq!(market.settlement_price, 0);
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 &longer,
                 &market_map,
@@ -1855,7 +1855,7 @@ pub mod delisting_test {
         assert_eq!(total_collateral, 20000000000);
         assert_eq!(margin_requirement, 1005000000);
 
-        let (margin_requirement_short, total_collateral_short, _) =
+        let (margin_requirement_short, total_collateral_short, _, _) =
             calculate_margin_requirement_and_total_collateral(
                 &shorter,
                 &market_map,
@@ -1888,7 +1888,7 @@ pub mod delisting_test {
 
         // try long close
         {
-            let (margin_requirement, total_collateral, _) =
+            let (margin_requirement, total_collateral, _, oracles_valid) =
                 calculate_margin_requirement_and_total_collateral(
                     &longer,
                     &market_map,
@@ -2222,7 +2222,7 @@ pub mod delisting_test {
             ..State::default()
         };
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 &longer,
                 &market_map,
@@ -2696,7 +2696,7 @@ pub mod delisting_test {
 
         // do long close
         {
-            let (margin_requirement, total_collateral, _) =
+            let (margin_requirement, total_collateral, _, oracles_valid) =
                 calculate_margin_requirement_and_total_collateral(
                     &longer,
                     &market_map,

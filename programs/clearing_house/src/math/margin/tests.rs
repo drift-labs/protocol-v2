@@ -586,7 +586,7 @@ mod calculate_margin_requirement_and_total_collateral {
             ..User::default()
         };
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &market_map,
@@ -674,7 +674,7 @@ mod calculate_margin_requirement_and_total_collateral {
             ..User::default()
         };
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &market_map,
@@ -763,7 +763,7 @@ mod calculate_margin_requirement_and_total_collateral {
             ..User::default()
         };
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &market_map,
@@ -876,7 +876,7 @@ mod calculate_margin_requirement_and_total_collateral {
             ..User::default()
         };
 
-        let (margin_requirement, _, _) = calculate_margin_requirement_and_total_collateral(
+        let (margin_requirement, _, _, _) = calculate_margin_requirement_and_total_collateral(
             &user,
             &perp_market_map,
             MarginRequirementType::Initial,
@@ -893,7 +893,7 @@ mod calculate_margin_requirement_and_total_collateral {
             ..user
         };
 
-        let (margin_requirement, _, _) = calculate_margin_requirement_and_total_collateral(
+        let (margin_requirement, _, _, _) = calculate_margin_requirement_and_total_collateral(
             &user,
             &perp_market_map,
             MarginRequirementType::Initial,
@@ -910,7 +910,7 @@ mod calculate_margin_requirement_and_total_collateral {
             ..user
         };
 
-        let (margin_requirement, _, _) = calculate_margin_requirement_and_total_collateral(
+        let (margin_requirement, _, _, _) = calculate_margin_requirement_and_total_collateral(
             &user,
             &perp_market_map,
             MarginRequirementType::Initial,
@@ -927,7 +927,7 @@ mod calculate_margin_requirement_and_total_collateral {
             ..user
         };
 
-        let (maintenance_margin_requirement, _, _) =
+        let (maintenance_margin_requirement, _, _, _) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &perp_market_map,

@@ -1,6 +1,7 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::ids::pyth_program;
 use crate::math::constants::MARK_PRICE_PRECISION_I128;
+use crate::math::oracle::is_oracle_valid;
 use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource};
 use crate::state::state::OracleGuardRails;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
@@ -61,6 +62,49 @@ impl<'a> OracleMap<'a> {
         self.price_data.insert(*pubkey, price_data);
 
         Ok(self.price_data.get(pubkey).unwrap())
+    }
+
+    pub fn get_price_data_and_validity(
+        &mut self,
+        pubkey: &Pubkey,
+        last_oracle_price_twap: i128,
+    ) -> ClearingHouseResult<(&OraclePriceData, bool)> {
+        if pubkey == &Pubkey::default() {
+            return Ok((&self.quote_asset_price_data, true));
+        }
+
+        if self.price_data.contains_key(pubkey) {
+            let oracle_price_data = self.price_data.get(pubkey).unwrap();
+            let is_oracle_valid = is_oracle_valid(
+                last_oracle_price_twap,
+                oracle_price_data,
+                &self.oracle_guard_rails.validity,
+            )?;
+            return Ok((oracle_price_data, is_oracle_valid));
+        }
+
+        let (account_info, oracle_source) = match self.oracles.get(pubkey) {
+            Some(AccountInfoAndOracleSource {
+                account_info,
+                oracle_source,
+            }) => (account_info, oracle_source),
+            None => {
+                return Err(ErrorCode::OracleNotFound);
+            }
+        };
+
+        let price_data = get_oracle_price(oracle_source, account_info, self.slot)?;
+
+        self.price_data.insert(*pubkey, price_data);
+
+        let oracle_price_data = self.price_data.get(pubkey).unwrap();
+        let is_oracle_valid = is_oracle_valid(
+            last_oracle_price_twap,
+            oracle_price_data,
+            &self.oracle_guard_rails.validity,
+        )?;
+
+        Ok((oracle_price_data, is_oracle_valid))
     }
 
     pub fn load<'c>(
