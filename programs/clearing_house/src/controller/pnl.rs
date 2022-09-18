@@ -69,14 +69,19 @@ pub fn settle_pnl(
     let spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
     let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
 
-    // todo, check amm updated
-    validate!(
-        ((oracle_map.slot == perp_market.amm.last_update_slot
-            && perp_market.amm.last_oracle_valid)
-            || perp_market.amm.curve_update_intensity == 0),
-        ErrorCode::AMMNotUpdatedInSameSlot,
-        "AMM must be updated in a prior instruction within same slot"
-    )?;
+    if perp_market.amm.curve_update_intensity > 0 {
+        validate!(
+            perp_market.amm.last_oracle_valid,
+            ErrorCode::InvalidOracle,
+            "Oracle Price detected as invalid"
+        )?;
+
+        validate!(
+            oracle_map.slot == perp_market.amm.last_update_slot,
+            ErrorCode::AMMNotUpdatedInSameSlot,
+            "AMM must be updated in a prior instruction within same slot"
+        )?;
+    }
 
     validate!(
         perp_market.status == MarketStatus::Initialized,

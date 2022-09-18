@@ -132,42 +132,6 @@ pub fn calculate_spot_position_value(
     Ok(balance_equity_value)
 }
 
-pub fn calculate_oracle_price_for_perp_margin(
-    market_position: &PerpPosition,
-    market: &PerpMarket,
-    oracle_price_data: &OraclePriceData,
-) -> ClearingHouseResult<i128> {
-    let oracle_price_offset = min(
-        (market.amm.max_spread as i128)
-            .checked_mul(oracle_price_data.price)
-            .ok_or_else(math_error!())?
-            .checked_div(BID_ASK_SPREAD_PRECISION_I128)
-            .ok_or_else(math_error!())?,
-        cast_to_i128(oracle_price_data.confidence)?
-            .checked_add(
-                (market.amm.base_spread as i128)
-                    .checked_mul(oracle_price_data.price)
-                    .ok_or_else(math_error!())?
-                    .checked_div(BID_ASK_SPREAD_PRECISION_I128)
-                    .ok_or_else(math_error!())?,
-            )
-            .ok_or_else(math_error!())?,
-    );
-    let oracle_price = if market_position.base_asset_amount > 0 {
-        oracle_price_data
-            .price
-            .checked_sub(oracle_price_offset)
-            .ok_or_else(math_error!())?
-    } else {
-        oracle_price_data
-            .price
-            .checked_add(oracle_price_offset)
-            .ok_or_else(math_error!())?
-    };
-
-    Ok(oracle_price)
-}
-
 pub fn calculate_perp_position_value_and_pnl(
     market_position: &PerpPosition,
     market: &PerpMarket,

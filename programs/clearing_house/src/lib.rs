@@ -154,9 +154,9 @@ pub mod clearing_house {
         );
 
         let hist_data_default = if spot_market_index == 0 {
-            HistOracleData::default();
+            HistOracleData::default()
         } else {
-            HistOracleData::default_with_current_oracle(oracle_price_data?);
+            HistOracleData::default_with_current_oracle(oracle_price_data?)
         };
         if spot_market_index == 0 {
             validate!(

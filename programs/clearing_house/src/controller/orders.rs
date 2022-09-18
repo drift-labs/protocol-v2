@@ -2948,12 +2948,12 @@ pub fn fulfill_spot_order_with_serum(
     // let (best_bid, best_ask) = {
     //     let bids_data = market_state_before.load_bids_mut(&serum_new_order_accounts.serum_bids)?;
     //     let best_bid = bids_data.deref().get(0).as_leaf().price();
-    
+
     //     let asks_data = market_state_before.load_bids_mut(&serum_new_order_accounts.serum_asks)?;
     //     let best_ask = asks_data.deref().get(0).as_leaf().price();
 
     //     (best_bid, best_ask)
-    // };    
+    // };
 
     let serum_order_side = match order_direction {
         PositionDirection::Long => Side::Bid,
@@ -2992,8 +2992,6 @@ pub fn fulfill_spot_order_with_serum(
     let market_rebates_accrued_before = market_state_before.referrer_rebates_accrued;
 
     drop(market_state_before);
-
-    serum_new_order_accounts.serum_bids.data.
 
     invoke_new_order(
         serum_new_order_accounts.serum_program_id,
