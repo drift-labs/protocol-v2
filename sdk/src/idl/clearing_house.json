@@ -3532,10 +3532,6 @@
           {
             "name": "customMarginRatio",
             "type": "u32"
-          },
-          {
-            "name": "delegate",
-            "type": "publicKey"
           }
         ]
       }

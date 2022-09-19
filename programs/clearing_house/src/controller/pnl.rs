@@ -103,8 +103,7 @@ pub fn settle_pnl(
     }
 
     validate!(
-        pnl_to_settle_with_user < 0
-            || (user.authority.eq(authority) || user.delegate.eq(authority)),
+        pnl_to_settle_with_user < 0 || user.authority.eq(authority),
         ErrorCode::UserMustSettleTheirOwnPositiveUnsettledPNL,
         "User must settle their own unsettled pnl when its positive",
     )?;

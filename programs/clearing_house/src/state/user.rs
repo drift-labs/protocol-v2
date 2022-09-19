@@ -34,7 +34,6 @@ pub struct User {
     pub being_liquidated: bool,
     pub bankrupt: bool,
     pub custom_margin_ratio: u32,
-    pub delegate: Pubkey,
 }
 
 impl User {
