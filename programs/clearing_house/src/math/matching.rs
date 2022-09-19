@@ -72,8 +72,12 @@ pub fn calculate_filler_multiplier_for_matched_orders(
     // offer filler multiplier based on price improvement from reasonable baseline
     // multiplier between 1x and 100x
     let multiplier = match maker_direction {
-        PositionDirection::Long => (-price_pct_diff + TEN_BPS * 2),
-        PositionDirection::Short => (price_pct_diff + TEN_BPS * 2),
+        PositionDirection::Long => -price_pct_diff
+            .checked_add(TEN_BPS * 2)
+            .ok_or_else(math_error!())?,
+        PositionDirection::Short => price_pct_diff
+            .checked_add(TEN_BPS * 2)
+            .ok_or_else(math_error!())?,
     }
     .max(TEN_BPS)
     .min(TEN_BPS * 100);
