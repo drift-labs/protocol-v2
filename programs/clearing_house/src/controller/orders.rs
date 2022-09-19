@@ -14,6 +14,7 @@ use crate::controller::serum::{invoke_new_order, invoke_settle_funds, SerumFulfi
 use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::spot_position::{
     decrease_spot_open_bids_and_asks, increase_spot_open_bids_and_asks,
+    update_spot_position_balance,
 };
 
 use crate::error::ClearingHouseResult;
@@ -1976,7 +1977,7 @@ pub fn pay_keeper_flat_reward_for_spot(
     filler_reward: u128,
 ) -> ClearingHouseResult<u128> {
     let filler_reward = if let Some(filler) = filler {
-        update_spot_balances(
+        update_spot_position_balance(
             filler_reward,
             &SpotBalanceType::Deposit,
             quote_market,
@@ -1984,7 +1985,7 @@ pub fn pay_keeper_flat_reward_for_spot(
             false,
         )?;
 
-        update_spot_balances(
+        update_spot_position_balance(
             filler_reward,
             &SpotBalanceType::Borrow,
             quote_market,
@@ -2754,7 +2755,7 @@ pub fn fulfill_spot_order_with_match(
     )?;
 
     // Update taker state
-    update_spot_balances(
+    update_spot_position_balance(
         base_asset_amount,
         &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Base),
         base_market,
@@ -2771,7 +2772,7 @@ pub fn fulfill_spot_order_with_match(
             .ok_or_else(math_error!())?,
     };
 
-    update_spot_balances(
+    update_spot_position_balance(
         taker_quote_asset_amount_delta,
         &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Quote),
         quote_market,
@@ -2799,7 +2800,7 @@ pub fn fulfill_spot_order_with_match(
     taker_stats.increment_total_fees(cast(taker_fee)?)?;
 
     // Update maker state
-    update_spot_balances(
+    update_spot_position_balance(
         base_asset_amount,
         &maker.orders[maker_order_index].get_spot_position_update_direction(AssetType::Base),
         base_market,
@@ -2816,7 +2817,7 @@ pub fn fulfill_spot_order_with_match(
             .ok_or_else(math_error!())?,
     };
 
-    update_spot_balances(
+    update_spot_position_balance(
         maker_quote_asset_amount_delta,
         &maker.orders[maker_order_index].get_spot_position_update_direction(AssetType::Quote),
         quote_market,
@@ -2846,7 +2847,7 @@ pub fn fulfill_spot_order_with_match(
     // Update filler state
     if let (Some(filler), Some(filler_stats)) = (filler, filler_stats) {
         if filler_reward > 0 {
-            update_spot_balances(
+            update_spot_position_balance(
                 filler_reward,
                 &SpotBalanceType::Deposit,
                 quote_market,
@@ -3176,7 +3177,7 @@ pub fn fulfill_spot_order_with_serum(
         "Fill on serum lead to unexpected to update direction"
     )?;
 
-    update_spot_balances(
+    update_spot_position_balance(
         base_asset_amount_filled,
         &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Base),
         base_market,
@@ -3191,7 +3192,7 @@ pub fn fulfill_spot_order_with_serum(
         "Fill on serum lead to unexpected to update direction"
     )?;
 
-    update_spot_balances(
+    update_spot_position_balance(
         quote_spot_position_delta,
         &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Quote),
         quote_market,
@@ -3220,7 +3221,7 @@ pub fn fulfill_spot_order_with_serum(
 
     if let (Some(filler), Some(filler_stats)) = (filler, filler_stats) {
         if filler_reward > 0 {
-            update_spot_balances(
+            update_spot_position_balance(
                 filler_reward,
                 &SpotBalanceType::Deposit,
                 quote_market,

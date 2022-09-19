@@ -1,4 +1,4 @@
-import { BN } from '../';
+import { BN, SpotMarketAccount } from '../';
 import {
 	AMM_RESERVE_PRECISION,
 	AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
@@ -17,8 +17,8 @@ import {
 	calculateAmmReservesAfterSwap,
 	getSwapDirection,
 } from './amm';
-
 import { calculateBaseAssetValueWithOracle } from './margin';
+import { calculateNetUserPnlImbalance } from './market';
 
 /**
  * calculateBaseAssetValue
@@ -31,7 +31,9 @@ import { calculateBaseAssetValueWithOracle } from './margin';
 export function calculateBaseAssetValue(
 	market: PerpMarketAccount,
 	userPosition: PerpPosition,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: OraclePriceData,
+	useSpread = true,
+	skipUpdate = false
 ): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
@@ -40,21 +42,25 @@ export function calculateBaseAssetValue(
 	const directionToClose = findDirectionToClose(userPosition);
 	let prepegAmm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
 
-	if (market.amm.baseSpread > 0) {
-		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
-			calculateUpdatedAMMSpreadReserves(
-				market.amm,
-				directionToClose,
-				oraclePriceData
-			);
-		prepegAmm = {
-			baseAssetReserve,
-			quoteAssetReserve,
-			sqrtK: sqrtK,
-			pegMultiplier: newPeg,
-		};
+	if (!skipUpdate) {
+		if (market.amm.baseSpread > 0 && useSpread) {
+			const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
+				calculateUpdatedAMMSpreadReserves(
+					market.amm,
+					directionToClose,
+					oraclePriceData
+				);
+			prepegAmm = {
+				baseAssetReserve,
+				quoteAssetReserve,
+				sqrtK: sqrtK,
+				pegMultiplier: newPeg,
+			};
+		} else {
+			prepegAmm = calculateUpdatedAMM(market.amm, oraclePriceData);
+		}
 	} else {
-		prepegAmm = calculateUpdatedAMM(market.amm, oraclePriceData);
+		prepegAmm = market.amm;
 	}
 
 	const [newQuoteAssetReserve, _] = calculateAmmReservesAfterSwap(
@@ -124,8 +130,9 @@ export function calculatePositionPNL(
 	return pnl;
 }
 
-export function calculateUnsettledPnl(
+export function calculateClaimablePnl(
 	market: PerpMarketAccount,
+	spotMarket: SpotMarketAccount,
 	perpPosition: PerpPosition,
 	oraclePriceData: OraclePriceData
 ): BN {
@@ -136,16 +143,23 @@ export function calculateUnsettledPnl(
 		oraclePriceData
 	);
 
-	let unsettledPnl = unrealizedPnl;
+	const fundingPnL = calculatePositionFundingPNL(market, perpPosition).div(
+		PRICE_TO_QUOTE_PRECISION
+	);
+
+	let unsettledPnl = unrealizedPnl.add(fundingPnL);
 	if (unrealizedPnl.gt(ZERO)) {
-		const fundingPnL = calculatePositionFundingPNL(market, perpPosition).div(
-			PRICE_TO_QUOTE_PRECISION
+		const excessPnlPool = BN.max(
+			ZERO,
+			calculateNetUserPnlImbalance(market, spotMarket, oraclePriceData).mul(
+				new BN(-1)
+			)
 		);
 
 		const maxPositivePnl = BN.max(
 			perpPosition.quoteAssetAmount
 				.sub(perpPosition.quoteEntryAmount)
-				.add(fundingPnL),
+				.add(excessPnlPool),
 			ZERO
 		);
 

@@ -531,6 +531,16 @@ pub fn resolve_perp_pnl_deficit(
         market.amm.total_fee_minus_distributions
     )?;
 
+    let pnl_pool_token_amount =
+        get_token_amount(market.pnl_pool.balance, bank, &SpotBalanceType::Deposit)?;
+
+    validate!(
+        pnl_pool_token_amount == 0,
+        ErrorCode::DefaultError,
+        "pnl_pool_token_amount > 0 (={})",
+        pnl_pool_token_amount
+    )?;
+
     update_spot_market_cumulative_interest(bank, now)?;
 
     let total_if_shares_before = bank.total_if_shares;
