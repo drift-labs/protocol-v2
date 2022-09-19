@@ -43,7 +43,7 @@ pub struct State {
     pub signer_nonce: u8,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct OracleGuardRails {
     pub price_divergence: PriceDivergenceGuardRails,
     pub validity: ValidityGuardRails,
@@ -67,13 +67,13 @@ impl Default for OracleGuardRails {
     }
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+#[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone, Default)]
 pub struct PriceDivergenceGuardRails {
     pub mark_oracle_divergence_numerator: u128,
     pub mark_oracle_divergence_denominator: u128,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+#[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone, Default)]
 pub struct ValidityGuardRails {
     pub slots_before_stale: i64,
     pub confidence_interval_max_size: u128,

@@ -1,4 +1,5 @@
 use crate::error::ClearingHouseResult;
+use crate::error::ErrorCode;
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION_I128, MARGIN_PRECISION,
     SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION,
@@ -8,7 +9,6 @@ use crate::math::position::{
     calculate_base_asset_value_with_oracle_price,
 };
 use crate::math_error;
-use crate::error::ErrorCode;
 
 use crate::state::user::User;
 use crate::validate;

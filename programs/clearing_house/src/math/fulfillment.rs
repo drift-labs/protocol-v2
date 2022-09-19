@@ -6,6 +6,7 @@ use crate::state::user::Order;
 pub fn determine_perp_fulfillment_methods(
     taker_order: &Order,
     maker_available: bool,
+    amm_available: bool,
     slot: u64,
 ) -> ClearingHouseResult<Vec<PerpFulfillmentMethod>> {
     let mut fulfillment_methods = vec![];

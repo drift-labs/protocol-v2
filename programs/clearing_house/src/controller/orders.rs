@@ -543,13 +543,6 @@ pub fn fill_order(
             "Market is in settlement mode",
         )?;
 
-        validate!(
-            ((oracle_map.slot == market.amm.last_update_slot && market.amm.last_oracle_valid)
-                || market.amm.curve_update_intensity == 0),
-            ErrorCode::AMMNotUpdatedInSameSlot,
-            "AMM must be updated in a prior instruction within same slot"
-        )?;
-
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
 
         is_oracle_valid = amm::is_oracle_valid(
@@ -743,19 +736,17 @@ pub fn fill_order(
     )?;
 
     // if oracle-mark divergence pushed outside limit, block order
-    if is_oracle_mark_too_divergent_after && !is_oracle_mark_too_divergent_before && is_oracle_valid
-    {
-        return Err(ErrorCode::OracleMarkSpreadLimit);
+    if is_oracle_mark_too_divergent_after && !is_oracle_mark_too_divergent_before {
+        return Err(ErrorCode::PriceBandsBreached);
     }
 
     // if oracle-mark divergence outside limit and risk-increasing, block order
     if is_oracle_mark_too_divergent_after
         && oracle_mark_spread_pct_after.unsigned_abs()
             >= oracle_mark_spread_pct_before.unsigned_abs()
-        && is_oracle_valid
         && potentially_risk_increasing
     {
-        return Err(ErrorCode::OracleMarkSpreadLimit);
+        return Err(ErrorCode::PriceBandsBreached);
     }
 
     // Try to update the funding rate at the end of every trade
@@ -997,8 +988,12 @@ fn fulfill_order(
         return Ok((0, false, true));
     }
 
-    let fulfillment_methods =
-        determine_perp_fulfillment_methods(&user.orders[user_order_index], maker.is_some(), slot)?;
+    let fulfillment_methods = determine_perp_fulfillment_methods(
+        &user.orders[user_order_index],
+        maker.is_some(),
+        valid_oracle_price.is_some(),
+        slot,
+    )?;
 
     if fulfillment_methods.is_empty() {
         return Ok((0, false, false));

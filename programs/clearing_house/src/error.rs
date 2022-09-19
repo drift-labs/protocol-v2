@@ -51,8 +51,8 @@ pub enum ErrorCode {
     ClockUnavailable,
     #[msg("Unable To Load Oracles")]
     UnableToLoadOracle,
-    #[msg("Oracle/Mark Spread Too Large")]
-    OracleMarkSpreadLimit,
+    #[msg("Price Bands Breached")]
+    PriceBandsBreached,
     #[msg("Exchange is paused")]
     ExchangePaused,
     #[msg("Invalid whitelist token")]

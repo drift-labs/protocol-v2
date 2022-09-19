@@ -1926,7 +1926,11 @@ pub mod clearing_house {
         let state = &ctx.accounts.state;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, Some(state.oracle_guard_rails))?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(spot_market_index),
             remaining_accounts_iter,
@@ -1955,7 +1959,7 @@ pub mod clearing_house {
                     ErrorCode::InvalidOracle,
                     "Oracle Price detected as invalid"
                 )?;
-        
+
                 validate!(
                     oracle_map.slot == perp_market.amm.last_update_slot,
                     ErrorCode::AMMNotUpdatedInSameSlot,
@@ -2534,7 +2538,7 @@ pub mod clearing_house {
                 market.amm.last_oracle_price_twap = oracle_twap;
                 market.amm.last_oracle_price_twap_ts = now;
             } else {
-                return Err(ErrorCode::OracleMarkSpreadLimit.into());
+                return Err(ErrorCode::PriceBandsBreached.into());
             }
         } else {
             return Err(ErrorCode::InvalidOracle.into());

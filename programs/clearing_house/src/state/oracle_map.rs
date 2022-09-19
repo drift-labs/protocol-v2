@@ -20,6 +20,7 @@ pub struct OracleMap<'a> {
     oracles: BTreeMap<Pubkey, AccountInfoAndOracleSource<'a>>,
     price_data: BTreeMap<Pubkey, OraclePriceData>,
     pub slot: u64,
+    pub min_perp_auction_duration: u8,
     pub oracle_guard_rails: OracleGuardRails,
     pub quote_asset_price_data: OraclePriceData,
 }
@@ -143,6 +144,7 @@ impl<'a> OracleMap<'a> {
             price_data: BTreeMap::new(),
             slot,
             oracle_guard_rails: ogr,
+            min_perp_auction_duration: 10,
             quote_asset_price_data: OraclePriceData {
                 price: MARK_PRICE_PRECISION_I128,
                 confidence: 1,
@@ -183,6 +185,7 @@ impl<'a> OracleMap<'a> {
             price_data: BTreeMap::new(),
             slot,
             oracle_guard_rails: ogr,
+            min_perp_auction_duration: 10,
             quote_asset_price_data: OraclePriceData {
                 price: MARK_PRICE_PRECISION_I128,
                 confidence: 1,
@@ -200,6 +203,7 @@ impl<'a> OracleMap<'a> {
             oracles: BTreeMap::new(),
             price_data: BTreeMap::new(),
             slot: 0,
+            min_perp_auction_duration: 10,
             oracle_guard_rails: OracleGuardRails::default(),
             quote_asset_price_data: OraclePriceData {
                 price: MARK_PRICE_PRECISION_I128,
