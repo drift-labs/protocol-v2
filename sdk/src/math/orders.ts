@@ -259,7 +259,7 @@ function isSameDirection(
 
 export function isOrderExpired(order: Order, slot: number): boolean {
 	if (
-		isOneOfVariant(order.orderType, ['triggerMarket', 'market']) ||
+		isOneOfVariant(order.orderType, ['triggerMarket', 'triggerLimit']) ||
 		!isVariant(order.status, 'open') ||
 		order.timeInForce === 0
 	) {

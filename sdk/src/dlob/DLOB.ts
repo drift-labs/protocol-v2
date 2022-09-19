@@ -7,6 +7,7 @@ import {
 	ClearingHouse,
 	convertToNumber,
 	isAuctionComplete,
+	isOrderExpired,
 	isOneOfVariant,
 	isVariant,
 	getVariant,
@@ -270,7 +271,7 @@ export class DLOB {
 		vAsk: BN | undefined,
 		slot: number,
 		marketType: MarketType,
-		oraclePriceData?: OraclePriceData
+		oraclePriceData: OraclePriceData
 	): NodeToFill[] {
 		// Find all the crossing nodes
 		const crossingNodesToFill: Array<NodeToFill> = this.findCrossingNodesToFill(
@@ -278,19 +279,17 @@ export class DLOB {
 			vBid,
 			vAsk,
 			slot,
+			marketType,
 			oraclePriceData
 		);
 
-		// TODO: verify that crossing nodes indeed include all market nodes? ok it's not, orders will be in one but not thet other zzz
-		// Find all market nodes to fill
-		// const marketNodesToFill = this.findMarketNodesToFill(
-		// 	marketIndex,
-		// 	slot,
-		// 	marketType
-		// );
-		// return crossingNodesToFill.concat(marketNodesToFill);
-
-		return crossingNodesToFill;
+		// get expired market nodes
+		const marketNodesToFill = this.findMarketNodesToFill(
+			marketIndex,
+			slot,
+			marketType
+		);
+		return crossingNodesToFill.concat(marketNodesToFill);
 	}
 
 	public findCrossingNodesToFill(
@@ -299,7 +298,7 @@ export class DLOB {
 		vAsk: BN | undefined,
 		slot: number,
 		marketType: MarketType,
-		oraclePriceData?: OraclePriceData
+		oraclePriceData: OraclePriceData
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
@@ -364,7 +363,10 @@ export class DLOB {
 		const nodesToFill = new Array<NodeToFill>();
 		// Then see if there are orders to fill against vamm
 		for (const marketBid of this.getMarketBids(marketIndex, marketType)) {
-			if (isAuctionComplete(marketBid.order, slot)) {
+			if (
+				isAuctionComplete(marketBid.order, slot) ||
+				isOrderExpired(marketBid.order, slot)
+			) {
 				nodesToFill.push({
 					node: marketBid,
 				});
@@ -372,7 +374,10 @@ export class DLOB {
 		}
 
 		for (const marketAsk of this.getMarketAsks(marketIndex, marketType)) {
-			if (isAuctionComplete(marketAsk.order, slot)) {
+			if (
+				isAuctionComplete(marketAsk.order, slot) ||
+				isOrderExpired(marketAsk.order, slot)
+			) {
 				nodesToFill.push({
 					node: marketAsk,
 				});
@@ -582,8 +587,8 @@ export class DLOB {
 			(askOrder && isVariant(askOrder.orderType, 'market')) ||
 			(bidOrder && isVariant(bidOrder.orderType, 'market'));
 
-		// no market orders, and no crossing orders - return
-		if (!containsMarketOrder && bidPrice.lt(askPrice)) {
+		if (!containsMarketOrder || bidPrice.lt(askPrice)) {
+			// no market orders, and no crossing orders - return
 			if (askNode.isVammNode() && !bidNode.isVammNode()) {
 				return {
 					exhaustedSide: 'bid',

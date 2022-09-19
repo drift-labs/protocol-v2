@@ -27,7 +27,8 @@ function insertOrderToDLOB(
 	direction: PositionDirection,
 	auctionStartPrice: BN,
 	auctionEndPrice: BN,
-	slot?: BN
+	slot?: BN,
+	timeInForce = 30
 ) {
 	dlob.insertOrder(
 		{
@@ -57,7 +58,7 @@ function insertOrderToDLOB(
 			auctionDuration: 10,
 			auctionStartPrice,
 			auctionEndPrice,
-			timeInForce: 30,
+			timeInForce,
 		},
 		userAccount
 	);
@@ -77,7 +78,8 @@ function insertTriggerOrderToDLOB(
 	triggerCondition: OrderTriggerCondition,
 	auctionStartPrice: BN,
 	auctionEndPrice: BN,
-	slot?: BN
+	slot?: BN,
+	timeInForce = 30
 ) {
 	dlob.insertOrder(
 		{
@@ -107,7 +109,7 @@ function insertTriggerOrderToDLOB(
 			auctionDuration: 10,
 			auctionStartPrice,
 			auctionEndPrice,
-			timeInForce: 30,
+			timeInForce,
 		},
 		userAccount
 	);
@@ -138,7 +140,7 @@ describe('DLOB Tests', () => {
 				vAsk,
 				0,
 				MarketType.PERP,
-				undefined
+				oracle
 			)) {
 				foundAsks++;
 			}
@@ -150,7 +152,7 @@ describe('DLOB Tests', () => {
 				vBid,
 				0,
 				MarketType.PERP,
-				undefined
+				oracle
 			)) {
 				foundBids++;
 			}
@@ -606,6 +608,12 @@ describe('DLOB Perp Tests', () => {
 		const vBid = new BN(10);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
 		const marketIndex = new BN(0);
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)),
+			slot: new BN(12),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
 
 		// 3 mkt buys
 		for (let i = 0; i < 3; i++) {
@@ -647,7 +655,7 @@ describe('DLOB Perp Tests', () => {
 			vAsk,
 			2,
 			MarketType.PERP,
-			undefined
+			oracle
 		)) {
 			// vamm node is last in asks
 			asks++;
@@ -668,7 +676,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			2,
 			MarketType.PERP,
-			undefined
+			oracle
 		)) {
 			if (bids === 0) {
 				// vamm node
@@ -686,8 +694,15 @@ describe('DLOB Perp Tests', () => {
 	});
 
 	it('Test insert limit orders', () => {
+		const slot = 12;
 		const vAsk = new BN(11);
 		const vBid = new BN(10);
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)),
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
 		const marketIndex = new BN(0);
 		insertOrderToDLOB(
@@ -780,7 +795,7 @@ describe('DLOB Perp Tests', () => {
 			vAsk,
 			2,
 			MarketType.PERP,
-			undefined
+			oracle
 		)) {
 			if (ask.order) {
 				// market orders
@@ -803,7 +818,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			2,
 			MarketType.PERP,
-			undefined
+			oracle
 		)) {
 			if (bids === 0) {
 				// vamm node
@@ -1017,7 +1032,7 @@ describe('DLOB Perp Tests', () => {
 			MarketType.PERP,
 			new BN(4), // orderId
 			marketIndex,
-			new BN(12), // price
+			new BN(13), // price
 			new BN(2).mul(BASE_PRECISION), // quantity
 			PositionDirection.LONG,
 			vBid,
@@ -1105,7 +1120,7 @@ describe('DLOB Perp Tests', () => {
 			MarketType.PERP,
 			new BN(3), // orderId
 			marketIndex,
-			new BN(12), // price <-- best price
+			new BN(9), // price <-- best price
 			new BN(3).mul(BASE_PRECISION), // quantity
 			PositionDirection.SHORT,
 			vBid,
@@ -1451,6 +1466,86 @@ describe('DLOB Perp Tests', () => {
 			expect(n.node.order?.orderId.toNumber()).to.equal(orderIdsToTrigger[idx]);
 			console.log(`nodeToTrigger: ${n.node.order?.orderId.toString()}`);
 		}
+	});
+
+	it('Test will return expired market orders to fill', () => {
+		const vAsk = new BN(15);
+		const vBid = new BN(8);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const marketIndex = new BN(0);
+
+		const slot = 20;
+		const timeInForce = 30;
+
+		// non crossing bid
+		insertOrderToDLOB(
+			dlob,
+			Keypair.generate().publicKey,
+			OrderType.MARKET,
+			MarketType.PERP,
+			new BN(255), // orderId
+			marketIndex,
+			new BN(2), // price, very low, don't cross vamm
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(slot),
+			timeInForce
+		);
+		insertOrderToDLOB(
+			dlob,
+			Keypair.generate().publicKey,
+			OrderType.MARKET,
+			MarketType.PERP,
+			new BN(2), // orderId
+			marketIndex,
+			new BN(30), // price, very high, don't cross vamm
+			BASE_PRECISION, // quantity
+			PositionDirection.SHORT,
+			vAsk,
+			vBid,
+			new BN(slot),
+			timeInForce
+		);
+
+		// order auction is not yet complete, and order is not expired.
+		const slot0 = slot;
+		const nodesToFillBefore = dlob.findNodesToFill(
+			marketIndex,
+			vBid,
+			vAsk,
+			slot0,
+			MarketType.PERP,
+			{
+				price: vBid.add(vAsk).div(new BN(2)),
+				slot: new BN(slot0),
+				confidence: new BN(1),
+				hasSufficientNumberOfDataPoints: true,
+			}
+		);
+		expect(nodesToFillBefore.length).to.equal(0);
+
+		// should get order to fill after timeInForce
+		const slot1 = slot0 + timeInForce; // overshoots expiry
+		const nodesToFillAfter = dlob.findNodesToFill(
+			marketIndex,
+			vBid,
+			vAsk,
+			slot1, // auction is over, and order ix expired
+			MarketType.PERP,
+			{
+				price: vBid.add(vAsk).div(new BN(2)),
+				slot: new BN(slot1),
+				confidence: new BN(1),
+				hasSufficientNumberOfDataPoints: true,
+			}
+		);
+		expect(nodesToFillAfter.length).to.equal(2);
+
+		// check that the nodes have no makers
+		expect(nodesToFillAfter[0].makerNode).to.equal(undefined);
+		expect(nodesToFillAfter[1].makerNode).to.equal(undefined);
 	});
 });
 
@@ -2181,7 +2276,7 @@ describe('DLOB Spot Tests', () => {
 		);
 	});
 
-	it('Test one market orders fills two limit orders', () => {
+	it('Test one market order fills two limit orders', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
@@ -2208,7 +2303,7 @@ describe('DLOB Spot Tests', () => {
 			MarketType.SPOT,
 			new BN(2), // orderId
 			marketIndex,
-			new BN(13), // price
+			new BN(12), // price
 			BASE_PRECISION, // quantity
 			PositionDirection.SHORT,
 			vBid,
@@ -2221,7 +2316,7 @@ describe('DLOB Spot Tests', () => {
 			MarketType.SPOT,
 			new BN(3), // orderId
 			marketIndex,
-			new BN(12), // price
+			new BN(11), // price
 			BASE_PRECISION, // quantity
 			PositionDirection.SHORT,
 			vBid,
@@ -2340,7 +2435,7 @@ describe('DLOB Spot Tests', () => {
 			MarketType.SPOT,
 			new BN(3), // orderId
 			marketIndex,
-			new BN(12), // price <-- best price
+			new BN(8), // price <-- best price
 			new BN(3).mul(BASE_PRECISION), // quantity
 			PositionDirection.SHORT,
 			vBid,
@@ -2686,5 +2781,85 @@ describe('DLOB Spot Tests', () => {
 			expect(n.node.order?.orderId.toNumber()).to.equal(orderIdsToTrigger[idx]);
 			console.log(`nodeToTrigger: ${n.node.order?.orderId.toString()}`);
 		}
+	});
+
+	it('Test will return expired market orders to fill', () => {
+		const vAsk = new BN(15);
+		const vBid = new BN(8);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const marketIndex = new BN(0);
+
+		const slot = 20;
+		const timeInForce = 30;
+
+		// non crossing bid
+		insertOrderToDLOB(
+			dlob,
+			Keypair.generate().publicKey,
+			OrderType.MARKET,
+			MarketType.SPOT,
+			new BN(255), // orderId
+			marketIndex,
+			new BN(2), // price, very low, don't cross vamm
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(slot),
+			timeInForce
+		);
+		insertOrderToDLOB(
+			dlob,
+			Keypair.generate().publicKey,
+			OrderType.MARKET,
+			MarketType.SPOT,
+			new BN(2), // orderId
+			marketIndex,
+			new BN(30), // price, very high, don't cross vamm
+			BASE_PRECISION, // quantity
+			PositionDirection.SHORT,
+			vAsk,
+			vBid,
+			new BN(slot),
+			timeInForce
+		);
+
+		// order auction is not yet complete, and order is not expired.
+		const slot0 = slot;
+		const nodesToFillBefore = dlob.findNodesToFill(
+			marketIndex,
+			vBid,
+			vAsk,
+			slot0,
+			MarketType.SPOT,
+			{
+				price: vBid.add(vAsk).div(new BN(2)),
+				slot: new BN(slot0),
+				confidence: new BN(1),
+				hasSufficientNumberOfDataPoints: true,
+			}
+		);
+		expect(nodesToFillBefore.length).to.equal(0);
+
+		// should get order to fill after timeInForce
+		const slot1 = slot0 + timeInForce; // overshoots expiry
+		const nodesToFillAfter = dlob.findNodesToFill(
+			marketIndex,
+			vBid,
+			vAsk,
+			slot1,
+			MarketType.SPOT,
+			{
+				price: vBid.add(vAsk).div(new BN(2)),
+				slot: new BN(slot1),
+				confidence: new BN(1),
+				hasSufficientNumberOfDataPoints: true,
+			}
+		);
+		expect(nodesToFillAfter.length).to.equal(2);
+
+		// check that the nodes have no makers
+		expect(nodesToFillAfter[0].makerNode).to.equal(undefined);
+		expect(nodesToFillAfter[1].makerNode).to.equal(undefined);
 	});
 });
