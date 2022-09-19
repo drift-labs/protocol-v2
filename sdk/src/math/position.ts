@@ -130,7 +130,7 @@ export function calculatePositionPNL(
 	return pnl;
 }
 
-export function calculateUnsettledPnl(
+export function calculateClaimablePnl(
 	market: PerpMarketAccount,
 	perpPosition: PerpPosition,
 	oraclePriceData: OraclePriceData
@@ -149,9 +149,7 @@ export function calculateUnsettledPnl(
 	let unsettledPnl = unrealizedPnl.add(fundingPnL);
 	if (unrealizedPnl.gt(ZERO)) {
 		const maxPositivePnl = BN.max(
-			perpPosition.quoteAssetAmount
-				.sub(perpPosition.quoteEntryAmount)
-				.add(fundingPnL),
+			perpPosition.quoteAssetAmount.sub(perpPosition.quoteEntryAmount),
 			ZERO
 		);
 

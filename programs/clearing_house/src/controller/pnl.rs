@@ -1,7 +1,7 @@
 use crate::controller::amm::{update_pnl_pool_and_user_balance, update_pool_balances};
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::position::{
-    get_position_index, update_position_and_market, update_quote_asset_amount, update_realized_pnl,
+    get_position_index, update_position_and_market, update_quote_asset_amount, update_settled_pnl,
     PositionDelta,
 };
 use crate::controller::spot_balance::update_spot_balances;
@@ -142,7 +142,7 @@ pub fn settle_pnl(
         -pnl_to_settle_with_user,
     )?;
 
-    update_realized_pnl(
+    update_settled_pnl(
         &mut user.perp_positions[position_index],
         cast(pnl_to_settle_with_user)?,
     )?;

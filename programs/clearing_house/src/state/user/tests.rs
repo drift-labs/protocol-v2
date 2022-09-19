@@ -396,7 +396,9 @@ mod get_claimable_pnl {
             .get_claimable_pnl(oracle_price, max_pnl_pool_excess)
             .unwrap();
         assert_eq!(
-            user1.perp_positions[0].get_unrealized_pnl(oracle_price).unwrap(),
+            user1.perp_positions[0]
+                .get_unrealized_pnl(oracle_price)
+                .unwrap(),
             0
         );
         assert_eq!(unsettled_pnl1, 0);
@@ -405,7 +407,9 @@ mod get_claimable_pnl {
             .get_claimable_pnl(oracle_price, max_pnl_pool_excess)
             .unwrap();
         assert_eq!(
-            user2.perp_positions[0].get_unrealized_pnl(oracle_price).unwrap(),
+            user2.perp_positions[0]
+                .get_unrealized_pnl(oracle_price)
+                .unwrap(),
             1_000_000
         );
         assert_eq!(unsettled_pnl2, 1_000_000);
@@ -415,11 +419,12 @@ mod get_claimable_pnl {
             .unwrap();
 
         assert_eq!(
-            user3.perp_positions[0].get_unrealized_pnl(oracle_price).unwrap(),
+            user3.perp_positions[0]
+                .get_unrealized_pnl(oracle_price)
+                .unwrap(),
             50_000_000
         );
         assert_eq!(unsettled_pnl3, 9_000_000);
-
 
         perp_market.amm.quote_asset_amount_long = -250 * QUOTE_PRECISION_I128;
         let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, oracle_price).unwrap();
@@ -439,12 +444,12 @@ mod get_claimable_pnl {
             .unwrap();
 
         assert_eq!(
-            user3.perp_positions[0].get_unrealized_pnl(oracle_price).unwrap(),
+            user3.perp_positions[0]
+                .get_unrealized_pnl(oracle_price)
+                .unwrap(),
             50_000_000
         );
         assert_eq!(unsettled_pnl3, 9_000_000);
-
-
     }
 
     #[test]
@@ -538,7 +543,9 @@ mod get_claimable_pnl {
             .get_claimable_pnl(oracle_price, max_pnl_pool_excess)
             .unwrap();
         assert_eq!(
-            user1.perp_positions[0].get_unrealized_pnl(oracle_price).unwrap(),
+            user1.perp_positions[0]
+                .get_unrealized_pnl(oracle_price)
+                .unwrap(),
             -10000000
         );
         assert_eq!(unsettled_pnl1, -10000000);
@@ -547,7 +554,9 @@ mod get_claimable_pnl {
             .get_claimable_pnl(oracle_price, max_pnl_pool_excess)
             .unwrap();
         assert_eq!(
-            user2.perp_positions[0].get_unrealized_pnl(oracle_price).unwrap(),
+            user2.perp_positions[0]
+                .get_unrealized_pnl(oracle_price)
+                .unwrap(),
             10000000
         );
         assert_eq!(unsettled_pnl2, 10000000);
@@ -557,7 +566,9 @@ mod get_claimable_pnl {
             .unwrap();
 
         assert_eq!(
-            user3.perp_positions[0].get_unrealized_pnl(oracle_price).unwrap(),
+            user3.perp_positions[0]
+                .get_unrealized_pnl(oracle_price)
+                .unwrap(),
             60000000
         );
         assert_eq!(unsettled_pnl3, 60000000);

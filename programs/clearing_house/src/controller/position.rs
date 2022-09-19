@@ -631,9 +631,9 @@ pub fn update_quote_asset_amount(
     Ok(())
 }
 
-pub fn update_realized_pnl(position: &mut PerpPosition, delta: i64) -> ClearingHouseResult<()> {
-    position.realized_pnl = position
-        .realized_pnl
+pub fn update_settled_pnl(position: &mut PerpPosition, delta: i64) -> ClearingHouseResult<()> {
+    position.settled_pnl = position
+        .settled_pnl
         .checked_add(delta)
         .ok_or_else(math_error!())?;
 

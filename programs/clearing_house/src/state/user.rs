@@ -248,7 +248,7 @@ pub struct PerpPosition {
     pub open_orders: u128,
     pub open_bids: i128,
     pub open_asks: i128,
-    pub realized_pnl: i64,
+    pub settled_pnl: i64,
 
     // lp stuff
     pub lp_shares: u128,
