@@ -1926,7 +1926,7 @@ pub mod clearing_house {
         let state = &ctx.accounts.state;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot, Some(state.oracle_guard_rails))?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(spot_market_index),
             remaining_accounts_iter,
@@ -1948,6 +1948,20 @@ pub mod clearing_house {
         let pay_from_insurance = {
             let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
             let perp_market = &mut market_map.get_ref_mut(&perp_market_index)?;
+
+            if perp_market.amm.curve_update_intensity > 0 {
+                validate!(
+                    perp_market.amm.last_oracle_valid,
+                    ErrorCode::InvalidOracle,
+                    "Oracle Price detected as invalid"
+                )?;
+        
+                validate!(
+                    oracle_map.slot == perp_market.amm.last_update_slot,
+                    ErrorCode::AMMNotUpdatedInSameSlot,
+                    "AMM must be updated in a prior instruction within same slot"
+                )?;
+            }
 
             validate!(
                 perp_market.is_active(now)?,
