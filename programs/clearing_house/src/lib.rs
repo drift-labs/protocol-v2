@@ -752,30 +752,18 @@ pub mod clearing_house {
             amount
         };
 
-        let (margin_requirement, total_collateral, _, oracles_valid) =
-            calculate_margin_requirement_and_total_collateral(
-                user,
-                &market_map,
-                MarginRequirementType::Initial,
-                &spot_market_map,
-                &mut oracle_map,
-                None,
-            )?;
+        meets_withdraw_margin_requirement(
+            user,
+            &market_map,
+            MarginRequirementType::Initial,
+            &spot_market_map,
+            &mut oracle_map,
+            None,
+        )?;
 
         let spot_market = spot_market_map.get_ref(&market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
-
-        if margin_requirement > 0 {
-            validate!(
-                oracles_valid,
-                ErrorCode::InvalidOracle,
-                "User attempting to withdraw with outstanding liabilties when an oracle is invalid"
-            )?;
-        }
-
-        if total_collateral < cast_to_i128(margin_requirement)? {
-            return Err(ErrorCode::InsufficientCollateral.into());
-        }
+        let oracle_price = oracle_price_data.price;
 
         user.being_liquidated = false;
 
@@ -787,8 +775,6 @@ pub mod clearing_house {
             state.signer_nonce,
             amount,
         )?;
-
-        let oracle_price = oracle_price_data.price;
 
         let deposit_record = DepositRecord {
             ts: now,
@@ -869,11 +855,13 @@ pub mod clearing_house {
         }
 
         validate!(
-            meets_initial_margin_requirement(
+            meets_withdraw_margin_requirement(
                 from_user,
                 &market_map,
+                MarginRequirementType::Initial,
                 &spot_market_map,
-                &mut oracle_map
+                &mut oracle_map,
+                None,
             )?,
             ErrorCode::InsufficientCollateral,
             "From user does not meet initial margin requirement"

@@ -8,8 +8,10 @@ use crate::math::position::{
     calculate_base_asset_value_with_oracle_price,
 };
 use crate::math_error;
+use crate::error::ErrorCode;
 
 use crate::state::user::User;
+use crate::validate;
 
 use crate::math::casting::cast_to_i128;
 use crate::math::funding::calculate_funding_payment;
@@ -461,6 +463,41 @@ pub fn calculate_margin_requirement_and_total_collateral(
         margin_requirement_plus_buffer,
         all_oracles_valid,
     ))
+}
+
+pub fn meets_withdraw_margin_requirement(
+    user: &User,
+    perp_market_map: &PerpMarketMap,
+    margin_requirement_type: MarginRequirementType,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    margin_buffer_ratio: Option<u128>,
+) -> ClearingHouseResult<bool> {
+    let (margin_requirement, total_collateral, _, oracles_valid) =
+        calculate_margin_requirement_and_total_collateral(
+            user,
+            &perp_market_map,
+            MarginRequirementType::Initial,
+            &spot_market_map,
+            oracle_map,
+            None,
+        )?;
+
+    if margin_requirement > 0 {
+        validate!(
+            oracles_valid,
+            ErrorCode::InvalidOracle,
+            "User attempting to withdraw with outstanding liabilties when an oracle is invalid"
+        )?;
+    }
+
+    validate!(
+        total_collateral < cast_to_i128(margin_requirement)?,
+        ErrorCode::InsufficientCollateral,
+        "User attempting to withdraw with outstanding liabilties when an oracle is invalid"
+    )?;
+
+    Ok(true)
 }
 
 fn calculate_margin_requirement_with_buffer(
