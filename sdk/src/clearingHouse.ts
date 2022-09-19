@@ -3199,6 +3199,13 @@ export class ClearingHouse {
 		return oracleData;
 	}
 
+	public getOracleDataForSpotMarket(marketIndex: BN): OraclePriceData {
+		const oracleKey = this.getSpotMarketAccount(marketIndex).oracle;
+		const oracleData = this.getOraclePriceDataAndSlot(oracleKey).data;
+
+		return oracleData;
+	}
+
 	public async initializeInsuranceFundStake(
 		marketIndex: BN
 	): Promise<TransactionSignature> {
