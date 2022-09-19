@@ -26,7 +26,7 @@ use crate::math::auction::{
     is_auction_complete,
 };
 use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::{EPOCH_DURATION, PERP_DECIMALS};
+use crate::math::constants::PERP_DECIMALS;
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
@@ -1250,9 +1250,10 @@ pub fn fulfill_order_with_amm(
 
     if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
         if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index) {
-            update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
-
-            referrer_stats.increment_total_referrer_reward(cast(referrer_reward)?)?;
+            if referrer_reward > 0 {
+                update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
+                referrer_stats.increment_total_referrer_reward(cast(referrer_reward)?, now)?;
+            }
         }
     }
 
@@ -1611,24 +1612,9 @@ pub fn fulfill_order_with_match(
 
     if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
         if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index) {
-            update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
-
-            referrer_stats.increment_total_referrer_reward(cast(referrer_reward)?)?;
-
-            if now > referrer_stats.next_epoch_ts {
-                let n_epoch_durations = now
-                    .checked_sub(referrer_stats.next_epoch_ts)
-                    .ok_or_else(math_error!())?
-                    .checked_div(EPOCH_DURATION)
-                    .ok_or_else(math_error!())?
-                    + 1;
-
-                referrer_stats.next_epoch_ts = referrer_stats
-                    .next_epoch_ts
-                    .checked_add(EPOCH_DURATION * n_epoch_durations)
-                    .ok_or_else(math_error!())?;
-
-                referrer_stats.current_epoch_referrer_reward = 0;
+            if referrer_reward > 0 {
+                update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
+                referrer_stats.increment_total_referrer_reward(cast(referrer_reward)?, now)?;
             }
         }
     }

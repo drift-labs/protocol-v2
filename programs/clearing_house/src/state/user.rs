@@ -7,7 +7,7 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::calculate_rolling_sum;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::cast_to_i128;
-use crate::math::constants::{QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY_I128};
+use crate::math::constants::{EPOCH_DURATION, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY_I128};
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
 use crate::math_error;
@@ -694,7 +694,11 @@ impl UserStats {
         Ok(())
     }
 
-    pub fn increment_total_referrer_reward(&mut self, reward: u64) -> ClearingHouseResult {
+    pub fn increment_total_referrer_reward(
+        &mut self,
+        reward: u64,
+        now: i64,
+    ) -> ClearingHouseResult {
         self.total_referrer_reward = self
             .total_referrer_reward
             .checked_add(reward)
@@ -704,6 +708,27 @@ impl UserStats {
             .current_epoch_referrer_reward
             .checked_add(reward)
             .ok_or_else(math_error!())?;
+
+        if now > self.next_epoch_ts {
+            let n_epoch_durations = now
+                .checked_sub(self.next_epoch_ts)
+                .ok_or_else(math_error!())?
+                .checked_div(EPOCH_DURATION)
+                .ok_or_else(math_error!())?
+                .checked_add(1)
+                .ok_or_else(math_error!())?;
+
+            self.next_epoch_ts = self
+                .next_epoch_ts
+                .checked_add(
+                    EPOCH_DURATION
+                        .checked_mul(n_epoch_durations)
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
+
+            self.current_epoch_referrer_reward = 0;
+        }
 
         Ok(())
     }

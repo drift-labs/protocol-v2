@@ -119,9 +119,7 @@ fn calculate_referrer_reward_and_referee_discount(
                 fee_structure
                     .referral_discount
                     .referrer_reward_epoch_upper_bound
-                    .checked_sub(referrer_stats.current_epoch_referrer_reward)
-                    .ok_or_else(math_error!())?
-                    .max(0),
+                    .saturating_sub(referrer_stats.current_epoch_referrer_reward),
             )?;
             max_referrer_reward_from_fee.min(max_referrer_reward_in_epoch)
         }
