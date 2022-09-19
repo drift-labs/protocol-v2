@@ -305,6 +305,12 @@ export class ClearingHouse {
 		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
 	}
 
+	public getSpotMarketAccounts(): SpotMarketAccount[] {
+		return this.accountSubscriber
+			.getSpotMarketAccountsAndSlots()
+			.map((value) => value.data);
+	}
+
 	public getQuoteSpotMarketAccount(): SpotMarketAccount {
 		return this.accountSubscriber.getSpotMarketAccountAndSlot(
 			QUOTE_SPOT_MARKET_INDEX
@@ -470,6 +476,22 @@ export class ClearingHouse {
 				authority: this.wallet.publicKey,
 			},
 		});
+	}
+
+	public async updateUserCustomMarginRatio(
+		marginRatio: number,
+		userId = 0
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateUserCustomMarginRatio(
+			userId,
+			marginRatio,
+			{
+				accounts: {
+					user: await this.getUserAccountPublicKey(),
+					authority: this.wallet.publicKey,
+				},
+			}
+		);
 	}
 
 	public getUser(userId?: number): ClearingHouseUser {
