@@ -2,6 +2,19 @@ import { PublicKey, Transaction } from '@solana/web3.js';
 import { BN, ZERO } from '.';
 
 // # Utility Types / Enums / Constants
+
+export class MarketStatus {
+	static readonly INITIALIZED = { initialized: {} };
+	static readonly REDUCEONLY = { reduceonly: {} };
+	static readonly SETTLEMENT = { settlement: {} };
+	static readonly DELISTED = { delisted: {} };
+}
+
+export class ContractType {
+	static readonly PERPETUAL = { perpetual: {} };
+	static readonly FUTURE = { future: {} };
+}
+
 export class SwapDirection {
 	static readonly ADD = { add: {} };
 	static readonly REMOVE = { remove: {} };
@@ -35,6 +48,7 @@ export class OrderType {
 	static readonly MARKET = { market: {} };
 }
 
+export declare type MarketTypeStr = 'perp' | 'spot';
 export class MarketType {
 	static readonly SPOT = { spot: {} };
 	static readonly PERP = { perp: {} };
@@ -101,6 +115,10 @@ export function isOneOfVariant(object: unknown, types: string[]) {
 	}, false);
 }
 
+export function getVariant(object: unknown): string {
+	return Object.keys(object)[0];
+}
+
 export enum TradeSide {
 	None = 0,
 	Buy = 1,
@@ -162,6 +180,19 @@ export type CurveRecord = {
 	tradeId: BN;
 };
 
+export declare type InsuranceFundRecord = {
+	ts: BN;
+	bankIndex: BN;
+	marketIndex: BN;
+	userIfFactor: BN;
+	totalIfFactor: BN;
+	vaultAmountBefore: BN;
+	insuranceVaultAmountBefore: BN;
+	amount: BN;
+	totalIfSharesBefore: BN;
+	totalIfSharesAfter: BN;
+};
+
 export type LPRecord = {
 	ts: BN;
 	user: PublicKey;
@@ -216,6 +247,7 @@ export type LiquidationRecord = {
 	marginRequirement: BN;
 	totalCollateral: BN;
 	liquidationId: number;
+	canceledOrderIds: BN[];
 	liquidatePerp: LiquidatePerpRecord;
 	liquidateBorrow: LiquidateBorrowRecord;
 	liquidateBorrowForPerpPnl: LiquidateBorrowForPerpPnlRecord;
@@ -243,17 +275,16 @@ export class LiquidationType {
 
 export type LiquidatePerpRecord = {
 	marketIndex: BN;
-	orderIds: BN[];
 	oraclePrice: BN;
 	baseAssetAmount: BN;
 	quoteAssetAmount: BN;
 	lpShares: BN;
 	userPnl: BN;
 	liquidatorPnl: BN;
-	canceledOrdersFee: BN;
 	userOrderId: BN;
 	liquidatorOrderId: BN;
 	fillRecordId: BN;
+	ifFee: BN;
 };
 
 export type LiquidateBorrowRecord = {
@@ -263,6 +294,7 @@ export type LiquidateBorrowRecord = {
 	liabilityMarketIndex: BN;
 	liabilityPrice: BN;
 	liabilityTransfer: BN;
+	ifFee: BN;
 };
 
 export type LiquidateBorrowForPerpPnlRecord = {
@@ -353,17 +385,6 @@ export type StateAccount = {
 	exchangePaused: boolean;
 	adminControlsPrices: boolean;
 	insuranceVault: PublicKey;
-	marginRatioInitial: BN;
-	marginRatioMaintenance: BN;
-	marginRatioPartial: BN;
-	partialLiquidationClosePercentageNumerator: BN;
-	partialLiquidationClosePercentageDenominator: BN;
-	partialLiquidationPenaltyPercentageNumerator: BN;
-	partialLiquidationPenaltyPercentageDenominator: BN;
-	fullLiquidationPenaltyPercentageNumerator: BN;
-	fullLiquidationPenaltyPercentageDenominator: BN;
-	partialLiquidationLiquidatorShareDenominator: BN;
-	fullLiquidationLiquidatorShareDenominator: BN;
 	perpFeeStructure: FeeStructure;
 	spotFeeStructure: FeeStructure;
 	totalFee: BN;
@@ -377,12 +398,17 @@ export type StateAccount = {
 	minOrderQuoteAssetAmount: BN;
 	signer: PublicKey;
 	signerNonce: number;
-	maxAuctionDuration: number;
-	minAuctionDuration: number;
+	defaultMarketOrderTimeInForce: number;
+	minPerpAuctionDuration: number;
+	defaultSpotAuctionDuration: number;
+	liquidationMarginBufferRatio: number;
 };
 
 export type PerpMarketAccount = {
-	initialized: boolean;
+	status: MarketStatus;
+	contractType: ContractType;
+	expiryTs: BN;
+	settlementPrice: BN;
 	marketIndex: BN;
 	pubkey: PublicKey;
 	amm: AMM;
@@ -394,11 +420,18 @@ export type PerpMarketAccount = {
 	marginRatioMaintenance: number;
 	nextFillRecordId: BN;
 	pnlPool: PoolBalance;
-	liquidationFee: BN;
+	liquidatorFee: BN;
+	ifLiquidationFee: BN;
 	imfFactor: BN;
 	unrealizedImfFactor: BN;
+	unrealizedMaxImbalance: BN;
 	unrealizedInitialAssetWeight: number;
 	unrealizedMaintenanceAssetWeight: number;
+	revenueWithdrawSinceLastSettle: BN;
+	maxRevenueWithdrawPerPeriod: BN;
+	lastRevenueWithdrawTs: BN;
+	quoteSettledInsurance: BN;
+	quoteMaxInsurance: BN;
 };
 
 export type SpotMarketAccount = {
@@ -416,7 +449,7 @@ export type SpotMarketAccount = {
 
 	userIfFactor: BN;
 	totalIfFactor: BN;
-	liquidationIfFactor: BN;
+	ifLiquidationFee: BN;
 
 	decimals: number;
 	optimalUtilization: BN;
@@ -433,7 +466,7 @@ export type SpotMarketAccount = {
 	maintenanceAssetWeight: BN;
 	initialLiabilityWeight: BN;
 	maintenanceLiabilityWeight: BN;
-	liquidationFee: BN;
+	liquidatorFee: BN;
 	imfFactor: BN;
 
 	withdrawGuardThreshold: BN;
@@ -501,6 +534,7 @@ export type AMM = {
 	totalMmFee: BN;
 	netRevenueSinceLastFunding: BN;
 	lastUpdateSlot: BN;
+	lastOracleValid: boolean;
 	lastBidPriceTwap: BN;
 	lastAskPriceTwap: BN;
 	longSpread: BN;
@@ -511,6 +545,7 @@ export type AMM = {
 	ammJitIntensity: number;
 	maxBaseAssetReserve: BN;
 	minBaseAssetReserve: BN;
+	cumulativeSocialLoss: BN;
 };
 
 // # User Account Types
@@ -563,6 +598,7 @@ export type UserAccount = {
 	bankrupt: boolean;
 	nextLiquidationId: number;
 	nextOrderId: BN;
+	customMarginRatio: number;
 };
 
 export type SpotPosition = {
@@ -601,6 +637,7 @@ export type Order = {
 	auctionDuration: number;
 	auctionStartPrice: BN;
 	auctionEndPrice: BN;
+	timeInForce: number;
 };
 
 export type OrderParams = {
@@ -618,8 +655,9 @@ export type OrderParams = {
 	triggerCondition: OrderTriggerCondition;
 	positionLimit: BN;
 	oraclePriceOffset: BN;
-	padding0: boolean;
-	padding1: BN;
+	auctionDuration: number | null;
+	timeInForce: number | null;
+	auctionStartPrice: BN | null;
 };
 
 export type NecessaryOrderParams = {
@@ -648,8 +686,9 @@ export const DefaultOrderParams = {
 	triggerCondition: OrderTriggerCondition.ABOVE,
 	positionLimit: ZERO,
 	oraclePriceOffset: ZERO,
-	padding0: ZERO,
-	padding1: ZERO,
+	auctionDuration: null,
+	timeInForce: null,
+	auctionStartPrice: null,
 };
 
 export type MakerInfo = {
@@ -711,7 +750,7 @@ export type FeeStructure = {
 	makerRebateNumerator: BN;
 	makerRebateDenominator: BN;
 	fillerRewardStructure: OrderFillerRewardStructure;
-	cancelOrderFee: BN;
+	flatFillerFee: BN;
 };
 
 export type OracleGuardRails = {

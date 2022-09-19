@@ -17,7 +17,7 @@ use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::spot_balance::{
     get_balance_value_and_token_amount, get_token_amount, get_token_value,
 };
-use crate::state::market::PerpMarket;
+use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -26,7 +26,7 @@ use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{PerpPosition, SpotPosition};
 use num_integer::Roots;
 use solana_program::msg;
-use std::cmp::{max, min};
+use std::cmp::{max, min, Ordering};
 
 #[cfg(test)]
 mod tests;
@@ -171,7 +171,8 @@ pub fn calculate_perp_position_value_and_pnl(
     market: &PerpMarket,
     oracle_price_data: &OraclePriceData,
     margin_requirement_type: MarginRequirementType,
-) -> ClearingHouseResult<(u128, i128)> {
+    user_custom_margin_ratio: u128,
+) -> ClearingHouseResult<(u128, i128, u128)> {
     let unrealized_funding = calculate_funding_payment(
         if market_position.base_asset_amount > 0 {
             market.amm.cumulative_funding_rate_long
@@ -229,17 +230,21 @@ pub fn calculate_perp_position_value_and_pnl(
             quote_asset_amount,
             open_asks,
             open_bids,
-            // this is ok because no other values are used in the future computations
+            // todo double check: this is ok because no other values are used in the future computations
             ..PerpPosition::default()
         }
     } else {
         *market_position
     };
 
-    let (_, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
-        &market_position,
-        oracle_price_data.price,
-    )?;
+    let valuation_price = if market.status == MarketStatus::Settlement {
+        market.settlement_price
+    } else {
+        oracle_price_data.price
+    };
+
+    let (_, unrealized_pnl) =
+        calculate_base_asset_value_and_pnl_with_oracle_price(&market_position, valuation_price)?;
 
     let total_unrealized_pnl = unrealized_funding
         .checked_add(unrealized_pnl)
@@ -249,16 +254,16 @@ pub fn calculate_perp_position_value_and_pnl(
 
     let worse_case_base_asset_value = calculate_base_asset_value_with_oracle_price(
         worst_case_base_asset_amount,
-        oracle_price_data.price,
+        valuation_price,
     )?;
 
-    let margin_ratio = market.get_margin_ratio(
+    let margin_ratio = user_custom_margin_ratio.max(market.get_margin_ratio(
         worst_case_base_asset_amount.unsigned_abs(),
         margin_requirement_type,
-    )?;
+    )? as u128);
 
     let margin_requirement = worse_case_base_asset_value
-        .checked_mul(margin_ratio.into())
+        .checked_mul(margin_ratio)
         .ok_or_else(math_error!())?
         .checked_div(MARGIN_PRECISION)
         .ok_or_else(math_error!())?;
@@ -272,7 +277,11 @@ pub fn calculate_perp_position_value_and_pnl(
         .checked_div(SPOT_WEIGHT_PRECISION as i128)
         .ok_or_else(math_error!())?;
 
-    Ok((margin_requirement, weighted_unrealized_pnl))
+    Ok((
+        margin_requirement,
+        weighted_unrealized_pnl,
+        worse_case_base_asset_value,
+    ))
 }
 
 pub fn calculate_margin_requirement_and_total_collateral(
@@ -281,9 +290,17 @@ pub fn calculate_margin_requirement_and_total_collateral(
     margin_requirement_type: MarginRequirementType,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
-) -> ClearingHouseResult<(u128, i128)> {
+    margin_buffer_ratio: Option<u128>,
+) -> ClearingHouseResult<(u128, i128, u128)> {
     let mut total_collateral: i128 = 0;
     let mut margin_requirement: u128 = 0;
+    let mut margin_requirement_plus_buffer: u128 = 0;
+
+    let user_custom_margin_ratio = if margin_requirement_type == MarginRequirementType::Initial {
+        user.custom_margin_ratio as u128
+    } else {
+        0_u128
+    };
 
     for spot_position in user.spot_positions.iter() {
         if spot_position.balance == 0 && spot_position.open_orders == 0 {
@@ -306,9 +323,26 @@ pub fn calculate_margin_requirement_and_total_collateral(
                         .ok_or_else(math_error!())?
                 }
                 SpotBalanceType::Borrow => {
-                    margin_requirement = margin_requirement
-                        .checked_add(token_amount)
+                    let liability_weight = user_custom_margin_ratio.max(SPOT_WEIGHT_PRECISION);
+                    let weighted_token_value = token_amount
+                        .checked_mul(liability_weight)
                         .ok_or_else(math_error!())?
+                        .checked_div(SPOT_WEIGHT_PRECISION)
+                        .ok_or_else(math_error!())?;
+
+                    margin_requirement = margin_requirement
+                        .checked_add(weighted_token_value)
+                        .ok_or_else(math_error!())?;
+
+                    if let Some(margin_buffer_ratio) = margin_buffer_ratio {
+                        margin_requirement_plus_buffer = margin_requirement_plus_buffer
+                            .checked_add(calculate_margin_requirement_with_buffer(
+                                weighted_token_value,
+                                token_amount,
+                                margin_buffer_ratio,
+                            )?)
+                            .ok_or_else(math_error!())?;
+                    }
                 }
             }
         } else {
@@ -324,8 +358,8 @@ pub fn calculate_margin_requirement_and_total_collateral(
                 oracle_price_data,
             )?;
 
-            match worst_case_token_amount > 0 {
-                true => {
+            match worst_case_token_amount.cmp(&0) {
+                Ordering::Greater => {
                     let weighted_token_value = worst_case_token_value
                         .unsigned_abs()
                         .checked_mul(spot_market.get_asset_weight(
@@ -340,13 +374,16 @@ pub fn calculate_margin_requirement_and_total_collateral(
                         .checked_add(cast_to_i128(weighted_token_value)?)
                         .ok_or_else(math_error!())?;
                 }
-                false => {
-                    let weighted_token_value = worst_case_token_value
-                        .unsigned_abs()
-                        .checked_mul(spot_market.get_liability_weight(
+                Ordering::Less => {
+                    let liability_weight =
+                        user_custom_margin_ratio.max(spot_market.get_liability_weight(
                             worst_case_token_amount.unsigned_abs(),
                             &margin_requirement_type,
-                        )?)
+                        )?);
+
+                    let weighted_token_value = worst_case_token_value
+                        .unsigned_abs()
+                        .checked_mul(liability_weight)
                         .ok_or_else(math_error!())?
                         .checked_div(SPOT_WEIGHT_PRECISION)
                         .ok_or_else(math_error!())?;
@@ -354,20 +391,50 @@ pub fn calculate_margin_requirement_and_total_collateral(
                     margin_requirement = margin_requirement
                         .checked_add(weighted_token_value)
                         .ok_or_else(math_error!())?;
+
+                    if let Some(margin_buffer_ratio) = margin_buffer_ratio {
+                        margin_requirement_plus_buffer = margin_requirement_plus_buffer
+                            .checked_add(calculate_margin_requirement_with_buffer(
+                                weighted_token_value,
+                                worst_case_token_value.unsigned_abs(),
+                                margin_buffer_ratio,
+                            )?)
+                            .ok_or_else(math_error!())?;
+                    }
                 }
+                Ordering::Equal => {}
             }
 
-            match worst_cast_quote_token_amount > 0 {
-                true => {
+            match worst_cast_quote_token_amount.cmp(&0) {
+                Ordering::Greater => {
                     total_collateral = total_collateral
                         .checked_add(cast_to_i128(worst_cast_quote_token_amount)?)
                         .ok_or_else(math_error!())?
                 }
-                false => {
-                    margin_requirement = margin_requirement
-                        .checked_add(worst_cast_quote_token_amount.unsigned_abs())
+                Ordering::Less => {
+                    let liability_weight = user_custom_margin_ratio.max(SPOT_WEIGHT_PRECISION);
+                    let weighted_token_value = worst_cast_quote_token_amount
+                        .unsigned_abs()
+                        .checked_mul(liability_weight)
                         .ok_or_else(math_error!())?
+                        .checked_div(SPOT_WEIGHT_PRECISION)
+                        .ok_or_else(math_error!())?;
+
+                    margin_requirement = margin_requirement
+                        .checked_add(weighted_token_value)
+                        .ok_or_else(math_error!())?;
+
+                    if let Some(margin_buffer_ratio) = margin_buffer_ratio {
+                        margin_requirement_plus_buffer = margin_requirement_plus_buffer
+                            .checked_add(calculate_margin_requirement_with_buffer(
+                                weighted_token_value,
+                                worst_cast_quote_token_amount.unsigned_abs(),
+                                margin_buffer_ratio,
+                            )?)
+                            .ok_or_else(math_error!())?;
+                    }
                 }
+                Ordering::Equal => {}
             }
         }
     }
@@ -385,77 +452,54 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
 
-        let (perp_margin_requirement, weighted_pnl) = calculate_perp_position_value_and_pnl(
-            market_position,
-            market,
-            oracle_price_data,
-            margin_requirement_type,
-        )?;
+        let (perp_margin_requirement, weighted_pnl, worst_case_base_asset_value) =
+            calculate_perp_position_value_and_pnl(
+                market_position,
+                market,
+                oracle_price_data,
+                margin_requirement_type,
+                user_custom_margin_ratio,
+            )?;
 
         margin_requirement = margin_requirement
             .checked_add(perp_margin_requirement)
             .ok_or_else(math_error!())?;
+
+        if let Some(margin_buffer_ratio) = margin_buffer_ratio {
+            margin_requirement_plus_buffer = margin_requirement_plus_buffer
+                .checked_add(calculate_margin_requirement_with_buffer(
+                    perp_margin_requirement,
+                    worst_case_base_asset_value,
+                    margin_buffer_ratio,
+                )?)
+                .ok_or_else(math_error!())?;
+        }
 
         total_collateral = total_collateral
             .checked_add(weighted_pnl)
             .ok_or_else(math_error!())?;
     }
 
-    Ok((margin_requirement, total_collateral))
+    Ok((
+        margin_requirement,
+        total_collateral,
+        margin_requirement_plus_buffer,
+    ))
 }
 
-pub fn calculate_net_quote_balance(
-    user: &User,
-    margin_requirement_type: MarginRequirementType,
-    spot_market_map: &SpotMarketMap,
-    oracle_map: &mut OracleMap,
-) -> ClearingHouseResult<i128> {
-    let mut net_quote_balance: i128 = 0;
-
-    for spot_position in user.spot_positions.iter() {
-        if spot_position.balance == 0 {
-            continue;
-        }
-
-        let spot_market = &spot_market_map.get_ref(&spot_position.market_index)?;
-
-        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
-        let (balance_value, token_amount) =
-            get_balance_value_and_token_amount(spot_position, spot_market, oracle_price_data)?;
-
-        match spot_position.balance_type {
-            SpotBalanceType::Deposit => {
-                net_quote_balance = net_quote_balance
-                    .checked_add(cast_to_i128(
-                        balance_value
-                            .checked_mul(
-                                spot_market
-                                    .get_asset_weight(token_amount, &margin_requirement_type)?,
-                            )
-                            .ok_or_else(math_error!())?
-                            .checked_div(SPOT_WEIGHT_PRECISION)
-                            .ok_or_else(math_error!())?,
-                    )?)
-                    .ok_or_else(math_error!())?;
-            }
-            SpotBalanceType::Borrow => {
-                net_quote_balance = net_quote_balance
-                    .checked_sub(cast_to_i128(
-                        balance_value
-                            .checked_mul(
-                                spot_market
-                                    .get_liability_weight(token_amount, &margin_requirement_type)?,
-                            )
-                            .ok_or_else(math_error!())?
-                            .checked_div(SPOT_WEIGHT_PRECISION)
-                            .ok_or_else(math_error!())?,
-                    )?)
-                    .ok_or_else(math_error!())?;
-            }
-        }
-    }
-
-    Ok(net_quote_balance)
+fn calculate_margin_requirement_with_buffer(
+    margin_requirement: u128,
+    liability_value: u128,
+    buffer_ratio: u128,
+) -> ClearingHouseResult<u128> {
+    margin_requirement
+        .checked_add(
+            liability_value
+                .checked_mul(buffer_ratio)
+                .ok_or_else(math_error!())?
+                / MARGIN_PRECISION,
+        )
+        .ok_or_else(math_error!())
 }
 
 pub fn meets_initial_margin_requirement(
@@ -464,13 +508,15 @@ pub fn meets_initial_margin_requirement(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<bool> {
-    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
-        user,
-        perp_market_map,
-        MarginRequirementType::Initial,
-        spot_market_map,
-        oracle_map,
-    )?;
+    let (margin_requirement, total_collateral, _) =
+        calculate_margin_requirement_and_total_collateral(
+            user,
+            perp_market_map,
+            MarginRequirementType::Initial,
+            spot_market_map,
+            oracle_map,
+            None,
+        )?;
     Ok(total_collateral >= cast_to_i128(margin_requirement)?)
 }
 
@@ -480,13 +526,15 @@ pub fn meets_maintenance_margin_requirement(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<bool> {
-    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
-        user,
-        perp_market_map,
-        MarginRequirementType::Maintenance,
-        spot_market_map,
-        oracle_map,
-    )?;
+    let (margin_requirement, total_collateral, _) =
+        calculate_margin_requirement_and_total_collateral(
+            user,
+            perp_market_map,
+            MarginRequirementType::Maintenance,
+            spot_market_map,
+            oracle_map,
+            None,
+        )?;
 
     Ok(total_collateral >= cast_to_i128(margin_requirement)?)
 }
@@ -497,13 +545,15 @@ pub fn calculate_free_collateral(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<i128> {
-    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
-        user,
-        perp_market_map,
-        MarginRequirementType::Initial,
-        spot_market_map,
-        oracle_map,
-    )?;
+    let (margin_requirement, total_collateral, _) =
+        calculate_margin_requirement_and_total_collateral(
+            user,
+            perp_market_map,
+            MarginRequirementType::Initial,
+            spot_market_map,
+            oracle_map,
+            None,
+        )?;
 
     total_collateral
         .checked_sub(cast_to_i128(margin_requirement)?)

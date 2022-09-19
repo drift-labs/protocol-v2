@@ -31,8 +31,8 @@ import {
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
+	setFeedPrice,
 } from './testHelpers';
-import { setFeedPrice } from '../stress/mockPythUtils';
 
 async function adjustOraclePostSwap(baa, swapDirection, market) {
 	const price = calculatePrice(
@@ -219,7 +219,7 @@ describe('liquidity providing', () => {
 			new BN(0)
 		);
 		await clearingHouse.updateLpCooldownTime(new BN(1), new BN(0));
-		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		[traderClearingHouse, traderClearingHouseUser] = await createNewUser(
 			chProgram,
@@ -276,7 +276,7 @@ describe('liquidity providing', () => {
 
 		const newInitMarginReq = clearingHouseUser.getInitialMarginRequirement();
 		console.log(initMarginReq.toString(), '->', newInitMarginReq.toString());
-		assert(newInitMarginReq.eq(new BN(8284000)));
+		assert(newInitMarginReq.eq(new BN(8283999)));
 
 		// ensure margin calcs didnt modify user position
 		const _position = clearingHouseUser.getUserPosition(ZERO);
@@ -324,7 +324,7 @@ describe('liquidity providing', () => {
 			PositionDirection.SHORT,
 			tradeSize,
 			market.marketIndex,
-			new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
+			new BN((newPrice * MARK_PRICE_PRECISION.toNumber() * 99) / 100)
 		);
 		await _viewLogs(sig);
 
@@ -1230,7 +1230,7 @@ describe('liquidity providing', () => {
 
 	// // TODO
 	// it('provides and removes liquidity too fast', async () => {
-	// 	const market = clearingHouse.getMarketAccount(0);
+	// 	const market = clearingHouse.getPerpMarketAccount(0);
 
 	// 	const lpShares = new BN(100 * AMM_RESERVE_PRECISION);
 	// 	const addLpIx = await clearingHouse.getAddLiquidityIx(
@@ -1338,7 +1338,7 @@ describe('liquidity providing', () => {
 		assert(!post_upnl.eq(upnl));
 
 		// other sht was updated
-		const market = clearingHouse.getMarketAccount(new BN(0));
+		const market = clearingHouse.getPerpMarketAccount(new BN(0));
 		assert(market.amm.netBaseAssetAmount.eq(position.lastNetBaseAssetAmount));
 		assert(
 			market.amm.totalFeeMinusDistributions.eq(

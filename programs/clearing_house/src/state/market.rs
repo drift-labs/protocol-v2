@@ -7,8 +7,8 @@ use switchboard_v2::AggregatorAccountData;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
-use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::constants::LIQUIDATION_FEE_PRECISION;
+use crate::math::constants::{AMM_RESERVE_PRECISION, SPOT_WEIGHT_PRECISION};
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
@@ -19,7 +19,35 @@ use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::user::PerpPosition;
 use crate::{
     AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, MARGIN_PRECISION, MARK_PRICE_PRECISION,
+    MAX_CONCENTRATION_COEFFICIENT,
 };
+use borsh::{BorshDeserialize, BorshSerialize};
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum MarketStatus {
+    Initialized,
+    ReduceOnly,
+    Settlement,
+    Delisted,
+}
+
+impl Default for MarketStatus {
+    fn default() -> Self {
+        MarketStatus::Initialized
+    }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum ContractType {
+    Perpetual,
+    Future,
+}
+
+impl Default for ContractType {
+    fn default() -> Self {
+        ContractType::Perpetual
+    }
+}
 
 #[account(zero_copy)]
 #[derive(Default, Eq, PartialEq, Debug)]
@@ -27,7 +55,10 @@ use crate::{
 pub struct PerpMarket {
     pub market_index: u64,
     pub pubkey: Pubkey,
-    pub initialized: bool,
+    pub status: MarketStatus,
+    pub contract_type: ContractType,
+    pub settlement_price: i128, // iff market has expired, price users can settle position
+    pub expiry_ts: i64,         // iff market in reduce only mode
     pub amm: AMM,
     pub base_asset_amount_long: i128,
     pub base_asset_amount_short: i128,
@@ -42,11 +73,14 @@ pub struct PerpMarket {
     pub max_revenue_withdraw_per_period: u128,
     pub last_revenue_withdraw_ts: i64,
     pub imf_factor: u128,
-    pub unrealized_initial_asset_weight: u8,
-    pub unrealized_maintenance_asset_weight: u8,
+    pub unrealized_initial_asset_weight: u32,
+    pub unrealized_maintenance_asset_weight: u32,
     pub unrealized_imf_factor: u128,
-    pub liquidation_fee: u128,
-
+    pub unrealized_max_imbalance: u128,
+    pub liquidator_fee: u128,
+    pub if_liquidation_fee: u128,
+    pub quote_max_insurance: u128,
+    pub quote_settled_insurance: u128,
     // upgrade-ability
     pub padding0: u32,
     pub padding1: u128,
@@ -56,6 +90,16 @@ pub struct PerpMarket {
 }
 
 impl PerpMarket {
+    pub fn is_active(&self, now: i64) -> ClearingHouseResult<bool> {
+        let status_ok = self.status != MarketStatus::Settlement;
+        let is_active = self.expiry_ts == 0 || self.expiry_ts < now;
+        Ok(is_active && status_ok)
+    }
+
+    pub fn is_reduce_only(&self) -> ClearingHouseResult<bool> {
+        Ok(self.status == MarketStatus::ReduceOnly)
+    }
+
     pub fn get_margin_ratio(
         &self,
         size: u128,
@@ -104,6 +148,7 @@ impl PerpMarket {
             amm,
             margin_ratio_initial: 1000,    // 10x
             margin_ratio_maintenance: 500, // 5x
+            status: MarketStatus::Initialized,
             ..PerpMarket::default()
         }
     }
@@ -113,7 +158,24 @@ impl PerpMarket {
         unrealized_pnl: i128,
         margin_type: MarginRequirementType,
     ) -> ClearingHouseResult<u128> {
-        // the asset weight for a position's unrealized pnl in the margin system
+        let mut margin_asset_weight = match margin_type {
+            MarginRequirementType::Initial => self.unrealized_initial_asset_weight as u128,
+            MarginRequirementType::Maintenance => self.unrealized_maintenance_asset_weight as u128,
+        };
+
+        if margin_type == MarginRequirementType::Initial && self.unrealized_max_imbalance > 0 {
+            let net_unsettled_pnl =
+                amm::calculate_net_user_pnl(&self.amm, self.amm.last_oracle_price)?;
+            if net_unsettled_pnl > cast_to_i128(self.unrealized_max_imbalance)? {
+                margin_asset_weight = margin_asset_weight
+                    .checked_mul(self.unrealized_max_imbalance)
+                    .ok_or_else(math_error!())?
+                    .checked_div(net_unsettled_pnl.unsigned_abs())
+                    .ok_or_else(math_error!())?
+            }
+        }
+
+        // the asset weight for a position's unrealized pnl + unsettled pnl in the margin system
         // > 0 (positive balance)
         // < 0 (negative balance) always has asset weight = 1
         let unrealized_asset_weight = if unrealized_pnl > 0 {
@@ -127,14 +189,14 @@ impl PerpMarket {
                         .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO)
                         .ok_or_else(math_error!())?,
                     self.unrealized_imf_factor,
-                    self.unrealized_initial_asset_weight as u128,
+                    margin_asset_weight,
                 )?,
                 MarginRequirementType::Maintenance => {
                     self.unrealized_maintenance_asset_weight as u128
                 }
             }
         } else {
-            100
+            SPOT_WEIGHT_PRECISION
         };
 
         Ok(unrealized_asset_weight)
@@ -146,11 +208,11 @@ impl PerpMarket {
     ) -> ClearingHouseResult<u128> {
         if base_asset_amount >= 0 {
             LIQUIDATION_FEE_PRECISION
-                .checked_sub(self.liquidation_fee)
+                .checked_sub(self.liquidator_fee)
                 .ok_or_else(math_error!())
         } else {
             LIQUIDATION_FEE_PRECISION
-                .checked_add(self.liquidation_fee)
+                .checked_add(self.liquidator_fee)
                 .ok_or_else(math_error!())
         }
     }
@@ -204,6 +266,7 @@ pub struct AMM {
 
     pub base_asset_reserve: u128,
     pub quote_asset_reserve: u128,
+    pub concentration_coef: u128,
     pub min_base_asset_reserve: u128,
     pub max_base_asset_reserve: u128,
     pub sqrt_k: u128,
@@ -233,6 +296,7 @@ pub struct AMM {
     pub cumulative_funding_rate_short: i128,
     pub cumulative_repeg_rebate_long: u128,
     pub cumulative_repeg_rebate_short: u128,
+    pub cumulative_social_loss: i128,
 
     pub mark_std: u64,
     pub last_mark_price_twap: u128,
@@ -272,6 +336,7 @@ pub struct AMM {
     pub total_fee_minus_distributions: i128,
     pub total_fee_withdrawn: u128,
     pub net_revenue_since_last_funding: i64,
+    pub total_liquidation_fee: u128,
     pub fee_pool: PoolBalance,
     pub last_update_slot: u64,
     pub last_oracle_valid: bool,
@@ -290,6 +355,7 @@ impl AMM {
             base_asset_reserve: default_reserves,
             quote_asset_reserve: default_reserves,
             sqrt_k: default_reserves,
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
             base_asset_amount_step_size: 1,
             max_base_asset_reserve: u128::MAX,
             min_base_asset_reserve: 0,
@@ -311,14 +377,20 @@ impl AMM {
 
             peg_multiplier: 19_400_000,
 
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
             max_base_asset_reserve: 90 * AMM_RESERVE_PRECISION,
             min_base_asset_reserve: 45 * AMM_RESERVE_PRECISION,
 
             net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
             mark_std: MARK_PRICE_PRECISION as u64,
 
+            quote_asset_amount_long: 0,
+            quote_asset_amount_short: 19_000_000_000, // short 1 BTC @ $19000
+
             last_oracle_price_twap_ts: 1662800000,
             last_mark_price_twap_ts: 1662800000,
+
+            last_oracle_price: (19_400 * MARK_PRICE_PRECISION) as i128,
             last_oracle_price_twap: (19_400 * MARK_PRICE_PRECISION) as i128,
             curve_update_intensity: 100,
 

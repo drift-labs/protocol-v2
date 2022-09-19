@@ -82,7 +82,7 @@ describe('User Account', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateAuctionDuration(0, 0);
+		await clearingHouse.updatePerpAuctionDuration(0);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -205,13 +205,11 @@ describe('User Account', () => {
 			BASE_PRECISION,
 			marketIndex
 		);
-		clearingHouse.fetchAccounts();
-		userAccount.fetchAccounts();
-		const marketPosition = userAccount.getUserPosition(marketIndex);
+		await clearingHouse.fetchAccounts();
+		await userAccount.fetchAccounts();
+		const perpPosition = userAccount.getUserPosition(marketIndex);
 
-		const market = clearingHouse.getPerpMarketAccount(
-			marketPosition.marketIndex
-		);
+		const market = clearingHouse.getPerpMarketAccount(perpPosition.marketIndex);
 
 		const oraclePrice = clearingHouse.getOracleDataForMarket(
 			market.marketIndex
@@ -233,7 +231,7 @@ describe('User Account', () => {
 		);
 		await sleep(5000);
 
-		clearingHouse.fetchAccounts();
+		await clearingHouse.fetchAccounts();
 		const oracleP2 = await getFeedData(anchor.workspace.Pyth, solUsdOracle);
 		console.log('oracleP2:', oracleP2.price);
 		const oraclePrice2 = clearingHouse.getOracleDataForMarket(
@@ -247,7 +245,7 @@ describe('User Account', () => {
 		);
 
 		const worstCaseBaseAssetAmount =
-			calculateWorstCaseBaseAssetAmount(marketPosition);
+			calculateWorstCaseBaseAssetAmount(perpPosition);
 
 		const worstCaseAssetValue = worstCaseBaseAssetAmount
 			.abs()
@@ -287,11 +285,9 @@ describe('User Account', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount.mul(new BN(11)).div(new BN(10))
 		);
-		const marketPosition = userAccount.getUserPosition(marketIndex);
+		const perpPosition = userAccount.getUserPosition(marketIndex);
 
-		const market = clearingHouse.getPerpMarketAccount(
-			marketPosition.marketIndex
-		);
+		const market = clearingHouse.getPerpMarketAccount(perpPosition.marketIndex);
 
 		const oraclePrice = clearingHouse.getOracleDataForMarket(
 			market.marketIndex
@@ -314,7 +310,7 @@ describe('User Account', () => {
 		);
 		await sleep(5000);
 
-		clearingHouse.fetchAccounts();
+		await clearingHouse.fetchAccounts();
 		const oracleP2 = await getFeedData(anchor.workspace.Pyth, solUsdOracle);
 		console.log('oracleP2:', oracleP2.price);
 		const oraclePrice2 = clearingHouse.getOracleDataForMarket(
@@ -327,8 +323,8 @@ describe('User Account', () => {
 			convertToNumber(oraclePrice2)
 		);
 
-		const expectedPNL = new BN(4949474);
-		const expectedTotalCollateral = new BN(24949474);
+		const expectedPNL = new BN(4949473);
+		const expectedTotalCollateral = new BN(24949473);
 		const expectedBuyingPower = new BN(69747645);
 		const expectedFreeCollateral = new BN(13949529);
 		const expectedLeverage = new BN(22044);

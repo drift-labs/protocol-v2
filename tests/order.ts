@@ -136,7 +136,7 @@ describe('orders', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -1292,7 +1292,7 @@ describe('orders', () => {
 		const newMarkPrice1 = calculateMarkPrice(newMarket1); // 0 liquidity at current mark price
 
 		const userTC = clearingHouseUser.getTotalCollateral();
-		const userTPV = clearingHouseUser.getTotalPositionValue();
+		const userTPV = clearingHouseUser.getTotalPerpPositionValue();
 
 		const userLeverage = clearingHouseUser.getLeverage();
 		const postPosition = clearingHouseUser.getUserPosition(marketIndex);

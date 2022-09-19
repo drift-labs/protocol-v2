@@ -6,7 +6,10 @@ use crate::math::amm::{
     get_update_k_result,
 };
 use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128};
-use crate::math::constants::PRICE_TO_PEG_PRECISION_RATIO;
+use crate::math::constants::{
+    CONCENTRATION_PRECISION, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT,
+    PRICE_TO_PEG_PRECISION_RATIO,
+};
 use crate::math::repeg::get_total_fee_lower_bound;
 use crate::math::spot_balance::{get_token_amount, validate_spot_balances};
 use crate::math::{amm, bn, quote_asset::*};
@@ -14,6 +17,7 @@ use crate::math_error;
 use crate::state::events::CurveRecord;
 use crate::state::market::{PerpMarket, AMM};
 use crate::state::oracle::OraclePriceData;
+use crate::state::user::User;
 use crate::validate;
 use anchor_lang::prelude::*;
 use solana_program::msg;
@@ -237,12 +241,57 @@ pub fn update_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u
     Ok((long_spread, short_spread))
 }
 
+pub fn update_concentration_coef(amm: &mut AMM, scale: u128) -> ClearingHouseResult {
+    validate!(scale > 0, ErrorCode::DefaultError, "invalid scale",)?;
+
+    let new_concentration_coef =
+        CONCENTRATION_PRECISION + (MAX_CONCENTRATION_COEFFICIENT - CONCENTRATION_PRECISION) / scale;
+
+    validate!(
+        new_concentration_coef > CONCENTRATION_PRECISION
+            && new_concentration_coef <= MAX_CONCENTRATION_COEFFICIENT,
+        ErrorCode::DefaultError,
+        "invalid new_concentration_coef",
+    )?;
+
+    amm.concentration_coef = new_concentration_coef;
+
+    let (_, terminal_quote_reserves, terminal_base_reserves) =
+        amm::calculate_terminal_price_and_reserves(amm)?;
+
+    validate!(
+        terminal_quote_reserves == amm.terminal_quote_asset_reserve,
+        ErrorCode::DefaultError,
+        "invalid terminal_quote_reserves",
+    )?;
+
+    // updating the concentration_coef changes the min/max base_asset_reserve
+    // doing so adds ability to improve amm constant product curve's slippage
+    // by increasing k as same factor as scale w/o increasing imbalance risk
+    let (min_base_asset_reserve, max_base_asset_reserve) =
+        amm::calculate_bid_ask_bounds(amm.concentration_coef, terminal_base_reserves)?;
+
+    amm.max_base_asset_reserve = max_base_asset_reserve;
+    amm.min_base_asset_reserve = min_base_asset_reserve;
+
+    let mark_price_after = amm.mark_price()?;
+    update_spreads(amm, mark_price_after)?;
+
+    let (max_bids, max_asks) = amm::calculate_market_open_bids_asks(amm)?;
+    validate!(
+        max_bids > amm.net_base_asset_amount && max_asks < amm.net_base_asset_amount,
+        ErrorCode::DefaultError,
+        "amm.net_base_asset_amount exceeds the unload liquidity available after concentration adjustment"
+    )?;
+
+    Ok(())
+}
+
 pub fn formulaic_update_k(
     market: &mut PerpMarket,
     _oracle_price_data: &OraclePriceData,
     funding_imbalance_cost: i128,
     now: i64,
-    mark_price: u128,
 ) -> ClearingHouseResult {
     let peg_multiplier_before = market.amm.peg_multiplier;
     let base_asset_reserve_before = market.amm.base_asset_reserve;
@@ -277,8 +326,10 @@ pub fn formulaic_update_k(
 
     if budget > 0 || (budget < 0 && market.amm.can_lower_k()?) {
         // single k scale is capped by .1% increase and 2.2% decrease (regardless of budget)
+        let k_update_max = K_BPS_UPDATE_SCALE
+            + K_BPS_INCREASE_MAX * (market.amm.curve_update_intensity as i128) / 100;
         let (k_scale_numerator, k_scale_denominator) =
-            amm::calculate_budgeted_k_scale(market, cast_to_i128(budget)?, mark_price)?;
+            amm::calculate_budgeted_k_scale(market, cast_to_i128(budget)?, k_update_max)?;
 
         let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
             .checked_mul(bn::U192::from(k_scale_numerator))
@@ -325,6 +376,19 @@ pub fn formulaic_update_k(
         }
     }
     Ok(())
+}
+
+pub fn get_fee_pool_tokens(
+    perp_market: &mut PerpMarket,
+    spot_market: &mut SpotMarket,
+) -> ClearingHouseResult<i128> {
+    let amm_fee_pool_token_amount = cast_to_i128(get_token_amount(
+        perp_market.amm.fee_pool.balance(),
+        spot_market,
+        perp_market.amm.fee_pool.balance_type(),
+    )?)?;
+
+    Ok(amm_fee_pool_token_amount)
 }
 
 pub fn update_pool_balances(
@@ -561,6 +625,71 @@ pub fn update_pool_balances(
     Ok(pnl_to_settle_with_user)
 }
 
+pub fn update_pnl_pool_and_user_balance(
+    market: &mut PerpMarket,
+    bank: &mut SpotMarket,
+    user: &mut User,
+    unrealized_pnl_with_fee: i128,
+) -> ClearingHouseResult<i128> {
+    let pnl_to_settle_with_user = if unrealized_pnl_with_fee > 0 {
+        unrealized_pnl_with_fee.min(cast_to_i128(get_token_amount(
+            market.pnl_pool.balance,
+            bank,
+            market.pnl_pool.balance_type(),
+        )?)?)
+    } else {
+        unrealized_pnl_with_fee
+    };
+
+    validate!(
+        unrealized_pnl_with_fee == pnl_to_settle_with_user,
+        ErrorCode::DefaultError,
+        "pnl_pool_amount doesnt have enough ({} < {})",
+        pnl_to_settle_with_user,
+        unrealized_pnl_with_fee
+    )?;
+
+    if unrealized_pnl_with_fee == 0 {
+        msg!(
+            "User has no unsettled pnl for market {}",
+            market.market_index
+        );
+        return Ok(0);
+    } else if pnl_to_settle_with_user == 0 {
+        msg!(
+            "Pnl Pool cannot currently settle with user for market {}",
+            market.market_index
+        );
+        return Ok(0);
+    }
+
+    update_spot_balances(
+        pnl_to_settle_with_user.unsigned_abs(),
+        if pnl_to_settle_with_user < 0 {
+            &SpotBalanceType::Deposit
+        } else {
+            &SpotBalanceType::Borrow
+        },
+        bank,
+        &mut market.pnl_pool,
+        false,
+    )?;
+
+    update_spot_balances(
+        pnl_to_settle_with_user.unsigned_abs(),
+        if pnl_to_settle_with_user > 0 {
+            &SpotBalanceType::Deposit
+        } else {
+            &SpotBalanceType::Borrow
+        },
+        bank,
+        user.get_quote_spot_position_mut(),
+        false,
+    )?;
+
+    Ok(pnl_to_settle_with_user)
+}
+
 pub fn move_price(
     amm: &mut AMM,
     base_asset_reserve: u128,
@@ -591,10 +720,13 @@ pub fn move_price(
     amm.terminal_quote_asset_reserve = terminal_quote_reserves;
 
     let (min_base_asset_reserve, max_base_asset_reserve) =
-        amm::calculate_bid_ask_bounds(terminal_base_reserves)?;
+        amm::calculate_bid_ask_bounds(amm.concentration_coef, terminal_base_reserves)?;
 
     amm.max_base_asset_reserve = max_base_asset_reserve;
     amm.min_base_asset_reserve = min_base_asset_reserve;
+
+    let mark_price_after = amm.mark_price()?;
+    update_spreads(amm, mark_price_after)?;
 
     Ok(())
 }
@@ -628,10 +760,105 @@ mod test {
     use super::*;
     use crate::controller::insurance::settle_revenue_to_insurance_fund;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
+        AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
+        QUOTE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
     };
     use crate::state::market::PoolBalance;
+
+    #[test]
+    fn concentration_coef_tests() {
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 5122950819670000,
+                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                terminal_quote_asset_reserve: 500 * AMM_RESERVE_PRECISION,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 50000,
+                concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
+                net_base_asset_amount: -122950819670000,
+                total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
+                curve_update_intensity: 100,
+                ..AMM::default()
+            },
+            ..PerpMarket::default()
+        };
+
+        assert!(update_concentration_coef(&mut market.amm, 0).is_err());
+
+        let new_scale = 1;
+        update_concentration_coef(&mut market.amm, new_scale).unwrap();
+        assert_eq!(market.amm.min_base_asset_reserve, 3535567812190637);
+        assert_eq!(market.amm.max_base_asset_reserve, 7071000000000000);
+
+        let (orig_open_bids, orig_open_asks) =
+            amm::calculate_market_open_bids_asks(&market.amm).unwrap();
+        assert_eq!(orig_open_bids, 1587383007479363);
+        assert_eq!(orig_open_asks, -1948049180330000);
+
+        let new_scale = 2;
+        update_concentration_coef(&mut market.amm, new_scale).unwrap();
+        assert_eq!(market.amm.min_base_asset_reserve, 4142158893215143);
+        assert_eq!(market.amm.max_base_asset_reserve, 6035500000000000);
+
+        let new_scale = 5;
+        update_concentration_coef(&mut market.amm, new_scale).unwrap();
+        assert_eq!(market.amm.min_base_asset_reserve, 4617487348084666);
+        assert_eq!(market.amm.max_base_asset_reserve, 5414200000000000);
+        let new_sqrt_k = market.amm.sqrt_k * new_scale;
+        let update_k_result =
+            get_update_k_result(&market, bn::U192::from(new_sqrt_k), false).unwrap();
+        let adjustment_cost = amm::adjust_k_cost(&mut market, &update_k_result).unwrap();
+        assert_eq!(adjustment_cost, 11_575_563);
+
+        amm::update_k(&mut market, &update_k_result).unwrap();
+        assert_eq!(market.amm.sqrt_k, new_sqrt_k);
+
+        let (open_bids, open_asks) = amm::calculate_market_open_bids_asks(&market.amm).unwrap();
+        assert_eq!(open_bids, 2073138274516378);
+        assert_eq!(open_asks, -1988790163935851);
+
+        assert_eq!(orig_open_bids - open_bids, -485755267037015);
+        assert_eq!(orig_open_asks - open_asks, 40740983605851);
+
+        let new_scale = 100; // moves boundary to prevent net_base_asset_amount to close
+        assert!(update_concentration_coef(&mut market.amm, new_scale).is_err());
+
+        // differe default market
+
+        let mut market_balanced = PerpMarket::default_test();
+        assert_eq!(market_balanced.amm.net_base_asset_amount, 0);
+        assert_eq!(market_balanced.amm.sqrt_k, 1000000000000000);
+
+        let new_scale = 20;
+        update_concentration_coef(&mut market_balanced.amm, new_scale).unwrap();
+        assert_eq!(market_balanced.amm.min_base_asset_reserve, 979710201722330);
+        assert_eq!(market_balanced.amm.max_base_asset_reserve, 1020710000000000);
+
+        let new_scale = AMM_RESERVE_PRECISION; // too large, err
+        assert!(update_concentration_coef(&mut market_balanced.amm, new_scale).is_err());
+        assert_eq!(market_balanced.amm.min_base_asset_reserve, 979710201722330);
+        assert_eq!(market_balanced.amm.max_base_asset_reserve, 1020710000000000);
+
+        let new_scale = 140000; // near limit, very little liquidity
+        update_concentration_coef(&mut market_balanced.amm, new_scale).unwrap();
+        assert_eq!(market_balanced.amm.min_base_asset_reserve, 999998000003999);
+        assert_eq!(market_balanced.amm.max_base_asset_reserve, 1000002000000000);
+
+        let new_sqrt_k = market_balanced.amm.sqrt_k * new_scale;
+        let update_k_result =
+            get_update_k_result(&market_balanced, bn::U192::from(new_sqrt_k), false).unwrap();
+        let adjustment_cost = amm::adjust_k_cost(&mut market_balanced, &update_k_result).unwrap();
+        assert_eq!(adjustment_cost, 0);
+
+        amm::update_k(&mut market_balanced, &update_k_result).unwrap();
+        assert_eq!(market_balanced.amm.sqrt_k, new_sqrt_k);
+
+        let (open_bids, open_asks) =
+            amm::calculate_market_open_bids_asks(&market_balanced.amm).unwrap();
+        assert_eq!(open_bids, 279999440001120);
+        assert_eq!(open_asks, -280000000000000);
+    }
+
     #[test]
     fn formualic_k_tests() {
         let mut market = PerpMarket {
@@ -640,6 +867,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
+                concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
                 net_base_asset_amount: -122950819670000,
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
                 curve_update_intensity: 100,
@@ -650,7 +878,7 @@ mod test {
 
         let prev_sqrt_k = market.amm.sqrt_k;
 
-        let mark_price = market.amm.mark_price().unwrap();
+        // let mark_price = market.amm.mark_price().unwrap();
         let now = 10000;
         let oracle_price_data = OraclePriceData {
             price: (50 * MARK_PRICE_PRECISION) as i128,
@@ -661,26 +889,12 @@ mod test {
 
         // zero funding cost
         let funding_cost: i128 = 0;
-        formulaic_update_k(
-            &mut market,
-            &oracle_price_data,
-            funding_cost,
-            now,
-            mark_price,
-        )
-        .unwrap();
+        formulaic_update_k(&mut market, &oracle_price_data, funding_cost, now).unwrap();
         assert_eq!(prev_sqrt_k, market.amm.sqrt_k);
 
         // positive means amm supossedly paid $500 in funding payments for interval
         let funding_cost_2: i128 = (500 * QUOTE_PRECISION) as i128;
-        formulaic_update_k(
-            &mut market,
-            &oracle_price_data,
-            funding_cost_2,
-            now,
-            mark_price,
-        )
-        .unwrap();
+        formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
 
         assert!(prev_sqrt_k > market.amm.sqrt_k);
         assert_eq!(market.amm.sqrt_k, 4890000000000000); // max k decrease (2.2%)
@@ -688,28 +902,14 @@ mod test {
 
         // negative means amm recieved $500 in funding payments for interval
         let funding_cost_2: i128 = -((500 * QUOTE_PRECISION) as i128);
-        formulaic_update_k(
-            &mut market,
-            &oracle_price_data,
-            funding_cost_2,
-            now,
-            mark_price,
-        )
-        .unwrap();
+        formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
 
         assert_eq!(market.amm.sqrt_k, 4894890000000000); // max k increase (.1%)
         assert_eq!(market.amm.total_fee_minus_distributions, 1000316988); //$.33 acquired from slippage increase
 
         // negative means amm recieved $.001 in funding payments for interval
         let funding_cost_2: i128 = -((QUOTE_PRECISION / 1000) as i128);
-        formulaic_update_k(
-            &mut market,
-            &oracle_price_data,
-            funding_cost_2,
-            now,
-            mark_price,
-        )
-        .unwrap();
+        formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
 
         // new numbers bc of increased sqrt_k precision
         assert_eq!(market.amm.sqrt_k, 4895052229260015); // increase k by 1.00003314258x
@@ -1098,6 +1298,7 @@ mod test {
         assert_eq!(spot_market.deposit_balance, 10100000001);
 
         spot_market.total_if_factor = 1;
+        spot_market.revenue_settle_period = 1;
         let res = settle_revenue_to_insurance_fund(
             spot_market_vault_amount,
             0,

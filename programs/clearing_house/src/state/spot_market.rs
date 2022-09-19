@@ -9,8 +9,7 @@ use crate::error::ClearingHouseResult;
 #[cfg(test)]
 use crate::math::constants::SPOT_CUMULATIVE_INTEREST_PRECISION;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
-    MARGIN_PRECISION_TO_SPOT_WEIGHT_PRECISION_RATIO, SPOT_WEIGHT_PRECISION,
+    AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, SPOT_WEIGHT_PRECISION,
 };
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
@@ -18,7 +17,7 @@ use crate::math::margin::{
 };
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
-use crate::state::market::PoolBalance;
+use crate::state::market::{MarketStatus, PoolBalance};
 use crate::state::oracle::OracleSource;
 use solana_program::msg;
 
@@ -28,6 +27,9 @@ use solana_program::msg;
 pub struct SpotMarket {
     pub market_index: u64,
     pub pubkey: Pubkey,
+    pub status: MarketStatus,
+    pub expiry_ts: i64, // iff market in reduce only mode
+
     pub oracle: Pubkey,
     pub oracle_source: OracleSource,
     pub mint: Pubkey,
@@ -66,8 +68,8 @@ pub struct SpotMarket {
     pub maintenance_liability_weight: u128,
     pub imf_factor: u128,
 
-    pub liquidation_fee: u128,
-    pub liquidation_if_factor: u32, // percentage of liquidation transfer for total insurance
+    pub liquidator_fee: u128,
+    pub if_liquidation_fee: u128, // percentage of liquidation transfer for total insurance
     pub withdraw_guard_threshold: u128, // no withdraw limits/guards when deposits below this threshold
 
     pub order_step_size: u128,
@@ -77,6 +79,16 @@ pub struct SpotMarket {
 }
 
 impl SpotMarket {
+    pub fn is_active(&self, now: i64) -> ClearingHouseResult<bool> {
+        let status_ok = self.status != MarketStatus::Settlement;
+        let is_active = self.expiry_ts == 0 || self.expiry_ts < now;
+        Ok(is_active && status_ok)
+    }
+
+    pub fn is_reduce_only(&self) -> ClearingHouseResult<bool> {
+        Ok(self.status == MarketStatus::ReduceOnly)
+    }
+
     pub fn get_asset_weight(
         &self,
         size: u128,
@@ -132,10 +144,10 @@ impl SpotMarket {
     ) -> ClearingHouseResult<u128> {
         match balance_type {
             SpotBalanceType::Deposit => LIQUIDATION_FEE_PRECISION
-                .checked_add(self.liquidation_fee)
+                .checked_add(self.liquidator_fee)
                 .ok_or_else(math_error!()),
             SpotBalanceType::Borrow => LIQUIDATION_FEE_PRECISION
-                .checked_sub(self.liquidation_fee)
+                .checked_sub(self.liquidator_fee)
                 .ok_or_else(math_error!()),
         }
     }
@@ -150,8 +162,6 @@ impl SpotMarket {
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
         };
         liability_weight
-            .checked_mul(MARGIN_PRECISION_TO_SPOT_WEIGHT_PRECISION_RATIO)
-            .ok_or_else(math_error!())?
             .checked_sub(MARGIN_PRECISION)
             .ok_or_else(math_error!())
     }
@@ -176,10 +186,10 @@ impl SpotMarket {
             market_index: 1,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            initial_liability_weight: 120,
-            maintenance_liability_weight: 110,
-            initial_asset_weight: 80,
-            maintenance_asset_weight: 90,
+            initial_liability_weight: 12000,
+            maintenance_liability_weight: 11000,
+            initial_asset_weight: 8000,
+            maintenance_asset_weight: 9000,
             decimals: 9,
             ..SpotMarket::default()
         }
@@ -190,10 +200,10 @@ impl SpotMarket {
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
-            initial_liability_weight: 100,
-            maintenance_liability_weight: 100,
-            initial_asset_weight: 100,
-            maintenance_asset_weight: 100,
+            initial_liability_weight: 10000,
+            maintenance_liability_weight: 10000,
+            initial_asset_weight: 10000,
+            maintenance_asset_weight: 10000,
             ..SpotMarket::default()
         }
     }

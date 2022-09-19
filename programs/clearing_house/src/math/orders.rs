@@ -221,15 +221,20 @@ pub fn should_expire_order(
     user: &User,
     user_order_index: usize,
     slot: u64,
-    max_auction_duration: u8,
 ) -> ClearingHouseResult<bool> {
     let order = &user.orders[user_order_index];
-    if order.order_type != OrderType::Market || order.status != OrderStatus::Open {
+    if order.status != OrderStatus::Open
+        || order.time_in_force == 0
+        || matches!(
+            order.order_type,
+            OrderType::TriggerMarket | OrderType::TriggerLimit
+        )
+    {
         return Ok(false);
     }
 
     let slots_elapsed = slot.checked_sub(order.slot).ok_or_else(math_error!())?;
-    Ok(slots_elapsed > cast(max_auction_duration)?)
+    Ok(slots_elapsed > cast(order.time_in_force)?)
 }
 
 pub fn order_breaches_oracle_price_limits(

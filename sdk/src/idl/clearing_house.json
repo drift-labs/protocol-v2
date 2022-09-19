@@ -459,6 +459,22 @@
       "args": []
     },
     {
+      "name": "updateSpotMarketExpiry",
+      "accounts": [
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "expiryTs",
+          "type": "i64"
+        }
+      ]
+    },
+    {
       "name": "settleLp",
       "accounts": [
         {
@@ -956,6 +972,53 @@
       ]
     },
     {
+      "name": "settleExpiredMarket",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "settleExpiredPosition",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "liquidatePerp",
       "accounts": [
         {
@@ -1118,6 +1181,51 @@
       ]
     },
     {
+      "name": "resolvePerpPnlDeficit",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "spotMarketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "perpMarketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "resolvePerpBankruptcy",
       "accounts": [
         {
@@ -1237,7 +1345,7 @@
           "isSigner": true
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -1256,6 +1364,78 @@
           "type": "u128"
         }
       ]
+    },
+    {
+      "name": "updateMarketExpiry",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "expiryTs",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "settleExpiredMarketPoolsToRevenuePool",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "recipient",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
     },
     {
       "name": "withdrawFromMarketToInsuranceVault",
@@ -1575,6 +1755,61 @@
       "args": []
     },
     {
+      "name": "updateUserName",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "userId",
+          "type": "u8"
+        },
+        {
+          "name": "name",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateUserCustomMarginRatio",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "userId",
+          "type": "u8"
+        },
+        {
+          "name": "marginRatio",
+          "type": "u32"
+        }
+      ]
+    },
+    {
       "name": "settleFundingPayment",
       "accounts": [
         {
@@ -1678,7 +1913,7 @@
       ]
     },
     {
-      "name": "updateMarketMaxRevenueWithdrawPerPeriod",
+      "name": "updateMarketMaxImbalances",
       "accounts": [
         {
           "name": "admin",
@@ -1698,7 +1933,15 @@
       ],
       "args": [
         {
+          "name": "unrealizedMaxImbalance",
+          "type": "u128"
+        },
+        {
           "name": "maxRevenueWithdrawPerPeriod",
+          "type": "u128"
+        },
+        {
+          "name": "quoteMaxInsurance",
           "type": "u128"
         }
       ]
@@ -1724,7 +1967,11 @@
       ],
       "args": [
         {
-          "name": "liquidationFee",
+          "name": "liquidatorFee",
+          "type": "u128"
+        },
+        {
+          "name": "ifLiquidationFee",
           "type": "u128"
         }
       ]
@@ -1776,7 +2023,11 @@
       ],
       "args": [
         {
-          "name": "liquidationFee",
+          "name": "liquidatorFee",
+          "type": "u128"
+        },
+        {
+          "name": "ifLiquidationFee",
           "type": "u128"
         }
       ]
@@ -1837,10 +2088,6 @@
         },
         {
           "name": "totalIfFactor",
-          "type": "u32"
-        },
-        {
-          "name": "liquidationIfFactor",
           "type": "u32"
         }
       ]
@@ -1919,11 +2166,37 @@
       "args": [
         {
           "name": "unrealizedInitialAssetWeight",
-          "type": "u8"
+          "type": "u32"
         },
         {
           "name": "unrealizedMaintenanceAssetWeight",
-          "type": "u8"
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateConcentrationCoef",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "concentrationScale",
+          "type": "u128"
         }
       ]
     },
@@ -1976,123 +2249,6 @@
         {
           "name": "lpCooldownTime",
           "type": "i64"
-        }
-      ]
-    },
-    {
-      "name": "updatePartialLiquidationClosePercentage",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "numerator",
-          "type": "u128"
-        },
-        {
-          "name": "denominator",
-          "type": "u128"
-        }
-      ]
-    },
-    {
-      "name": "updatePartialLiquidationPenaltyPercentage",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "numerator",
-          "type": "u128"
-        },
-        {
-          "name": "denominator",
-          "type": "u128"
-        }
-      ]
-    },
-    {
-      "name": "updateFullLiquidationPenaltyPercentage",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "numerator",
-          "type": "u128"
-        },
-        {
-          "name": "denominator",
-          "type": "u128"
-        }
-      ]
-    },
-    {
-      "name": "updatePartialLiquidationLiquidatorShareDenominator",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "denominator",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "updateFullLiquidationLiquidatorShareDenominator",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "denominator",
-          "type": "u64"
         }
       ]
     },
@@ -2501,7 +2657,7 @@
       ]
     },
     {
-      "name": "updateAuctionDuration",
+      "name": "updatePerpAuctionDuration",
       "accounts": [
         {
           "name": "admin",
@@ -2516,11 +2672,28 @@
       ],
       "args": [
         {
-          "name": "minAuctionDuration",
+          "name": "minPerpAuctionDuration",
           "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotAuctionDuration",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
         },
         {
-          "name": "maxAuctionDuration",
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "defaultSpotAuctionDuration",
           "type": "u8"
         }
       ]
@@ -2859,8 +3032,24 @@
             "type": "publicKey"
           },
           {
-            "name": "initialized",
-            "type": "bool"
+            "name": "status",
+            "type": {
+              "defined": "MarketStatus"
+            }
+          },
+          {
+            "name": "contractType",
+            "type": {
+              "defined": "ContractType"
+            }
+          },
+          {
+            "name": "settlementPrice",
+            "type": "i128"
+          },
+          {
+            "name": "expiryTs",
+            "type": "i64"
           },
           {
             "name": "amm",
@@ -2924,18 +3113,34 @@
           },
           {
             "name": "unrealizedInitialAssetWeight",
-            "type": "u8"
+            "type": "u32"
           },
           {
             "name": "unrealizedMaintenanceAssetWeight",
-            "type": "u8"
+            "type": "u32"
           },
           {
             "name": "unrealizedImfFactor",
             "type": "u128"
           },
           {
-            "name": "liquidationFee",
+            "name": "unrealizedMaxImbalance",
+            "type": "u128"
+          },
+          {
+            "name": "liquidatorFee",
+            "type": "u128"
+          },
+          {
+            "name": "ifLiquidationFee",
+            "type": "u128"
+          },
+          {
+            "name": "quoteMaxInsurance",
+            "type": "u128"
+          },
+          {
+            "name": "quoteSettledInsurance",
             "type": "u128"
           },
           {
@@ -2973,6 +3178,16 @@
           {
             "name": "pubkey",
             "type": "publicKey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "MarketStatus"
+            }
+          },
+          {
+            "name": "expiryTs",
+            "type": "i64"
           },
           {
             "name": "oracle",
@@ -3107,12 +3322,12 @@
             "type": "u128"
           },
           {
-            "name": "liquidationFee",
+            "name": "liquidatorFee",
             "type": "u128"
           },
           {
-            "name": "liquidationIfFactor",
-            "type": "u32"
+            "name": "ifLiquidationFee",
+            "type": "u128"
           },
           {
             "name": "withdrawGuardThreshold",
@@ -3233,50 +3448,6 @@
             "type": "publicKey"
           },
           {
-            "name": "marginRatioInitial",
-            "type": "u128"
-          },
-          {
-            "name": "marginRatioMaintenance",
-            "type": "u128"
-          },
-          {
-            "name": "marginRatioPartial",
-            "type": "u128"
-          },
-          {
-            "name": "partialLiquidationClosePercentageNumerator",
-            "type": "u128"
-          },
-          {
-            "name": "partialLiquidationClosePercentageDenominator",
-            "type": "u128"
-          },
-          {
-            "name": "partialLiquidationPenaltyPercentageNumerator",
-            "type": "u128"
-          },
-          {
-            "name": "partialLiquidationPenaltyPercentageDenominator",
-            "type": "u128"
-          },
-          {
-            "name": "fullLiquidationPenaltyPercentageNumerator",
-            "type": "u128"
-          },
-          {
-            "name": "fullLiquidationPenaltyPercentageDenominator",
-            "type": "u128"
-          },
-          {
-            "name": "partialLiquidationLiquidatorShareDenominator",
-            "type": "u64"
-          },
-          {
-            "name": "fullLiquidationLiquidatorShareDenominator",
-            "type": "u64"
-          },
-          {
             "name": "perpFeeStructure",
             "type": {
               "defined": "FeeStructure"
@@ -3319,20 +3490,20 @@
             "type": "u8"
           },
           {
-            "name": "maxPerpAuctionDuration",
+            "name": "defaultMarketOrderTimeInForce",
             "type": "u8"
           },
           {
-            "name": "minSpotAuctionDuration",
-            "type": "u8"
-          },
-          {
-            "name": "maxSpotAuctionDuration",
+            "name": "defaultSpotAuctionDuration",
             "type": "u8"
           },
           {
             "name": "liquidationMarginBufferRatio",
-            "type": "u8"
+            "type": "u32"
+          },
+          {
+            "name": "settlementDuration",
+            "type": "u16"
           },
           {
             "name": "signer",
@@ -3341,14 +3512,6 @@
           {
             "name": "signerNonce",
             "type": "u8"
-          },
-          {
-            "name": "padding0",
-            "type": "u128"
-          },
-          {
-            "name": "padding1",
-            "type": "u128"
           }
         ]
       }
@@ -3423,6 +3586,10 @@
           {
             "name": "bankrupt",
             "type": "bool"
+          },
+          {
+            "name": "customMarginRatio",
+            "type": "u32"
           }
         ]
       }
@@ -3553,24 +3720,26 @@
             }
           },
           {
-            "name": "positionLimit",
-            "type": "u128"
-          },
-          {
             "name": "oraclePriceOffset",
             "type": "i128"
           },
           {
             "name": "auctionDuration",
-            "type": "u8"
+            "type": {
+              "option": "u8"
+            }
           },
           {
-            "name": "padding0",
-            "type": "bool"
+            "name": "timeInForce",
+            "type": {
+              "option": "u8"
+            }
           },
           {
-            "name": "padding1",
-            "type": "bool"
+            "name": "auctionStartPrice",
+            "type": {
+              "option": "u128"
+            }
           }
         ]
       }
@@ -3583,16 +3752,6 @@
           {
             "name": "marketIndex",
             "type": "u64"
-          },
-          {
-            "name": "orderIds",
-            "type": {
-              "vec": "u64"
-            }
-          },
-          {
-            "name": "canceledOrdersFee",
-            "type": "u128"
           },
           {
             "name": "oraclePrice",
@@ -3629,6 +3788,10 @@
           {
             "name": "liquidatorOrderId",
             "type": "u64"
+          },
+          {
+            "name": "ifFee",
+            "type": "u64"
           }
         ]
       }
@@ -3661,6 +3824,10 @@
           {
             "name": "liabilityTransfer",
             "type": "u128"
+          },
+          {
+            "name": "ifFee",
+            "type": "u64"
           }
         ]
       }
@@ -3845,6 +4012,10 @@
             "type": "u128"
           },
           {
+            "name": "concentrationCoef",
+            "type": "u128"
+          },
+          {
             "name": "minBaseAssetReserve",
             "type": "u128"
           },
@@ -3941,6 +4112,10 @@
           {
             "name": "cumulativeRepegRebateShort",
             "type": "u128"
+          },
+          {
+            "name": "cumulativeSocialLoss",
+            "type": "i128"
           },
           {
             "name": "markStd",
@@ -4063,6 +4238,10 @@
           {
             "name": "netRevenueSinceLastFunding",
             "type": "i64"
+          },
+          {
+            "name": "totalLiquidationFee",
+            "type": "u128"
           },
           {
             "name": "feePool",
@@ -4197,7 +4376,7 @@
             }
           },
           {
-            "name": "cancelOrderFee",
+            "name": "flatFillerFee",
             "type": "u128"
           }
         ]
@@ -4571,13 +4750,8 @@
             "type": "u8"
           },
           {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u16",
-                3
-              ]
-            }
+            "name": "timeInForce",
+            "type": "u8"
           }
         ]
       }
@@ -4744,7 +4918,7 @@
             "name": "MarketOrderFilledToLimitPrice"
           },
           {
-            "name": "MarketOrderAuctionExpired"
+            "name": "OrderExpired"
           },
           {
             "name": "CanceledForLiquidation"
@@ -4845,6 +5019,40 @@
           },
           {
             "name": "Match"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Initialized"
+          },
+          {
+            "name": "ReduceOnly"
+          },
+          {
+            "name": "Settlement"
+          },
+          {
+            "name": "Delisted"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ContractType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Perpetual"
+          },
+          {
+            "name": "Future"
           }
         ]
       }
@@ -5359,6 +5567,13 @@
           "index": false
         },
         {
+          "name": "marketType",
+          "type": {
+            "defined": "MarketType"
+          },
+          "index": false
+        },
+        {
           "name": "filler",
           "type": {
             "option": "publicKey"
@@ -5658,6 +5873,13 @@
           "index": false
         },
         {
+          "name": "canceledOrderIds",
+          "type": {
+            "vec": "u64"
+          },
+          "index": false
+        },
+        {
           "name": "liquidatePerp",
           "type": {
             "defined": "LiquidatePerpRecord"
@@ -5755,7 +5977,12 @@
           "index": false
         },
         {
-          "name": "marketIndex",
+          "name": "spotMarketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "perpMarketIndex",
           "type": "u64",
           "index": false
         },
@@ -5791,7 +6018,7 @@
         },
         {
           "name": "amount",
-          "type": "u64",
+          "type": "i64",
           "index": false
         }
       ]
@@ -6447,7 +6674,7 @@
     },
     {
       "code": 6116,
-      "name": "CantLPWithMarketPosition",
+      "name": "CantLPWithPerpPosition",
       "msg": "Cant LP with a market position"
     },
     {

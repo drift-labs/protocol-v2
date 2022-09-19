@@ -10,6 +10,7 @@ import {
 	mockUSDCMint,
 	setFeedPrice,
 	initializeQuoteSpotMarket,
+	initUserAccounts,
 } from './testHelpers';
 
 import {
@@ -31,8 +32,6 @@ import {
 	ClearingHouseUser,
 	QUOTE_SPOT_MARKET_INDEX,
 } from '../sdk/src';
-
-import { initUserAccounts } from '../stress/stressUtils';
 
 async function updateFundingRateHelper(
 	clearingHouse: ClearingHouse,
@@ -204,7 +203,7 @@ describe('pyth-oracle', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		await clearingHouse.initializeUserAccount();
 		userAccount = new ClearingHouseUser({

@@ -18,7 +18,12 @@ import {
 	calculateSizePremiumLiabilityWeight,
 } from './margin';
 import { OraclePriceData } from '../oracles/types';
-import { MARGIN_PRECISION } from '../constants/numericConstants';
+import {
+	BASE_PRECISION,
+	MARGIN_PRECISION,
+	PRICE_TO_QUOTE_PRECISION,
+	ZERO,
+} from '../constants/numericConstants';
 import { getTokenAmount } from './spotBalance';
 
 /**
@@ -63,7 +68,7 @@ export function calculateBidPrice(
  * Calculates market ask price
  *
  * @param market
- * @return bidPrice : Precision MARK_PRICE_PRECISION
+ * @return askPrice : Precision MARK_PRICE_PRECISION
  */
 export function calculateAskPrice(
 	market: PerpMarketAccount,
@@ -141,17 +146,33 @@ export function calculateMarketMarginRatio(
 
 export function calculateUnrealizedAssetWeight(
 	market: PerpMarketAccount,
+	quoteSpotMarket: SpotMarketAccount,
 	unrealizedPnl: BN,
-	marginCategory: MarginCategory
+	marginCategory: MarginCategory,
+	oraclePriceData: OraclePriceData
 ): BN {
 	let assetWeight: BN;
-
 	switch (marginCategory) {
 		case 'Initial':
+			assetWeight = new BN(market.unrealizedInitialAssetWeight);
+
+			if (market.unrealizedMaxImbalance.gt(ZERO)) {
+				const netUnsettledPnl = calculateNetUserImbalance(
+					market,
+					quoteSpotMarket,
+					oraclePriceData
+				);
+				if (netUnsettledPnl.gt(market.unrealizedMaxImbalance)) {
+					assetWeight = assetWeight
+						.mul(market.unrealizedMaxImbalance)
+						.div(netUnsettledPnl);
+				}
+			}
+
 			assetWeight = calculateSizeDiscountAssetWeight(
 				unrealizedPnl,
 				market.unrealizedImfFactor,
-				new BN(market.unrealizedInitialAssetWeight)
+				assetWeight
 			);
 			break;
 		case 'Maintenance':
@@ -171,4 +192,31 @@ export function calculateMarketAvailablePNL(
 		spotMarket,
 		SpotBalanceType.DEPOSIT
 	);
+}
+
+export function calculateNetUserImbalance(
+	market: PerpMarketAccount,
+	bank: SpotMarketAccount,
+	oraclePriceData: OraclePriceData
+): BN {
+	const netUserPositionValue = market.amm.netBaseAssetAmount
+		.mul(oraclePriceData.price)
+		.div(BASE_PRECISION)
+		.div(PRICE_TO_QUOTE_PRECISION);
+
+	const netUserCostBasis = market.amm.quoteAssetAmountLong
+		.add(market.amm.quoteAssetAmountShort)
+		.sub(market.amm.cumulativeSocialLoss);
+
+	const userEntitledPnl = netUserPositionValue.add(netUserCostBasis);
+
+	const pnlPool = getTokenAmount(
+		market.pnlPool.balance,
+		bank,
+		SpotBalanceType.DEPOSIT
+	);
+
+	const imbalance = userEntitledPnl.sub(pnlPool);
+
+	return imbalance;
 }

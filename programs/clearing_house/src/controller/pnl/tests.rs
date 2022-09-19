@@ -8,7 +8,7 @@ use crate::math::constants::{
     QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_CUMULATIVE_INTEREST_PRECISION,
     SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
 };
-use crate::state::market::{PerpMarket, PoolBalance, AMM};
+use crate::state::market::{MarketStatus, PerpMarket, PoolBalance, AMM};
 use crate::state::oracle::OracleSource;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -59,8 +59,8 @@ pub fn user_no_position() {
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
         open_interest: 1,
-        initialized: true,
-        liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+        status: MarketStatus::Initialized,
+        liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_INTEREST_PRECISION,
         },
@@ -147,8 +147,8 @@ pub fn user_does_not_meet_maintenance_requirement() {
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
         open_interest: 1,
-        initialized: true,
-        liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+        status: MarketStatus::Initialized,
+        liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_INTEREST_PRECISION,
         },
@@ -241,8 +241,8 @@ pub fn user_unsettled_negative_pnl() {
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
         open_interest: 1,
-        initialized: true,
-        liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+        status: MarketStatus::Initialized,
+        liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_INTEREST_PRECISION,
         },
@@ -346,8 +346,8 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
         open_interest: 1,
-        initialized: true,
-        liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+        status: MarketStatus::Initialized,
+        liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_INTEREST_PRECISION,
         },
@@ -451,8 +451,8 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
         open_interest: 1,
-        initialized: true,
-        liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+        status: MarketStatus::Initialized,
+        liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_INTEREST_PRECISION,
         },
@@ -557,8 +557,8 @@ pub fn market_fee_pool_receives_portion() {
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
         open_interest: 1,
-        initialized: true,
-        liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+        status: MarketStatus::Initialized,
+        liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_INTEREST_PRECISION,
         },
@@ -667,8 +667,8 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
         open_interest: 1,
-        initialized: true,
-        liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+        status: MarketStatus::Initialized,
+        liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_INTEREST_PRECISION,
         },
@@ -773,8 +773,8 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
         open_interest: 1,
-        initialized: true,
-        liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+        status: MarketStatus::Initialized,
+        liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_INTEREST_PRECISION,
         },
@@ -880,8 +880,8 @@ pub fn user_long_negative_unrealized_pnl() {
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
         open_interest: 1,
-        initialized: true,
-        liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+        status: MarketStatus::Initialized,
+        liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_INTEREST_PRECISION,
         },
@@ -987,8 +987,8 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
         open_interest: 1,
-        initialized: true,
-        liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+        status: MarketStatus::Initialized,
+        liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_INTEREST_PRECISION,
         },
@@ -1094,8 +1094,8 @@ pub fn user_short_negative_unrealized_pnl() {
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
         open_interest: 1,
-        initialized: true,
-        liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+        status: MarketStatus::Initialized,
+        liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_INTEREST_PRECISION,
         },

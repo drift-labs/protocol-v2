@@ -178,6 +178,20 @@ pub struct InitializeUser<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(
+    user_id: u8,
+)]
+pub struct UpdateUser<'info> {
+    #[account(
+        mut,
+        seeds = [b"user", authority.key.as_ref(), user_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct InitializeMarket<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
@@ -477,11 +491,10 @@ pub struct OrderParams {
     pub immediate_or_cancel: bool,
     pub trigger_price: u128,
     pub trigger_condition: OrderTriggerCondition,
-    pub position_limit: u128,
     pub oracle_price_offset: i128,
-    pub auction_duration: u8,
-    pub padding0: bool,
-    pub padding1: bool,
+    pub auction_duration: Option<u8>,
+    pub time_in_force: Option<u8>,
+    pub auction_start_price: Option<u128>,
 }
 
 impl Default for OrderType {
@@ -659,6 +672,31 @@ pub struct ResolveBankruptcy<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(spot_market_index: u64,)]
+pub struct ResolvePerpPnlDeficit<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), spot_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), spot_market_index.to_le_bytes().as_ref()], // todo: market_index=0 hardcode for perps?
+        bump,
+    )]
+    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        constraint = state.signer.eq(&clearing_house_signer.key())
+    )]
+    /// CHECK: forced clearing_house_signer
+    pub clearing_house_signer: AccountInfo<'info>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
 pub struct SettleFunding<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
@@ -696,7 +734,7 @@ pub struct MoveAMMPrice<'info> {
     pub state: Box<Account<'info, State>>,
     pub admin: Signer<'info>,
     #[account(mut)]
-    pub market: AccountLoader<'info, PerpMarket>,
+    pub perp_market: AccountLoader<'info, PerpMarket>,
 }
 
 #[derive(Accounts)]

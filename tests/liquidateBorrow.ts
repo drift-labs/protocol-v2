@@ -29,6 +29,7 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 } from './testHelpers';
+import { ONE } from '../sdk';
 
 describe('liquidate borrow', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -185,14 +186,16 @@ describe('liquidate borrow', () => {
 			liquidationRecord.liquidateBorrow.assetPrice.eq(MARK_PRICE_PRECISION)
 		);
 		assert(liquidationRecord.liquidateBorrow.assetMarketIndex.eq(ZERO));
-		console.log(liquidationRecord.liquidateBorrow.assetTransfer.toString());
+		console.log(
+			'asset transfer',
+			liquidationRecord.liquidateBorrow.assetTransfer.toString()
+		);
 
 		// todo, why?
+		console.log(liquidationRecord.liquidateBorrow.assetTransfer.toString());
 		assert(
-			liquidationRecord.liquidateBorrow.assetTransfer.lt(new BN(66904819))
-		);
-		assert(
-			liquidationRecord.liquidateBorrow.assetTransfer.gt(new BN(64904819))
+			liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(58828575)) ||
+				liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(58827950))
 		);
 		assert(
 			liquidationRecord.liquidateBorrow.liabilityPrice.eq(
@@ -202,12 +205,24 @@ describe('liquidate borrow', () => {
 		assert(
 			liquidationRecord.liquidateBorrow.liabilityMarketIndex.eq(new BN(1))
 		);
-		console.log(liquidationRecord.liquidateBorrow.liabilityTransfer.toString());
-		assert(
-			liquidationRecord.liquidateBorrow.liabilityTransfer.lt(new BN(347871052))
+		console.log(
+			'liability transfer',
+			liquidationRecord.liquidateBorrow.liabilityTransfer.toString()
 		);
 		assert(
-			liquidationRecord.liquidateBorrow.liabilityTransfer.gt(new BN(345871052))
+			liquidationRecord.liquidateBorrow.liabilityTransfer.eq(
+				new BN(309620791)
+			) ||
+				liquidationRecord.liquidateBorrow.liabilityTransfer.eq(
+					new BN(309624080)
+				)
+		);
+
+		// if fee costs 1/100th of liability transfer
+		assert(
+			liquidationRecord.liquidateBorrow.ifFee.eq(
+				liquidationRecord.liquidateBorrow.liabilityTransfer.div(new BN(100))
+			)
 		);
 		await clearingHouse.fetchAccounts();
 		const spotMarket = clearingHouse.getSpotMarketAccount(0);
@@ -286,6 +301,6 @@ describe('liquidate borrow', () => {
 			'->',
 			netBalanceAfter.toString()
 		);
-		assert(netBalanceBefore.eq(netBalanceAfter));
+		assert(netBalanceBefore.sub(netBalanceAfter).lte(ONE));
 	});
 });

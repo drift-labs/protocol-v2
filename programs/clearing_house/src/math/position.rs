@@ -86,6 +86,7 @@ pub fn calculate_base_asset_value(
 
     let base_asset_reserve_proportion =
         get_proportion_u128(base_asset_reserve, amm_lp_shares, amm.sqrt_k)?;
+
     let quote_asset_reserve_proportion =
         get_proportion_u128(quote_asset_reserve, amm_lp_shares, amm.sqrt_k)?;
 
@@ -147,6 +148,28 @@ pub fn calculate_base_asset_value_and_pnl_with_oracle_price(
     let base_asset_value = market_position
         .base_asset_amount
         .checked_mul(oracle_price)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)
+        .ok_or_else(math_error!())?;
+
+    let pnl = base_asset_value
+        .checked_add(market_position.quote_asset_amount)
+        .ok_or_else(math_error!())?;
+
+    Ok((base_asset_value.unsigned_abs(), pnl))
+}
+
+pub fn calculate_base_asset_value_and_pnl_with_settlement_price(
+    market_position: &PerpPosition,
+    settlement_price: i128,
+) -> ClearingHouseResult<(u128, i128)> {
+    if market_position.base_asset_amount == 0 {
+        return Ok((0, market_position.quote_asset_amount));
+    }
+
+    let base_asset_value = market_position
+        .base_asset_amount
+        .checked_mul(settlement_price)
         .ok_or_else(math_error!())?
         .checked_div(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)
         .ok_or_else(math_error!())?;

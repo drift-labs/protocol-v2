@@ -30,7 +30,7 @@ pub mod amm_jit {
         PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
-    use crate::state::market::{PerpMarket, AMM};
+    use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::OracleSource;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -80,7 +80,7 @@ pub mod amm_jit {
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
+            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -183,6 +183,7 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
@@ -248,7 +249,7 @@ pub mod amm_jit {
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
+            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -357,6 +358,7 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
@@ -413,7 +415,7 @@ pub mod amm_jit {
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
+            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -522,6 +524,7 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
@@ -578,7 +581,7 @@ pub mod amm_jit {
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
+            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -680,6 +683,7 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
@@ -743,7 +747,7 @@ pub mod amm_jit {
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
+            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -852,6 +856,7 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
@@ -936,7 +941,7 @@ pub mod amm_jit {
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
+            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -1046,6 +1051,7 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
@@ -1131,7 +1137,7 @@ pub mod amm_jit {
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
+            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -1241,6 +1247,7 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
@@ -1326,7 +1333,7 @@ pub mod amm_jit {
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
+            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -1436,6 +1443,7 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
@@ -1522,7 +1530,7 @@ pub mod amm_jit {
             base_asset_amount_short: -(100 * AMM_RESERVE_PRECISION as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
+            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -1581,15 +1589,8 @@ pub mod amm_jit {
             ..User::default()
         };
 
-        let auction_start_price =
-            crate::math::auction::calculate_auction_start_price(&market, PositionDirection::Long)
-                .unwrap();
-        let auction_end_price = crate::math::auction::calculate_auction_end_price(
-            &market,
-            PositionDirection::Long,
-            BASE_PRECISION,
-        )
-        .unwrap();
+        let auction_start_price = 950625000000_u128;
+        let auction_end_price = 1321540890000_u128;
         taker.orders[0].auction_start_price = auction_start_price;
         taker.orders[0].auction_end_price = auction_end_price;
         println!("start stop {} {}", auction_start_price, auction_end_price);
@@ -1697,6 +1698,7 @@ pub mod amm_jit {
                 None,
                 now,
                 slot,
+                false,
             )
             .unwrap();
 
@@ -1790,7 +1792,7 @@ pub mod amm_jit {
             base_asset_amount_long: 100 * AMM_RESERVE_PRECISION as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
+            status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
@@ -1849,15 +1851,8 @@ pub mod amm_jit {
             ..User::default()
         };
 
-        let auction_start_price =
-            crate::math::auction::calculate_auction_start_price(&market, PositionDirection::Short)
-                .unwrap();
-        let auction_end_price = crate::math::auction::calculate_auction_end_price(
-            &market,
-            PositionDirection::Short,
-            BASE_PRECISION,
-        )
-        .unwrap();
+        let auction_start_price = 1050625000000;
+        let auction_end_price = 795502090000;
         taker.orders[0].auction_start_price = auction_start_price;
         taker.orders[0].auction_end_price = auction_end_price;
         println!("start stop {} {}", auction_start_price, auction_end_price);
@@ -1967,6 +1962,7 @@ pub mod amm_jit {
                 None,
                 now,
                 slot,
+                false,
             )
             .unwrap();
 

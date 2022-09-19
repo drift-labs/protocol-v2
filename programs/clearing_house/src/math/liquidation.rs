@@ -25,6 +25,7 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
     margin_shortage: u128,
     margin_ratio: u32,
     liquidation_fee: u128,
+    if_liquidation_fee: u128,
     oracle_price: i128,
 ) -> ClearingHouseResult<u128> {
     let margin_ratio = (margin_ratio as u128)
@@ -48,6 +49,15 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
                 )
                 .ok_or_else(math_error!())?
                 .checked_div(LIQUIDATION_FEE_PRECISION)
+                .ok_or_else(math_error!())?
+                .checked_sub(
+                    oracle_price
+                        .unsigned_abs()
+                        .checked_mul(if_liquidation_fee)
+                        .ok_or_else(math_error!())?
+                        .checked_div(LIQUIDATION_FEE_PRECISION)
+                        .ok_or_else(math_error!())?,
+                )
                 .ok_or_else(math_error!())?,
         )
         .ok_or_else(math_error!())
@@ -61,6 +71,7 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
     liability_liquidation_multiplier: u128,
     liability_decimals: u8,
     liability_price: i128,
+    if_liquidation_fee: u128,
 ) -> ClearingHouseResult<u128> {
     // If unsettled pnl asset weight is 1 and quote asset is 1, this calculation breaks
     if asset_weight == liability_weight && asset_weight >= liability_weight {
@@ -76,24 +87,37 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
     margin_shortage
         .checked_mul(numerator_scale)
         .ok_or_else(math_error!())?
-        .checked_mul(MARK_PRICE_PRECISION * SPOT_WEIGHT_PRECISION * 1000)
+        .checked_mul(MARK_PRICE_PRECISION * SPOT_WEIGHT_PRECISION * 10)
         .ok_or_else(math_error!())?
         .checked_div(
             liability_price
                 .unsigned_abs()
                 .checked_mul(
                     liability_weight
-                        .checked_mul(1000) // multiply market weights by extra 1000 to increase precision
+                        .checked_mul(10) // multiply market weights by extra 10 to increase precision
                         .ok_or_else(math_error!())?
                         .checked_sub(
                             asset_weight
-                                .checked_mul(1000)
+                                .checked_mul(10)
                                 .ok_or_else(math_error!())?
                                 .checked_mul(asset_liquidation_multiplier)
                                 .ok_or_else(math_error!())?
                                 .checked_div(liability_liquidation_multiplier)
                                 .ok_or_else(math_error!())?,
                         )
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?
+                .checked_sub(
+                    liability_price
+                        .unsigned_abs()
+                        .checked_mul(if_liquidation_fee)
+                        .ok_or_else(math_error!())?
+                        .checked_div(LIQUIDATION_FEE_PRECISION)
+                        .ok_or_else(math_error!())?
+                        .checked_mul(liability_weight)
+                        .ok_or_else(math_error!())?
+                        .checked_mul(10)
                         .ok_or_else(math_error!())?,
                 )
                 .ok_or_else(math_error!())?,
@@ -204,20 +228,20 @@ pub fn is_user_being_liquidated(
     market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
-    liquidation_margin_buffer_ratio: u8,
+    liquidation_margin_buffer_ratio: u32,
 ) -> ClearingHouseResult<bool> {
-    let (margin_requirement, total_collateral) = calculate_margin_requirement_and_total_collateral(
-        user,
-        market_map,
-        MarginRequirementType::Maintenance,
-        spot_market_map,
-        oracle_map,
-    )?;
+    let (_, total_collateral, margin_requirement_plus_buffer) =
+        calculate_margin_requirement_and_total_collateral(
+            user,
+            market_map,
+            MarginRequirementType::Maintenance,
+            spot_market_map,
+            oracle_map,
+            Some(liquidation_margin_buffer_ratio as u128),
+        )?;
+    let is_being_liquidated = total_collateral <= cast(margin_requirement_plus_buffer)?;
 
-    let margin_requirement_plus_buffer =
-        get_margin_requirement_plus_buffer(margin_requirement, liquidation_margin_buffer_ratio)?;
-
-    Ok(total_collateral <= cast(margin_requirement_plus_buffer)?)
+    Ok(is_being_liquidated)
 }
 
 pub fn get_margin_requirement_plus_buffer(
@@ -238,7 +262,7 @@ pub fn validate_user_not_being_liquidated(
     market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
-    liquidation_margin_buffer_ratio: u8,
+    liquidation_margin_buffer_ratio: u32,
 ) -> ClearingHouseResult {
     if !user.being_liquidated {
         return Ok(());

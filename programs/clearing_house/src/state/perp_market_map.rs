@@ -42,7 +42,6 @@ impl<'a> PerpMarketMap<'a> {
 
     pub fn load<'b, 'c>(
         writable_markets: &'b MarketSet,
-        override_writable_markets: &'b MarketSet,
         account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
     ) -> ClearingHouseResult<PerpMarketMap<'a>> {
         let mut perp_market_map: PerpMarketMap = PerpMarketMap(BTreeMap::new());
@@ -62,7 +61,6 @@ impl<'a> PerpMarketMap<'a> {
                 break;
             }
             let market_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
-            let is_initialized = array_ref![data, 48, 1];
 
             let account_info = account_info_iter.next().unwrap();
 
@@ -71,20 +69,8 @@ impl<'a> PerpMarketMap<'a> {
                 return Err(ErrorCode::MarketWrongMutability);
             }
 
-            let account_loader: AccountLoader<PerpMarket> = if override_writable_markets
-                .contains(&market_index)
-            {
-                let mut account_info_clone = account_info.clone();
-                account_info_clone.is_writable = true;
-                AccountLoader::try_from(&account_info_clone)
-                    .or(Err(ErrorCode::InvalidMarketAccount))?
-            } else {
-                AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidMarketAccount))?
-            };
-
-            if is_initialized != &[1] {
-                return Err(ErrorCode::MarketIndexNotInitialized);
-            }
+            let account_loader: AccountLoader<PerpMarket> =
+                AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidMarketAccount))?;
 
             perp_market_map.0.insert(market_index, account_loader);
         }
@@ -115,7 +101,6 @@ impl<'a> PerpMarketMap<'a> {
             return Err(ErrorCode::CouldNotLoadMarketData);
         }
         let market_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
-        let is_initialized = array_ref![data, 48, 1];
 
         let is_writable = account_info.is_writable;
         let account_loader: AccountLoader<PerpMarket> =
@@ -123,10 +108,6 @@ impl<'a> PerpMarketMap<'a> {
 
         if must_be_writable && !is_writable {
             return Err(ErrorCode::MarketWrongMutability);
-        }
-
-        if is_initialized != &[1] {
-            return Err(ErrorCode::MarketIndexNotInitialized);
         }
 
         perp_market_map.0.insert(market_index, account_loader);
@@ -159,7 +140,6 @@ impl<'a> PerpMarketMap<'a> {
                 return Err(ErrorCode::CouldNotLoadMarketData);
             }
             let market_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
-            let is_initialized = array_ref![data, 48, 1];
 
             let is_writable = account_info.is_writable;
             let account_loader: AccountLoader<PerpMarket> =
@@ -167,10 +147,6 @@ impl<'a> PerpMarketMap<'a> {
 
             if must_be_writable && !is_writable {
                 return Err(ErrorCode::MarketWrongMutability);
-            }
-
-            if is_initialized != &[1] {
-                return Err(ErrorCode::MarketIndexNotInitialized);
             }
 
             perp_market_map.0.insert(market_index, account_loader);
