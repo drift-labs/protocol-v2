@@ -1239,6 +1239,7 @@ pub fn fulfill_order_with_amm(
         now,
         filler.is_some(),
         reward_referrer,
+        referrer_stats,
         quote_asset_amount_surplus,
         order_post_only,
     )?;
@@ -1290,9 +1291,10 @@ pub fn fulfill_order_with_amm(
 
     if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
         if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index) {
-            update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
-
-            referrer_stats.increment_total_referrer_reward(cast(referrer_reward)?)?;
+            if referrer_reward > 0 {
+                update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
+                referrer_stats.increment_total_referrer_reward(cast(referrer_reward)?, now)?;
+            }
         }
     }
 
@@ -1581,6 +1583,7 @@ pub fn fulfill_order_with_match(
         now,
         filler.is_some(),
         reward_referrer,
+        referrer_stats,
     )?;
 
     // Increment the markets house's total fee variables
@@ -1650,9 +1653,10 @@ pub fn fulfill_order_with_match(
 
     if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
         if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index) {
-            update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
-
-            referrer_stats.increment_total_referrer_reward(cast(referrer_reward)?)?;
+            if referrer_reward > 0 {
+                update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
+                referrer_stats.increment_total_referrer_reward(cast(referrer_reward)?, now)?;
+            }
         }
     }
 
@@ -2747,6 +2751,7 @@ pub fn fulfill_spot_order_with_match(
         now,
         filler.is_some(),
         false,
+        &None,
     )?;
 
     // Update taker state

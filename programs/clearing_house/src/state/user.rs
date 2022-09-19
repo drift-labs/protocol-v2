@@ -8,7 +8,7 @@ use crate::math::amm::calculate_rolling_sum;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::cast_to_i128;
 use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, MARK_PRICE_PRECISION_I128, QUOTE_SPOT_MARKET_INDEX,
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, MARK_PRICE_PRECISION_I128, EPOCH_DURATION, QUOTE_SPOT_MARKET_INDEX,
     THIRTY_DAY_I128,
 };
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
@@ -633,6 +633,8 @@ pub struct UserStats {
     pub is_referrer: bool,
     pub referrer: Pubkey,
     pub total_referrer_reward: u64,
+    pub current_epoch_referrer_reward: u64,
+    pub next_epoch_ts: i64,
 
     pub fees: UserFees,
 
@@ -738,11 +740,41 @@ impl UserStats {
         Ok(())
     }
 
-    pub fn increment_total_referrer_reward(&mut self, reward: u64) -> ClearingHouseResult {
+    pub fn increment_total_referrer_reward(
+        &mut self,
+        reward: u64,
+        now: i64,
+    ) -> ClearingHouseResult {
         self.total_referrer_reward = self
             .total_referrer_reward
             .checked_add(reward)
             .ok_or_else(math_error!())?;
+
+        self.current_epoch_referrer_reward = self
+            .current_epoch_referrer_reward
+            .checked_add(reward)
+            .ok_or_else(math_error!())?;
+
+        if now > self.next_epoch_ts {
+            let n_epoch_durations = now
+                .checked_sub(self.next_epoch_ts)
+                .ok_or_else(math_error!())?
+                .checked_div(EPOCH_DURATION)
+                .ok_or_else(math_error!())?
+                .checked_add(1)
+                .ok_or_else(math_error!())?;
+
+            self.next_epoch_ts = self
+                .next_epoch_ts
+                .checked_add(
+                    EPOCH_DURATION
+                        .checked_mul(n_epoch_durations)
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
+
+            self.current_epoch_referrer_reward = 0;
+        }
 
         Ok(())
     }
