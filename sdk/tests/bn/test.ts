@@ -70,8 +70,7 @@ describe('BigNum Tests', () => {
 
 		expect(val.print()).to.equal('1234.56789');
 
-		expect(val.toFixed(3)).to.equal('1234.567');
-
+		expect(val.toNum().toFixed(3)).to.equal('1234.568');
 		expect(val.toPrecision(1)).to.equal('1e3');
 		expect(val.toPrecision(3)).to.equal('123e1');
 		expect(val.toPrecision(4)).to.equal('1234');
@@ -102,7 +101,7 @@ describe('BigNum Tests', () => {
 
 		expect(val4.toString()).to.equal('250000000000');
 		expect(val4.print()).to.equal('0.0250000000000');
-		expect(val4.toFixed(3)).to.equal('0.025');
+		expect(val4.toNum().toFixed(3)).to.equal('0.025');
 		expect(val4.toPrecision(4)).to.equal('0.025');
 
 		// Case 5

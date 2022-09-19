@@ -1,5 +1,6 @@
 use solana_program::msg;
 
+use crate::controller::spot_position::update_spot_position_balance;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{ONE_HOUR, SPOT_INTEREST_PRECISION, TWENTY_FOUR_HOUR};
@@ -12,6 +13,7 @@ use crate::math_error;
 use crate::state::market::PerpMarket;
 use crate::state::oracle::OraclePriceData;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
+use crate::state::user::SpotPosition;
 use crate::validate;
 use std::cmp::max;
 
@@ -253,17 +255,17 @@ pub fn update_spot_balances(
     Ok(())
 }
 
-pub fn update_spot_balances_with_limits(
+pub fn update_spot_position_balance_with_limits(
     token_amount: u128,
     update_direction: &SpotBalanceType,
     spot_market: &mut SpotMarket,
-    spot_balance: &mut dyn SpotBalance,
+    spot_position: &mut SpotPosition,
 ) -> ClearingHouseResult {
-    update_spot_balances(
+    update_spot_position_balance(
         token_amount,
         update_direction,
         spot_market,
-        spot_balance,
+        spot_position,
         true,
     )?;
 
@@ -478,7 +480,7 @@ mod test {
         // fails
         let spot_market_backup = spot_market;
         let user_backup = user;
-        assert!(update_spot_balances_with_limits(
+        assert!(update_spot_position_balance_with_limits(
             amount as u128,
             &SpotBalanceType::Borrow,
             &mut spot_market,
@@ -495,7 +497,7 @@ mod test {
         assert_eq!(spot_market.deposit_balance, 1000000);
         assert_eq!(spot_market.borrow_balance, 0);
         assert_eq!((amount / 2), 500000);
-        update_spot_balances_with_limits(
+        update_spot_position_balance_with_limits(
             (amount / 2) as u128,
             &SpotBalanceType::Borrow,
             &mut spot_market,
@@ -508,7 +510,7 @@ mod test {
         assert_eq!(spot_market.borrow_balance, 0);
 
         // .50 * .2 = .1
-        update_spot_balances_with_limits(
+        update_spot_position_balance_with_limits(
             ((amount / 10) - 2) as u128,
             &SpotBalanceType::Borrow,
             &mut spot_market,
@@ -519,7 +521,7 @@ mod test {
         //fail
         let spot_market_backup = spot_market;
         let user_backup = user;
-        assert!(update_spot_balances_with_limits(
+        assert!(update_spot_position_balance_with_limits(
             1_u128,
             &SpotBalanceType::Borrow,
             &mut spot_market,
@@ -545,7 +547,7 @@ mod test {
 
         // Borrowing blocks
 
-        update_spot_balances_with_limits(
+        update_spot_position_balance_with_limits(
             QUOTE_PRECISION * 100000,
             &SpotBalanceType::Deposit,
             &mut spot_market,
@@ -578,7 +580,7 @@ mod test {
         sol_spot_market.optimal_borrow_rate = SPOT_INTEREST_PRECISION / 5; //20% APR
         sol_spot_market.max_borrow_rate = SPOT_INTEREST_PRECISION; //100% APR
 
-        update_spot_balances_with_limits(
+        update_spot_position_balance_with_limits(
             QUOTE_PRECISION * 50,
             &SpotBalanceType::Borrow,
             &mut spot_market,
@@ -597,7 +599,7 @@ mod test {
 
         user.spot_positions[1].market_index = 1; // usually done elsewhere in instruction
 
-        update_spot_balances_with_limits(
+        update_spot_position_balance_with_limits(
             100000 * 100000,
             &SpotBalanceType::Borrow,
             &mut sol_spot_market,
@@ -624,7 +626,7 @@ mod test {
         // 80% from 2% bad
         let spot_market_backup = sol_spot_market;
         let user_backup = user;
-        assert!(update_spot_balances_with_limits(
+        assert!(update_spot_position_balance_with_limits(
             100000 * 100000 * 40,
             &SpotBalanceType::Borrow,
             &mut sol_spot_market,
@@ -634,7 +636,7 @@ mod test {
         sol_spot_market = spot_market_backup;
         user = user_backup;
 
-        update_spot_balances_with_limits(
+        update_spot_position_balance_with_limits(
             100000 * 100000 * 6,
             &SpotBalanceType::Borrow,
             &mut sol_spot_market,
@@ -650,7 +652,7 @@ mod test {
         assert_eq!(sol_spot_market.deposit_token_twap, 500067287978);
         assert_eq!(sol_spot_market.borrow_token_twap, 80072095947);
 
-        update_spot_balances_with_limits(
+        update_spot_position_balance_with_limits(
             100000 * 100000,
             &SpotBalanceType::Borrow,
             &mut sol_spot_market,
@@ -680,7 +682,7 @@ mod test {
         .unwrap();
 
         // ok to deposit when market is invalid
-        update_spot_balances_with_limits(
+        update_spot_position_balance_with_limits(
             100000 * 100000 * 100,
             &SpotBalanceType::Deposit,
             &mut sol_spot_market,
@@ -805,7 +807,7 @@ mod test {
         assert_eq!(spot_market.borrow_balance, 0);
 
         let amount = QUOTE_PRECISION / 4;
-        update_spot_balances_with_limits(
+        update_spot_position_balance_with_limits(
             (amount / 2) as u128,
             &SpotBalanceType::Borrow,
             &mut spot_market,

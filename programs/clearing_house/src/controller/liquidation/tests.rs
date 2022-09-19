@@ -2339,7 +2339,8 @@ pub mod resolve_borrow_bankruptcy {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, FUNDING_RATE_PRECISION_I128,
         LIQUIDATION_FEE_PRECISION, PEG_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I128,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        QUOTE_PRECISION_I64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::math::spot_balance::get_token_amount;
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
@@ -2458,6 +2459,7 @@ pub mod resolve_borrow_bankruptcy {
         expected_user.being_liquidated = false;
         expected_user.bankrupt = false;
         expected_user.spot_positions[0].balance = 0;
+        expected_user.spot_positions[0].cumulative_deposits = 100 * QUOTE_PRECISION_I64;
 
         let mut expected_spot_market = spot_market;
         expected_spot_market.borrow_balance = 0;

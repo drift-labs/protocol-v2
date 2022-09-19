@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
 	"version": "1.0.0",
 	"name": "clearing_house",
 	"instructions": [
@@ -6772,3 +6773,6735 @@
 		}
 	]
 }
+=======
+  "version": "1.0.0",
+  "name": "clearing_house",
+  "instructions": [
+    {
+      "name": "initialize",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "quoteAssetMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "adminControlsPrices",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "initializeSpotMarket",
+      "accounts": [
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "optimalUtilization",
+          "type": "u128"
+        },
+        {
+          "name": "optimalBorrowRate",
+          "type": "u128"
+        },
+        {
+          "name": "maxBorrowRate",
+          "type": "u128"
+        },
+        {
+          "name": "oracleSource",
+          "type": {
+            "defined": "OracleSource"
+          }
+        },
+        {
+          "name": "initialAssetWeight",
+          "type": "u128"
+        },
+        {
+          "name": "maintenanceAssetWeight",
+          "type": "u128"
+        },
+        {
+          "name": "initialLiabilityWeight",
+          "type": "u128"
+        },
+        {
+          "name": "maintenanceLiabilityWeight",
+          "type": "u128"
+        },
+        {
+          "name": "imfFactor",
+          "type": "u128"
+        },
+        {
+          "name": "liquidationFee",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "initializeSerumFulfillmentConfig",
+      "accounts": [
+        {
+          "name": "baseSpotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "quoteSpotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "serumProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "serumMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "serumOpenOrders",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "serumFulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initializeMarket",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "ammBaseAssetReserve",
+          "type": "u128"
+        },
+        {
+          "name": "ammQuoteAssetReserve",
+          "type": "u128"
+        },
+        {
+          "name": "ammPeriodicity",
+          "type": "i64"
+        },
+        {
+          "name": "ammPegMultiplier",
+          "type": "u128"
+        },
+        {
+          "name": "oracleSource",
+          "type": {
+            "defined": "OracleSource"
+          }
+        },
+        {
+          "name": "marginRatioInitial",
+          "type": "u32"
+        },
+        {
+          "name": "marginRatioMaintenance",
+          "type": "u32"
+        },
+        {
+          "name": "liquidationFee",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "deposit",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "reduceOnly",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "withdraw",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "reduceOnly",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "transferDeposit",
+      "accounts": [
+        {
+          "name": "fromUser",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "toUser",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketCumulativeInterest",
+      "accounts": [
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateSpotMarketExpiry",
+      "accounts": [
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "expiryTs",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "settleLp",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "removeLiquidity",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "sharesToBurn",
+          "type": "u128"
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "addLiquidity",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "nShares",
+          "type": "u128"
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "placeOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "OrderParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "cancelOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "orderId",
+          "type": {
+            "option": "u64"
+          }
+        }
+      ]
+    },
+    {
+      "name": "cancelOrderByUserId",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "userOrderId",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "fillOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fillerStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderId",
+          "type": {
+            "option": "u64"
+          }
+        },
+        {
+          "name": "makerOrderId",
+          "type": {
+            "option": "u64"
+          }
+        }
+      ]
+    },
+    {
+      "name": "placeAndTake",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "OrderParams"
+          }
+        },
+        {
+          "name": "makerOrderId",
+          "type": {
+            "option": "u64"
+          }
+        }
+      ]
+    },
+    {
+      "name": "placeAndMake",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "taker",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "takerStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "OrderParams"
+          }
+        },
+        {
+          "name": "takerOrderId",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "triggerOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderId",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "triggerSpotOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderId",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "placeSpotOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "OrderParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "fillSpotOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fillerStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderId",
+          "type": {
+            "option": "u64"
+          }
+        },
+        {
+          "name": "fulfillmentType",
+          "type": {
+            "option": {
+              "defined": "SpotFulfillmentType"
+            }
+          }
+        },
+        {
+          "name": "makerOrderId",
+          "type": {
+            "option": "u64"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateAmms",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndexes",
+          "type": {
+            "array": [
+              "u64",
+              5
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "settlePnl",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "settleExpiredMarket",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "settleExpiredPosition",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "liquidatePerp",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "liquidatorMaxBaseAssetAmount",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "liquidateBorrow",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "assetMarketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "liabilityMarketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "liquidatorMaxLiabilityTransfer",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "liquidateBorrowForPerpPnl",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "perpMarketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "spotMarketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "liquidatorMaxLiabilityTransfer",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "liquidatePerpPnlForDeposit",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "perpMarketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "spotMarketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "liquidatorMaxPnlTransfer",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "resolvePerpPnlDeficit",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "spotMarketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "perpMarketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "resolvePerpBankruptcy",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "quoteSpotMarketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "resolveBorrowBankruptcy",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "moveAmmPrice",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "baseAssetReserve",
+          "type": "u128"
+        },
+        {
+          "name": "quoteAssetReserve",
+          "type": "u128"
+        },
+        {
+          "name": "sqrtK",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketExpiry",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "expiryTs",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "settleExpiredMarketPoolsToRevenuePool",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "recipient",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "withdrawFromMarketToInsuranceVault",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "recipient",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdrawFromInsuranceVault",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "recipient",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdrawFromInsuranceVaultToMarket",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "quoteSpotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "repegAmmCurve",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "newPegCandidate",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateAmmOracleTwap",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "resetAmmOracleTwap",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initializeUser",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "userId",
+          "type": "u8"
+        },
+        {
+          "name": "name",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "initializeUserStats",
+      "accounts": [
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateUserName",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "userId",
+          "type": "u8"
+        },
+        {
+          "name": "name",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateUserCustomMarginRatio",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "userId",
+          "type": "u8"
+        },
+        {
+          "name": "marginRatio",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "settleFundingPayment",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateFundingRate",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "updateK",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "sqrtK",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateMarginRatio",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marginRatioInitial",
+          "type": "u32"
+        },
+        {
+          "name": "marginRatioMaintenance",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketMaxImbalances",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "unrealizedMaxImbalance",
+          "type": "u128"
+        },
+        {
+          "name": "maxRevenueWithdrawPerPeriod",
+          "type": "u128"
+        },
+        {
+          "name": "quoteMaxInsurance",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpLiquidationFee",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "liquidatorFee",
+          "type": "u128"
+        },
+        {
+          "name": "ifLiquidationFee",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateInsuranceWithdrawEscrowPeriod",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "insuranceWithdrawEscrowPeriod",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketLiquidationFee",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "liquidatorFee",
+          "type": "u128"
+        },
+        {
+          "name": "ifLiquidationFee",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateWithdrawGuardThreshold",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "withdrawGuardThreshold",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketIfFactor",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "spotMarketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "userIfFactor",
+          "type": "u32"
+        },
+        {
+          "name": "totalIfFactor",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketRevenueSettlePeriod",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "revenueSettlePeriod",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketImfFactor",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "imfFactor",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketUnrealizedAssetWeight",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "unrealizedInitialAssetWeight",
+          "type": "u32"
+        },
+        {
+          "name": "unrealizedMaintenanceAssetWeight",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateConcentrationCoef",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "concentrationScale",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateCurveUpdateIntensity",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "curveUpdateIntensity",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "updateLpCooldownTime",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpCooldownTime",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "updateFee",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "fees",
+          "type": {
+            "defined": "FeeStructure"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateOrderFillerRewardStructure",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderFillerRewardStructure",
+          "type": {
+            "defined": "OrderFillerRewardStructure"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateOracleGuardRails",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "oracleGuardRails",
+          "type": {
+            "defined": "OracleGuardRails"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateMarketOracle",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "oracle",
+          "type": "publicKey"
+        },
+        {
+          "name": "oracleSource",
+          "type": {
+            "defined": "OracleSource"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateMarketMinimumQuoteAssetTradeSize",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "minimumTradeSize",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketBaseSpread",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "baseSpread",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "updateAmmJitIntensity",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "ammJitIntensity",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketMaxSpread",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxSpread",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketBaseAssetAmountStepSize",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "minimumTradeSize",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateMarketMaxSlippageRatio",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxSlippageRatio",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "updateMaxBaseAssetAmountRatio",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxBaseAssetAmountRatio",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "updateAdmin",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "admin",
+          "type": "publicKey"
+        }
+      ]
+    },
+    {
+      "name": "updateWhitelistMint",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "whitelistMint",
+          "type": "publicKey"
+        }
+      ]
+    },
+    {
+      "name": "updateDiscountMint",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "discountMint",
+          "type": "publicKey"
+        }
+      ]
+    },
+    {
+      "name": "updateExchangePaused",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "exchangePaused",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "disableAdminControlsPrices",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateFundingPaused",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "fundingPaused",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpAuctionDuration",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "minPerpAuctionDuration",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotAuctionDuration",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "defaultSpotAuctionDuration",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "initializeInsuranceFundStake",
+      "accounts": [
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "settleRevenueToInsuranceFund",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "addInsuranceFundStake",
+      "accounts": [
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "requestRemoveInsuranceFundStake",
+      "accounts": [
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "cancelRequestRemoveInsuranceFundStake",
+      "accounts": [
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "removeInsuranceFundStake",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "InsuranceFundStake",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "ifShares",
+            "type": "u128"
+          },
+          {
+            "name": "ifBase",
+            "type": "u128"
+          },
+          {
+            "name": "lastValidTs",
+            "type": "i64"
+          },
+          {
+            "name": "lastWithdrawRequestShares",
+            "type": "u128"
+          },
+          {
+            "name": "lastWithdrawRequestValue",
+            "type": "u64"
+          },
+          {
+            "name": "lastWithdrawRequestTs",
+            "type": "i64"
+          },
+          {
+            "name": "costBasis",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PerpMarket",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "pubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "MarketStatus"
+            }
+          },
+          {
+            "name": "contractType",
+            "type": {
+              "defined": "ContractType"
+            }
+          },
+          {
+            "name": "settlementPrice",
+            "type": "i128"
+          },
+          {
+            "name": "expiryTs",
+            "type": "i64"
+          },
+          {
+            "name": "amm",
+            "type": {
+              "defined": "AMM"
+            }
+          },
+          {
+            "name": "baseAssetAmountLong",
+            "type": "i128"
+          },
+          {
+            "name": "baseAssetAmountShort",
+            "type": "i128"
+          },
+          {
+            "name": "openInterest",
+            "type": "u128"
+          },
+          {
+            "name": "marginRatioInitial",
+            "type": "u32"
+          },
+          {
+            "name": "marginRatioMaintenance",
+            "type": "u32"
+          },
+          {
+            "name": "nextFillRecordId",
+            "type": "u64"
+          },
+          {
+            "name": "nextFundingRateRecordId",
+            "type": "u64"
+          },
+          {
+            "name": "nextCurveRecordId",
+            "type": "u64"
+          },
+          {
+            "name": "pnlPool",
+            "type": {
+              "defined": "PoolBalance"
+            }
+          },
+          {
+            "name": "revenueWithdrawSinceLastSettle",
+            "type": "u128"
+          },
+          {
+            "name": "maxRevenueWithdrawPerPeriod",
+            "type": "u128"
+          },
+          {
+            "name": "lastRevenueWithdrawTs",
+            "type": "i64"
+          },
+          {
+            "name": "imfFactor",
+            "type": "u128"
+          },
+          {
+            "name": "unrealizedInitialAssetWeight",
+            "type": "u32"
+          },
+          {
+            "name": "unrealizedMaintenanceAssetWeight",
+            "type": "u32"
+          },
+          {
+            "name": "unrealizedImfFactor",
+            "type": "u128"
+          },
+          {
+            "name": "unrealizedMaxImbalance",
+            "type": "u128"
+          },
+          {
+            "name": "liquidatorFee",
+            "type": "u128"
+          },
+          {
+            "name": "ifLiquidationFee",
+            "type": "u128"
+          },
+          {
+            "name": "quoteMaxInsurance",
+            "type": "u128"
+          },
+          {
+            "name": "quoteSettledInsurance",
+            "type": "u128"
+          },
+          {
+            "name": "padding0",
+            "type": "u32"
+          },
+          {
+            "name": "padding1",
+            "type": "u128"
+          },
+          {
+            "name": "padding2",
+            "type": "u128"
+          },
+          {
+            "name": "padding3",
+            "type": "u128"
+          },
+          {
+            "name": "padding4",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SpotMarket",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "pubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "MarketStatus"
+            }
+          },
+          {
+            "name": "expiryTs",
+            "type": "i64"
+          },
+          {
+            "name": "oracle",
+            "type": "publicKey"
+          },
+          {
+            "name": "oracleSource",
+            "type": {
+              "defined": "OracleSource"
+            }
+          },
+          {
+            "name": "mint",
+            "type": "publicKey"
+          },
+          {
+            "name": "vault",
+            "type": "publicKey"
+          },
+          {
+            "name": "insuranceFundVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "revenuePool",
+            "type": {
+              "defined": "PoolBalance"
+            }
+          },
+          {
+            "name": "totalIfFactor",
+            "type": "u32"
+          },
+          {
+            "name": "userIfFactor",
+            "type": "u32"
+          },
+          {
+            "name": "totalIfShares",
+            "type": "u128"
+          },
+          {
+            "name": "userIfShares",
+            "type": "u128"
+          },
+          {
+            "name": "ifSharesBase",
+            "type": "u128"
+          },
+          {
+            "name": "insuranceWithdrawEscrowPeriod",
+            "type": "i64"
+          },
+          {
+            "name": "lastRevenueSettleTs",
+            "type": "i64"
+          },
+          {
+            "name": "revenueSettlePeriod",
+            "type": "i64"
+          },
+          {
+            "name": "decimals",
+            "type": "u8"
+          },
+          {
+            "name": "optimalUtilization",
+            "type": "u128"
+          },
+          {
+            "name": "optimalBorrowRate",
+            "type": "u128"
+          },
+          {
+            "name": "maxBorrowRate",
+            "type": "u128"
+          },
+          {
+            "name": "depositBalance",
+            "type": "u128"
+          },
+          {
+            "name": "borrowBalance",
+            "type": "u128"
+          },
+          {
+            "name": "depositTokenTwap",
+            "type": "u128"
+          },
+          {
+            "name": "borrowTokenTwap",
+            "type": "u128"
+          },
+          {
+            "name": "utilizationTwap",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeDepositInterest",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeBorrowInterest",
+            "type": "u128"
+          },
+          {
+            "name": "lastInterestTs",
+            "type": "u64"
+          },
+          {
+            "name": "lastTwapTs",
+            "type": "u64"
+          },
+          {
+            "name": "initialAssetWeight",
+            "type": "u128"
+          },
+          {
+            "name": "maintenanceAssetWeight",
+            "type": "u128"
+          },
+          {
+            "name": "initialLiabilityWeight",
+            "type": "u128"
+          },
+          {
+            "name": "maintenanceLiabilityWeight",
+            "type": "u128"
+          },
+          {
+            "name": "imfFactor",
+            "type": "u128"
+          },
+          {
+            "name": "liquidatorFee",
+            "type": "u128"
+          },
+          {
+            "name": "ifLiquidationFee",
+            "type": "u128"
+          },
+          {
+            "name": "withdrawGuardThreshold",
+            "type": "u128"
+          },
+          {
+            "name": "orderStepSize",
+            "type": "u128"
+          },
+          {
+            "name": "nextFillRecordId",
+            "type": "u64"
+          },
+          {
+            "name": "totalSpotFee",
+            "type": "u128"
+          },
+          {
+            "name": "spotFeePool",
+            "type": {
+              "defined": "PoolBalance"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SerumV3FulfillmentConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "fulfillmentType",
+            "type": {
+              "defined": "SpotFulfillmentType"
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "SpotFulfillmentStatus"
+            }
+          },
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "serumProgramId",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumMarket",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumRequestQueue",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumEventQueue",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumBids",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumAsks",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumBaseVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumQuoteVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumOpenOrders",
+            "type": "publicKey"
+          },
+          {
+            "name": "serumSignerNonce",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "State",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "publicKey"
+          },
+          {
+            "name": "exchangePaused",
+            "type": "bool"
+          },
+          {
+            "name": "fundingPaused",
+            "type": "bool"
+          },
+          {
+            "name": "adminControlsPrices",
+            "type": "bool"
+          },
+          {
+            "name": "insuranceVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "perpFeeStructure",
+            "type": {
+              "defined": "FeeStructure"
+            }
+          },
+          {
+            "name": "spotFeeStructure",
+            "type": {
+              "defined": "FeeStructure"
+            }
+          },
+          {
+            "name": "whitelistMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "discountMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "oracleGuardRails",
+            "type": {
+              "defined": "OracleGuardRails"
+            }
+          },
+          {
+            "name": "numberOfMarkets",
+            "type": "u64"
+          },
+          {
+            "name": "numberOfSpotMarkets",
+            "type": "u64"
+          },
+          {
+            "name": "minOrderQuoteAssetAmount",
+            "type": "u128"
+          },
+          {
+            "name": "minPerpAuctionDuration",
+            "type": "u8"
+          },
+          {
+            "name": "defaultMarketOrderTimeInForce",
+            "type": "u8"
+          },
+          {
+            "name": "defaultSpotAuctionDuration",
+            "type": "u8"
+          },
+          {
+            "name": "liquidationMarginBufferRatio",
+            "type": "u32"
+          },
+          {
+            "name": "settlementDuration",
+            "type": "u16"
+          },
+          {
+            "name": "signer",
+            "type": "publicKey"
+          },
+          {
+            "name": "signerNonce",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "User",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "userId",
+            "type": "u8"
+          },
+          {
+            "name": "name",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "spotPositions",
+            "type": {
+              "array": [
+                {
+                  "defined": "SpotPosition"
+                },
+                8
+              ]
+            }
+          },
+          {
+            "name": "nextOrderId",
+            "type": "u64"
+          },
+          {
+            "name": "perpPositions",
+            "type": {
+              "array": [
+                {
+                  "defined": "PerpPosition"
+                },
+                5
+              ]
+            }
+          },
+          {
+            "name": "orders",
+            "type": {
+              "array": [
+                {
+                  "defined": "Order"
+                },
+                32
+              ]
+            }
+          },
+          {
+            "name": "nextLiquidationId",
+            "type": "u16"
+          },
+          {
+            "name": "beingLiquidated",
+            "type": "bool"
+          },
+          {
+            "name": "bankrupt",
+            "type": "bool"
+          },
+          {
+            "name": "customMarginRatio",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserStats",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "numberOfUsers",
+            "type": "u8"
+          },
+          {
+            "name": "isReferrer",
+            "type": "bool"
+          },
+          {
+            "name": "referrer",
+            "type": "publicKey"
+          },
+          {
+            "name": "totalReferrerReward",
+            "type": "u64"
+          },
+          {
+            "name": "fees",
+            "type": {
+              "defined": "UserFees"
+            }
+          },
+          {
+            "name": "makerVolume30d",
+            "type": "u64"
+          },
+          {
+            "name": "takerVolume30d",
+            "type": "u64"
+          },
+          {
+            "name": "fillerVolume30d",
+            "type": "u64"
+          },
+          {
+            "name": "lastMakerVolume30dTs",
+            "type": "i64"
+          },
+          {
+            "name": "lastTakerVolume30dTs",
+            "type": "i64"
+          },
+          {
+            "name": "lastFillerVolume30dTs",
+            "type": "i64"
+          },
+          {
+            "name": "quoteAssetInsuranceFundStake",
+            "type": "u128"
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "OrderParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "orderType",
+            "type": {
+              "defined": "OrderType"
+            }
+          },
+          {
+            "name": "marketType",
+            "type": {
+              "defined": "MarketType"
+            }
+          },
+          {
+            "name": "direction",
+            "type": {
+              "defined": "PositionDirection"
+            }
+          },
+          {
+            "name": "userOrderId",
+            "type": "u8"
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "u128"
+          },
+          {
+            "name": "price",
+            "type": "u128"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "reduceOnly",
+            "type": "bool"
+          },
+          {
+            "name": "postOnly",
+            "type": "bool"
+          },
+          {
+            "name": "immediateOrCancel",
+            "type": "bool"
+          },
+          {
+            "name": "triggerPrice",
+            "type": "u128"
+          },
+          {
+            "name": "triggerCondition",
+            "type": {
+              "defined": "OrderTriggerCondition"
+            }
+          },
+          {
+            "name": "oraclePriceOffset",
+            "type": "i128"
+          },
+          {
+            "name": "auctionDuration",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "timeInForce",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "auctionStartPrice",
+            "type": {
+              "option": "u128"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "LiquidatePerpRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "oraclePrice",
+            "type": "i128"
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "quoteAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "lpShares",
+            "type": "u128"
+          },
+          {
+            "name": "userPnl",
+            "type": "i128"
+          },
+          {
+            "name": "liquidatorPnl",
+            "type": "i128"
+          },
+          {
+            "name": "fillRecordId",
+            "type": "u64"
+          },
+          {
+            "name": "userOrderId",
+            "type": "u64"
+          },
+          {
+            "name": "liquidatorOrderId",
+            "type": "u64"
+          },
+          {
+            "name": "ifFee",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LiquidateBorrowRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "assetMarketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "assetPrice",
+            "type": "i128"
+          },
+          {
+            "name": "assetTransfer",
+            "type": "u128"
+          },
+          {
+            "name": "liabilityMarketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "liabilityPrice",
+            "type": "i128"
+          },
+          {
+            "name": "liabilityTransfer",
+            "type": "u128"
+          },
+          {
+            "name": "ifFee",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LiquidateBorrowForPerpPnlRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "perpMarketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "marketOraclePrice",
+            "type": "i128"
+          },
+          {
+            "name": "pnlTransfer",
+            "type": "u128"
+          },
+          {
+            "name": "liabilityMarketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "liabilityPrice",
+            "type": "i128"
+          },
+          {
+            "name": "liabilityTransfer",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LiquidatePerpPnlForDepositRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "perpMarketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "marketOraclePrice",
+            "type": "i128"
+          },
+          {
+            "name": "pnlTransfer",
+            "type": "u128"
+          },
+          {
+            "name": "assetMarketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "assetPrice",
+            "type": "i128"
+          },
+          {
+            "name": "assetTransfer",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PerpBankruptcyRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "pnl",
+            "type": "i128"
+          },
+          {
+            "name": "ifPayment",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeFundingRateDelta",
+            "type": "i128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BorrowBankruptcyRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "borrowAmount",
+            "type": "u128"
+          },
+          {
+            "name": "ifPayment",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeDepositInterestDelta",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PoolBalance",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "balance",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AMM",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "oracle",
+            "type": "publicKey"
+          },
+          {
+            "name": "oracleSource",
+            "type": {
+              "defined": "OracleSource"
+            }
+          },
+          {
+            "name": "lastOraclePrice",
+            "type": "i128"
+          },
+          {
+            "name": "lastOracleConfPct",
+            "type": "u64"
+          },
+          {
+            "name": "lastOracleDelay",
+            "type": "i64"
+          },
+          {
+            "name": "lastOracleNormalisedPrice",
+            "type": "i128"
+          },
+          {
+            "name": "lastOraclePriceTwap",
+            "type": "i128"
+          },
+          {
+            "name": "lastOraclePriceTwap5min",
+            "type": "i128"
+          },
+          {
+            "name": "lastOraclePriceTwapTs",
+            "type": "i64"
+          },
+          {
+            "name": "lastOracleMarkSpreadPct",
+            "type": "i128"
+          },
+          {
+            "name": "baseAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "quoteAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "concentrationCoef",
+            "type": "u128"
+          },
+          {
+            "name": "minBaseAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "maxBaseAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "sqrtK",
+            "type": "u128"
+          },
+          {
+            "name": "pegMultiplier",
+            "type": "u128"
+          },
+          {
+            "name": "terminalQuoteAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "netBaseAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "quoteAssetAmountLong",
+            "type": "i128"
+          },
+          {
+            "name": "quoteAssetAmountShort",
+            "type": "i128"
+          },
+          {
+            "name": "quoteEntryAmountLong",
+            "type": "i128"
+          },
+          {
+            "name": "quoteEntryAmountShort",
+            "type": "i128"
+          },
+          {
+            "name": "netUnsettledLpBaseAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "lpCooldownTime",
+            "type": "i64"
+          },
+          {
+            "name": "userLpShares",
+            "type": "u128"
+          },
+          {
+            "name": "marketPositionPerLp",
+            "type": {
+              "defined": "PerpPosition"
+            }
+          },
+          {
+            "name": "ammJitIntensity",
+            "type": "u8"
+          },
+          {
+            "name": "lastFundingRate",
+            "type": "i128"
+          },
+          {
+            "name": "lastFundingRateLong",
+            "type": "i128"
+          },
+          {
+            "name": "lastFundingRateShort",
+            "type": "i128"
+          },
+          {
+            "name": "lastFundingRateTs",
+            "type": "i64"
+          },
+          {
+            "name": "fundingPeriod",
+            "type": "i64"
+          },
+          {
+            "name": "cumulativeFundingRateLong",
+            "type": "i128"
+          },
+          {
+            "name": "cumulativeFundingRateShort",
+            "type": "i128"
+          },
+          {
+            "name": "cumulativeRepegRebateLong",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeRepegRebateShort",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeSocialLoss",
+            "type": "i128"
+          },
+          {
+            "name": "markStd",
+            "type": "u64"
+          },
+          {
+            "name": "lastMarkPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastMarkPriceTwap5min",
+            "type": "u128"
+          },
+          {
+            "name": "lastMarkPriceTwapTs",
+            "type": "i64"
+          },
+          {
+            "name": "minimumQuoteAssetTradeSize",
+            "type": "u128"
+          },
+          {
+            "name": "maxBaseAssetAmountRatio",
+            "type": "u16"
+          },
+          {
+            "name": "maxSlippageRatio",
+            "type": "u16"
+          },
+          {
+            "name": "baseAssetAmountStepSize",
+            "type": "u128"
+          },
+          {
+            "name": "marketPosition",
+            "type": {
+              "defined": "PerpPosition"
+            }
+          },
+          {
+            "name": "baseSpread",
+            "type": "u16"
+          },
+          {
+            "name": "longSpread",
+            "type": "u128"
+          },
+          {
+            "name": "shortSpread",
+            "type": "u128"
+          },
+          {
+            "name": "maxSpread",
+            "type": "u32"
+          },
+          {
+            "name": "askBaseAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "askQuoteAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "bidBaseAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "bidQuoteAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "lastBidPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastAskPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "longIntensityCount",
+            "type": "u16"
+          },
+          {
+            "name": "longIntensityVolume",
+            "type": "u64"
+          },
+          {
+            "name": "shortIntensityCount",
+            "type": "u16"
+          },
+          {
+            "name": "shortIntensityVolume",
+            "type": "u64"
+          },
+          {
+            "name": "curveUpdateIntensity",
+            "type": "u8"
+          },
+          {
+            "name": "totalFee",
+            "type": "i128"
+          },
+          {
+            "name": "totalMmFee",
+            "type": "i128"
+          },
+          {
+            "name": "totalExchangeFee",
+            "type": "u128"
+          },
+          {
+            "name": "totalFeeMinusDistributions",
+            "type": "i128"
+          },
+          {
+            "name": "totalFeeWithdrawn",
+            "type": "u128"
+          },
+          {
+            "name": "netRevenueSinceLastFunding",
+            "type": "i64"
+          },
+          {
+            "name": "totalLiquidationFee",
+            "type": "u128"
+          },
+          {
+            "name": "feePool",
+            "type": {
+              "defined": "PoolBalance"
+            }
+          },
+          {
+            "name": "lastUpdateSlot",
+            "type": "u64"
+          },
+          {
+            "name": "lastOracleValid",
+            "type": "bool"
+          },
+          {
+            "name": "padding0",
+            "type": "u16"
+          },
+          {
+            "name": "padding1",
+            "type": "u32"
+          },
+          {
+            "name": "padding2",
+            "type": "u128"
+          },
+          {
+            "name": "padding3",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleGuardRails",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "priceDivergence",
+            "type": {
+              "defined": "PriceDivergenceGuardRails"
+            }
+          },
+          {
+            "name": "validity",
+            "type": {
+              "defined": "ValidityGuardRails"
+            }
+          },
+          {
+            "name": "useForLiquidations",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PriceDivergenceGuardRails",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "markOracleDivergenceNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "markOracleDivergenceDenominator",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ValidityGuardRails",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "slotsBeforeStale",
+            "type": "i64"
+          },
+          {
+            "name": "confidenceIntervalMaxSize",
+            "type": "u128"
+          },
+          {
+            "name": "tooVolatileRatio",
+            "type": "i128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeeStructure",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "feeNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "feeDenominator",
+            "type": "u128"
+          },
+          {
+            "name": "discountTokenTiers",
+            "type": {
+              "defined": "DiscountTokenTiers"
+            }
+          },
+          {
+            "name": "referralDiscount",
+            "type": {
+              "defined": "ReferralDiscount"
+            }
+          },
+          {
+            "name": "makerRebateNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "makerRebateDenominator",
+            "type": "u128"
+          },
+          {
+            "name": "fillerRewardStructure",
+            "type": {
+              "defined": "OrderFillerRewardStructure"
+            }
+          },
+          {
+            "name": "flatFillerFee",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DiscountTokenTiers",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "firstTier",
+            "type": {
+              "defined": "DiscountTokenTier"
+            }
+          },
+          {
+            "name": "secondTier",
+            "type": {
+              "defined": "DiscountTokenTier"
+            }
+          },
+          {
+            "name": "thirdTier",
+            "type": {
+              "defined": "DiscountTokenTier"
+            }
+          },
+          {
+            "name": "fourthTier",
+            "type": {
+              "defined": "DiscountTokenTier"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "DiscountTokenTier",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "minimumBalance",
+            "type": "u64"
+          },
+          {
+            "name": "discountNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "discountDenominator",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ReferralDiscount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "referrerRewardNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "referrerRewardDenominator",
+            "type": "u128"
+          },
+          {
+            "name": "refereeDiscountNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "refereeDiscountDenominator",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderFillerRewardStructure",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "rewardNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "rewardDenominator",
+            "type": "u128"
+          },
+          {
+            "name": "timeBasedRewardLowerBound",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserFees",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "totalFeePaid",
+            "type": "u64"
+          },
+          {
+            "name": "totalLpFees",
+            "type": "u64"
+          },
+          {
+            "name": "totalFeeRebate",
+            "type": "u64"
+          },
+          {
+            "name": "totalTokenDiscount",
+            "type": "u64"
+          },
+          {
+            "name": "totalRefereeDiscount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SpotPosition",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "balanceType",
+            "type": {
+              "defined": "SpotBalanceType"
+            }
+          },
+          {
+            "name": "balance",
+            "type": "u128"
+          },
+          {
+            "name": "openOrders",
+            "type": "u8"
+          },
+          {
+            "name": "openBids",
+            "type": "i128"
+          },
+          {
+            "name": "openAsks",
+            "type": "i128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PerpPosition",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "quoteAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "quoteEntryAmount",
+            "type": "i128"
+          },
+          {
+            "name": "lastCumulativeFundingRate",
+            "type": "i128"
+          },
+          {
+            "name": "lastCumulativeRepegRebate",
+            "type": "u128"
+          },
+          {
+            "name": "lastFundingRateTs",
+            "type": "i64"
+          },
+          {
+            "name": "openOrders",
+            "type": "u128"
+          },
+          {
+            "name": "openBids",
+            "type": "i128"
+          },
+          {
+            "name": "openAsks",
+            "type": "i128"
+          },
+          {
+            "name": "settledPnl",
+            "type": "i64"
+          },
+          {
+            "name": "lpShares",
+            "type": "u128"
+          },
+          {
+            "name": "remainderBaseAssetAmount",
+            "type": "i128"
+          },
+          {
+            "name": "lastNetBaseAssetAmountPerLp",
+            "type": "i128"
+          },
+          {
+            "name": "lastNetQuoteAssetAmountPerLp",
+            "type": "i128"
+          },
+          {
+            "name": "lastLpAddTime",
+            "type": "i64"
+          },
+          {
+            "name": "padding0",
+            "type": "u128"
+          },
+          {
+            "name": "padding1",
+            "type": "u128"
+          },
+          {
+            "name": "padding2",
+            "type": "u128"
+          },
+          {
+            "name": "padding3",
+            "type": "u128"
+          },
+          {
+            "name": "padding4",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Order",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "status",
+            "type": {
+              "defined": "OrderStatus"
+            }
+          },
+          {
+            "name": "orderType",
+            "type": {
+              "defined": "OrderType"
+            }
+          },
+          {
+            "name": "marketType",
+            "type": {
+              "defined": "MarketType"
+            }
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "orderId",
+            "type": "u64"
+          },
+          {
+            "name": "userOrderId",
+            "type": "u8"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u64"
+          },
+          {
+            "name": "price",
+            "type": "u128"
+          },
+          {
+            "name": "existingPositionDirection",
+            "type": {
+              "defined": "PositionDirection"
+            }
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "u128"
+          },
+          {
+            "name": "baseAssetAmountFilled",
+            "type": "u128"
+          },
+          {
+            "name": "quoteAssetAmountFilled",
+            "type": "u128"
+          },
+          {
+            "name": "fee",
+            "type": "i128"
+          },
+          {
+            "name": "direction",
+            "type": {
+              "defined": "PositionDirection"
+            }
+          },
+          {
+            "name": "reduceOnly",
+            "type": "bool"
+          },
+          {
+            "name": "postOnly",
+            "type": "bool"
+          },
+          {
+            "name": "immediateOrCancel",
+            "type": "bool"
+          },
+          {
+            "name": "triggerPrice",
+            "type": "u128"
+          },
+          {
+            "name": "triggerCondition",
+            "type": {
+              "defined": "OrderTriggerCondition"
+            }
+          },
+          {
+            "name": "triggered",
+            "type": "bool"
+          },
+          {
+            "name": "oraclePriceOffset",
+            "type": "i128"
+          },
+          {
+            "name": "auctionStartPrice",
+            "type": "u128"
+          },
+          {
+            "name": "auctionEndPrice",
+            "type": "u128"
+          },
+          {
+            "name": "auctionDuration",
+            "type": "u8"
+          },
+          {
+            "name": "timeInForce",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SpotFulfillmentType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "SerumV3"
+          },
+          {
+            "name": "None"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwapDirection",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Add"
+          },
+          {
+            "name": "Remove"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionDirection",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Long"
+          },
+          {
+            "name": "Short"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TwapPeriod",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "FundingPeriod"
+          },
+          {
+            "name": "FiveMin"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LiquidationMultiplierType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Discount"
+          },
+          {
+            "name": "Premium"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarginRequirementType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Initial"
+          },
+          {
+            "name": "Maintenance"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionUpdateType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Open"
+          },
+          {
+            "name": "Increase"
+          },
+          {
+            "name": "Reduce"
+          },
+          {
+            "name": "Close"
+          },
+          {
+            "name": "Flip"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DepositDirection",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "DEPOSIT"
+          },
+          {
+            "name": "WITHDRAW"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Place"
+          },
+          {
+            "name": "Cancel"
+          },
+          {
+            "name": "Fill"
+          },
+          {
+            "name": "Trigger"
+          },
+          {
+            "name": "Expire"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderActionExplanation",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "InsufficientFreeCollateral"
+          },
+          {
+            "name": "OraclePriceBreachedLimitPrice"
+          },
+          {
+            "name": "MarketOrderFilledToLimitPrice"
+          },
+          {
+            "name": "OrderExpired"
+          },
+          {
+            "name": "CanceledForLiquidation"
+          },
+          {
+            "name": "OrderFilledWithAMM"
+          },
+          {
+            "name": "OrderFilledWithMatch"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LPAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "AddLiquidity"
+          },
+          {
+            "name": "RemoveLiquidity"
+          },
+          {
+            "name": "SettleLiquidity"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LiquidationType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "LiquidatePerp"
+          },
+          {
+            "name": "LiquidateBorrow"
+          },
+          {
+            "name": "LiquidateBorrowForPerpPnl"
+          },
+          {
+            "name": "LiquidatePerpPnlForDeposit"
+          },
+          {
+            "name": "PerpBankruptcy"
+          },
+          {
+            "name": "BorrowBankruptcy"
+          }
+        ]
+      }
+    },
+    {
+      "name": "StakeAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Stake"
+          },
+          {
+            "name": "UnstakeRequest"
+          },
+          {
+            "name": "UnstakeCancelRequest"
+          },
+          {
+            "name": "Unstake"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PerpFulfillmentMethod",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "AMM"
+          },
+          {
+            "name": "Match"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SpotFulfillmentMethod",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "SerumV3"
+          },
+          {
+            "name": "Match"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Initialized"
+          },
+          {
+            "name": "ReduceOnly"
+          },
+          {
+            "name": "Settlement"
+          },
+          {
+            "name": "Delisted"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ContractType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Perpetual"
+          },
+          {
+            "name": "Future"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleSource",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Pyth"
+          },
+          {
+            "name": "Switchboard"
+          },
+          {
+            "name": "QuoteAsset"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SpotBalanceType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Deposit"
+          },
+          {
+            "name": "Borrow"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SpotFulfillmentStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Enabled"
+          },
+          {
+            "name": "Disabled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AssetType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Base"
+          },
+          {
+            "name": "Quote"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Init"
+          },
+          {
+            "name": "Open"
+          },
+          {
+            "name": "Filled"
+          },
+          {
+            "name": "Canceled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Market"
+          },
+          {
+            "name": "Limit"
+          },
+          {
+            "name": "TriggerMarket"
+          },
+          {
+            "name": "TriggerLimit"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderTriggerCondition",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Above"
+          },
+          {
+            "name": "Below"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Spot"
+          },
+          {
+            "name": "Perp"
+          }
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "NewUserRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "userAuthority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "userId",
+          "type": "u8",
+          "index": false
+        },
+        {
+          "name": "name",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          },
+          "index": false
+        },
+        {
+          "name": "referrer",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "DepositRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "userAuthority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "direction",
+          "type": {
+            "defined": "DepositDirection"
+          },
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "oraclePrice",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "referrer",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "from",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "to",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "FundingPaymentRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "userAuthority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "fundingPayment",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "baseAssetAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "userLastCumulativeFunding",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "userLastFundingRateTs",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "ammCumulativeFundingLong",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "ammCumulativeFundingShort",
+          "type": "i128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "FundingRateRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "recordId",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "fundingRate",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "fundingRateLong",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "fundingRateShort",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "cumulativeFundingRateLong",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "cumulativeFundingRateShort",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "oraclePriceTwap",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "markPriceTwap",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "periodRevenue",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "netBaseAssetAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "netUnsettledLpBaseAssetAmount",
+          "type": "i128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "CurveRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "recordId",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "pegMultiplierBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "baseAssetReserveBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "quoteAssetReserveBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "sqrtKBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "pegMultiplierAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "baseAssetReserveAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "quoteAssetReserveAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "sqrtKAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "baseAssetAmountLong",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "baseAssetAmountShort",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "netBaseAssetAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "openInterest",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "totalFee",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "totalFeeMinusDistributions",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "adjustmentCost",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "oraclePrice",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "fillRecord",
+          "type": "u128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "OrderRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "order",
+          "type": {
+            "defined": "Order"
+          },
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "OrderActionRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "action",
+          "type": {
+            "defined": "OrderAction"
+          },
+          "index": false
+        },
+        {
+          "name": "actionExplanation",
+          "type": {
+            "defined": "OrderActionExplanation"
+          },
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "marketType",
+          "type": {
+            "defined": "MarketType"
+          },
+          "index": false
+        },
+        {
+          "name": "filler",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "fillerReward",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "fillRecordId",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "referrer",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "baseAssetAmountFilled",
+          "type": {
+            "option": "u128"
+          },
+          "index": false
+        },
+        {
+          "name": "quoteAssetAmountFilled",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "takerPnl",
+          "type": {
+            "option": "i64"
+          },
+          "index": false
+        },
+        {
+          "name": "makerPnl",
+          "type": {
+            "option": "i64"
+          },
+          "index": false
+        },
+        {
+          "name": "takerFee",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "makerRebate",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "referrerReward",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "refereeDiscount",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "quoteAssetAmountSurplus",
+          "type": {
+            "option": "i64"
+          },
+          "index": false
+        },
+        {
+          "name": "taker",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "takerOrderId",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "takerOrderDirection",
+          "type": {
+            "option": {
+              "defined": "PositionDirection"
+            }
+          },
+          "index": false
+        },
+        {
+          "name": "takerOrderBaseAssetAmount",
+          "type": {
+            "option": "u128"
+          },
+          "index": false
+        },
+        {
+          "name": "takerOrderBaseAssetAmountFilled",
+          "type": {
+            "option": "u128"
+          },
+          "index": false
+        },
+        {
+          "name": "takerOrderQuoteAssetAmountFilled",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "takerOrderFee",
+          "type": {
+            "option": "i64"
+          },
+          "index": false
+        },
+        {
+          "name": "spotFulfillmentMethodFee",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "maker",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "makerOrderId",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "makerOrderDirection",
+          "type": {
+            "option": {
+              "defined": "PositionDirection"
+            }
+          },
+          "index": false
+        },
+        {
+          "name": "makerOrderBaseAssetAmount",
+          "type": {
+            "option": "u128"
+          },
+          "index": false
+        },
+        {
+          "name": "makerOrderBaseAssetAmountFilled",
+          "type": {
+            "option": "u128"
+          },
+          "index": false
+        },
+        {
+          "name": "makerOrderQuoteAssetAmountFilled",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "makerOrderFee",
+          "type": {
+            "option": "i64"
+          },
+          "index": false
+        },
+        {
+          "name": "oraclePrice",
+          "type": "i128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "LPRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "action",
+          "type": {
+            "defined": "LPAction"
+          },
+          "index": false
+        },
+        {
+          "name": "nShares",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "deltaBaseAssetAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "deltaQuoteAssetAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "pnl",
+          "type": "i128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "LiquidationRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "liquidationType",
+          "type": {
+            "defined": "LiquidationType"
+          },
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "liquidator",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "marginRequirement",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "totalCollateral",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "liquidationId",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "bankrupt",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "canceledOrderIds",
+          "type": {
+            "vec": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "liquidatePerp",
+          "type": {
+            "defined": "LiquidatePerpRecord"
+          },
+          "index": false
+        },
+        {
+          "name": "liquidateBorrow",
+          "type": {
+            "defined": "LiquidateBorrowRecord"
+          },
+          "index": false
+        },
+        {
+          "name": "liquidateBorrowForPerpPnl",
+          "type": {
+            "defined": "LiquidateBorrowForPerpPnlRecord"
+          },
+          "index": false
+        },
+        {
+          "name": "liquidatePerpPnlForDeposit",
+          "type": {
+            "defined": "LiquidatePerpPnlForDepositRecord"
+          },
+          "index": false
+        },
+        {
+          "name": "perpBankruptcy",
+          "type": {
+            "defined": "PerpBankruptcyRecord"
+          },
+          "index": false
+        },
+        {
+          "name": "borrowBankruptcy",
+          "type": {
+            "defined": "BorrowBankruptcyRecord"
+          },
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "SettlePnlRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "pnl",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "baseAssetAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "quoteAssetAmountAfter",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "quoteEntryAmount",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "settlePrice",
+          "type": "i128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "InsuranceFundRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "spotMarketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "perpMarketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "userIfFactor",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "totalIfFactor",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "vaultAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "insuranceVaultAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "totalIfSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "totalIfSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "i64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "InsuranceFundStakeRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "userAuthority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "action",
+          "type": {
+            "defined": "StakeAction"
+          },
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "insuranceVaultAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "ifSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "userIfSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "totalIfSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "ifSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "userIfSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "totalIfSharesAfter",
+          "type": "u128",
+          "index": false
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidSpotMarketAuthority",
+      "msg": "Invalid Spot Market Authority"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidInsuranceFundAuthority",
+      "msg": "Clearing house not insurance fund authority"
+    },
+    {
+      "code": 6002,
+      "name": "InsufficientDeposit",
+      "msg": "Insufficient deposit"
+    },
+    {
+      "code": 6003,
+      "name": "InsufficientCollateral",
+      "msg": "Insufficient collateral"
+    },
+    {
+      "code": 6004,
+      "name": "SufficientCollateral",
+      "msg": "Sufficient collateral"
+    },
+    {
+      "code": 6005,
+      "name": "MaxNumberOfPositions",
+      "msg": "Max number of positions taken"
+    },
+    {
+      "code": 6006,
+      "name": "AdminControlsPricesDisabled",
+      "msg": "Admin Controls Prices Disabled"
+    },
+    {
+      "code": 6007,
+      "name": "MarketIndexNotInitialized",
+      "msg": "Market Index Not Initialized"
+    },
+    {
+      "code": 6008,
+      "name": "MarketIndexAlreadyInitialized",
+      "msg": "Market Index Already Initialized"
+    },
+    {
+      "code": 6009,
+      "name": "UserAccountAndUserPositionsAccountMismatch",
+      "msg": "User Account And User Positions Account Mismatch"
+    },
+    {
+      "code": 6010,
+      "name": "UserHasNoPositionInMarket",
+      "msg": "User Has No Position In Market"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidInitialPeg",
+      "msg": "Invalid Initial Peg"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidRepegRedundant",
+      "msg": "AMM repeg already configured with amt given"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidRepegDirection",
+      "msg": "AMM repeg incorrect repeg direction"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidRepegProfitability",
+      "msg": "AMM repeg out of bounds pnl"
+    },
+    {
+      "code": 6015,
+      "name": "SlippageOutsideLimit",
+      "msg": "Slippage Outside Limit Price"
+    },
+    {
+      "code": 6016,
+      "name": "OrderSizeTooSmall",
+      "msg": "Order Size Too Small"
+    },
+    {
+      "code": 6017,
+      "name": "InvalidUpdateK",
+      "msg": "Price change too large when updating K"
+    },
+    {
+      "code": 6018,
+      "name": "AdminWithdrawTooLarge",
+      "msg": "Admin tried to withdraw amount larger than fees collected"
+    },
+    {
+      "code": 6019,
+      "name": "MathError",
+      "msg": "Math Error"
+    },
+    {
+      "code": 6020,
+      "name": "BnConversionError",
+      "msg": "Conversion to u128/u64 failed with an overflow or underflow"
+    },
+    {
+      "code": 6021,
+      "name": "ClockUnavailable",
+      "msg": "Clock unavailable"
+    },
+    {
+      "code": 6022,
+      "name": "UnableToLoadOracle",
+      "msg": "Unable To Load Oracles"
+    },
+    {
+      "code": 6023,
+      "name": "OracleMarkSpreadLimit",
+      "msg": "Oracle/Mark Spread Too Large"
+    },
+    {
+      "code": 6024,
+      "name": "ExchangePaused",
+      "msg": "Exchange is paused"
+    },
+    {
+      "code": 6025,
+      "name": "InvalidWhitelistToken",
+      "msg": "Invalid whitelist token"
+    },
+    {
+      "code": 6026,
+      "name": "WhitelistTokenNotFound",
+      "msg": "Whitelist token not found"
+    },
+    {
+      "code": 6027,
+      "name": "InvalidDiscountToken",
+      "msg": "Invalid discount token"
+    },
+    {
+      "code": 6028,
+      "name": "DiscountTokenNotFound",
+      "msg": "Discount token not found"
+    },
+    {
+      "code": 6029,
+      "name": "ReferrerNotFound",
+      "msg": "Referrer not found"
+    },
+    {
+      "code": 6030,
+      "name": "ReferrerStatsNotFound",
+      "msg": "ReferrerNotFound"
+    },
+    {
+      "code": 6031,
+      "name": "ReferrerMustBeWritable",
+      "msg": "ReferrerMustBeWritable"
+    },
+    {
+      "code": 6032,
+      "name": "ReferrerStatsMustBeWritable",
+      "msg": "ReferrerMustBeWritable"
+    },
+    {
+      "code": 6033,
+      "name": "ReferrerAndReferrerStatsAuthorityUnequal",
+      "msg": "ReferrerAndReferrerStatsAuthorityUnequal"
+    },
+    {
+      "code": 6034,
+      "name": "InvalidReferrer",
+      "msg": "InvalidReferrer"
+    },
+    {
+      "code": 6035,
+      "name": "InvalidOracle",
+      "msg": "InvalidOracle"
+    },
+    {
+      "code": 6036,
+      "name": "OracleNotFound",
+      "msg": "OracleNotFound"
+    },
+    {
+      "code": 6037,
+      "name": "LiquidationsBlockedByOracle",
+      "msg": "Liquidations Blocked By Oracle"
+    },
+    {
+      "code": 6038,
+      "name": "UserMaxDeposit",
+      "msg": "Can not deposit more than max deposit"
+    },
+    {
+      "code": 6039,
+      "name": "CantDeleteUserWithCollateral",
+      "msg": "Can not delete user that still has collateral"
+    },
+    {
+      "code": 6040,
+      "name": "InvalidFundingProfitability",
+      "msg": "AMM funding out of bounds pnl"
+    },
+    {
+      "code": 6041,
+      "name": "CastingFailure",
+      "msg": "Casting Failure"
+    },
+    {
+      "code": 6042,
+      "name": "InvalidOrder",
+      "msg": "Invalid Order"
+    },
+    {
+      "code": 6043,
+      "name": "UserHasNoOrder",
+      "msg": "User has no order"
+    },
+    {
+      "code": 6044,
+      "name": "OrderAmountTooSmall",
+      "msg": "Order Amount Too Small"
+    },
+    {
+      "code": 6045,
+      "name": "MaxNumberOfOrders",
+      "msg": "Max number of orders taken"
+    },
+    {
+      "code": 6046,
+      "name": "OrderDoesNotExist",
+      "msg": "Order does not exist"
+    },
+    {
+      "code": 6047,
+      "name": "OrderNotOpen",
+      "msg": "Order not open"
+    },
+    {
+      "code": 6048,
+      "name": "FillOrderDidNotUpdateState",
+      "msg": "FillOrderDidNotUpdateState"
+    },
+    {
+      "code": 6049,
+      "name": "ReduceOnlyOrderIncreasedRisk",
+      "msg": "Reduce only order increased risk"
+    },
+    {
+      "code": 6050,
+      "name": "UnableToLoadAccountLoader",
+      "msg": "Unable to load AccountLoader"
+    },
+    {
+      "code": 6051,
+      "name": "TradeSizeTooLarge",
+      "msg": "Trade Size Too Large"
+    },
+    {
+      "code": 6052,
+      "name": "UserCantReferThemselves",
+      "msg": "User cant refer themselves"
+    },
+    {
+      "code": 6053,
+      "name": "DidNotReceiveExpectedReferrer",
+      "msg": "Did not receive expected referrer"
+    },
+    {
+      "code": 6054,
+      "name": "CouldNotDeserializeReferrer",
+      "msg": "Could not deserialize referrer"
+    },
+    {
+      "code": 6055,
+      "name": "CouldNotDeserializeReferrerStats",
+      "msg": "Could not deserialize referrer stats"
+    },
+    {
+      "code": 6056,
+      "name": "UserOrderIdAlreadyInUse",
+      "msg": "User Order Id Already In Use"
+    },
+    {
+      "code": 6057,
+      "name": "NoPositionsLiquidatable",
+      "msg": "No positions liquidatable"
+    },
+    {
+      "code": 6058,
+      "name": "InvalidMarginRatio",
+      "msg": "Invalid Margin Ratio"
+    },
+    {
+      "code": 6059,
+      "name": "CantCancelPostOnlyOrder",
+      "msg": "Cant Cancel Post Only Order"
+    },
+    {
+      "code": 6060,
+      "name": "InvalidOracleOffset",
+      "msg": "InvalidOracleOffset"
+    },
+    {
+      "code": 6061,
+      "name": "CantExpireOrders",
+      "msg": "CantExpireOrders"
+    },
+    {
+      "code": 6062,
+      "name": "CouldNotLoadMarketData",
+      "msg": "CouldNotLoadMarketData"
+    },
+    {
+      "code": 6063,
+      "name": "MarketNotFound",
+      "msg": "MarketNotFound"
+    },
+    {
+      "code": 6064,
+      "name": "InvalidMarketAccount",
+      "msg": "InvalidMarketAccount"
+    },
+    {
+      "code": 6065,
+      "name": "UnableToLoadMarketAccount",
+      "msg": "UnableToLoadMarketAccount"
+    },
+    {
+      "code": 6066,
+      "name": "MarketWrongMutability",
+      "msg": "MarketWrongMutability"
+    },
+    {
+      "code": 6067,
+      "name": "UnableToCastUnixTime",
+      "msg": "UnableToCastUnixTime"
+    },
+    {
+      "code": 6068,
+      "name": "CouldNotFindSpotPosition",
+      "msg": "CouldNotFindSpotPosition"
+    },
+    {
+      "code": 6069,
+      "name": "NoSpotPositionAvailable",
+      "msg": "NoSpotPositionAvailable"
+    },
+    {
+      "code": 6070,
+      "name": "InvalidSpotMarketInitialization",
+      "msg": "InvalidSpotMarketInitialization"
+    },
+    {
+      "code": 6071,
+      "name": "CouldNotLoadSpotMarketData",
+      "msg": "CouldNotLoadSpotMarketData"
+    },
+    {
+      "code": 6072,
+      "name": "SpotMarketNotFound",
+      "msg": "SpotMarketNotFound"
+    },
+    {
+      "code": 6073,
+      "name": "InvalidSpotMarketAccount",
+      "msg": "InvalidSpotMarketAccount"
+    },
+    {
+      "code": 6074,
+      "name": "UnableToLoadSpotMarketAccount",
+      "msg": "UnableToLoadSpotMarketAccount"
+    },
+    {
+      "code": 6075,
+      "name": "SpotMarketWrongMutability",
+      "msg": "SpotMarketWrongMutability"
+    },
+    {
+      "code": 6076,
+      "name": "SpotMarketInterestNotUpToDate",
+      "msg": "SpotInterestNotUpToDate"
+    },
+    {
+      "code": 6077,
+      "name": "SpotMarketInsufficientDeposits",
+      "msg": "SpotMarketInsufficientDeposits"
+    },
+    {
+      "code": 6078,
+      "name": "UserMustSettleTheirOwnPositiveUnsettledPNL",
+      "msg": "UserMustSettleTheirOwnPositiveUnsettledPNL"
+    },
+    {
+      "code": 6079,
+      "name": "CantUpdatePoolBalanceType",
+      "msg": "CantUpdatePoolBalanceType"
+    },
+    {
+      "code": 6080,
+      "name": "InsufficientCollateralForSettlingPNL",
+      "msg": "InsufficientCollateralForSettlingPNL"
+    },
+    {
+      "code": 6081,
+      "name": "AMMNotUpdatedInSameSlot",
+      "msg": "AMMNotUpdatedInSameSlot"
+    },
+    {
+      "code": 6082,
+      "name": "AuctionNotComplete",
+      "msg": "AuctionNotComplete"
+    },
+    {
+      "code": 6083,
+      "name": "MakerNotFound",
+      "msg": "MakerNotFound"
+    },
+    {
+      "code": 6084,
+      "name": "MakerStatsNotFound",
+      "msg": "MakerNotFound"
+    },
+    {
+      "code": 6085,
+      "name": "MakerMustBeWritable",
+      "msg": "MakerMustBeWritable"
+    },
+    {
+      "code": 6086,
+      "name": "MakerStatsMustBeWritable",
+      "msg": "MakerMustBeWritable"
+    },
+    {
+      "code": 6087,
+      "name": "MakerOrderNotFound",
+      "msg": "MakerOrderNotFound"
+    },
+    {
+      "code": 6088,
+      "name": "CouldNotDeserializeMaker",
+      "msg": "CouldNotDeserializeMaker"
+    },
+    {
+      "code": 6089,
+      "name": "CouldNotDeserializeMakerStats",
+      "msg": "CouldNotDeserializeMaker"
+    },
+    {
+      "code": 6090,
+      "name": "AuctionPriceDoesNotSatisfyMaker",
+      "msg": "AuctionPriceDoesNotSatisfyMaker"
+    },
+    {
+      "code": 6091,
+      "name": "MakerCantFulfillOwnOrder",
+      "msg": "MakerCantFulfillOwnOrder"
+    },
+    {
+      "code": 6092,
+      "name": "MakerOrderMustBePostOnly",
+      "msg": "MakerOrderMustBePostOnly"
+    },
+    {
+      "code": 6093,
+      "name": "CantMatchTwoPostOnlys",
+      "msg": "CantMatchTwoPostOnlys"
+    },
+    {
+      "code": 6094,
+      "name": "OrderBreachesOraclePriceLimits",
+      "msg": "OrderBreachesOraclePriceLimits"
+    },
+    {
+      "code": 6095,
+      "name": "OrderMustBeTriggeredFirst",
+      "msg": "OrderMustBeTriggeredFirst"
+    },
+    {
+      "code": 6096,
+      "name": "OrderNotTriggerable",
+      "msg": "OrderNotTriggerable"
+    },
+    {
+      "code": 6097,
+      "name": "OrderDidNotSatisfyTriggerCondition",
+      "msg": "OrderDidNotSatisfyTriggerCondition"
+    },
+    {
+      "code": 6098,
+      "name": "PositionAlreadyBeingLiquidated",
+      "msg": "PositionAlreadyBeingLiquidated"
+    },
+    {
+      "code": 6099,
+      "name": "PositionDoesntHaveOpenPositionOrOrders",
+      "msg": "PositionDoesntHaveOpenPositionOrOrders"
+    },
+    {
+      "code": 6100,
+      "name": "AllOrdersAreAlreadyLiquidations",
+      "msg": "AllOrdersAreAlreadyLiquidations"
+    },
+    {
+      "code": 6101,
+      "name": "CantCancelLiquidationOrder",
+      "msg": "CantCancelLiquidationOrder"
+    },
+    {
+      "code": 6102,
+      "name": "UserIsBeingLiquidated",
+      "msg": "UserIsBeingLiquidated"
+    },
+    {
+      "code": 6103,
+      "name": "LiquidationsOngoing",
+      "msg": "LiquidationsOngoing"
+    },
+    {
+      "code": 6104,
+      "name": "WrongSpotBalanceType",
+      "msg": "WrongSpotBalanceType"
+    },
+    {
+      "code": 6105,
+      "name": "UserCantLiquidateThemself",
+      "msg": "UserCantLiquidateThemself"
+    },
+    {
+      "code": 6106,
+      "name": "InvalidPerpPositionToLiquidate",
+      "msg": "InvalidPerpPositionToLiquidate"
+    },
+    {
+      "code": 6107,
+      "name": "InvalidBaseAssetAmountForLiquidatePerp",
+      "msg": "InvalidBaseAssetAmountForLiquidatePerp"
+    },
+    {
+      "code": 6108,
+      "name": "InvalidPositionLastFundingRate",
+      "msg": "InvalidPositionLastFundingRate"
+    },
+    {
+      "code": 6109,
+      "name": "InvalidPositionDelta",
+      "msg": "InvalidPositionDelta"
+    },
+    {
+      "code": 6110,
+      "name": "UserBankrupt",
+      "msg": "UserBankrupt"
+    },
+    {
+      "code": 6111,
+      "name": "UserNotBankrupt",
+      "msg": "UserNotBankrupt"
+    },
+    {
+      "code": 6112,
+      "name": "UserHasInvalidBorrow",
+      "msg": "UserHasInvalidBorrow"
+    },
+    {
+      "code": 6113,
+      "name": "DailyWithdrawLimit",
+      "msg": "DailyWithdrawLimit"
+    },
+    {
+      "code": 6114,
+      "name": "DefaultError",
+      "msg": "DefaultError"
+    },
+    {
+      "code": 6115,
+      "name": "InsufficientLPTokens",
+      "msg": "Insufficient LP tokens"
+    },
+    {
+      "code": 6116,
+      "name": "CantLPWithPerpPosition",
+      "msg": "Cant LP with a market position"
+    },
+    {
+      "code": 6117,
+      "name": "UnableToBurnLPTokens",
+      "msg": "Unable to burn LP tokens"
+    },
+    {
+      "code": 6118,
+      "name": "TryingToRemoveLiquidityTooFast",
+      "msg": "Trying to remove liqudity too fast after adding it"
+    },
+    {
+      "code": 6119,
+      "name": "InvalidSpotMarketVault",
+      "msg": "Invalid Spot Market Vault"
+    },
+    {
+      "code": 6120,
+      "name": "InvalidSpotMarketState",
+      "msg": "Invalid Spot Market State"
+    },
+    {
+      "code": 6121,
+      "name": "InvalidSerumProgram",
+      "msg": "InvalidSerumProgram"
+    },
+    {
+      "code": 6122,
+      "name": "InvalidSerumMarket",
+      "msg": "InvalidSerumMarket"
+    },
+    {
+      "code": 6123,
+      "name": "InvalidSerumOpenOrders",
+      "msg": "InvalidSerumOpenOrders"
+    },
+    {
+      "code": 6124,
+      "name": "FailedSerumCPI",
+      "msg": "FailedSerumCPI"
+    },
+    {
+      "code": 6125,
+      "name": "FailedToFillOnSerum",
+      "msg": "FailedToFillOnSerum"
+    },
+    {
+      "code": 6126,
+      "name": "InvalidSerumFulfillmentConfig",
+      "msg": "InvalidSerumFulfillmentConfig"
+    }
+  ]
+}
+>>>>>>> master

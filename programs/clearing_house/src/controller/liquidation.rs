@@ -5,8 +5,9 @@ use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount,
 };
 use crate::controller::spot_balance::{
-    update_revenue_pool_balances, update_spot_balances, update_spot_market_cumulative_interest,
+    update_revenue_pool_balances, update_spot_market_cumulative_interest,
 };
+use crate::controller::spot_position::update_spot_position_balance;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::get_then_update_id;
 use crate::math::bankruptcy::is_user_bankrupt;
@@ -668,7 +669,7 @@ pub fn liquidate_borrow(
     {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
 
-        update_spot_balances(
+        update_spot_position_balance(
             liability_transfer
                 .checked_sub(if_fee)
                 .ok_or_else(math_error!())?,
@@ -680,7 +681,7 @@ pub fn liquidate_borrow(
 
         update_revenue_pool_balances(if_fee, &SpotBalanceType::Deposit, &mut liability_market)?;
 
-        update_spot_balances(
+        update_spot_position_balance(
             liability_transfer,
             &SpotBalanceType::Borrow,
             &mut liability_market,
@@ -694,7 +695,7 @@ pub fn liquidate_borrow(
     {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
 
-        update_spot_balances(
+        update_spot_position_balance(
             asset_transfer,
             &SpotBalanceType::Borrow,
             &mut asset_market,
@@ -702,7 +703,7 @@ pub fn liquidate_borrow(
             false,
         )?;
 
-        update_spot_balances(
+        update_spot_position_balance(
             asset_transfer,
             &SpotBalanceType::Deposit,
             &mut asset_market,
@@ -1046,7 +1047,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
 
-        update_spot_balances(
+        update_spot_position_balance(
             liability_transfer,
             &SpotBalanceType::Deposit,
             &mut liability_market,
@@ -1054,7 +1055,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             false,
         )?;
 
-        update_spot_balances(
+        update_spot_position_balance(
             liability_transfer,
             &SpotBalanceType::Borrow,
             &mut liability_market,
@@ -1404,7 +1405,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
 
-        update_spot_balances(
+        update_spot_position_balance(
             asset_transfer,
             &SpotBalanceType::Borrow,
             &mut asset_market,
@@ -1412,7 +1413,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             false,
         )?;
 
-        update_spot_balances(
+        update_spot_position_balance(
             asset_transfer,
             &SpotBalanceType::Deposit,
             &mut asset_market,
@@ -1728,7 +1729,7 @@ pub fn resolve_borrow_bankruptcy(
     {
         let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
         let spot_position = user.get_spot_position_mut(market_index).unwrap();
-        update_spot_balances(
+        update_spot_position_balance(
             borrow_amount,
             &SpotBalanceType::Deposit,
             &mut spot_market,

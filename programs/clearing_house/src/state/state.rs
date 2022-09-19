@@ -13,7 +13,7 @@ use crate::math::constants::{
     DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_MINIMUM_BALANCE, DEFAULT_FEE_DENOMINATOR,
     DEFAULT_FEE_NUMERATOR, DEFAULT_REFEREE_DISCOUNT_DENOMINATOR,
     DEFAULT_REFEREE_DISCOUNT_NUMERATOR, DEFAULT_REFERRER_REWARD_DENOMINATOR,
-    DEFAULT_REFERRER_REWARD_NUMERATOR,
+    DEFAULT_REFERRER_REWARD_EPOCH_UPPER_BOUND, DEFAULT_REFERRER_REWARD_NUMERATOR,
 };
 use anchor_lang::prelude::*;
 
@@ -126,6 +126,7 @@ impl Default for FeeStructure {
                 referrer_reward_denominator: DEFAULT_REFERRER_REWARD_DENOMINATOR,
                 referee_discount_numerator: DEFAULT_REFEREE_DISCOUNT_NUMERATOR,
                 referee_discount_denominator: DEFAULT_REFEREE_DISCOUNT_DENOMINATOR,
+                referrer_reward_epoch_upper_bound: DEFAULT_REFERRER_REWARD_EPOCH_UPPER_BOUND,
             },
             filler_reward_structure: OrderFillerRewardStructure {
                 reward_numerator: 1,
@@ -156,6 +157,7 @@ pub struct DiscountTokenTier {
 pub struct ReferralDiscount {
     pub referrer_reward_numerator: u128,
     pub referrer_reward_denominator: u128,
+    pub referrer_reward_epoch_upper_bound: u64,
     pub referee_discount_numerator: u128,
     pub referee_discount_denominator: u128,
 }
