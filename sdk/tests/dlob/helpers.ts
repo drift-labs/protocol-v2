@@ -20,7 +20,7 @@ export const mockPerpPosition = {
 	openOrders: new BN(0),
 	openBids: new BN(0),
 	openAsks: new BN(0),
-	realizedPnl: new BN(0),
+	settledPnl: new BN(0),
 	lpShares: new BN(0),
 	lastFeePerLp: new BN(0),
 	lastNetBaseAssetAmountPerLp: new BN(0),

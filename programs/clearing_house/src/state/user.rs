@@ -7,7 +7,10 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::calculate_rolling_sum;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::cast_to_i128;
-use crate::math::constants::{QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY_I128};
+use crate::math::constants::{
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, MARK_PRICE_PRECISION_I128, QUOTE_SPOT_MARKET_INDEX,
+    THIRTY_DAY_I128,
+};
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
 use crate::math_error;
@@ -246,7 +249,7 @@ pub struct PerpPosition {
     pub open_orders: u128,
     pub open_bids: i128,
     pub open_asks: i128,
-    pub realized_pnl: i64,
+    pub settled_pnl: i64,
 
     // lp stuff
     pub lp_shares: u128,
@@ -330,7 +333,46 @@ impl PerpPosition {
         }
     }
 
-    pub fn get_unsettled_pnl(&self, oracle_price: i128) -> ClearingHouseResult<i128> {
+    pub fn get_entry_price(&self) -> ClearingHouseResult<i128> {
+        if self.base_asset_amount == 0 {
+            return Ok(0);
+        }
+
+        (-self.quote_entry_amount)
+            .checked_mul(MARK_PRICE_PRECISION_I128)
+            .ok_or_else(math_error!())?
+            .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+            .ok_or_else(math_error!())?
+            .checked_div(self.base_asset_amount)
+            .ok_or_else(math_error!())
+    }
+
+    pub fn get_cost_basis(&self) -> ClearingHouseResult<i128> {
+        if self.base_asset_amount == 0 {
+            return Ok(0);
+        }
+
+        (-self.quote_asset_amount)
+            .checked_mul(MARK_PRICE_PRECISION_I128)
+            .ok_or_else(math_error!())?
+            .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+            .ok_or_else(math_error!())?
+            .checked_div(self.base_asset_amount)
+            .ok_or_else(math_error!())
+    }
+
+    pub fn get_unrealized_pnl(&self, oracle_price: i128) -> ClearingHouseResult<i128> {
+        let (_, unrealized_pnl) =
+            calculate_base_asset_value_and_pnl_with_oracle_price(self, oracle_price)?;
+
+        Ok(unrealized_pnl)
+    }
+
+    pub fn get_claimable_pnl(
+        &self,
+        oracle_price: i128,
+        pnl_pool_excess: i128,
+    ) -> ClearingHouseResult<i128> {
         let (_, unrealized_pnl) =
             calculate_base_asset_value_and_pnl_with_oracle_price(self, oracle_price)?;
 
@@ -341,6 +383,8 @@ impl PerpPosition {
                 .quote_asset_amount
                 .checked_sub(self.quote_entry_amount)
                 .map(|delta| delta.max(0))
+                .ok_or_else(math_error!())?
+                .checked_add(pnl_pool_excess.max(0))
                 .ok_or_else(math_error!())?;
 
             Ok(unrealized_pnl.min(max_positive_pnl))

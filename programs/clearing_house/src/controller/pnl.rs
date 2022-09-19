@@ -1,23 +1,25 @@
 use crate::controller::amm::{update_pnl_pool_and_user_balance, update_pool_balances};
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::position::{
-    get_position_index, update_position_and_market, update_quote_asset_amount, update_realized_pnl,
+    get_position_index, update_position_and_market, update_quote_asset_amount, update_settled_pnl,
     PositionDelta,
 };
 use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::spot_balance::update_spot_market_cumulative_interest;
 use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math::amm::calculate_net_user_pnl;
 use crate::math::casting::cast;
 use crate::math::casting::cast_to_i128;
 use crate::math::casting::cast_to_i64;
 use crate::math::margin::meets_maintenance_margin_requirement;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_settlement_price;
+use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
 use crate::state::events::SettlePnlRecord;
 use crate::state::market::MarketStatus;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
-use crate::state::spot_market::SpotBalanceType;
+use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
 use crate::state::user::User;
@@ -85,8 +87,23 @@ pub fn settle_pnl(
     )?;
 
     let oracle_price = oracle_map.get_price_data(&perp_market.amm.oracle)?.price;
+
+    let pnl_pool_token_amount = cast_to_i128(get_token_amount(
+        perp_market.pnl_pool.balance,
+        spot_market,
+        perp_market.pnl_pool.balance_type(),
+    )?)?;
+    let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, oracle_price)?;
+    let max_pnl_pool_excess = if net_user_pnl < pnl_pool_token_amount {
+        pnl_pool_token_amount
+            .checked_sub(net_user_pnl.max(0))
+            .ok_or_else(math_error!())?
+    } else {
+        0
+    };
+
     let user_unsettled_pnl: i128 =
-        user.perp_positions[position_index].get_unsettled_pnl(oracle_price)?;
+        user.perp_positions[position_index].get_claimable_pnl(oracle_price, max_pnl_pool_excess)?;
 
     let pnl_to_settle_with_user =
         update_pool_balances(perp_market, spot_market, user_unsettled_pnl, now)?;
@@ -102,9 +119,9 @@ pub fn settle_pnl(
     }
 
     validate!(
-        pnl_to_settle_with_user < 0 || user.authority.eq(authority),
+        pnl_to_settle_with_user < 0 || max_pnl_pool_excess > 0 || user.authority.eq(authority),
         ErrorCode::UserMustSettleTheirOwnPositiveUnsettledPNL,
-        "User must settle their own unsettled pnl when its positive",
+        "User must settle their own unsettled pnl when its positive and pnl pool not in excess",
     )?;
 
     update_spot_balances(
@@ -125,7 +142,7 @@ pub fn settle_pnl(
         -pnl_to_settle_with_user,
     )?;
 
-    update_realized_pnl(
+    update_settled_pnl(
         &mut user.perp_positions[position_index],
         cast(pnl_to_settle_with_user)?,
     )?;
