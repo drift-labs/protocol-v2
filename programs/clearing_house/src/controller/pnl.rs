@@ -4,8 +4,8 @@ use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount, update_settled_pnl,
     PositionDelta,
 };
-use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::spot_balance::update_spot_market_cumulative_interest;
+use crate::controller::spot_position::update_spot_position_balance;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::calculate_net_user_pnl;
 use crate::math::casting::cast;
@@ -124,7 +124,7 @@ pub fn settle_pnl(
         "User must settle their own unsettled pnl when its positive and pnl pool not in excess",
     )?;
 
-    update_spot_balances(
+    update_spot_position_balance(
         pnl_to_settle_with_user.unsigned_abs(),
         if pnl_to_settle_with_user > 0 {
             &SpotBalanceType::Deposit
