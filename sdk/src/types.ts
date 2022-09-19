@@ -559,7 +559,7 @@ export type PerpPosition = {
 	openOrders: BN;
 	openBids: BN;
 	openAsks: BN;
-	realizedPnl: BN;
+	settledPnl: BN;
 	lpShares: BN;
 	lastFeePerLp: BN;
 	lastNetBaseAssetAmountPerLp: BN;
