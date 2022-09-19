@@ -36,7 +36,7 @@ use std::convert::identity;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("3v1iEjbSSLSSYyt1pmx4UB5rqJGurmz71RibXF7X6UF3");
+declare_id!("CUowJP5Dea7pkc2mKrkX2RuZUrPXL3u419iBRXyZEWQz");
 
 #[program]
 pub mod clearing_house {
