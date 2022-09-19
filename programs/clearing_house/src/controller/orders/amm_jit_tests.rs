@@ -1,12 +1,12 @@
 use crate::math::constants::ONE_BPS_DENOMINATOR;
-use crate::state::fees::{FeeStructure2, FeeTier};
+use crate::state::fees::{FeeStructure, FeeTier};
 use crate::state::oracle_map::OracleMap;
 use crate::state::user::{Order, PerpPosition};
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
 
-fn get_fee_structure() -> FeeStructure2 {
-    FeeStructure2 {
+fn get_fee_structure() -> FeeStructure {
+    FeeStructure {
         first_tier: FeeTier {
             fee_numerator: 5,
             fee_denominator: ONE_BPS_DENOMINATOR,
@@ -14,7 +14,7 @@ fn get_fee_structure() -> FeeStructure2 {
             maker_rebate_denominator: ONE_BPS_DENOMINATOR,
             ..FeeTier::default()
         },
-        ..FeeStructure2::default()
+        ..FeeStructure::default()
     }
 }
 

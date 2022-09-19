@@ -46,7 +46,7 @@ use crate::order_validation::{validate_order, validate_spot_order};
 use crate::print_error;
 use crate::state::events::{get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
-use crate::state::fees::{FeeStructure2, PERP_FEE_STRUCTURE, SPOT_FEE_STRUCTURE};
+use crate::state::fees::{FeeStructure, PERP_FEE_STRUCTURE, SPOT_FEE_STRUCTURE};
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::market::PerpMarket;
 use crate::state::oracle::OraclePriceData;
@@ -961,7 +961,7 @@ fn fulfill_order(
     spot_market_map: &SpotMarketMap,
     perp_market_map: &PerpMarketMap,
     oracle_map: &mut OracleMap,
-    fee_structure: &FeeStructure2,
+    fee_structure: &FeeStructure,
     mark_price_before: u128,
     valid_oracle_price: Option<i128>,
     now: i64,
@@ -1112,7 +1112,7 @@ fn cancel_risk_increasing_order(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
-    fee_structure: &FeeStructure2,
+    fee_structure: &FeeStructure,
     now: i64,
     slot: u64,
 ) -> ClearingHouseResult {
@@ -1161,7 +1161,7 @@ pub fn fulfill_order_with_amm(
     filler_stats: &mut Option<&mut UserStats>,
     referrer: &mut Option<&mut User>,
     referrer_stats: &mut Option<&mut UserStats>,
-    fee_structure: &FeeStructure2,
+    fee_structure: &FeeStructure,
     order_records: &mut Vec<OrderActionRecord>,
     override_base_asset_amount: Option<u128>,
     override_fill_price: Option<u128>, // todo probs dont need this since its the user_limit_price / current auction time
@@ -1410,7 +1410,7 @@ pub fn fulfill_order_with_match(
     valid_oracle_price: Option<i128>,
     now: i64,
     slot: u64,
-    fee_structure: &FeeStructure2,
+    fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
     order_records: &mut Vec<OrderActionRecord>,
 ) -> ClearingHouseResult<(u128, u128)> {
@@ -2544,7 +2544,7 @@ fn fulfill_spot_order(
     oracle_map: &mut OracleMap,
     now: i64,
     slot: u64,
-    fee_structure: &FeeStructure2,
+    fee_structure: &FeeStructure,
     mut serum_fulfillment_params: Option<SerumFulfillmentParams>,
 ) -> ClearingHouseResult<(u128, bool)> {
     let free_collateral =
@@ -2699,7 +2699,7 @@ pub fn fulfill_spot_order_with_match(
     now: i64,
     slot: u64,
     oracle_map: &mut OracleMap,
-    fee_structure: &FeeStructure2,
+    fee_structure: &FeeStructure,
     order_records: &mut Vec<OrderActionRecord>,
 ) -> ClearingHouseResult<u128> {
     if !are_orders_same_market_but_different_sides(
@@ -2934,7 +2934,7 @@ pub fn fulfill_spot_order_with_serum(
     now: i64,
     slot: u64,
     oracle_map: &mut OracleMap,
-    fee_structure: &FeeStructure2,
+    fee_structure: &FeeStructure,
     order_records: &mut Vec<OrderActionRecord>,
     serum_fulfillment_params: &mut Option<SerumFulfillmentParams>,
 ) -> ClearingHouseResult<u128> {

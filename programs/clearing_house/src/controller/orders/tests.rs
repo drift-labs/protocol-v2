@@ -1,12 +1,12 @@
-use crate::state::fees::{FeeStructure2, FeeTier};
+use crate::state::fees::{FeeStructure, FeeTier};
 use crate::state::market::MarketStatus;
 use crate::state::oracle_map::OracleMap;
 use crate::state::user::{Order, PerpPosition};
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
 
-fn get_fee_structure() -> FeeStructure2 {
-    FeeStructure2 {
+fn get_fee_structure() -> FeeStructure {
+    FeeStructure {
         first_tier: FeeTier {
             fee_numerator: 5,
             fee_denominator: 10000,
@@ -14,7 +14,7 @@ fn get_fee_structure() -> FeeStructure2 {
             maker_rebate_denominator: 10000,
             ..FeeTier::default()
         },
-        ..FeeStructure2::default()
+        ..FeeStructure::default()
     }
 }
 
@@ -571,7 +571,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 3_u64;
 
-        let fee_structure = FeeStructure2::default();
+        let fee_structure = FeeStructure::default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -656,7 +656,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 3_u64;
 
-        let fee_structure = FeeStructure2::default();
+        let fee_structure = FeeStructure::default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -742,7 +742,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure2::default();
+        let fee_structure = FeeStructure::default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -828,7 +828,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure2::default();
+        let fee_structure = FeeStructure::default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -914,7 +914,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure2::default();
+        let fee_structure = FeeStructure::default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -1022,7 +1022,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure2::default();
+        let fee_structure = FeeStructure::default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 

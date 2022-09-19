@@ -1,6 +1,6 @@
 use crate::math::constants::{MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND, ONE_BPS_DENOMINATOR};
 
-pub struct FeeStructure2 {
+pub struct FeeStructure {
     pub first_tier: FeeTier,
     pub second_tier: FeeTier,
     pub third_tier: FeeTier,
@@ -28,9 +28,9 @@ pub struct OrderFillerRewardStructure {
     pub time_based_reward_lower_bound: u128, // minimum filler reward for time-based reward
 }
 
-impl Default for FeeStructure2 {
+impl Default for FeeStructure {
     fn default() -> Self {
-        FeeStructure2 {
+        FeeStructure {
             first_tier: FeeTier {
                 fee_numerator: 10,
                 fee_denominator: ONE_BPS_DENOMINATOR,
@@ -51,7 +51,7 @@ impl Default for FeeStructure2 {
     }
 }
 
-pub const PERP_FEE_STRUCTURE: FeeStructure2 = FeeStructure2 {
+pub const PERP_FEE_STRUCTURE: FeeStructure = FeeStructure {
     first_tier: FeeTier {
         fee_numerator: 10,
         fee_denominator: ONE_BPS_DENOMINATOR,
@@ -101,7 +101,7 @@ pub const PERP_FEE_STRUCTURE: FeeStructure2 = FeeStructure2 {
     referrer_reward_epoch_upper_bound: MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
 };
 
-pub const SPOT_FEE_STRUCTURE: FeeStructure2 = FeeStructure2 {
+pub const SPOT_FEE_STRUCTURE: FeeStructure = FeeStructure {
     first_tier: FeeTier {
         fee_numerator: 10,
         fee_denominator: ONE_BPS_DENOMINATOR,

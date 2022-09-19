@@ -8,7 +8,7 @@ use std::cmp::{max, min};
 
 use super::casting::cast_to_i128;
 use crate::math::constants::{ONE_HUNDRED_MILLION_QUOTE, ONE_MILLION_QUOTE, TEN_MILLION_QUOTE};
-use crate::state::fees::{FeeStructure2, FeeTier, OrderFillerRewardStructure};
+use crate::state::fees::{FeeStructure, FeeTier, OrderFillerRewardStructure};
 use crate::state::user::UserStats;
 
 pub struct FillFees {
@@ -24,7 +24,7 @@ pub struct FillFees {
 pub fn calculate_fee_for_order_fulfill_against_amm(
     user_stats: &UserStats,
     quote_asset_amount: u128,
-    fee_structure: &FeeStructure2,
+    fee_structure: &FeeStructure,
     order_ts: i64,
     now: i64,
     reward_filler: bool,
@@ -189,7 +189,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     taker_stats: &UserStats,
     maker_stats: &UserStats,
     quote_asset_amount: u128,
-    fee_structure: &FeeStructure2,
+    fee_structure: &FeeStructure,
     order_ts: i64,
     now: i64,
     reward_filler: bool,
@@ -266,7 +266,7 @@ pub struct SerumFillFees {
 pub fn calculate_fee_for_fulfillment_with_serum(
     user_stats: &UserStats,
     quote_asset_amount: u128,
-    fee_structure: &FeeStructure2,
+    fee_structure: &FeeStructure,
     order_ts: i64,
     now: i64,
     reward_filler: bool,
@@ -332,7 +332,7 @@ pub fn calculate_fee_for_fulfillment_with_serum(
 
 pub fn determine_user_fee_tier<'a>(
     user_stats: &UserStats,
-    fee_structure: &'a FeeStructure2,
+    fee_structure: &'a FeeStructure,
 ) -> ClearingHouseResult<&'a FeeTier> {
     let total_30d_volume = user_stats.get_total_30d_volume()?;
 
@@ -357,7 +357,7 @@ mod test {
     mod calculate_fee_for_taker_and_maker {
         use crate::math::constants::QUOTE_PRECISION;
         use crate::math::fees::{calculate_fee_for_fulfillment_with_match, FillFees};
-        use crate::state::fees::FeeStructure2;
+        use crate::state::fees::FeeStructure;
         use crate::state::user::UserStats;
 
         #[test]
@@ -378,7 +378,7 @@ mod test {
                 &taker_stats,
                 &maker_stats,
                 quote_asset_amount,
-                &FeeStructure2::default(),
+                &FeeStructure::default(),
                 0,
                 0,
                 false,
@@ -402,7 +402,7 @@ mod test {
             let taker_stats = UserStats::default();
             let maker_stats = UserStats::default();
 
-            let mut fee_structure = FeeStructure2::default();
+            let mut fee_structure = FeeStructure::default();
             fee_structure
                 .filler_reward_structure
                 .time_based_reward_lower_bound = 10000000000000000; // big number
@@ -443,7 +443,7 @@ mod test {
             let taker_stats = UserStats::default();
             let maker_stats = UserStats::default();
 
-            let mut fee_structure = FeeStructure2::default();
+            let mut fee_structure = FeeStructure::default();
             fee_structure.filler_reward_structure.reward_numerator = 1; // will make size reward the whole fee
             fee_structure.filler_reward_structure.reward_denominator = 1;
 
@@ -483,7 +483,7 @@ mod test {
             let taker_stats = UserStats::default();
             let maker_stats = UserStats::default();
 
-            let mut fee_structure = FeeStructure2::default();
+            let mut fee_structure = FeeStructure::default();
             fee_structure.filler_reward_structure.reward_numerator = 1; // will make size reward the whole fee
             fee_structure.filler_reward_structure.reward_denominator = 1;
 
@@ -523,7 +523,7 @@ mod test {
             let taker_stats = UserStats::default();
             let maker_stats = UserStats::default();
 
-            let fee_structure = FeeStructure2::default();
+            let fee_structure = FeeStructure::default();
 
             let FillFees {
                 user_fee: taker_fee,
@@ -558,7 +558,7 @@ mod test {
     mod calculate_fee_for_order_fulfill_against_amm {
         use crate::math::constants::QUOTE_PRECISION;
         use crate::math::fees::{calculate_fee_for_order_fulfill_against_amm, FillFees};
-        use crate::state::fees::FeeStructure2;
+        use crate::state::fees::FeeStructure;
         use crate::state::user::UserStats;
 
         #[test]
@@ -566,7 +566,7 @@ mod test {
             let quote_asset_amount = 100 * QUOTE_PRECISION;
 
             let taker_stats = UserStats::default();
-            let fee_structure = FeeStructure2::default();
+            let fee_structure = FeeStructure::default();
 
             let FillFees {
                 user_fee,
@@ -600,7 +600,7 @@ mod test {
     mod calculate_fee_for_fulfillment_with_serum {
         use crate::math::constants::QUOTE_PRECISION;
         use crate::math::fees::{calculate_fee_for_fulfillment_with_serum, SerumFillFees};
-        use crate::state::fees::FeeStructure2;
+        use crate::state::fees::FeeStructure;
         use crate::state::user::UserStats;
 
         #[test]
@@ -614,7 +614,7 @@ mod test {
             let fee_pool_token_amount = 0_u128;
 
             let taker_stats = UserStats::default();
-            let fee_structure = FeeStructure2::default();
+            let fee_structure = FeeStructure::default();
 
             let SerumFillFees {
                 user_fee,
@@ -651,7 +651,7 @@ mod test {
             let fee_pool_token_amount = 0_u128;
 
             let taker_stats = UserStats::default();
-            let fee_structure = FeeStructure2::default();
+            let fee_structure = FeeStructure::default();
 
             let SerumFillFees {
                 user_fee,
@@ -688,7 +688,7 @@ mod test {
             let fee_pool_token_amount = 10000_u128;
 
             let user_stats = UserStats::default();
-            let mut fee_structure = FeeStructure2::default();
+            let mut fee_structure = FeeStructure::default();
             fee_structure.first_tier.fee_numerator = 4;
 
             let SerumFillFees {
@@ -726,7 +726,7 @@ mod test {
             let fee_pool_token_amount = 2000_u128;
 
             let user_stats = UserStats::default();
-            let mut fee_structure = FeeStructure2::default();
+            let mut fee_structure = FeeStructure::default();
             fee_structure.first_tier.fee_numerator = 4;
 
             let SerumFillFees {
