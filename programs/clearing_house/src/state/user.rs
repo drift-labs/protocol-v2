@@ -159,7 +159,6 @@ pub struct SpotPosition {
     pub open_bids: i128,
     pub open_asks: i128,
     pub cumulative_deposits: i64,
-    pub cumulative_buys: i64,
 }
 
 impl SpotBalance for SpotPosition {
