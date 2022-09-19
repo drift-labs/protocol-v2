@@ -54,6 +54,7 @@ export interface ClearingHouseAccountSubscriber {
 	getSpotMarketAccountAndSlot(
 		marketIndex: BN
 	): DataAndSlot<SpotMarketAccount> | undefined;
+	getSpotMarketAccountsAndSlots(): DataAndSlot<SpotMarketAccount>[];
 	getOraclePriceDataAndSlot(
 		oraclePublicKey: PublicKey
 	): DataAndSlot<OraclePriceData> | undefined;

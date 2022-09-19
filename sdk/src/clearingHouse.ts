@@ -305,6 +305,12 @@ export class ClearingHouse {
 		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
 	}
 
+	public getSpotMarketAccounts(): SpotMarketAccount[] {
+		return this.accountSubscriber
+			.getSpotMarketAccountsAndSlots()
+			.map((value) => value.data);
+	}
+
 	public getQuoteSpotMarketAccount(): SpotMarketAccount {
 		return this.accountSubscriber.getSpotMarketAccountAndSlot(
 			QUOTE_SPOT_MARKET_INDEX
