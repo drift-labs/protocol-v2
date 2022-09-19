@@ -36,7 +36,7 @@ use std::convert::identity;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("3v1iEjbSSLSSYyt1pmx4UB5rqJGurmz71RibXF7X6UF3");
+declare_id!("CUowJP5Dea7pkc2mKrkX2RuZUrPXL3u419iBRXyZEWQz");
 
 #[program]
 pub mod clearing_house {
@@ -640,7 +640,7 @@ pub mod clearing_house {
             amount
         };
 
-        controller::spot_balance::update_spot_balances(
+        controller::spot_position::update_spot_position_balance(
             amount as u128,
             &SpotBalanceType::Deposit,
             spot_market,
@@ -723,7 +723,7 @@ pub mod clearing_house {
             };
 
             // prevents withdraw when limits hit
-            controller::spot_balance::update_spot_balances_with_limits(
+            controller::spot_balance::update_spot_position_balance_with_limits(
                 amount as u128,
                 &SpotBalanceType::Borrow,
                 spot_market,
@@ -821,7 +821,7 @@ pub mod clearing_house {
             let from_spot_position =
                 from_user.force_get_spot_position_mut(spot_market.market_index)?;
 
-            controller::spot_balance::update_spot_balances(
+            controller::spot_position::update_spot_position_balance(
                 amount as u128,
                 &SpotBalanceType::Borrow,
                 spot_market,
@@ -866,7 +866,7 @@ pub mod clearing_house {
             let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
             let to_spot_position = to_user.force_get_spot_position_mut(spot_market.market_index)?;
 
-            controller::spot_balance::update_spot_balances(
+            controller::spot_position::update_spot_position_balance(
                 amount as u128,
                 &SpotBalanceType::Deposit,
                 spot_market,

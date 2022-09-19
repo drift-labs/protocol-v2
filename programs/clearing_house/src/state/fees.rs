@@ -1,4 +1,4 @@
-use crate::math::constants::ONE_BPS_DENOMINATOR;
+use crate::math::constants::{MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND, ONE_BPS_DENOMINATOR};
 
 pub struct FeeStructure2 {
     pub first_tier: FeeTier,
@@ -6,6 +6,7 @@ pub struct FeeStructure2 {
     pub third_tier: FeeTier,
     pub fourth_tier: FeeTier,
     pub filler_reward_structure: OrderFillerRewardStructure,
+    pub referrer_reward_epoch_upper_bound: u64,
     pub flat_filler_fee: u128,
 }
 
@@ -97,6 +98,7 @@ pub const PERP_FEE_STRUCTURE: FeeStructure2 = FeeStructure2 {
         time_based_reward_lower_bound: 10_000, // 1 cent
     },
     flat_filler_fee: 10_000,
+    referrer_reward_epoch_upper_bound: MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
 };
 
 pub const SPOT_FEE_STRUCTURE: FeeStructure2 = FeeStructure2 {
@@ -146,4 +148,5 @@ pub const SPOT_FEE_STRUCTURE: FeeStructure2 = FeeStructure2 {
         time_based_reward_lower_bound: 10_000, // 1 cent
     },
     flat_filler_fee: 10_000,
+    referrer_reward_epoch_upper_bound: MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
 };

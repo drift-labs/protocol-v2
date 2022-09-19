@@ -29,6 +29,7 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
     now: i64,
     reward_filler: bool,
     reward_referrer: bool,
+    referrer_stats: &Option<&mut UserStats>,
     quote_asset_amount_surplus: i128,
     is_post_only: bool,
 ) -> ClearingHouseResult<FillFees> {
@@ -68,7 +69,13 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
             .ok_or_else(math_error!())?;
 
         let (fee, referee_discount, referrer_reward) = if reward_referrer {
-            calculate_referee_fee_and_referrer_reward(quote_asset_amount, fee, fee_tier)?
+            calculate_referee_fee_and_referrer_reward(
+                quote_asset_amount,
+                fee,
+                fee_tier,
+                fee_structure.referrer_reward_epoch_upper_bound,
+                referrer_stats,
+            )?
         } else {
             (fee, 0, 0)
         };
@@ -113,6 +120,8 @@ fn calculate_referee_fee_and_referrer_reward(
     quote_asset_amount: u128,
     fee: u128,
     fee_tier: &FeeTier,
+    referrer_reward_epoch_upper_bound: u64,
+    referrer_stats: &Option<&mut UserStats>,
 ) -> ClearingHouseResult<(u128, u128, u128)> {
     let referee_fee = get_proportion_u128(
         quote_asset_amount,
@@ -121,15 +130,24 @@ fn calculate_referee_fee_and_referrer_reward(
     )?;
 
     let referee_discount = fee.saturating_sub(referee_fee);
-    Ok((
-        referee_fee,
-        referee_discount,
-        get_proportion_u128(
-            quote_asset_amount,
-            fee_tier.referrer_reward_numerator,
-            fee_tier.referrer_reward_denominator,
-        )?,
-    ))
+
+    let max_referrer_reward_from_fee = get_proportion_u128(
+        quote_asset_amount,
+        fee_tier.referrer_reward_numerator,
+        fee_tier.referrer_reward_denominator,
+    )?;
+
+    let referrer_reward = match referrer_stats {
+        Some(referrer_stats) => {
+            let max_referrer_reward_in_epoch = cast_to_u128(
+                referrer_reward_epoch_upper_bound
+                    .saturating_sub(referrer_stats.current_epoch_referrer_reward),
+            )?;
+            max_referrer_reward_from_fee.min(max_referrer_reward_in_epoch)
+        }
+        None => max_referrer_reward_from_fee,
+    };
+    Ok((referee_fee, referee_discount, referrer_reward))
 }
 
 fn calculate_filler_reward(
@@ -176,6 +194,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     now: i64,
     reward_filler: bool,
     reward_referrer: bool,
+    referrer_stats: &Option<&mut UserStats>,
 ) -> ClearingHouseResult<FillFees> {
     let taker_fee_tier = determine_user_fee_tier(taker_stats, fee_structure)?;
     let maker_fee_tier = determine_user_fee_tier(maker_stats, fee_structure)?;
@@ -187,7 +206,13 @@ pub fn calculate_fee_for_fulfillment_with_match(
         .ok_or_else(math_error!())?;
 
     let (taker_fee, referee_discount, referrer_reward) = if reward_referrer {
-        calculate_referee_fee_and_referrer_reward(quote_asset_amount, taker_fee, taker_fee_tier)?
+        calculate_referee_fee_and_referrer_reward(
+            quote_asset_amount,
+            taker_fee,
+            taker_fee_tier,
+            fee_structure.referrer_reward_epoch_upper_bound,
+            referrer_stats,
+        )?
     } else {
         (taker_fee, 0, 0)
     };
@@ -358,6 +383,7 @@ mod test {
                 0,
                 false,
                 false,
+                &None,
             )
             .unwrap();
 
@@ -398,6 +424,7 @@ mod test {
                 0,
                 true,
                 false,
+                &None,
             )
             .unwrap();
 
@@ -437,6 +464,7 @@ mod test {
                 0,
                 true,
                 false,
+                &None,
             )
             .unwrap();
 
@@ -476,6 +504,7 @@ mod test {
                 60,
                 true,
                 false,
+                &None,
             )
             .unwrap();
 
@@ -513,6 +542,7 @@ mod test {
                 0,
                 false,
                 true,
+                &None,
             )
             .unwrap();
 
@@ -553,6 +583,7 @@ mod test {
                 60,
                 false,
                 true,
+                &None,
                 0,
                 false,
             )

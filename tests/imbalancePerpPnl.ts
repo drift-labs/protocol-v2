@@ -22,7 +22,7 @@ import {
 	EventSubscriber,
 	QUOTE_PRECISION,
 	ClearingHouseUser,
-	calculateNetUserImbalance,
+	calculateNetUserPnlImbalance,
 	getMarketOrderParams,
 	calculateUpdatedAMM,
 	oraclePriceBands,
@@ -401,7 +401,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			market00.marketIndex
 		);
 
-		const imbalance00 = calculateNetUserImbalance(
+		const imbalance00 = calculateNetUserPnlImbalance(
 			market00,
 			bank00,
 			oraclePriceData00
@@ -559,7 +559,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		assert(ask1.eq(ask0After));
 
 		while (!market0.amm.lastOracleValid) {
-			const imbalance = calculateNetUserImbalance(
+			const imbalance = calculateNetUserPnlImbalance(
 				market0,
 				bank0,
 				oraclePriceData0
@@ -597,7 +597,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			market0.marketIndex
 		);
 
-		const imbalance = calculateNetUserImbalance(
+		const imbalance = calculateNetUserPnlImbalance(
 			market0,
 			bank0,
 			oraclePriceData
@@ -669,7 +669,11 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			market0.marketIndex
 		);
 
-		const imbalance = calculateNetUserImbalance(market, bank, oraclePriceData);
+		const imbalance = calculateNetUserPnlImbalance(
+			market,
+			bank,
+			oraclePriceData
+		);
 
 		console.log('pnlimbalance:', imbalance.toString());
 		assert(imbalance.eq(new BN(44462178050))); //44k still :o
@@ -825,7 +829,11 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			market.marketIndex
 		);
 
-		const imbalance = calculateNetUserImbalance(market, bank, oraclePriceData);
+		const imbalance = calculateNetUserPnlImbalance(
+			market,
+			bank,
+			oraclePriceData
+		);
 
 		console.log('pnlimbalance:', imbalance.toString());
 		// assert(imbalance.lt(new BN(44462175964))); //44k still :o

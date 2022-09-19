@@ -313,6 +313,12 @@ export class WebSocketClearingHouseAccountSubscriber
 			.dataAndSlot;
 	}
 
+	public getSpotMarketAccountsAndSlots(): DataAndSlot<SpotMarketAccount>[] {
+		return Array.from(this.spotMarketAccountSubscribers.values()).map(
+			(subscriber) => subscriber.dataAndSlot
+		);
+	}
+
 	public getOraclePriceDataAndSlot(
 		oraclePublicKey: PublicKey
 	): DataAndSlot<OraclePriceData> | undefined {

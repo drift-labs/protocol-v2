@@ -4646,12 +4646,14 @@ pub mod fulfill_spot_order {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
             balance: 900000,
+            cumulative_deposits: -100100000,
             ..SpotPosition::default()
         };
         expected_taker.spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_INTEREST_PRECISION,
+            cumulative_deposits: 1000000000,
             ..SpotPosition::default()
         };
 
@@ -4661,12 +4663,14 @@ pub mod fulfill_spot_order {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
             balance: 100020000,
+            cumulative_deposits: 100020000,
             ..SpotPosition::default()
         };
         expected_maker.spot_positions[2] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
             balance: 0,
+            cumulative_deposits: -1000000000,
             ..SpotPosition::default()
         };
 
