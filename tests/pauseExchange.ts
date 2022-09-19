@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, QUOTE_ASSET_BANK_INDEX } from '../sdk';
+import { BN, QUOTE_SPOT_MARKET_INDEX } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -104,7 +104,7 @@ describe('admin withdraw', () => {
 		try {
 			await clearingHouse.withdraw(
 				usdcAmount,
-				QUOTE_ASSET_BANK_INDEX,
+				QUOTE_SPOT_MARKET_INDEX,
 				userUSDCAccount.publicKey
 			);
 		} catch (e) {

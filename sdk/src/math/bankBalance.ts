@@ -1,19 +1,19 @@
 import {
-	BankAccount,
-	BankBalanceType,
 	isVariant,
 	MarginCategory,
+	SpotBalanceType,
+	SpotMarketAccount,
 } from '../types';
 import { BN } from '@project-serum/anchor';
 import {
-	BANK_UTILIZATION_PRECISION,
 	ONE,
 	TEN,
 	ZERO,
-	BANK_INTEREST_PRECISION,
-	BANK_WEIGHT_PRECISION,
 	ONE_YEAR,
 	AMM_RESERVE_PRECISION,
+	SPOT_MARKET_WEIGHT_PRECISION,
+	SPOT_MARKET_UTILIZATION_PRECISION,
+	SPOT_MARKET_INTEREST_PRECISION,
 } from '../constants/numericConstants';
 import {
 	calculateSizeDiscountAssetWeight,
@@ -22,8 +22,8 @@ import {
 
 export function getBalance(
 	tokenAmount: BN,
-	bank: BankAccount,
-	balanceType: BankBalanceType
+	bank: SpotMarketAccount,
+	balanceType: SpotBalanceType
 ): BN {
 	const precisionIncrease = TEN.pow(new BN(16 - bank.decimals));
 
@@ -42,8 +42,8 @@ export function getBalance(
 
 export function getTokenAmount(
 	balanceAmount: BN,
-	bank: BankAccount,
-	balanceType: BankBalanceType
+	bank: SpotMarketAccount,
+	balanceType: SpotBalanceType
 ): BN {
 	const precisionDecrease = TEN.pow(new BN(16 - bank.decimals));
 
@@ -56,7 +56,7 @@ export function getTokenAmount(
 
 export function calculateAssetWeight(
 	balanceAmount: BN,
-	bank: BankAccount,
+	bank: SpotMarketAccount,
 	marginCategory: MarginCategory
 ): BN {
 	const sizePrecision = TEN.pow(new BN(bank.decimals));
@@ -98,7 +98,7 @@ export function calculateAssetWeight(
 
 export function calculateLiabilityWeight(
 	balanceAmount: BN,
-	bank: BankAccount,
+	bank: SpotMarketAccount,
 	marginCategory: MarginCategory
 ): BN {
 	const sizePrecision = TEN.pow(new BN(bank.decimals));
@@ -121,7 +121,7 @@ export function calculateLiabilityWeight(
 				sizeInAmmReservePrecision,
 				bank.imfFactor,
 				bank.initialLiabilityWeight,
-				BANK_WEIGHT_PRECISION
+				SPOT_MARKET_WEIGHT_PRECISION
 			);
 			break;
 		case 'Maintenance':
@@ -129,7 +129,7 @@ export function calculateLiabilityWeight(
 				sizeInAmmReservePrecision,
 				bank.imfFactor,
 				bank.maintenanceLiabilityWeight,
-				BANK_WEIGHT_PRECISION
+				SPOT_MARKET_WEIGHT_PRECISION
 			);
 			break;
 		default:
@@ -140,33 +140,33 @@ export function calculateLiabilityWeight(
 	return assetWeight;
 }
 
-export function calculateUtilization(bank: BankAccount): BN {
+export function calculateUtilization(bank: SpotMarketAccount): BN {
 	const tokenDepositAmount = getTokenAmount(
 		bank.depositBalance,
 		bank,
-		BankBalanceType.DEPOSIT
+		SpotBalanceType.DEPOSIT
 	);
 	const tokenBorrowAmount = getTokenAmount(
 		bank.borrowBalance,
 		bank,
-		BankBalanceType.BORROW
+		SpotBalanceType.BORROW
 	);
 
 	let utilization: BN;
 	if (tokenBorrowAmount.eq(ZERO) && tokenDepositAmount.eq(ZERO)) {
 		utilization = ZERO;
 	} else if (tokenDepositAmount.eq(ZERO)) {
-		utilization = BANK_UTILIZATION_PRECISION;
+		utilization = SPOT_MARKET_UTILIZATION_PRECISION;
 	} else {
 		utilization = tokenBorrowAmount
-			.mul(BANK_UTILIZATION_PRECISION)
+			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
 			.div(tokenDepositAmount);
 	}
 
 	return utilization;
 }
 
-export function calculateInterestRate(bank: BankAccount): BN {
+export function calculateInterestRate(bank: SpotMarketAccount): BN {
 	const utilization = calculateUtilization(bank);
 
 	let interestRate: BN;
@@ -174,40 +174,42 @@ export function calculateInterestRate(bank: BankAccount): BN {
 		const surplusUtilization = utilization.sub(bank.optimalUtilization);
 		const borrowRateSlope = bank.maxBorrowRate
 			.sub(bank.optimalBorrowRate)
-			.mul(BANK_UTILIZATION_PRECISION)
-			.div(BANK_UTILIZATION_PRECISION.sub(bank.optimalUtilization));
+			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+			.div(SPOT_MARKET_UTILIZATION_PRECISION.sub(bank.optimalUtilization));
 
 		interestRate = bank.optimalBorrowRate.add(
-			surplusUtilization.mul(borrowRateSlope).div(BANK_UTILIZATION_PRECISION)
+			surplusUtilization
+				.mul(borrowRateSlope)
+				.div(SPOT_MARKET_UTILIZATION_PRECISION)
 		);
 	} else {
 		const borrowRateSlope = bank.optimalBorrowRate
-			.mul(BANK_UTILIZATION_PRECISION)
-			.div(BANK_UTILIZATION_PRECISION.sub(bank.optimalUtilization));
+			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+			.div(SPOT_MARKET_UTILIZATION_PRECISION.sub(bank.optimalUtilization));
 
 		interestRate = utilization
 			.mul(borrowRateSlope)
-			.div(BANK_UTILIZATION_PRECISION);
+			.div(SPOT_MARKET_UTILIZATION_PRECISION);
 	}
 
 	return interestRate;
 }
 
-export function calculateDepositRate(bank: BankAccount): BN {
+export function calculateDepositRate(bank: SpotMarketAccount): BN {
 	const utilization = calculateUtilization(bank);
 	const borrowRate = calculateBorrowRate(bank);
 	const depositRate = borrowRate
 		.mul(utilization)
-		.div(BANK_UTILIZATION_PRECISION);
+		.div(SPOT_MARKET_UTILIZATION_PRECISION);
 	return depositRate;
 }
 
-export function calculateBorrowRate(bank: BankAccount): BN {
+export function calculateBorrowRate(bank: SpotMarketAccount): BN {
 	return calculateInterestRate(bank);
 }
 
 export function calculateInterestAccumulated(
-	bank: BankAccount,
+	bank: SpotMarketAccount,
 	now: BN
 ): { borrowInterest: BN; depositInterest: BN } {
 	const interestRate = calculateInterestRate(bank);
@@ -220,34 +222,34 @@ export function calculateInterestAccumulated(
 
 	const modifiedDepositRate = modifiedBorrowRate
 		.mul(utilization)
-		.div(BANK_UTILIZATION_PRECISION);
+		.div(SPOT_MARKET_UTILIZATION_PRECISION);
 
 	const borrowInterest = bank.cumulativeBorrowInterest
 		.mul(modifiedBorrowRate)
 		.div(ONE_YEAR)
-		.div(BANK_INTEREST_PRECISION)
+		.div(SPOT_MARKET_INTEREST_PRECISION)
 		.add(ONE);
 	const depositInterest = bank.cumulativeDepositInterest
 		.mul(modifiedDepositRate)
 		.div(ONE_YEAR)
-		.div(BANK_INTEREST_PRECISION);
+		.div(SPOT_MARKET_INTEREST_PRECISION);
 
 	return { borrowInterest, depositInterest };
 }
 
 export function calculateWithdrawLimit(
-	bank: BankAccount,
+	bank: SpotMarketAccount,
 	now: BN
 ): { borrowLimit: BN; withdrawLimit: BN } {
 	const bankDepositTokenAmount = getTokenAmount(
 		bank.depositBalance,
 		bank,
-		BankBalanceType.DEPOSIT
+		SpotBalanceType.DEPOSIT
 	);
 	const bankBorrowTokenAmount = getTokenAmount(
 		bank.borrowBalance,
 		bank,
-		BankBalanceType.BORROW
+		SpotBalanceType.BORROW
 	);
 
 	const twentyFourHours = new BN(60 * 60 * 24);

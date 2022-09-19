@@ -22,7 +22,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPrice,
-	initializeQuoteAssetBank,
+	initializeQuoteSpotMarket,
 } from './testHelpers';
 import {
 	AMM_RESERVE_PRECISION,
@@ -61,7 +61,7 @@ describe('oracle offset', () => {
 	let solUsd;
 
 	let marketIndexes;
-	let bankIndexes;
+	let spotMarketIndexes;
 	let oracleInfos;
 
 	before(async () => {
@@ -70,7 +70,7 @@ describe('oracle offset', () => {
 
 		solUsd = await mockOracle(1);
 		marketIndexes = [new BN(0)];
-		bankIndexes = [new BN(0)];
+		spotMarketIndexes = [new BN(0)];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		fillerClearingHouse = new Admin({
@@ -81,14 +81,14 @@ describe('oracle offset', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
 		await fillerClearingHouse.subscribe();
-		await initializeQuoteAssetBank(fillerClearingHouse, usdcMint.publicKey);
-		await fillerClearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await initializeQuoteSpotMarket(fillerClearingHouse, usdcMint.publicKey);
+		await fillerClearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -113,9 +113,9 @@ describe('oracle offset', () => {
 
 	beforeEach(async () => {
 		await fillerClearingHouse.moveAmmPrice(
+			ZERO,
 			ammInitialBaseAssetReserve,
-			ammInitialQuoteAssetReserve,
-			ZERO
+			ammInitialQuoteAssetReserve
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 1, solUsd);
 	});
@@ -143,8 +143,8 @@ describe('oracle offset', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.subscribe();
@@ -176,9 +176,9 @@ describe('oracle offset', () => {
 		await clearingHouse.placeOrder(orderParams);
 
 		await fillerClearingHouse.moveAmmPrice(
+			marketIndex,
 			ammInitialBaseAssetReserve.mul(new BN(11)).div(new BN(10)),
-			ammInitialQuoteAssetReserve,
-			marketIndex
+			ammInitialQuoteAssetReserve
 		);
 
 		await clearingHouseUser.fetchAccounts();
@@ -217,8 +217,8 @@ describe('oracle offset', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.subscribe();
@@ -250,9 +250,9 @@ describe('oracle offset', () => {
 		await clearingHouse.placeOrder(orderParams);
 
 		await fillerClearingHouse.moveAmmPrice(
+			marketIndex,
 			ammInitialBaseAssetReserve.mul(new BN(11)).div(new BN(10)),
-			ammInitialQuoteAssetReserve,
-			marketIndex
+			ammInitialQuoteAssetReserve
 		);
 
 		await clearingHouseUser.fetchAccounts();
@@ -292,8 +292,8 @@ describe('oracle offset', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.subscribe();
@@ -323,9 +323,9 @@ describe('oracle offset', () => {
 		await clearingHouse.placeOrder(orderParams);
 
 		await fillerClearingHouse.moveAmmPrice(
+			marketIndex,
 			ammInitialBaseAssetReserve,
-			ammInitialQuoteAssetReserve.mul(new BN(11)).div(new BN(10)),
-			marketIndex
+			ammInitialQuoteAssetReserve.mul(new BN(11)).div(new BN(10))
 		);
 
 		await clearingHouseUser.fetchAccounts();
@@ -364,8 +364,8 @@ describe('oracle offset', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.subscribe();
@@ -396,9 +396,9 @@ describe('oracle offset', () => {
 		await clearingHouse.placeOrder(orderParams);
 
 		await fillerClearingHouse.moveAmmPrice(
+			marketIndex,
 			ammInitialBaseAssetReserve,
-			ammInitialQuoteAssetReserve.mul(new BN(11)).div(new BN(10)),
-			marketIndex
+			ammInitialQuoteAssetReserve.mul(new BN(11)).div(new BN(10))
 		);
 
 		await clearingHouseUser.fetchAccounts();
@@ -438,8 +438,8 @@ describe('oracle offset', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.subscribe();
@@ -494,8 +494,8 @@ describe('oracle offset', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			marketIndexes,
-			bankIndexes,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
 		await clearingHouse.subscribe();

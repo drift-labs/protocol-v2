@@ -2,13 +2,13 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::cast_to_i128;
 use crate::math::orders::is_multiple_of_step_size;
 use crate::math_error;
-use crate::state::market::Market;
-use crate::state::user::MarketPosition;
+use crate::state::market::PerpMarket;
+use crate::state::user::PerpPosition;
 use crate::validate;
 use solana_program::msg;
 
 #[allow(clippy::comparison_chain)]
-pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
+pub fn validate_market_account(market: &PerpMarket) -> ClearingHouseResult {
     validate!(
         (market.base_asset_amount_long + market.base_asset_amount_short)
             == market.amm.net_base_asset_amount + market.amm.net_unsettled_lp_base_asset_amount,
@@ -96,6 +96,7 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
         rounding_diff
     )?;
 
+    // todo
     if market.amm.base_spread > 0 {
         // bid quote/base < reserve q/b
         validate!(
@@ -132,12 +133,15 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
     )?;
 
     validate!(
-        market.amm.long_spread + market.amm.short_spread <= market.amm.max_spread as u128,
+        market.amm.long_spread + market.amm.short_spread
+            <= (market.amm.max_spread as u128)
+                .max(market.amm.last_oracle_mark_spread_pct.unsigned_abs()),
         ErrorCode::DefaultError,
-        "long_spread + short_spread > max_spread: {} + {} < {}",
+        "long_spread + short_spread > max_spread: {} + {} < {}.max({})",
         market.amm.long_spread,
         market.amm.short_spread,
-        market.amm.max_spread
+        market.amm.max_spread,
+        market.amm.last_oracle_mark_spread_pct.unsigned_abs()
     )?;
 
     if market.amm.net_base_asset_amount > 0 {
@@ -179,8 +183,8 @@ pub fn validate_market_account(market: &Market) -> ClearingHouseResult {
 }
 
 pub fn validate_position_account(
-    position: &MarketPosition,
-    market: &Market,
+    position: &PerpPosition,
+    market: &PerpMarket,
 ) -> ClearingHouseResult {
     validate!(
         position.market_index == market.market_index,

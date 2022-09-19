@@ -7,8 +7,8 @@ use crate::math::constants::{
 };
 use crate::math::repeg::{calculate_fee_pool, get_total_fee_lower_bound};
 use crate::math_error;
-use crate::state::market::Market;
-use crate::state::user::MarketPosition;
+use crate::state::market::PerpMarket;
+use crate::state::user::PerpPosition;
 use solana_program::msg;
 use std::cmp::{max, min};
 
@@ -49,7 +49,7 @@ pub fn calculate_funding_rate(
 /// To account for this, amm keeps track of the cumulative funding rate for both longs and shorts.
 /// When there is a period with asymmetric funding, the clearing house will pay/receive funding from/to it's collected fees.
 pub fn calculate_funding_rate_long_short(
-    market: &mut Market,
+    market: &mut PerpMarket,
     funding_rate: i128,
 ) -> ClearingHouseResult<(i128, i128, i128)> {
     // Calculate the funding payment owed by the net_market_position if funding is not capped
@@ -123,7 +123,7 @@ pub fn calculate_funding_rate_long_short(
 }
 
 fn calculate_capped_funding_rate(
-    market: &Market,
+    market: &PerpMarket,
     uncapped_funding_pnl: i128, // if negative, users would net recieve from clearinghouse
     funding_rate: i128,
 ) -> ClearingHouseResult<(i128, i128)> {
@@ -177,7 +177,7 @@ fn calculate_capped_funding_rate(
 
 pub fn calculate_funding_payment(
     amm_cumulative_funding_rate: i128,
-    market_position: &MarketPosition,
+    market_position: &PerpPosition,
 ) -> ClearingHouseResult<i128> {
     let funding_rate_delta = amm_cumulative_funding_rate
         .checked_sub(market_position.last_cumulative_funding_rate)
@@ -259,12 +259,12 @@ pub fn calculate_funding_payment_in_quote_precision(
 mod test {
     use super::*;
     use crate::math::constants::{AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION};
-    use crate::state::market::{Market, AMM};
+    use crate::state::market::{PerpMarket, AMM};
 
     #[test]
     fn capped_sym_funding_test() {
         // more shorts than longs, positive funding, 1/3 of fee pool too small
-        let mut market = Market {
+        let mut market = PerpMarket {
             base_asset_amount_long: 122950819670000,
             base_asset_amount_short: -122950819670000 * 2,
             amm: AMM {
@@ -282,7 +282,7 @@ mod test {
 
                 ..AMM::default()
             },
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         let balanced_funding = calculate_funding_rate(
@@ -305,7 +305,7 @@ mod test {
         assert_eq!(market.amm.total_fee_minus_distributions, 416667);
 
         // more longs than shorts, positive funding, amm earns funding
-        market = Market {
+        market = PerpMarket {
             base_asset_amount_long: 122950819670000 * 2,
             base_asset_amount_short: -122950819670000,
             amm: AMM {
@@ -322,7 +322,7 @@ mod test {
 
                 ..AMM::default()
             },
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         assert_eq!(balanced_funding, 4166666666666);
@@ -346,7 +346,7 @@ mod test {
         // 2) the lps should be short but its unsettled...
         // 3) amm takes on the funding revenu/cost of those short LPs
 
-        let mut market = Market {
+        let mut market = PerpMarket {
             base_asset_amount_long: 122950819670000,
             base_asset_amount_short: -122950819670000 * 2,
             amm: AMM {
@@ -365,7 +365,7 @@ mod test {
 
                 ..AMM::default()
             },
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         let balanced_funding = calculate_funding_rate(
@@ -412,7 +412,7 @@ mod test {
         assert_eq!(market.amm.total_fee_minus_distributions, 20821038);
 
         // more longs than shorts, positive funding, amm earns funding
-        market = Market {
+        market = PerpMarket {
             base_asset_amount_long: 122950819670000 * 2,
             base_asset_amount_short: -122950819670000,
             amm: AMM {
@@ -430,7 +430,7 @@ mod test {
 
                 ..AMM::default()
             },
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         let balanced_funding = calculate_funding_rate(
@@ -461,7 +461,7 @@ mod test {
         // 2) the lps should be short but its unsettled...
         // 3) amm takes on the funding revenu/cost of those short LPs
 
-        let mut market = Market {
+        let mut market = PerpMarket {
             base_asset_amount_long: 122950819670000,
             base_asset_amount_short: -122950819670000 * 2,
             amm: AMM {
@@ -480,7 +480,7 @@ mod test {
 
                 ..AMM::default()
             },
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         let balanced_funding = calculate_funding_rate(
@@ -527,7 +527,7 @@ mod test {
         assert_eq!(market.amm.total_fee_minus_distributions, 99977654372);
 
         // more longs than shorts, positive funding, amm earns funding
-        market = Market {
+        market = PerpMarket {
             base_asset_amount_long: 122950819670000 * 2,
             base_asset_amount_short: -122950819670000,
             amm: AMM {
@@ -545,7 +545,7 @@ mod test {
 
                 ..AMM::default()
             },
-            ..Market::default()
+            ..PerpMarket::default()
         };
 
         let balanced_funding = calculate_funding_rate(

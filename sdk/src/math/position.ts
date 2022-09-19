@@ -1,4 +1,4 @@
-import { BN } from '../';
+import { BN, SpotMarketAccount } from '../';
 import {
 	AMM_RESERVE_PRECISION,
 	AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
@@ -10,15 +10,15 @@ import {
 	ZERO,
 } from '../constants/numericConstants';
 import { OraclePriceData } from '../oracles/types';
-import { MarketAccount, PositionDirection, UserPosition } from '../types';
+import { PerpMarketAccount, PositionDirection, PerpPosition } from '../types';
 import {
 	calculateUpdatedAMM,
 	calculateUpdatedAMMSpreadReserves,
 	calculateAmmReservesAfterSwap,
 	getSwapDirection,
 } from './amm';
-
 import { calculateBaseAssetValueWithOracle } from './margin';
+import { calculateNetUserPnlImbalance } from './market';
 
 /**
  * calculateBaseAssetValue
@@ -29,9 +29,11 @@ import { calculateBaseAssetValueWithOracle } from './margin';
  * @returns Base Asset Value. : Precision QUOTE_PRECISION
  */
 export function calculateBaseAssetValue(
-	market: MarketAccount,
-	userPosition: UserPosition,
-	oraclePriceData: OraclePriceData
+	market: PerpMarketAccount,
+	userPosition: PerpPosition,
+	oraclePriceData: OraclePriceData,
+	useSpread = true,
+	skipUpdate = false
 ): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
@@ -40,21 +42,25 @@ export function calculateBaseAssetValue(
 	const directionToClose = findDirectionToClose(userPosition);
 	let prepegAmm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
 
-	if (market.amm.baseSpread > 0) {
-		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
-			calculateUpdatedAMMSpreadReserves(
-				market.amm,
-				directionToClose,
-				oraclePriceData
-			);
-		prepegAmm = {
-			baseAssetReserve,
-			quoteAssetReserve,
-			sqrtK: sqrtK,
-			pegMultiplier: newPeg,
-		};
+	if (!skipUpdate) {
+		if (market.amm.baseSpread > 0 && useSpread) {
+			const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
+				calculateUpdatedAMMSpreadReserves(
+					market.amm,
+					directionToClose,
+					oraclePriceData
+				);
+			prepegAmm = {
+				baseAssetReserve,
+				quoteAssetReserve,
+				sqrtK: sqrtK,
+				pegMultiplier: newPeg,
+			};
+		} else {
+			prepegAmm = calculateUpdatedAMM(market.amm, oraclePriceData);
+		}
 	} else {
-		prepegAmm = calculateUpdatedAMM(market.amm, oraclePriceData);
+		prepegAmm = market.amm;
 	}
 
 	const [newQuoteAssetReserve, _] = calculateAmmReservesAfterSwap(
@@ -84,38 +90,38 @@ export function calculateBaseAssetValue(
  * calculatePositionPNL
  * = BaseAssetAmount * (Avg Exit Price - Avg Entry Price)
  * @param market
- * @param marketPosition
+ * @param PerpPosition
  * @param withFunding (adds unrealized funding payment pnl to result)
  * @param oraclePriceData
  * @returns BaseAssetAmount : Precision QUOTE_PRECISION
  */
 export function calculatePositionPNL(
-	market: MarketAccount,
-	marketPosition: UserPosition,
+	market: PerpMarketAccount,
+	perpPosition: PerpPosition,
 	withFunding = false,
 	oraclePriceData: OraclePriceData
 ): BN {
-	if (marketPosition.baseAssetAmount.eq(ZERO)) {
-		return marketPosition.quoteAssetAmount;
+	if (perpPosition.baseAssetAmount.eq(ZERO)) {
+		return perpPosition.quoteAssetAmount;
 	}
 
 	const baseAssetValue = calculateBaseAssetValueWithOracle(
 		market,
-		marketPosition,
+		perpPosition,
 		oraclePriceData
 	);
 
-	const baseAssetValueSign = marketPosition.baseAssetAmount.isNeg()
+	const baseAssetValueSign = perpPosition.baseAssetAmount.isNeg()
 		? new BN(-1)
 		: new BN(1);
 	let pnl = baseAssetValue
 		.mul(baseAssetValueSign)
-		.add(marketPosition.quoteAssetAmount);
+		.add(perpPosition.quoteAssetAmount);
 
 	if (withFunding) {
 		const fundingRatePnL = calculatePositionFundingPNL(
 			market,
-			marketPosition
+			perpPosition
 		).div(PRICE_TO_QUOTE_PRECISION);
 
 		pnl = pnl.add(fundingRatePnL);
@@ -124,28 +130,36 @@ export function calculatePositionPNL(
 	return pnl;
 }
 
-export function calculateUnsettledPnl(
-	market: MarketAccount,
-	marketPosition: UserPosition,
+export function calculateClaimablePnl(
+	market: PerpMarketAccount,
+	spotMarket: SpotMarketAccount,
+	perpPosition: PerpPosition,
 	oraclePriceData: OraclePriceData
 ): BN {
 	const unrealizedPnl = calculatePositionPNL(
 		market,
-		marketPosition,
+		perpPosition,
 		true,
 		oraclePriceData
 	);
 
-	let unsettledPnl = unrealizedPnl;
+	const fundingPnL = calculatePositionFundingPNL(market, perpPosition).div(
+		PRICE_TO_QUOTE_PRECISION
+	);
+
+	let unsettledPnl = unrealizedPnl.add(fundingPnL);
 	if (unrealizedPnl.gt(ZERO)) {
-		const fundingPnL = calculatePositionFundingPNL(market, marketPosition).div(
-			PRICE_TO_QUOTE_PRECISION
+		const excessPnlPool = BN.max(
+			ZERO,
+			calculateNetUserPnlImbalance(market, spotMarket, oraclePriceData).mul(
+				new BN(-1)
+			)
 		);
 
 		const maxPositivePnl = BN.max(
-			marketPosition.quoteAssetAmount
-				.sub(marketPosition.quoteEntryAmount)
-				.add(fundingPnL),
+			perpPosition.quoteAssetAmount
+				.sub(perpPosition.quoteEntryAmount)
+				.add(excessPnlPool),
 			ZERO
 		);
 
@@ -157,27 +171,27 @@ export function calculateUnsettledPnl(
 /**
  *
  * @param market
- * @param marketPosition
+ * @param PerpPosition
  * @returns // TODO-PRECISION
  */
 export function calculatePositionFundingPNL(
-	market: MarketAccount,
-	marketPosition: UserPosition
+	market: PerpMarketAccount,
+	perpPosition: PerpPosition
 ): BN {
-	if (marketPosition.baseAssetAmount.eq(ZERO)) {
+	if (perpPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
 	}
 
 	let ammCumulativeFundingRate: BN;
-	if (marketPosition.baseAssetAmount.gt(ZERO)) {
+	if (perpPosition.baseAssetAmount.gt(ZERO)) {
 		ammCumulativeFundingRate = market.amm.cumulativeFundingRateLong;
 	} else {
 		ammCumulativeFundingRate = market.amm.cumulativeFundingRateShort;
 	}
 
 	const perPositionFundingRate = ammCumulativeFundingRate
-		.sub(marketPosition.lastCumulativeFundingRate)
-		.mul(marketPosition.baseAssetAmount)
+		.sub(perpPosition.lastCumulativeFundingRate)
+		.mul(perpPosition.baseAssetAmount)
 		.div(AMM_RESERVE_PRECISION)
 		.div(FUNDING_PAYMENT_PRECISION)
 		.mul(new BN(-1));
@@ -185,7 +199,7 @@ export function calculatePositionFundingPNL(
 	return perPositionFundingRate;
 }
 
-export function positionIsAvailable(position: UserPosition): boolean {
+export function positionIsAvailable(position: PerpPosition): boolean {
 	return (
 		position.baseAssetAmount.eq(ZERO) &&
 		position.openOrders.eq(ZERO) &&
@@ -199,7 +213,7 @@ export function positionIsAvailable(position: UserPosition): boolean {
  * @param userPosition
  * @returns Precision: MARK_PRICE_PRECISION (10^10)
  */
-export function calculateEntryPrice(userPosition: UserPosition): BN {
+export function calculateEntryPrice(userPosition: PerpPosition): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
 	}
@@ -216,7 +230,7 @@ export function calculateEntryPrice(userPosition: UserPosition): BN {
  * @param userPosition
  * @returns Precision: MARK_PRICE_PRECISION (10^10)
  */
-export function calculateCostBasis(userPosition: UserPosition): BN {
+export function calculateCostBasis(userPosition: PerpPosition): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
 	}
@@ -229,7 +243,7 @@ export function calculateCostBasis(userPosition: UserPosition): BN {
 }
 
 export function findDirectionToClose(
-	userPosition: UserPosition
+	userPosition: PerpPosition
 ): PositionDirection {
 	return userPosition.baseAssetAmount.gt(ZERO)
 		? PositionDirection.SHORT
@@ -237,14 +251,14 @@ export function findDirectionToClose(
 }
 
 export function positionCurrentDirection(
-	userPosition: UserPosition
+	userPosition: PerpPosition
 ): PositionDirection {
 	return userPosition.baseAssetAmount.gte(ZERO)
 		? PositionDirection.LONG
 		: PositionDirection.SHORT;
 }
 
-export function isEmptyPosition(userPosition: UserPosition): boolean {
+export function isEmptyPosition(userPosition: PerpPosition): boolean {
 	return (
 		userPosition.baseAssetAmount.eq(ZERO) && userPosition.openOrders.eq(ZERO)
 	);

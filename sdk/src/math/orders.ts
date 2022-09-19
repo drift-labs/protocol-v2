@@ -2,7 +2,7 @@ import { ClearingHouseUser } from '../clearingHouseUser';
 import {
 	isOneOfVariant,
 	isVariant,
-	MarketAccount,
+	PerpMarketAccount,
 	Order,
 	PositionDirection,
 } from '../types';
@@ -131,9 +131,9 @@ export function standardizeBaseAssetAmount(
 
 export function getLimitPrice(
 	order: Order,
-	market: MarketAccount,
 	oraclePriceData: OraclePriceData,
-	slot: number
+	slot: number,
+	perpMarket?: PerpMarketAccount
 ): BN {
 	let limitPrice;
 	if (!order.oraclePriceOffset.eq(ZERO)) {
@@ -143,14 +143,26 @@ export function getLimitPrice(
 			limitPrice = getAuctionPrice(order, slot);
 		} else if (!order.price.eq(ZERO)) {
 			limitPrice = order.price;
-		} else if (isVariant(order.direction, 'long')) {
-			const askPrice = calculateAskPrice(market, oraclePriceData);
-			const delta = askPrice.div(new BN(market.amm.maxSlippageRatio));
-			limitPrice = askPrice.add(delta);
 		} else {
-			const bidPrice = calculateBidPrice(market, oraclePriceData);
-			const delta = bidPrice.div(new BN(market.amm.maxSlippageRatio));
-			limitPrice = bidPrice.sub(delta);
+			if (perpMarket) {
+				if (isVariant(order.direction, 'long')) {
+					const askPrice = calculateAskPrice(perpMarket, oraclePriceData);
+					const delta = askPrice.div(new BN(perpMarket.amm.maxSlippageRatio));
+					limitPrice = askPrice.add(delta);
+				} else {
+					const bidPrice = calculateBidPrice(perpMarket, oraclePriceData);
+					const delta = bidPrice.div(new BN(perpMarket.amm.maxSlippageRatio));
+					limitPrice = bidPrice.sub(delta);
+				}
+			} else {
+				// check oracle validity?
+				const oraclePrice1Pct = oraclePriceData.price.div(new BN(100));
+				if (isVariant(order.direction, 'long')) {
+					limitPrice = oraclePriceData.price.add(oraclePrice1Pct);
+				} else {
+					limitPrice = oraclePriceData.price.sub(oraclePrice1Pct);
+				}
+			}
 		}
 	} else {
 		limitPrice = order.price;
@@ -161,10 +173,9 @@ export function getLimitPrice(
 
 export function isFillableByVAMM(
 	order: Order,
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
-	slot: number,
-	maxAuctionDuration: number
+	slot: number
 ): boolean {
 	return (
 		(isAuctionComplete(order, slot) &&
@@ -174,13 +185,13 @@ export function isFillableByVAMM(
 				oraclePriceData,
 				slot
 			).eq(ZERO)) ||
-		isOrderExpired(order, slot, maxAuctionDuration)
+		isOrderExpired(order, slot)
 	);
 }
 
 export function calculateBaseAssetAmountForAmmToFulfill(
 	order: Order,
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
 	slot: number
 ): BN {
@@ -191,7 +202,7 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 		return ZERO;
 	}
 
-	const limitPrice = getLimitPrice(order, market, oraclePriceData, slot);
+	const limitPrice = getLimitPrice(order, oraclePriceData, slot, market);
 	const baseAssetAmount = calculateBaseAssetAmountToFillUpToLimitPrice(
 		order,
 		market,
@@ -209,7 +220,7 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 
 export function calculateBaseAssetAmountToFillUpToLimitPrice(
 	order: Order,
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	limitPrice: BN,
 	oraclePriceData: OraclePriceData
 ): BN {
@@ -246,17 +257,14 @@ function isSameDirection(
 	);
 }
 
-export function isOrderExpired(
-	order: Order,
-	slot: number,
-	maxAuctionDuration: number
-): boolean {
+export function isOrderExpired(order: Order, slot: number): boolean {
 	if (
-		!isVariant(order.orderType, 'market') ||
-		!isVariant(order.status, 'open')
+		isOneOfVariant(order.orderType, ['triggerMarket', 'triggerLimit']) ||
+		!isVariant(order.status, 'open') ||
+		order.timeInForce === 0
 	) {
 		return false;
 	}
 
-	return new BN(slot).sub(order.slot).gt(new BN(maxAuctionDuration));
+	return new BN(slot).sub(order.slot).gt(new BN(order.timeInForce));
 }

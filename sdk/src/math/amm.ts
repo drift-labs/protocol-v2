@@ -15,7 +15,7 @@ import {
 	AMM,
 	PositionDirection,
 	SwapDirection,
-	MarketAccount,
+	PerpMarketAccount,
 	isVariant,
 } from '../types';
 import { assert } from '../assert/assert';
@@ -418,7 +418,10 @@ export function calculateSpreadBN(
 		);
 	}
 
-	const maxTargetSpread: number = maxSpread;
+	const maxTargetSpread: number = Math.max(
+		maxSpread,
+		lastOracleMarkSpreadPct.abs().toNumber()
+	);
 
 	const MAX_INVENTORY_SKEW = 5;
 
@@ -613,7 +616,7 @@ export function getSwapDirection(
  * @param market
  * @returns cost : Precision MARK_PRICE_PRECISION
  */
-export function calculateTerminalPrice(market: MarketAccount) {
+export function calculateTerminalPrice(market: PerpMarketAccount) {
 	const directionToClose = market.amm.netBaseAssetAmount.gt(ZERO)
 		? PositionDirection.SHORT
 		: PositionDirection.LONG;

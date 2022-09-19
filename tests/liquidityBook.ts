@@ -1,7 +1,7 @@
 import { BN } from '@project-serum/anchor';
 import {
 	MARK_PRICE_PRECISION,
-	MarketAccount,
+	PerpMarketAccount,
 	calculateMarkPrice,
 	calculateTargetPriceTrade,
 	ZERO,
@@ -16,7 +16,7 @@ import {
  * @returns
  */
 export function liquidityBook(
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	N = 5,
 	incrementSize = 0.1
 ) {

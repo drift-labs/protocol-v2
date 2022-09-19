@@ -1,5 +1,11 @@
 #[derive(Debug)]
-pub enum FulfillmentMethod {
+pub enum PerpFulfillmentMethod {
     AMM,
+    Match,
+}
+
+#[derive(Debug)]
+pub enum SpotFulfillmentMethod {
+    SerumV3,
     Match,
 }

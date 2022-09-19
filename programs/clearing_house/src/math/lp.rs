@@ -7,9 +7,9 @@ use crate::math::constants::AMM_RESERVE_PRECISION_I128;
 use crate::math::helpers;
 use crate::math::orders::standardize_base_asset_amount_with_remainder_i128;
 use crate::math_error;
-use crate::state::market::Market;
+use crate::state::market::PerpMarket;
 use crate::state::market::AMM;
-use crate::state::user::MarketPosition;
+use crate::state::user::PerpPosition;
 
 #[derive(Debug)]
 pub struct LPMetrics {
@@ -20,7 +20,7 @@ pub struct LPMetrics {
 
 pub fn calculate_settle_lp_metrics(
     amm: &AMM,
-    position: &MarketPosition,
+    position: &PerpPosition,
 ) -> ClearingHouseResult<LPMetrics> {
     let (base_asset_amount, quote_asset_amount) = calculate_settled_lp_base_quote(amm, position)?;
 
@@ -30,19 +30,6 @@ pub fn calculate_settle_lp_metrics(
             base_asset_amount,
             amm.base_asset_amount_step_size,
         )?;
-
-    let min_baa = amm.base_asset_amount_step_size;
-
-    // note: since pnl may go into the qaa of a position its not really fair to ensure qaa >= min_qaa
-    let remainder_base_asset_amount = if standardized_base_asset_amount.unsigned_abs() >= min_baa {
-        remainder_base_asset_amount
-    } else {
-        base_asset_amount
-    };
-
-    let standardized_base_asset_amount = base_asset_amount
-        .checked_sub(remainder_base_asset_amount)
-        .ok_or_else(math_error!())?;
 
     let lp_metrics = LPMetrics {
         base_asset_amount: standardized_base_asset_amount,
@@ -55,7 +42,7 @@ pub fn calculate_settle_lp_metrics(
 
 pub fn calculate_settled_lp_base_quote(
     amm: &AMM,
-    position: &MarketPosition,
+    position: &PerpPosition,
 ) -> ClearingHouseResult<(i128, i128)> {
     let n_shares = position.lp_shares;
     let n_shares_i128 = cast_to_i128(n_shares)?;
@@ -89,8 +76,8 @@ pub fn calculate_settled_lp_base_quote(
 }
 
 pub fn calculate_lp_open_bids_asks(
-    market_position: &MarketPosition,
-    market: &Market,
+    market_position: &PerpPosition,
+    market: &PerpMarket,
 ) -> ClearingHouseResult<(i128, i128)> {
     let total_lp_shares = market.amm.sqrt_k;
     let lp_shares = market_position.lp_shares;
@@ -105,7 +92,7 @@ pub fn calculate_lp_open_bids_asks(
 #[cfg(test)]
 mod test {
     use crate::math::constants::AMM_RESERVE_PRECISION;
-    use crate::state::user::MarketPosition;
+    use crate::state::user::PerpPosition;
 
     use super::*;
 
@@ -181,9 +168,9 @@ mod test {
 
         #[test]
         fn test_simple_lp_bid_ask() {
-            let position = MarketPosition {
+            let position = PerpPosition {
                 lp_shares: 100,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             };
 
             let amm = AMM {
@@ -193,9 +180,9 @@ mod test {
                 sqrt_k: 200,
                 ..AMM::default_test()
             };
-            let market = Market {
+            let market = PerpMarket {
                 amm,
-                ..Market::default_test()
+                ..PerpMarket::default_test()
             };
 
             let (open_bids, open_asks) = calculate_lp_open_bids_asks(&position, &market).unwrap();
@@ -206,9 +193,9 @@ mod test {
 
         #[test]
         fn test_max_ask() {
-            let position = MarketPosition {
+            let position = PerpPosition {
                 lp_shares: 100,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             };
 
             let amm = AMM {
@@ -218,9 +205,9 @@ mod test {
                 sqrt_k: 200,
                 ..AMM::default_test()
             };
-            let market = Market {
+            let market = PerpMarket {
                 amm,
-                ..Market::default_test()
+                ..PerpMarket::default_test()
             };
 
             let (open_bids, open_asks) = calculate_lp_open_bids_asks(&position, &market).unwrap();
@@ -231,9 +218,9 @@ mod test {
 
         #[test]
         fn test_max_bid() {
-            let position = MarketPosition {
+            let position = PerpPosition {
                 lp_shares: 100,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             };
 
             let amm = AMM {
@@ -243,9 +230,9 @@ mod test {
                 sqrt_k: 200,
                 ..AMM::default_test()
             };
-            let market = Market {
+            let market = PerpMarket {
                 amm,
-                ..Market::default_test()
+                ..PerpMarket::default_test()
             };
 
             let (open_bids, open_asks) = calculate_lp_open_bids_asks(&position, &market).unwrap();
@@ -260,16 +247,16 @@ mod test {
 
         #[test]
         fn test_long_settle() {
-            let position = MarketPosition {
+            let position = PerpPosition {
                 lp_shares: 100 * AMM_RESERVE_PRECISION,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             };
 
             let amm = AMM {
-                market_position_per_lp: MarketPosition {
+                market_position_per_lp: PerpPosition {
                     base_asset_amount: 10,
                     quote_asset_amount: -10,
-                    ..MarketPosition::default()
+                    ..PerpPosition::default()
                 },
                 ..AMM::default_test()
             };
@@ -282,16 +269,16 @@ mod test {
 
         #[test]
         fn test_short_settle() {
-            let position = MarketPosition {
+            let position = PerpPosition {
                 lp_shares: 100 * AMM_RESERVE_PRECISION,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             };
 
             let amm = AMM {
-                market_position_per_lp: MarketPosition {
+                market_position_per_lp: PerpPosition {
                     base_asset_amount: -10,
                     quote_asset_amount: 10,
-                    ..MarketPosition::default()
+                    ..PerpPosition::default()
                 },
                 ..AMM::default_test()
             };
@@ -308,16 +295,16 @@ mod test {
 
         #[test]
         fn test_long_settle() {
-            let position = MarketPosition {
+            let position = PerpPosition {
                 lp_shares: 100 * AMM_RESERVE_PRECISION,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             };
 
             let amm = AMM {
-                market_position_per_lp: MarketPosition {
+                market_position_per_lp: PerpPosition {
                     base_asset_amount: 10,
                     quote_asset_amount: -10,
-                    ..MarketPosition::default()
+                    ..PerpPosition::default()
                 },
                 base_asset_amount_step_size: 1,
                 ..AMM::default_test()
@@ -332,16 +319,16 @@ mod test {
 
         #[test]
         fn test_all_remainder() {
-            let position = MarketPosition {
+            let position = PerpPosition {
                 lp_shares: 100 * AMM_RESERVE_PRECISION,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             };
 
             let amm = AMM {
-                market_position_per_lp: MarketPosition {
+                market_position_per_lp: PerpPosition {
                     base_asset_amount: 10,
                     quote_asset_amount: -10,
-                    ..MarketPosition::default()
+                    ..PerpPosition::default()
                 },
                 base_asset_amount_step_size: 50 * 100,
                 ..AMM::default_test()
@@ -356,16 +343,16 @@ mod test {
 
         #[test]
         fn test_portion_remainder() {
-            let position = MarketPosition {
+            let position = PerpPosition {
                 lp_shares: AMM_RESERVE_PRECISION,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             };
 
             let amm = AMM {
-                market_position_per_lp: MarketPosition {
+                market_position_per_lp: PerpPosition {
                     base_asset_amount: 10,
                     quote_asset_amount: -10,
-                    ..MarketPosition::default()
+                    ..PerpPosition::default()
                 },
                 base_asset_amount_step_size: 3,
                 ..AMM::default_test()

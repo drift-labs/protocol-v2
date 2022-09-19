@@ -1,6 +1,6 @@
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::FeeStructure;
-use crate::state::user::{MarketPosition, Order};
+use crate::state::user::{Order, PerpPosition};
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
 
@@ -26,16 +26,16 @@ pub mod amm_jit {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BANK_CUMULATIVE_INTEREST_PRECISION, BANK_INTEREST_PRECISION,
-        BANK_WEIGHT_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION,
         PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
+        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
-    use crate::state::bank::{Bank, BankBalanceType};
-    use crate::state::bank_map::BankMap;
-    use crate::state::market::{Market, AMM};
-    use crate::state::market_map::MarketMap;
+    use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::OracleSource;
-    use crate::state::user::{OrderStatus, OrderType, User, UserBankBalance, UserStats};
+    use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+    use crate::state::spot_market_map::SpotMarketMap;
+    use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::tests::utils::*;
     use std::str::FromStr;
 
@@ -57,7 +57,7 @@ pub mod amm_jit {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // net users are short
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -80,26 +80,26 @@ pub mod amm_jit {
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
-            ..Market::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
 
-        create_anchor_account_info!(market, Market, market_account_info);
-        let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-        let mut bank = Bank {
-            bank_index: 0,
+        let mut spot_market = SpotMarket {
+            market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
-            initial_asset_weight: BANK_WEIGHT_PRECISION,
-            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-            ..Bank::default()
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            ..SpotMarket::default()
         };
-        create_anchor_account_info!(bank, Bank, bank_account_info);
-        let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
         // taker wants to go long (would improve balance)
         let mut taker = User {
@@ -116,16 +116,17 @@ pub mod amm_jit {
                 auction_duration: 0,
                 ..Order::default()
             }),
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I128,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
-            bank_balances: get_bank_balances(UserBankBalance {
-                bank_index: 0,
-                balance_type: BankBalanceType::Deposit,
-                balance: 100 * BANK_INTEREST_PRECISION,
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * SPOT_INTEREST_PRECISION,
+                ..SpotPosition::default()
             }),
             ..User::default()
         };
@@ -141,11 +142,11 @@ pub mod amm_jit {
                 price: 100 * MARK_PRICE_PRECISION,
                 ..Order::default()
             }),
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
                 open_asks: -BASE_PRECISION_I128 / 2,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
             ..User::default()
         };
@@ -174,7 +175,7 @@ pub mod amm_jit {
             &mut Some(&mut filler_stats),
             &mut None,
             &mut None,
-            &bank_map,
+            &spot_market_map,
             &market_map,
             &mut oracle_map,
             &fee_structure,
@@ -182,17 +183,18 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
         assert_eq!(base_asset_amount, BASE_PRECISION);
 
-        let taker_position = &taker.positions[0];
+        let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
         assert_eq!(taker_stats.taker_volume_30d, 102284244);
         assert_eq!(taker.orders[0], Order::default());
 
-        let maker_position = &maker.positions[0];
+        let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128 / 2);
         assert_eq!(maker_position.quote_asset_amount, 50015000);
         assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I128);
@@ -224,7 +226,7 @@ pub mod amm_jit {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // net users are short
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -247,26 +249,26 @@ pub mod amm_jit {
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
-            ..Market::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
 
-        create_anchor_account_info!(market, Market, market_account_info);
-        let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-        let mut bank = Bank {
-            bank_index: 0,
+        let mut spot_market = SpotMarket {
+            market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
-            initial_asset_weight: BANK_WEIGHT_PRECISION,
-            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-            ..Bank::default()
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            ..SpotMarket::default()
         };
-        create_anchor_account_info!(bank, Bank, bank_account_info);
-        let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
         // taker wants to go long (would improve balance)
         let mut taker = User {
@@ -283,16 +285,17 @@ pub mod amm_jit {
                 auction_duration: 0,
                 ..Order::default()
             }),
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I128 * 2,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
-            bank_balances: get_bank_balances(UserBankBalance {
-                bank_index: 0,
-                balance_type: BankBalanceType::Deposit,
-                balance: 100 * BANK_INTEREST_PRECISION,
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * SPOT_INTEREST_PRECISION,
+                ..SpotPosition::default()
             }),
             ..User::default()
         };
@@ -308,11 +311,11 @@ pub mod amm_jit {
                 price: 100 * MARK_PRICE_PRECISION,
                 ..Order::default()
             }),
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
                 open_asks: -BASE_PRECISION_I128 * 2,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
             ..User::default()
         };
@@ -347,7 +350,7 @@ pub mod amm_jit {
             &mut Some(&mut filler_stats),
             &mut None,
             &mut None,
-            &bank_map,
+            &spot_market_map,
             &market_map,
             &mut oracle_map,
             &fee_structure,
@@ -355,6 +358,7 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
@@ -362,7 +366,7 @@ pub mod amm_jit {
         // nets to zero
         assert_eq!(market_after.amm.net_base_asset_amount, 0);
 
-        let maker_position = &maker.positions[0];
+        let maker_position = &maker.perp_positions[0];
         // maker got (full - net_baa)
         assert_eq!(
             maker_position.base_asset_amount,
@@ -388,7 +392,7 @@ pub mod amm_jit {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // net users are short
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -411,26 +415,26 @@ pub mod amm_jit {
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
-            ..Market::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
 
-        create_anchor_account_info!(market, Market, market_account_info);
-        let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-        let mut bank = Bank {
-            bank_index: 0,
+        let mut spot_market = SpotMarket {
+            market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
-            initial_asset_weight: BANK_WEIGHT_PRECISION,
-            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-            ..Bank::default()
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            ..SpotMarket::default()
         };
-        create_anchor_account_info!(bank, Bank, bank_account_info);
-        let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
         // taker wants to go long (would improve balance)
         let mut taker = User {
@@ -447,16 +451,17 @@ pub mod amm_jit {
                 auction_duration: 0,
                 ..Order::default()
             }),
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
                 open_asks: -BASE_PRECISION_I128 * 2,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
-            bank_balances: get_bank_balances(UserBankBalance {
-                bank_index: 0,
-                balance_type: BankBalanceType::Deposit,
-                balance: 100 * BANK_INTEREST_PRECISION,
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * SPOT_INTEREST_PRECISION,
+                ..SpotPosition::default()
             }),
             ..User::default()
         };
@@ -472,11 +477,11 @@ pub mod amm_jit {
                 price: 100 * MARK_PRICE_PRECISION,
                 ..Order::default()
             }),
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I128 * 2,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
             ..User::default()
         };
@@ -511,7 +516,7 @@ pub mod amm_jit {
             &mut Some(&mut filler_stats),
             &mut None,
             &mut None,
-            &bank_map,
+            &spot_market_map,
             &market_map,
             &mut oracle_map,
             &fee_structure,
@@ -519,6 +524,7 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
@@ -526,7 +532,7 @@ pub mod amm_jit {
         // nets to zero
         assert_eq!(market_after.amm.net_base_asset_amount, 0);
 
-        let maker_position = &maker.positions[0];
+        let maker_position = &maker.perp_positions[0];
         // maker got (full - net_baa)
         assert_eq!(
             maker_position.base_asset_amount,
@@ -552,7 +558,7 @@ pub mod amm_jit {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // amm is short
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -575,26 +581,26 @@ pub mod amm_jit {
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
-            ..Market::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
 
-        create_anchor_account_info!(market, Market, market_account_info);
-        let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-        let mut bank = Bank {
-            bank_index: 0,
+        let mut spot_market = SpotMarket {
+            market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
-            initial_asset_weight: BANK_WEIGHT_PRECISION,
-            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-            ..Bank::default()
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            ..SpotMarket::default()
         };
-        create_anchor_account_info!(bank, Bank, bank_account_info);
-        let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
         let mut taker = User {
             orders: get_orders(Order {
@@ -610,16 +616,17 @@ pub mod amm_jit {
                 auction_duration: 0,
                 ..Order::default()
             }),
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
                 open_asks: -BASE_PRECISION_I128,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
-            bank_balances: get_bank_balances(UserBankBalance {
-                bank_index: 0,
-                balance_type: BankBalanceType::Deposit,
-                balance: 100 * BANK_INTEREST_PRECISION,
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * SPOT_INTEREST_PRECISION,
+                ..SpotPosition::default()
             }),
             ..User::default()
         };
@@ -635,11 +642,11 @@ pub mod amm_jit {
                 price: 100 * MARK_PRICE_PRECISION,
                 ..Order::default()
             }),
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I128 / 2,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
             ..User::default()
         };
@@ -668,7 +675,7 @@ pub mod amm_jit {
             &mut Some(&mut filler_stats),
             &mut None,
             &mut None,
-            &bank_map,
+            &spot_market_map,
             &market_map,
             &mut oracle_map,
             &fee_structure,
@@ -676,16 +683,17 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
         assert_eq!(base_asset_amount, BASE_PRECISION);
 
-        let taker_position = &taker.positions[0];
+        let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128);
         assert_eq!(taker.orders[0], Order::default());
 
-        let maker_position = &maker.positions[0];
+        let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I128 / 2);
         assert_eq!(maker_position.quote_asset_amount, -49985000);
         assert_eq!(
@@ -716,7 +724,7 @@ pub mod amm_jit {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // net users are short
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -739,26 +747,26 @@ pub mod amm_jit {
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
-            ..Market::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
 
-        create_anchor_account_info!(market, Market, market_account_info);
-        let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-        let mut bank = Bank {
-            bank_index: 0,
+        let mut spot_market = SpotMarket {
+            market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
-            initial_asset_weight: BANK_WEIGHT_PRECISION,
-            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-            ..Bank::default()
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            ..SpotMarket::default()
         };
-        create_anchor_account_info!(bank, Bank, bank_account_info);
-        let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
         // taker wants to go long (would improve balance)
         let mut taker = User {
@@ -775,16 +783,17 @@ pub mod amm_jit {
                 auction_duration: 0,
                 ..Order::default()
             }),
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
                 open_asks: -BASE_PRECISION_I128,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
-            bank_balances: get_bank_balances(UserBankBalance {
-                bank_index: 0,
-                balance_type: BankBalanceType::Deposit,
-                balance: 100 * BANK_INTEREST_PRECISION,
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * SPOT_INTEREST_PRECISION,
+                ..SpotPosition::default()
             }),
             ..User::default()
         };
@@ -800,11 +809,11 @@ pub mod amm_jit {
                 price: 100 * MARK_PRICE_PRECISION,
                 ..Order::default()
             }),
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I128 / 2,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
             ..User::default()
         };
@@ -839,7 +848,7 @@ pub mod amm_jit {
             &mut Some(&mut filler_stats),
             &mut None,
             &mut None,
-            &bank_map,
+            &spot_market_map,
             &market_map,
             &mut oracle_map,
             &fee_structure,
@@ -847,17 +856,18 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
         assert_eq!(base_asset_amount, BASE_PRECISION);
 
-        let taker_position = &taker.positions[0];
+        let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128);
         assert_eq!(taker_stats.taker_volume_30d, 97283221);
         assert_eq!(taker.orders[0], Order::default());
 
-        let maker_position = &maker.positions[0];
+        let maker_position = &maker.perp_positions[0];
         assert_eq!(
             maker_position.base_asset_amount,
             BASE_PRECISION_I128 / 2 / 2
@@ -908,7 +918,7 @@ pub mod amm_jit {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // net users are short
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -931,26 +941,26 @@ pub mod amm_jit {
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
-            ..Market::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
 
-        create_anchor_account_info!(market, Market, market_account_info);
-        let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-        let mut bank = Bank {
-            bank_index: 0,
+        let mut spot_market = SpotMarket {
+            market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
-            initial_asset_weight: BANK_WEIGHT_PRECISION,
-            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-            ..Bank::default()
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            ..SpotMarket::default()
         };
-        create_anchor_account_info!(bank, Bank, bank_account_info);
-        let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
         // taker wants to go long (would improve balance)
         let mut taker = User {
@@ -968,16 +978,17 @@ pub mod amm_jit {
 
                 ..Order::default()
             }),
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I128,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
-            bank_balances: get_bank_balances(UserBankBalance {
-                bank_index: 0,
-                balance_type: BankBalanceType::Deposit,
-                balance: 100 * BANK_INTEREST_PRECISION,
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * SPOT_INTEREST_PRECISION,
+                ..SpotPosition::default()
             }),
             ..User::default()
         };
@@ -993,11 +1004,11 @@ pub mod amm_jit {
                 price: 100 * MARK_PRICE_PRECISION,
                 ..Order::default()
             }),
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
                 open_asks: -BASE_PRECISION_I128 / 2,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
             ..User::default()
         };
@@ -1032,7 +1043,7 @@ pub mod amm_jit {
             &mut Some(&mut filler_stats),
             &mut None,
             &mut None,
-            &bank_map,
+            &spot_market_map,
             &market_map,
             &mut oracle_map,
             &fee_structure,
@@ -1040,17 +1051,18 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
         assert_eq!(base_asset_amount, BASE_PRECISION);
 
-        let taker_position = &taker.positions[0];
+        let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
         assert_eq!(taker_stats.taker_volume_30d, 102784235);
         assert_eq!(taker.orders[0], Order::default());
 
-        let maker_position = &maker.positions[0];
+        let maker_position = &maker.perp_positions[0];
         assert_eq!(
             maker_position.base_asset_amount,
             -BASE_PRECISION_I128 / 2 / 2
@@ -1102,7 +1114,7 @@ pub mod amm_jit {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // net users are short
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -1125,26 +1137,26 @@ pub mod amm_jit {
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
-            ..Market::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
 
-        create_anchor_account_info!(market, Market, market_account_info);
-        let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-        let mut bank = Bank {
-            bank_index: 0,
+        let mut spot_market = SpotMarket {
+            market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
-            initial_asset_weight: BANK_WEIGHT_PRECISION,
-            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-            ..Bank::default()
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            ..SpotMarket::default()
         };
-        create_anchor_account_info!(bank, Bank, bank_account_info);
-        let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
         // taker wants to go long (would improve balance)
         let mut taker = User {
@@ -1161,16 +1173,17 @@ pub mod amm_jit {
                 auction_duration: 50, // !! amm will bid before the ask spread price
                 ..Order::default()
             }),
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I128,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
-            bank_balances: get_bank_balances(UserBankBalance {
-                bank_index: 0,
-                balance_type: BankBalanceType::Deposit,
-                balance: 100 * BANK_INTEREST_PRECISION,
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * SPOT_INTEREST_PRECISION,
+                ..SpotPosition::default()
             }),
             ..User::default()
         };
@@ -1186,11 +1199,11 @@ pub mod amm_jit {
                 price: 10 * MARK_PRICE_PRECISION,
                 ..Order::default()
             }),
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
                 open_asks: -BASE_PRECISION_I128 / 2,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
             ..User::default()
         };
@@ -1226,7 +1239,7 @@ pub mod amm_jit {
             &mut Some(&mut filler_stats),
             &mut None,
             &mut None,
-            &bank_map,
+            &spot_market_map,
             &market_map,
             &mut oracle_map,
             &fee_structure,
@@ -1234,16 +1247,17 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
         assert_eq!(base_asset_amount, BASE_PRECISION / 2); // auctions not over so no amm fill
 
-        let taker_position = &taker.positions[0];
+        let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128 / 2);
         assert_eq!(taker_stats.taker_volume_30d, 7499999);
 
-        let maker_position = &maker.positions[0];
+        let maker_position = &maker.perp_positions[0];
         assert_eq!(
             maker_position.base_asset_amount,
             -BASE_PRECISION_I128 / 2 / 2
@@ -1296,7 +1310,7 @@ pub mod amm_jit {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         // net users are short
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -1319,26 +1333,26 @@ pub mod amm_jit {
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
-            ..Market::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
 
-        create_anchor_account_info!(market, Market, market_account_info);
-        let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-        let mut bank = Bank {
-            bank_index: 0,
+        let mut spot_market = SpotMarket {
+            market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
-            initial_asset_weight: BANK_WEIGHT_PRECISION,
-            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-            ..Bank::default()
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            ..SpotMarket::default()
         };
-        create_anchor_account_info!(bank, Bank, bank_account_info);
-        let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
         // taker wants to go long (would improve balance)
         let mut taker = User {
@@ -1355,16 +1369,17 @@ pub mod amm_jit {
                 auction_duration: 50, // !! amm will bid before the ask spread price
                 ..Order::default()
             }),
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
                 open_asks: -BASE_PRECISION_I128,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
-            bank_balances: get_bank_balances(UserBankBalance {
-                bank_index: 0,
-                balance_type: BankBalanceType::Deposit,
-                balance: 100 * BANK_INTEREST_PRECISION,
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * SPOT_INTEREST_PRECISION,
+                ..SpotPosition::default()
             }),
             ..User::default()
         };
@@ -1380,11 +1395,11 @@ pub mod amm_jit {
                 price: 200 * MARK_PRICE_PRECISION,
                 ..Order::default()
             }),
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I128 / 2,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
             ..User::default()
         };
@@ -1420,7 +1435,7 @@ pub mod amm_jit {
             &mut Some(&mut filler_stats),
             &mut None,
             &mut None,
-            &bank_map,
+            &spot_market_map,
             &market_map,
             &mut oracle_map,
             &fee_structure,
@@ -1428,16 +1443,17 @@ pub mod amm_jit {
             None,
             now,
             slot,
+            false,
         )
         .unwrap();
 
         assert_eq!(base_asset_amount, BASE_PRECISION / 2); // auctions not over so no amm fill
 
-        let taker_position = &taker.positions[0];
+        let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128 / 2);
         assert_eq!(taker_stats.taker_volume_30d, 89999984);
 
-        let maker_position = &maker.positions[0];
+        let maker_position = &maker.perp_positions[0];
         assert_eq!(
             maker_position.base_asset_amount,
             BASE_PRECISION_I128 / 2 / 2
@@ -1492,7 +1508,7 @@ pub mod amm_jit {
 
         // net users are short
         let reserves = 5 * AMM_RESERVE_PRECISION;
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: reserves,
                 quote_asset_reserve: reserves,
@@ -1514,8 +1530,8 @@ pub mod amm_jit {
             base_asset_amount_short: -(100 * AMM_RESERVE_PRECISION as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
-            ..Market::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
@@ -1529,20 +1545,20 @@ pub mod amm_jit {
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
         market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
 
-        create_anchor_account_info!(market, Market, market_account_info);
-        let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-        let mut bank = Bank {
-            bank_index: 0,
+        let mut spot_market = SpotMarket {
+            market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
-            initial_asset_weight: BANK_WEIGHT_PRECISION,
-            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-            ..Bank::default()
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            ..SpotMarket::default()
         };
-        create_anchor_account_info!(bank, Bank, bank_account_info);
-        let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
         // taker wants to go long (would improve balance)
         let auction_duration = 50;
@@ -1558,29 +1574,23 @@ pub mod amm_jit {
                 auction_duration,
                 ..Order::default()
             }),
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
                 open_bids: -100 * BASE_PRECISION_I128,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
-            bank_balances: get_bank_balances(UserBankBalance {
-                bank_index: 0,
-                balance_type: BankBalanceType::Deposit,
-                balance: 100 * 100 * BANK_INTEREST_PRECISION,
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * 100 * SPOT_INTEREST_PRECISION,
+                ..SpotPosition::default()
             }),
             ..User::default()
         };
 
-        let auction_start_price =
-            crate::math::auction::calculate_auction_start_price(&market, PositionDirection::Long)
-                .unwrap();
-        let auction_end_price = crate::math::auction::calculate_auction_end_price(
-            &market,
-            PositionDirection::Long,
-            BASE_PRECISION,
-        )
-        .unwrap();
+        let auction_start_price = 950625000000_u128;
+        let auction_end_price = 1321540890000_u128;
         taker.orders[0].auction_start_price = auction_start_price;
         taker.orders[0].auction_end_price = auction_end_price;
         println!("start stop {} {}", auction_start_price, auction_end_price);
@@ -1656,11 +1666,11 @@ pub mod amm_jit {
                     price: auction_price,
                     ..Order::default()
                 }),
-                positions: get_positions(MarketPosition {
+                perp_positions: get_positions(PerpPosition {
                     market_index: 0,
                     open_orders: 1,
                     open_asks: -(baa as i128),
-                    ..MarketPosition::default()
+                    ..PerpPosition::default()
                 }),
                 ..User::default()
             };
@@ -1680,7 +1690,7 @@ pub mod amm_jit {
                 &mut Some(&mut filler_stats),
                 &mut None,
                 &mut None,
-                &bank_map,
+                &spot_market_map,
                 &market_map,
                 &mut oracle_map,
                 &fee_structure,
@@ -1688,6 +1698,7 @@ pub mod amm_jit {
                 None,
                 now,
                 slot,
+                false,
             )
             .unwrap();
 
@@ -1758,7 +1769,7 @@ pub mod amm_jit {
 
         // net users are short
         let reserves = 5 * AMM_RESERVE_PRECISION;
-        let mut market = Market {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: reserves,
                 quote_asset_reserve: reserves,
@@ -1781,8 +1792,8 @@ pub mod amm_jit {
             base_asset_amount_long: 100 * AMM_RESERVE_PRECISION as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            initialized: true,
-            ..Market::default_test()
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
@@ -1796,20 +1807,20 @@ pub mod amm_jit {
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
         market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
 
-        create_anchor_account_info!(market, Market, market_account_info);
-        let market_map = MarketMap::load_one(&market_account_info, true).unwrap();
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
-        let mut bank = Bank {
-            bank_index: 0,
+        let mut spot_market = SpotMarket {
+            market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: BANK_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
-            initial_asset_weight: BANK_WEIGHT_PRECISION,
-            maintenance_asset_weight: BANK_WEIGHT_PRECISION,
-            ..Bank::default()
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            ..SpotMarket::default()
         };
-        create_anchor_account_info!(bank, Bank, bank_account_info);
-        let bank_map = BankMap::load_one(&bank_account_info, true).unwrap();
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
         // taker wants to go long (would improve balance)
         let auction_duration = 50;
@@ -1825,29 +1836,23 @@ pub mod amm_jit {
                 auction_duration, // !! amm will bid before the ask spread price
                 ..Order::default()
             }),
-            positions: get_positions(MarketPosition {
+            perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
                 open_asks: -100 * BASE_PRECISION_I128,
-                ..MarketPosition::default()
+                ..PerpPosition::default()
             }),
-            bank_balances: get_bank_balances(UserBankBalance {
-                bank_index: 0,
-                balance_type: BankBalanceType::Deposit,
-                balance: 100 * 100 * BANK_INTEREST_PRECISION,
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * 100 * SPOT_INTEREST_PRECISION,
+                ..SpotPosition::default()
             }),
             ..User::default()
         };
 
-        let auction_start_price =
-            crate::math::auction::calculate_auction_start_price(&market, PositionDirection::Short)
-                .unwrap();
-        let auction_end_price = crate::math::auction::calculate_auction_end_price(
-            &market,
-            PositionDirection::Short,
-            BASE_PRECISION,
-        )
-        .unwrap();
+        let auction_start_price = 1050625000000;
+        let auction_end_price = 795502090000;
         taker.orders[0].auction_start_price = auction_start_price;
         taker.orders[0].auction_end_price = auction_end_price;
         println!("start stop {} {}", auction_start_price, auction_end_price);
@@ -1925,11 +1930,11 @@ pub mod amm_jit {
                     price: auction_price,
                     ..Order::default()
                 }),
-                positions: get_positions(MarketPosition {
+                perp_positions: get_positions(PerpPosition {
                     market_index: 0,
                     open_orders: 1,
                     open_bids: baa as i128,
-                    ..MarketPosition::default()
+                    ..PerpPosition::default()
                 }),
                 ..User::default()
             };
@@ -1949,7 +1954,7 @@ pub mod amm_jit {
                 &mut Some(&mut filler_stats),
                 &mut None,
                 &mut None,
-                &bank_map,
+                &spot_market_map,
                 &market_map,
                 &mut oracle_map,
                 &fee_structure,
@@ -1957,6 +1962,7 @@ pub mod amm_jit {
                 None,
                 now,
                 slot,
+                false,
             )
             .unwrap();
 

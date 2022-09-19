@@ -14,10 +14,10 @@ use crate::math::helpers::get_proportion_u128;
 use crate::math::pnl::calculate_pnl;
 use crate::math_error;
 use crate::state::market::AMM;
-use crate::state::user::MarketPosition;
+use crate::state::user::PerpPosition;
 
 pub fn calculate_base_asset_value_and_pnl(
-    market_position: &MarketPosition,
+    market_position: &PerpPosition,
     amm: &AMM,
     use_spread: bool,
 ) -> ClearingHouseResult<(u128, i128)> {
@@ -30,7 +30,7 @@ pub fn calculate_base_asset_value_and_pnl(
 }
 
 pub fn calculate_position_pnl(
-    market_position: &MarketPosition,
+    market_position: &PerpPosition,
     amm: &AMM,
     use_spread: bool,
 ) -> ClearingHouseResult<i128> {
@@ -86,6 +86,7 @@ pub fn calculate_base_asset_value(
 
     let base_asset_reserve_proportion =
         get_proportion_u128(base_asset_reserve, amm_lp_shares, amm.sqrt_k)?;
+
     let quote_asset_reserve_proportion =
         get_proportion_u128(quote_asset_reserve, amm_lp_shares, amm.sqrt_k)?;
 
@@ -131,7 +132,7 @@ pub fn calculate_base_asset_value_with_oracle_price(
 }
 
 pub fn calculate_base_asset_value_and_pnl_with_oracle_price(
-    market_position: &MarketPosition,
+    market_position: &PerpPosition,
     oracle_price: i128,
 ) -> ClearingHouseResult<(u128, i128)> {
     if market_position.base_asset_amount == 0 {
@@ -147,6 +148,28 @@ pub fn calculate_base_asset_value_and_pnl_with_oracle_price(
     let base_asset_value = market_position
         .base_asset_amount
         .checked_mul(oracle_price)
+        .ok_or_else(math_error!())?
+        .checked_div(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)
+        .ok_or_else(math_error!())?;
+
+    let pnl = base_asset_value
+        .checked_add(market_position.quote_asset_amount)
+        .ok_or_else(math_error!())?;
+
+    Ok((base_asset_value.unsigned_abs(), pnl))
+}
+
+pub fn calculate_base_asset_value_and_pnl_with_settlement_price(
+    market_position: &PerpPosition,
+    settlement_price: i128,
+) -> ClearingHouseResult<(u128, i128)> {
+    if market_position.base_asset_amount == 0 {
+        return Ok((0, market_position.quote_asset_amount));
+    }
+
+    let base_asset_value = market_position
+        .base_asset_amount
+        .checked_mul(settlement_price)
         .ok_or_else(math_error!())?
         .checked_div(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)
         .ok_or_else(math_error!())?;
@@ -195,7 +218,7 @@ pub enum PositionUpdateType {
     Flip,
 }
 pub fn get_position_update_type(
-    position: &MarketPosition,
+    position: &PerpPosition,
     delta: &PositionDelta,
 ) -> PositionUpdateType {
     if position.base_asset_amount == 0 {
@@ -212,7 +235,7 @@ pub fn get_position_update_type(
 }
 
 pub fn calculate_position_new_quote_base_pnl(
-    position: &MarketPosition,
+    position: &PerpPosition,
     delta: &PositionDelta,
 ) -> ClearingHouseResult<(i128, i128, i128, i128)> {
     let update_type = get_position_update_type(position, delta);

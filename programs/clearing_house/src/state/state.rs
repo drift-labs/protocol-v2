@@ -13,7 +13,7 @@ use crate::math::constants::{
     DEFAULT_DISCOUNT_TOKEN_THIRD_TIER_MINIMUM_BALANCE, DEFAULT_FEE_DENOMINATOR,
     DEFAULT_FEE_NUMERATOR, DEFAULT_REFEREE_DISCOUNT_DENOMINATOR,
     DEFAULT_REFEREE_DISCOUNT_NUMERATOR, DEFAULT_REFERRER_REWARD_DENOMINATOR,
-    DEFAULT_REFERRER_REWARD_NUMERATOR,
+    DEFAULT_REFERRER_REWARD_EPOCH_UPPER_BOUND, DEFAULT_REFERRER_REWARD_NUMERATOR,
 };
 use anchor_lang::prelude::*;
 
@@ -26,33 +26,21 @@ pub struct State {
     pub funding_paused: bool,
     pub admin_controls_prices: bool,
     pub insurance_vault: Pubkey,
-    pub margin_ratio_initial: u128,
-    pub margin_ratio_maintenance: u128,
-    pub margin_ratio_partial: u128,
-    pub partial_liquidation_close_percentage_numerator: u128,
-    pub partial_liquidation_close_percentage_denominator: u128,
-    pub partial_liquidation_penalty_percentage_numerator: u128,
-    pub partial_liquidation_penalty_percentage_denominator: u128,
-    pub full_liquidation_penalty_percentage_numerator: u128,
-    pub full_liquidation_penalty_percentage_denominator: u128,
-    pub partial_liquidation_liquidator_share_denominator: u64,
-    pub full_liquidation_liquidator_share_denominator: u64,
-    pub fee_structure: FeeStructure,
+    pub perp_fee_structure: FeeStructure,
+    pub spot_fee_structure: FeeStructure,
     pub whitelist_mint: Pubkey,
     pub discount_mint: Pubkey,
     pub oracle_guard_rails: OracleGuardRails,
     pub number_of_markets: u64,
-    pub number_of_banks: u64,
+    pub number_of_spot_markets: u64,
     pub min_order_quote_asset_amount: u128, // minimum est. quote_asset_amount for place_order to succeed
-    pub min_auction_duration: u8,
-    pub max_auction_duration: u8,
-    pub liquidation_margin_buffer_ratio: u8,
+    pub min_perp_auction_duration: u8,
+    pub default_market_order_time_in_force: u8,
+    pub default_spot_auction_duration: u8,
+    pub liquidation_margin_buffer_ratio: u32,
+    pub settlement_duration: u16,
     pub signer: Pubkey,
     pub signer_nonce: u8,
-
-    // upgrade-ability
-    pub padding0: u128,
-    pub padding1: u128,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -101,7 +89,7 @@ pub struct FeeStructure {
     pub maker_rebate_numerator: u128,
     pub maker_rebate_denominator: u128,
     pub filler_reward_structure: OrderFillerRewardStructure,
-    pub cancel_order_fee: u128,
+    pub flat_filler_fee: u128,
 }
 
 impl Default for FeeStructure {
@@ -138,13 +126,14 @@ impl Default for FeeStructure {
                 referrer_reward_denominator: DEFAULT_REFERRER_REWARD_DENOMINATOR,
                 referee_discount_numerator: DEFAULT_REFEREE_DISCOUNT_NUMERATOR,
                 referee_discount_denominator: DEFAULT_REFEREE_DISCOUNT_DENOMINATOR,
+                referrer_reward_epoch_upper_bound: DEFAULT_REFERRER_REWARD_EPOCH_UPPER_BOUND,
             },
             filler_reward_structure: OrderFillerRewardStructure {
                 reward_numerator: 1,
                 reward_denominator: 10,
                 time_based_reward_lower_bound: 10_000, // 1 cent
             },
-            cancel_order_fee: 10_000,
+            flat_filler_fee: 10_000,
         }
     }
 }
@@ -168,6 +157,7 @@ pub struct DiscountTokenTier {
 pub struct ReferralDiscount {
     pub referrer_reward_numerator: u128,
     pub referrer_reward_denominator: u128,
+    pub referrer_reward_epoch_upper_bound: u64,
     pub referee_discount_numerator: u128,
     pub referee_discount_denominator: u128,
 }

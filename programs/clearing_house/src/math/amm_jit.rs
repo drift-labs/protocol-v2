@@ -1,13 +1,13 @@
 use crate::error::ClearingHouseResult;
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math_error;
-use crate::state::market::Market;
+use crate::state::market::PerpMarket;
 use solana_program::msg;
 
 // assumption: market.amm.amm_jit_is_active() == true
 // assumption: taker_baa will improve market balance (see orders.rs & amm_wants_to_make)
 pub fn calculate_jit_base_asset_amount(
-    market: &Market,
+    market: &PerpMarket,
     taker_base_asset_amount: u128,
 ) -> ClearingHouseResult<u128> {
     // simple impl
@@ -35,7 +35,7 @@ pub fn calculate_jit_base_asset_amount(
 // assumption: taker_baa will improve market balance (see orders.rs & amm_wants_to_make)
 // note: we split it into two (calc and clamp) bc its easier to maintain tests
 pub fn calculate_clampped_jit_base_asset_amount(
-    market: &Market,
+    market: &PerpMarket,
     jit_base_asset_amount: u128,
 ) -> ClearingHouseResult<u128> {
     // apply intensity
@@ -60,13 +60,13 @@ mod test {
 
     #[test]
     fn balanced_market_zero_jit() {
-        let market = Market {
+        let market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 0,
                 amm_jit_intensity: 100,
                 ..AMM::default_test()
             },
-            ..Market::default()
+            ..PerpMarket::default()
         };
         let jit_base_asset_amount = 100;
 
@@ -77,13 +77,13 @@ mod test {
 
     #[test]
     fn balanced_market_zero_intensity() {
-        let market = Market {
+        let market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 100,
                 amm_jit_intensity: 0,
                 ..AMM::default_test()
             },
-            ..Market::default()
+            ..PerpMarket::default()
         };
         let jit_base_asset_amount = 100;
 
@@ -94,13 +94,13 @@ mod test {
 
     #[test]
     fn balanced_market_full_intensity() {
-        let market = Market {
+        let market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 100,
                 amm_jit_intensity: 100,
                 ..AMM::default_test()
             },
-            ..Market::default()
+            ..PerpMarket::default()
         };
         let jit_base_asset_amount = 100;
 
@@ -111,13 +111,13 @@ mod test {
 
     #[test]
     fn balanced_market_half_intensity() {
-        let market = Market {
+        let market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 100,
                 amm_jit_intensity: 50,
                 ..AMM::default_test()
             },
-            ..Market::default()
+            ..PerpMarket::default()
         };
         let jit_base_asset_amount = 100;
 

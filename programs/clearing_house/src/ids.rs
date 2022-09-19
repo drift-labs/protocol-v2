@@ -5,3 +5,11 @@ pub mod pyth_program {
     #[cfg(not(feature = "mainnet-beta"))]
     declare_id!("gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s");
 }
+
+pub mod serum_program {
+    use solana_program::declare_id;
+    #[cfg(feature = "mainnet-beta")]
+    declare_id!("9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin");
+    #[cfg(not(feature = "mainnet-beta"))]
+    declare_id!("DESVgJVGajEgKGXhb6XmqDHGz3VjdgP7rEVESBgxmroY");
+}

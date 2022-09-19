@@ -119,7 +119,7 @@ describe('round reduce only order', () => {
 		await clearingHouseUser.fetchAccounts();
 
 		assert(
-			clearingHouse.getUserAccount().positions[0].baseAssetAmount.eq(ZERO)
+			clearingHouse.getUserAccount().perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 	});
 });
