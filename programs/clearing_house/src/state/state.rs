@@ -1,3 +1,4 @@
+use crate::state::fees::FeeStructure;
 use anchor_lang::prelude::*;
 
 #[account]
@@ -22,6 +23,8 @@ pub struct State {
     pub settlement_duration: u16,
     pub signer: Pubkey,
     pub signer_nonce: u8,
+    pub perp_fee_structure: FeeStructure,
+    pub spot_fee_structure: FeeStructure,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]

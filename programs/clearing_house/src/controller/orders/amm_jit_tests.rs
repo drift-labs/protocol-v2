@@ -6,15 +6,17 @@ use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
 
 fn get_fee_structure() -> FeeStructure {
+    let mut fee_tiers = [FeeTier::default(); 10];
+    fee_tiers[0] = FeeTier {
+        fee_numerator: 5,
+        fee_denominator: ONE_BPS_DENOMINATOR,
+        maker_rebate_numerator: 3,
+        maker_rebate_denominator: ONE_BPS_DENOMINATOR,
+        ..FeeTier::default()
+    };
     FeeStructure {
-        first_tier: FeeTier {
-            fee_numerator: 5,
-            fee_denominator: ONE_BPS_DENOMINATOR,
-            maker_rebate_numerator: 3,
-            maker_rebate_denominator: ONE_BPS_DENOMINATOR,
-            ..FeeTier::default()
-        },
-        ..FeeStructure::default()
+        fee_tiers,
+        ..FeeStructure::test_default()
     }
 }
 

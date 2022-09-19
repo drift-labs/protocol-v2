@@ -7,7 +7,6 @@ use solana_program::msg;
 use std::cmp::{max, min};
 
 use super::casting::cast_to_i128;
-use crate::math::constants::{ONE_HUNDRED_MILLION_QUOTE, ONE_MILLION_QUOTE, TEN_MILLION_QUOTE};
 use crate::state::fees::{FeeStructure, FeeTier, OrderFillerRewardStructure};
 use crate::state::user::UserStats;
 
@@ -63,9 +62,9 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
         })
     } else {
         let fee = quote_asset_amount
-            .checked_mul(fee_tier.fee_numerator)
+            .checked_mul(fee_tier.fee_numerator as u128)
             .ok_or_else(math_error!())?
-            .checked_div(fee_tier.fee_denominator)
+            .checked_div(fee_tier.fee_denominator as u128)
             .ok_or_else(math_error!())?;
 
         let (fee, referee_discount, referrer_reward) = if reward_referrer {
@@ -125,16 +124,16 @@ fn calculate_referee_fee_and_referrer_reward(
 ) -> ClearingHouseResult<(u128, u128, u128)> {
     let referee_fee = get_proportion_u128(
         quote_asset_amount,
-        fee_tier.referee_fee_numerator,
-        fee_tier.referee_fee_denominator,
+        fee_tier.referee_fee_numerator as u128,
+        fee_tier.referee_fee_denominator as u128,
     )?;
 
     let referee_discount = fee.saturating_sub(referee_fee);
 
     let max_referrer_reward_from_fee = get_proportion_u128(
         quote_asset_amount,
-        fee_tier.referrer_reward_numerator,
-        fee_tier.referrer_reward_denominator,
+        fee_tier.referrer_reward_numerator as u128,
+        fee_tier.referrer_reward_denominator as u128,
     )?;
 
     let referrer_reward = match referrer_stats {
@@ -200,9 +199,9 @@ pub fn calculate_fee_for_fulfillment_with_match(
     let maker_fee_tier = determine_user_fee_tier(maker_stats, fee_structure)?;
 
     let taker_fee = quote_asset_amount
-        .checked_mul(taker_fee_tier.fee_numerator)
+        .checked_mul(taker_fee_tier.fee_numerator as u128)
         .ok_or_else(math_error!())?
-        .checked_div(taker_fee_tier.fee_denominator)
+        .checked_div(taker_fee_tier.fee_denominator as u128)
         .ok_or_else(math_error!())?;
 
     let (taker_fee, referee_discount, referrer_reward) = if reward_referrer {
@@ -218,9 +217,9 @@ pub fn calculate_fee_for_fulfillment_with_match(
     };
 
     let maker_rebate = quote_asset_amount
-        .checked_mul(maker_fee_tier.maker_rebate_numerator)
+        .checked_mul(maker_fee_tier.maker_rebate_numerator as u128)
         .ok_or_else(math_error!())?
-        .checked_div(maker_fee_tier.maker_rebate_denominator)
+        .checked_div(maker_fee_tier.maker_rebate_denominator as u128)
         .ok_or_else(math_error!())?;
 
     let filler_reward: u128 = if !reward_filler {
@@ -277,9 +276,9 @@ pub fn calculate_fee_for_fulfillment_with_serum(
     let taker_fee_tier = determine_user_fee_tier(user_stats, fee_structure)?;
 
     let fee = quote_asset_amount
-        .checked_mul(taker_fee_tier.fee_numerator)
+        .checked_mul(taker_fee_tier.fee_numerator as u128)
         .ok_or_else(math_error!())?
-        .checked_div(taker_fee_tier.fee_denominator)
+        .checked_div(taker_fee_tier.fee_denominator as u128)
         .ok_or_else(math_error!())?;
 
     let serum_fee_plus_referrer_rebate = serum_fee
@@ -334,21 +333,9 @@ pub fn determine_user_fee_tier<'a>(
     user_stats: &UserStats,
     fee_structure: &'a FeeStructure,
 ) -> ClearingHouseResult<&'a FeeTier> {
-    let total_30d_volume = user_stats.get_total_30d_volume()?;
+    let _total_30d_volume = user_stats.get_total_30d_volume()?;
 
-    if total_30d_volume > ONE_HUNDRED_MILLION_QUOTE {
-        return Ok(&fee_structure.fourth_tier);
-    }
-
-    if total_30d_volume > TEN_MILLION_QUOTE {
-        return Ok(&fee_structure.third_tier);
-    }
-
-    if total_30d_volume > ONE_MILLION_QUOTE {
-        return Ok(&fee_structure.second_tier);
-    }
-
-    Ok(&fee_structure.first_tier)
+    Ok(&fee_structure.fee_tiers[0])
 }
 
 #[cfg(test)]
@@ -378,7 +365,7 @@ mod test {
                 &taker_stats,
                 &maker_stats,
                 quote_asset_amount,
-                &FeeStructure::default(),
+                &FeeStructure::test_default(),
                 0,
                 0,
                 false,
@@ -402,7 +389,7 @@ mod test {
             let taker_stats = UserStats::default();
             let maker_stats = UserStats::default();
 
-            let mut fee_structure = FeeStructure::default();
+            let mut fee_structure = FeeStructure::test_default();
             fee_structure
                 .filler_reward_structure
                 .time_based_reward_lower_bound = 10000000000000000; // big number
@@ -443,7 +430,7 @@ mod test {
             let taker_stats = UserStats::default();
             let maker_stats = UserStats::default();
 
-            let mut fee_structure = FeeStructure::default();
+            let mut fee_structure = FeeStructure::test_default();
             fee_structure.filler_reward_structure.reward_numerator = 1; // will make size reward the whole fee
             fee_structure.filler_reward_structure.reward_denominator = 1;
 
@@ -483,7 +470,7 @@ mod test {
             let taker_stats = UserStats::default();
             let maker_stats = UserStats::default();
 
-            let mut fee_structure = FeeStructure::default();
+            let mut fee_structure = FeeStructure::test_default();
             fee_structure.filler_reward_structure.reward_numerator = 1; // will make size reward the whole fee
             fee_structure.filler_reward_structure.reward_denominator = 1;
 
@@ -523,7 +510,7 @@ mod test {
             let taker_stats = UserStats::default();
             let maker_stats = UserStats::default();
 
-            let fee_structure = FeeStructure::default();
+            let fee_structure = FeeStructure::test_default();
 
             let FillFees {
                 user_fee: taker_fee,
@@ -566,7 +553,7 @@ mod test {
             let quote_asset_amount = 100 * QUOTE_PRECISION;
 
             let taker_stats = UserStats::default();
-            let fee_structure = FeeStructure::default();
+            let fee_structure = FeeStructure::test_default();
 
             let FillFees {
                 user_fee,
@@ -614,7 +601,7 @@ mod test {
             let fee_pool_token_amount = 0_u128;
 
             let taker_stats = UserStats::default();
-            let fee_structure = FeeStructure::default();
+            let fee_structure = FeeStructure::test_default();
 
             let SerumFillFees {
                 user_fee,
@@ -651,7 +638,7 @@ mod test {
             let fee_pool_token_amount = 0_u128;
 
             let taker_stats = UserStats::default();
-            let fee_structure = FeeStructure::default();
+            let fee_structure = FeeStructure::test_default();
 
             let SerumFillFees {
                 user_fee,
@@ -688,8 +675,8 @@ mod test {
             let fee_pool_token_amount = 10000_u128;
 
             let user_stats = UserStats::default();
-            let mut fee_structure = FeeStructure::default();
-            fee_structure.first_tier.fee_numerator = 4;
+            let mut fee_structure = FeeStructure::test_default();
+            fee_structure.fee_tiers[0].fee_numerator = 4;
 
             let SerumFillFees {
                 user_fee,
@@ -726,8 +713,8 @@ mod test {
             let fee_pool_token_amount = 2000_u128;
 
             let user_stats = UserStats::default();
-            let mut fee_structure = FeeStructure::default();
-            fee_structure.first_tier.fee_numerator = 4;
+            let mut fee_structure = FeeStructure::test_default();
+            fee_structure.fee_tiers[0].fee_numerator = 4;
 
             let SerumFillFees {
                 user_fee,

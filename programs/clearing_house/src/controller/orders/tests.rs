@@ -6,15 +6,17 @@ use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
 
 fn get_fee_structure() -> FeeStructure {
+    let mut fee_tiers = [FeeTier::default(); 10];
+    fee_tiers[0] = FeeTier {
+        fee_numerator: 5,
+        fee_denominator: 10000,
+        maker_rebate_numerator: 3,
+        maker_rebate_denominator: 10000,
+        ..FeeTier::default()
+    };
     FeeStructure {
-        first_tier: FeeTier {
-            fee_numerator: 5,
-            fee_denominator: 10000,
-            maker_rebate_numerator: 3,
-            maker_rebate_denominator: 10000,
-            ..FeeTier::default()
-        },
-        ..FeeStructure::default()
+        fee_tiers,
+        ..FeeStructure::test_default()
     }
 }
 
@@ -571,7 +573,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 3_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure::test_default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -656,7 +658,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 3_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure::test_default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -742,7 +744,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure::test_default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -828,7 +830,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure::test_default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -914,7 +916,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure::test_default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -1022,7 +1024,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure::test_default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 

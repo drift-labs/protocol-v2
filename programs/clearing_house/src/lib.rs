@@ -71,6 +71,7 @@ pub mod clearing_house {
     };
 
     use super::*;
+    use crate::state::fees::FeeStructure;
     use crate::state::insurance_fund_stake::InsuranceFundStake;
     use crate::state::serum::{load_market_state, load_open_orders};
     use bytemuck::cast_slice;
@@ -104,6 +105,8 @@ pub mod clearing_house {
             settlement_duration: 0, // extra duration after market expiry to allow settlement
             signer: clearing_house_signer,
             signer_nonce: clearing_house_signer_nonce,
+            perp_fee_structure: FeeStructure::perps_default(),
+            spot_fee_structure: FeeStructure::spot_default(),
         };
 
         Ok(())
@@ -1438,6 +1441,7 @@ pub mod clearing_house {
 
         controller::orders::trigger_spot_order(
             order_id,
+            &ctx.accounts.state,
             &ctx.accounts.user,
             &spot_market_market,
             &mut oracle_map,

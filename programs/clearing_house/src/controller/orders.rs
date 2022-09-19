@@ -46,7 +46,7 @@ use crate::order_validation::{validate_order, validate_spot_order};
 use crate::print_error;
 use crate::state::events::{get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
-use crate::state::fees::{FeeStructure, PERP_FEE_STRUCTURE, SPOT_FEE_STRUCTURE};
+use crate::state::fees::FeeStructure;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::market::PerpMarket;
 use crate::state::oracle::OraclePriceData;
@@ -591,7 +591,7 @@ pub fn fill_order(
         &user.orders[order_index],
         &mut filler.as_deref_mut(),
         &filler_key,
-        PERP_FEE_STRUCTURE.flat_filler_fee,
+        state.perp_fee_structure.flat_filler_fee,
         oracle_price,
         now,
         slot,
@@ -617,7 +617,7 @@ pub fn fill_order(
             user,
             filler.as_deref_mut(),
             perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
-            PERP_FEE_STRUCTURE.flat_filler_fee,
+            state.perp_fee_structure.flat_filler_fee,
         )?;
 
         cancel_order(
@@ -646,7 +646,7 @@ pub fn fill_order(
                 user,
                 filler.as_deref_mut(),
                 market.deref_mut(),
-                PERP_FEE_STRUCTURE.flat_filler_fee,
+                state.perp_fee_structure.flat_filler_fee,
             )?
         };
 
@@ -684,7 +684,7 @@ pub fn fill_order(
         spot_market_map,
         perp_market_map,
         oracle_map,
-        &PERP_FEE_STRUCTURE,
+        &state.perp_fee_structure,
         mark_price_before,
         valid_oracle_price,
         now,
@@ -701,7 +701,7 @@ pub fn fill_order(
                 user,
                 filler.as_deref_mut(),
                 market.deref_mut(),
-                PERP_FEE_STRUCTURE.flat_filler_fee,
+                state.perp_fee_structure.flat_filler_fee,
             )?
         };
 
@@ -1912,7 +1912,7 @@ pub fn trigger_order(
         user,
         filler.as_deref_mut(),
         market,
-        PERP_FEE_STRUCTURE.flat_filler_fee,
+        state.perp_fee_structure.flat_filler_fee,
     )?;
 
     let order_action_record = get_order_action_record(
@@ -2319,7 +2319,7 @@ pub fn fill_spot_order(
         &user.orders[order_index],
         &mut filler.as_deref_mut(),
         &filler_key,
-        SPOT_FEE_STRUCTURE.flat_filler_fee,
+        state.spot_fee_structure.flat_filler_fee,
         now,
         slot,
     )?;
@@ -2332,7 +2332,7 @@ pub fn fill_spot_order(
                 user,
                 filler.as_deref_mut(),
                 &mut quote_market,
-                SPOT_FEE_STRUCTURE.flat_filler_fee,
+                state.spot_fee_structure.flat_filler_fee,
             )?
         };
 
@@ -2370,7 +2370,7 @@ pub fn fill_spot_order(
         oracle_map,
         now,
         slot,
-        &SPOT_FEE_STRUCTURE,
+        &state.spot_fee_structure,
         serum_fulfillment_params,
     )?;
 
@@ -2381,7 +2381,7 @@ pub fn fill_spot_order(
                 user,
                 filler.as_deref_mut(),
                 &mut quote_market,
-                SPOT_FEE_STRUCTURE.flat_filler_fee,
+                state.spot_fee_structure.flat_filler_fee,
             )?
         };
 
@@ -3299,6 +3299,7 @@ pub fn fulfill_spot_order_with_serum(
 
 pub fn trigger_spot_order(
     order_id: u64,
+    state: &State,
     user: &AccountLoader<User>,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -3393,7 +3394,7 @@ pub fn trigger_spot_order(
         user,
         filler.as_deref_mut(),
         &mut quote_market,
-        SPOT_FEE_STRUCTURE.flat_filler_fee,
+        state.spot_fee_structure.flat_filler_fee,
     )?;
 
     let order_action_record = get_order_action_record(

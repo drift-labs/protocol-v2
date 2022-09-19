@@ -400,6 +400,8 @@ export type StateAccount = {
 	minPerpAuctionDuration: number;
 	defaultSpotAuctionDuration: number;
 	liquidationMarginBufferRatio: number;
+	perpFeeStructure: FeeStructure;
+	spotFeeStructure: FeeStructure;
 };
 
 export type PerpMarketAccount = {
@@ -713,6 +715,32 @@ export interface IWallet {
 	signAllTransactions(txs: Transaction[]): Promise<Transaction[]>;
 	publicKey: PublicKey;
 }
+
+export type FeeStructure = {
+	feeTiers: FeeTier[];
+	makerRebateNumerator: BN;
+	makerRebateDenominator: BN;
+	fillerRewardStructure: OrderFillerRewardStructure;
+	flatFillerFee: BN;
+	referrerRewardEpochUpperBound: BN;
+};
+
+export type FeeTier = {
+	feeNumerator: number;
+	feeDenominator: number;
+	makerRebateNumerator: number;
+	makerRebateDenominator: number;
+	referrerRewardNumerator: number;
+	referrerRewardDenominator: number;
+	refereeFeeNumerator: number;
+	refereeFeeDenominator: number;
+};
+
+export type OrderFillerRewardStructure = {
+	rewardNumerator: BN;
+	rewardDenominator: BN;
+	timeBasedRewardLowerBound: BN;
+};
 
 export type OracleGuardRails = {
 	priceDivergence: {
