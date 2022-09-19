@@ -157,7 +157,7 @@ export function calculateUnrealizedAssetWeight(
 			assetWeight = new BN(market.unrealizedInitialAssetWeight);
 
 			if (market.unrealizedMaxImbalance.gt(ZERO)) {
-				const netUnsettledPnl = calculateNetUserImbalance(
+				const netUnsettledPnl = calculateNetUserPnlImbalance(
 					market,
 					quoteSpotMarket,
 					oraclePriceData
@@ -194,9 +194,8 @@ export function calculateMarketAvailablePNL(
 	);
 }
 
-export function calculateNetUserImbalance(
+export function calculateNetUserPnl(
 	perpMarket: PerpMarketAccount,
-	spotMarket: SpotMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
 	const netUserPositionValue = perpMarket.amm.netBaseAssetAmount
@@ -208,7 +207,17 @@ export function calculateNetUserImbalance(
 		.add(perpMarket.amm.quoteAssetAmountShort)
 		.sub(perpMarket.amm.cumulativeSocialLoss);
 
-	const userEntitledPnl = netUserPositionValue.add(netUserCostBasis);
+	const netUserPnl = netUserPositionValue.add(netUserCostBasis);
+
+	return netUserPnl;
+}
+
+export function calculateNetUserPnlImbalance(
+	perpMarket: PerpMarketAccount,
+	spotMarket: SpotMarketAccount,
+	oraclePriceData: OraclePriceData
+): BN {
+	const netUserPnl = calculateNetUserPnl(perpMarket, oraclePriceData);
 
 	const pnlPool = getTokenAmount(
 		perpMarket.pnlPool.balance,
@@ -216,7 +225,7 @@ export function calculateNetUserImbalance(
 		SpotBalanceType.DEPOSIT
 	);
 
-	const imbalance = userEntitledPnl.sub(pnlPool);
+	const imbalance = netUserPnl.sub(pnlPool);
 
 	return imbalance;
 }

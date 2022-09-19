@@ -1,4 +1,4 @@
-import { BN } from '../';
+import { BN, SpotMarketAccount } from '../';
 import {
 	AMM_RESERVE_PRECISION,
 	AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
@@ -17,8 +17,8 @@ import {
 	calculateAmmReservesAfterSwap,
 	getSwapDirection,
 } from './amm';
-
 import { calculateBaseAssetValueWithOracle } from './margin';
+import { calculateNetUserPnlImbalance } from './market';
 
 /**
  * calculateBaseAssetValue
@@ -132,6 +132,7 @@ export function calculatePositionPNL(
 
 export function calculateClaimablePnl(
 	market: PerpMarketAccount,
+	spotMarket: SpotMarketAccount,
 	perpPosition: PerpPosition,
 	oraclePriceData: OraclePriceData
 ): BN {
@@ -148,8 +149,17 @@ export function calculateClaimablePnl(
 
 	let unsettledPnl = unrealizedPnl.add(fundingPnL);
 	if (unrealizedPnl.gt(ZERO)) {
+		const excessPnlPool = BN.max(
+			ZERO,
+			calculateNetUserPnlImbalance(market, spotMarket, oraclePriceData).mul(
+				new BN(-1)
+			)
+		);
+
 		const maxPositivePnl = BN.max(
-			perpPosition.quoteAssetAmount.sub(perpPosition.quoteEntryAmount),
+			perpPosition.quoteAssetAmount
+				.sub(perpPosition.quoteEntryAmount)
+				.add(excessPnlPool),
 			ZERO
 		);
 
