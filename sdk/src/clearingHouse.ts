@@ -478,6 +478,22 @@ export class ClearingHouse {
 		});
 	}
 
+	public async updateUserCustomMarginRatio(
+		marginRatio: number,
+		userId = 0
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateUserCustomMarginRatio(
+			userId,
+			marginRatio,
+			{
+				accounts: {
+					user: await this.getUserAccountPublicKey(),
+					authority: this.wallet.publicKey,
+				},
+			}
+		);
+	}
+
 	public getUser(userId?: number): ClearingHouseUser {
 		userId = userId ?? this.activeUserId;
 		if (!this.users.has(userId)) {

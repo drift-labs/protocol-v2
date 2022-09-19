@@ -26,7 +26,7 @@ use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{PerpPosition, SpotPosition};
 use num_integer::Roots;
 use solana_program::msg;
-use std::cmp::{max, min};
+use std::cmp::{max, min, Ordering};
 
 #[cfg(test)]
 mod tests;
@@ -171,6 +171,7 @@ pub fn calculate_perp_position_value_and_pnl(
     market: &PerpMarket,
     oracle_price_data: &OraclePriceData,
     margin_requirement_type: MarginRequirementType,
+    user_custom_margin_ratio: u128,
 ) -> ClearingHouseResult<(u128, i128, u128)> {
     let unrealized_funding = calculate_funding_payment(
         if market_position.base_asset_amount > 0 {
@@ -256,13 +257,13 @@ pub fn calculate_perp_position_value_and_pnl(
         valuation_price,
     )?;
 
-    let margin_ratio = market.get_margin_ratio(
+    let margin_ratio = user_custom_margin_ratio.max(market.get_margin_ratio(
         worst_case_base_asset_amount.unsigned_abs(),
         margin_requirement_type,
-    )?;
+    )? as u128);
 
     let margin_requirement = worse_case_base_asset_value
-        .checked_mul(margin_ratio.into())
+        .checked_mul(margin_ratio)
         .ok_or_else(math_error!())?
         .checked_div(MARGIN_PRECISION)
         .ok_or_else(math_error!())?;
@@ -295,6 +296,12 @@ pub fn calculate_margin_requirement_and_total_collateral(
     let mut margin_requirement: u128 = 0;
     let mut margin_requirement_plus_buffer: u128 = 0;
 
+    let user_custom_margin_ratio = if margin_requirement_type == MarginRequirementType::Initial {
+        user.custom_margin_ratio as u128
+    } else {
+        0_u128
+    };
+
     for spot_position in user.spot_positions.iter() {
         if spot_position.balance == 0 && spot_position.open_orders == 0 {
             continue;
@@ -316,14 +323,21 @@ pub fn calculate_margin_requirement_and_total_collateral(
                         .ok_or_else(math_error!())?
                 }
                 SpotBalanceType::Borrow => {
+                    let liability_weight = user_custom_margin_ratio.max(SPOT_WEIGHT_PRECISION);
+                    let weighted_token_value = token_amount
+                        .checked_mul(liability_weight)
+                        .ok_or_else(math_error!())?
+                        .checked_div(SPOT_WEIGHT_PRECISION)
+                        .ok_or_else(math_error!())?;
+
                     margin_requirement = margin_requirement
-                        .checked_add(token_amount)
+                        .checked_add(weighted_token_value)
                         .ok_or_else(math_error!())?;
 
                     if let Some(margin_buffer_ratio) = margin_buffer_ratio {
                         margin_requirement_plus_buffer = margin_requirement_plus_buffer
                             .checked_add(calculate_margin_requirement_with_buffer(
-                                token_amount,
+                                weighted_token_value,
                                 token_amount,
                                 margin_buffer_ratio,
                             )?)
@@ -344,8 +358,8 @@ pub fn calculate_margin_requirement_and_total_collateral(
                 oracle_price_data,
             )?;
 
-            match worst_case_token_amount > 0 {
-                true => {
+            match worst_case_token_amount.cmp(&0) {
+                Ordering::Greater => {
                     let weighted_token_value = worst_case_token_value
                         .unsigned_abs()
                         .checked_mul(spot_market.get_asset_weight(
@@ -360,13 +374,16 @@ pub fn calculate_margin_requirement_and_total_collateral(
                         .checked_add(cast_to_i128(weighted_token_value)?)
                         .ok_or_else(math_error!())?;
                 }
-                false => {
-                    let weighted_token_value = worst_case_token_value
-                        .unsigned_abs()
-                        .checked_mul(spot_market.get_liability_weight(
+                Ordering::Less => {
+                    let liability_weight =
+                        user_custom_margin_ratio.max(spot_market.get_liability_weight(
                             worst_case_token_amount.unsigned_abs(),
                             &margin_requirement_type,
-                        )?)
+                        )?);
+
+                    let weighted_token_value = worst_case_token_value
+                        .unsigned_abs()
+                        .checked_mul(liability_weight)
                         .ok_or_else(math_error!())?
                         .checked_div(SPOT_WEIGHT_PRECISION)
                         .ok_or_else(math_error!())?;
@@ -385,29 +402,39 @@ pub fn calculate_margin_requirement_and_total_collateral(
                             .ok_or_else(math_error!())?;
                     }
                 }
+                Ordering::Equal => {}
             }
 
-            match worst_cast_quote_token_amount > 0 {
-                true => {
+            match worst_cast_quote_token_amount.cmp(&0) {
+                Ordering::Greater => {
                     total_collateral = total_collateral
                         .checked_add(cast_to_i128(worst_cast_quote_token_amount)?)
                         .ok_or_else(math_error!())?
                 }
-                false => {
+                Ordering::Less => {
+                    let liability_weight = user_custom_margin_ratio.max(SPOT_WEIGHT_PRECISION);
+                    let weighted_token_value = worst_cast_quote_token_amount
+                        .unsigned_abs()
+                        .checked_mul(liability_weight)
+                        .ok_or_else(math_error!())?
+                        .checked_div(SPOT_WEIGHT_PRECISION)
+                        .ok_or_else(math_error!())?;
+
                     margin_requirement = margin_requirement
-                        .checked_add(worst_cast_quote_token_amount.unsigned_abs())
+                        .checked_add(weighted_token_value)
                         .ok_or_else(math_error!())?;
 
                     if let Some(margin_buffer_ratio) = margin_buffer_ratio {
                         margin_requirement_plus_buffer = margin_requirement_plus_buffer
                             .checked_add(calculate_margin_requirement_with_buffer(
-                                worst_cast_quote_token_amount.unsigned_abs(),
+                                weighted_token_value,
                                 worst_cast_quote_token_amount.unsigned_abs(),
                                 margin_buffer_ratio,
                             )?)
                             .ok_or_else(math_error!())?;
                     }
                 }
+                Ordering::Equal => {}
             }
         }
     }
@@ -431,6 +458,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
                 market,
                 oracle_price_data,
                 margin_requirement_type,
+                user_custom_margin_ratio,
             )?;
 
         margin_requirement = margin_requirement
@@ -472,60 +500,6 @@ fn calculate_margin_requirement_with_buffer(
                 / MARGIN_PRECISION,
         )
         .ok_or_else(math_error!())
-}
-
-pub fn calculate_net_quote_balance(
-    user: &User,
-    margin_requirement_type: MarginRequirementType,
-    spot_market_map: &SpotMarketMap,
-    oracle_map: &mut OracleMap,
-) -> ClearingHouseResult<i128> {
-    let mut net_quote_balance: i128 = 0;
-
-    for spot_position in user.spot_positions.iter() {
-        if spot_position.balance == 0 {
-            continue;
-        }
-
-        let spot_market = &spot_market_map.get_ref(&spot_position.market_index)?;
-
-        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
-        let (balance_value, token_amount) =
-            get_balance_value_and_token_amount(spot_position, spot_market, oracle_price_data)?;
-
-        match spot_position.balance_type {
-            SpotBalanceType::Deposit => {
-                net_quote_balance = net_quote_balance
-                    .checked_add(cast_to_i128(
-                        balance_value
-                            .checked_mul(
-                                spot_market
-                                    .get_asset_weight(token_amount, &margin_requirement_type)?,
-                            )
-                            .ok_or_else(math_error!())?
-                            .checked_div(SPOT_WEIGHT_PRECISION)
-                            .ok_or_else(math_error!())?,
-                    )?)
-                    .ok_or_else(math_error!())?;
-            }
-            SpotBalanceType::Borrow => {
-                net_quote_balance = net_quote_balance
-                    .checked_sub(cast_to_i128(
-                        balance_value
-                            .checked_mul(
-                                spot_market
-                                    .get_liability_weight(token_amount, &margin_requirement_type)?,
-                            )
-                            .ok_or_else(math_error!())?
-                            .checked_div(SPOT_WEIGHT_PRECISION)
-                            .ok_or_else(math_error!())?,
-                    )?)
-                    .ok_or_else(math_error!())?;
-            }
-        }
-    }
-
-    Ok(net_quote_balance)
 }
 
 pub fn meets_initial_margin_requirement(

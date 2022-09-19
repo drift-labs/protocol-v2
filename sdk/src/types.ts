@@ -598,6 +598,7 @@ export type UserAccount = {
 	bankrupt: boolean;
 	nextLiquidationId: number;
 	nextOrderId: BN;
+	customMarginRatio: number;
 };
 
 export type SpotPosition = {
