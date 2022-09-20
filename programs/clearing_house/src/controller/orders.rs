@@ -8,7 +8,7 @@ use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
     update_amm_and_lp_market_position, update_position_and_market, update_quote_asset_amount,
-    PositionDelta, PositionDirection,
+    PositionDirection,
 };
 use crate::controller::serum::{invoke_new_order, invoke_settle_funds, SerumFulfillmentParams};
 use crate::controller::spot_balance::update_spot_balances;
@@ -1256,23 +1256,12 @@ pub fn fulfill_order_with_amm(
     let user_position_delta =
         get_position_delta_for_fill(base_asset_amount, quote_asset_amount, order_direction)?;
 
-    if split_with_lps {
-        update_amm_and_lp_market_position(market, &user_position_delta, fee_to_market_for_lp)?;
-    } else {
-        let amm_baa = -user_position_delta.base_asset_amount;
-        let amm_qaa = (-user_position_delta.quote_asset_amount)
-            .checked_add(fee_to_market_for_lp)
-            .ok_or_else(math_error!())?;
-
-        crate::controller::position::update_amm_position(
-            market,
-            &PositionDelta {
-                base_asset_amount: amm_baa,
-                quote_asset_amount: amm_qaa,
-            },
-            false,
-        )?;
-    }
+    update_amm_and_lp_market_position(
+        market,
+        &user_position_delta,
+        fee_to_market_for_lp,
+        split_with_lps,
+    )?;
 
     // Increment the clearing house's total fee variables
     market.amm.total_fee = market

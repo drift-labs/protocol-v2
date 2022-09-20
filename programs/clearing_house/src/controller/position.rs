@@ -6,7 +6,9 @@ use crate::controller;
 use crate::controller::amm::SwapDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::{AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128};
+use crate::math::constants::{
+    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, LP_FEE_SLICE_DENOMINATOR,
+};
 use crate::math::helpers::get_proportion_i128;
 use crate::math::orders::{
     calculate_quote_asset_amount_for_maker_order, get_position_delta_for_fill,
@@ -454,7 +456,7 @@ pub fn update_lp_market_position(
 
     // 1/5 of fee auto goes to market
     // the rest goes to lps/market proportional
-    let lp_fee = (fee_to_market - (fee_to_market / 5)) // todo: 80% retained
+    let lp_fee = (fee_to_market - (fee_to_market / LP_FEE_SLICE_DENOMINATOR)) // todo: 80% retained
         .checked_mul(cast_to_i128(user_lp_shares)?)
         .ok_or_else(math_error!())?
         .checked_div(cast_to_i128(total_lp_shares)?)
@@ -497,10 +499,14 @@ pub fn update_amm_and_lp_market_position(
     market: &mut PerpMarket,
     delta: &PositionDelta,
     fee_to_market: i128,
+    split_with_lps: bool,
 ) -> ClearingHouseResult {
     // update LP position
-    let (lp_delta_base, lp_delta_quote, lp_fee) =
-        update_lp_market_position(market, &delta, fee_to_market)?;
+    let (lp_delta_base, lp_delta_quote, lp_fee) = if split_with_lps {
+        update_lp_market_position(market, &delta, fee_to_market)?
+    } else {
+        (0, 0, 0)
+    };
 
     // Update AMM position
     let amm_fee = fee_to_market
@@ -718,7 +724,7 @@ mod test {
             ..PerpMarket::default_test()
         };
 
-        update_amm_and_lp_market_position(&mut market, &delta, 0).unwrap();
+        update_amm_and_lp_market_position(&mut market, &delta, 0, true).unwrap();
 
         assert_eq!(
             market.amm.market_position.base_asset_amount,
@@ -753,7 +759,7 @@ mod test {
             ..PerpMarket::default_test()
         };
 
-        update_amm_and_lp_market_position(&mut market, &delta, 0).unwrap();
+        update_amm_and_lp_market_position(&mut market, &delta, 0, true).unwrap();
 
         assert_eq!(
             market.amm.market_position_per_lp.base_asset_amount,
@@ -788,7 +794,7 @@ mod test {
             ..PerpMarket::default_test()
         };
 
-        update_amm_and_lp_market_position(&mut market, &delta, 0).unwrap();
+        update_amm_and_lp_market_position(&mut market, &delta, 0, true).unwrap();
 
         assert_eq!(
             market.amm.market_position_per_lp.base_asset_amount,
