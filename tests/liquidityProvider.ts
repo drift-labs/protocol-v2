@@ -122,6 +122,7 @@ async function fullClosePosition(clearingHouse, userPosition) {
 	let flag = true;
 	while (flag) {
 		sig = await clearingHouse.closePosition(new BN(0));
+		await clearingHouse.fetchAccounts();
 		position = clearingHouse.getUserAccount().perpPositions[0];
 		if (position.baseAssetAmount.eq(ZERO)) {
 			flag = false;
@@ -262,6 +263,8 @@ describe('liquidity providing', () => {
 		let market = clearingHouse.getPerpMarketAccount(new BN(0));
 		const lpAmount = new BN(100 * 1e13); // 100 / (100 + 300) = 1/4
 		const _sig = await clearingHouse.addLiquidity(lpAmount, market.marketIndex);
+
+		await clearingHouse.fetchAccounts();
 
 		const addLiquidityRecord: LPRecord =
 			eventSubscriber.getEventsArray('LPRecord')[0];
