@@ -48,6 +48,7 @@ export class OrderType {
 	static readonly MARKET = { market: {} };
 }
 
+export declare type MarketTypeStr = 'perp' | 'spot';
 export class MarketType {
 	static readonly SPOT = { spot: {} };
 	static readonly PERP = { perp: {} };
@@ -112,6 +113,10 @@ export function isOneOfVariant(object: unknown, types: string[]) {
 	return types.reduce((result, type) => {
 		return result || object.hasOwnProperty(type);
 	}, false);
+}
+
+export function getVariant(object: unknown): string {
+	return Object.keys(object)[0];
 }
 
 export enum TradeSide {
@@ -554,7 +559,7 @@ export type PerpPosition = {
 	openOrders: BN;
 	openBids: BN;
 	openAsks: BN;
-	realizedPnl: BN;
+	settledPnl: BN;
 	lpShares: BN;
 	lastFeePerLp: BN;
 	lastNetBaseAssetAmountPerLp: BN;
@@ -593,6 +598,7 @@ export type UserAccount = {
 	bankrupt: boolean;
 	nextLiquidationId: number;
 	nextOrderId: BN;
+	customMarginRatio: number;
 };
 
 export type SpotPosition = {

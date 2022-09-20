@@ -409,6 +409,10 @@ export class PollingClearingHouseAccountSubscriber
 		return this.spotMarket.get(marketIndex.toNumber());
 	}
 
+	public getSpotMarketAccountsAndSlots(): DataAndSlot<SpotMarketAccount>[] {
+		return Array.from(this.spotMarket.values());
+	}
+
 	public getOraclePriceDataAndSlot(
 		oraclePublicKey: PublicKey
 	): DataAndSlot<OraclePriceData> | undefined {

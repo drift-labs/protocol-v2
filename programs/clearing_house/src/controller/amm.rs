@@ -25,6 +25,7 @@ use std::cmp::{max, min};
 
 use crate::controller::repeg::apply_cost_to_market;
 use crate::controller::spot_balance::{update_revenue_pool_balances, update_spot_balances};
+use crate::controller::spot_position::update_spot_position_balance;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -675,7 +676,8 @@ pub fn update_pnl_pool_and_user_balance(
         false,
     )?;
 
-    update_spot_balances(
+    let user_spot_position = user.get_quote_spot_position_mut();
+    update_spot_position_balance(
         pnl_to_settle_with_user.unsigned_abs(),
         if pnl_to_settle_with_user > 0 {
             &SpotBalanceType::Deposit
@@ -683,7 +685,7 @@ pub fn update_pnl_pool_and_user_balance(
             &SpotBalanceType::Borrow
         },
         bank,
-        user.get_quote_spot_position_mut(),
+        user_spot_position,
         false,
     )?;
 

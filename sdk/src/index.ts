@@ -58,5 +58,10 @@ export * from './util/tps';
 export * from './math/spotBalance';
 export * from './constants/spotMarkets';
 export * from './clearingHouseConfig';
+export * from './dlob/DLOB';
+export * from './dlob/DLOBNode';
+export * from './dlob/NodeList';
+export * from './userMap/userMap';
+export * from './userMap/userStatsMap';
 
 export { BN, PublicKey, pyth };
