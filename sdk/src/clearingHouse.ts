@@ -1,5 +1,9 @@
 import { AnchorProvider, BN, Idl, Program } from '@project-serum/anchor';
-import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+	ASSOCIATED_TOKEN_PROGRAM_ID,
+	Token,
+	TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 import {
 	StateAccount,
 	IWallet,
@@ -947,47 +951,21 @@ export class ClearingHouse {
 		return result;
 	}
 
-	private async getTokenAccountCreationIxs(
-		tokenMintAddress: PublicKey
-	): Promise<{
-		ixs: anchor.web3.TransactionInstruction[];
-		signers: Signer[];
-		pubkey: PublicKey;
-	}> {
-		const accountKeypair = new Keypair();
-
-		const result = {
-			ixs: [],
-			signers: [],
-			pubkey: accountKeypair.publicKey,
-		};
-
-		const rentSpaceLamports = new BN(LAMPORTS_PER_SOL / 100);
-
-		const authority = this.wallet.publicKey;
-
-		result.ixs.push(
-			SystemProgram.createAccount({
-				fromPubkey: authority,
-				newAccountPubkey: accountKeypair.publicKey,
-				lamports: rentSpaceLamports.toNumber(),
-				space: 165,
-				programId: TOKEN_PROGRAM_ID,
-			})
-		);
-
-		result.ixs.push(
-			Token.createInitAccountInstruction(
+	private async getAssociatedTokenAccountCreationIx(
+		tokenMintAddress: PublicKey,
+		associatedTokenAddress: PublicKey
+	): Promise<anchor.web3.TransactionInstruction> {
+		const createAssociatedAccountIx =
+			Token.createAssociatedTokenAccountInstruction(
+				ASSOCIATED_TOKEN_PROGRAM_ID,
 				TOKEN_PROGRAM_ID,
 				tokenMintAddress,
-				accountKeypair.publicKey,
-				authority
-			)
-		);
+				associatedTokenAddress,
+				this.wallet.publicKey,
+				this.wallet.publicKey
+			);
 
-		result.signers.push(accountKeypair);
-
-		return result;
+		return createAssociatedAccountIx;
 	}
 
 	/**
@@ -1156,17 +1134,13 @@ export class ClearingHouse {
 			const accountExists = await this.checkIfAccountExists(userTokenAccount);
 
 			if (!accountExists) {
-				const { ixs, signers, pubkey } = await this.getTokenAccountCreationIxs(
-					spotMarketAccount.mint
-				);
+				const createAssociatedTokenAccountIx =
+					await this.getAssociatedTokenAccountCreationIx(
+						spotMarketAccount.mint,
+						userTokenAccount
+					);
 
-				userTokenAccount = pubkey;
-
-				ixs.forEach((ix) => {
-					tx.add(ix);
-				});
-
-				signers.forEach((signer) => additionalSigners.push(signer));
+				tx.add(createAssociatedTokenAccountIx);
 			}
 		}
 
