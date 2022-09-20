@@ -14,6 +14,7 @@ use crate::controller::serum::{invoke_new_order, invoke_settle_funds, SerumFulfi
 use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::spot_position::{
     decrease_spot_open_bids_and_asks, increase_spot_open_bids_and_asks,
+    update_spot_position_balance,
 };
 
 use crate::error::ClearingHouseResult;
@@ -1035,6 +1036,7 @@ fn fulfill_order(
                 &mut order_records,
                 None,
                 None,
+                true,
             )?,
             PerpFulfillmentMethod::Match => fulfill_order_with_match(
                 market.deref_mut(),
@@ -1163,6 +1165,7 @@ pub fn fulfill_order_with_amm(
     order_records: &mut Vec<OrderActionRecord>,
     override_base_asset_amount: Option<u128>,
     override_fill_price: Option<u128>, // todo probs dont need this since its the user_limit_price / current auction time
+    split_with_lps: bool,
 ) -> ClearingHouseResult<(u128, u128)> {
     // Determine the base asset amount the market can fill
     let (base_asset_amount, fill_price) = match override_base_asset_amount {
@@ -1238,6 +1241,7 @@ pub fn fulfill_order_with_amm(
         now,
         filler.is_some(),
         reward_referrer,
+        referrer_stats,
         quote_asset_amount_surplus,
         order_post_only,
     )?;
@@ -1255,7 +1259,8 @@ pub fn fulfill_order_with_amm(
     update_amm_and_lp_market_position(
         market,
         &user_position_delta,
-        cast_to_i128(fee_to_market_for_lp)?,
+        fee_to_market_for_lp,
+        split_with_lps,
     )?;
 
     // Increment the clearing house's total fee variables
@@ -1289,9 +1294,10 @@ pub fn fulfill_order_with_amm(
 
     if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
         if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index) {
-            update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
-
-            referrer_stats.increment_total_referrer_reward(cast(referrer_reward)?)?;
+            if referrer_reward > 0 {
+                update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
+                referrer_stats.increment_total_referrer_reward(cast(referrer_reward)?, now)?;
+            }
         }
     }
 
@@ -1491,6 +1497,7 @@ pub fn fulfill_order_with_match(
                     order_records,
                     Some(jit_base_asset_amount),
                     Some(taker_price), // current auction price
+                    false,             // dont split with the lps
                 )?;
 
             total_quote_asset_amount = quote_asset_amount_filled_by_amm;
@@ -1580,6 +1587,7 @@ pub fn fulfill_order_with_match(
         now,
         filler.is_some(),
         reward_referrer,
+        referrer_stats,
     )?;
 
     // Increment the markets house's total fee variables
@@ -1649,9 +1657,10 @@ pub fn fulfill_order_with_match(
 
     if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
         if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index) {
-            update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
-
-            referrer_stats.increment_total_referrer_reward(cast(referrer_reward)?)?;
+            if referrer_reward > 0 {
+                update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
+                referrer_stats.increment_total_referrer_reward(cast(referrer_reward)?, now)?;
+            }
         }
     }
 
@@ -1972,7 +1981,7 @@ pub fn pay_keeper_flat_reward_for_spot(
     filler_reward: u128,
 ) -> ClearingHouseResult<u128> {
     let filler_reward = if let Some(filler) = filler {
-        update_spot_balances(
+        update_spot_position_balance(
             filler_reward,
             &SpotBalanceType::Deposit,
             quote_market,
@@ -1980,7 +1989,7 @@ pub fn pay_keeper_flat_reward_for_spot(
             false,
         )?;
 
-        update_spot_balances(
+        update_spot_position_balance(
             filler_reward,
             &SpotBalanceType::Borrow,
             quote_market,
@@ -2746,10 +2755,11 @@ pub fn fulfill_spot_order_with_match(
         now,
         filler.is_some(),
         false,
+        &None,
     )?;
 
     // Update taker state
-    update_spot_balances(
+    update_spot_position_balance(
         base_asset_amount,
         &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Base),
         base_market,
@@ -2766,7 +2776,7 @@ pub fn fulfill_spot_order_with_match(
             .ok_or_else(math_error!())?,
     };
 
-    update_spot_balances(
+    update_spot_position_balance(
         taker_quote_asset_amount_delta,
         &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Quote),
         quote_market,
@@ -2794,7 +2804,7 @@ pub fn fulfill_spot_order_with_match(
     taker_stats.increment_total_fees(cast(taker_fee)?)?;
 
     // Update maker state
-    update_spot_balances(
+    update_spot_position_balance(
         base_asset_amount,
         &maker.orders[maker_order_index].get_spot_position_update_direction(AssetType::Base),
         base_market,
@@ -2811,7 +2821,7 @@ pub fn fulfill_spot_order_with_match(
             .ok_or_else(math_error!())?,
     };
 
-    update_spot_balances(
+    update_spot_position_balance(
         maker_quote_asset_amount_delta,
         &maker.orders[maker_order_index].get_spot_position_update_direction(AssetType::Quote),
         quote_market,
@@ -2841,7 +2851,7 @@ pub fn fulfill_spot_order_with_match(
     // Update filler state
     if let (Some(filler), Some(filler_stats)) = (filler, filler_stats) {
         if filler_reward > 0 {
-            update_spot_balances(
+            update_spot_position_balance(
                 filler_reward,
                 &SpotBalanceType::Deposit,
                 quote_market,
@@ -3171,7 +3181,7 @@ pub fn fulfill_spot_order_with_serum(
         "Fill on serum lead to unexpected to update direction"
     )?;
 
-    update_spot_balances(
+    update_spot_position_balance(
         base_asset_amount_filled,
         &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Base),
         base_market,
@@ -3186,7 +3196,7 @@ pub fn fulfill_spot_order_with_serum(
         "Fill on serum lead to unexpected to update direction"
     )?;
 
-    update_spot_balances(
+    update_spot_position_balance(
         quote_spot_position_delta,
         &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Quote),
         quote_market,
@@ -3215,7 +3225,7 @@ pub fn fulfill_spot_order_with_serum(
 
     if let (Some(filler), Some(filler_stats)) = (filler, filler_stats) {
         if filler_reward > 0 {
-            update_spot_balances(
+            update_spot_position_balance(
                 filler_reward,
                 &SpotBalanceType::Deposit,
                 quote_market,

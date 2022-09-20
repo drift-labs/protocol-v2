@@ -1,6 +1,10 @@
 import { AnchorProvider, BN, Idl, Program } from '@project-serum/anchor';
 import bs58 from 'bs58';
-import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+	ASSOCIATED_TOKEN_PROGRAM_ID,
+	Token,
+	TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 import {
 	StateAccount,
 	IWallet,
@@ -306,6 +310,12 @@ export class ClearingHouse {
 	): SpotMarketAccount | undefined {
 		marketIndex = marketIndex instanceof BN ? marketIndex : new BN(marketIndex);
 		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
+	}
+
+	public getSpotMarketAccounts(): SpotMarketAccount[] {
+		return this.accountSubscriber
+			.getSpotMarketAccountsAndSlots()
+			.map((value) => value.data);
 	}
 
 	public getQuoteSpotMarketAccount(): SpotMarketAccount {
@@ -868,10 +878,10 @@ export class ClearingHouse {
 		);
 	}
 
-	private async checkIfAccountExists(account: PublicKey) {
+	private async checkIfAccountExists(account: PublicKey): Promise<boolean> {
 		try {
 			const accountInfo = await this.connection.getAccountInfo(account);
-			return accountInfo && true;
+			return accountInfo != null;
 		} catch (e) {
 			// Doesn't already exist
 			return false;
@@ -972,6 +982,23 @@ export class ClearingHouse {
 		result.signers.push(wrappedSolAccount);
 
 		return result;
+	}
+
+	public getAssociatedTokenAccountCreationIx(
+		tokenMintAddress: PublicKey,
+		associatedTokenAddress: PublicKey
+	): anchor.web3.TransactionInstruction {
+		const createAssociatedAccountIx =
+			Token.createAssociatedTokenAccountInstruction(
+				ASSOCIATED_TOKEN_PROGRAM_ID,
+				TOKEN_PROGRAM_ID,
+				tokenMintAddress,
+				associatedTokenAddress,
+				this.wallet.publicKey,
+				this.wallet.publicKey
+			);
+
+		return createAssociatedAccountIx;
 	}
 
 	/**
@@ -1136,6 +1163,18 @@ export class ClearingHouse {
 			});
 
 			signers.forEach((signer) => additionalSigners.push(signer));
+		} else {
+			const accountExists = await this.checkIfAccountExists(userTokenAccount);
+
+			if (!accountExists) {
+				const createAssociatedTokenAccountIx =
+					this.getAssociatedTokenAccountCreationIx(
+						spotMarketAccount.mint,
+						userTokenAccount
+					);
+
+				tx.add(createAssociatedTokenAccountIx);
+			}
 		}
 
 		const withdrawCollateral = await this.getWithdrawIx(
@@ -3221,6 +3260,13 @@ export class ClearingHouse {
 
 	public getOracleDataForMarket(marketIndex: BN): OraclePriceData {
 		const oracleKey = this.getPerpMarketAccount(marketIndex).amm.oracle;
+		const oracleData = this.getOraclePriceDataAndSlot(oracleKey).data;
+
+		return oracleData;
+	}
+
+	public getOracleDataForSpotMarket(marketIndex: BN): OraclePriceData {
+		const oracleKey = this.getSpotMarketAccount(marketIndex).oracle;
 		const oracleData = this.getOraclePriceDataAndSlot(oracleKey).data;
 
 		return oracleData;

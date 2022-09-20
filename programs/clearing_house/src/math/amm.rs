@@ -1397,6 +1397,9 @@ pub fn update_k(market: &mut PerpMarket, update_k_result: &UpdateKResult) -> Cle
     market.amm.min_base_asset_reserve = min_base_asset_reserve;
     market.amm.max_base_asset_reserve = max_base_asset_reserve;
 
+    let mark_price_after = market.amm.mark_price()?;
+    crate::controller::amm::update_spreads(&mut market.amm, mark_price_after)?;
+
     Ok(())
 }
 
@@ -2565,6 +2568,67 @@ mod test {
     }
 
     #[test]
+    fn calculate_k_tests_with_spread() {
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 5122950819670000,
+                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+                concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
+                sqrt_k: 500 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 50000,
+                net_base_asset_amount: -122950819670000,
+                ..AMM::default()
+            },
+            ..PerpMarket::default()
+        };
+        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.min_base_asset_reserve = 0;
+        market.amm.base_spread = 10;
+        market.amm.long_spread = 5;
+        market.amm.short_spread = 5;
+
+        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+            crate::amm::calculate_spread_reserves(&market.amm, PositionDirection::Long).unwrap();
+        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+            crate::amm::calculate_spread_reserves(&market.amm, PositionDirection::Short).unwrap();
+
+        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
+        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
+        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
+        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+
+        validate!(
+            market.amm.bid_base_asset_reserve >= market.amm.base_asset_reserve
+                && market.amm.bid_quote_asset_reserve <= market.amm.quote_asset_reserve,
+            ErrorCode::DefaultError,
+            "bid reserves out of wack: {} -> {}, quote: {} -> {}",
+            market.amm.bid_base_asset_reserve,
+            market.amm.base_asset_reserve,
+            market.amm.bid_quote_asset_reserve,
+            market.amm.quote_asset_reserve
+        )
+        .unwrap();
+
+        // increase k by .25%
+        let update_k_result =
+            get_update_k_result(&market, bn::U192::from(501 * AMM_RESERVE_PRECISION), true)
+                .unwrap();
+        update_k(&mut market, &update_k_result).unwrap();
+
+        validate!(
+            market.amm.bid_base_asset_reserve >= market.amm.base_asset_reserve
+                && market.amm.bid_quote_asset_reserve <= market.amm.quote_asset_reserve,
+            ErrorCode::DefaultError,
+            "bid reserves out of wack: {} -> {}, quote: {} -> {}",
+            market.amm.bid_base_asset_reserve,
+            market.amm.base_asset_reserve,
+            market.amm.bid_quote_asset_reserve,
+            market.amm.quote_asset_reserve
+        )
+        .unwrap();
+    }
+
+    #[test]
     fn calculate_k_tests() {
         let mut market = PerpMarket {
             amm: AMM {
@@ -2822,13 +2886,13 @@ mod test {
             market.amm.net_base_asset_amount,
             (AMM_RESERVE_PRECISION / 10) as i128 - 1
         );
-        assert_eq!(cost, 49406); //0.05
+        assert_eq!(cost, 49407); //0.05
 
         let update_k_down =
             get_update_k_result(&market, bn::U192::from(79 * AMM_RESERVE_PRECISION), false)
                 .unwrap();
         let cost = adjust_k_cost(&mut market, &update_k_down).unwrap();
-        assert_eq!(cost, -1407044); //0.05
+        assert_eq!(cost, -1407043); //0.05
 
         // lp owns 50% of vAMM, same k
         position.lp_shares = 50 * AMM_RESERVE_PRECISION;

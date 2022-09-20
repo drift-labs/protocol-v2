@@ -4615,7 +4615,7 @@
             "type": "i128"
           },
           {
-            "name": "realizedPnl",
+            "name": "settledPnl",
             "type": "i64"
           },
           {
