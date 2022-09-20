@@ -24,6 +24,7 @@ mod tests;
 #[repr(packed)]
 pub struct User {
     pub authority: Pubkey,
+    pub delegate: Pubkey,
     pub user_id: u8,
     pub name: [u8; 32],
     pub spot_positions: [SpotPosition; 8],
@@ -34,7 +35,6 @@ pub struct User {
     pub being_liquidated: bool,
     pub bankrupt: bool,
     pub custom_margin_ratio: u32,
-    pub delegate: Pubkey,
 }
 
 impl User {

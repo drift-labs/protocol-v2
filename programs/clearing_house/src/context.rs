@@ -237,7 +237,8 @@ pub struct Deposit<'info> {
     pub spot_market_vault: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
-        constraint = &spot_market_vault.mint.eq(&user_token_account.mint)
+        constraint = &spot_market_vault.mint.eq(&user_token_account.mint),
+        token::authority = authority
     )]
     pub user_token_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
