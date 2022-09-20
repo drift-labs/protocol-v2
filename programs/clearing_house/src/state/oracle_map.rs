@@ -76,7 +76,7 @@ impl<'a> OracleMap<'a> {
 
         if self.price_data.contains_key(pubkey) {
             let oracle_price_data = self.price_data.get(pubkey).unwrap();
-            let is_oracle_valid = is_oracle_valid(
+            let is_oracle_valid = oracle_validity(
                 last_oracle_price_twap,
                 oracle_price_data,
                 &self.oracle_guard_rails.validity,

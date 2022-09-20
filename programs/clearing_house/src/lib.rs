@@ -752,14 +752,7 @@ pub mod clearing_house {
             amount
         };
 
-        meets_withdraw_margin_requirement(
-            user,
-            &market_map,
-            MarginRequirementType::Initial,
-            &spot_market_map,
-            &mut oracle_map,
-            None,
-        )?;
+        meets_withdraw_margin_requirement(user, &market_map, &spot_market_map, &mut oracle_map)?;
 
         let spot_market = spot_market_map.get_ref(&market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
@@ -858,10 +851,8 @@ pub mod clearing_house {
             meets_withdraw_margin_requirement(
                 from_user,
                 &market_map,
-                MarginRequirementType::Initial,
                 &spot_market_map,
                 &mut oracle_map,
-                None,
             )?,
             ErrorCode::InsufficientCollateral,
             "From user does not meet initial margin requirement"
@@ -2207,10 +2198,7 @@ pub mod clearing_house {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
-        // todo: add oracle_data
-        // controller::spot_balance::update_spot_market_cumulative_interest(
-        //     spot_market,
-        //     now)?;
+        controller::spot_balance::update_spot_market_cumulative_interest(spot_market, None, now)?;
 
         validate!(
             spot_market.market_index == QUOTE_SPOT_MARKET_INDEX,

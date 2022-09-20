@@ -1494,6 +1494,8 @@ pub mod fulfill_order {
                 oracle: oracle_price_key,
                 base_spread: 100,
                 last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1597,7 +1599,7 @@ pub mod fulfill_order {
             &mut oracle_map,
             &fee_structure,
             0,
-            None,
+            Some(market.amm.last_oracle_price),
             now,
             slot,
             false,
@@ -1656,6 +1658,8 @@ pub mod fulfill_order {
                 peg_multiplier: 100 * PEG_PRECISION,
                 base_asset_amount_step_size: 1,
                 last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
 
                 ..AMM::default()
             },
@@ -1834,6 +1838,8 @@ pub mod fulfill_order {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
 
                 ..AMM::default()
             },
@@ -1914,7 +1920,7 @@ pub mod fulfill_order {
             &mut oracle_map,
             &fee_structure,
             0,
-            None,
+            Some(market.amm.last_oracle_price),
             now,
             slot,
             false,
@@ -1978,6 +1984,8 @@ pub mod fulfill_order {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2416,6 +2424,7 @@ pub mod fill_order {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 last_oracle_price_twap: oracle_price.twap as i128,
+                last_oracle_price_twap_5min: oracle_price.twap as i128,
                 max_spread: 1000,
                 last_oracle_price: oracle_price.agg.price as i128,
                 ..AMM::default()

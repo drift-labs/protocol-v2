@@ -724,30 +724,43 @@ pub fn fill_order(
         mark_price_after = market.amm.mark_price()?;
         oracle_mark_spread_pct_after =
             amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(mark_price_after))?;
-    }
 
-    let is_oracle_mark_too_divergent_before = amm::is_oracle_mark_too_divergent(
-        oracle_mark_spread_pct_before,
-        &state.oracle_guard_rails.price_divergence,
-    )?;
+        let is_oracle_mark_too_divergent_before = amm::is_oracle_mark_too_divergent(
+            oracle_mark_spread_pct_before,
+            &state.oracle_guard_rails.price_divergence,
+        )?;
 
-    let is_oracle_mark_too_divergent_after = amm::is_oracle_mark_too_divergent(
-        oracle_mark_spread_pct_after,
-        &state.oracle_guard_rails.price_divergence,
-    )?;
+        let is_oracle_mark_too_divergent_after = amm::is_oracle_mark_too_divergent(
+            oracle_mark_spread_pct_after,
+            &state.oracle_guard_rails.price_divergence,
+        )?;
 
-    // if oracle-mark divergence pushed outside limit, block order
-    if is_oracle_mark_too_divergent_after && !is_oracle_mark_too_divergent_before {
-        return Err(ErrorCode::PriceBandsBreached);
-    }
+        // if oracle-mark divergence pushed outside limit, block order
+        if is_oracle_mark_too_divergent_after && !is_oracle_mark_too_divergent_before {
+            msg!("price pushed outside bounds: last_oracle_price_twap_5min={} vs mark_price={}, (breach spread goes from {} -> {})", 
+                market.amm.last_oracle_price_twap_5min,
+                mark_price_after,
+                oracle_mark_spread_pct_before,
+                oracle_mark_spread_pct_after,
+            );
+            return Err(ErrorCode::PriceBandsBreached);
+        }
 
-    // if oracle-mark divergence outside limit and risk-increasing, block order
-    if is_oracle_mark_too_divergent_after
-        && oracle_mark_spread_pct_after.unsigned_abs()
-            >= oracle_mark_spread_pct_before.unsigned_abs()
-        && potentially_risk_increasing
-    {
-        return Err(ErrorCode::PriceBandsBreached);
+        // if oracle-mark divergence outside limit and risk-increasing, block order
+        if is_oracle_mark_too_divergent_after
+            && oracle_mark_spread_pct_after.unsigned_abs()
+                >= oracle_mark_spread_pct_before.unsigned_abs()
+            && potentially_risk_increasing
+        {
+            msg!("risk-increasing outside bounds: last_oracle_price_twap_5min={} vs mark_price={}, (breach spread goes from {} -> {})", 
+                market.amm.last_oracle_price_twap_5min,
+                mark_price_after,
+                oracle_mark_spread_pct_before,
+                oracle_mark_spread_pct_after,
+            );
+
+            return Err(ErrorCode::PriceBandsBreached);
+        }
     }
 
     // Try to update the funding rate at the end of every trade
