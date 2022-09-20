@@ -508,7 +508,7 @@ pub fn update_amm_and_lp_market_position(
 ) -> ClearingHouseResult {
     // update LP position
     let (lp_delta_base, lp_delta_quote, lp_fee) = if split_with_lps {
-        update_lp_market_position(market, &delta, fee_to_market)?
+        update_lp_market_position(market, delta, fee_to_market)?
     } else {
         (0, 0, 0)
     };
