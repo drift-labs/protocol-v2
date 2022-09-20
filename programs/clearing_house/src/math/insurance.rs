@@ -144,6 +144,7 @@ pub fn calculate_if_shares_lost(
 mod test {
     use super::*;
     use crate::math::constants::{QUOTE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION};
+    use anchor_lang::prelude::Pubkey;
 
     #[test]
     pub fn log_test() {
@@ -263,13 +264,6 @@ mod test {
 
     #[test]
     pub fn if_shares_lost_test() {
-        let mut if_stake = InsuranceFundStake {
-            if_shares: 100 * QUOTE_PRECISION,
-            last_withdraw_request_shares: 100 * QUOTE_PRECISION,
-            last_withdraw_request_value: ((100 * QUOTE_PRECISION) - 1) as u64, // round in
-
-            ..InsuranceFundStake::default()
-        };
         let _amount = QUOTE_PRECISION as u64; // $1
         let mut spot_market = SpotMarket {
             deposit_balance: 0,
@@ -279,6 +273,13 @@ mod test {
             user_if_shares: 1000 * QUOTE_PRECISION,
             ..SpotMarket::default()
         };
+
+        let mut if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
+        if_stake
+            .update_if_shares(100 * QUOTE_PRECISION, &spot_market)
+            .unwrap();
+        if_stake.last_withdraw_request_shares = 100 * QUOTE_PRECISION;
+        if_stake.last_withdraw_request_value = ((100 * QUOTE_PRECISION) - 1) as u64;
 
         let if_balance = (1000 * QUOTE_PRECISION) as u64;
 

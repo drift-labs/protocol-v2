@@ -3620,6 +3620,14 @@
             "type": "u64"
           },
           {
+            "name": "currentEpochReferrerReward",
+            "type": "u64"
+          },
+          {
+            "name": "nextEpochTs",
+            "type": "i64"
+          },
+          {
             "name": "fees",
             "type": {
               "defined": "UserFees"
@@ -4448,6 +4456,10 @@
             "type": "u128"
           },
           {
+            "name": "referrerRewardEpochUpperBound",
+            "type": "u64"
+          },
+          {
             "name": "refereeDiscountNumerator",
             "type": "u128"
           },
@@ -4536,6 +4548,10 @@
           {
             "name": "openAsks",
             "type": "i128"
+          },
+          {
+            "name": "cumulativeDeposits",
+            "type": "i64"
           }
         ]
       }

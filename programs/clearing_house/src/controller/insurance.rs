@@ -193,6 +193,7 @@ pub fn request_remove_insurance_fund_stake(
     spot_market: &mut SpotMarket,
     now: i64,
 ) -> ClearingHouseResult {
+    msg!("n_shares {}", n_shares);
     insurance_fund_stake.last_withdraw_request_shares = n_shares;
 
     apply_rebase_to_insurance_fund(insurance_vault_amount, spot_market)?;
@@ -670,6 +671,7 @@ mod test {
     use super::*;
     use crate::math::constants::{QUOTE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION};
     use crate::state::user::UserStats;
+    use anchor_lang::prelude::Pubkey;
 
     #[test]
     pub fn basic_stake_if_test() {
@@ -681,10 +683,8 @@ mod test {
         assert_eq!(1_i128.signum(), 1);
 
         let mut if_balance = 0;
-        let mut if_stake = InsuranceFundStake {
-            if_shares: 0,
-            ..InsuranceFundStake::default()
-        };
+
+        let mut if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats = UserStats {
             number_of_users: 0,
             ..UserStats::default()
@@ -706,7 +706,7 @@ mod test {
             0,
         )
         .unwrap();
-        assert_eq!(if_stake.if_shares, amount as u128);
+        assert_eq!(if_stake.unchecked_if_shares(), amount as u128);
         if_balance += amount;
 
         // must request first
@@ -718,12 +718,13 @@ mod test {
             0
         )
         .is_err());
-        assert_eq!(if_stake.if_shares, amount as u128);
+
+        assert_eq!(if_stake.unchecked_if_shares(), amount as u128);
         assert_eq!(spot_market.total_if_shares, amount as u128);
         assert_eq!(spot_market.if_shares_base, 0);
 
         request_remove_insurance_fund_stake(
-            if_stake.if_shares,
+            if_stake.unchecked_if_shares(),
             if_balance,
             &mut if_stake,
             &mut user_stats,
@@ -731,9 +732,12 @@ mod test {
             0,
         )
         .unwrap();
-        assert_eq!(if_stake.last_withdraw_request_shares, if_stake.if_shares);
+        assert_eq!(
+            if_stake.last_withdraw_request_shares,
+            if_stake.unchecked_if_shares()
+        );
         assert_eq!(if_stake.last_withdraw_request_value, if_balance - 1); //rounding in favor
-        assert_eq!(if_stake.if_shares, amount as u128);
+        assert_eq!(if_stake.unchecked_if_shares(), amount as u128);
         assert_eq!(spot_market.total_if_shares, amount as u128);
         assert_eq!(spot_market.if_shares_base, 0);
 
@@ -748,7 +752,7 @@ mod test {
         assert_eq!(amount_returned, amount - 1);
         if_balance -= amount_returned;
 
-        assert_eq!(if_stake.if_shares, 0);
+        assert_eq!(if_stake.unchecked_if_shares(), 0);
         assert_eq!(if_stake.cost_basis, 1);
         assert_eq!(if_stake.last_withdraw_request_shares, 0);
         assert_eq!(if_stake.last_withdraw_request_value, 0);
@@ -774,10 +778,7 @@ mod test {
     #[test]
     pub fn basic_seeded_stake_if_test() {
         let mut if_balance = (1000 * QUOTE_PRECISION) as u64;
-        let mut if_stake = InsuranceFundStake {
-            if_shares: 0,
-            ..InsuranceFundStake::default()
-        };
+        let mut if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats = UserStats {
             number_of_users: 0,
             ..UserStats::default()
@@ -805,7 +806,7 @@ mod test {
 
         assert_eq!(spot_market.total_if_shares, (1001 * QUOTE_PRECISION)); // seeded works
         assert_eq!(spot_market.user_if_shares, QUOTE_PRECISION);
-        assert_eq!(if_stake.if_shares, amount as u128);
+        assert_eq!(if_stake.unchecked_if_shares(), amount as u128);
         if_balance += amount;
 
         // must request first
@@ -817,10 +818,10 @@ mod test {
             0
         )
         .is_err());
-        assert_eq!(if_stake.if_shares, amount as u128);
+        assert_eq!(if_stake.unchecked_if_shares(), amount as u128);
 
         request_remove_insurance_fund_stake(
-            if_stake.if_shares,
+            if_stake.unchecked_if_shares(),
             if_balance,
             &mut if_stake,
             &mut user_stats,
@@ -828,7 +829,10 @@ mod test {
             0,
         )
         .unwrap();
-        assert_eq!(if_stake.last_withdraw_request_shares, if_stake.if_shares);
+        assert_eq!(
+            if_stake.last_withdraw_request_shares,
+            if_stake.unchecked_if_shares()
+        );
         assert_eq!(if_stake.last_withdraw_request_value, 1000000);
 
         let amount_returned = (remove_insurance_fund_stake(
@@ -842,7 +846,7 @@ mod test {
         assert_eq!(amount_returned, amount);
         if_balance -= amount_returned;
 
-        assert_eq!(if_stake.if_shares, 0);
+        assert_eq!(if_stake.unchecked_if_shares(), 0);
         assert_eq!(if_stake.cost_basis, 0);
         assert_eq!(if_stake.last_withdraw_request_shares, 0);
         assert_eq!(if_stake.last_withdraw_request_value, 0);
@@ -863,10 +867,7 @@ mod test {
     #[test]
     pub fn gains_stake_if_test() {
         let mut if_balance = 0;
-        let mut if_stake = InsuranceFundStake {
-            if_shares: 0,
-            ..InsuranceFundStake::default()
-        };
+        let mut if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats = UserStats {
             number_of_users: 0,
             ..UserStats::default()
@@ -888,13 +889,13 @@ mod test {
             0,
         )
         .unwrap();
-        assert_eq!(if_stake.if_shares, amount as u128);
+        assert_eq!(if_stake.unchecked_if_shares(), amount as u128);
         if_balance += amount;
 
         // gains
         if_balance += amount / 19;
 
-        let n_shares = if_stake.if_shares;
+        let n_shares = if_stake.unchecked_if_shares();
         let expected_amount_returned = (amount + amount / 19) / 3 - 1;
 
         request_remove_insurance_fund_stake(
@@ -915,7 +916,7 @@ mod test {
         ))
         .unwrap();
         assert_eq!(amount_returned, expected_amount_returned);
-        assert_eq!(if_stake.if_shares, n_shares * 2 / 3 + 1);
+        assert_eq!(if_stake.unchecked_if_shares(), n_shares * 2 / 3 + 1);
         if_balance -= amount_returned;
 
         request_remove_insurance_fund_stake(
@@ -935,7 +936,7 @@ mod test {
             0,
         ))
         .unwrap();
-        assert_eq!(if_stake.if_shares, n_shares / 3 + 1);
+        assert_eq!(if_stake.unchecked_if_shares(), n_shares / 3 + 1);
         assert_eq!(amount_returned, expected_amount_returned);
         if_balance -= amount_returned;
 
@@ -987,10 +988,7 @@ mod test {
     #[test]
     pub fn losses_stake_if_test() {
         let mut if_balance = 0;
-        let mut if_stake = InsuranceFundStake {
-            if_shares: 0,
-            ..InsuranceFundStake::default()
-        };
+        let mut if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats = UserStats {
             number_of_users: 0,
             ..UserStats::default()
@@ -1012,13 +1010,13 @@ mod test {
             0,
         )
         .unwrap();
-        assert_eq!(if_stake.if_shares, amount as u128);
+        assert_eq!(if_stake.unchecked_if_shares(), amount as u128);
         if_balance += amount;
 
         // gains
         if_balance -= amount / 19;
 
-        let n_shares = if_stake.if_shares;
+        let n_shares = if_stake.unchecked_if_shares();
         let expected_amount_returned = (amount - amount / 19) / 3;
 
         request_remove_insurance_fund_stake(
@@ -1040,7 +1038,7 @@ mod test {
         ))
         .unwrap();
         assert_eq!(amount_returned, expected_amount_returned);
-        assert_eq!(if_stake.if_shares, n_shares * 2 / 3 + 1);
+        assert_eq!(if_stake.unchecked_if_shares(), n_shares * 2 / 3 + 1);
         if_balance -= amount_returned;
 
         request_remove_insurance_fund_stake(
@@ -1060,7 +1058,7 @@ mod test {
             0,
         ))
         .unwrap();
-        assert_eq!(if_stake.if_shares, n_shares / 3 + 1);
+        assert_eq!(if_stake.unchecked_if_shares(), n_shares / 3 + 1);
         assert_eq!(amount_returned, expected_amount_returned);
         if_balance -= amount_returned;
 
@@ -1082,7 +1080,7 @@ mod test {
             0,
         ))
         .unwrap();
-        assert_eq!(if_stake.if_shares, n_shares / 3);
+        assert_eq!(if_stake.unchecked_if_shares(), n_shares / 3);
         assert_eq!(amount_returned, 0);
 
         request_remove_insurance_fund_stake(
@@ -1104,7 +1102,7 @@ mod test {
         .unwrap();
         assert_eq!(amount_returned, expected_amount_returned + 1);
         assert_eq!(if_stake.cost_basis, 52632);
-        assert_eq!(if_stake.if_shares, 0);
+        assert_eq!(if_stake.unchecked_if_shares(), 0);
 
         if_balance -= amount_returned;
 
@@ -1114,10 +1112,7 @@ mod test {
     #[test]
     pub fn escrow_losses_stake_if_test() {
         let mut if_balance = 0;
-        let mut if_stake = InsuranceFundStake {
-            if_shares: 0,
-            ..InsuranceFundStake::default()
-        };
+        let mut if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats = UserStats {
             number_of_users: 0,
             ..UserStats::default()
@@ -1141,13 +1136,13 @@ mod test {
             0,
         )
         .unwrap();
-        assert_eq!(if_stake.if_shares, amount as u128);
+        assert_eq!(if_stake.unchecked_if_shares(), amount as u128);
         if_balance += amount;
 
         // losses
         if_balance -= amount / 19;
 
-        let n_shares = if_stake.if_shares;
+        let n_shares = if_stake.unchecked_if_shares();
         let expected_amount_returned = (amount - amount / 19) / 3;
 
         let o = unstaked_shares_to_amount(n_shares / 3, spot_market.total_if_shares, if_balance)
@@ -1198,7 +1193,7 @@ mod test {
         // since losses occured during withdraw, worse than expected at time of request
         assert_eq!(amount_returned < (expected_amount_returned - 1), true);
         assert_eq!(amount_returned, 15_789_473_684); //15k
-        assert_eq!(if_stake.if_shares, n_shares * 2 / 3 + 1);
+        assert_eq!(if_stake.unchecked_if_shares(), n_shares * 2 / 3 + 1);
         assert_eq!(if_stake.cost_basis, 84_210_526_316); //84k
         assert_eq!(if_balance, 31_578_947_369); //31k
     }
@@ -1206,10 +1201,7 @@ mod test {
     #[test]
     pub fn escrow_gains_stake_if_test() {
         let mut if_balance = 0;
-        let mut if_stake = InsuranceFundStake {
-            if_shares: 0,
-            ..InsuranceFundStake::default()
-        };
+        let mut if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats = UserStats {
             number_of_users: 0,
             ..UserStats::default()
@@ -1248,7 +1240,7 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(if_stake.if_shares, amount as u128);
+        assert_eq!(if_stake.unchecked_if_shares(), amount as u128);
         if_balance += amount;
         assert_eq!(if_balance, 100000384940);
 
@@ -1257,7 +1249,7 @@ mod test {
 
         assert_eq!(if_balance, 107692722242);
 
-        let n_shares = if_stake.if_shares;
+        let n_shares = if_stake.unchecked_if_shares();
         let expected_amount_returned =
             (if_balance as u128 * n_shares / spot_market.total_if_shares) as u64;
 
@@ -1312,32 +1304,19 @@ mod test {
 
         // since gains occured, not passed on to user after request
         assert_eq!(amount_returned, (expected_amount_returned));
-        assert_eq!(if_stake.if_shares, 0);
+        assert_eq!(if_stake.unchecked_if_shares(), 0);
         assert_eq!(if_balance, 261_390_104); //$261 for protocol/other stakers
     }
 
     #[test]
     pub fn drained_stake_if_test_rebase_on_new_add() {
         let mut if_balance = 0;
-        let mut if_stake = InsuranceFundStake {
-            if_shares: 0,
-            ..InsuranceFundStake::default()
-        };
+        let mut if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats = UserStats {
             number_of_users: 0,
             ..UserStats::default()
         };
         let amount = 100_000_384_939_u64; // $100k + change
-
-        let mut orig_if_stake = InsuranceFundStake {
-            if_shares: 80_000 * QUOTE_PRECISION,
-            ..InsuranceFundStake::default()
-        };
-        let mut orig_user_stats = UserStats {
-            number_of_users: 0,
-            quote_asset_insurance_fund_stake: 80_000 * QUOTE_PRECISION,
-            ..UserStats::default()
-        };
 
         let mut spot_market = SpotMarket {
             deposit_balance: 0,
@@ -1350,6 +1329,16 @@ mod test {
 
         assert_eq!(if_balance, 0);
 
+        let mut orig_if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
+        orig_if_stake
+            .update_if_shares(80_000 * QUOTE_PRECISION, &spot_market)
+            .unwrap();
+        let mut orig_user_stats = UserStats {
+            number_of_users: 0,
+            quote_asset_insurance_fund_stake: 80_000 * QUOTE_PRECISION,
+            ..UserStats::default()
+        };
+
         // right now other users have claim on a zero balance IF... should not give them your money here
         assert!(add_insurance_fund_stake(
             amount,
@@ -1361,7 +1350,7 @@ mod test {
         )
         .is_err());
 
-        assert_eq!(if_stake.if_shares, 0);
+        assert_eq!(if_stake.unchecked_if_shares(), 0);
         assert_eq!(spot_market.total_if_shares, 100_000_000_000);
         assert_eq!(spot_market.user_if_shares, 80_000 * QUOTE_PRECISION);
 
@@ -1381,16 +1370,22 @@ mod test {
         // check rebase math
         assert_eq!(spot_market.total_if_shares, 1000003849400);
         assert_eq!(spot_market.user_if_shares, 1000003849398);
-        assert_eq!(if_stake.if_shares, 1000003849390);
-        assert_eq!(if_stake.if_shares < spot_market.user_if_shares, true);
-        assert_eq!(spot_market.user_if_shares - if_stake.if_shares, 8);
+        assert_eq!(if_stake.unchecked_if_shares(), 1000003849390);
+        assert_eq!(
+            if_stake.unchecked_if_shares() < spot_market.user_if_shares,
+            true
+        );
+        assert_eq!(
+            spot_market.user_if_shares - if_stake.unchecked_if_shares(),
+            8
+        );
 
         assert_eq!(spot_market.if_shares_base, 10);
         assert_eq!(if_stake.if_base, 10);
 
         // check orig if stake is good (on add)
         assert_eq!(orig_if_stake.if_base, 0);
-        assert_eq!(orig_if_stake.if_shares, 80000000000);
+        assert_eq!(orig_if_stake.unchecked_if_shares(), 80000000000);
 
         let expected_shares_for_amount =
             staked_amount_to_shares(1, spot_market.total_if_shares, if_balance).unwrap();
@@ -1409,24 +1404,18 @@ mod test {
         assert_eq!(spot_market.if_shares_base, 10);
         assert_eq!(orig_if_stake.if_base, 10);
         assert_eq!(
-            orig_if_stake.if_shares,
+            orig_if_stake.unchecked_if_shares(),
             80000000000 / 10000000000 + expected_shares_for_amount
         );
-        assert_eq!(orig_if_stake.if_shares, 8 + expected_shares_for_amount);
+        assert_eq!(
+            orig_if_stake.unchecked_if_shares(),
+            8 + expected_shares_for_amount
+        );
     }
 
     #[test]
     pub fn drained_stake_if_test_rebase_on_old_remove_all() {
         let mut if_balance = 0;
-        let mut if_stake = InsuranceFundStake {
-            if_shares: 80_000 * QUOTE_PRECISION,
-            ..InsuranceFundStake::default()
-        };
-        let mut user_stats = UserStats {
-            number_of_users: 0,
-            quote_asset_insurance_fund_stake: 80_000 * QUOTE_PRECISION,
-            ..UserStats::default()
-        };
 
         let mut spot_market = SpotMarket {
             deposit_balance: 0,
@@ -1437,6 +1426,16 @@ mod test {
             ..SpotMarket::default()
         };
 
+        let mut if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
+        if_stake
+            .update_if_shares(80_000 * QUOTE_PRECISION, &spot_market)
+            .unwrap();
+        let mut user_stats = UserStats {
+            number_of_users: 0,
+            quote_asset_insurance_fund_stake: 80_000 * QUOTE_PRECISION,
+            ..UserStats::default()
+        };
+
         assert_eq!(if_balance, 0);
 
         // right now other users have claim on a zero balance IF... should not give them your money here
@@ -1444,7 +1443,7 @@ mod test {
         assert_eq!(spot_market.user_if_shares, 80_000 * QUOTE_PRECISION);
 
         request_remove_insurance_fund_stake(
-            if_stake.if_shares,
+            if_stake.unchecked_if_shares(),
             if_balance,
             &mut if_stake,
             &mut user_stats,
@@ -1504,15 +1503,6 @@ mod test {
     #[test]
     pub fn drained_stake_if_test_rebase_on_old_remove_all_2() {
         let mut if_balance = 0;
-        let mut if_stake = InsuranceFundStake {
-            if_shares: 80_000 * QUOTE_PRECISION,
-            ..InsuranceFundStake::default()
-        };
-        let mut user_stats = UserStats {
-            number_of_users: 0,
-            quote_asset_insurance_fund_stake: 80_000 * QUOTE_PRECISION,
-            ..UserStats::default()
-        };
 
         let mut spot_market = SpotMarket {
             deposit_balance: 0,
@@ -1523,10 +1513,20 @@ mod test {
             ..SpotMarket::default()
         };
 
+        let mut if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
+        if_stake
+            .update_if_shares(80_000 * QUOTE_PRECISION, &spot_market)
+            .unwrap();
+        let mut user_stats = UserStats {
+            number_of_users: 0,
+            quote_asset_insurance_fund_stake: 80_000 * QUOTE_PRECISION,
+            ..UserStats::default()
+        };
+
         assert_eq!(if_balance, 0);
 
         request_remove_insurance_fund_stake(
-            if_stake.if_shares / 2,
+            if_stake.unchecked_if_shares() / 2,
             if_balance,
             &mut if_stake,
             &mut user_stats,
@@ -1552,7 +1552,7 @@ mod test {
 
         if_balance = QUOTE_PRECISION as u64;
 
-        let unstake_amt = if_stake.if_shares / 2;
+        let unstake_amt = if_stake.unchecked_if_shares() / 2;
         assert_eq!(unstake_amt, 20000000000);
         assert_eq!(if_stake.last_withdraw_request_shares, 0);
         assert_eq!(if_stake.last_withdraw_request_value, 0);
@@ -1571,7 +1571,7 @@ mod test {
         // rebase occurs in request
         assert_eq!(if_stake.last_withdraw_request_shares, unstake_amt / 1000);
         // (that rebase occurs when you pass in shares you wanna unstake) :/
-        assert_eq!(if_stake.if_shares, 40000000);
+        assert_eq!(if_stake.unchecked_if_shares(), 40000000);
         assert_eq!(if_stake.last_withdraw_request_value, 328245);
         assert_eq!(if_stake.last_withdraw_request_ts, 10);
 
@@ -1581,7 +1581,7 @@ mod test {
         assert_eq!(spot_market.if_shares_base, 3);
 
         let expected_amount_for_shares = unstaked_shares_to_amount(
-            if_stake.if_shares / 2,
+            if_stake.unchecked_if_shares() / 2,
             spot_market.total_if_shares,
             if_balance,
         )
@@ -1646,7 +1646,7 @@ mod test {
         .unwrap();
 
         // check rebase math
-        assert_eq!(if_stake.if_shares, 20000000);
+        assert_eq!(if_stake.unchecked_if_shares(), 20000000);
         assert_eq!(if_stake.if_base, spot_market.if_shares_base);
         assert_eq!(if_stake.last_withdraw_request_shares, 0);
         assert_eq!(if_stake.last_withdraw_request_value, 0);
@@ -1701,19 +1701,13 @@ mod test {
     pub fn multiple_if_stakes_and_rebase() {
         let mut if_balance = 0;
 
-        let mut if_stake_1 = InsuranceFundStake {
-            if_shares: 0,
-            ..InsuranceFundStake::default()
-        };
+        let mut if_stake_1 = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats_1 = UserStats {
             number_of_users: 0,
             ..UserStats::default()
         };
 
-        let mut if_stake_2 = InsuranceFundStake {
-            if_shares: 0,
-            ..InsuranceFundStake::default()
-        };
+        let mut if_stake_2 = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats_2 = UserStats {
             number_of_users: 0,
             ..UserStats::default()
@@ -1755,7 +1749,7 @@ mod test {
         assert_eq!(spot_market.if_shares_base, 0);
 
         request_remove_insurance_fund_stake(
-            if_stake_1.if_shares,
+            if_stake_1.unchecked_if_shares(),
             if_balance,
             &mut if_stake_1,
             &mut user_stats_1,
@@ -1780,7 +1774,7 @@ mod test {
         assert_eq!(if_stake_2.if_base, 0);
         assert_eq!(spot_market.if_shares_base, 4);
         request_remove_insurance_fund_stake(
-            if_stake_2.if_shares,
+            if_stake_2.unchecked_if_shares(),
             if_balance,
             &mut if_stake_2,
             &mut user_stats_2,
@@ -1791,7 +1785,7 @@ mod test {
         assert_eq!(if_stake_2.if_base, 4);
         assert_eq!(spot_market.if_shares_base, 4);
         assert_eq!(if_stake_2.if_base < spot_market.total_if_shares, true);
-        assert_eq!(if_stake_2.if_shares, spot_market.user_if_shares);
+        assert_eq!(if_stake_2.unchecked_if_shares(), spot_market.user_if_shares);
         assert_eq!(if_balance, 500000);
 
         let amount_returned = (remove_insurance_fund_stake(
