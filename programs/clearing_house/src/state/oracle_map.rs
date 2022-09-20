@@ -1,7 +1,7 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::ids::pyth_program;
 use crate::math::constants::MARK_PRICE_PRECISION_I128;
-use crate::math::oracle::is_oracle_valid;
+use crate::math::oracle::oracle_validity;
 use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource};
 use crate::state::state::OracleGuardRails;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
@@ -99,7 +99,7 @@ impl<'a> OracleMap<'a> {
         self.price_data.insert(*pubkey, price_data);
 
         let oracle_price_data = self.price_data.get(pubkey).unwrap();
-        let is_oracle_valid = is_oracle_valid(
+        let is_oracle_valid = oracle_validity(
             last_oracle_price_twap,
             oracle_price_data,
             &self.oracle_guard_rails.validity,

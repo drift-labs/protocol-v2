@@ -16,7 +16,7 @@ use crate::validate;
 use crate::math::casting::cast_to_i128;
 use crate::math::funding::calculate_funding_payment;
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
-use crate::math::oracle::is_oracle_valid;
+use crate::math::oracle::oracle_validity;
 
 use crate::math::spot_balance::{
     get_balance_value_and_token_amount, get_token_amount, get_token_value,

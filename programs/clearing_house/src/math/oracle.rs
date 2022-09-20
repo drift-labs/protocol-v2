@@ -6,6 +6,7 @@ use crate::math_error;
 use crate::state::market::AMM;
 use crate::state::oracle::OraclePriceData;
 use crate::state::state::{OracleGuardRails, PriceDivergenceGuardRails, ValidityGuardRails};
+use borsh::{BorshDeserialize, BorshSerialize};
 use crate::validate;
 use solana_program::msg;
 use std::cmp::{max, min};
