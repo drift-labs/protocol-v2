@@ -3028,10 +3028,6 @@
             "type": "u128"
           },
           {
-            "name": "ifShares",
-            "type": "u128"
-          },
-          {
             "name": "ifBase",
             "type": "u128"
           },
