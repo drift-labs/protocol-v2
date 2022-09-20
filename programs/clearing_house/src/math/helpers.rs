@@ -47,6 +47,8 @@ pub fn get_proportion_u128(
     let proportional_value = if numerator == denominator {
         value
     } else if numerator > denominator / 2 && denominator > numerator {
+
+        // get values to ensure a ceiling division
         let (std_value, r) = standardize_value_with_remainder_i128(
             cast_to_i128(
                 value
@@ -56,6 +58,7 @@ pub fn get_proportion_u128(
             denominator,
         )?;
 
+         // perform ceiling division by subtracting one if there is a remainder
         value
             .checked_sub(
                 cast_to_u128(std_value)?
