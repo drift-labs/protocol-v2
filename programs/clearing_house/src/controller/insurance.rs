@@ -61,7 +61,7 @@ pub fn add_insurance_fund_stake(
             .ok_or_else(math_error!())?
     };
 
-    insurance_fund_stake.increase_if_shares(n_shares)?;
+    insurance_fund_stake.increase_if_shares(n_shares, spot_market)?;
 
     spot_market.total_if_shares = spot_market
         .total_if_shares
@@ -149,11 +149,25 @@ pub fn apply_rebase_to_insurance_fund_stake(
 
         let rebase_divisor = 10_u128.pow(expo_diff);
 
+        msg!(
+            "rebasing insurance fund stake: base: {} -> {} ",
+            insurance_fund_stake.if_base,
+            spot_market.if_shares_base,
+        );
+
+        insurance_fund_stake.if_base = spot_market.if_shares_base;
+
         let old_if_shares = insurance_fund_stake.unchecked_if_shares();
         let new_if_shares = old_if_shares
             .checked_div(rebase_divisor)
             .ok_or_else(math_error!())?;
-        insurance_fund_stake.update_if_shares(new_if_shares);
+
+        msg!(
+            "rebasing insurance fund stake: shares -> {} ",
+            new_if_shares
+        );
+
+        insurance_fund_stake.update_if_shares(new_if_shares, spot_market)?;
 
         insurance_fund_stake.last_withdraw_request_shares = insurance_fund_stake
             .last_withdraw_request_shares
@@ -166,19 +180,6 @@ pub fn apply_rebase_to_insurance_fund_stake(
                 .checked_div(rebase_divisor)
                 .ok_or_else(math_error!())?;
         }
-
-        msg!(
-            "rebasing insurance fund stake: base: {} -> {} ",
-            insurance_fund_stake.if_base,
-            spot_market.if_shares_base,
-        );
-
-        msg!(
-            "rebasing insurance fund stake: shares -> {} ",
-            new_if_shares
-        );
-
-        insurance_fund_stake.if_base = spot_market.if_shares_base;
     }
 
     Ok(())
@@ -271,7 +272,7 @@ pub fn cancel_request_remove_insurance_fund_stake(
     let if_shares_lost =
         calculate_if_shares_lost(insurance_fund_stake, spot_market, insurance_vault_amount)?;
 
-    insurance_fund_stake.decrease_if_shares(if_shares_lost)?;
+    insurance_fund_stake.decrease_if_shares(if_shares_lost, spot_market)?;
 
     spot_market.total_if_shares = spot_market
         .total_if_shares
@@ -358,7 +359,7 @@ pub fn remove_insurance_fund_stake(
 
     let withdraw_amount = amount.min(insurance_fund_stake.last_withdraw_request_value);
 
-    insurance_fund_stake.decrease_if_shares(n_shares)?;
+    insurance_fund_stake.decrease_if_shares(n_shares, spot_market)?;
 
     insurance_fund_stake.cost_basis = insurance_fund_stake
         .cost_basis

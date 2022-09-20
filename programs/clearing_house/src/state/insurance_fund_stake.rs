@@ -43,7 +43,7 @@ impl InsuranceFundStake {
         }
     }
 
-    pub fn checked_if_shares(&self, spot_market: &SpotMarket) -> ClearingHouseResult<u128> {
+    fn validate_base(&self, spot_market: &SpotMarket) -> ClearingHouseResult {
         validate!(
             self.if_base == spot_market.if_shares_base,
             ErrorCode::DefaultError,
@@ -52,6 +52,11 @@ impl InsuranceFundStake {
             spot_market.if_shares_base
         )?;
 
+        Ok(())
+    }
+
+    pub fn checked_if_shares(&self, spot_market: &SpotMarket) -> ClearingHouseResult<u128> {
+        self.validate_base(spot_market)?;
         Ok(self.if_shares)
     }
 
@@ -59,17 +64,34 @@ impl InsuranceFundStake {
         self.if_shares
     }
 
-    pub fn increase_if_shares(&mut self, delta: u128) -> ClearingHouseResult {
+    pub fn increase_if_shares(
+        &mut self,
+        delta: u128,
+        spot_market: &SpotMarket,
+    ) -> ClearingHouseResult {
+        self.validate_base(spot_market)?;
         checked_increment!(self.if_shares, delta);
         Ok(())
     }
 
-    pub fn decrease_if_shares(&mut self, delta: u128) -> ClearingHouseResult {
+    pub fn decrease_if_shares(
+        &mut self,
+        delta: u128,
+        spot_market: &SpotMarket,
+    ) -> ClearingHouseResult {
+        self.validate_base(spot_market)?;
         checked_decrement!(self.if_shares, delta);
         Ok(())
     }
 
-    pub fn update_if_shares(&mut self, new_shares: u128) {
+    pub fn update_if_shares(
+        &mut self,
+        new_shares: u128,
+        spot_market: &SpotMarket,
+    ) -> ClearingHouseResult {
+        self.validate_base(spot_market)?;
         self.if_shares = new_shares;
+
+        Ok(())
     }
 }
