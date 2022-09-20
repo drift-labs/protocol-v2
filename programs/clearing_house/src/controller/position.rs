@@ -8,6 +8,7 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, LP_FEE_SLICE_DENOMINATOR,
+    LP_FEE_SLICE_NUMERATOR,
 };
 use crate::math::helpers::get_proportion_i128;
 use crate::math::orders::{
@@ -456,11 +457,15 @@ pub fn update_lp_market_position(
 
     // 1/5 of fee auto goes to market
     // the rest goes to lps/market proportional
-    let lp_fee = (fee_to_market - (fee_to_market / LP_FEE_SLICE_DENOMINATOR)) // todo: 80% retained
-        .checked_mul(cast_to_i128(user_lp_shares)?)
-        .ok_or_else(math_error!())?
-        .checked_div(cast_to_i128(total_lp_shares)?)
-        .ok_or_else(math_error!())?;
+    let lp_fee = get_proportion_i128(
+        fee_to_market,
+        LP_FEE_SLICE_NUMERATOR,
+        LP_FEE_SLICE_DENOMINATOR,
+    )?
+    .checked_mul(cast_to_i128(user_lp_shares)?)
+    .ok_or_else(math_error!())?
+    .checked_div(cast_to_i128(total_lp_shares)?)
+    .ok_or_else(math_error!())?;
 
     let per_lp_fee = if lp_fee > 0 {
         lp_fee
