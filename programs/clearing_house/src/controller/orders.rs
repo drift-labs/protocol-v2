@@ -1036,6 +1036,7 @@ fn fulfill_order(
                 &mut order_records,
                 None,
                 None,
+                true,
             )?,
             PerpFulfillmentMethod::Match => fulfill_order_with_match(
                 market.deref_mut(),
@@ -1164,6 +1165,7 @@ pub fn fulfill_order_with_amm(
     order_records: &mut Vec<OrderActionRecord>,
     override_base_asset_amount: Option<u128>,
     override_fill_price: Option<u128>, // todo probs dont need this since its the user_limit_price / current auction time
+    split_with_lps: bool,
 ) -> ClearingHouseResult<(u128, u128)> {
     // Determine the base asset amount the market can fill
     let (base_asset_amount, fill_price) = match override_base_asset_amount {
@@ -1257,7 +1259,8 @@ pub fn fulfill_order_with_amm(
     update_amm_and_lp_market_position(
         market,
         &user_position_delta,
-        cast_to_i128(fee_to_market_for_lp)?,
+        fee_to_market_for_lp,
+        split_with_lps,
     )?;
 
     // Increment the clearing house's total fee variables
@@ -1494,6 +1497,7 @@ pub fn fulfill_order_with_match(
                     order_records,
                     Some(jit_base_asset_amount),
                     Some(taker_price), // current auction price
+                    false,             // dont split with the lps
                 )?;
 
             total_quote_asset_amount = quote_asset_amount_filled_by_amm;
