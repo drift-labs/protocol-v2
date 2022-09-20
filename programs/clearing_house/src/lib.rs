@@ -36,7 +36,7 @@ use std::convert::identity;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("3v1iEjbSSLSSYyt1pmx4UB5rqJGurmz71RibXF7X6UF3");
+declare_id!("CUowJP5Dea7pkc2mKrkX2RuZUrPXL3u419iBRXyZEWQz");
 
 #[program]
 pub mod clearing_house {
@@ -643,7 +643,7 @@ pub mod clearing_house {
             amount
         };
 
-        controller::spot_balance::update_spot_balances(
+        controller::spot_position::update_spot_position_balance(
             amount as u128,
             &SpotBalanceType::Deposit,
             spot_market,
@@ -726,7 +726,7 @@ pub mod clearing_house {
             };
 
             // prevents withdraw when limits hit
-            controller::spot_balance::update_spot_balances_with_limits(
+            controller::spot_balance::update_spot_position_balance_with_limits(
                 amount as u128,
                 &SpotBalanceType::Borrow,
                 spot_market,
@@ -824,7 +824,7 @@ pub mod clearing_house {
             let from_spot_position =
                 from_user.force_get_spot_position_mut(spot_market.market_index)?;
 
-            controller::spot_balance::update_spot_balances(
+            controller::spot_position::update_spot_position_balance(
                 amount as u128,
                 &SpotBalanceType::Borrow,
                 spot_market,
@@ -869,7 +869,7 @@ pub mod clearing_house {
             let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
             let to_spot_position = to_user.force_get_spot_position_mut(spot_market.market_index)?;
 
-            controller::spot_balance::update_spot_balances(
+            controller::spot_position::update_spot_position_balance(
                 amount as u128,
                 &SpotBalanceType::Deposit,
                 spot_market,
@@ -2619,13 +2619,19 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn update_user_name(
-        ctx: Context<UpdateUserName>,
-        _user_id: u8,
-        name: [u8; 32],
-    ) -> Result<()> {
+    pub fn update_user_name(ctx: Context<UpdateUser>, _user_id: u8, name: [u8; 32]) -> Result<()> {
         let mut user = load_mut!(ctx.accounts.user)?;
         user.name = name;
+        Ok(())
+    }
+
+    pub fn update_user_custom_margin_ratio(
+        ctx: Context<UpdateUser>,
+        _user_id: u8,
+        margin_ratio: u32,
+    ) -> Result<()> {
+        let mut user = load_mut!(ctx.accounts.user)?;
+        user.custom_margin_ratio = margin_ratio;
         Ok(())
     }
 
@@ -3375,17 +3381,7 @@ pub mod clearing_house {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
-        *if_stake = InsuranceFundStake {
-            authority: *ctx.accounts.authority.key,
-            market_index,
-            if_shares: 0,
-            last_withdraw_request_shares: 0,
-            last_withdraw_request_value: 0,
-            last_withdraw_request_ts: 0,
-            cost_basis: 0,
-            if_base: 0,
-            last_valid_ts: now,
-        };
+        *if_stake = InsuranceFundStake::new(*ctx.accounts.authority.key, market_index, now);
 
         Ok(())
     }
@@ -3527,10 +3523,8 @@ pub mod clearing_house {
             "Requested lp_shares = 0"
         )?;
 
-        validate!(
-            insurance_fund_stake.if_shares >= n_shares,
-            ErrorCode::InsufficientLPTokens
-        )?;
+        let user_if_shares = insurance_fund_stake.checked_if_shares(spot_market)?;
+        validate!(user_if_shares >= n_shares, ErrorCode::InsufficientLPTokens)?;
 
         controller::insurance::request_remove_insurance_fund_stake(
             n_shares,
