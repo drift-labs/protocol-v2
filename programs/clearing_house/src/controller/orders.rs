@@ -1472,13 +1472,8 @@ pub fn fulfill_order_with_match(
 
     let mut total_quote_asset_amount = 0_u128;
     let base_asset_amount_left_to_fill = if amm_wants_to_make && market.amm.amm_jit_is_active() {
-        let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
-            market,
-            base_asset_amount,
-            taker_price,
-            valid_oracle_price,
-            taker_direction,
-        )?;
+        let jit_base_asset_amount =
+            crate::math::amm_jit::calculate_jit_base_asset_amount(market, base_asset_amount)?;
 
         if jit_base_asset_amount > 0 {
             let (base_asset_amount_filled_by_amm, quote_asset_amount_filled_by_amm) =
