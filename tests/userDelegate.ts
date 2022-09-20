@@ -21,7 +21,7 @@ import { assert } from 'chai';
 import { ClearingHouse, OracleSource, PositionDirection, Wallet } from '../sdk';
 import { Keypair } from '@solana/web3.js';
 
-describe('subaccounts', () => {
+describe('user delegate', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
