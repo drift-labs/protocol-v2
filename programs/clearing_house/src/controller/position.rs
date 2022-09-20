@@ -6,7 +6,10 @@ use crate::controller;
 use crate::controller::amm::SwapDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::{AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128};
+use crate::math::constants::{
+    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, LP_FEE_SLICE_DENOMINATOR,
+    LP_FEE_SLICE_NUMERATOR,
+};
 use crate::math::helpers::get_proportion_i128;
 use crate::math::orders::{
     calculate_quote_asset_amount_for_maker_order, get_position_delta_for_fill,
@@ -415,100 +418,71 @@ pub fn update_position_and_market(
     Ok(pnl)
 }
 
-pub fn update_amm_and_lp_market_position(
+pub fn update_lp_market_position(
     market: &mut PerpMarket,
     delta: &PositionDelta,
     fee_to_market: i128,
-) -> ClearingHouseResult {
+) -> ClearingHouseResult<(i128, i128, i128)> {
     let total_lp_shares = market.amm.sqrt_k;
     let user_lp_shares = market.amm.user_lp_shares;
 
-    let (lp_delta_base, lp_delta_quote, lp_fee) = if user_lp_shares > 0 {
-        // update Market per lp position
-        let per_lp_delta_base = get_proportion_i128(
-            delta.base_asset_amount,
-            AMM_RESERVE_PRECISION,
-            total_lp_shares,
-        )?;
+    if user_lp_shares == 0 {
+        return Ok((0, 0, 0));
+    }
 
-        let per_lp_delta_quote = get_proportion_i128(
-            delta.quote_asset_amount,
-            AMM_RESERVE_PRECISION,
-            total_lp_shares,
-        )?;
-
-        let lp_delta_base =
-            get_proportion_i128(per_lp_delta_base, user_lp_shares, AMM_RESERVE_PRECISION)?;
-        let lp_delta_quote =
-            get_proportion_i128(per_lp_delta_quote, user_lp_shares, AMM_RESERVE_PRECISION)?;
-
-        let per_lp_position_delta = PositionDelta {
-            base_asset_amount: -per_lp_delta_base,
-            quote_asset_amount: -per_lp_delta_quote,
-        };
-
-        update_amm_position(market, &per_lp_position_delta, true)?;
-
-        // 1/5 of fee auto goes to market
-        // the rest goes to lps/market proportional
-        let lp_fee = (fee_to_market - (fee_to_market / 5)) // todo: 80% retained
-            .checked_mul(cast_to_i128(user_lp_shares)?)
-            .ok_or_else(math_error!())?
-            .checked_div(cast_to_i128(total_lp_shares)?)
-            .ok_or_else(math_error!())?;
-
-        let per_lp_fee = if lp_fee > 0 {
-            lp_fee
-                .checked_mul(AMM_RESERVE_PRECISION_I128)
-                .ok_or_else(math_error!())?
-                .checked_div(cast_to_i128(user_lp_shares)?)
-                .ok_or_else(math_error!())?
-        } else {
-            0
-        };
-
-        // update per lp position
-        market.amm.market_position_per_lp.quote_asset_amount = market
-            .amm
-            .market_position_per_lp
-            .quote_asset_amount
-            .checked_add(per_lp_fee)
-            .ok_or_else(math_error!())?;
-
-        (lp_delta_base, lp_delta_quote, lp_fee)
-    } else {
-        (0, 0, 0)
-    };
-
-    let amm_fee = fee_to_market
-        .checked_sub(lp_fee)
-        .ok_or_else(math_error!())?;
-
-    // Update AMM position
-    let amm_baa = delta
-        .base_asset_amount
-        .checked_sub(lp_delta_base)
-        .ok_or_else(math_error!())?;
-
-    let amm_qaa = delta
-        .quote_asset_amount
-        .checked_sub(lp_delta_quote)
-        .ok_or_else(math_error!())?;
-
-    update_amm_position(
-        market,
-        &PositionDelta {
-            base_asset_amount: -amm_baa,
-            quote_asset_amount: -amm_qaa,
-        },
-        false,
+    // update Market per lp position
+    let per_lp_delta_base = get_proportion_i128(
+        delta.base_asset_amount,
+        AMM_RESERVE_PRECISION,
+        total_lp_shares,
     )?;
 
-    market.amm.market_position.quote_asset_amount = market
+    let per_lp_delta_quote = get_proportion_i128(
+        delta.quote_asset_amount,
+        AMM_RESERVE_PRECISION,
+        total_lp_shares,
+    )?;
+
+    let lp_delta_base =
+        get_proportion_i128(per_lp_delta_base, user_lp_shares, AMM_RESERVE_PRECISION)?;
+    let lp_delta_quote =
+        get_proportion_i128(per_lp_delta_quote, user_lp_shares, AMM_RESERVE_PRECISION)?;
+
+    let per_lp_position_delta = PositionDelta {
+        base_asset_amount: -per_lp_delta_base,
+        quote_asset_amount: -per_lp_delta_quote,
+    };
+
+    update_amm_position(market, &per_lp_position_delta, true)?;
+
+    // 1/5 of fee auto goes to market
+    // the rest goes to lps/market proportional
+    let lp_fee = get_proportion_i128(
+        fee_to_market,
+        LP_FEE_SLICE_NUMERATOR,
+        LP_FEE_SLICE_DENOMINATOR,
+    )?
+    .checked_mul(cast_to_i128(user_lp_shares)?)
+    .ok_or_else(math_error!())?
+    .checked_div(cast_to_i128(total_lp_shares)?)
+    .ok_or_else(math_error!())?;
+
+    let per_lp_fee = if lp_fee > 0 {
+        lp_fee
+            .checked_mul(AMM_RESERVE_PRECISION_I128)
+            .ok_or_else(math_error!())?
+            .checked_div(cast_to_i128(user_lp_shares)?)
+            .ok_or_else(math_error!())?
+    } else {
+        0
+    };
+
+    // update per lp position
+    market.amm.market_position_per_lp.quote_asset_amount = market
         .amm
-        .market_position
+        .market_position_per_lp
         .quote_asset_amount
-        .checked_add(amm_fee)
+        .checked_add(per_lp_fee)
         .ok_or_else(math_error!())?;
 
     market.amm.net_base_asset_amount = market
@@ -522,6 +496,48 @@ pub fn update_amm_and_lp_market_position(
         .net_unsettled_lp_base_asset_amount
         .checked_add(lp_delta_base)
         .ok_or_else(math_error!())?;
+
+    Ok((lp_delta_base, lp_delta_quote, lp_fee))
+}
+
+pub fn update_amm_and_lp_market_position(
+    market: &mut PerpMarket,
+    delta: &PositionDelta,
+    fee_to_market: i128,
+    split_with_lps: bool,
+) -> ClearingHouseResult {
+    // update LP position
+    let (lp_delta_base, lp_delta_quote, lp_fee) = if split_with_lps {
+        update_lp_market_position(market, &delta, fee_to_market)?
+    } else {
+        (0, 0, 0)
+    };
+
+    // Update AMM position
+    let amm_fee = fee_to_market
+        .checked_sub(lp_fee)
+        .ok_or_else(math_error!())?;
+
+    let amm_baa = -(delta
+        .base_asset_amount
+        .checked_sub(lp_delta_base)
+        .ok_or_else(math_error!())?);
+
+    let amm_qaa = -(delta
+        .quote_asset_amount
+        .checked_sub(lp_delta_quote)
+        .ok_or_else(math_error!())?)
+    .checked_add(amm_fee)
+    .ok_or_else(math_error!())?;
+
+    crate::controller::position::update_amm_position(
+        market,
+        &PositionDelta {
+            base_asset_amount: amm_baa,
+            quote_asset_amount: amm_qaa,
+        },
+        false,
+    )?;
 
     Ok(())
 }
@@ -713,7 +729,7 @@ mod test {
             ..PerpMarket::default_test()
         };
 
-        update_amm_and_lp_market_position(&mut market, &delta, 0).unwrap();
+        update_amm_and_lp_market_position(&mut market, &delta, 0, true).unwrap();
 
         assert_eq!(
             market.amm.market_position.base_asset_amount,
@@ -748,7 +764,7 @@ mod test {
             ..PerpMarket::default_test()
         };
 
-        update_amm_and_lp_market_position(&mut market, &delta, 0).unwrap();
+        update_amm_and_lp_market_position(&mut market, &delta, 0, true).unwrap();
 
         assert_eq!(
             market.amm.market_position_per_lp.base_asset_amount,
@@ -783,7 +799,7 @@ mod test {
             ..PerpMarket::default_test()
         };
 
-        update_amm_and_lp_market_position(&mut market, &delta, 0).unwrap();
+        update_amm_and_lp_market_position(&mut market, &delta, 0, true).unwrap();
 
         assert_eq!(
             market.amm.market_position_per_lp.base_asset_amount,
