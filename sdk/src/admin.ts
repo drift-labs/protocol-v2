@@ -3,7 +3,7 @@ import {
 	SYSVAR_RENT_PUBKEY,
 	TransactionSignature,
 } from '@solana/web3.js';
-import { OracleGuardRails, OracleSource } from './types';
+import { FeeStructure, OracleGuardRails, OracleSource } from './types';
 import { BN } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
 import {
@@ -604,6 +604,28 @@ export class Admin extends ClearingHouse {
 				},
 			}
 		);
+	}
+
+	public async updatePerpFeeStructure(
+		feeStructure: FeeStructure
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpFeeStructure(feeStructure, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
+	}
+
+	public async updateSpotFeeStructure(
+		feeStructure: FeeStructure
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSpotFeeStructure(feeStructure, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
 	}
 
 	public async updateOracleGuardRails(

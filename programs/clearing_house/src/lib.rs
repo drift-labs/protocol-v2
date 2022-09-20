@@ -71,9 +71,10 @@ pub mod clearing_house {
     };
 
     use super::*;
-    use crate::state::fees::FeeStructure;
+    use crate::math::insurance::if_shares_to_vault_amount;
     use crate::state::insurance_fund_stake::InsuranceFundStake;
     use crate::state::serum::{load_market_state, load_open_orders};
+    use crate::state::state::FeeStructure;
     use bytemuck::cast_slice;
     use std::mem::size_of;
 
@@ -3160,6 +3161,22 @@ pub mod clearing_house {
         Ok(())
     }
 
+    pub fn update_perp_fee_structure(
+        ctx: Context<AdminUpdateState>,
+        fee_structure: FeeStructure,
+    ) -> Result<()> {
+        ctx.accounts.state.perp_fee_structure = fee_structure;
+        Ok(())
+    }
+
+    pub fn update_spot_fee_structure(
+        ctx: Context<AdminUpdateState>,
+        fee_structure: FeeStructure,
+    ) -> Result<()> {
+        ctx.accounts.state.spot_fee_structure = fee_structure;
+        Ok(())
+    }
+
     pub fn update_oracle_guard_rails(
         ctx: Context<AdminUpdateState>,
         oracle_guard_rails: OracleGuardRails,
@@ -3495,7 +3512,7 @@ pub mod clearing_house {
             "Withdraw request is already in progress"
         )?;
 
-        let n_shares = math::insurance::staked_amount_to_shares(
+        let n_shares = math::insurance::vault_amount_to_if_shares(
             amount,
             spot_market.total_if_shares,
             ctx.accounts.insurance_fund_vault.amount,
@@ -3593,6 +3610,28 @@ pub mod clearing_house {
             ctx.accounts.insurance_fund_vault.amount > 0,
             ErrorCode::DefaultError,
             "insurance_fund_vault.amount must remain > 0"
+        )?;
+
+        Ok(())
+    }
+
+    pub fn update_user_quote_asset_insurance_stake(
+        ctx: Context<UpdateUserQuoteAssetInsuranceStake>,
+    ) -> Result<()> {
+        let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+        let quote_spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+        validate!(
+            insurance_fund_stake.market_index == 0,
+            ErrorCode::DefaultError,
+            "insurance_fund_stake is not for quote market"
+        )?;
+
+        user_stats.staked_quote_asset_amount = if_shares_to_vault_amount(
+            insurance_fund_stake.checked_if_shares(quote_spot_market)?,
+            quote_spot_market.total_if_shares,
+            ctx.accounts.insurance_fund_vault.amount,
         )?;
 
         Ok(())

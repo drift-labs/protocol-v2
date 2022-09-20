@@ -88,6 +88,34 @@ describe('admin', () => {
 		assert(market.marginRatioMaintenance === marginRatioMaintenance);
 	});
 
+	it('Update perp fee structure', async () => {
+		const newFeeStructure = clearingHouse.getStateAccount().perpFeeStructure;
+		newFeeStructure.flatFillerFee = new BN(0);
+
+		await clearingHouse.updatePerpFeeStructure(newFeeStructure);
+
+		await clearingHouse.fetchAccounts();
+		const state = clearingHouse.getStateAccount();
+
+		assert(
+			JSON.stringify(newFeeStructure) === JSON.stringify(state.perpFeeStructure)
+		);
+	});
+
+	it('Update spot fee structure', async () => {
+		const newFeeStructure = clearingHouse.getStateAccount().spotFeeStructure;
+		newFeeStructure.flatFillerFee = new BN(1);
+
+		await clearingHouse.updateSpotFeeStructure(newFeeStructure);
+
+		await clearingHouse.fetchAccounts();
+		const state = clearingHouse.getStateAccount();
+
+		assert(
+			JSON.stringify(newFeeStructure) === JSON.stringify(state.spotFeeStructure)
+		);
+	});
+
 	it('Update oracle guard rails', async () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {

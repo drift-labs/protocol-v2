@@ -1,14 +1,21 @@
-use crate::error::ClearingHouseResult;
-use crate::math::casting::cast_to_u128;
-use crate::math::helpers::get_proportion_u128;
-use crate::math_error;
-use num_integer::Roots;
-use solana_program::msg;
 use std::cmp::{max, min};
 
+use num_integer::Roots;
+use solana_program::msg;
+
+use crate::error::ClearingHouseResult;
+use crate::math::casting::cast_to_u128;
+use crate::math::constants::{
+    FIFTY_MILLION_QUOTE, FIVE_MILLION_QUOTE, ONE_HUNDRED_MILLION_QUOTE, ONE_HUNDRED_THOUSAND_QUOTE,
+    ONE_MILLION_QUOTE, ONE_THOUSAND_QUOTE, TEN_MILLION_QUOTE, TEN_THOUSAND_QUOTE,
+    TWENTY_FIVE_THOUSAND_QUOTE, TWO_HUNDRED_FIFTY_THOUSAND_QUOTE,
+};
+use crate::math::helpers::get_proportion_u128;
+use crate::math_error;
+use crate::state::state::{FeeStructure, FeeTier, OrderFillerRewardStructure};
+use crate::state::user::{MarketType, UserStats};
+
 use super::casting::cast_to_i128;
-use crate::state::fees::{FeeStructure, FeeTier, OrderFillerRewardStructure};
-use crate::state::user::UserStats;
 
 pub struct FillFees {
     pub user_fee: u128,
@@ -32,7 +39,7 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
     quote_asset_amount_surplus: i128,
     is_post_only: bool,
 ) -> ClearingHouseResult<FillFees> {
-    let fee_tier = determine_user_fee_tier(user_stats, fee_structure)?;
+    let fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Perp)?;
 
     // if there was a quote_asset_amount_surplus, the order was a maker order and fee_to_market comes from surplus
     if is_post_only {
@@ -69,7 +76,6 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
 
         let (fee, referee_discount, referrer_reward) = if reward_referrer {
             calculate_referee_fee_and_referrer_reward(
-                quote_asset_amount,
                 fee,
                 fee_tier,
                 fee_structure.referrer_reward_epoch_upper_bound,
@@ -82,12 +88,7 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
         let filler_reward: u128 = if !reward_filler {
             0
         } else {
-            calculate_filler_reward(
-                quote_asset_amount,
-                order_ts,
-                now,
-                &fee_structure.filler_reward_structure,
-            )?
+            calculate_filler_reward(fee, order_ts, now, &fee_structure.filler_reward_structure)?
         };
 
         let fee_to_market = cast_to_i128(
@@ -116,25 +117,26 @@ pub fn calculate_fee_for_order_fulfill_against_amm(
 }
 
 fn calculate_referee_fee_and_referrer_reward(
-    quote_asset_amount: u128,
     fee: u128,
     fee_tier: &FeeTier,
     referrer_reward_epoch_upper_bound: u64,
     referrer_stats: &Option<&mut UserStats>,
 ) -> ClearingHouseResult<(u128, u128, u128)> {
-    let referee_fee = get_proportion_u128(
-        quote_asset_amount,
+    let referee_discount = get_proportion_u128(
+        fee,
         fee_tier.referee_fee_numerator as u128,
         fee_tier.referee_fee_denominator as u128,
     )?;
 
-    let referee_discount = fee.saturating_sub(referee_fee);
-
     let max_referrer_reward_from_fee = get_proportion_u128(
-        quote_asset_amount,
+        fee,
         fee_tier.referrer_reward_numerator as u128,
         fee_tier.referrer_reward_denominator as u128,
     )?;
+
+    let referee_fee = fee
+        .checked_sub(referee_discount)
+        .ok_or_else(math_error!())?;
 
     let referrer_reward = match referrer_stats {
         Some(referrer_stats) => {
@@ -194,9 +196,10 @@ pub fn calculate_fee_for_fulfillment_with_match(
     reward_filler: bool,
     reward_referrer: bool,
     referrer_stats: &Option<&mut UserStats>,
+    market_type: &MarketType,
 ) -> ClearingHouseResult<FillFees> {
-    let taker_fee_tier = determine_user_fee_tier(taker_stats, fee_structure)?;
-    let maker_fee_tier = determine_user_fee_tier(maker_stats, fee_structure)?;
+    let taker_fee_tier = determine_user_fee_tier(taker_stats, fee_structure, market_type)?;
+    let maker_fee_tier = determine_user_fee_tier(maker_stats, fee_structure, market_type)?;
 
     let taker_fee = quote_asset_amount
         .checked_mul(taker_fee_tier.fee_numerator as u128)
@@ -206,7 +209,6 @@ pub fn calculate_fee_for_fulfillment_with_match(
 
     let (taker_fee, referee_discount, referrer_reward) = if reward_referrer {
         calculate_referee_fee_and_referrer_reward(
-            quote_asset_amount,
             taker_fee,
             taker_fee_tier,
             fee_structure.referrer_reward_epoch_upper_bound,
@@ -226,7 +228,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
         0
     } else {
         calculate_filler_reward(
-            quote_asset_amount,
+            taker_fee,
             order_ts,
             now,
             &fee_structure.filler_reward_structure,
@@ -273,7 +275,7 @@ pub fn calculate_fee_for_fulfillment_with_serum(
     serum_referrer_rebate: u128,
     fee_pool_amount: u128,
 ) -> ClearingHouseResult<SerumFillFees> {
-    let taker_fee_tier = determine_user_fee_tier(user_stats, fee_structure)?;
+    let taker_fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Spot)?;
 
     let fee = quote_asset_amount
         .checked_mul(taker_fee_tier.fee_numerator as u128)
@@ -332,9 +334,54 @@ pub fn calculate_fee_for_fulfillment_with_serum(
 pub fn determine_user_fee_tier<'a>(
     user_stats: &UserStats,
     fee_structure: &'a FeeStructure,
+    market_type: &MarketType,
 ) -> ClearingHouseResult<&'a FeeTier> {
-    let _total_30d_volume = user_stats.get_total_30d_volume()?;
+    match market_type {
+        MarketType::Perp => determine_perp_fee_tier(user_stats, fee_structure),
+        MarketType::Spot => determine_spot_fee_tier(user_stats, fee_structure),
+    }
+}
 
+fn determine_perp_fee_tier<'a>(
+    user_stats: &UserStats,
+    fee_structure: &'a FeeStructure,
+) -> ClearingHouseResult<&'a FeeTier> {
+    let total_30d_volume = user_stats.get_total_30d_volume()?;
+    let staked_quote_asset_amount = user_stats.staked_quote_asset_amount;
+
+    if total_30d_volume >= ONE_HUNDRED_MILLION_QUOTE
+        || staked_quote_asset_amount >= TWO_HUNDRED_FIFTY_THOUSAND_QUOTE
+    {
+        return Ok(&fee_structure.fee_tiers[5]);
+    }
+
+    if total_30d_volume >= FIFTY_MILLION_QUOTE
+        || staked_quote_asset_amount >= ONE_HUNDRED_THOUSAND_QUOTE
+    {
+        return Ok(&fee_structure.fee_tiers[4]);
+    }
+
+    if total_30d_volume >= TEN_MILLION_QUOTE
+        || staked_quote_asset_amount >= TWENTY_FIVE_THOUSAND_QUOTE
+    {
+        return Ok(&fee_structure.fee_tiers[3]);
+    }
+
+    if total_30d_volume >= FIVE_MILLION_QUOTE || staked_quote_asset_amount >= TEN_THOUSAND_QUOTE {
+        return Ok(&fee_structure.fee_tiers[2]);
+    }
+
+    if total_30d_volume >= ONE_MILLION_QUOTE || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE {
+        return Ok(&fee_structure.fee_tiers[1]);
+    }
+
+    Ok(&fee_structure.fee_tiers[0])
+}
+
+fn determine_spot_fee_tier<'a>(
+    _user_stats: &UserStats,
+    fee_structure: &'a FeeStructure,
+) -> ClearingHouseResult<&'a FeeTier> {
     Ok(&fee_structure.fee_tiers[0])
 }
 
@@ -344,8 +391,8 @@ mod test {
     mod calculate_fee_for_taker_and_maker {
         use crate::math::constants::QUOTE_PRECISION;
         use crate::math::fees::{calculate_fee_for_fulfillment_with_match, FillFees};
-        use crate::state::fees::FeeStructure;
-        use crate::state::user::UserStats;
+        use crate::state::state::FeeStructure;
+        use crate::state::user::{MarketType, UserStats};
 
         #[test]
         fn no_filler() {
@@ -371,6 +418,7 @@ mod test {
                 false,
                 false,
                 &None,
+                &MarketType::Perp,
             )
             .unwrap();
 
@@ -412,6 +460,7 @@ mod test {
                 true,
                 false,
                 &None,
+                &MarketType::Perp,
             )
             .unwrap();
 
@@ -452,6 +501,7 @@ mod test {
                 true,
                 false,
                 &None,
+                &MarketType::Perp,
             )
             .unwrap();
 
@@ -492,6 +542,7 @@ mod test {
                 true,
                 false,
                 &None,
+                &MarketType::Perp,
             )
             .unwrap();
 
@@ -530,6 +581,7 @@ mod test {
                 false,
                 true,
                 &None,
+                &MarketType::Perp,
             )
             .unwrap();
 
@@ -545,7 +597,7 @@ mod test {
     mod calculate_fee_for_order_fulfill_against_amm {
         use crate::math::constants::QUOTE_PRECISION;
         use crate::math::fees::{calculate_fee_for_order_fulfill_against_amm, FillFees};
-        use crate::state::fees::FeeStructure;
+        use crate::state::state::FeeStructure;
         use crate::state::user::UserStats;
 
         #[test]
@@ -587,7 +639,7 @@ mod test {
     mod calculate_fee_for_fulfillment_with_serum {
         use crate::math::constants::QUOTE_PRECISION;
         use crate::math::fees::{calculate_fee_for_fulfillment_with_serum, SerumFillFees};
-        use crate::state::fees::FeeStructure;
+        use crate::state::state::FeeStructure;
         use crate::state::user::UserStats;
 
         #[test]

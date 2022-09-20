@@ -942,3 +942,30 @@ pub struct RemoveInsuranceFundStake<'info> {
     pub user_token_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
 }
+
+#[derive(Accounts)]
+pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        seeds = [b"spot_market", 0_u64.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), 0_u64.to_le_bytes().as_ref()],
+    bump,
+    )]
+    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+}

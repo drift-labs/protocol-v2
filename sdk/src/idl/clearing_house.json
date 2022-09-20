@@ -2253,6 +2253,52 @@
       ]
     },
     {
+      "name": "updatePerpFeeStructure",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "feeStructure",
+          "type": {
+            "defined": "FeeStructure"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateSpotFeeStructure",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "feeStructure",
+          "type": {
+            "defined": "FeeStructure"
+          }
+        }
+      ]
+    },
+    {
       "name": "updateOracleGuardRails",
       "accounts": [
         {
@@ -2925,6 +2971,42 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "updateUserQuoteAssetInsuranceStake",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -2940,6 +3022,10 @@
           {
             "name": "marketIndex",
             "type": "u64"
+          },
+          {
+            "name": "ifShares",
+            "type": "u128"
           },
           {
             "name": "ifShares",
@@ -3612,8 +3698,8 @@
             "type": "i64"
           },
           {
-            "name": "quoteAssetInsuranceFundStake",
-            "type": "u128"
+            "name": "stakedQuoteAssetAmount",
+            "type": "u64"
           }
         ]
       }
@@ -3901,99 +3987,6 @@
           },
           {
             "name": "cumulativeDepositInterestDelta",
-            "type": "u128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "FeeStructure",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "feeTiers",
-            "type": {
-              "array": [
-                {
-                  "defined": "FeeTier"
-                },
-                10
-              ]
-            }
-          },
-          {
-            "name": "fillerRewardStructure",
-            "type": {
-              "defined": "OrderFillerRewardStructure"
-            }
-          },
-          {
-            "name": "referrerRewardEpochUpperBound",
-            "type": "u64"
-          },
-          {
-            "name": "flatFillerFee",
-            "type": "u128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "FeeTier",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "feeNumerator",
-            "type": "u32"
-          },
-          {
-            "name": "feeDenominator",
-            "type": "u32"
-          },
-          {
-            "name": "makerRebateNumerator",
-            "type": "u32"
-          },
-          {
-            "name": "makerRebateDenominator",
-            "type": "u32"
-          },
-          {
-            "name": "referrerRewardNumerator",
-            "type": "u32"
-          },
-          {
-            "name": "referrerRewardDenominator",
-            "type": "u32"
-          },
-          {
-            "name": "refereeFeeNumerator",
-            "type": "u32"
-          },
-          {
-            "name": "refereeFeeDenominator",
-            "type": "u32"
-          }
-        ]
-      }
-    },
-    {
-      "name": "OrderFillerRewardStructure",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "rewardNumerator",
-            "type": "u128"
-          },
-          {
-            "name": "rewardDenominator",
-            "type": "u128"
-          },
-          {
-            "name": "timeBasedRewardLowerBound",
             "type": "u128"
           }
         ]
@@ -4387,6 +4380,99 @@
           {
             "name": "tooVolatileRatio",
             "type": "i128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeeStructure",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "feeTiers",
+            "type": {
+              "array": [
+                {
+                  "defined": "FeeTier"
+                },
+                10
+              ]
+            }
+          },
+          {
+            "name": "fillerRewardStructure",
+            "type": {
+              "defined": "OrderFillerRewardStructure"
+            }
+          },
+          {
+            "name": "referrerRewardEpochUpperBound",
+            "type": "u64"
+          },
+          {
+            "name": "flatFillerFee",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeeTier",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "feeNumerator",
+            "type": "u32"
+          },
+          {
+            "name": "feeDenominator",
+            "type": "u32"
+          },
+          {
+            "name": "makerRebateNumerator",
+            "type": "u32"
+          },
+          {
+            "name": "makerRebateDenominator",
+            "type": "u32"
+          },
+          {
+            "name": "referrerRewardNumerator",
+            "type": "u32"
+          },
+          {
+            "name": "referrerRewardDenominator",
+            "type": "u32"
+          },
+          {
+            "name": "refereeFeeNumerator",
+            "type": "u32"
+          },
+          {
+            "name": "refereeFeeDenominator",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderFillerRewardStructure",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "rewardNumerator",
+            "type": "u128"
+          },
+          {
+            "name": "rewardDenominator",
+            "type": "u128"
+          },
+          {
+            "name": "timeBasedRewardLowerBound",
+            "type": "u128"
           }
         ]
       }

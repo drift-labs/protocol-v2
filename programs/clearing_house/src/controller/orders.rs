@@ -46,7 +46,6 @@ use crate::order_validation::{validate_order, validate_spot_order};
 use crate::print_error;
 use crate::state::events::{get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
-use crate::state::fees::FeeStructure;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::market::PerpMarket;
 use crate::state::oracle::OraclePriceData;
@@ -55,6 +54,7 @@ use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::serum::{load_market_state, load_open_orders};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
+use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::user::{AssetType, Order, OrderStatus, OrderType, UserStats};
 use crate::state::user::{MarketType, User};
@@ -1592,6 +1592,7 @@ pub fn fulfill_order_with_match(
         filler.is_some(),
         reward_referrer,
         referrer_stats,
+        &MarketType::Perp,
     )?;
 
     // Increment the markets house's total fee variables
@@ -2762,6 +2763,7 @@ pub fn fulfill_spot_order_with_match(
         filler.is_some(),
         false,
         &None,
+        &MarketType::Spot,
     )?;
 
     // Update taker state

@@ -584,7 +584,7 @@ export type UserStatsAccount = {
 	isReferrer: boolean;
 	totalReferrerReward: BN;
 	authority: PublicKey;
-	quoteAssetInsuranceFundStake: BN;
+	stakedQuoteAssetAmount: BN;
 };
 
 export type UserAccount = {
