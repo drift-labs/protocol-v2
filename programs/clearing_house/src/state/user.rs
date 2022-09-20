@@ -8,8 +8,8 @@ use crate::math::amm::calculate_rolling_sum;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::cast_to_i128;
 use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, MARK_PRICE_PRECISION_I128, EPOCH_DURATION, QUOTE_SPOT_MARKET_INDEX,
-    THIRTY_DAY_I128,
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, MARK_PRICE_PRECISION_I128,
+    QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY_I128,
 };
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
