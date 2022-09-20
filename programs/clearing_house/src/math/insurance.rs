@@ -44,16 +44,11 @@ pub fn unstaked_shares_to_amount(
     )?;
 
     let amount = if total_if_shares > 0 {
-        // subtract one on withdraws to avoid rounding in favor for user
-        // either takes off one OR makes user proportional withdraw exact
-        cast_to_u64(
-            get_proportion_u128(
-                n_shares,
-                insurance_fund_vault_balance as u128,
-                total_if_shares as u128,
-            )?
-            .saturating_sub(1),
-        )?
+        cast_to_u64(get_proportion_u128(
+            n_shares,
+            insurance_fund_vault_balance as u128,
+            total_if_shares as u128,
+        )?)?
     } else {
         0
     };
@@ -121,7 +116,7 @@ pub fn calculate_if_shares_lost(
         )?;
 
         validate!(
-            new_n_shares < n_shares,
+            new_n_shares <= n_shares,
             ErrorCode::DefaultError,
             "Issue calculating delta if_shares after canceling request {} < {}",
             new_n_shares,
@@ -282,24 +277,24 @@ mod test {
 
         // unchanged balance
         let lost_shares = calculate_if_shares_lost(&if_stake, &spot_market, if_balance).unwrap();
-        assert_eq!(lost_shares, 0);
+        assert_eq!(lost_shares, 2);
 
         let if_balance = if_balance + (100 * QUOTE_PRECISION) as u64;
         spot_market.total_if_shares += 100 * QUOTE_PRECISION;
         spot_market.user_if_shares += 100 * QUOTE_PRECISION;
         let lost_shares = calculate_if_shares_lost(&if_stake, &spot_market, if_balance).unwrap();
-        assert_eq!(lost_shares, 0); // giving up $5 of gains
+        assert_eq!(lost_shares, 2); // giving up $5 of gains
 
         let if_balance = if_balance - (100 * QUOTE_PRECISION) as u64;
         spot_market.total_if_shares -= 100 * QUOTE_PRECISION;
         spot_market.user_if_shares -= 100 * QUOTE_PRECISION;
         let lost_shares = calculate_if_shares_lost(&if_stake, &spot_market, if_balance).unwrap();
-        assert_eq!(lost_shares, 0); // giving up $5 of gains
+        assert_eq!(lost_shares, 2); // giving up $5 of gains
 
         // take back gain
         let if_balance = (1100 * QUOTE_PRECISION) as u64;
         let lost_shares = calculate_if_shares_lost(&if_stake, &spot_market, if_balance).unwrap();
-        assert_eq!(lost_shares, 10_000_000); // giving up $10 of gains
+        assert_eq!(lost_shares, 10_000_001); // giving up $10 of gains
 
         // doesnt matter if theres a loss
         if_stake.last_withdraw_request_value = (200 * QUOTE_PRECISION) as u64;
@@ -311,7 +306,7 @@ mod test {
         let if_balance = (2100 * QUOTE_PRECISION) as u64;
         spot_market.total_if_shares *= 2;
         let lost_shares = calculate_if_shares_lost(&if_stake, &spot_market, if_balance).unwrap();
-        assert_eq!(lost_shares, 5_000_000); // giving up $5 of gains
+        assert_eq!(lost_shares, 5_000_001); // giving up $5 of gains
 
         let if_balance = (2100 * QUOTE_PRECISION * 10) as u64;
 
