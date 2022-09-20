@@ -2886,13 +2886,13 @@ mod test {
             market.amm.net_base_asset_amount,
             (AMM_RESERVE_PRECISION / 10) as i128 - 1
         );
-        assert_eq!(cost, 49406); //0.05
+        assert_eq!(cost, 49407); //0.05
 
         let update_k_down =
             get_update_k_result(&market, bn::U192::from(79 * AMM_RESERVE_PRECISION), false)
                 .unwrap();
         let cost = adjust_k_cost(&mut market, &update_k_down).unwrap();
-        assert_eq!(cost, -1407044); //0.05
+        assert_eq!(cost, -1407043); //0.05
 
         // lp owns 50% of vAMM, same k
         position.lp_shares = 50 * AMM_RESERVE_PRECISION;

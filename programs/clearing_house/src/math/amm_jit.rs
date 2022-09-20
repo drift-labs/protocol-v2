@@ -1,18 +1,17 @@
 use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
+use crate::math::casting::cast_to_u128;
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math_error;
 use crate::state::market::PerpMarket;
 use solana_program::msg;
-
-use super::casting::cast_to_u128;
 
 // assumption: market.amm.amm_jit_is_active() == true
 // assumption: taker_baa will improve market balance (see orders.rs & amm_wants_to_make)
 pub fn calculate_jit_base_asset_amount(
     market: &PerpMarket,
     taker_base_asset_amount: u128,
-    maker_fill_price: u128,
+    auction_price: u128,
     valid_oracle_price: Option<i128>,
     taker_direction: PositionDirection,
 ) -> ClearingHouseResult<u128> {
@@ -24,9 +23,9 @@ pub fn calculate_jit_base_asset_amount(
         let oracle_price = cast_to_u128(oracle_price)?;
 
         // maker taking a short below oracle = likely to be a wash
-        if taker_direction == PositionDirection::Long && maker_fill_price < oracle_price {
+        if taker_direction == PositionDirection::Long && auction_price < oracle_price {
             max_jit_amount = max_jit_amount.checked_div(4).ok_or_else(math_error!())?
-        } else if taker_direction == PositionDirection::Short && maker_fill_price > oracle_price {
+        } else if taker_direction == PositionDirection::Short && auction_price > oracle_price {
             max_jit_amount = max_jit_amount.checked_div(4).ok_or_else(math_error!())?
         }
     } else {
@@ -60,6 +59,7 @@ pub fn calculate_jit_base_asset_amount(
 
     let damm_is_imbalanced = base_reserve <= mid_reserve - fourth_base_reserve_length
         || base_reserve >= mid_reserve + fourth_base_reserve_length;
+
     let mut jit_base_asset_amount = if damm_is_imbalanced {
         taker_base_asset_amount
             .checked_div(2)
@@ -279,7 +279,12 @@ mod test {
             calculate_jit_base_asset_amount(&market, 100, 50, Some(100), PositionDirection::Long)
                 .unwrap();
 
-        assert!(jit_baa_no_wash > jit_baa_wash);
+        assert!(
+            jit_baa_no_wash > jit_baa_wash,
+            "{} {}",
+            jit_baa_no_wash,
+            jit_baa_wash
+        );
     }
 
     #[test]

@@ -3381,17 +3381,7 @@ pub mod clearing_house {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
-        *if_stake = InsuranceFundStake {
-            authority: *ctx.accounts.authority.key,
-            market_index,
-            if_shares: 0,
-            last_withdraw_request_shares: 0,
-            last_withdraw_request_value: 0,
-            last_withdraw_request_ts: 0,
-            cost_basis: 0,
-            if_base: 0,
-            last_valid_ts: now,
-        };
+        *if_stake = InsuranceFundStake::new(*ctx.accounts.authority.key, market_index, now);
 
         Ok(())
     }
@@ -3533,10 +3523,8 @@ pub mod clearing_house {
             "Requested lp_shares = 0"
         )?;
 
-        validate!(
-            insurance_fund_stake.if_shares >= n_shares,
-            ErrorCode::InsufficientLPTokens
-        )?;
+        let user_if_shares = insurance_fund_stake.checked_if_shares(spot_market)?;
+        validate!(user_if_shares >= n_shares, ErrorCode::InsufficientLPTokens)?;
 
         controller::insurance::request_remove_insurance_fund_stake(
             n_shares,
