@@ -664,6 +664,13 @@ mod test {
 
     #[test]
     pub fn basic_stake_if_test() {
+        assert_eq!(0_i32.signum(), 0);
+        assert_eq!(1_i32.signum(), 1);
+        assert_eq!(-1_i32.signum(), -1);
+
+        assert_eq!(0_i128.signum(), 0);
+        assert_eq!(1_i128.signum(), 1);
+
         let mut if_balance = 0;
         let mut if_stake = InsuranceFundStake {
             if_shares: 0,
