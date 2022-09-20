@@ -10,6 +10,12 @@ use crate::validate;
 use solana_program::msg;
 use std::cmp::{max, min};
 
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum OracleValidity {
+    Long,
+    Short,
+}
+
 pub fn block_operation(
     amm: &AMM,
     oracle_price_data: &OraclePriceData,
@@ -55,7 +61,7 @@ pub fn get_oracle_status<'a>(
     })
 }
 
-pub fn is_oracle_valid(
+pub fn oracle_validity(
     last_oracle_twap: i128,
     oracle_price_data: &OraclePriceData,
     valid_oracle_guard_rails: &ValidityGuardRails,
