@@ -16,14 +16,21 @@ pub fn staked_amount_to_shares(
 ) -> ClearingHouseResult<u128> {
     // relative to the entire pool + total amount minted
     let n_shares = if insurance_fund_vault_balance > 0 {
-        // assumes total_if_shares != 0 for nice result for user
+        // assumes total_if_shares != 0 (in most cases) for nice result for user
+
         get_proportion_u128(
             cast_to_u128(amount)?,
             total_if_shares,
             cast_to_u128(insurance_fund_vault_balance)?,
         )?
     } else {
-        // assumes total_if_shares == 0 for nice result for user
+        // must be case that total_if_shares == 0 for nice result for user
+        validate!(
+            total_if_shares == 0,
+            ErrorCode::DefaultError,
+            "assumes total_if_shares == 0",
+        )?;
+
         cast_to_u128(amount)?
     };
 

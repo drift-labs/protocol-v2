@@ -203,6 +203,15 @@ pub fn request_remove_insurance_fund_stake(
     let user_if_shares_before = spot_market.user_if_shares;
 
     validate!(
+        insurance_fund_stake.last_withdraw_request_shares
+            <= insurance_fund_stake.checked_if_shares(spot_market)?,
+        ErrorCode::DefaultError,
+        "last_withdraw_request_shares exceeds if_shares {} > {}",
+        insurance_fund_stake.last_withdraw_request_shares,
+        insurance_fund_stake.checked_if_shares(spot_market)?
+    )?;
+
+    validate!(
         insurance_fund_stake.if_base == spot_market.if_shares_base,
         ErrorCode::DefaultError,
         "if stake base != spot market base"
@@ -710,6 +719,8 @@ mod test {
         )
         .is_err());
         assert_eq!(if_stake.if_shares, amount as u128);
+        assert_eq!(spot_market.total_if_shares, amount as u128);
+        assert_eq!(spot_market.if_shares_base, 0);
 
         request_remove_insurance_fund_stake(
             if_stake.if_shares,
@@ -722,6 +733,9 @@ mod test {
         .unwrap();
         assert_eq!(if_stake.last_withdraw_request_shares, if_stake.if_shares);
         assert_eq!(if_stake.last_withdraw_request_value, if_balance - 1); //rounding in favor
+        assert_eq!(if_stake.if_shares, amount as u128);
+        assert_eq!(spot_market.total_if_shares, amount as u128);
+        assert_eq!(spot_market.if_shares_base, 0);
 
         let amount_returned = (remove_insurance_fund_stake(
             if_balance,
@@ -738,6 +752,8 @@ mod test {
         assert_eq!(if_stake.cost_basis, 1);
         assert_eq!(if_stake.last_withdraw_request_shares, 0);
         assert_eq!(if_stake.last_withdraw_request_value, 0);
+        assert_eq!(spot_market.total_if_shares, 0);
+        assert_eq!(spot_market.if_shares_base, 0);
         assert_eq!(if_balance, 1);
 
         add_insurance_fund_stake(
@@ -750,6 +766,9 @@ mod test {
         )
         .unwrap();
         assert_eq!(if_stake.cost_basis, 1234);
+        assert_eq!(spot_market.user_if_shares, 1234);
+        assert_eq!(spot_market.total_if_shares, 1235); // protocol claims the 1 balance
+        assert_eq!(spot_market.if_shares_base, 0);
     }
 
     #[test]
