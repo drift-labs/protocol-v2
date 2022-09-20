@@ -951,10 +951,10 @@ export class ClearingHouse {
 		return result;
 	}
 
-	private async getAssociatedTokenAccountCreationIx(
+	public getAssociatedTokenAccountCreationIx(
 		tokenMintAddress: PublicKey,
 		associatedTokenAddress: PublicKey
-	): Promise<anchor.web3.TransactionInstruction> {
+	): anchor.web3.TransactionInstruction {
 		const createAssociatedAccountIx =
 			Token.createAssociatedTokenAccountInstruction(
 				ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -1135,7 +1135,7 @@ export class ClearingHouse {
 
 			if (!accountExists) {
 				const createAssociatedTokenAccountIx =
-					await this.getAssociatedTokenAccountCreationIx(
+					this.getAssociatedTokenAccountCreationIx(
 						spotMarketAccount.mint,
 						userTokenAccount
 					);
