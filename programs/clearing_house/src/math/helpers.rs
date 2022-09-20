@@ -1,7 +1,25 @@
 use crate::error::ClearingHouseResult;
-use crate::math::casting::cast_to_i128;
+use crate::math::casting::{cast_to_i128, cast_to_u128};
 use crate::math_error;
 use solana_program::msg;
+
+pub fn standardize_value_with_remainder_i128(
+    value: i128,
+    step_size: u128,
+) -> ClearingHouseResult<(i128, i128)> {
+    let remainder = cast_to_i128(
+        value
+            .unsigned_abs()
+            .checked_rem_euclid(step_size)
+            .ok_or_else(math_error!())?,
+    )?
+    .checked_mul(value.signum())
+    .ok_or_else(math_error!())?;
+
+    let standardized_value = value.checked_sub(remainder).ok_or_else(math_error!())?;
+
+    Ok((standardized_value, remainder))
+}
 
 pub fn get_proportion_i128(
     value: i128,
@@ -26,15 +44,29 @@ pub fn get_proportion_u128(
     numerator: u128,
     denominator: u128,
 ) -> ClearingHouseResult<u128> {
-    let proportional_value = if numerator > denominator / 2 && denominator >= numerator {
+    let proportional_value = if numerator == denominator {
         value
-            .checked_sub(
+    } else if numerator > denominator / 2 && denominator > numerator {
+
+        // get values to ensure a ceiling division
+        let (std_value, r) = standardize_value_with_remainder_i128(
+            cast_to_i128(
                 value
                     .checked_mul(denominator - numerator)
-                    .ok_or_else(math_error!())?
+                    .ok_or_else(math_error!())?,
+            )?,
+            denominator,
+        )?;
+
+         // perform ceiling division by subtracting one if there is a remainder
+        value
+            .checked_sub(
+                cast_to_u128(std_value)?
                     .checked_div(denominator)
                     .ok_or_else(math_error!())?,
             )
+            .ok_or_else(math_error!())?
+            .checked_sub(cast_to_u128(r.signum())?)
             .ok_or_else(math_error!())?
     } else {
         value

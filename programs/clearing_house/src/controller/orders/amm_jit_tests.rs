@@ -243,6 +243,7 @@ pub mod amm_jit {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                user_lp_shares: 10 * AMM_RESERVE_PRECISION, // some lps exist
 
                 ..AMM::default()
             },
@@ -365,6 +366,9 @@ pub mod amm_jit {
         let market_after = market_map.get_ref(&0).unwrap();
         // nets to zero
         assert_eq!(market_after.amm.net_base_asset_amount, 0);
+
+        // make sure lps didnt get anything
+        assert_eq!(market_after.amm.market_position_per_lp.base_asset_amount, 0);
 
         let maker_position = &maker.perp_positions[0];
         // maker got (full - net_baa)

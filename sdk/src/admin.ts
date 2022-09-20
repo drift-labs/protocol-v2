@@ -278,7 +278,7 @@ export class Admin extends ClearingHouse {
 		marketIndex: BN,
 		concentrationScale: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateConcentrationScale(concentrationScale, {
+		return await this.program.rpc.updateConcentrationCoef(concentrationScale, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				admin: this.wallet.publicKey,
