@@ -25,9 +25,9 @@ pub fn calculate_jit_base_asset_amount(
 
         // maker taking a short below oracle = likely to be a wash
         if taker_direction == PositionDirection::Long && maker_fill_price < oracle_price {
-            max_jit_amount = max_jit_amount.checked_div(2).ok_or_else(math_error!())?
+            max_jit_amount = max_jit_amount.checked_div(4).ok_or_else(math_error!())?
         } else if taker_direction == PositionDirection::Short && maker_fill_price > oracle_price {
-            max_jit_amount = max_jit_amount.checked_div(2).ok_or_else(math_error!())?
+            max_jit_amount = max_jit_amount.checked_div(4).ok_or_else(math_error!())?
         }
     } else {
         // todo: what to do when oracle price is invalid? probs dont take anything?
@@ -113,6 +113,185 @@ pub fn calculate_clampped_jit_base_asset_amount(
 mod test {
     use super::*;
     use crate::state::market::AMM;
+
+    #[test]
+    fn imbalanced_short_amm_jit() {
+        let mut market = PerpMarket {
+            amm: AMM {
+                net_base_asset_amount: 100,
+                amm_jit_intensity: 100,
+                min_base_asset_reserve: 50, 
+                max_base_asset_reserve: 100, 
+                base_asset_reserve: 75, // perf half balanced
+                ..AMM::default_test()
+            },
+            ..PerpMarket::default()
+        };
+        
+        let jit_baa_balanced = calculate_jit_base_asset_amount(
+            &market, 
+            100,
+            200, 
+            Some(300), 
+            PositionDirection::Short
+        ).unwrap();
+
+        let base_reserve_length = market.amm.max_base_asset_reserve - market.amm.min_base_asset_reserve;
+        let half_base_reserve_length = base_reserve_length
+            .checked_div(2)
+            .ok_or_else(math_error!()).unwrap();
+        let mid_reserve = market.amm.min_base_asset_reserve + half_base_reserve_length;
+        let fourth_base_reserve_length = base_reserve_length
+            .checked_div(4)
+            .ok_or_else(math_error!()).unwrap();
+
+        // make it imbalanced
+        market.amm.base_asset_reserve = mid_reserve + fourth_base_reserve_length + 1; 
+
+        let jit_baa_imbalanced = calculate_jit_base_asset_amount(
+            &market, 
+            100,
+            200, 
+            Some(300), 
+            PositionDirection::Short
+        ).unwrap();
+
+        // take more when imbalanced
+        assert!(jit_baa_balanced < jit_baa_imbalanced, "{} {}", jit_baa_balanced, jit_baa_imbalanced,);
+
+        // make it imbalanced
+        market.amm.base_asset_reserve = mid_reserve - fourth_base_reserve_length - 1; 
+        let jit_baa_imbalanced = calculate_jit_base_asset_amount(
+            &market, 
+            100,
+            200, 
+            Some(300), 
+            PositionDirection::Short
+        ).unwrap();
+
+        // take more when imbalanced
+        assert!(jit_baa_balanced < jit_baa_imbalanced, "{} {}", jit_baa_balanced, jit_baa_imbalanced,);
+    }
+
+    #[test]
+    fn imbalanced_long_amm_jit() {
+        let mut market = PerpMarket {
+            amm: AMM {
+                net_base_asset_amount: 100,
+                amm_jit_intensity: 100,
+                min_base_asset_reserve: 50, 
+                max_base_asset_reserve: 100, 
+                base_asset_reserve: 75, // perf half balanced
+                ..AMM::default_test()
+            },
+            ..PerpMarket::default()
+        };
+        
+        let jit_baa_balanced = calculate_jit_base_asset_amount(
+            &market, 
+            100,
+            200, 
+            Some(100), 
+            PositionDirection::Long
+        ).unwrap();
+
+        let base_reserve_length = market.amm.max_base_asset_reserve - market.amm.min_base_asset_reserve;
+        let half_base_reserve_length = base_reserve_length
+            .checked_div(2)
+            .ok_or_else(math_error!()).unwrap();
+        let mid_reserve = market.amm.min_base_asset_reserve + half_base_reserve_length;
+        let fourth_base_reserve_length = base_reserve_length
+            .checked_div(4)
+            .ok_or_else(math_error!()).unwrap();
+
+        // make it imbalanced
+        market.amm.base_asset_reserve = mid_reserve + fourth_base_reserve_length + 1; 
+
+        let jit_baa_imbalanced = calculate_jit_base_asset_amount(
+            &market, 
+            100,
+            200, 
+            Some(100), 
+            PositionDirection::Long
+        ).unwrap();
+
+        // take more when imbalanced
+        assert!(jit_baa_balanced < jit_baa_imbalanced, "{} {}", jit_baa_balanced, jit_baa_imbalanced,);
+
+        // make it imbalanced
+        market.amm.base_asset_reserve = mid_reserve - fourth_base_reserve_length - 1; 
+        let jit_baa_imbalanced = calculate_jit_base_asset_amount(
+            &market, 
+            100,
+            200, 
+            Some(100), 
+            PositionDirection::Long
+        ).unwrap();
+
+        // take more when imbalanced
+        assert!(jit_baa_balanced < jit_baa_imbalanced, "{} {}", jit_baa_balanced, jit_baa_imbalanced,);
+    }
+
+    #[test]
+    fn wash_trade_long_amm_jit() {
+        let market = PerpMarket {
+            amm: AMM {
+                net_base_asset_amount: -100,
+                amm_jit_intensity: 100,
+                ..AMM::default_test()
+            },
+            ..PerpMarket::default()
+        };
+        
+        let jit_baa_no_wash = calculate_jit_base_asset_amount(
+            &market, 
+            100,
+            200, 
+            Some(100), 
+            PositionDirection::Long
+        ).unwrap();
+
+        let jit_baa_wash = calculate_jit_base_asset_amount(
+            &market, 
+            100,
+            50, 
+            Some(100), 
+            PositionDirection::Long
+        ).unwrap();
+
+        assert!(jit_baa_no_wash > jit_baa_wash);
+    }
+    
+    #[test]
+    fn wash_trade_short_amm_jit() {
+        let market = PerpMarket {
+            amm: AMM {
+                net_base_asset_amount: 100,
+                amm_jit_intensity: 100,
+                ..AMM::default_test()
+            },
+            ..PerpMarket::default()
+        };
+        
+        let jit_baa_no_wash = calculate_jit_base_asset_amount(
+            &market, 
+            100,
+            100, 
+            Some(200), 
+            PositionDirection::Short
+        ).unwrap();
+
+        // fill above oracle
+        let jit_baa_wash = calculate_jit_base_asset_amount(
+            &market, 
+            100,
+            200, 
+            Some(100), 
+            PositionDirection::Short
+        ).unwrap();
+
+        assert!(jit_baa_no_wash > jit_baa_wash);
+    }
 
     #[test]
     fn balanced_market_zero_jit() {
