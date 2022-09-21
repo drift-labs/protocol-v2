@@ -60,23 +60,23 @@ pub fn calculate_bid_ask_bounds(
     Ok((bid_bounded_base, ask_bounded_base))
 }
 
-pub fn calculate_terminal_price(market: &mut PerpMarket) -> ClearingHouseResult<u128> {
-    let swap_direction = if market.amm.net_base_asset_amount > 0 {
+pub fn calculate_terminal_price(amm: &mut AMM) -> ClearingHouseResult<u128> {
+    let swap_direction = if amm.net_base_asset_amount > 0 {
         SwapDirection::Add
     } else {
         SwapDirection::Remove
     };
     let (new_quote_asset_amount, new_base_asset_amount) = calculate_swap_output(
-        market.amm.net_base_asset_amount.unsigned_abs(),
-        market.amm.base_asset_reserve,
+        amm.net_base_asset_amount.unsigned_abs(),
+        amm.base_asset_reserve,
         swap_direction,
-        market.amm.sqrt_k,
+        amm.sqrt_k,
     )?;
 
     let terminal_price = calculate_price(
         new_quote_asset_amount,
         new_base_asset_amount,
-        market.amm.peg_multiplier,
+        amm.peg_multiplier,
     )?;
 
     Ok(terminal_price)
@@ -777,7 +777,7 @@ pub fn calculate_quote_asset_amount_swapped(
     Ok(quote_asset_amount)
 }
 
-pub fn calculate_terminal_price_and_reserves(amm: &AMM) -> ClearingHouseResult<(u128, u128, u128)> {
+pub fn calculate_terminal_reserves(amm: &AMM) -> ClearingHouseResult<(u128, u128)> {
     let swap_direction = if amm.net_base_asset_amount > 0 {
         SwapDirection::Add
     } else {
@@ -789,6 +789,12 @@ pub fn calculate_terminal_price_and_reserves(amm: &AMM) -> ClearingHouseResult<(
         swap_direction,
         amm.sqrt_k,
     )?;
+
+    Ok((new_quote_asset_amount, new_base_asset_amount))
+}
+
+pub fn calculate_terminal_price_and_reserves(amm: &AMM) -> ClearingHouseResult<(u128, u128, u128)> {
+    let (new_quote_asset_amount, new_base_asset_amount) = calculate_terminal_reserves(amm)?;
 
     let terminal_price = calculate_price(
         new_quote_asset_amount,
@@ -1378,18 +1384,8 @@ pub fn update_k(market: &mut PerpMarket, update_k_result: &UpdateKResult) -> Cle
     market.amm.quote_asset_reserve = update_k_result.quote_asset_reserve;
     market.amm.sqrt_k = update_k_result.sqrt_k;
 
-    let swap_direction = if market.amm.net_base_asset_amount > 0 {
-        SwapDirection::Add
-    } else {
-        SwapDirection::Remove
-    };
-    let (new_terminal_quote_reserve, new_terminal_base_reserve) = calculate_swap_output(
-        market.amm.net_base_asset_amount.unsigned_abs(),
-        market.amm.base_asset_reserve,
-        swap_direction,
-        market.amm.sqrt_k,
-    )?;
-
+    let (new_terminal_quote_reserve, new_terminal_base_reserve) =
+        calculate_terminal_reserves(&market.amm)?;
     market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
 
     let (min_base_asset_reserve, max_base_asset_reserve) =

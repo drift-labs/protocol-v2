@@ -1,4 +1,5 @@
 use crate::error::ClearingHouseResult;
+use crate::math::bn::U192;
 use crate::math::casting::{cast_to_i128, cast_to_u128};
 use crate::math_error;
 use solana_program::msg;
@@ -26,16 +27,11 @@ pub fn get_proportion_i128(
     numerator: u128,
     denominator: u128,
 ) -> ClearingHouseResult<i128> {
-    let proportional_value = cast_to_i128(
-        value
-            .unsigned_abs()
-            .checked_mul(numerator)
-            .ok_or_else(math_error!())?
-            .checked_div(denominator)
-            .ok_or_else(math_error!())?,
-    )?
-    .checked_mul(value.signum())
-    .ok_or_else(math_error!())?;
+    let proportional_u128 = get_proportion_u128(value.unsigned_abs(), numerator, denominator)?;
+    let proportional_value = cast_to_i128(proportional_u128)?
+        .checked_mul(value.signum())
+        .ok_or_else(math_error!())?;
+
     Ok(proportional_value)
 }
 
@@ -73,11 +69,23 @@ pub fn get_proportion_u128(
             .checked_sub(cast_to_u128(r.signum())?)
             .ok_or_else(math_error!())?
     } else {
-        value
-            .checked_mul(numerator)
-            .ok_or_else(math_error!())?
-            .checked_div(denominator)
-            .ok_or_else(math_error!())?
+        let num = value.checked_mul(numerator);
+
+        if num.is_some() {
+            // continue on
+            num.unwrap()
+                .checked_div(denominator)
+                .ok_or_else(math_error!())?
+        } else {
+            // try again with larger type
+            let value = U192::from(value)
+                .checked_mul(U192::from(numerator))
+                .ok_or_else(math_error!())?
+                .checked_div(U192::from(denominator))
+                .ok_or_else(math_error!())?;
+
+            cast_to_u128(value)?
+        }
     };
 
     Ok(proportional_value)
