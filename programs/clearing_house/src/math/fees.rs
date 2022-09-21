@@ -27,7 +27,7 @@ pub struct FillFees {
     pub referee_discount: u128,
 }
 
-pub fn calculate_fee_for_order_fulfill_against_amm(
+pub fn calculate_fee_for_fulfillment_with_amm(
     user_stats: &UserStats,
     quote_asset_amount: u128,
     fee_structure: &FeeStructure,
@@ -596,7 +596,7 @@ mod test {
 
     mod calculate_fee_for_order_fulfill_against_amm {
         use crate::math::constants::QUOTE_PRECISION;
-        use crate::math::fees::{calculate_fee_for_order_fulfill_against_amm, FillFees};
+        use crate::math::fees::{calculate_fee_for_fulfillment_with_amm, FillFees};
         use crate::state::state::FeeStructure;
         use crate::state::user::UserStats;
 
@@ -614,7 +614,7 @@ mod test {
                 referee_discount,
                 referrer_reward,
                 ..
-            } = calculate_fee_for_order_fulfill_against_amm(
+            } = calculate_fee_for_fulfillment_with_amm(
                 &taker_stats,
                 quote_asset_amount,
                 &fee_structure,

@@ -1235,7 +1235,7 @@ pub fn fulfill_order_with_amm(
         referrer_reward,
         fee_to_market_for_lp,
         ..
-    } = fees::calculate_fee_for_order_fulfill_against_amm(
+    } = fees::calculate_fee_for_fulfillment_with_amm(
         user_stats,
         quote_asset_amount,
         fee_structure,
