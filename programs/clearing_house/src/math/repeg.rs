@@ -11,10 +11,10 @@ use crate::math::constants::{
 };
 use crate::math::oracle;
 use crate::math::oracle::OracleValidity;
-
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::math_error;
 use crate::state::market::{PerpMarket, AMM};
+use crate::state::oracle::get_oracle_price;
 use crate::state::oracle::OraclePriceData;
 use std::cmp::{max, min};
 
@@ -29,9 +29,8 @@ pub fn calculate_repeg_validity_from_oracle_account(
     clock_slot: u64,
     oracle_guard_rails: &OracleGuardRails,
 ) -> ClearingHouseResult<(bool, bool, bool, bool)> {
-    let oracle_price_data = market
-        .amm
-        .get_oracle_price(oracle_account_info, clock_slot)?;
+    let oracle_price_data =
+        get_oracle_price(&market.amm.oracle_source, oracle_account_info, clock_slot)?;
     let oracle_is_valid = oracle::oracle_validity(
         market.amm.last_oracle_price_twap,
         &oracle_price_data,

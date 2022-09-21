@@ -2456,7 +2456,7 @@ pub mod clearing_house {
         let OraclePriceData {
             price: oracle_price,
             ..
-        } = market.amm.get_oracle_price(price_oracle, 0)?;
+        } = get_oracle_price(&market.amm.oracle_source, price_oracle, clock.slot)?;
 
         let peg_multiplier_before = market.amm.peg_multiplier;
         let base_asset_reserve_before = market.amm.base_asset_reserve;
@@ -2562,7 +2562,8 @@ pub mod clearing_house {
 
         let market = &mut load_mut!(ctx.accounts.market)?;
         let price_oracle = &ctx.accounts.oracle;
-        let oracle_price_data = &market.amm.get_oracle_price(price_oracle, clock_slot)?;
+        let oracle_price_data =
+            &get_oracle_price(&market.amm.oracle_source, price_oracle, clock_slot)?;
 
         let is_oracle_valid = oracle::oracle_validity(
             market.amm.last_oracle_price_twap,
@@ -2856,7 +2857,7 @@ pub mod clearing_house {
         let OraclePriceData {
             price: oracle_price,
             ..
-        } = amm.get_oracle_price(&ctx.accounts.oracle, 0)?;
+        } = get_oracle_price(&market.amm.oracle_source, &ctx.accounts.oracle, clock.slot)?;
 
         emit!(CurveRecord {
             ts: now,
