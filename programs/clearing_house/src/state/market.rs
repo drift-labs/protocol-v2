@@ -385,7 +385,7 @@ impl AMM {
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: (19_400 * MARK_PRICE_PRECISION) as i128,
                 last_oracle_price_twap: (19_400 * MARK_PRICE_PRECISION) as i128,
-                last_oracle_price_twap_ts: 1662800000 as i64,
+                last_oracle_price_twap_ts: 1662800000_i64,
                 ..HistoricalOracleData::default()
             },
             last_mark_price_twap_ts: 1662800000,

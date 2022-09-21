@@ -550,6 +550,7 @@ pub mod clearing_house {
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: oracle_price,
                     last_oracle_conf: 0,
+                    last_oracle_delay: oracle_delay,
                     last_oracle_price_twap,
                     last_oracle_price_twap_5min: oracle_price,
                     ..HistoricalOracleData::default()
@@ -1274,8 +1275,15 @@ pub mod clearing_house {
         params: OrderParams,
         maker_order_id: Option<u64>,
     ) -> Result<()> {
+        let clock = Clock::get()?;
+        let state = &ctx.accounts.state;
+
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
 
         let market_map = PerpMarketMap::load(

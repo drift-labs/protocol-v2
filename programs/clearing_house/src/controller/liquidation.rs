@@ -108,7 +108,7 @@ pub fn liquidate_perp(
         now,
     )?;
 
-    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, oracles_valid) =
+    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _oracles_valid) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -187,7 +187,7 @@ pub fn liquidate_perp(
                 _,
                 intermediate_total_collateral,
                 intermediate_margin_requirement_plus_buffer,
-                oracles_valid,
+                _oracles_valid,
             ) = calculate_margin_requirement_and_total_collateral(
                 user,
                 perp_market_map,
@@ -262,7 +262,6 @@ pub fn liquidate_perp(
         .unsigned_abs();
 
     let market = perp_market_map.get_ref(&market_index)?;
-
     let liquidation_fee = market.liquidator_fee;
     let if_liquidation_fee = market.if_liquidation_fee;
     let base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount(
@@ -553,7 +552,7 @@ pub fn liquidate_borrow(
         )
     };
 
-    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, oracles_valid) =
+    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _oracles_valid) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -590,7 +589,7 @@ pub fn liquidate_borrow(
                 _,
                 intermediate_total_collateral,
                 intermediate_margin_requirement_plus_buffer,
-                oracles_valid,
+                _oracles_valid,
             ) = calculate_margin_requirement_and_total_collateral(
                 user,
                 perp_market_map,
@@ -935,7 +934,7 @@ pub fn liquidate_borrow_for_perp_pnl(
         )
     };
 
-    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, oracles_valid) =
+    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _oracles_valid) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -972,7 +971,7 @@ pub fn liquidate_borrow_for_perp_pnl(
                 _,
                 intermediate_total_collateral,
                 intermediate_margin_requirement_plus_buffer,
-                oracles_valid,
+                _oracles_valid,
             ) = calculate_margin_requirement_and_total_collateral(
                 user,
                 perp_market_map,
@@ -1296,7 +1295,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         )
     };
 
-    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, oracles_valid) =
+    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _oracles_valid) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -1333,7 +1332,7 @@ pub fn liquidate_perp_pnl_for_deposit(
                 _,
                 intermediate_total_collateral,
                 intermediate_margin_requirement_plus_buffer,
-                oracles_valid,
+                _oracles_valid,
             ) = calculate_margin_requirement_and_total_collateral(
                 user,
                 perp_market_map,

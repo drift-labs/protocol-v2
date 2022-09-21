@@ -11,7 +11,7 @@ use crate::math::spot_balance::{
 use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
 use crate::math_error;
 use crate::state::market::PerpMarket;
-use crate::state::oracle::{HistoricalOracleData, OraclePriceData};
+use crate::state::oracle::OraclePriceData;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::user::SpotPosition;
 use crate::validate;
@@ -356,7 +356,7 @@ mod test {
         SPOT_INTEREST_PRECISION, SPOT_UTILIZATION_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
-    use crate::state::oracle::OracleSource;
+    use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};

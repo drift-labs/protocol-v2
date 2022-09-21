@@ -39,7 +39,7 @@ impl Default for OracleGuardRails {
     fn default() -> Self {
         OracleGuardRails {
             price_divergence: PriceDivergenceGuardRails {
-                mark_oracle_divergence_numerator: 1, // todo: have high default so previous tests dont fail
+                mark_oracle_divergence_numerator: 1,
                 mark_oracle_divergence_denominator: 10,
             },
             validity: ValidityGuardRails {
