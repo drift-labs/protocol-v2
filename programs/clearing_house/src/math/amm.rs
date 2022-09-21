@@ -22,6 +22,8 @@ use crate::validate;
 use solana_program::msg;
 use std::cmp::{max, min};
 
+use super::helpers::get_proportion_u128;
+
 pub fn calculate_price(
     quote_asset_reserve: u128,
     base_asset_reserve: u128,
@@ -44,18 +46,12 @@ pub fn calculate_bid_ask_bounds(
     sqrt_k: u128,
 ) -> ClearingHouseResult<(u128, u128)> {
     // worse case if all asks are filled (max reserve)
-    let ask_bounded_base = sqrt_k
-        .checked_mul(concentration_coef)
-        .ok_or_else(math_error!())?
-        .checked_div(CONCENTRATION_PRECISION)
-        .ok_or_else(math_error!())?;
+    let ask_bounded_base =
+        get_proportion_u128(sqrt_k, concentration_coef, CONCENTRATION_PRECISION)?;
 
     // worse case if all bids are filled (min reserve)
-    let bid_bounded_base = sqrt_k
-        .checked_mul(CONCENTRATION_PRECISION)
-        .ok_or_else(math_error!())?
-        .checked_div(concentration_coef)
-        .ok_or_else(math_error!())?;
+    let bid_bounded_base =
+        get_proportion_u128(sqrt_k, CONCENTRATION_PRECISION, concentration_coef)?;
 
     Ok((bid_bounded_base, ask_bounded_base))
 }
