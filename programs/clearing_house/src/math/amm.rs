@@ -967,7 +967,6 @@ pub fn use_oracle_price_for_margin_calculation(
     Ok(price_spread_pct.unsigned_abs() > max_divergence)
 }
 
-
 pub fn calculate_budgeted_k_scale(
     market: &mut PerpMarket,
     budget: i128,
