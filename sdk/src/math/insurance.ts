@@ -1,4 +1,4 @@
-import { ONE, ZERO } from '../constants/numericConstants';
+import { ZERO } from '../constants/numericConstants';
 import { BN } from '../index';
 
 export function stakeAmountToShares(
@@ -25,7 +25,7 @@ export function unstakeSharesToAmount(
 	if (totalIfShares.gt(ZERO)) {
 		amount = BN.max(
 			ZERO,
-			nShares.mul(insuranceFundVaultBalance).div(totalIfShares).sub(ONE)
+			nShares.mul(insuranceFundVaultBalance).div(totalIfShares)
 		);
 	} else {
 		amount = ZERO;
