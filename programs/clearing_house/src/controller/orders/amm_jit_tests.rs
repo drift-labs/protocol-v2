@@ -1,16 +1,23 @@
-use crate::state::oracle_map::OracleMap;
-use crate::state::state::FeeStructure;
-use crate::state::user::{Order, PerpPosition};
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
 
+use crate::math::constants::ONE_BPS_DENOMINATOR;
+use crate::state::oracle_map::OracleMap;
+use crate::state::state::{FeeStructure, FeeTier};
+use crate::state::user::{Order, PerpPosition};
+
 fn get_fee_structure() -> FeeStructure {
-    FeeStructure {
+    let mut fee_tiers = [FeeTier::default(); 10];
+    fee_tiers[0] = FeeTier {
         fee_numerator: 5,
-        fee_denominator: 10000,
+        fee_denominator: ONE_BPS_DENOMINATOR,
         maker_rebate_numerator: 3,
-        maker_rebate_denominator: 5,
-        ..FeeStructure::default()
+        maker_rebate_denominator: ONE_BPS_DENOMINATOR,
+        ..FeeTier::default()
+    };
+    FeeStructure {
+        fee_tiers,
+        ..FeeStructure::test_default()
     }
 }
 
@@ -20,7 +27,8 @@ fn get_user_keys() -> (Pubkey, Pubkey, Pubkey) {
 
 #[cfg(test)]
 pub mod amm_jit {
-    use super::*;
+    use std::str::FromStr;
+
     use crate::controller::orders::fulfill_order;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
@@ -37,7 +45,8 @@ pub mod amm_jit {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::tests::utils::*;
-    use std::str::FromStr;
+
+    use super::*;
 
     #[test]
     fn no_fulfill_with_amm_jit_taker_long() {

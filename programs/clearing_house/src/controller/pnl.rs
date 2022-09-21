@@ -128,9 +128,11 @@ pub fn settle_pnl(
     }
 
     validate!(
-        pnl_to_settle_with_user < 0 || max_pnl_pool_excess > 0 || user.authority.eq(authority),
+        pnl_to_settle_with_user < 0
+            || max_pnl_pool_excess > 0
+            || (user.authority.eq(authority) || user.delegate.eq(authority)),
         ErrorCode::UserMustSettleTheirOwnPositiveUnsettledPNL,
-        "User must settle their own unsettled pnl when its positive and pnl pool not in excess",
+        "User must settle their own unsettled pnl when its positive and pnl pool not in excess"
     )?;
 
     update_spot_position_balance(
@@ -244,9 +246,9 @@ pub fn settle_expired_position(
         )?;
 
     let fee = base_asset_value
-        .checked_mul(fee_structure.fee_numerator)
+        .checked_mul(fee_structure.fee_tiers[0].fee_numerator as u128)
         .ok_or_else(math_error!())?
-        .checked_div(fee_structure.fee_denominator)
+        .checked_div(fee_structure.fee_tiers[0].fee_denominator as u128)
         .ok_or_else(math_error!())?;
 
     let unrealized_pnl_with_fee = unrealized_pnl

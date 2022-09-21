@@ -1395,11 +1395,11 @@ export class ClearingHouseUser {
 	 * @returns feeForQuote : Precision QUOTE_PRECISION
 	 */
 	public calculateFeeForQuoteAmount(quoteAmount: BN): BN {
-		const feeStructure = this.clearingHouse.getStateAccount().perpFeeStructure;
-
+		const feeTier =
+			this.clearingHouse.getStateAccount().perpFeeStructure.feeTiers[0];
 		return quoteAmount
-			.mul(feeStructure.feeNumerator)
-			.div(feeStructure.feeDenominator);
+			.mul(new BN(feeTier.feeNumerator))
+			.div(new BN(feeTier.feeDenominator));
 	}
 
 	/**

@@ -9,7 +9,7 @@ use solana_program::msg;
 use crate::math::casting::{cast_to_u128, cast_to_u32, cast_to_u64};
 use crate::math_error;
 
-pub fn staked_amount_to_shares(
+pub fn vault_amount_to_if_shares(
     amount: u64,
     total_if_shares: u128,
     insurance_fund_vault_balance: u64,
@@ -37,7 +37,7 @@ pub fn staked_amount_to_shares(
     Ok(n_shares)
 }
 
-pub fn unstaked_shares_to_amount(
+pub fn if_shares_to_vault_amount(
     n_shares: u128,
     total_if_shares: u128,
     insurance_fund_vault_balance: u64,
@@ -52,8 +52,8 @@ pub fn unstaked_shares_to_amount(
 
     let amount = if total_if_shares > 0 {
         cast_to_u64(get_proportion_u128(
-            n_shares,
             insurance_fund_vault_balance as u128,
+            n_shares,
             total_if_shares as u128,
         )?)?
     } else {
@@ -109,14 +109,14 @@ pub fn calculate_if_shares_lost(
 ) -> ClearingHouseResult<u128> {
     let n_shares = insurance_fund_stake.last_withdraw_request_shares;
 
-    let amount = unstaked_shares_to_amount(
+    let amount = if_shares_to_vault_amount(
         n_shares,
         spot_market.total_if_shares,
         insurance_fund_vault_balance,
     )?;
 
     let if_shares_lost = if amount > insurance_fund_stake.last_withdraw_request_value {
-        let new_n_shares = staked_amount_to_shares(
+        let new_n_shares = vault_amount_to_if_shares(
             insurance_fund_stake.last_withdraw_request_value,
             spot_market.total_if_shares - n_shares,
             insurance_fund_vault_balance - insurance_fund_stake.last_withdraw_request_value,
