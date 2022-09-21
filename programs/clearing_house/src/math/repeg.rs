@@ -32,7 +32,7 @@ pub fn calculate_repeg_validity_from_oracle_account(
     let oracle_price_data =
         get_oracle_price(&market.amm.oracle_source, oracle_account_info, clock_slot)?;
     let oracle_is_valid = oracle::oracle_validity(
-        market.amm.last_oracle_price_twap,
+        market.amm.historical_oracle_data.last_oracle_price_twap,
         &oracle_price_data,
         &oracle_guard_rails.validity,
     )? == OracleValidity::Valid;
@@ -496,7 +496,7 @@ pub fn calculate_expected_excess_funding_payment(
         .ok_or_else(math_error!())?;
 
     let oracle_mark_twap_spread = cast_to_i128(market.amm.last_mark_price_twap)?
-        .checked_sub(market.amm.last_oracle_price_twap)
+        .checked_sub(market.amm.historical_oracle_data.last_oracle_price_twap)
         .ok_or_else(math_error!())?;
 
     let expected_excess_funding = oracle_mark_spread

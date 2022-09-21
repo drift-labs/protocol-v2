@@ -425,8 +425,10 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
         let market = &perp_market_map.get_ref(&market_position.market_index)?;
 
-        let (oracle_price_data, is_oracle_valid) = oracle_map
-            .get_price_data_and_validity(&market.amm.oracle, market.amm.last_oracle_price_twap)?;
+        let (oracle_price_data, is_oracle_valid) = oracle_map.get_price_data_and_validity(
+            &market.amm.oracle,
+            market.amm.historical_oracle_data.last_oracle_price_twap,
+        )?;
         all_oracles_valid &=
             is_oracle_valid == OracleValidity::Valid || is_oracle_valid == OracleValidity::Stale;
 

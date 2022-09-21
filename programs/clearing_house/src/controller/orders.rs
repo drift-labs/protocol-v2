@@ -548,7 +548,7 @@ pub fn fill_order(
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
 
         is_oracle_valid = oracle::oracle_validity(
-            market.amm.last_oracle_price_twap,
+            market.amm.historical_oracle_data.last_oracle_price_twap,
             oracle_price_data,
             &state.oracle_guard_rails.validity,
         )? == OracleValidity::Valid;
@@ -782,7 +782,7 @@ pub fn validate_market_within_price_band(
     // if oracle-mark divergence pushed outside limit, block order
     if is_oracle_mark_too_divergent_after && !is_oracle_mark_too_divergent_before {
         msg!("price pushed outside bounds: last_oracle_price_twap_5min={} vs mark_price={},(breach spread {})",
-                market.amm.last_oracle_price_twap_5min,
+                market.amm.historical_oracle_data.last_oracle_price_twap_5min,
                 mark_price_after,
                 oracle_mark_spread_pct_after,
             );
@@ -792,7 +792,7 @@ pub fn validate_market_within_price_band(
     // if oracle-mark divergence outside limit and risk-increasing, block order
     if is_oracle_mark_too_divergent_after && breach_increases && potentially_risk_increasing {
         msg!("risk-increasing outside bounds: last_oracle_price_twap_5min={} vs mark_price={}, (breach spread {})", 
-                market.amm.last_oracle_price_twap_5min,
+                market.amm.historical_oracle_data.last_oracle_price_twap_5min,
                 mark_price_after,
                 oracle_mark_spread_pct_after,
             );
@@ -1814,7 +1814,7 @@ fn get_valid_oracle_price(
 ) -> ClearingHouseResult<Option<i128>> {
     let price = {
         let is_oracle_valid = oracle::oracle_validity(
-            market.amm.last_oracle_price_twap,
+            market.amm.historical_oracle_data.last_oracle_price_twap,
             oracle_price_data,
             validity_guardrails,
         )? == OracleValidity::Valid;
@@ -1899,7 +1899,7 @@ pub fn trigger_order(
     let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
 
     let is_oracle_valid = oracle::oracle_validity(
-        market.amm.last_oracle_price_twap,
+        market.amm.historical_oracle_data.last_oracle_price_twap,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
     )? == OracleValidity::Valid;

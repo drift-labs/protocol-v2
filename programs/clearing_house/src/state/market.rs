@@ -12,7 +12,7 @@ use crate::math::margin::{
     MarginRequirementType,
 };
 use crate::math_error;
-use crate::state::oracle::OracleSource;
+use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::user::PerpPosition;
 use crate::{
@@ -162,8 +162,10 @@ impl PerpMarket {
         };
 
         if margin_type == MarginRequirementType::Initial && self.unrealized_max_imbalance > 0 {
-            let net_unsettled_pnl =
-                amm::calculate_net_user_pnl(&self.amm, self.amm.last_oracle_price)?;
+            let net_unsettled_pnl = amm::calculate_net_user_pnl(
+                &self.amm,
+                self.amm.historical_oracle_data.last_oracle_price,
+            )?;
             if net_unsettled_pnl > cast_to_i128(self.unrealized_max_imbalance)? {
                 margin_asset_weight = margin_asset_weight
                     .checked_mul(self.unrealized_max_imbalance)
@@ -253,13 +255,11 @@ pub struct AMM {
     // oracle
     pub oracle: Pubkey,
     pub oracle_source: OracleSource,
-    pub last_oracle_price: i128,
+    pub historical_oracle_data: HistoricalOracleData,
+    pub last_oracle_valid: bool,
+    pub last_update_slot: u64,
     pub last_oracle_conf_pct: u64,
-    pub last_oracle_delay: i64,
     pub last_oracle_normalised_price: i128,
-    pub last_oracle_price_twap: i128,
-    pub last_oracle_price_twap_5min: i128,
-    pub last_oracle_price_twap_ts: i64,
     pub last_oracle_mark_spread_pct: i128,
 
     pub base_asset_reserve: u128,
@@ -292,8 +292,6 @@ pub struct AMM {
     pub funding_period: i64,
     pub cumulative_funding_rate_long: i128,
     pub cumulative_funding_rate_short: i128,
-    pub cumulative_repeg_rebate_long: u128,
-    pub cumulative_repeg_rebate_short: u128,
     pub cumulative_social_loss: i128,
 
     // trade constraints
@@ -335,8 +333,6 @@ pub struct AMM {
     pub net_revenue_since_last_funding: i64,
     pub total_liquidation_fee: u128,
     pub fee_pool: PoolBalance,
-    pub last_update_slot: u64,
-    pub last_oracle_valid: bool,
 
     pub padding0: u16,
     pub padding1: u32,
@@ -359,7 +355,10 @@ impl AMM {
             terminal_quote_asset_reserve: default_reserves,
             peg_multiplier: crate::math::constants::PEG_PRECISION,
             max_spread: 1000,
-            last_oracle_price: MARK_PRICE_PRECISION as i128,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: MARK_PRICE_PRECISION as i128,
+                ..HistoricalOracleData::default()
+            },
             last_oracle_valid: true,
             ..AMM::default()
         }
@@ -383,12 +382,14 @@ impl AMM {
 
             quote_asset_amount_long: 0,
             quote_asset_amount_short: 19_000_000_000, // short 1 BTC @ $19000
-
-            last_oracle_price_twap_ts: 1662800000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: (19_400 * MARK_PRICE_PRECISION) as i128,
+                last_oracle_price_twap: (19_400 * MARK_PRICE_PRECISION) as i128,
+                last_oracle_price_twap_ts: 1662800000 as i64,
+                ..HistoricalOracleData::default()
+            },
             last_mark_price_twap_ts: 1662800000,
 
-            last_oracle_price: (19_400 * MARK_PRICE_PRECISION) as i128,
-            last_oracle_price_twap: (19_400 * MARK_PRICE_PRECISION) as i128,
             curve_update_intensity: 100,
 
             base_spread: 250,

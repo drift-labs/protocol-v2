@@ -522,8 +522,6 @@ pub mod clearing_house {
                 ask_quote_asset_reserve: amm_quote_asset_reserve,
                 bid_base_asset_reserve: amm_base_asset_reserve,
                 bid_quote_asset_reserve: amm_quote_asset_reserve,
-                cumulative_repeg_rebate_long: 0,
-                cumulative_repeg_rebate_short: 0,
                 cumulative_funding_rate_long: 0,
                 cumulative_funding_rate_short: 0,
                 cumulative_social_loss: 0,
@@ -532,8 +530,6 @@ pub mod clearing_house {
                 last_funding_rate_short: 0,
                 last_funding_rate_ts: now,
                 funding_period: amm_periodicity,
-                last_oracle_price_twap,
-                last_oracle_price_twap_5min: oracle_price,
                 last_mark_price_twap: init_mark_price,
                 last_mark_price_twap_5min: init_mark_price,
                 last_mark_price_twap_ts: now,
@@ -550,11 +546,18 @@ pub mod clearing_house {
                 total_liquidation_fee: 0,
                 net_revenue_since_last_funding: 0,
                 minimum_quote_asset_trade_size: 10000000,
-                last_oracle_price_twap_ts: now,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: oracle_price,
+                    last_oracle_conf: 0,
+                    last_oracle_price_twap,
+                    last_oracle_price_twap_5min: oracle_price,
+                    ..HistoricalOracleData::default()
+                },
+                // last_oracle_price_twap_ts: now,
                 last_oracle_normalised_price: oracle_price,
-                last_oracle_price: oracle_price,
+                // last_oracle_price: oracle_price,
                 last_oracle_conf_pct: 0,
-                last_oracle_delay: oracle_delay,
+                // last_oracle_delay: oracle_delay,
                 last_oracle_mark_spread_pct: 0, // todo
                 base_asset_amount_step_size: 10000000,
                 max_slippage_ratio: 50,           // ~2%
@@ -2522,7 +2525,7 @@ pub mod clearing_house {
 
         if let Some(oracle_twap) = oracle_twap {
             let oracle_mark_gap_before = cast_to_i128(market.amm.last_mark_price_twap)?
-                .checked_sub(market.amm.last_oracle_price_twap)
+                .checked_sub(market.amm.historical_oracle_data.last_oracle_price_twap)
                 .ok_or_else(math_error!())?;
 
             let oracle_mark_gap_after = cast_to_i128(market.amm.last_mark_price_twap)?
@@ -2532,12 +2535,13 @@ pub mod clearing_house {
             if (oracle_mark_gap_after > 0 && oracle_mark_gap_before < 0)
                 || (oracle_mark_gap_after < 0 && oracle_mark_gap_before > 0)
             {
-                market.amm.last_oracle_price_twap = cast_to_i128(market.amm.last_mark_price_twap)?;
-                market.amm.last_oracle_price_twap_ts = now;
+                market.amm.historical_oracle_data.last_oracle_price_twap =
+                    cast_to_i128(market.amm.last_mark_price_twap)?;
+                market.amm.historical_oracle_data.last_oracle_price_twap_ts = now;
             } else if oracle_mark_gap_after.unsigned_abs() <= oracle_mark_gap_before.unsigned_abs()
             {
-                market.amm.last_oracle_price_twap = oracle_twap;
-                market.amm.last_oracle_price_twap_ts = now;
+                market.amm.historical_oracle_data.last_oracle_price_twap = oracle_twap;
+                market.amm.historical_oracle_data.last_oracle_price_twap_ts = now;
             } else {
                 return Err(ErrorCode::PriceBandsBreached.into());
             }
@@ -2566,14 +2570,15 @@ pub mod clearing_house {
             &get_oracle_price(&market.amm.oracle_source, price_oracle, clock_slot)?;
 
         let is_oracle_valid = oracle::oracle_validity(
-            market.amm.last_oracle_price_twap,
+            market.amm.historical_oracle_data.last_oracle_price_twap,
             oracle_price_data,
             &ctx.accounts.state.oracle_guard_rails.validity,
         )? == OracleValidity::Valid;
 
         if !is_oracle_valid {
-            market.amm.last_oracle_price_twap = cast_to_i128(market.amm.last_mark_price_twap)?;
-            market.amm.last_oracle_price_twap_ts = now;
+            market.amm.historical_oracle_data.last_oracle_price_twap =
+                cast_to_i128(market.amm.last_mark_price_twap)?;
+            market.amm.historical_oracle_data.last_oracle_price_twap_ts = now;
         }
 
         Ok(())

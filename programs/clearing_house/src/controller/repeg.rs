@@ -163,7 +163,7 @@ pub fn _update_amm(
     }
 
     let is_oracle_valid = oracle::oracle_validity(
-        market.amm.last_oracle_price_twap,
+        market.amm.historical_oracle_data.last_oracle_price_twap,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
     )? == OracleValidity::Valid;
@@ -345,7 +345,7 @@ pub fn settle_expired_market(
         "Only support bank.decimals == QUOTE_PRECISION"
     )?;
 
-    let target_settlement_price = market.amm.last_oracle_price_twap;
+    let target_settlement_price = market.amm.historical_oracle_data.last_oracle_price_twap;
     validate!(
         target_settlement_price > 0,
         ErrorCode::DefaultError,
@@ -372,6 +372,7 @@ mod test {
         calculate_fee_pool, calculate_peg_from_target_price, calculate_repeg_cost,
     };
     use crate::state::market::AMM;
+    use crate::state::oracle::HistoricalOracleData;
     use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
     #[test]
     pub fn update_amm_test() {
@@ -385,7 +386,10 @@ mod test {
                 net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
                 mark_std: MARK_PRICE_PRECISION as u64,
                 last_mark_price_twap_ts: 0,
-                last_oracle_price_twap: 19_400 * MARK_PRICE_PRECISION_I128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: 19_400 * MARK_PRICE_PRECISION_I128,
+                    ..HistoricalOracleData::default()
+                },
                 base_spread: 250,
                 curve_update_intensity: 100,
                 max_spread: 55500,
@@ -424,8 +428,11 @@ mod test {
 
         let mark_price_before = market.amm.mark_price().unwrap();
         assert_eq!(mark_price_before, 188076686390578);
-        market.amm.last_oracle_price_twap_5min = 189076686390578;
-        market.amm.last_oracle_price_twap_ts = now - 100;
+        market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min = 189076686390578;
+        market.amm.historical_oracle_data.last_oracle_price_twap_ts = now - 100;
         let oracle_mark_spread_pct_before =
             amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(mark_price_before))
                 .unwrap();
@@ -441,7 +448,7 @@ mod test {
             _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
 
         let is_oracle_valid = oracle::oracle_validity(
-            market.amm.last_oracle_price_twap,
+            market.amm.historical_oracle_data.last_oracle_price_twap,
             &oracle_price_data,
             &state.oracle_guard_rails.validity,
         )
@@ -501,7 +508,10 @@ mod test {
                 net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
                 mark_std: MARK_PRICE_PRECISION as u64,
                 last_mark_price_twap_ts: 0,
-                last_oracle_price_twap: 19_400 * MARK_PRICE_PRECISION_I128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: 19_400 * MARK_PRICE_PRECISION_I128,
+                    ..HistoricalOracleData::default()
+                },
                 base_spread: 250,
                 curve_update_intensity: 100,
                 max_spread: 55500,
@@ -542,7 +552,7 @@ mod test {
         assert!(market.amm.last_update_slot == 0);
 
         let is_oracle_valid = oracle::oracle_validity(
-            market.amm.last_oracle_price_twap,
+            market.amm.historical_oracle_data.last_oracle_price_twap,
             &oracle_price_data,
             &state.oracle_guard_rails.validity,
         )

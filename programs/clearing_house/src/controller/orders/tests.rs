@@ -1453,7 +1453,7 @@ pub mod fulfill_order {
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{PerpMarket, AMM};
-    use crate::state::oracle::OracleSource;
+    use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
@@ -1493,9 +1493,13 @@ pub mod fulfill_order {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 base_spread: 100,
-                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1599,7 +1603,7 @@ pub mod fulfill_order {
             &mut oracle_map,
             &fee_structure,
             0,
-            Some(market.amm.last_oracle_price),
+            Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
             false,
@@ -1657,9 +1661,13 @@ pub mod fulfill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 base_asset_amount_step_size: 1,
-                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
 
                 ..AMM::default()
             },
@@ -1837,9 +1845,13 @@ pub mod fulfill_order {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
-                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
 
                 ..AMM::default()
             },
@@ -1920,7 +1932,7 @@ pub mod fulfill_order {
             &mut oracle_map,
             &fee_structure,
             0,
-            Some(market.amm.last_oracle_price),
+            Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
             false,
@@ -1983,9 +1995,13 @@ pub mod fulfill_order {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
-                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2111,7 +2127,10 @@ pub mod fulfill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 base_asset_amount_step_size: 1,
-                last_oracle_price: 100 * MARK_PRICE_PRECISION_I128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: 100 * MARK_PRICE_PRECISION_I128,
+                    ..HistoricalOracleData::default()
+                },
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 ..AMM::default()
@@ -2133,7 +2152,10 @@ pub mod fulfill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 20000 * PEG_PRECISION,
                 base_asset_amount_step_size: 1,
-                last_oracle_price: 20000 * MARK_PRICE_PRECISION_I128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: 20000 * MARK_PRICE_PRECISION_I128,
+                    ..HistoricalOracleData::default()
+                },
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 ..AMM::default()
@@ -2353,13 +2375,31 @@ pub mod fulfill_order {
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 10000);
 
         assert_eq!(market_after.amm.last_mark_price_twap_ts, 1);
-        assert_eq!(market_after.amm.last_oracle_price_twap_ts, 0);
+        assert_eq!(
+            market_after
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap_ts,
+            0
+        );
         assert_eq!(market_after.amm.last_ask_price_twap, 500000000000);
         assert_eq!(market_after.amm.last_bid_price_twap, 500000000000);
         assert_eq!(market_after.amm.last_mark_price_twap, 500000000000);
         assert_eq!(market_after.amm.last_mark_price_twap_5min, 3333333333);
-        assert_eq!(market_after.amm.last_oracle_price_twap, 0);
-        assert_eq!(market_after.amm.last_oracle_price_twap_5min, 0);
+        assert_eq!(
+            market_after
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap,
+            0
+        );
+        assert_eq!(
+            market_after
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
+            0
+        );
     }
 }
 
@@ -2375,7 +2415,9 @@ pub mod fill_order {
         SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{PerpMarket, AMM};
+    use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
+
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
@@ -2423,10 +2465,14 @@ pub mod fill_order {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
-                last_oracle_price_twap: oracle_price.twap as i128,
-                last_oracle_price_twap_5min: oracle_price.twap as i128,
                 max_spread: 1000,
-                last_oracle_price: oracle_price.agg.price as i128,
+
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: oracle_price.twap as i128,
+                    last_oracle_price_twap_5min: oracle_price.twap as i128,
+                    last_oracle_price: oracle_price.agg.price as i128,
+                    ..HistoricalOracleData::default()
+                },
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -4272,6 +4318,7 @@ pub mod fulfill_spot_order {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
+
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::tests::utils::*;
     use anchor_lang::prelude::{AccountLoader, Clock};
@@ -4727,6 +4774,7 @@ pub mod fill_spot_order {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
+
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::tests::utils::create_account_info;
     use crate::tests::utils::*;

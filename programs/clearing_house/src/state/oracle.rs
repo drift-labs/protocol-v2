@@ -32,6 +32,17 @@ impl HistoricalOracleData {
         }
     }
 
+    pub fn default_price(price: i128) -> Self {
+        HistoricalOracleData {
+            last_oracle_price: price,
+            last_oracle_conf: 0,
+            last_oracle_delay: 10,
+            last_oracle_price_twap: price,
+            last_oracle_price_twap_5min: price,
+            ..HistoricalOracleData::default()
+        }
+    }
+
     pub fn default_with_current_oracle(oracle_price_data: OraclePriceData) -> Self {
         HistoricalOracleData {
             last_oracle_price: oracle_price_data.price,

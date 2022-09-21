@@ -3992,32 +3992,26 @@
             }
           },
           {
-            "name": "lastOraclePrice",
-            "type": "i128"
+            "name": "historicalOracleData",
+            "type": {
+              "defined": "HistoricalOracleData"
+            }
+          },
+          {
+            "name": "lastOracleValid",
+            "type": "bool"
+          },
+          {
+            "name": "lastUpdateSlot",
+            "type": "u64"
           },
           {
             "name": "lastOracleConfPct",
             "type": "u64"
           },
           {
-            "name": "lastOracleDelay",
-            "type": "i64"
-          },
-          {
             "name": "lastOracleNormalisedPrice",
             "type": "i128"
-          },
-          {
-            "name": "lastOraclePriceTwap",
-            "type": "i128"
-          },
-          {
-            "name": "lastOraclePriceTwap5min",
-            "type": "i128"
-          },
-          {
-            "name": "lastOraclePriceTwapTs",
-            "type": "i64"
           },
           {
             "name": "lastOracleMarkSpreadPct",
@@ -4124,14 +4118,6 @@
           {
             "name": "cumulativeFundingRateShort",
             "type": "i128"
-          },
-          {
-            "name": "cumulativeRepegRebateLong",
-            "type": "u128"
-          },
-          {
-            "name": "cumulativeRepegRebateShort",
-            "type": "u128"
           },
           {
             "name": "cumulativeSocialLoss",
@@ -4268,14 +4254,6 @@
             "type": {
               "defined": "PoolBalance"
             }
-          },
-          {
-            "name": "lastUpdateSlot",
-            "type": "u64"
-          },
-          {
-            "name": "lastOracleValid",
-            "type": "bool"
           },
           {
             "name": "padding0",

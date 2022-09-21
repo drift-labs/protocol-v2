@@ -148,8 +148,10 @@ pub fn liquidate_perp(
 
     let market = perp_market_map.get_ref(&market_index)?;
 
-    let (oracle_price_data, oracle_validity) = oracle_map
-        .get_price_data_and_validity(&market.amm.oracle, market.amm.last_oracle_price_twap)?;
+    let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+        &market.amm.oracle,
+        market.amm.historical_oracle_data.last_oracle_price_twap,
+    )?;
 
     validate!(
         !(oracle_validity == OracleValidity::Invalid

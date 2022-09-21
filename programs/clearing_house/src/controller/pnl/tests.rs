@@ -9,7 +9,7 @@ use crate::math::constants::{
     SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
 };
 use crate::state::market::{MarketStatus, PerpMarket, PoolBalance, AMM};
-use crate::state::oracle::OracleSource;
+use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -72,9 +72,12 @@ pub fn user_no_position() {
             quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
             net_base_asset_amount: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            last_oracle_price: oracle_price.agg.price as i128,
-            last_oracle_price_twap_5min: oracle_price.agg.price as i128,
-            last_oracle_price_twap: oracle_price.agg.price as i128,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.agg.price as i128,
+                last_oracle_price_twap_5min: oracle_price.agg.price as i128,
+                last_oracle_price_twap: oracle_price.agg.price as i128,
+                ..HistoricalOracleData::default()
+            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -181,9 +184,12 @@ pub fn user_does_not_meet_maintenance_requirement() {
             quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
             net_base_asset_amount: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            last_oracle_price: oracle_price.agg.price as i128,
-            last_oracle_price_twap_5min: oracle_price.agg.price as i128,
-            last_oracle_price_twap: oracle_price.agg.price as i128,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.agg.price as i128,
+                last_oracle_price_twap_5min: oracle_price.agg.price as i128,
+                last_oracle_price_twap: oracle_price.agg.price as i128,
+                ..HistoricalOracleData::default()
+            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -294,9 +300,12 @@ pub fn user_unsettled_negative_pnl() {
             quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
             net_base_asset_amount: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            last_oracle_price: oracle_price.agg.price as i128,
-            last_oracle_price_twap_5min: oracle_price.agg.price as i128,
-            last_oracle_price_twap: oracle_price.agg.price as i128,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.agg.price as i128,
+                last_oracle_price_twap_5min: oracle_price.agg.price as i128,
+                last_oracle_price_twap: oracle_price.agg.price as i128,
+                ..HistoricalOracleData::default()
+            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -419,9 +428,12 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
             quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
             net_base_asset_amount: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            last_oracle_price: oracle_price.agg.price as i128,
-            last_oracle_price_twap_5min: oracle_price.agg.price as i128,
-            last_oracle_price_twap: oracle_price.agg.price as i128,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.agg.price as i128,
+                last_oracle_price_twap_5min: oracle_price.agg.price as i128,
+                last_oracle_price_twap: oracle_price.agg.price as i128,
+                ..HistoricalOracleData::default()
+            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -544,9 +556,12 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
             quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
             net_base_asset_amount: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            last_oracle_price: oracle_price.agg.price as i128,
-            last_oracle_price_twap_5min: oracle_price.agg.price as i128,
-            last_oracle_price_twap: oracle_price.agg.price as i128,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.agg.price as i128,
+                last_oracle_price_twap_5min: oracle_price.agg.price as i128,
+                last_oracle_price_twap: oracle_price.agg.price as i128,
+                ..HistoricalOracleData::default()
+            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -670,9 +685,12 @@ pub fn market_fee_pool_receives_portion() {
             net_base_asset_amount: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             total_fee_minus_distributions: QUOTE_PRECISION_I128,
-            last_oracle_price: oracle_price.agg.price as i128,
-            last_oracle_price_twap_5min: oracle_price.agg.price as i128,
-            last_oracle_price_twap: oracle_price.agg.price as i128,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.agg.price as i128,
+                last_oracle_price_twap_5min: oracle_price.agg.price as i128,
+                last_oracle_price_twap: oracle_price.agg.price as i128,
+                ..HistoricalOracleData::default()
+            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -800,9 +818,12 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
             fee_pool: PoolBalance {
                 balance: 2 * SPOT_INTEREST_PRECISION,
             },
-            last_oracle_price: oracle_price.agg.price as i128,
-            last_oracle_price_twap_5min: oracle_price.agg.price as i128,
-            last_oracle_price_twap: oracle_price.agg.price as i128,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.agg.price as i128,
+                last_oracle_price_twap_5min: oracle_price.agg.price as i128,
+                last_oracle_price_twap: oracle_price.agg.price as i128,
+                ..HistoricalOracleData::default()
+            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -926,9 +947,12 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
             quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
             net_base_asset_amount: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            last_oracle_price: oracle_price.agg.price as i128,
-            last_oracle_price_twap_5min: oracle_price.agg.price as i128,
-            last_oracle_price_twap: oracle_price.agg.price as i128,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.agg.price as i128,
+                last_oracle_price_twap_5min: oracle_price.agg.price as i128,
+                last_oracle_price_twap: oracle_price.agg.price as i128,
+                ..HistoricalOracleData::default()
+            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -1053,9 +1077,12 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
             quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
             net_base_asset_amount: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            last_oracle_price: oracle_price.agg.price as i128,
-            last_oracle_price_twap_5min: oracle_price.agg.price as i128,
-            last_oracle_price_twap: oracle_price.agg.price as i128,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.agg.price as i128,
+                last_oracle_price_twap_5min: oracle_price.agg.price as i128,
+                last_oracle_price_twap: oracle_price.agg.price as i128,
+                ..HistoricalOracleData::default()
+            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -1177,9 +1204,12 @@ pub fn user_long_negative_unrealized_pnl() {
             quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
             net_base_asset_amount: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            last_oracle_price: oracle_price.agg.price as i128,
-            last_oracle_price_twap_5min: oracle_price.agg.price as i128,
-            last_oracle_price_twap: oracle_price.agg.price as i128,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.agg.price as i128,
+                last_oracle_price_twap_5min: oracle_price.agg.price as i128,
+                last_oracle_price_twap: oracle_price.agg.price as i128,
+                ..HistoricalOracleData::default()
+            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -1304,9 +1334,12 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
             quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
             net_base_asset_amount: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            last_oracle_price: oracle_price.agg.price as i128,
-            last_oracle_price_twap_5min: oracle_price.agg.price as i128,
-            last_oracle_price_twap: oracle_price.agg.price as i128,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.agg.price as i128,
+                last_oracle_price_twap_5min: oracle_price.agg.price as i128,
+                last_oracle_price_twap: oracle_price.agg.price as i128,
+                ..HistoricalOracleData::default()
+            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -1431,9 +1464,12 @@ pub fn user_short_negative_unrealized_pnl() {
             quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
             net_base_asset_amount: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            last_oracle_price: oracle_price.agg.price as i128,
-            last_oracle_price_twap_5min: oracle_price.agg.price as i128,
-            last_oracle_price_twap: oracle_price.agg.price as i128,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.agg.price as i128,
+                last_oracle_price_twap_5min: oracle_price.agg.price as i128,
+                last_oracle_price_twap: oracle_price.agg.price as i128,
+                ..HistoricalOracleData::default()
+            },
             ..AMM::default()
         },
         margin_ratio_initial: 1000,

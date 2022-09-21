@@ -11,7 +11,7 @@ use crate::math::spot_balance::{
 use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
 use crate::math_error;
 use crate::state::market::PerpMarket;
-use crate::state::oracle::OraclePriceData;
+use crate::state::oracle::{HistoricalOracleData, OraclePriceData};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::user::SpotPosition;
 use crate::validate;
@@ -401,8 +401,9 @@ mod test {
                 quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                last_oracle_price_twap: oracle_price.agg.price as i128,
-                last_oracle_price_twap_5min: oracle_price.agg.price as i128,
+                historical_oracle_data: HistoricalOracleData::default_price(
+                    oracle_price.agg.price as i128,
+                ),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -733,8 +734,9 @@ mod test {
                 quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                last_oracle_price_twap: oracle_price.agg.price as i128,
-                last_oracle_price_twap_5min: oracle_price.agg.price as i128,
+                historical_oracle_data: HistoricalOracleData::default_price(
+                    oracle_price.agg.price as i128,
+                ),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1068,8 +1070,9 @@ mod test {
                 quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                last_oracle_price_twap: oracle_price.agg.price as i128,
-                last_oracle_price_twap_5min: oracle_price.agg.price as i128,
+                historical_oracle_data: HistoricalOracleData::default_price(
+                    oracle_price.agg.price as i128,
+                ),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,

@@ -260,7 +260,7 @@ mod test {
     use super::*;
     use crate::math::constants::{AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION};
     use crate::state::market::{PerpMarket, AMM};
-
+    use crate::state::oracle::HistoricalOracleData;
     #[test]
     fn capped_sym_funding_test() {
         // more shorts than longs, positive funding, 1/3 of fee pool too small
@@ -277,7 +277,11 @@ mod test {
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
 
                 last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
-                last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
                 funding_period: 3600,
 
                 ..AMM::default()
@@ -287,7 +291,7 @@ mod test {
 
         let balanced_funding = calculate_funding_rate(
             market.amm.last_mark_price_twap,
-            market.amm.last_oracle_price_twap,
+            market.amm.historical_oracle_data.last_oracle_price_twap,
             market.amm.funding_period,
         )
         .unwrap();
@@ -317,7 +321,11 @@ mod test {
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
                 last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
-                last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
                 funding_period: 3600,
 
                 ..AMM::default()
@@ -360,7 +368,11 @@ mod test {
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
 
                 last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
-                last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
                 funding_period: 3600,
 
                 ..AMM::default()
@@ -370,7 +382,7 @@ mod test {
 
         let balanced_funding = calculate_funding_rate(
             market.amm.last_mark_price_twap,
-            market.amm.last_oracle_price_twap,
+            market.amm.historical_oracle_data.last_oracle_price_twap,
             market.amm.funding_period,
         )
         .unwrap();
@@ -425,7 +437,11 @@ mod test {
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
                 last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
-                last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
                 funding_period: 3600,
 
                 ..AMM::default()
@@ -435,7 +451,7 @@ mod test {
 
         let balanced_funding = calculate_funding_rate(
             market.amm.last_mark_price_twap,
-            market.amm.last_oracle_price_twap,
+            market.amm.historical_oracle_data.last_oracle_price_twap,
             market.amm.funding_period,
         )
         .unwrap();
@@ -475,7 +491,11 @@ mod test {
                 total_fee_minus_distributions: ((QUOTE_PRECISION * 99999) as i128),
 
                 last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
-                last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
                 funding_period: 3600,
 
                 ..AMM::default()
@@ -485,7 +505,7 @@ mod test {
 
         let balanced_funding = calculate_funding_rate(
             market.amm.last_mark_price_twap,
-            market.amm.last_oracle_price_twap,
+            market.amm.historical_oracle_data.last_oracle_price_twap,
             market.amm.funding_period,
         )
         .unwrap();
@@ -540,7 +560,11 @@ mod test {
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
                 last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
-                last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
                 funding_period: 3600,
 
                 ..AMM::default()
@@ -550,7 +574,7 @@ mod test {
 
         let balanced_funding = calculate_funding_rate(
             market.amm.last_mark_price_twap,
-            market.amm.last_oracle_price_twap,
+            market.amm.historical_oracle_data.last_oracle_price_twap,
             market.amm.funding_period,
         )
         .unwrap();

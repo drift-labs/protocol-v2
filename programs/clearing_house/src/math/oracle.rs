@@ -61,7 +61,7 @@ pub fn get_oracle_status<'a>(
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<OracleStatus> {
     let oracle_validity = oracle_validity(
-        amm.last_oracle_price_twap,
+        amm.historical_oracle_data.last_oracle_price_twap,
         oracle_price_data,
         &guard_rails.validity,
     )?;
@@ -157,6 +157,7 @@ mod test {
     use super::*;
     use crate::math::amm::update_oracle_price_twap;
     use crate::math::constants::{AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, PEG_PRECISION};
+    use crate::state::oracle::HistoricalOracleData;
     use crate::state::state::{
         OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails,
     };
@@ -171,9 +172,12 @@ mod test {
             base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
             peg_multiplier: 33 * PEG_PRECISION,
-            last_oracle_price_twap_5min: px as i128,
-            last_oracle_price_twap: (px as i128) - 10000000,
-            last_oracle_price_twap_ts: prev,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap_5min: px as i128,
+                last_oracle_price_twap: (px as i128) - 10000000,
+                last_oracle_price_twap_ts: prev,
+                ..HistoricalOracleData::default()
+            },
             mark_std: MARK_PRICE_PRECISION as u64,
             last_mark_price_twap_ts: prev,
             funding_period: 3600_i64,
@@ -213,7 +217,7 @@ mod test {
         let _new_oracle_twap =
             update_oracle_price_twap(&mut amm, now, &oracle_price_data, None).unwrap();
         assert_eq!(
-            amm.last_oracle_price_twap,
+            amm.historical_oracle_data.last_oracle_price_twap,
             (34 * MARK_PRICE_PRECISION - MARK_PRICE_PRECISION / 100) as i128
         );
 
@@ -228,14 +232,14 @@ mod test {
         assert!(!oracle_status.is_valid);
 
         oracle_price_data.delay = 8;
-        amm.last_oracle_price_twap_5min = 32 * MARK_PRICE_PRECISION as i128;
-        amm.last_oracle_price_twap = 21 * MARK_PRICE_PRECISION as i128;
+        amm.historical_oracle_data.last_oracle_price_twap_5min = 32 * MARK_PRICE_PRECISION as i128;
+        amm.historical_oracle_data.last_oracle_price_twap = 21 * MARK_PRICE_PRECISION as i128;
         oracle_status =
             get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
         assert!(oracle_status.is_valid);
         assert!(!oracle_status.mark_too_divergent);
 
-        amm.last_oracle_price_twap_5min = 29 * MARK_PRICE_PRECISION as i128;
+        amm.historical_oracle_data.last_oracle_price_twap_5min = 29 * MARK_PRICE_PRECISION as i128;
         oracle_status =
             get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
         assert!(oracle_status.mark_too_divergent);

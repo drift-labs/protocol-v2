@@ -562,7 +562,10 @@ pub fn resolve_perp_pnl_deficit(
     let total_if_shares_before = spot_market.total_if_shares;
 
     let excess_user_pnl_imbalance = if market.unrealized_max_imbalance > 0 {
-        let net_unsettled_pnl = calculate_net_user_pnl(&market.amm, market.amm.last_oracle_price)?;
+        let net_unsettled_pnl = calculate_net_user_pnl(
+            &market.amm,
+            market.amm.historical_oracle_data.last_oracle_price,
+        )?;
 
         net_unsettled_pnl
             .checked_sub(cast_to_i128(market.unrealized_max_imbalance)?)

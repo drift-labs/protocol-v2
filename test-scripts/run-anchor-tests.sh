@@ -17,7 +17,8 @@ test_files=(
   liquidatePerpPnlForDeposit.ts liquidateBorrowForPerpPnl.ts
   liquidatePerp.ts
   order.ts spotDepositWithdraw.ts prepegMarketOrderBaseAssetAmount.ts
-  updateAMM.ts repegAndSpread.ts 
+  updateAMM.ts 
+  repegAndSpread.ts 
   clearingHouse.ts 
   ordersWithSpread.ts
   marketOrder.ts triggerOrders.ts stopLimits.ts userOrderId.ts postOnly.ts
