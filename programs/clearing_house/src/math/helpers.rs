@@ -47,11 +47,16 @@ pub fn get_proportion_u128(
     let proportional_value = if numerator == denominator {
         value
     } else if numerator > denominator / 2 && denominator > numerator {
+        msg!("numerator/denominator: {} / {}", numerator, denominator);
         // get values to ensure a ceiling division
         let (std_value, r) = standardize_value_with_remainder_i128(
             cast_to_i128(
                 value
-                    .checked_mul(denominator - numerator)
+                    .checked_mul(
+                        denominator
+                            .checked_sub(numerator)
+                            .ok_or_else(math_error!())?,
+                    )
                     .ok_or_else(math_error!())?,
             )?,
             denominator,

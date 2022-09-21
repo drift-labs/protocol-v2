@@ -3,6 +3,7 @@ use solana_program::msg;
 
 use crate::context::*;
 use crate::controller;
+use crate::controller::amm::SwapDirection;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::position;
 use crate::controller::position::{
@@ -16,6 +17,7 @@ use crate::controller::spot_position::{
     decrease_spot_open_bids_and_asks, increase_spot_open_bids_and_asks,
     update_spot_position_balance,
 };
+use crate::math::amm::calculate_swap_output;
 
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
@@ -537,7 +539,7 @@ pub fn fill_order(
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         market_is_reduce_only = market.is_reduce_only()?;
-        controller::validate::validate_market_account(market)?;
+        // controller::validate::validate_market_account(market)?;
         validate!(
             market.is_active(now)?,
             ErrorCode::DefaultError,
@@ -1262,6 +1264,23 @@ pub fn fulfill_order_with_amm(
         fee_to_market_for_lp,
         split_with_lps,
     )?;
+
+    if market.amm.user_lp_shares > 0 {
+        let swap_direction = if market.amm.net_base_asset_amount > 0 {
+            SwapDirection::Add
+        } else {
+            SwapDirection::Remove
+        };
+
+        let (new_terminal_quote_reserve, _new_terminal_base_reserve) = calculate_swap_output(
+            market.amm.net_base_asset_amount.unsigned_abs(),
+            market.amm.base_asset_reserve,
+            swap_direction,
+            market.amm.sqrt_k,
+        )?;
+
+        market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
+    }
 
     // Increment the clearing house's total fee variables
     market.amm.total_fee = market
