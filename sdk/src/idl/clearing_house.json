@@ -4489,11 +4489,11 @@
         "fields": [
           {
             "name": "rewardNumerator",
-            "type": "u128"
+            "type": "u32"
           },
           {
             "name": "rewardDenominator",
-            "type": "u128"
+            "type": "u32"
           },
           {
             "name": "timeBasedRewardLowerBound",
@@ -6754,6 +6754,11 @@
       "code": 6126,
       "name": "InvalidSerumFulfillmentConfig",
       "msg": "InvalidSerumFulfillmentConfig"
+    },
+    {
+      "code": 6127,
+      "name": "InvalidFeeStructure",
+      "msg": "InvalidFeeStructure"
     }
   ]
 }
