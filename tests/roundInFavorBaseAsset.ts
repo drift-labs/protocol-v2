@@ -14,7 +14,6 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { FeeStructure } from '../sdk';
 
 describe('round in favor', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -72,41 +71,6 @@ describe('round in favor', () => {
 			periodicity,
 			new BN(63000000)
 		);
-
-		const newFeeStructure: FeeStructure = {
-			feeNumerator: new BN(0),
-			feeDenominator: new BN(1),
-			discountTokenTiers: {
-				firstTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-				secondTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-				thirdTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-				fourthTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-			},
-			referralDiscount: {
-				referrerRewardNumerator: new BN(1),
-				referrerRewardDenominator: new BN(1),
-				refereeDiscountNumerator: new BN(1),
-				refereeDiscountDenominator: new BN(1),
-			},
-		};
-
-		await primaryClearingHouse.updateFee(newFeeStructure);
 	});
 
 	after(async () => {
@@ -161,7 +125,7 @@ describe('round in favor', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-1))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-99409))
 		);
 		await clearingHouse.unsubscribe();
 	});
@@ -211,7 +175,7 @@ describe('round in favor', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-1))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-99419))
 		);
 		await clearingHouse.unsubscribe();
 	});

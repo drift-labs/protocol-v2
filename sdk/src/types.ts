@@ -385,8 +385,6 @@ export type StateAccount = {
 	exchangePaused: boolean;
 	adminControlsPrices: boolean;
 	insuranceVault: PublicKey;
-	perpFeeStructure: FeeStructure;
-	spotFeeStructure: FeeStructure;
 	totalFee: BN;
 	totalFeeWithdrawn: BN;
 	whitelistMint: PublicKey;
@@ -402,6 +400,8 @@ export type StateAccount = {
 	minPerpAuctionDuration: number;
 	defaultSpotAuctionDuration: number;
 	liquidationMarginBufferRatio: number;
+	perpFeeStructure: FeeStructure;
+	spotFeeStructure: FeeStructure;
 };
 
 export type PerpMarketAccount = {
@@ -584,7 +584,7 @@ export type UserStatsAccount = {
 	isReferrer: boolean;
 	totalReferrerReward: BN;
 	authority: PublicKey;
-	quoteAssetInsuranceFundStake: BN;
+	stakedQuoteAssetAmount: BN;
 };
 
 export type UserAccount = {
@@ -717,40 +717,29 @@ export interface IWallet {
 }
 
 export type FeeStructure = {
-	feeNumerator: BN;
-	feeDenominator: BN;
-	discountTokenTiers: {
-		firstTier: {
-			minimumBalance: BN;
-			discountNumerator: BN;
-			discountDenominator: BN;
-		};
-		secondTier: {
-			minimumBalance: BN;
-			discountNumerator: BN;
-			discountDenominator: BN;
-		};
-		thirdTier: {
-			minimumBalance: BN;
-			discountNumerator: BN;
-			discountDenominator: BN;
-		};
-		fourthTier: {
-			minimumBalance: BN;
-			discountNumerator: BN;
-			discountDenominator: BN;
-		};
-	};
-	referralDiscount: {
-		referrerRewardNumerator: BN;
-		referrerRewardDenominator: BN;
-		refereeDiscountNumerator: BN;
-		refereeDiscountDenominator: BN;
-	};
+	feeTiers: FeeTier[];
 	makerRebateNumerator: BN;
 	makerRebateDenominator: BN;
 	fillerRewardStructure: OrderFillerRewardStructure;
 	flatFillerFee: BN;
+	referrerRewardEpochUpperBound: BN;
+};
+
+export type FeeTier = {
+	feeNumerator: number;
+	feeDenominator: number;
+	makerRebateNumerator: number;
+	makerRebateDenominator: number;
+	referrerRewardNumerator: number;
+	referrerRewardDenominator: number;
+	refereeFeeNumerator: number;
+	refereeFeeDenominator: number;
+};
+
+export type OrderFillerRewardStructure = {
+	rewardNumerator: BN;
+	rewardDenominator: BN;
+	timeBasedRewardLowerBound: BN;
 };
 
 export type OracleGuardRails = {
@@ -764,12 +753,6 @@ export type OracleGuardRails = {
 		tooVolatileRatio: BN;
 	};
 	useForLiquidations: boolean;
-};
-
-export type OrderFillerRewardStructure = {
-	rewardNumerator: BN;
-	rewardDenominator: BN;
-	timeBasedRewardLowerBound: BN;
 };
 
 export type MarginCategory = 'Initial' | 'Maintenance';

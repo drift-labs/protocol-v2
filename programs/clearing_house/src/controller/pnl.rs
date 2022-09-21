@@ -235,9 +235,9 @@ pub fn settle_expired_position(
         )?;
 
     let fee = base_asset_value
-        .checked_mul(fee_structure.fee_numerator)
+        .checked_mul(fee_structure.fee_tiers[0].fee_numerator as u128)
         .ok_or_else(math_error!())?
-        .checked_div(fee_structure.fee_denominator)
+        .checked_div(fee_structure.fee_tiers[0].fee_denominator as u128)
         .ok_or_else(math_error!())?;
 
     let unrealized_pnl_with_fee = unrealized_pnl

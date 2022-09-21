@@ -209,16 +209,16 @@ describe('referrer', () => {
 		const eventRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert(eventRecord.referrer.equals(provider.wallet.publicKey));
 		assert(eventRecord.takerFee.eq(new BN(95000)));
-		assert(eventRecord.referrerReward.eq(new BN(5000)));
+		assert(eventRecord.referrerReward.eq(new BN(15000)));
 		assert(eventRecord.refereeDiscount.eq(new BN(5000)));
 
 		await referrerClearingHouse.fetchAccounts();
 		const referrerStats = referrerClearingHouse.getUserStats().getAccount();
-		assert(referrerStats.totalReferrerReward.eq(new BN(5000)));
+		assert(referrerStats.totalReferrerReward.eq(new BN(15000)));
 
 		const referrerPosition = referrerClearingHouse.getUser().getUserAccount()
 			.perpPositions[0];
-		assert(referrerPosition.quoteAssetAmount.eq(new BN(5000)));
+		assert(referrerPosition.quoteAssetAmount.eq(new BN(15000)));
 
 		const refereeStats = refereeClearingHouse.getUserStats().getAccount();
 		assert(refereeStats.fees.totalRefereeDiscount.eq(new BN(5000)));
