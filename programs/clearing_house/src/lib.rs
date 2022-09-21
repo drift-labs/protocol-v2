@@ -74,7 +74,7 @@ pub mod clearing_house {
     use super::*;
     use crate::math::insurance::if_shares_to_vault_amount;
     use crate::state::insurance_fund_stake::InsuranceFundStake;
-    use crate::state::serum::{load_market_state, load_open_orders};
+    use crate::state::serum::{load_open_orders, load_serum_market};
     use crate::state::state::FeeStructure;
     use bytemuck::cast_slice;
     use std::mem::size_of;
@@ -335,7 +335,7 @@ pub mod clearing_house {
         )?;
 
         let serum_market_key = ctx.accounts.serum_market.key();
-        let market_state = load_market_state(&ctx.accounts.serum_market, &serum_program_id)?;
+        let market_state = load_serum_market(&ctx.accounts.serum_market, &serum_program_id)?;
 
         validate!(
             identity(market_state.coin_mint) == base_spot_market.mint.to_aligned_bytes(),

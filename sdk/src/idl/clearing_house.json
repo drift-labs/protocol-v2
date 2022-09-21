@@ -6817,21 +6817,31 @@
     },
     {
       "code": 6123,
+      "name": "InvalidSerumBids",
+      "msg": "InvalidSerumBids"
+    },
+    {
+      "code": 6124,
+      "name": "InvalidSerumAsks",
+      "msg": "InvalidSerumAsks"
+    },
+    {
+      "code": 6125,
       "name": "InvalidSerumOpenOrders",
       "msg": "InvalidSerumOpenOrders"
     },
     {
-      "code": 6124,
+      "code": 6126,
       "name": "FailedSerumCPI",
       "msg": "FailedSerumCPI"
     },
     {
-      "code": 6125,
+      "code": 6127,
       "name": "FailedToFillOnSerum",
       "msg": "FailedToFillOnSerum"
     },
     {
-      "code": 6126,
+      "code": 6128,
       "name": "InvalidSerumFulfillmentConfig",
       "msg": "InvalidSerumFulfillmentConfig"
     }

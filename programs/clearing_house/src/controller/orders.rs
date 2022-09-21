@@ -1,4 +1,11 @@
+use std::cell::RefMut;
+use std::cmp::max;
+use std::num::NonZeroU64;
+use std::ops::{Deref, DerefMut};
+
 use anchor_lang::prelude::*;
+use serum_dex::instruction::{NewOrderInstructionV3, SelfTradeBehavior};
+use serum_dex::matching::Side;
 use solana_program::msg;
 
 use crate::context::*;
@@ -16,7 +23,6 @@ use crate::controller::spot_position::{
     decrease_spot_open_bids_and_asks, increase_spot_open_bids_and_asks,
     update_spot_position_balance,
 };
-
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::get_struct_values;
@@ -52,7 +58,7 @@ use crate::state::market::PerpMarket;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
-use crate::state::serum::{load_market_state, load_open_orders};
+use crate::state::serum::{get_best_bid_and_ask, load_open_orders, load_serum_market};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::FeeStructure;
@@ -60,12 +66,6 @@ use crate::state::state::*;
 use crate::state::user::{AssetType, Order, OrderStatus, OrderType, UserStats};
 use crate::state::user::{MarketType, User};
 use crate::validate;
-use serum_dex::instruction::{NewOrderInstructionV3, SelfTradeBehavior};
-use serum_dex::matching::Side;
-use std::cell::RefMut;
-use std::cmp::max;
-use std::num::NonZeroU64;
-use std::ops::{Deref, DerefMut};
 
 #[cfg(test)]
 mod tests;
@@ -2992,21 +2992,18 @@ pub fn fulfill_spot_order_with_serum(
     let order_direction = taker.orders[taker_order_index].direction;
     let taker_order_ts = taker.orders[taker_order_index].ts;
 
-    let market_state_before = load_market_state(
+    let (_best_bid, _best_ask) = get_best_bid_and_ask(
+        serum_new_order_accounts.serum_market,
+        serum_new_order_accounts.serum_bids,
+        serum_new_order_accounts.serum_asks,
+        serum_new_order_accounts.serum_program_id.key,
+        base_market.decimals as u32,
+    )?;
+
+    let market_state_before = load_serum_market(
         serum_new_order_accounts.serum_market,
         serum_new_order_accounts.serum_program_id.key,
     )?;
-
-    // todo
-    // let (best_bid, best_ask) = {
-    //     let bids_data = market_state_before.load_bids_mut(&serum_new_order_accounts.serum_bids)?;
-    //     let best_bid = bids_data.deref().get(0).as_leaf().price();
-
-    //     let asks_data = market_state_before.load_bids_mut(&serum_new_order_accounts.serum_asks)?;
-    //     let best_ask = asks_data.deref().get(0).as_leaf().price();
-
-    //     (best_bid, best_ask)
-    // };
 
     let serum_order_side = match order_direction {
         PositionDirection::Long => Side::Bid,
@@ -3070,7 +3067,7 @@ pub fn fulfill_spot_order_with_serum(
         serum_new_order_accounts.signer_nonce,
     )?;
 
-    let market_state_after = load_market_state(
+    let market_state_after = load_serum_market(
         serum_new_order_accounts.serum_market,
         serum_new_order_accounts.serum_program_id.key,
     )?;

@@ -251,6 +251,10 @@ pub enum ErrorCode {
     InvalidSerumProgram,
     #[msg("InvalidSerumMarket")]
     InvalidSerumMarket,
+    #[msg("InvalidSerumBids")]
+    InvalidSerumBids,
+    #[msg("InvalidSerumAsks")]
+    InvalidSerumAsks,
     #[msg("InvalidSerumOpenOrders")]
     InvalidSerumOpenOrders,
     #[msg("FailedSerumCPI")]
