@@ -52,8 +52,8 @@ pub fn if_shares_to_vault_amount(
 
     let amount = if total_if_shares > 0 {
         cast_to_u64(get_proportion_u128(
-            n_shares,
             insurance_fund_vault_balance as u128,
+            n_shares,
             total_if_shares as u128,
         )?)?
     } else {

@@ -774,7 +774,10 @@ describe('insurance fund stake', () => {
 			).value.amount
 		);
 		assert(insuranceVaultAmountAfter.gt(insuranceVaultAmountBefore));
-		await clearingHouse.cancelRequestRemoveInsuranceFundStake(marketIndex);
+		const txSig = await clearingHouse.cancelRequestRemoveInsuranceFundStake(
+			marketIndex
+		);
+		await printTxLogs(connection, txSig);
 
 		const ifStakeAccountAfter =
 			(await clearingHouse.program.account.insuranceFundStake.fetch(
@@ -794,8 +797,12 @@ describe('insurance fund stake', () => {
 
 		assert(ifStakeAccountAfter.ifShares.lt(ifStakeAccount.ifShares));
 
-		// totalIfShares lower bound, kinda random basd on timestamps
-		assert(userStats.stakedQuoteAssetAmount.eq(ifStakeAccountAfter.ifShares));
+		// the user should have slightly less quote staked than the total quote in if
+		assert(
+			insuranceVaultAmountAfter
+				.sub(userStats.stakedQuoteAssetAmount)
+				.lt(QUOTE_PRECISION)
+		);
 	});
 
 	it('liquidate borrow (w/ IF revenue)', async () => {
@@ -1015,7 +1022,7 @@ describe('insurance fund stake', () => {
 		);
 		console.log('ifPoolBalance: 0 ->', ifPoolBalanceAfter.toString());
 
-		assert(ifPoolBalanceAfter.gte(new BN('6006298')));
+		assert(ifPoolBalanceAfter.gte(new BN('6004698')));
 
 		const usdcBefore = ifPoolBalanceAfter
 			.add(afterLiquiderUSDCDeposit)
