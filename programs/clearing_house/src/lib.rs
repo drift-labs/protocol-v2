@@ -154,17 +154,18 @@ pub mod clearing_house {
             cast(Clock::get()?.unix_timestamp)?,
         );
 
-        let historical_oracle_data_default = if spot_market_index == 0 {
-            HistoricalOracleData::default_quote_oracle()
-        } else {
-            HistoricalOracleData::default_with_current_oracle(oracle_price_data?)
-        };
-
-        let historical_index_data_default = if spot_market_index == 0 {
-            HistoricalIndexData::default_quote_oracle()
-        } else {
-            HistoricalIndexData::default_with_current_oracle(oracle_price_data?)
-        };
+        let (historical_oracle_data_default, historical_index_data_default) =
+            if spot_market_index == 0 {
+                (
+                    HistoricalOracleData::default_quote_oracle(),
+                    HistoricalIndexData::default_quote_oracle(),
+                )
+            } else {
+                (
+                    HistoricalOracleData::default_with_current_oracle(oracle_price_data?),
+                    HistoricalIndexData::default_with_current_oracle(oracle_price_data?),
+                )
+            };
 
         if spot_market_index == 0 {
             validate!(
