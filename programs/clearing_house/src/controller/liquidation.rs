@@ -1542,7 +1542,7 @@ pub fn resolve_perp_bankruptcy(
         "user must have negative pnl"
     )?;
 
-    let (margin_requirement, total_collateral, _, oracles_valid) =
+    let (margin_requirement, total_collateral, _, _oracles_valid) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -1684,7 +1684,7 @@ pub fn resolve_borrow_bankruptcy(
         ErrorCode::CouldNotFindSpotPosition
     })?;
 
-    let (margin_requirement, total_collateral, _, oracles_valid) =
+    let (margin_requirement, total_collateral, _, _oracles_valid) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,

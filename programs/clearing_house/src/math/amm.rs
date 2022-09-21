@@ -1021,7 +1021,7 @@ pub fn is_oracle_valid(
             conf_pct_of_price
         );
     }
-    let is_stale = oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale);
+    let is_stale = oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_amm);
     if is_stale {
         msg!("Invalid Oracle: Stale (oracle_delay={:?})", oracle_delay);
     }

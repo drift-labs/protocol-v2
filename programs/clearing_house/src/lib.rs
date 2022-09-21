@@ -7,7 +7,7 @@ use borsh::BorshSerialize;
 
 use context::*;
 use error::ErrorCode;
-use math::{amm, bn, constants::*, margin::*};
+use math::{amm, bn, constants::*, margin::*, oracle};
 use state::oracle::{get_oracle_price, HistOracleData, OracleSource};
 
 use crate::math::amm::get_update_k_result;
@@ -49,6 +49,7 @@ pub mod clearing_house {
     use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
+    use crate::math::oracle::OracleValidity;
     use crate::math::spot_balance::get_token_amount;
     use crate::optional_accounts::{
         get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
@@ -1617,6 +1618,7 @@ pub mod clearing_house {
             &spot_market_map,
             &mut oracle_map,
             clock.unix_timestamp,
+            &ctx.accounts.state,
         )?;
 
         Ok(())
@@ -1963,6 +1965,8 @@ pub mod clearing_house {
                 ErrorCode::DefaultError,
                 "Market is in settlement mode",
             )?;
+
+            controller::orders::validate_market_within_price_band(&perp_market, state, true, None)?;
 
             controller::insurance::resolve_perp_pnl_deficit(
                 spot_market_vault_amount,
@@ -2551,11 +2555,11 @@ pub mod clearing_house {
         let price_oracle = &ctx.accounts.oracle;
         let oracle_price_data = &market.amm.get_oracle_price(price_oracle, clock_slot)?;
 
-        let is_oracle_valid = amm::is_oracle_valid(
-            &market.amm,
+        let is_oracle_valid = oracle::oracle_validity(
+            market.amm.last_oracle_price_twap,
             oracle_price_data,
             &ctx.accounts.state.oracle_guard_rails.validity,
-        )?;
+        )? == OracleValidity::Valid;
 
         if !is_oracle_valid {
             market.amm.last_oracle_price_twap = cast_to_i128(market.amm.last_mark_price_twap)?;

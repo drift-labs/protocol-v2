@@ -51,6 +51,15 @@ impl Default for OracleSource {
     }
 }
 
+// #[derive(Default, Clone, Copy, Debug)]
+// pub struct OracleValidity {
+//     pub amm_stale: bool,
+//     pub invalid_price: bool,
+//     pub too_stale: bool,
+//     pub too_volatile: bool,
+//     pub has_sufficient_number_of_data_points: bool,
+// }
+
 #[derive(Default, Clone, Copy, Debug)]
 pub struct OraclePriceData {
     pub price: i128,

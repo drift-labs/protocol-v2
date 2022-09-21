@@ -586,7 +586,7 @@ mod calculate_margin_requirement_and_total_collateral {
             ..User::default()
         };
 
-        let (margin_requirement, total_collateral, _, oracles_valid) =
+        let (margin_requirement, total_collateral, _, _oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &market_map,
@@ -674,7 +674,7 @@ mod calculate_margin_requirement_and_total_collateral {
             ..User::default()
         };
 
-        let (margin_requirement, total_collateral, _, oracles_valid) =
+        let (margin_requirement, total_collateral, _, _oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &market_map,
@@ -763,7 +763,7 @@ mod calculate_margin_requirement_and_total_collateral {
             ..User::default()
         };
 
-        let (margin_requirement, total_collateral, _, oracles_valid) =
+        let (margin_requirement, total_collateral, _, _oracles_valid) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &market_map,

@@ -16,7 +16,7 @@ use crate::validate;
 use crate::math::casting::cast_to_i128;
 use crate::math::funding::calculate_funding_payment;
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
-use crate::math::oracle::oracle_validity;
+use crate::math::oracle::{oracle_validity, OracleValidity};
 
 use crate::math::spot_balance::{
     get_balance_value_and_token_amount, get_token_amount, get_token_value,
@@ -282,7 +282,8 @@ pub fn calculate_margin_requirement_and_total_collateral(
             &spot_market.oracle,
             spot_market.hist_oracle_info.last_oracle_price_twap,
         )?;
-        all_oracles_valid &= is_oracle_valid;
+        all_oracles_valid &=
+            is_oracle_valid == OracleValidity::Valid || is_oracle_valid == OracleValidity::Stale;
 
         if spot_market.market_index == 0 {
             let token_amount = get_token_amount(
@@ -427,7 +428,8 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
         let (oracle_price_data, is_oracle_valid) = oracle_map
             .get_price_data_and_validity(&market.amm.oracle, market.amm.last_oracle_price_twap)?;
-        all_oracles_valid &= is_oracle_valid;
+        all_oracles_valid &=
+            is_oracle_valid == OracleValidity::Valid || is_oracle_valid == OracleValidity::Stale;
 
         let (perp_margin_requirement, weighted_pnl, worst_case_base_asset_value) =
             calculate_perp_position_value_and_pnl(
@@ -519,7 +521,7 @@ pub fn meets_initial_margin_requirement(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<bool> {
-    let (margin_requirement, total_collateral, _, oracles_valid) =
+    let (margin_requirement, total_collateral, _, _oracles_valid) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -537,7 +539,7 @@ pub fn meets_maintenance_margin_requirement(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<bool> {
-    let (margin_requirement, total_collateral, _, oracles_valid) =
+    let (margin_requirement, total_collateral, _, _oracles_valid) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -556,7 +558,7 @@ pub fn calculate_free_collateral(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<i128> {
-    let (margin_requirement, total_collateral, _, oracles_valid) =
+    let (margin_requirement, total_collateral, _, _oracles_valid) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,

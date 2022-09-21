@@ -9,6 +9,8 @@ use crate::math::amm;
 use crate::math::amm::get_update_k_result;
 use crate::math::bn;
 use crate::math::constants::{K_BPS_UPDATE_SCALE, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX};
+use crate::math::oracle;
+use crate::math::oracle::OracleValidity;
 use crate::math::repeg;
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
@@ -160,11 +162,11 @@ pub fn _update_amm(
         }
     }
 
-    let is_oracle_valid = amm::is_oracle_valid(
-        &market.amm,
+    let is_oracle_valid = oracle::oracle_validity(
+        market.amm.last_oracle_price_twap,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
-    )?;
+    )? == OracleValidity::Valid;
 
     let mark_price_after = market.amm.mark_price()?;
     amm::update_oracle_price_twap(
@@ -401,7 +403,8 @@ mod test {
                     mark_oracle_divergence_denominator: 10,
                 },
                 validity: ValidityGuardRails {
-                    slots_before_stale: 10,
+                    slots_before_stale_for_amm: 10,     // 5s
+                    slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
@@ -437,12 +440,13 @@ mod test {
         let cost_of_update =
             _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
 
-        let is_oracle_valid = amm::is_oracle_valid(
-            &market.amm,
+        let is_oracle_valid = oracle::oracle_validity(
+            market.amm.last_oracle_price_twap,
             &oracle_price_data,
             &state.oracle_guard_rails.validity,
         )
-        .unwrap();
+        .unwrap()
+            == OracleValidity::Valid;
         let mark_price_after_prepeg = market.amm.mark_price().unwrap();
         assert_eq!(mark_price_after_prepeg, 130882003768079);
 
@@ -514,7 +518,8 @@ mod test {
                     mark_oracle_divergence_denominator: 10,
                 },
                 validity: ValidityGuardRails {
-                    slots_before_stale: 10,
+                    slots_before_stale_for_amm: 10,      // 5s
+                    slots_before_stale_for_margin: 120,  // 60s
                     confidence_interval_max_size: 20000, //2%
                     too_volatile_ratio: 5,
                 },
@@ -536,12 +541,13 @@ mod test {
             _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
         assert!(market.amm.last_update_slot == 0);
 
-        let is_oracle_valid = amm::is_oracle_valid(
-            &market.amm,
+        let is_oracle_valid = oracle::oracle_validity(
+            market.amm.last_oracle_price_twap,
             &oracle_price_data,
             &state.oracle_guard_rails.validity,
         )
-        .unwrap();
+        .unwrap()
+            == OracleValidity::Valid;
         assert!(!is_oracle_valid);
     }
 
@@ -560,7 +566,8 @@ mod test {
                     mark_oracle_divergence_denominator: 10,
                 },
                 validity: ValidityGuardRails {
-                    slots_before_stale: 10,
+                    slots_before_stale_for_amm: 10,     // 5s
+                    slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
@@ -688,7 +695,8 @@ mod test {
                     mark_oracle_divergence_denominator: 10,
                 },
                 validity: ValidityGuardRails {
-                    slots_before_stale: 10,
+                    slots_before_stale_for_amm: 10,     // 5s
+                    slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },

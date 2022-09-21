@@ -35,6 +35,8 @@ use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders, do_orders_cross,
     is_maker_for_taker,
 };
+use crate::math::oracle;
+use crate::math::oracle::OracleValidity;
 use crate::math::serum::{
     calculate_serum_limit_price, calculate_serum_max_coin_qty,
     calculate_serum_max_native_pc_quantity,
@@ -546,11 +548,11 @@ pub fn fill_order(
 
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
 
-        is_oracle_valid = amm::is_oracle_valid(
-            &market.amm,
+        is_oracle_valid = oracle::oracle_validity(
+            market.amm.last_oracle_price_twap,
             oracle_price_data,
             &state.oracle_guard_rails.validity,
-        )?;
+        )? == OracleValidity::Valid;
 
         mark_price_before = market.amm.mark_price()?;
         oracle_mark_spread_pct_before =
@@ -1105,7 +1107,7 @@ fn fulfill_order(
         emit!(order_record)
     }
 
-    let (margin_requirement, total_collateral, _, oracles_valid) =
+    let (margin_requirement, total_collateral, _, _oracles_valid) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -1812,7 +1814,11 @@ fn get_valid_oracle_price(
     validity_guardrails: &ValidityGuardRails,
 ) -> ClearingHouseResult<Option<i128>> {
     let price = {
-        let is_oracle_valid = is_oracle_valid(&market.amm, oracle_price_data, validity_guardrails)?;
+        let is_oracle_valid = oracle::oracle_validity(
+            market.amm.last_oracle_price_twap,
+            oracle_price_data,
+            validity_guardrails,
+        )? == OracleValidity::Valid;
         if is_oracle_valid {
             Some(oracle_price_data.price)
         } else if order.has_oracle_price_offset() {
@@ -1893,11 +1899,11 @@ pub fn trigger_order(
     let market = &mut market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
 
-    let is_oracle_valid = amm::is_oracle_valid(
-        &market.amm,
+    let is_oracle_valid = oracle::oracle_validity(
+        market.amm.last_oracle_price_twap,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
-    )?;
+    )? == OracleValidity::Valid;
     validate!(is_oracle_valid, ErrorCode::InvalidOracle)?;
     let oracle_price = oracle_price_data.price;
 
@@ -2690,7 +2696,7 @@ fn fulfill_spot_order(
         emit!(order_record)
     }
 
-    let (margin_requirement, total_collateral, _, oracles_valid) =
+    let (margin_requirement, total_collateral, _, _oracles_valid) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,

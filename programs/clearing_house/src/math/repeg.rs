@@ -9,6 +9,9 @@ use crate::math::constants::{
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, TWENTY_FOUR_HOUR,
 };
+use crate::math::oracle;
+use crate::math::oracle::OracleValidity;
+
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::math_error;
 use crate::state::market::{PerpMarket, AMM};
@@ -29,11 +32,11 @@ pub fn calculate_repeg_validity_from_oracle_account(
     let oracle_price_data = market
         .amm
         .get_oracle_price(oracle_account_info, clock_slot)?;
-    let oracle_is_valid = amm::is_oracle_valid(
-        &market.amm,
+    let oracle_is_valid = oracle::oracle_validity(
+        market.amm.last_oracle_price_twap,
         &oracle_price_data,
         &oracle_guard_rails.validity,
-    )?;
+    )? == OracleValidity::Valid;
 
     let (oracle_is_valid, direction_valid, profitability_valid, price_impact_valid) =
         calculate_repeg_validity(

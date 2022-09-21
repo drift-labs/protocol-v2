@@ -11,10 +11,22 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 use std::cmp::{max, min};
 
+// ordered by "severity"
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum OracleValidity {
-    Long,
-    Short,
+    Invalid,
+    TooVolatile,
+    InsufficientDataPoints,
+    VeryStale,
+    Stale,
+    Valid,
+}
+
+impl Default for OracleValidity {
+    // UpOnly
+    fn default() -> Self {
+        OracleValidity::Valid
+    }
 }
 
 pub fn block_operation(
@@ -40,6 +52,7 @@ pub struct OracleStatus {
     pub oracle_mark_spread_pct: i128,
     pub is_valid: bool,
     pub mark_too_divergent: bool,
+    pub oracle_validity: OracleValidity,
 }
 
 pub fn get_oracle_status<'a>(
@@ -48,7 +61,12 @@ pub fn get_oracle_status<'a>(
     guard_rails: &OracleGuardRails,
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<OracleStatus> {
-    let oracle_is_valid = amm::is_oracle_valid(amm, oracle_price_data, &guard_rails.validity)?;
+    let oracle_validity = oracle_validity(
+        amm.last_oracle_price_twap,
+        oracle_price_data,
+        &guard_rails.validity,
+    )?;
+    let oracle_is_valid = oracle_validity == OracleValidity::Valid;
     let oracle_mark_spread_pct =
         amm::calculate_oracle_twap_5min_mark_spread_pct(amm, precomputed_mark_price)?;
     let is_oracle_mark_too_divergent =
@@ -59,6 +77,7 @@ pub fn get_oracle_status<'a>(
         oracle_mark_spread_pct,
         is_valid: oracle_is_valid,
         mark_too_divergent: is_oracle_mark_too_divergent,
+        oracle_validity,
     })
 }
 
@@ -66,7 +85,7 @@ pub fn oracle_validity(
     last_oracle_twap: i128,
     oracle_price_data: &OraclePriceData,
     valid_oracle_guard_rails: &ValidityGuardRails,
-) -> ClearingHouseResult<bool> {
+) -> ClearingHouseResult<OracleValidity> {
     let OraclePriceData {
         price: oracle_price,
         confidence: oracle_conf,
@@ -110,15 +129,28 @@ pub fn oracle_validity(
             conf_pct_of_price
         );
     }
-    let is_stale = oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale);
-    if is_stale {
+    let is_stale_for_amm = oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_amm);
+    let is_stale_for_margin =
+        oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_margin);
+    if is_stale_for_amm || is_stale_for_margin {
         msg!("Invalid Oracle: Stale (oracle_delay={:?})", oracle_delay);
     }
-    Ok(!(is_stale
-        || !has_sufficient_number_of_data_points
-        || is_oracle_price_nonpositive
-        || is_oracle_price_too_volatile
-        || is_conf_too_large))
+
+    let oracle_validity = if is_oracle_price_nonpositive || is_conf_too_large {
+        OracleValidity::Invalid
+    } else if is_oracle_price_too_volatile {
+        OracleValidity::TooVolatile
+    } else if !has_sufficient_number_of_data_points {
+        OracleValidity::InsufficientDataPoints
+    } else if is_stale_for_margin {
+        OracleValidity::VeryStale
+    } else if is_stale_for_amm {
+        OracleValidity::Stale
+    } else {
+        OracleValidity::Valid
+    };
+
+    Ok(oracle_validity)
 }
 
 #[cfg(test)]
@@ -162,7 +194,8 @@ mod test {
                     mark_oracle_divergence_denominator: 10,
                 },
                 validity: ValidityGuardRails {
-                    slots_before_stale: 10,
+                    slots_before_stale_for_amm: 10,      // 5s
+                    slots_before_stale_for_margin: 120,  // 60s
                     confidence_interval_max_size: 20000, // 2%
                     too_volatile_ratio: 5,
                 },

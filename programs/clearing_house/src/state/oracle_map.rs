@@ -1,7 +1,7 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::ids::pyth_program;
 use crate::math::constants::MARK_PRICE_PRECISION_I128;
-use crate::math::oracle::oracle_validity;
+use crate::math::oracle::{oracle_validity, OracleValidity};
 use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource};
 use crate::state::state::OracleGuardRails;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
@@ -69,9 +69,9 @@ impl<'a> OracleMap<'a> {
         &mut self,
         pubkey: &Pubkey,
         last_oracle_price_twap: i128,
-    ) -> ClearingHouseResult<(&OraclePriceData, bool)> {
+    ) -> ClearingHouseResult<(&OraclePriceData, OracleValidity)> {
         if pubkey == &Pubkey::default() {
-            return Ok((&self.quote_asset_price_data, true));
+            return Ok((&self.quote_asset_price_data, OracleValidity::Valid));
         }
 
         if self.price_data.contains_key(pubkey) {
