@@ -34,9 +34,9 @@ export function isOracleValid(
 	const isOraclePriceNonPositive = oraclePriceData.price.lte(ZERO);
 	const isOraclePriceTooVolatile =
 		oraclePriceData.price
-			.div(BN.max(ONE, amm.lastOraclePriceTwap))
+			.div(BN.max(ONE, amm.historicalOracleData.lastOraclePriceTwap))
 			.gt(oracleGuardRails.validity.tooVolatileRatio) ||
-		amm.lastOraclePriceTwap
+		amm.historicalOracleData.lastOraclePriceTwap
 			.div(BN.max(ONE, oraclePriceData.price))
 			.gt(oracleGuardRails.validity.tooVolatileRatio);
 
@@ -65,9 +65,11 @@ export function isOracleTooDivergent(
 	oracleGuardRails: OracleGuardRails,
 	now: BN
 ): boolean {
-	const sinceLastUpdate = now.sub(amm.lastOraclePriceTwapTs);
+	const sinceLastUpdate = now.sub(
+		amm.historicalOracleData.lastOraclePriceTwapTs
+	);
 	const sinceStart = BN.max(ZERO, new BN(60 * 5).sub(sinceLastUpdate));
-	const oracleTwap5min = amm.lastOraclePriceTwap5min
+	const oracleTwap5min = amm.historicalOracleData.lastOraclePriceTwap5min
 		.mul(sinceStart)
 		.add(oraclePriceData.price)
 		.mul(sinceLastUpdate)

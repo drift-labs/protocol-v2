@@ -54,7 +54,9 @@ async function updateFundingRateHelper(
 
 		const priceSpread0 =
 			convertToNumber(ammAccountState0.lastMarkPriceTwap) -
-			convertToNumber(ammAccountState0.lastOraclePriceTwap);
+			convertToNumber(
+				ammAccountState0.historicalOracleData.lastOraclePriceTwap
+			);
 		const frontEndFundingCalc0 = priceSpread0 / oraclePx0.twap / (24 * 3600);
 
 		console.log(
@@ -66,7 +68,7 @@ async function updateFundingRateHelper(
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber(),
 			'oracleTwap0(vamm):',
-			ammAccountState0.lastOraclePriceTwap.toNumber(),
+			ammAccountState0.historicalOracleData.lastOraclePriceTwap.toNumber(),
 			'oracleTwap0:',
 			oraclePx0.twap,
 			'oraclePrice',
@@ -128,7 +130,7 @@ async function updateFundingRateHelper(
 
 		const priceSpread =
 			(ammAccountState.lastMarkPriceTwap.toNumber() -
-				ammAccountState.lastOraclePriceTwap.toNumber()) /
+				ammAccountState.historicalOracleData.lastOraclePriceTwap.toNumber()) /
 			MARK_PRICE_PRECISION.toNumber();
 		const frontEndFundingCalc =
 			priceSpread / ((24 * 3600) / Math.max(1, peroidicity.toNumber()));
@@ -142,7 +144,7 @@ async function updateFundingRateHelper(
 			'markTwap:',
 			ammAccountState.lastMarkPriceTwap.toNumber(),
 			'oracleTwap(vamm):',
-			ammAccountState.lastOraclePriceTwap.toNumber(),
+			ammAccountState.historicalOracleData.lastOraclePriceTwap.toNumber(),
 			'priceSpread:',
 			priceSpread
 		);

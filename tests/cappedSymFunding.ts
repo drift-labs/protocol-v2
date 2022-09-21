@@ -60,7 +60,9 @@ async function updateFundingRateHelper(
 
 		const priceSpread0 =
 			convertToNumber(ammAccountState0.lastMarkPriceTwap) -
-			convertToNumber(ammAccountState0.lastOraclePriceTwap);
+			convertToNumber(
+				ammAccountState0.historicalOracleData.lastOraclePriceTwap
+			);
 		const frontEndFundingCalc0 = priceSpread0 / oraclePx0.twap / (24 * 3600);
 
 		console.log(
@@ -70,7 +72,7 @@ async function updateFundingRateHelper(
 			ammAccountState0.lastMarkPriceTwap.toNumber() /
 				MARK_PRICE_PRECISION.toNumber(),
 			'oracleTwap0:',
-			ammAccountState0.lastOraclePriceTwap.toNumber() /
+			ammAccountState0.historicalOracleData.lastOraclePriceTwap.toNumber() /
 				MARK_PRICE_PRECISION.toNumber(),
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber(),
@@ -149,7 +151,7 @@ async function updateFundingRateHelper(
 		const priceSpread =
 			ammAccountState.lastMarkPriceTwap.toNumber() /
 				MARK_PRICE_PRECISION.toNumber() -
-			ammAccountState.lastOraclePriceTwap.toNumber() /
+			ammAccountState.historicalOracleData.lastOraclePriceTwap.toNumber() /
 				MARK_PRICE_PRECISION.toNumber();
 		const frontEndFundingCalc =
 			priceSpread / ((24 * 3600) / Math.max(1, peroidicity.toNumber()));
@@ -161,7 +163,7 @@ async function updateFundingRateHelper(
 			ammAccountState.lastMarkPriceTwap.toNumber() /
 				MARK_PRICE_PRECISION.toNumber(),
 			'oracleTwap:',
-			ammAccountState.lastOraclePriceTwap.toNumber() /
+			ammAccountState.historicalOracleData.lastOraclePriceTwap.toNumber() /
 				MARK_PRICE_PRECISION.toNumber(),
 			'markTwap:',
 			ammAccountState.lastMarkPriceTwap.toNumber(),
@@ -781,8 +783,8 @@ describe('capped funding', () => {
 		await clearingHouse.fetchAccounts();
 		const marketNew = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log(
-			'marketNew.amm.lastOraclePriceTwap:',
-			marketNew.amm.lastOraclePriceTwap.toString()
+			'marketNew.amm.historicalOracleData.lastOraclePriceTwap:',
+			marketNew.amm.historicalOracleData.lastOraclePriceTwap.toString()
 		);
 		const clampedFundingRatePct = new BN(
 			(0.03 * MARK_PRICE_PRECISION.toNumber()) / 24

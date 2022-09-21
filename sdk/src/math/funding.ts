@@ -60,8 +60,10 @@ export async function calculateAllEstimatedFundingRate(
 
 	// calculate real-time (predicted) oracle twap
 	// note: oracle twap depends on `when the chord is struck` (market is trade)
-	const lastOracleTwapWithMantissa = market.amm.lastOraclePriceTwap;
-	const lastOraclePriceTwapTs = market.amm.lastOraclePriceTwapTs;
+	const lastOracleTwapWithMantissa =
+		market.amm.historicalOracleData.lastOraclePriceTwap;
+	const lastOraclePriceTwapTs =
+		market.amm.historicalOracleData.lastOraclePriceTwapTs;
 
 	const oracleInvalidDuration = BN.max(
 		ZERO,
