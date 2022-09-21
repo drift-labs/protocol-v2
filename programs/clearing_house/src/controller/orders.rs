@@ -22,7 +22,6 @@ use crate::error::ErrorCode;
 use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::load_mut;
-use crate::math::amm::is_oracle_valid;
 use crate::math::auction::{calculate_auction_end_price, is_auction_complete};
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX};

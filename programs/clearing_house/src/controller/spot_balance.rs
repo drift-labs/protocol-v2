@@ -401,6 +401,8 @@ mod test {
                 quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                last_oracle_price_twap: oracle_price.agg.price as i128,
+                last_oracle_price_twap_5min: oracle_price.agg.price as i128,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -731,6 +733,8 @@ mod test {
                 quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                last_oracle_price_twap: oracle_price.agg.price as i128,
+                last_oracle_price_twap_5min: oracle_price.agg.price as i128,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1064,6 +1068,8 @@ mod test {
                 quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                last_oracle_price_twap: oracle_price.agg.price as i128,
+                last_oracle_price_twap_5min: oracle_price.agg.price as i128,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
