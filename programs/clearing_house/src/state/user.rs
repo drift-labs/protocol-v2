@@ -8,8 +8,8 @@ use crate::math::amm::calculate_rolling_sum;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::cast_to_i128;
 use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, MARK_PRICE_PRECISION_I128, EPOCH_DURATION, QUOTE_SPOT_MARKET_INDEX,
-    THIRTY_DAY_I128,
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, MARK_PRICE_PRECISION_I128,
+    QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY_I128,
 };
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
@@ -27,6 +27,7 @@ mod tests;
 #[repr(packed)]
 pub struct User {
     pub authority: Pubkey,
+    pub delegate: Pubkey,
     pub user_id: u8,
     pub name: [u8; 32],
     pub spot_positions: [SpotPosition; 8],
@@ -646,10 +647,7 @@ pub struct UserStats {
     pub last_taker_volume_30d_ts: i64,
     pub last_filler_volume_30d_ts: i64,
 
-    // for market_index = 0
-    // todo: offer vip fee status for users who have lp_shares > threshold
-    // lower taker fee, higher maker fee etc
-    pub quote_asset_insurance_fund_stake: u128,
+    pub staked_quote_asset_amount: u64,
 }
 
 impl UserStats {
@@ -791,5 +789,11 @@ impl UserStats {
 
     pub fn has_referrer(&self) -> bool {
         !self.referrer.eq(&Pubkey::default())
+    }
+
+    pub fn get_total_30d_volume(&self) -> ClearingHouseResult<u64> {
+        self.taker_volume_30d
+            .checked_add(self.maker_volume_30d)
+            .ok_or_else(math_error!())
     }
 }

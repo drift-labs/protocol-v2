@@ -1,17 +1,23 @@
-use crate::state::market::MarketStatus;
-use crate::state::oracle_map::OracleMap;
-use crate::state::state::FeeStructure;
-use crate::state::user::{Order, PerpPosition};
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
 
+use crate::state::market::MarketStatus;
+use crate::state::oracle_map::OracleMap;
+use crate::state::state::{FeeStructure, FeeTier};
+use crate::state::user::{Order, PerpPosition};
+
 fn get_fee_structure() -> FeeStructure {
-    FeeStructure {
+    let mut fee_tiers = [FeeTier::default(); 10];
+    fee_tiers[0] = FeeTier {
         fee_numerator: 5,
         fee_denominator: 10000,
         maker_rebate_numerator: 3,
-        maker_rebate_denominator: 5,
-        ..FeeStructure::default()
+        maker_rebate_denominator: 10000,
+        ..FeeTier::default()
+    };
+    FeeStructure {
+        fee_tiers,
+        ..FeeStructure::test_default()
     }
 }
 
@@ -24,7 +30,6 @@ fn get_oracle_map<'a>() -> OracleMap<'a> {
 }
 
 pub mod fulfill_order_with_maker_order {
-    use super::*;
     use crate::controller::orders::fulfill_order_with_match;
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{
@@ -32,9 +37,10 @@ pub mod fulfill_order_with_maker_order {
         QUOTE_PRECISION_U64,
     };
     use crate::state::market::PerpMarket;
-    use crate::state::state::FeeStructure;
     use crate::state::user::{Order, OrderType, PerpPosition, User, UserStats};
     use crate::tests::utils::*;
+
+    use super::*;
 
     #[test]
     fn long_taker_order_fulfilled_start_of_auction() {
@@ -569,7 +575,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 3_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure::test_default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -654,7 +660,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 3_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure::test_default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -740,7 +746,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure::test_default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -826,7 +832,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure::test_default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -912,7 +918,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure::test_default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -1020,7 +1026,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure::test_default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -1442,7 +1448,8 @@ pub mod fulfill_order_with_maker_order {
 }
 
 pub mod fulfill_order {
-    use super::*;
+    use std::str::FromStr;
+
     use crate::controller::orders::fulfill_order;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
@@ -1459,7 +1466,8 @@ pub mod fulfill_order {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::tests::utils::*;
-    use std::str::FromStr;
+
+    use super::*;
 
     #[test]
     fn fulfill_with_amm_and_maker() {
@@ -2356,7 +2364,10 @@ pub mod fulfill_order {
 }
 
 pub mod fill_order {
-    use super::*;
+    use std::str::FromStr;
+
+    use anchor_lang::prelude::{AccountLoader, Clock};
+
     use crate::controller::orders::fill_order;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
@@ -2375,8 +2386,8 @@ pub mod fill_order {
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::tests::utils::create_account_info;
     use crate::tests::utils::*;
-    use anchor_lang::prelude::{AccountLoader, Clock};
-    use std::str::FromStr;
+
+    use super::*;
 
     #[test]
     fn cancel_order_after_fulfill() {
@@ -2660,7 +2671,6 @@ pub mod fill_order {
 
 #[cfg(test)]
 pub mod fulfill_spot_order_with_match {
-    use super::*;
     use crate::controller::orders::fulfill_spot_order_with_match;
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{
@@ -2670,6 +2680,8 @@ pub mod fulfill_spot_order_with_match {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::user::{MarketType, Order, OrderType, SpotPosition, User, UserStats};
     use crate::tests::utils::*;
+
+    use super::*;
 
     #[test]
     fn long_taker_order_fulfilled_start_of_auction() {
@@ -4250,7 +4262,10 @@ pub mod fulfill_spot_order_with_match {
 }
 
 pub mod fulfill_spot_order {
-    use super::*;
+    use std::str::FromStr;
+
+    use anchor_lang::prelude::{AccountLoader, Clock};
+
     use crate::controller::orders::fill_spot_order;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
@@ -4265,8 +4280,8 @@ pub mod fulfill_spot_order {
     use crate::state::state::State;
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::tests::utils::*;
-    use anchor_lang::prelude::{AccountLoader, Clock};
-    use std::str::FromStr;
+
+    use super::*;
 
     #[test]
     fn fulfill_with_negative_free_collateral() {
@@ -4660,8 +4675,8 @@ pub mod fulfill_spot_order {
         expected_maker.spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100060000,
-            cumulative_deposits: 100060000,
+            balance: 100020000,
+            cumulative_deposits: 100020000,
             ..SpotPosition::default()
         };
         expected_maker.spot_positions[2] = SpotPosition {
@@ -4701,12 +4716,15 @@ pub mod fulfill_spot_order {
         assert_eq!(*maker_after, expected_maker);
 
         let maker_stats_after = maker_stats_account_loader.load().unwrap();
-        assert_eq!(maker_stats_after.fees.total_fee_rebate, 60000);
+        assert_eq!(maker_stats_after.fees.total_fee_rebate, 20000);
     }
 }
 
 pub mod fill_spot_order {
-    use super::*;
+    use std::str::FromStr;
+
+    use anchor_lang::prelude::{AccountLoader, Clock};
+
     use crate::controller::orders::fill_spot_order;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
@@ -4721,8 +4739,8 @@ pub mod fill_spot_order {
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::tests::utils::create_account_info;
     use crate::tests::utils::*;
-    use anchor_lang::prelude::{AccountLoader, Clock};
-    use std::str::FromStr;
+
+    use super::*;
 
     #[test]
     fn cancel_order_after_fulfill() {

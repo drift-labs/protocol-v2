@@ -54,6 +54,7 @@ use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::serum::{load_market_state, load_open_orders};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
+use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::user::{AssetType, Order, OrderStatus, OrderType, UserStats};
 use crate::state::user::{MarketType, User};
@@ -1036,6 +1037,7 @@ fn fulfill_order(
                 &mut order_records,
                 None,
                 None,
+                true,
             )?,
             PerpFulfillmentMethod::Match => fulfill_order_with_match(
                 market.deref_mut(),
@@ -1164,6 +1166,7 @@ pub fn fulfill_order_with_amm(
     order_records: &mut Vec<OrderActionRecord>,
     override_base_asset_amount: Option<u128>,
     override_fill_price: Option<u128>, // todo probs dont need this since its the user_limit_price / current auction time
+    split_with_lps: bool,
 ) -> ClearingHouseResult<(u128, u128)> {
     // Determine the base asset amount the market can fill
     let (base_asset_amount, fill_price) = match override_base_asset_amount {
@@ -1232,7 +1235,8 @@ pub fn fulfill_order_with_amm(
         referrer_reward,
         fee_to_market_for_lp,
         ..
-    } = fees::calculate_fee_for_order_fulfill_against_amm(
+    } = fees::calculate_fee_for_fulfillment_with_amm(
+        user_stats,
         quote_asset_amount,
         fee_structure,
         order_ts,
@@ -1257,7 +1261,8 @@ pub fn fulfill_order_with_amm(
     update_amm_and_lp_market_position(
         market,
         &user_position_delta,
-        cast_to_i128(fee_to_market_for_lp)?,
+        fee_to_market_for_lp,
+        split_with_lps,
     )?;
 
     // Increment the clearing house's total fee variables
@@ -1494,6 +1499,7 @@ pub fn fulfill_order_with_match(
                     order_records,
                     Some(jit_base_asset_amount),
                     Some(taker_price), // current auction price
+                    false,             // dont split with the lps
                 )?;
 
             total_quote_asset_amount = quote_asset_amount_filled_by_amm;
@@ -1577,6 +1583,8 @@ pub fn fulfill_order_with_match(
         referee_discount,
         ..
     } = fees::calculate_fee_for_fulfillment_with_match(
+        taker_stats,
+        maker_stats,
         quote_asset_amount,
         fee_structure,
         taker.orders[taker_order_index].ts,
@@ -1584,6 +1592,7 @@ pub fn fulfill_order_with_match(
         filler.is_some(),
         reward_referrer,
         referrer_stats,
+        &MarketType::Perp,
     )?;
 
     // Increment the markets house's total fee variables
@@ -2745,6 +2754,8 @@ pub fn fulfill_spot_order_with_match(
         fee_to_market,
         ..
     } = fees::calculate_fee_for_fulfillment_with_match(
+        taker_stats,
+        maker_stats,
         quote_asset_amount,
         fee_structure,
         taker_order_ts,
@@ -2752,6 +2763,7 @@ pub fn fulfill_spot_order_with_match(
         filler.is_some(),
         false,
         &None,
+        &MarketType::Spot,
     )?;
 
     // Update taker state
@@ -3151,6 +3163,7 @@ pub fn fulfill_spot_order_with_serum(
         fee_pool_delta,
         filler_reward,
     } = fees::calculate_fee_for_fulfillment_with_serum(
+        taker_stats,
         quote_asset_amount_filled,
         fee_structure,
         taker_order_ts,
