@@ -518,26 +518,31 @@ pub fn update_amm_and_lp_market_position(
         .checked_sub(lp_fee)
         .ok_or_else(math_error!())?;
 
-    let amm_baa = -(delta
+    let amm_baa = delta
         .base_asset_amount
         .checked_sub(lp_delta_base)
-        .ok_or_else(math_error!())?);
+        .ok_or_else(math_error!())?;
 
-    let amm_qaa = -(delta
+    let amm_qaa = delta
         .quote_asset_amount
         .checked_sub(lp_delta_quote)
-        .ok_or_else(math_error!())?)
-    .checked_add(amm_fee)
-    .ok_or_else(math_error!())?;
+        .ok_or_else(math_error!())?;
 
     crate::controller::position::update_amm_position(
         market,
         &PositionDelta {
-            base_asset_amount: amm_baa,
-            quote_asset_amount: amm_qaa,
+            base_asset_amount: -amm_baa,
+            quote_asset_amount: -amm_qaa,
         },
         false,
     )?;
+
+    market.amm.market_position.quote_asset_amount = market
+        .amm
+        .market_position
+        .quote_asset_amount
+        .checked_add(amm_fee)
+        .ok_or_else(math_error!())?;
 
     Ok(())
 }

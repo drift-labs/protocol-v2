@@ -14,10 +14,8 @@ pub struct InsuranceFundStake {
     pub authority: Pubkey,
     pub market_index: u64,
 
-    #[cfg(not(test))]
     if_shares: u128,
-    #[cfg(test)]
-    pub if_shares: u128, // so tests can access directly
+
     pub if_base: u128, // exponent for if_shares decimal places (for rebase)
     pub last_valid_ts: i64,
 

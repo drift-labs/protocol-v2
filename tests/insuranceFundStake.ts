@@ -199,7 +199,7 @@ describe('insurance fund stake', () => {
 		try {
 			const txSig = await clearingHouse.requestRemoveInsuranceFundStake(
 				marketIndex,
-				amountFromShare.add(ONE)
+				amountFromShare
 			);
 			console.log(
 				'tx logs',
@@ -271,7 +271,7 @@ describe('insurance fund stake', () => {
 			userUSDCAccount.publicKey
 		);
 		console.log('usdc balance:', usdcbalance.value.amount);
-		assert(usdcbalance.value.amount == '499999999999');
+		assert(usdcbalance.value.amount == '500000000000');
 
 		const ifStakeAccount =
 			(await clearingHouse.program.account.insuranceFundStake.fetch(
