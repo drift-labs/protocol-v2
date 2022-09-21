@@ -410,6 +410,7 @@ describe('orders', () => {
 				QUOTE_PRECISION
 			)
 		);
+		console.log();
 		assert(
 			fillerClearingHouse
 				.getQuoteAssetTokenAmount()
