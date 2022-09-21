@@ -10,7 +10,7 @@ use switchboard_v2::decimal::SwitchboardDecimal;
 use switchboard_v2::AggregatorAccountData;
 
 #[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
-pub struct HistOracleData {
+pub struct HistoricalOracleData {
     // use u64?
     pub last_oracle_price: i128,
     pub last_oracle_conf: u128,
@@ -18,7 +18,35 @@ pub struct HistOracleData {
     pub last_oracle_price_twap: i128,
     pub last_oracle_price_twap_5min: i128,
     pub last_oracle_price_twap_ts: i64,
+}
 
+impl HistoricalOracleData {
+    pub fn default_quote_oracle() -> Self {
+        HistoricalOracleData {
+            last_oracle_price: MARK_PRICE_PRECISION_I128,
+            last_oracle_conf: 0,
+            last_oracle_delay: 0,
+            last_oracle_price_twap: MARK_PRICE_PRECISION_I128,
+            last_oracle_price_twap_5min: MARK_PRICE_PRECISION_I128,
+            ..HistoricalOracleData::default()
+        }
+    }
+
+    pub fn default_with_current_oracle(oracle_price_data: OraclePriceData) -> Self {
+        HistoricalOracleData {
+            last_oracle_price: oracle_price_data.price,
+            last_oracle_conf: oracle_price_data.confidence,
+            last_oracle_delay: oracle_price_data.delay,
+            last_oracle_price_twap: oracle_price_data.price,
+            last_oracle_price_twap_5min: oracle_price_data.price,
+            ..HistoricalOracleData::default()
+        }
+    }
+}
+
+#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
+pub struct HistoricalIndexData {
+    // use u64?
     pub last_index_bid_price: u128,
     pub last_index_ask_price: u128,
     pub last_index_price_twap: u128,
@@ -26,13 +54,25 @@ pub struct HistOracleData {
     pub last_index_price_twap_ts: i64,
 }
 
-impl HistOracleData {
+impl HistoricalIndexData {
+    pub fn default_quote_oracle() -> Self {
+        HistoricalIndexData {
+            last_index_bid_price: MARK_PRICE_PRECISION,
+            last_index_ask_price: MARK_PRICE_PRECISION,
+            last_index_price_twap: MARK_PRICE_PRECISION,
+            last_index_price_twap_5min: MARK_PRICE_PRECISION,
+            ..HistoricalIndexData::default()
+        }
+    }
+
     pub fn default_with_current_oracle(oracle_price_data: OraclePriceData) -> Self {
-        HistOracleData {
-            last_oracle_price: oracle_price_data.price,
-            last_oracle_conf: oracle_price_data.confidence,
-            last_oracle_delay: oracle_price_data.delay,
-            ..HistOracleData::default()
+        let price = cast_to_u128(oracle_price_data.price).unwrap();
+        HistoricalIndexData {
+            last_index_bid_price: price,
+            last_index_ask_price: price,
+            last_index_price_twap: price,
+            last_index_price_twap_5min: price,
+            ..HistoricalIndexData::default()
         }
     }
 }

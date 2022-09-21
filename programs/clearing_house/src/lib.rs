@@ -8,7 +8,7 @@ use borsh::BorshSerialize;
 use context::*;
 use error::ErrorCode;
 use math::{amm, bn, constants::*, margin::*, oracle};
-use state::oracle::{get_oracle_price, HistOracleData, OracleSource};
+use state::oracle::{get_oracle_price, HistoricalIndexData, HistoricalOracleData, OracleSource};
 
 use crate::math::amm::get_update_k_result;
 use crate::state::events::{LPAction, LPRecord};
@@ -154,11 +154,18 @@ pub mod clearing_house {
             cast(Clock::get()?.unix_timestamp)?,
         );
 
-        let hist_data_default = if spot_market_index == 0 {
-            HistOracleData::default()
+        let historical_oracle_data_default = if spot_market_index == 0 {
+            HistoricalOracleData::default_quote_oracle()
         } else {
-            HistOracleData::default_with_current_oracle(oracle_price_data?)
+            HistoricalOracleData::default_with_current_oracle(oracle_price_data?)
         };
+
+        let historical_index_data_default = if spot_market_index == 0 {
+            HistoricalIndexData::default_quote_oracle()
+        } else {
+            HistoricalIndexData::default_with_current_oracle(oracle_price_data?)
+        };
+
         if spot_market_index == 0 {
             validate!(
                 initial_asset_weight == SPOT_WEIGHT_PRECISION,
@@ -262,7 +269,8 @@ pub mod clearing_house {
             expiry_ts: 0,
             oracle: ctx.accounts.oracle.key(),
             oracle_source,
-            hist_oracle_info: hist_data_default,
+            historical_oracle_data: historical_oracle_data_default,
+            historical_index_data: historical_index_data_default,
             mint: ctx.accounts.spot_market_mint.key(),
             vault: *ctx.accounts.spot_market_vault.to_account_info().key,
             insurance_fund_vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,

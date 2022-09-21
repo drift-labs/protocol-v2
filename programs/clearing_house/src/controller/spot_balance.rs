@@ -73,27 +73,33 @@ pub fn update_spot_market_twap_stats(
         let oracle_price_twap = calculate_new_twap(
             capped_oracle_update_price,
             now,
-            cast_to_u128(spot_market.hist_oracle_info.last_oracle_price_twap)?,
-            spot_market.hist_oracle_info.last_oracle_price_twap_ts,
+            cast_to_u128(spot_market.historical_oracle_data.last_oracle_price_twap)?,
+            spot_market.historical_oracle_data.last_oracle_price_twap_ts,
             ONE_HOUR as i64,
         )?;
 
         let oracle_price_twap_5min = calculate_new_twap(
             capped_oracle_update_price,
             now,
-            cast_to_u128(spot_market.hist_oracle_info.last_oracle_price_twap_5min)?,
-            spot_market.hist_oracle_info.last_oracle_price_twap_ts,
+            cast_to_u128(
+                spot_market
+                    .historical_oracle_data
+                    .last_oracle_price_twap_5min,
+            )?,
+            spot_market.historical_oracle_data.last_oracle_price_twap_ts,
             (60 * 5) as i64,
         )?;
 
-        spot_market.hist_oracle_info.last_oracle_price_twap = cast_to_i128(oracle_price_twap)?;
-        spot_market.hist_oracle_info.last_oracle_price_twap_5min =
-            cast_to_i128(oracle_price_twap_5min)?;
+        spot_market.historical_oracle_data.last_oracle_price_twap =
+            cast_to_i128(oracle_price_twap)?;
+        spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min = cast_to_i128(oracle_price_twap_5min)?;
 
-        spot_market.hist_oracle_info.last_oracle_price = oracle_price_data.price;
-        spot_market.hist_oracle_info.last_oracle_conf = oracle_price_data.confidence;
-        spot_market.hist_oracle_info.last_oracle_delay = oracle_price_data.delay;
-        spot_market.hist_oracle_info.last_oracle_price_twap_ts = now;
+        spot_market.historical_oracle_data.last_oracle_price = oracle_price_data.price;
+        spot_market.historical_oracle_data.last_oracle_conf = oracle_price_data.confidence;
+        spot_market.historical_oracle_data.last_oracle_delay = oracle_price_data.delay;
+        spot_market.historical_oracle_data.last_oracle_price_twap_ts = now;
     }
 
     spot_market.last_twap_ts = cast_to_u64(now)?;
