@@ -370,6 +370,7 @@ export class ClearingHouse {
 		this.wallet = newWallet;
 		this.provider = newProvider;
 		this.program = newProgram;
+		this.authority = newWallet.publicKey;
 
 		if (this.isSubscribed) {
 			await Promise.all(this.unsubscribeUsers());
