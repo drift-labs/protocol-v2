@@ -42,7 +42,6 @@ use crate::math::serum::{
 use crate::math::spot_balance::get_token_amount;
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::math_error;
-use crate::order_validation::{validate_order, validate_spot_order};
 use crate::print_error;
 use crate::state::events::{get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
@@ -59,6 +58,7 @@ use crate::state::state::*;
 use crate::state::user::{AssetType, Order, OrderStatus, OrderType, UserStats};
 use crate::state::user::{MarketType, User};
 use crate::validate;
+use crate::validation::order::{validate_order, validate_spot_order};
 use serum_dex::instruction::{NewOrderInstructionV3, SelfTradeBehavior};
 use serum_dex::matching::Side;
 use std::cell::RefMut;
