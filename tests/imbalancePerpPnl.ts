@@ -827,7 +827,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 				markOracleDivergenceDenominator: new BN(1),
 			},
 			validity: {
-				slotsBeforeStale: new BN(100),
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
 				confidenceIntervalMaxSize: new BN(100000),
 				tooVolatileRatio: new BN(2),
 			},

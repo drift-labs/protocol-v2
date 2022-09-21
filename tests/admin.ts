@@ -123,7 +123,8 @@ describe('admin', () => {
 				markOracleDivergenceDenominator: new BN(1),
 			},
 			validity: {
-				slotsBeforeStale: new BN(1),
+				slotsBeforeStaleForAmm: new BN(1),
+				slotsBeforeStaleForMargin: new BN(1),
 				confidenceIntervalMaxSize: new BN(1),
 				tooVolatileRatio: new BN(1),
 			},

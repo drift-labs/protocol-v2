@@ -555,11 +555,8 @@ pub mod clearing_house {
                     last_oracle_price_twap_5min: oracle_price,
                     ..HistoricalOracleData::default()
                 },
-                // last_oracle_price_twap_ts: now,
                 last_oracle_normalised_price: oracle_price,
-                // last_oracle_price: oracle_price,
                 last_oracle_conf_pct: 0,
-                // last_oracle_delay: oracle_delay,
                 last_oracle_mark_spread_pct: 0, // todo
                 base_asset_amount_step_size: 10000000,
                 max_slippage_ratio: 50,           // ~2%

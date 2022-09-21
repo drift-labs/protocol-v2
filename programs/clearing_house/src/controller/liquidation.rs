@@ -108,7 +108,7 @@ pub fn liquidate_perp(
         now,
     )?;
 
-    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _oracles_valid) =
+    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -154,8 +154,10 @@ pub fn liquidate_perp(
     )?;
 
     validate!(
-        !(oracle_validity == OracleValidity::Invalid
-            || oracle_validity == OracleValidity::TooVolatile),
+        !matches!(
+            oracle_validity,
+            OracleValidity::Invalid | OracleValidity::TooVolatile
+        ),
         ErrorCode::InvalidOracle,
         "OracleValidity for perp marketIndex={} has InvalidPrice or TooVolatile",
         market.market_index
@@ -183,19 +185,15 @@ pub fn liquidate_perp(
     // check if user exited liquidation territory
     let (intermediate_total_collateral, intermediate_margin_requirement_with_buffer) =
         if !canceled_order_ids.is_empty() || lp_shares > 0 {
-            let (
-                _,
-                intermediate_total_collateral,
-                intermediate_margin_requirement_plus_buffer,
-                _oracles_valid,
-            ) = calculate_margin_requirement_and_total_collateral(
-                user,
-                perp_market_map,
-                MarginRequirementType::Maintenance,
-                spot_market_map,
-                oracle_map,
-                Some(liquidation_margin_buffer_ratio as u128),
-            )?;
+            let (_, intermediate_total_collateral, intermediate_margin_requirement_plus_buffer, _) =
+                calculate_margin_requirement_and_total_collateral(
+                    user,
+                    perp_market_map,
+                    MarginRequirementType::Maintenance,
+                    spot_market_map,
+                    oracle_map,
+                    Some(liquidation_margin_buffer_ratio as u128),
+                )?;
 
             if intermediate_total_collateral >= cast(intermediate_margin_requirement_plus_buffer)? {
                 emit!(LiquidationRecord {
@@ -469,8 +467,10 @@ pub fn liquidate_borrow(
         )?;
 
         validate!(
-            !(oracle_validity == OracleValidity::Invalid
-                || oracle_validity == OracleValidity::TooVolatile),
+            !matches!(
+                oracle_validity,
+                OracleValidity::Invalid | OracleValidity::TooVolatile
+            ),
             ErrorCode::InvalidOracle,
             "OracleValidity for spot marketIndex={} has InvalidPrice or TooVolatile",
             asset_market.market_index
@@ -552,7 +552,7 @@ pub fn liquidate_borrow(
         )
     };
 
-    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _oracles_valid) =
+    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -585,19 +585,15 @@ pub fn liquidate_borrow(
     // check if user exited liquidation territory
     let (intermediate_total_collateral, intermediate_margin_requirement_with_buffer) =
         if !canceled_order_ids.is_empty() {
-            let (
-                _,
-                intermediate_total_collateral,
-                intermediate_margin_requirement_plus_buffer,
-                _oracles_valid,
-            ) = calculate_margin_requirement_and_total_collateral(
-                user,
-                perp_market_map,
-                MarginRequirementType::Maintenance,
-                spot_market_map,
-                oracle_map,
-                Some(liquidation_margin_buffer_ratio as u128),
-            )?;
+            let (_, intermediate_total_collateral, intermediate_margin_requirement_plus_buffer, _) =
+                calculate_margin_requirement_and_total_collateral(
+                    user,
+                    perp_market_map,
+                    MarginRequirementType::Maintenance,
+                    spot_market_map,
+                    oracle_map,
+                    Some(liquidation_margin_buffer_ratio as u128),
+                )?;
 
             if intermediate_total_collateral >= cast(intermediate_margin_requirement_plus_buffer)? {
                 emit!(LiquidationRecord {
@@ -934,7 +930,7 @@ pub fn liquidate_borrow_for_perp_pnl(
         )
     };
 
-    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _oracles_valid) =
+    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -967,19 +963,15 @@ pub fn liquidate_borrow_for_perp_pnl(
     // check if user exited liquidation territory
     let (intermediate_total_collateral, intermediate_margin_requirement_with_buffer) =
         if !canceled_order_ids.is_empty() {
-            let (
-                _,
-                intermediate_total_collateral,
-                intermediate_margin_requirement_plus_buffer,
-                _oracles_valid,
-            ) = calculate_margin_requirement_and_total_collateral(
-                user,
-                perp_market_map,
-                MarginRequirementType::Maintenance,
-                spot_market_map,
-                oracle_map,
-                Some(liquidation_margin_buffer_ratio as u128),
-            )?;
+            let (_, intermediate_total_collateral, intermediate_margin_requirement_plus_buffer, _) =
+                calculate_margin_requirement_and_total_collateral(
+                    user,
+                    perp_market_map,
+                    MarginRequirementType::Maintenance,
+                    spot_market_map,
+                    oracle_map,
+                    Some(liquidation_margin_buffer_ratio as u128),
+                )?;
 
             if intermediate_total_collateral >= cast(intermediate_margin_requirement_plus_buffer)? {
                 let market = perp_market_map.get_ref(&perp_market_index)?;
@@ -1295,7 +1287,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         )
     };
 
-    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _oracles_valid) =
+    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -1328,19 +1320,15 @@ pub fn liquidate_perp_pnl_for_deposit(
     // check if user exited liquidation territory
     let (intermediate_total_collateral, intermediate_margin_requirement_with_buffer) =
         if !canceled_order_ids.is_empty() {
-            let (
-                _,
-                intermediate_total_collateral,
-                intermediate_margin_requirement_plus_buffer,
-                _oracles_valid,
-            ) = calculate_margin_requirement_and_total_collateral(
-                user,
-                perp_market_map,
-                MarginRequirementType::Maintenance,
-                spot_market_map,
-                oracle_map,
-                Some(liquidation_margin_buffer_ratio as u128),
-            )?;
+            let (_, intermediate_total_collateral, intermediate_margin_requirement_plus_buffer, _) =
+                calculate_margin_requirement_and_total_collateral(
+                    user,
+                    perp_market_map,
+                    MarginRequirementType::Maintenance,
+                    spot_market_map,
+                    oracle_map,
+                    Some(liquidation_margin_buffer_ratio as u128),
+                )?;
 
             if intermediate_total_collateral >= cast(intermediate_margin_requirement_plus_buffer)? {
                 let market = perp_market_map.get_ref(&perp_market_index)?;
@@ -1566,7 +1554,7 @@ pub fn resolve_perp_bankruptcy(
         "user must have negative pnl"
     )?;
 
-    let (margin_requirement, total_collateral, _, _oracles_valid) =
+    let (margin_requirement, total_collateral, _, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -1708,7 +1696,7 @@ pub fn resolve_borrow_bankruptcy(
         ErrorCode::CouldNotFindSpotPosition
     })?;
 
-    let (margin_requirement, total_collateral, _, _oracles_valid) =
+    let (margin_requirement, total_collateral, _, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,

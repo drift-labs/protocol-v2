@@ -48,7 +48,7 @@ export function isOracleValid(
 
 	const oracleIsStale = oraclePriceData.slot
 		.sub(new BN(slot))
-		.gt(oracleGuardRails.validity.slotsBeforeStale);
+		.gt(oracleGuardRails.validity.slotsBeforeStaleForAmm);
 
 	return !(
 		!oraclePriceData.hasSufficientNumberOfDataPoints ||

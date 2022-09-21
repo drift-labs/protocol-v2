@@ -768,7 +768,8 @@ export type OracleGuardRails = {
 		markOracleDivergenceDenominator: BN;
 	};
 	validity: {
-		slotsBeforeStale: BN;
+		slotsBeforeStaleForAmm: BN;
+		slotsBeforeStaleForMargin: BN;
 		confidenceIntervalMaxSize: BN;
 		tooVolatileRatio: BN;
 	};

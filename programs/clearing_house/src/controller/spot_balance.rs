@@ -67,6 +67,7 @@ pub fn update_spot_market_twap_stats(
         since_last,
         from_start,
     )?)?;
+
     if let Some(oracle_price_data) = oracle_price_data {
         let capped_oracle_update_price = cast_to_u128(oracle_price_data.price)?;
 
