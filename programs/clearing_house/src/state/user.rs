@@ -27,6 +27,7 @@ mod tests;
 #[repr(packed)]
 pub struct User {
     pub authority: Pubkey,
+    pub delegate: Pubkey,
     pub user_id: u8,
     pub name: [u8; 32],
     pub spot_positions: [SpotPosition; 8],

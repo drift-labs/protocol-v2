@@ -589,6 +589,7 @@ export type UserStatsAccount = {
 
 export type UserAccount = {
 	authority: PublicKey;
+	delegate: PublicKey;
 	name: number[];
 	userId: number;
 	spotPositions: SpotPosition[];

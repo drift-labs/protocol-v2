@@ -19,6 +19,7 @@ export type ClearingHouseConfig = {
 	oracleInfos?: OracleInfo[];
 	env?: DriftEnv;
 	userStats?: boolean;
+	authority?: PublicKey; // explicitly pass an authority if signer is delegate
 };
 
 type ClearingHouseSubscriptionConfig =

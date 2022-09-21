@@ -2636,6 +2636,16 @@ pub mod clearing_house {
         Ok(())
     }
 
+    pub fn update_user_delegate(
+        ctx: Context<UpdateUser>,
+        _user_id: u8,
+        delegate: Pubkey,
+    ) -> Result<()> {
+        let mut user = load_mut!(ctx.accounts.user)?;
+        user.delegate = delegate;
+        Ok(())
+    }
+
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
