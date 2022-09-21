@@ -402,6 +402,7 @@ export type StateAccount = {
 	minPerpAuctionDuration: number;
 	defaultSpotAuctionDuration: number;
 	liquidationMarginBufferRatio: number;
+	srmVault: PublicKey;
 };
 
 export type PerpMarketAccount = {

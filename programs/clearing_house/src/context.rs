@@ -134,6 +134,18 @@ pub struct InitializeSerumFulfillmentConfig<'info> {
 }
 
 #[derive(Accounts)]
+pub struct UpdateSerumVault<'info> {
+    #[account(
+        mut,
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub srm_vault: Box<Account<'info, TokenAccount>>,
+}
+
+#[derive(Accounts)]
 pub struct InitializeUserStats<'info> {
     #[account(
         init,
