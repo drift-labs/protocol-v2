@@ -1975,7 +1975,7 @@ pub mod clearing_house {
                 "Market is in settlement mode",
             )?;
 
-            controller::orders::validate_market_within_price_band(&perp_market, state, true, None)?;
+            controller::orders::validate_market_within_price_band(perp_market, state, true, None)?;
 
             controller::insurance::resolve_perp_pnl_deficit(
                 spot_market_vault_amount,

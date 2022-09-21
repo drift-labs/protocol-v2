@@ -722,7 +722,7 @@ pub fn fill_order(
         let market = perp_market_map.get_ref(&market_index)?;
         validate_market_within_price_band(
             &market,
-            &state,
+            state,
             potentially_risk_increasing,
             Some(oracle_mark_spread_pct_before),
         )?;

@@ -26,7 +26,6 @@ use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, meets_initial_margin_requirement,
     MarginRequirementType,
 };
-use crate::math::oracle;
 use crate::math::oracle::OracleValidity;
 use crate::math::orders::{get_position_delta_for_fill, standardize_base_asset_amount};
 use crate::math::position::calculate_base_asset_value_with_oracle_price;

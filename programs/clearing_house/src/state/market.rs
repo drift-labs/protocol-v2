@@ -1,12 +1,10 @@
 use anchor_lang::prelude::*;
 use solana_program::msg;
 use std::cmp::max;
-use switchboard_v2::decimal::SwitchboardDecimal;
-use switchboard_v2::AggregatorAccountData;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
-use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
+use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::LIQUIDATION_FEE_PRECISION;
 use crate::math::constants::{AMM_RESERVE_PRECISION, SPOT_WEIGHT_PRECISION};
 use crate::math::margin::{
@@ -14,7 +12,7 @@ use crate::math::margin::{
     MarginRequirementType,
 };
 use crate::math_error;
-use crate::state::oracle::{OraclePriceData, OracleSource};
+use crate::state::oracle::OracleSource;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::user::PerpPosition;
 use crate::{
@@ -490,25 +488,5 @@ impl AMM {
             .ok_or_else(math_error!())?;
 
         Ok(oracle_twap_scaled)
-    }
-}
-
-/// Given a decimal number represented as a mantissa (the digits) plus an
-/// original_precision (10.pow(some number of decimals)), scale the
-/// mantissa/digits to make sense with a new_precision.
-fn convert_switchboard_decimal(
-    switchboard_decimal: &SwitchboardDecimal,
-) -> ClearingHouseResult<i128> {
-    let switchboard_precision = 10_u128.pow(switchboard_decimal.scale);
-    if switchboard_precision > MARK_PRICE_PRECISION {
-        switchboard_decimal
-            .mantissa
-            .checked_div((switchboard_precision / MARK_PRICE_PRECISION) as i128)
-            .ok_or_else(math_error!())
-    } else {
-        switchboard_decimal
-            .mantissa
-            .checked_mul((MARK_PRICE_PRECISION / switchboard_precision) as i128)
-            .ok_or_else(math_error!())
     }
 }

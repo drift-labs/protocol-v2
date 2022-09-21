@@ -1,15 +1,14 @@
 use crate::error::ClearingHouseResult;
 use crate::math::amm;
-use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
+use crate::math::casting::cast_to_u128;
 use crate::math::constants::BID_ASK_SPREAD_PRECISION;
 use crate::math_error;
 use crate::state::market::AMM;
 use crate::state::oracle::OraclePriceData;
-use crate::state::state::{OracleGuardRails, PriceDivergenceGuardRails, ValidityGuardRails};
-use crate::validate;
+use crate::state::state::{OracleGuardRails, ValidityGuardRails};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
-use std::cmp::{max, min};
+use std::cmp::max;
 
 // ordered by "severity"
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]

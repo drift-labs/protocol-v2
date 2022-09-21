@@ -3,7 +3,7 @@ use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
 use crate::math::bn::U192;
-use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
+use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
@@ -18,7 +18,7 @@ use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
 use crate::math_error;
 use crate::state::market::{PerpMarket, AMM};
 use crate::state::oracle::OraclePriceData;
-use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
+use crate::state::state::PriceDivergenceGuardRails;
 use crate::validate;
 use solana_program::msg;
 use std::cmp::{max, min};
