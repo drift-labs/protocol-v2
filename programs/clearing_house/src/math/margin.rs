@@ -263,7 +263,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
     let mut total_collateral: i128 = 0;
     let mut margin_requirement: u128 = 0;
     let mut margin_requirement_plus_buffer: u128 = 0;
-    let mut all_ = true;
+    let mut all_oracles_valid = true;
 
     let user_custom_margin_ratio = if margin_requirement_type == MarginRequirementType::Initial {
         user.custom_margin_ratio as u128
@@ -281,7 +281,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
             &spot_market.oracle,
             spot_market.historical_oracle_data.last_oracle_price_twap,
         )?;
-        all_ &=
+        all_oracles_valid &=
             is_oracle_valid == OracleValidity::Valid || is_oracle_valid == OracleValidity::Stale;
 
         if spot_market.market_index == 0 {
@@ -429,7 +429,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
             &market.amm.oracle,
             market.amm.historical_oracle_data.last_oracle_price_twap,
         )?;
-        all_ &=
+        all_oracles_valid &=
             is_oracle_valid == OracleValidity::Valid || is_oracle_valid == OracleValidity::Stale;
 
         let (perp_margin_requirement, weighted_pnl, worst_case_base_asset_value) =
@@ -464,7 +464,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
         margin_requirement,
         total_collateral,
         margin_requirement_plus_buffer,
-        all_,
+        all_oracles_valid,
     ))
 }
 

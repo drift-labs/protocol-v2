@@ -3431,9 +3431,21 @@ pub fn trigger_spot_order(
     )?;
 
     let market = spot_market_map.get_ref(&market_index)?;
-    let oracle_price_data = &oracle_map.get_price_data(&market.oracle)?;
+    let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+        &market.oracle,
+        market.historical_oracle_data.last_oracle_price_twap
+    )?;
 
-    // TODO check
+    validate!(
+        !matches!(
+            oracle_validity,
+            OracleValidity::Invalid | OracleValidity::TooVolatile
+        ),
+        ErrorCode::InvalidOracle,
+        "OracleValidity for spot marketIndex={} has InvalidPrice or TooVolatile",
+        market.market_index
+    )?;
+
     let oracle_price = oracle_price_data.price;
 
     let order_slot = user.orders[order_index].slot;
