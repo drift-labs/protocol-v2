@@ -29,7 +29,6 @@ pub fn calculate_jit_base_asset_amount(
             max_jit_amount = max_jit_amount.checked_div(4).ok_or_else(math_error!())?
         }
     } else {
-        // todo: what to do when oracle price is invalid? probs dont take anything?
         max_jit_amount = 0;
     };
 
@@ -39,15 +38,26 @@ pub fn calculate_jit_base_asset_amount(
 
     // check for market imbalance
     // min/max_baa
-    let base_reserve_length = market.amm.max_base_asset_reserve - market.amm.min_base_asset_reserve;
+    let base_reserve_length = market
+        .amm
+        .max_base_asset_reserve
+        .checked_sub(market.amm.min_base_asset_reserve)
+        .ok_or_else(math_error!())?;
+
     let half_base_reserve_length = base_reserve_length
         .checked_div(2)
         .ok_or_else(math_error!())?;
-    let mid_reserve = market.amm.min_base_asset_reserve + half_base_reserve_length;
+
+    let mid_reserve = market
+        .amm
+        .min_base_asset_reserve
+        .checked_add(half_base_reserve_length)
+        .ok_or_else(math_error!())?;
 
     let fourth_base_reserve_length = base_reserve_length
         .checked_div(4)
         .ok_or_else(math_error!())?;
+
     let base_reserve = market.amm.base_asset_reserve;
 
     // min | --|-- mid --|-- | max
@@ -57,10 +67,17 @@ pub fn calculate_jit_base_asset_amount(
     // if we balanced we take 1/4
     // if we not balanced we take 1/2
 
-    let damm_is_imbalanced = base_reserve <= mid_reserve - fourth_base_reserve_length
-        || base_reserve >= mid_reserve + fourth_base_reserve_length;
+    let imbalance_lower_bound = mid_reserve
+        .checked_sub(fourth_base_reserve_length)
+        .ok_or_else(math_error!())?;
+    let imbalance_upper_bound = mid_reserve
+        .checked_sub(fourth_base_reserve_length)
+        .ok_or_else(math_error!())?;
 
-    let mut jit_base_asset_amount = if damm_is_imbalanced {
+    let amm_is_imbalanced =
+        base_reserve <= imbalance_lower_bound || base_reserve >= imbalance_upper_bound;
+
+    let mut jit_base_asset_amount = if amm_is_imbalanced {
         taker_base_asset_amount
             .checked_div(2)
             .ok_or_else(math_error!())?
