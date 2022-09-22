@@ -1226,6 +1226,8 @@ pub mod liquidate_borrow_for_perp_pnl {
     use crate::controller::liquidation::liquidate_borrow_for_perp_pnl;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
+    use crate::state::oracle::HistoricalOracleData;
+
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
         PEG_PRECISION, QUOTE_PRECISION_I128, SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1322,6 +1324,10 @@ pub mod liquidate_borrow_for_perp_pnl {
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: SPOT_INTEREST_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -1465,6 +1471,10 @@ pub mod liquidate_borrow_for_perp_pnl {
             borrow_balance: SPOT_INTEREST_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -1645,6 +1655,10 @@ pub mod liquidate_borrow_for_perp_pnl {
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: SPOT_INTEREST_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -1719,6 +1733,8 @@ pub mod liquidate_perp_pnl_for_deposit {
     use crate::controller::liquidation::liquidate_perp_pnl_for_deposit;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
+    use crate::state::oracle::HistoricalOracleData;
+
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
         PEG_PRECISION, QUOTE_PRECISION_I128, SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1810,6 +1826,10 @@ pub mod liquidate_perp_pnl_for_deposit {
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: 0,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -1953,6 +1973,10 @@ pub mod liquidate_perp_pnl_for_deposit {
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: 0,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -2098,6 +2122,10 @@ pub mod liquidate_perp_pnl_for_deposit {
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: 0,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);

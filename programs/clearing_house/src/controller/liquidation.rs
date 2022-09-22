@@ -543,7 +543,6 @@ pub fn liquidate_borrow(
             &spot_position.balance_type,
         )?;
 
-        // TODO add oracle checks
         let liability_price = liability_price_data.price;
 
         (
@@ -901,7 +900,19 @@ pub fn liquidate_borrow_for_perp_pnl(
         liability_liquidation_multiplier,
     ) = {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
-        let liability_price_data = oracle_map.get_price_data(&liability_market.oracle)?;
+        let (liability_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+            &liability_market.oracle,
+            liability_market
+                .historical_oracle_data
+                .last_oracle_price_twap,
+        )?;
+
+        validate!(
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::Liquidate))?,
+            ErrorCode::InvalidOracle,
+            "Invalid Oracle to Liquidate spot liability marketIndex={}",
+            liability_market.market_index
+        )?;
 
         update_spot_market_cumulative_interest(
             &mut liability_market,
@@ -922,8 +933,6 @@ pub fn liquidate_borrow_for_perp_pnl(
             &liability_market,
             &spot_position.balance_type,
         )?;
-
-        // TODO add oracle checks
 
         (
             token_amount,
@@ -1215,8 +1224,18 @@ pub fn liquidate_perp_pnl_for_deposit(
     let (asset_amount, asset_price, asset_decimals, asset_weight, asset_liquidation_multiplier) = {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
 
-        // TODO add oracle checks
-        let oracle_price_data = oracle_map.get_price_data(&asset_market.oracle)?;
+        let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+            &asset_market.oracle,
+            asset_market.historical_oracle_data.last_oracle_price_twap,
+        )?;
+
+        validate!(
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::Liquidate))?,
+            ErrorCode::InvalidOracle,
+            "Invalid Oracle to Liquidate spot asset marketIndex={}",
+            asset_market.market_index
+        )?;
+
         let token_price = oracle_price_data.price;
         update_spot_market_cumulative_interest(&mut asset_market, Some(oracle_price_data), now)?;
 
