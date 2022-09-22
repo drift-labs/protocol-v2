@@ -13,7 +13,7 @@ pub const QUOTE_PRECISION_U64: u64 = 1_000_000; // expo = -6
 pub const FUNDING_PAYMENT_PRECISION: u128 = 10_000; // expo = -4
 pub const FUNDING_PAYMENT_PRECISION_I128: i128 = 10_000; // expo = -4
 pub const MARGIN_PRECISION: u128 = 10_000; // expo = -4
-pub const PEG_PRECISION: u128 = 1_000; //expo = -3
+pub const PEG_PRECISION: u128 = 1_000_000; //expo = -3
 pub const BID_ASK_SPREAD_PRECISION: u128 = 1_000_000; // expo = -6
 pub const BID_ASK_SPREAD_PRECISION_I128: i128 = (BID_ASK_SPREAD_PRECISION) as i128;
 pub const LAMPORT_PER_SOL: u128 = LAMPORTS_PER_SOL as u128;

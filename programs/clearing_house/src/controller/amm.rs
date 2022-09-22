@@ -27,6 +27,8 @@ use crate::controller::repeg::apply_cost_to_market;
 use crate::controller::spot_balance::{update_revenue_pool_balances, update_spot_balances};
 use crate::controller::spot_position::update_spot_position_balance;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
+use serde::{Serialize, Serializer};
+use std::fmt::{Debug, Formatter};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SwapDirection {
@@ -1359,32 +1361,172 @@ mod test {
 
     mod test_calculate_base_swap_output_with_spread {
         use crate::controller::amm::{calculate_base_swap_output_with_spread, SwapDirection};
-        use crate::math::constants::{AMM_RESERVE_PRECISION, BASE_PRECISION, PEG_PRECISION};
+        use crate::controller::position::PositionDirection;
+        use crate::math::amm::{
+            calculate_price, calculate_quote_asset_amount_swapped, calculate_swap_output,
+            get_spread_reserves,
+        };
+        use crate::math::constants::{
+            AMM_RESERVE_PRECISION, BASE_PRECISION, MARK_PRICE_PRECISION, PEG_PRECISION,
+            QUOTE_PRECISION,
+        };
         use crate::state::market::AMM;
+
+        use std::error::Error;
+        use std::io;
+        use std::process;
+
+        use serde::de::Unexpected::Float;
+        use serde::Serialize;
+
+        #[derive(Debug, Serialize)]
+        struct SwapRecord {
+            amm_decimals: u32,
+            base_decimals: i32,
+            amm_reserve_multiplier: u128,
+            direction: String,
+            entry_price: f64,
+            quote_asset_amount: u128,
+            base_asset_amount: u128,
+            peg_price: f64,
+            peg_decimals: u32,
+            reserve_price: f64,
+            ask_price: f64,
+            bid_price: f64,
+        }
 
         #[test]
         fn test() {
-            let amm = AMM {
-                base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 630153846154000,
-                ask_base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 630153846154000,
-                bid_base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 630153846154000,
-                sqrt_k: 64 * AMM_RESERVE_PRECISION,
+            let amm_decimals: [u32; 4] = [6, 8, 10, 13];
+            let base_decimals: [i32; 4] = [-4, -3, -2, -1];
+            let amm_reserve_multiplier: [u128; 2] = [1, 10];
+            let peg_decimal = 6_u32;
+            let peg_numerator_denominators: [(u128, u128); 2] = [(19_400, 1), (1, 10)];
+            let swap_directions = [SwapDirection::Add, SwapDirection::Remove];
 
-                peg_multiplier: 19_400 * PEG_PRECISION,
+            let mut wtr =
+                csv::Writer::from_path("/Users/crisp/Developer/protocol-v2/swap-test.csv").unwrap();
+            for amm_decimals in amm_decimals {
+                for amm_reserve_multiplier in amm_reserve_multiplier {
+                    for (peg_numerator, peg_denominator) in peg_numerator_denominators {
+                        for swap_direction in swap_directions {
+                            for base_decimal in base_decimals {
+                                let record = test_swap(
+                                    base_decimal,
+                                    amm_decimals,
+                                    amm_reserve_multiplier,
+                                    peg_decimal,
+                                    peg_numerator,
+                                    peg_denominator,
+                                    swap_direction,
+                                );
+                                wtr.serialize(record).unwrap();
+                            }
+                        }
+                    }
+                }
+            }
+
+            wtr.flush().unwrap();
+        }
+
+        fn test_swap(
+            base_decimals: i32,
+            amm_decimals: u32,
+            amm_reserve_multiplier: u128,
+            peg_decimals: u32,
+            peg_numerator: u128,
+            peg_denominator: u128,
+            swap_direction: SwapDirection,
+        ) -> SwapRecord {
+            let amm_precision = 10_u128.pow(amm_decimals);
+            let peg_precision = 10_u128.pow(peg_decimals);
+            let peg_multiplier = peg_precision * peg_numerator / peg_denominator;
+            let amm = AMM {
+                base_asset_reserve: amm_reserve_multiplier * amm_precision,
+                quote_asset_reserve: amm_reserve_multiplier * amm_precision,
+                ask_base_asset_reserve: amm_reserve_multiplier * amm_precision * 999 / 1000,
+                ask_quote_asset_reserve: amm_reserve_multiplier * amm_precision * 1001 / 1000,
+                bid_base_asset_reserve: amm_reserve_multiplier * amm_precision * 1001 / 1000,
+                bid_quote_asset_reserve: amm_reserve_multiplier * amm_precision * 999 / 1000,
+                sqrt_k: amm_reserve_multiplier * amm_precision,
+
+                peg_multiplier,
                 ..AMM::default()
             };
-            let base_asset_amount = 10000000;
-            // let base_asset_amount = BASE_PRECISION;
-            let direction = SwapDirection::Remove;
 
-            let (_, _, quote_asset_amount, _) =
-                calculate_base_swap_output_with_spread(&amm, base_asset_amount, direction).unwrap();
+            let base_asset_amount = amm_precision / 10_u128.pow(base_decimals.unsigned_abs());
 
-            println!("quote asset amount {}", quote_asset_amount);
-            println!("base_asset_amount {}", base_asset_amount);
+            let (base_asset_reserve_with_spread, quote_asset_reserve_with_spread) =
+                get_spread_reserves(
+                    &amm,
+                    match swap_direction {
+                        SwapDirection::Add => PositionDirection::Short,
+                        SwapDirection::Remove => PositionDirection::Long,
+                    },
+                )
+                .unwrap();
+
+            let (new_quote_asset_reserve_with_spread, _) = calculate_swap_output(
+                base_asset_amount,
+                base_asset_reserve_with_spread,
+                swap_direction,
+                amm.sqrt_k,
+            )
+            .unwrap();
+
+            let quote_asset_reserve_change = match swap_direction {
+                SwapDirection::Add => quote_asset_reserve_with_spread
+                    .checked_sub(new_quote_asset_reserve_with_spread)
+                    .unwrap(),
+
+                SwapDirection::Remove => new_quote_asset_reserve_with_spread
+                    .checked_sub(quote_asset_reserve_with_spread)
+                    .unwrap(),
+            };
+
+            let quote_asset_amount = quote_asset_reserve_change * peg_multiplier
+                / (amm_precision * peg_precision / QUOTE_PRECISION);
+
+            let entry_price = (quote_asset_amount * (amm_precision / QUOTE_PRECISION)) as f64
+                / (base_asset_amount) as f64;
+
+            let peg_price = peg_multiplier as f64 / peg_precision as f64;
+
+            let reserve_price = amm.mark_price().unwrap() as f64 / MARK_PRICE_PRECISION as f64;
+            let ask_price = calculate_price(
+                amm.ask_quote_asset_reserve,
+                amm.ask_base_asset_reserve,
+                amm.peg_multiplier,
+            )
+            .unwrap() as f64
+                / MARK_PRICE_PRECISION as f64;
+            let bid_price = calculate_price(
+                amm.bid_quote_asset_reserve,
+                amm.bid_base_asset_reserve,
+                amm.peg_multiplier,
+            )
+            .unwrap() as f64
+                / MARK_PRICE_PRECISION as f64;
+
+            SwapRecord {
+                base_decimals,
+                amm_decimals,
+                peg_decimals,
+                peg_price,
+                entry_price,
+                amm_reserve_multiplier,
+                direction: if swap_direction == SwapDirection::Remove {
+                    String::from("long")
+                } else {
+                    String::from("short")
+                },
+                bid_price,
+                ask_price,
+                reserve_price,
+                base_asset_amount,
+                quote_asset_amount,
+            }
         }
     }
 }
