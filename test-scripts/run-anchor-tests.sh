@@ -5,33 +5,27 @@ if [ "$1" != "--skip-build" ]
 fi
 
 test_files=(
-#   imbalancePerpPnl.ts
-#   delistMarket.ts delistMarketLiq.ts
-#   triggerSpotOrder.ts
-#   serumTest.ts
-#   liquidityProvider.ts
-#   insuranceFundStake.ts
-#   liquidateBorrow.ts
-#   liquidateBorrowSocialLoss.ts
-#   referrer.ts
-#   liquidatePerpPnlForDeposit.ts liquidateBorrowForPerpPnl.ts
-#   liquidatePerp.ts
-#   order.ts spotDepositWithdraw.ts prepegMarketOrderBaseAssetAmount.ts
-#   updateAMM.ts 
-#   repegAndSpread.ts 
-#   clearingHouse.ts 
-#   ordersWithSpread.ts
-#   marketOrder.ts triggerOrders.ts stopLimits.ts userOrderId.ts postOnly.ts
-#   roundInFavorBaseAsset.ts marketOrderBaseAssetAmount.ts oracleOffsetOrders.ts
-#   userDelegate.ts 
-#   subaccounts.ts 
-# pyth.ts  
-#   userAccount.ts admin.ts 
-updateK.ts #todo
-adminWithdraw.ts #todo
-#   curve.ts 
-#   roundInFavor.ts 
-#   cappedSymFunding.ts
+  imbalancePerpPnl.ts
+  delistMarket.ts delistMarketLiq.ts
+  triggerSpotOrder.ts
+  serumTest.ts
+  liquidityProvider.ts
+  insuranceFundStake.ts
+  liquidateBorrow.ts
+  liquidateBorrowSocialLoss.ts
+  referrer.ts
+  liquidatePerpPnlForDeposit.ts liquidateBorrowForPerpPnl.ts
+  liquidatePerp.ts
+  order.ts spotDepositWithdraw.ts prepegMarketOrderBaseAssetAmount.ts
+  updateAMM.ts repegAndSpread.ts 
+  clearingHouse.ts 
+  ordersWithSpread.ts
+  marketOrder.ts triggerOrders.ts stopLimits.ts userOrderId.ts postOnly.ts
+  roundInFavorBaseAsset.ts marketOrderBaseAssetAmount.ts oracleOffsetOrders.ts
+  userDelegate.ts subaccounts.ts pyth.ts userAccount.ts admin.ts 
+  updateK.ts 
+  adminWithdraw.ts
+  curve.ts roundInFavor.ts cappedSymFunding.ts
 )
 
 for test_file in ${test_files[@]}; do

@@ -604,6 +604,7 @@ describe('update k', () => {
 		);
 		console.log(numer1.toString(), '/', denom1.toString());
 
-		assert(denom1.lt(new BN(0))); // throws negative
+		assert(numer1.eq(new BN(10000))); // max k
+		assert(denom1.eq(new BN(1))); // max k
 	});
 });
