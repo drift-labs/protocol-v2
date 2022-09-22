@@ -2724,7 +2724,6 @@ pub mod fill_order {
     }
 }
 
-
 #[cfg(test)]
 pub mod fulfill_spot_order_with_match {
     use crate::controller::orders::fulfill_spot_order_with_match;

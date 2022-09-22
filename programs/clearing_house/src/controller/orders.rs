@@ -47,9 +47,9 @@ use crate::math::serum::{
     calculate_serum_max_native_pc_quantity,
 };
 use crate::math::spot_balance::get_token_amount;
+use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::math_error;
-use crate::order_validation::{validate_order, validate_spot_order};
 use crate::print_error;
 use crate::state::events::{get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
@@ -66,6 +66,7 @@ use crate::state::state::*;
 use crate::state::user::{AssetType, Order, OrderStatus, OrderType, UserStats};
 use crate::state::user::{MarketType, User};
 use crate::validate;
+use crate::validation::order::{validate_order, validate_spot_order};
 
 #[cfg(test)]
 mod tests;
@@ -2992,12 +2993,47 @@ pub fn fulfill_spot_order_with_serum(
     let order_direction = taker.orders[taker_order_index].direction;
     let taker_order_ts = taker.orders[taker_order_index].ts;
 
-    let (_best_bid, _best_ask) = get_best_bid_and_ask(
+    let (best_bid, best_ask) = get_best_bid_and_ask(
         serum_new_order_accounts.serum_market,
         serum_new_order_accounts.serum_bids,
         serum_new_order_accounts.serum_asks,
         serum_new_order_accounts.serum_program_id.key,
         base_market.decimals as u32,
+    )?;
+
+    let mut mid_price = 0;
+    if let Some(best_bid) = best_bid {
+        base_market.historical_index_data.last_index_bid_price = best_bid;
+        mid_price += best_bid;
+    }
+
+    if let Some(best_ask) = best_ask {
+        base_market.historical_index_data.last_index_ask_price = best_ask;
+        mid_price = if mid_price == 0 {
+            best_ask
+        } else {
+            mid_price
+                .checked_add(best_ask)
+                .ok_or_else(math_error!())?
+                .checked_div(2)
+                .ok_or_else(math_error!())?
+        };
+    }
+
+    base_market.historical_index_data.last_index_price_twap = calculate_new_twap(
+        mid_price,
+        now,
+        base_market.historical_index_data.last_index_price_twap,
+        base_market.historical_index_data.last_index_price_twap_ts,
+        60 * 60,
+    )?;
+
+    base_market.historical_index_data.last_index_price_twap_5min = calculate_new_twap(
+        mid_price,
+        now,
+        base_market.historical_index_data.last_index_price_twap_5min,
+        base_market.historical_index_data.last_index_price_twap_ts,
+        60 * 5,
     )?;
 
     let market_state_before = load_serum_market(

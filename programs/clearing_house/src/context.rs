@@ -972,8 +972,10 @@ pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
 }
 
 fn can_sign_for_user(user: &AccountLoader<User>, signer: &Signer) -> Result<bool> {
-    user.load()
-        .map(|user| user.authority.eq(signer.key) || user.delegate.eq(signer.key))
+    user.load().map(|user| {
+        user.authority.eq(signer.key)
+            || (user.delegate.eq(signer.key) && !user.delegate.eq(&Pubkey::default()))
+    })
 }
 
 fn is_stats_for_user(

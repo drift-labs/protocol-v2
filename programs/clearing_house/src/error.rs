@@ -263,6 +263,8 @@ pub enum ErrorCode {
     FailedToFillOnSerum,
     #[msg("InvalidSerumFulfillmentConfig")]
     InvalidSerumFulfillmentConfig,
+    #[msg("InvalidFeeStructure")]
+    InvalidFeeStructure,
 }
 
 #[macro_export]

@@ -8,7 +8,7 @@ test_files=(
 #   imbalancePerpPnl.ts
 #   delistMarket.ts delistMarketLiq.ts
 #   triggerSpotOrder.ts
-#   serumTest.ts
+  serumTest.ts
 #   liquidityProvider.ts
   insuranceFundStake.ts
   liquidateBorrow.ts

@@ -2,8 +2,11 @@
 #![allow(unaligned_references)]
 #![allow(clippy::bool_assert_comparison)]
 
+use std::convert::identity;
+
 use anchor_lang::prelude::*;
 use borsh::BorshSerialize;
+use serum_dex::state::ToAlignedBytes;
 
 use context::*;
 use error::ErrorCode;
@@ -21,17 +24,13 @@ pub mod controller;
 pub mod error;
 pub mod ids;
 pub mod macros;
-mod margin_validation;
 pub mod math;
 pub mod optional_accounts;
-pub mod order_validation;
 mod signer;
 pub mod state;
 #[cfg(test)]
 mod tests;
-
-use serum_dex::state::ToAlignedBytes;
-use std::convert::identity;
+mod validation;
 
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
@@ -46,7 +45,6 @@ pub mod clearing_house {
     use crate::controller::lp::burn_lp_shares;
     use crate::controller::position::{add_new_position, get_position_index};
     use crate::controller::validate::validate_market_account;
-    use crate::margin_validation::validate_margin;
     use crate::math;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
     use crate::math::oracle::OracleValidity;
@@ -54,7 +52,6 @@ pub mod clearing_house {
     use crate::optional_accounts::{
         get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
     };
-
     use crate::state::events::{CurveRecord, DepositRecord};
     use crate::state::events::{DepositDirection, NewUserRecord};
     use crate::state::market::{PerpMarket, PoolBalance};
@@ -70,12 +67,14 @@ pub mod clearing_house {
     use crate::state::spot_market_map::{
         get_writable_spot_market_set, SpotMarketMap, SpotMarketSet,
     };
+    use crate::validation::margin::validate_margin;
 
     use super::*;
     use crate::math::insurance::if_shares_to_vault_amount;
     use crate::state::insurance_fund_stake::InsuranceFundStake;
     use crate::state::serum::{load_open_orders, load_serum_market};
     use crate::state::state::FeeStructure;
+    use crate::validation::fee_structure::validate_fee_structure;
     use bytemuck::cast_slice;
     use std::mem::size_of;
 
@@ -3231,6 +3230,8 @@ pub mod clearing_house {
         ctx: Context<AdminUpdateState>,
         fee_structure: FeeStructure,
     ) -> Result<()> {
+        validate_fee_structure(&fee_structure)?;
+
         ctx.accounts.state.perp_fee_structure = fee_structure;
         Ok(())
     }
@@ -3239,6 +3240,7 @@ pub mod clearing_house {
         ctx: Context<AdminUpdateState>,
         fee_structure: FeeStructure,
     ) -> Result<()> {
+        validate_fee_structure(&fee_structure)?;
         ctx.accounts.state.spot_fee_structure = fee_structure;
         Ok(())
     }
