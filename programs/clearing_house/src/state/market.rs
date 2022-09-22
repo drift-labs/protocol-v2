@@ -7,8 +7,8 @@ use switchboard_v2::AggregatorAccountData;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
-use crate::math::constants::LIQUIDATION_FEE_PRECISION;
 use crate::math::constants::{AMM_RESERVE_PRECISION, SPOT_WEIGHT_PRECISION};
+use crate::math::constants::{LIQUIDATION_FEE_PRECISION, PEG_PRECISION};
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
@@ -375,7 +375,7 @@ impl AMM {
             terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
             sqrt_k: 64 * AMM_RESERVE_PRECISION,
 
-            peg_multiplier: 19_400_000,
+            peg_multiplier: 19_400 * PEG_PRECISION,
 
             concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
             max_base_asset_reserve: 90 * AMM_RESERVE_PRECISION,

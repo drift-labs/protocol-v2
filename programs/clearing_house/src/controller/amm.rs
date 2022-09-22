@@ -1356,4 +1356,35 @@ mod test {
             market.max_revenue_withdraw_per_period
         );
     }
+
+    mod test_calculate_base_swap_output_with_spread {
+        use crate::controller::amm::{calculate_base_swap_output_with_spread, SwapDirection};
+        use crate::math::constants::{AMM_RESERVE_PRECISION, BASE_PRECISION, PEG_PRECISION};
+        use crate::state::market::AMM;
+
+        #[test]
+        fn test() {
+            let amm = AMM {
+                base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 630153846154000,
+                ask_base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 630153846154000,
+                bid_base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 630153846154000,
+                sqrt_k: 64 * AMM_RESERVE_PRECISION,
+
+                peg_multiplier: 19_400 * PEG_PRECISION,
+                ..AMM::default()
+            };
+            let base_asset_amount = 10000000;
+            // let base_asset_amount = BASE_PRECISION;
+            let direction = SwapDirection::Remove;
+
+            let (_, _, quote_asset_amount, _) =
+                calculate_base_swap_output_with_spread(&amm, base_asset_amount, direction).unwrap();
+
+            println!("quote asset amount {}", quote_asset_amount);
+            println!("base_asset_amount {}", base_asset_amount);
+        }
+    }
 }
