@@ -2750,6 +2750,8 @@ pub mod clearing_house {
             let max_cost = market
                 .amm
                 .total_fee_minus_distributions
+                .checked_sub(cast_to_i128(get_total_fee_lower_bound(market)?)?)
+                .ok_or_else(math_error!())?
                 .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
                 .ok_or_else(math_error!())?;
             if adjustment_cost > max_cost {
