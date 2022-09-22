@@ -70,12 +70,13 @@ pub fn calculate_jit_base_asset_amount(
     let imbalance_lower_bound = mid_reserve
         .checked_sub(fourth_base_reserve_length)
         .ok_or_else(math_error!())?;
+
     let imbalance_upper_bound = mid_reserve
-        .checked_sub(fourth_base_reserve_length)
+        .checked_add(fourth_base_reserve_length)
         .ok_or_else(math_error!())?;
 
     let amm_is_imbalanced =
-        base_reserve <= imbalance_lower_bound || base_reserve >= imbalance_upper_bound;
+        base_reserve < imbalance_lower_bound || base_reserve > imbalance_upper_bound;
 
     let mut jit_base_asset_amount = if amm_is_imbalanced {
         taker_base_asset_amount
