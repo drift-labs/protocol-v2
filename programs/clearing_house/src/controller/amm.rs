@@ -1376,6 +1376,7 @@ mod test {
         use std::io;
         use std::process;
 
+        use crate::math::bn::U192;
         use serde::de::Unexpected::Float;
         use serde::Serialize;
 
@@ -1397,9 +1398,9 @@ mod test {
 
         #[test]
         fn test() {
-            let amm_decimals: [u32; 4] = [6, 8, 10, 13];
-            let base_decimals: [i32; 4] = [-4, -3, -2, -1];
-            let amm_reserve_multiplier: [u128; 2] = [1, 10];
+            let amm_decimals: [u32; 6] = [6, 7, 8, 9, 10, 13];
+            let base_decimals: [i32; 5] = [-4, -3, -2, -1, 0];
+            let amm_reserve_multiplier: [u128; 3] = [2, 10, 100];
             let peg_decimal = 6_u32;
             let peg_numerator_denominators: [(u128, u128); 2] = [(19_400, 1), (1, 10)];
             let swap_directions = [SwapDirection::Add, SwapDirection::Remove];
@@ -1427,6 +1428,8 @@ mod test {
                 }
             }
 
+            // let record = test_swap(-4, 13, 100, 6, 19400, 1, SwapDirection::Remove);
+
             wtr.flush().unwrap();
         }
 
@@ -1442,14 +1445,29 @@ mod test {
             let amm_precision = 10_u128.pow(amm_decimals);
             let peg_precision = 10_u128.pow(peg_decimals);
             let peg_multiplier = peg_precision * peg_numerator / peg_denominator;
+
+            let sqrt_k = amm_reserve_multiplier * amm_precision;
+
+            let ask_base_asset_reserve = amm_reserve_multiplier * amm_precision * 999 / 1000;
+            let sqrt_k_u192 = U192::from(sqrt_k);
+            let ask_quote_asset_reserve = (sqrt_k_u192 * sqrt_k_u192
+                / U192::from(ask_base_asset_reserve))
+            .to_u128()
+            .unwrap();
+            let bid_base_asset_reserve = amm_reserve_multiplier * amm_precision * 1001 / 1000;
+            let bid_quote_asset_reserve = (sqrt_k_u192 * sqrt_k_u192
+                / U192::from(bid_base_asset_reserve))
+            .to_u128()
+            .unwrap();
+
             let amm = AMM {
                 base_asset_reserve: amm_reserve_multiplier * amm_precision,
                 quote_asset_reserve: amm_reserve_multiplier * amm_precision,
-                ask_base_asset_reserve: amm_reserve_multiplier * amm_precision * 999 / 1000,
-                ask_quote_asset_reserve: amm_reserve_multiplier * amm_precision * 1001 / 1000,
-                bid_base_asset_reserve: amm_reserve_multiplier * amm_precision * 1001 / 1000,
-                bid_quote_asset_reserve: amm_reserve_multiplier * amm_precision * 999 / 1000,
-                sqrt_k: amm_reserve_multiplier * amm_precision,
+                ask_base_asset_reserve,
+                ask_quote_asset_reserve,
+                bid_base_asset_reserve,
+                bid_quote_asset_reserve,
+                sqrt_k,
 
                 peg_multiplier,
                 ..AMM::default()
