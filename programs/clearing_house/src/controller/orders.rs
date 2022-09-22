@@ -42,7 +42,6 @@ use crate::math::serum::{
 use crate::math::spot_balance::get_token_amount;
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::math_error;
-use crate::order_validation::{validate_order, validate_spot_order};
 use crate::print_error;
 use crate::state::events::{get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
@@ -54,10 +53,12 @@ use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::serum::{load_market_state, load_open_orders};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
+use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::user::{AssetType, Order, OrderStatus, OrderType, UserStats};
 use crate::state::user::{MarketType, User};
 use crate::validate;
+use crate::validation::order::{validate_order, validate_spot_order};
 use serum_dex::instruction::{NewOrderInstructionV3, SelfTradeBehavior};
 use serum_dex::matching::Side;
 use std::cell::RefMut;
@@ -502,8 +503,8 @@ pub fn fill_order(
     // settle lp position so its tradeable
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
-    controller::lp::settle_lp(user, &user_key, &mut market, now)?;
     controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
+    controller::lp::settle_lp(user, &user_key, &mut market, now)?;
 
     drop(market);
 
@@ -537,7 +538,7 @@ pub fn fill_order(
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         market_is_reduce_only = market.is_reduce_only()?;
-        controller::validate::validate_market_account(market)?;
+        // controller::validate::validate_market_account(market)?;
         validate!(
             market.is_active(now)?,
             ErrorCode::DefaultError,
@@ -1234,7 +1235,8 @@ pub fn fulfill_order_with_amm(
         referrer_reward,
         fee_to_market_for_lp,
         ..
-    } = fees::calculate_fee_for_order_fulfill_against_amm(
+    } = fees::calculate_fee_for_fulfillment_with_amm(
+        user_stats,
         quote_asset_amount,
         fee_structure,
         order_ts,
@@ -1262,6 +1264,20 @@ pub fn fulfill_order_with_amm(
         fee_to_market_for_lp,
         split_with_lps,
     )?;
+
+    if market.amm.user_lp_shares > 0 {
+        let (new_terminal_quote_reserve, new_terminal_base_reserve) =
+            crate::math::amm::calculate_terminal_reserves(&market.amm)?;
+        market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
+
+        let (min_base_asset_reserve, max_base_asset_reserve) =
+            crate::math::amm::calculate_bid_ask_bounds(
+                market.amm.concentration_coef,
+                new_terminal_base_reserve,
+            )?;
+        market.amm.min_base_asset_reserve = min_base_asset_reserve;
+        market.amm.max_base_asset_reserve = max_base_asset_reserve;
+    }
 
     // Increment the clearing house's total fee variables
     market.amm.total_fee = market
@@ -1586,6 +1602,8 @@ pub fn fulfill_order_with_match(
         referee_discount,
         ..
     } = fees::calculate_fee_for_fulfillment_with_match(
+        taker_stats,
+        maker_stats,
         quote_asset_amount,
         fee_structure,
         taker.orders[taker_order_index].ts,
@@ -1593,6 +1611,7 @@ pub fn fulfill_order_with_match(
         filler.is_some(),
         reward_referrer,
         referrer_stats,
+        &MarketType::Perp,
     )?;
 
     // Increment the markets house's total fee variables
@@ -2754,6 +2773,8 @@ pub fn fulfill_spot_order_with_match(
         fee_to_market,
         ..
     } = fees::calculate_fee_for_fulfillment_with_match(
+        taker_stats,
+        maker_stats,
         quote_asset_amount,
         fee_structure,
         taker_order_ts,
@@ -2761,6 +2782,7 @@ pub fn fulfill_spot_order_with_match(
         filler.is_some(),
         false,
         &None,
+        &MarketType::Spot,
     )?;
 
     // Update taker state
@@ -3160,6 +3182,7 @@ pub fn fulfill_spot_order_with_serum(
         fee_pool_delta,
         filler_reward,
     } = fees::calculate_fee_for_fulfillment_with_serum(
+        taker_stats,
         quote_asset_amount_filled,
         fee_structure,
         taker_order_ts,

@@ -1810,6 +1810,31 @@
       ]
     },
     {
+      "name": "updateUserDelegate",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "userId",
+          "type": "u8"
+        },
+        {
+          "name": "delegate",
+          "type": "publicKey"
+        }
+      ]
+    },
+    {
       "name": "settleFundingPayment",
       "accounts": [
         {
@@ -2253,7 +2278,7 @@
       ]
     },
     {
-      "name": "updateFee",
+      "name": "updatePerpFeeStructure",
       "accounts": [
         {
           "name": "admin",
@@ -2268,7 +2293,7 @@
       ],
       "args": [
         {
-          "name": "fees",
+          "name": "feeStructure",
           "type": {
             "defined": "FeeStructure"
           }
@@ -2276,7 +2301,7 @@
       ]
     },
     {
-      "name": "updateOrderFillerRewardStructure",
+      "name": "updateSpotFeeStructure",
       "accounts": [
         {
           "name": "admin",
@@ -2291,9 +2316,9 @@
       ],
       "args": [
         {
-          "name": "orderFillerRewardStructure",
+          "name": "feeStructure",
           "type": {
-            "defined": "OrderFillerRewardStructure"
+            "defined": "FeeStructure"
           }
         }
       ]
@@ -2971,6 +2996,42 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "updateUserQuoteAssetInsuranceStake",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -3448,18 +3509,6 @@
             "type": "publicKey"
           },
           {
-            "name": "perpFeeStructure",
-            "type": {
-              "defined": "FeeStructure"
-            }
-          },
-          {
-            "name": "spotFeeStructure",
-            "type": {
-              "defined": "FeeStructure"
-            }
-          },
-          {
             "name": "whitelistMint",
             "type": "publicKey"
           },
@@ -3512,6 +3561,18 @@
           {
             "name": "signerNonce",
             "type": "u8"
+          },
+          {
+            "name": "perpFeeStructure",
+            "type": {
+              "defined": "FeeStructure"
+            }
+          },
+          {
+            "name": "spotFeeStructure",
+            "type": {
+              "defined": "FeeStructure"
+            }
           }
         ]
       }
@@ -3523,6 +3584,10 @@
         "fields": [
           {
             "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "delegate",
             "type": "publicKey"
           },
           {
@@ -3620,6 +3685,14 @@
             "type": "u64"
           },
           {
+            "name": "currentEpochReferrerReward",
+            "type": "u64"
+          },
+          {
+            "name": "nextEpochTs",
+            "type": "i64"
+          },
+          {
             "name": "fees",
             "type": {
               "defined": "UserFees"
@@ -3650,8 +3723,8 @@
             "type": "i64"
           },
           {
-            "name": "quoteAssetInsuranceFundStake",
-            "type": "u128"
+            "name": "stakedQuoteAssetAmount",
+            "type": "u64"
           }
         ]
       }
@@ -4342,38 +4415,25 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "feeNumerator",
-            "type": "u128"
-          },
-          {
-            "name": "feeDenominator",
-            "type": "u128"
-          },
-          {
-            "name": "discountTokenTiers",
+            "name": "feeTiers",
             "type": {
-              "defined": "DiscountTokenTiers"
+              "array": [
+                {
+                  "defined": "FeeTier"
+                },
+                10
+              ]
             }
-          },
-          {
-            "name": "referralDiscount",
-            "type": {
-              "defined": "ReferralDiscount"
-            }
-          },
-          {
-            "name": "makerRebateNumerator",
-            "type": "u128"
-          },
-          {
-            "name": "makerRebateDenominator",
-            "type": "u128"
           },
           {
             "name": "fillerRewardStructure",
             "type": {
               "defined": "OrderFillerRewardStructure"
             }
+          },
+          {
+            "name": "referrerRewardEpochUpperBound",
+            "type": "u64"
           },
           {
             "name": "flatFillerFee",
@@ -4383,77 +4443,41 @@
       }
     },
     {
-      "name": "DiscountTokenTiers",
+      "name": "FeeTier",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "firstTier",
-            "type": {
-              "defined": "DiscountTokenTier"
-            }
+            "name": "feeNumerator",
+            "type": "u32"
           },
           {
-            "name": "secondTier",
-            "type": {
-              "defined": "DiscountTokenTier"
-            }
+            "name": "feeDenominator",
+            "type": "u32"
           },
           {
-            "name": "thirdTier",
-            "type": {
-              "defined": "DiscountTokenTier"
-            }
+            "name": "makerRebateNumerator",
+            "type": "u32"
           },
           {
-            "name": "fourthTier",
-            "type": {
-              "defined": "DiscountTokenTier"
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "DiscountTokenTier",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "minimumBalance",
-            "type": "u64"
+            "name": "makerRebateDenominator",
+            "type": "u32"
           },
-          {
-            "name": "discountNumerator",
-            "type": "u128"
-          },
-          {
-            "name": "discountDenominator",
-            "type": "u128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "ReferralDiscount",
-      "type": {
-        "kind": "struct",
-        "fields": [
           {
             "name": "referrerRewardNumerator",
-            "type": "u128"
+            "type": "u32"
           },
           {
             "name": "referrerRewardDenominator",
-            "type": "u128"
+            "type": "u32"
           },
           {
-            "name": "refereeDiscountNumerator",
-            "type": "u128"
+            "name": "refereeFeeNumerator",
+            "type": "u32"
           },
           {
-            "name": "refereeDiscountDenominator",
-            "type": "u128"
+            "name": "refereeFeeDenominator",
+            "type": "u32"
           }
         ]
       }
@@ -4465,11 +4489,11 @@
         "fields": [
           {
             "name": "rewardNumerator",
-            "type": "u128"
+            "type": "u32"
           },
           {
             "name": "rewardDenominator",
-            "type": "u128"
+            "type": "u32"
           },
           {
             "name": "timeBasedRewardLowerBound",
@@ -4536,6 +4560,10 @@
           {
             "name": "openAsks",
             "type": "i128"
+          },
+          {
+            "name": "cumulativeDeposits",
+            "type": "i64"
           }
         ]
       }
@@ -6726,6 +6754,11 @@
       "code": 6126,
       "name": "InvalidSerumFulfillmentConfig",
       "msg": "InvalidSerumFulfillmentConfig"
+    },
+    {
+      "code": 6127,
+      "name": "InvalidFeeStructure",
+      "msg": "InvalidFeeStructure"
     }
   ]
 }

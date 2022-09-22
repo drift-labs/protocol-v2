@@ -19,7 +19,6 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { FeeStructure } from '../sdk';
 
 const calculateTradeAmount = (amountOfCollateral: BN) => {
 	const ONE_MANTISSA = new BN(100000);
@@ -77,41 +76,6 @@ describe('round in favor', () => {
 			periodicity,
 			new BN(63000000)
 		);
-
-		const newFeeStructure: FeeStructure = {
-			feeNumerator: new BN(0),
-			feeDenominator: new BN(1),
-			discountTokenTiers: {
-				firstTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-				secondTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-				thirdTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-				fourthTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-			},
-			referralDiscount: {
-				referrerRewardNumerator: new BN(1),
-				referrerRewardDenominator: new BN(1),
-				refereeDiscountNumerator: new BN(1),
-				refereeDiscountDenominator: new BN(1),
-			},
-		};
-
-		await primaryClearingHouse.updateFee(newFeeStructure);
 	});
 
 	after(async () => {
@@ -160,14 +124,18 @@ describe('round in favor', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
+		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9999000)));
 
 		await clearingHouse.closePosition(marketIndex);
 
+		assert(
+			clearingHouse
+				.getUserAccount()
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-504))
+		);
+
 		await clearingHouse.fetchAccounts();
-		clearingHouse
-			.getUserAccount()
-			.perpPositions[0].quoteAssetAmount.eq(new BN(0));
 		await clearingHouse.unsubscribe();
 	});
 
@@ -214,6 +182,7 @@ describe('round in favor', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
+		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9999000)));
 
 		await clearingHouse.closePosition(marketIndex);
@@ -222,7 +191,7 @@ describe('round in favor', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-1))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-505))
 		);
 		await clearingHouse.unsubscribe();
 	});
