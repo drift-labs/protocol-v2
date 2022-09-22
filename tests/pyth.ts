@@ -360,7 +360,7 @@ describe('pyth-oracle', () => {
 		// more dollars long than short
 		console.log(fundingRateLong.toString(), 'vs', fundingRateShort.toString());
 		assert(fundingRateLong.gt(new BN(0)));
-		assert(fundingRateShort.gt(new BN(0)));
+		assert(fundingRateShort.gt(new BN(0))); // Z-TODO
 		// assert(fundingRateShort.gt(fundingRateLong));
 	});
 });
