@@ -264,6 +264,8 @@ pub fn settle_expired_market(
     let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
     let fee_reserved_for_protocol = cast_to_i128(
         repeg::get_total_fee_lower_bound(market)?
+            .checked_add(market.amm.total_liquidation_fee)
+            .ok_or_else(math_error!())?
             .checked_sub(market.amm.total_fee_withdrawn)
             .ok_or_else(math_error!())?,
     )?;

@@ -410,6 +410,8 @@ pub fn update_pool_balances(
     let amm_target_max_fee_pool_token_amount = market
         .amm
         .total_fee_minus_distributions
+        .checked_add(cast_to_i128(market.amm.total_liquidation_fee)?)
+        .ok_or_else(math_error!())?
         .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
         .ok_or_else(math_error!())?;
 
@@ -442,6 +444,8 @@ pub fn update_pool_balances(
 
     {
         let amm_target_min_fee_pool_token_amount = get_total_fee_lower_bound(market)?
+            .checked_add(market.amm.total_liquidation_fee)
+            .ok_or_else(math_error!())?
             .checked_sub(market.amm.total_fee_withdrawn)
             .ok_or_else(math_error!())?;
 
@@ -549,6 +553,8 @@ pub fn update_pool_balances(
             }
         } else {
             let revenue_pool_transfer = cast_to_i128(get_total_fee_lower_bound(market)?)?
+                .checked_add(cast_to_i128(market.amm.total_liquidation_fee)?)
+                .ok_or_else(math_error!())?
                 .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
                 .ok_or_else(math_error!())?
                 .max(0)
@@ -1057,6 +1063,7 @@ mod test {
                 total_fee: 10 * QUOTE_PRECISION as i128,
                 total_mm_fee: 990 * QUOTE_PRECISION as i128,
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
+                total_liquidation_fee: QUOTE_PRECISION,
 
                 curve_update_intensity: 100,
 
@@ -1108,10 +1115,10 @@ mod test {
 
         update_pool_balances(&mut market, &mut spot_market, 0, now).unwrap();
 
-        assert_eq!(market.amm.fee_pool.balance, 45000000000000);
+        assert_eq!(market.amm.fee_pool.balance, 44000000000000);
         assert_eq!(market.pnl_pool.balance, 50000000000000);
-        assert_eq!(spot_market.revenue_pool.balance, 5000000000000);
-        assert_eq!(market.amm.total_fee_withdrawn, 5000000);
+        assert_eq!(spot_market.revenue_pool.balance, 6000000000000);
+        assert_eq!(market.amm.total_fee_withdrawn, 6000000);
 
         assert!(market.amm.fee_pool.balance < prev_fee_pool);
         assert_eq!(market.pnl_pool.balance, prev_pnl_pool);
