@@ -7,6 +7,7 @@ import { PublicKey, Keypair } from '@solana/web3.js';
 
 import {
 	Admin,
+	OracleGuardRails,
 	ClearingHouse,
 	ClearingHouseUser,
 	BN,
@@ -825,7 +826,21 @@ describe('insurance fund stake', () => {
 		await clearingHouseUser.subscribe();
 
 		const prevTC = clearingHouseUser.getTotalCollateral();
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(1),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
+				confidenceIntervalMaxSize: new BN(100000),
+				tooVolatileRatio: new BN(100000),
+			},
+			useForLiquidations: false,
+		};
 
+		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
 		await setFeedPrice(anchor.workspace.Pyth, 22500 / 10000, solOracle); // down 99.99%
 		await sleep(2000);
 
