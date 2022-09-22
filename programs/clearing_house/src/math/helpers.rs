@@ -2,7 +2,6 @@ use crate::error::ClearingHouseResult;
 use crate::math::bn::U192;
 use crate::math::casting::{cast_to_i128, cast_to_u128};
 use crate::math_error;
-use num_integer::Roots;
 use solana_program::msg;
 
 pub fn standardize_value_with_remainder_i128(
