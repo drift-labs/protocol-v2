@@ -466,7 +466,7 @@ pub fn liquidate_borrow(
         validate!(
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::Liquidate))?,
             ErrorCode::InvalidOracle,
-            "Invalid Oracle for Liquidate spot asset marketIndex={}",
+            "Invalid Oracle to Liquidate spot asset marketIndex={}",
             asset_market.market_index
         )?;
 
@@ -508,7 +508,20 @@ pub fn liquidate_borrow(
         liquidation_if_fee,
     ) = {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
-        let liability_price_data = oracle_map.get_price_data(&liability_market.oracle)?;
+
+        let (liability_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+            &liability_market.oracle,
+            liability_market
+                .historical_oracle_data
+                .last_oracle_price_twap,
+        )?;
+
+        validate!(
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::Liquidate))?,
+            ErrorCode::InvalidOracle,
+            "Invalid Oracle to Liquidate spot liability marketIndex={}",
+            liability_market.market_index
+        )?;
 
         update_spot_market_cumulative_interest(
             &mut liability_market,

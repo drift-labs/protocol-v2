@@ -94,13 +94,14 @@ pub fn block_operation(
     precomputed_mark_price: Option<u128>,
 ) -> ClearingHouseResult<bool> {
     let OracleStatus {
-        is_valid: oracle_is_valid,
+        oracle_validity,
         mark_too_divergent: is_oracle_mark_too_divergent,
         oracle_mark_spread_pct: _,
         ..
     } = get_oracle_status(amm, oracle_price_data, guard_rails, precomputed_mark_price)?;
-
-    let block = !oracle_is_valid || is_oracle_mark_too_divergent;
+    let is_oracle_valid =
+        is_oracle_valid_for_action(oracle_validity, Some(DriftAction::UpdateFunding))?;
+    let block = !is_oracle_valid || is_oracle_mark_too_divergent;
     Ok(block)
 }
 
@@ -108,7 +109,6 @@ pub fn block_operation(
 pub struct OracleStatus {
     pub price_data: OraclePriceData,
     pub oracle_mark_spread_pct: i128,
-    pub is_valid: bool,
     pub mark_too_divergent: bool,
     pub oracle_validity: OracleValidity,
 }
@@ -124,7 +124,6 @@ pub fn get_oracle_status<'a>(
         oracle_price_data,
         &guard_rails.validity,
     )?;
-    let oracle_is_valid = oracle_validity == OracleValidity::Valid;
     let oracle_mark_spread_pct =
         amm::calculate_oracle_twap_5min_mark_spread_pct(amm, precomputed_mark_price)?;
     let is_oracle_mark_too_divergent =
@@ -133,7 +132,6 @@ pub fn get_oracle_status<'a>(
     Ok(OracleStatus {
         price_data: *oracle_price_data,
         oracle_mark_spread_pct,
-        is_valid: oracle_is_valid,
         mark_too_divergent: is_oracle_mark_too_divergent,
         oracle_validity,
     })
@@ -157,14 +155,11 @@ pub fn oracle_validity(
         msg!("Invalid Oracle: Non-positive (oracle_price <=0)");
     }
 
-    let is_oracle_price_too_volatile = ((oracle_price
-        .checked_div(max(1, last_oracle_twap))
-        .ok_or_else(math_error!())?)
-    .gt(&valid_oracle_guard_rails.too_volatile_ratio))
-        || ((last_oracle_twap
-            .checked_div(max(1, oracle_price))
-            .ok_or_else(math_error!())?)
-        .gt(&valid_oracle_guard_rails.too_volatile_ratio));
+    let is_oracle_price_too_volatile = (oracle_price.max(last_oracle_twap))
+        .checked_div(last_oracle_twap.min(oracle_price).max(1))
+        .ok_or_else(math_error!())?
+        .gt(&valid_oracle_guard_rails.too_volatile_ratio);
+
     if is_oracle_price_too_volatile {
         msg!(
             "Invalid Oracle: Too Volatile (last_oracle_price_twap={:?} vs oracle_price={:?})",
@@ -269,7 +264,7 @@ mod test {
         let mut oracle_status =
             get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
 
-        assert!(oracle_status.is_valid);
+        assert!(oracle_status.oracle_validity == OracleValidity::Valid);
         assert_eq!(oracle_status.oracle_mark_spread_pct, 30303); //0.030303 ()
         assert!(!oracle_status.mark_too_divergent);
 
@@ -288,26 +283,26 @@ mod test {
         };
         oracle_status =
             get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
-        assert!(!oracle_status.is_valid);
+        assert!(oracle_status.oracle_validity != OracleValidity::Valid);
 
         oracle_price_data.delay = 8;
         amm.historical_oracle_data.last_oracle_price_twap_5min = 32 * MARK_PRICE_PRECISION as i128;
         amm.historical_oracle_data.last_oracle_price_twap = 21 * MARK_PRICE_PRECISION as i128;
         oracle_status =
             get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
-        assert!(oracle_status.is_valid);
+        assert!(oracle_status.oracle_validity == OracleValidity::Valid);
         assert!(!oracle_status.mark_too_divergent);
 
         amm.historical_oracle_data.last_oracle_price_twap_5min = 29 * MARK_PRICE_PRECISION as i128;
         oracle_status =
             get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
         assert!(oracle_status.mark_too_divergent);
-        assert!(oracle_status.is_valid);
+        assert!(oracle_status.oracle_validity == OracleValidity::Valid);
 
         oracle_price_data.confidence = MARK_PRICE_PRECISION;
         oracle_status =
             get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
         assert!(oracle_status.mark_too_divergent);
-        assert!(!oracle_status.is_valid);
+        assert!(oracle_status.oracle_validity == OracleValidity::Invalid);
     }
 }

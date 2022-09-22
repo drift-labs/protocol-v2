@@ -763,6 +763,7 @@ pub mod liquidate_borrow {
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
     };
     use crate::math::spot_balance::{get_token_amount, get_token_value};
+    use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
@@ -821,6 +822,10 @@ pub mod liquidate_borrow {
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: SPOT_INTEREST_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -941,6 +946,10 @@ pub mod liquidate_borrow {
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: SPOT_INTEREST_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 1442 / 10000) as i128,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -983,6 +992,32 @@ pub mod liquidate_borrow {
 
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
+
+        // oracle twap too volatile to liq rn
+        assert!(liquidate_borrow(
+            0,
+            1,
+            10_u128.pow(6) / 10,
+            &mut user,
+            &user_key,
+            &mut liquidator,
+            &liquidator_key,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            now,
+            slot,
+            10,
+        )
+        .is_err());
+
+        // move twap closer to oracle price (within 80% below)
+        let mut market1 = spot_market_map
+            .get_ref_mut(&sol_market.market_index)
+            .unwrap();
+        market1.historical_oracle_data.last_oracle_price_twap =
+            (sol_oracle_price.agg.price * 6744 / 10000) as i128;
+        drop(market1);
 
         liquidate_borrow(
             0,
@@ -1062,6 +1097,10 @@ pub mod liquidate_borrow {
             borrow_balance: SPOT_INTEREST_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
