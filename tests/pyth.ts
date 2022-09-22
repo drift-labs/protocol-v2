@@ -11,6 +11,7 @@ import {
 	setFeedPrice,
 	initializeQuoteSpotMarket,
 	initUserAccounts,
+	sleep,
 } from './testHelpers';
 
 import {
@@ -329,29 +330,58 @@ describe('pyth-oracle', () => {
 
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			BASE_PRECISION.div(new BN(20)),
+			BASE_PRECISION,
 			marketIndex
 		);
 
 		await clearingHouse2.openPosition(
 			PositionDirection.SHORT,
-			BASE_PRECISION.div(new BN(80)),
+			BASE_PRECISION.div(new BN(100)),
 			marketIndex
 		);
+		await clearingHouse.fetchAccounts();
 
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
+
+		console.log('PRICE AFTER', convertToNumber(calculateMarkPrice(market)));
 
 		await updateFundingRateHelper(
 			clearingHouse,
 			marketIndex,
 			market.amm.oracle,
-			[43.501, 41.499]
+			[43.501, 44.499]
 		);
+		await sleep(1000);
+		await clearingHouse.fetchAccounts();
 
 		const marketNew = clearingHouse.getPerpMarketAccount(marketIndex);
 
+		console.log(
+			'lastOraclePriceTwap before:',
+			market.amm.historicalOracleData.lastOraclePriceTwap.toString()
+		);
+		console.log(
+			'lastMarkPriceTwap before:',
+			market.amm.lastMarkPriceTwap.toString()
+		);
+
+		console.log(
+			'lastOraclePriceTwap after:',
+			marketNew.amm.historicalOracleData.lastOraclePriceTwap.toString()
+		);
+		console.log(
+			'lastMarkPriceTwap after:',
+			marketNew.amm.lastMarkPriceTwap.toString()
+		);
+
 		const fundingRateLong = marketNew.amm.cumulativeFundingRateLong.sub(
 			market.amm.cumulativeFundingRateLong
+		);
+		console.log(
+			marketNew.amm.cumulativeFundingRateLong.toString(),
+			market.amm.cumulativeFundingRateLong.toString(),
+			marketNew.amm.cumulativeFundingRateShort.toString(),
+			market.amm.cumulativeFundingRateShort.toString()
 		);
 		const fundingRateShort = marketNew.amm.cumulativeFundingRateShort.sub(
 			market.amm.cumulativeFundingRateShort
@@ -359,8 +389,8 @@ describe('pyth-oracle', () => {
 
 		// more dollars long than short
 		console.log(fundingRateLong.toString(), 'vs', fundingRateShort.toString());
-		assert(fundingRateLong.gt(new BN(0)));
-		assert(fundingRateShort.gt(new BN(0))); // Z-TODO
-		// assert(fundingRateShort.gt(fundingRateLong));
+		assert(fundingRateLong.lt(new BN(0)));
+		assert(fundingRateShort.lt(new BN(0))); // Z-TODO
+		assert(fundingRateShort.abs().gt(fundingRateLong.abs()));
 	});
 });

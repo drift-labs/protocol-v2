@@ -551,8 +551,8 @@ describe('update k', () => {
 		console.log(numer1.toString(), '/', denom1.toString());
 
 		// Z-TODO
-		// assert(denom1.eq(new BN(4969200901)));
-		// assert(numer1.gte(new BN(4980550350)));
+		assert(denom1.eq(new BN(4969200901)));
+		assert(numer1.gte(new BN(4980550350)));
 
 		// gain $.11 by decreasing k
 		[numer1, denom1] = calculateBudgetedKBN(
