@@ -1450,24 +1450,132 @@ pub mod fulfill_order_with_maker_order {
 pub mod fulfill_order {
     use std::str::FromStr;
 
-    use crate::controller::orders::fulfill_order;
+    use crate::controller::orders::{fulfill_order, validate_market_within_price_band};
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION,
-        MARK_PRICE_PRECISION_I128, PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, BID_ASK_SPREAD_PRECISION_I128,
+        MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128, PEG_PRECISION, QUOTE_PRECISION_I128,
+        QUOTE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{PerpMarket, AMM};
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
+    use crate::state::state::{
+        OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails,
+    };
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::tests::utils::*;
 
     use super::*;
+    #[test]
+    fn validate_market_within_price_band_tests() {
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_base_asset_amount_ratio: 100,
+                base_asset_amount_step_size: 10000000,
+                oracle: oracle_price_key,
+                base_spread: 100,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
+        };
+        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.min_base_asset_reserve = 0;
+
+        let mut state = State {
+            oracle_guard_rails: OracleGuardRails {
+                price_divergence: PriceDivergenceGuardRails {
+                    mark_oracle_divergence_numerator: 1,
+                    mark_oracle_divergence_denominator: 10,
+                },
+                validity: ValidityGuardRails {
+                    slots_before_stale_for_amm: 10,     // 5s
+                    slots_before_stale_for_margin: 120, // 60s
+                    confidence_interval_max_size: 1000,
+                    too_volatile_ratio: 5,
+                },
+                use_for_liquidations: true,
+            },
+            ..State::default()
+        };
+
+        // valid initial state
+        assert!(validate_market_within_price_band(&market, &state, true, None).unwrap());
+
+        // twap_5min $50 and mark $100 breaches 10% divergence -> failure
+        market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min = 50 * MARK_PRICE_PRECISION as i128;
+        assert!(validate_market_within_price_band(&market, &state, true, None).is_err());
+
+        // within 60% ok -> success
+        state
+            .oracle_guard_rails
+            .price_divergence
+            .mark_oracle_divergence_numerator = 6;
+        assert!(validate_market_within_price_band(&market, &state, true, None).unwrap());
+
+        // twap_5min $20 and mark $100 breaches 60% divergence -> failure
+        market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min = 20 * MARK_PRICE_PRECISION as i128;
+        assert!(validate_market_within_price_band(&market, &state, true, None).is_err());
+
+        // twap_5min $20 and mark $100 but risk reduction when already breached -> success
+        market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min = 20 * MARK_PRICE_PRECISION as i128;
+        assert!(validate_market_within_price_band(
+            &market,
+            &state,
+            false,
+            Some(BID_ASK_SPREAD_PRECISION_I128 * 77 / 100)
+        )
+        .unwrap());
+
+        // twap_5min $20 and mark $100 but risk reduction when not already breached -> failure
+        market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min = 20 * MARK_PRICE_PRECISION as i128;
+        assert!(validate_market_within_price_band(
+            &market,
+            &state,
+            false,
+            Some(BID_ASK_SPREAD_PRECISION_I128 * 51 / 100)
+        )
+        .is_err());
+    }
 
     #[test]
     fn fulfill_with_amm_and_maker() {
