@@ -41,7 +41,7 @@ use crate::math::matching::{
     is_maker_for_taker,
 };
 use crate::math::oracle;
-use crate::math::oracle::OracleValidity;
+use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::serum::{
     calculate_serum_limit_price, calculate_serum_max_coin_qty,
     calculate_serum_max_native_pc_quantity,
@@ -548,12 +548,14 @@ pub fn fill_order(
         )?;
 
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-
-        is_oracle_valid = oracle::oracle_validity(
+        let oracle_validity = oracle::oracle_validity(
             market.amm.historical_oracle_data.last_oracle_price_twap,
             oracle_price_data,
             &state.oracle_guard_rails.validity,
-        )? == OracleValidity::Valid;
+        )?;
+
+        is_oracle_valid =
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::FillOrderAmm))?;
 
         mark_price_before = market.amm.mark_price()?;
         oracle_mark_spread_pct_before =
@@ -1819,11 +1821,15 @@ fn get_valid_oracle_price(
     validity_guardrails: &ValidityGuardRails,
 ) -> ClearingHouseResult<Option<i128>> {
     let price = {
-        let is_oracle_valid = oracle::oracle_validity(
+        let oracle_validity = oracle::oracle_validity(
             market.amm.historical_oracle_data.last_oracle_price_twap,
             oracle_price_data,
             validity_guardrails,
-        )? == OracleValidity::Valid;
+        )?;
+
+        let is_oracle_valid =
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::FillOrderAmm))?;
+
         if is_oracle_valid {
             Some(oracle_price_data.price)
         } else if order.has_oracle_price_offset() {
@@ -1904,12 +1910,16 @@ pub fn trigger_order(
     let market = &mut market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
 
-    let is_oracle_valid = oracle::oracle_validity(
+    let oracle_validity = oracle::oracle_validity(
         market.amm.historical_oracle_data.last_oracle_price_twap,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
-    )? == OracleValidity::Valid;
+    )?;
+    let is_oracle_valid =
+        is_oracle_valid_for_action(oracle_validity, Some(DriftAction::TriggerOrder))?;
+
     validate!(is_oracle_valid, ErrorCode::InvalidOracle)?;
+
     let oracle_price = oracle_price_data.price;
 
     let order_slot = user.orders[order_index].slot;
@@ -3433,16 +3443,13 @@ pub fn trigger_spot_order(
     let market = spot_market_map.get_ref(&market_index)?;
     let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
         &market.oracle,
-        market.historical_oracle_data.last_oracle_price_twap
+        market.historical_oracle_data.last_oracle_price_twap,
     )?;
 
     validate!(
-        !matches!(
-            oracle_validity,
-            OracleValidity::Invalid | OracleValidity::TooVolatile
-        ),
+        is_oracle_valid_for_action(oracle_validity, Some(DriftAction::TriggerOrder))?,
         ErrorCode::InvalidOracle,
-        "OracleValidity for spot marketIndex={} has InvalidPrice or TooVolatile",
+        "OracleValidity for spot marketIndex={} invalid for TriggerOrder",
         market.market_index
     )?;
 

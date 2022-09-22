@@ -15,7 +15,7 @@ use crate::validate;
 use crate::math::casting::cast_to_i128;
 use crate::math::funding::calculate_funding_payment;
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
-use crate::math::oracle::OracleValidity;
+use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
 use crate::math::spot_balance::{
     get_balance_value_and_token_amount, get_token_amount, get_token_value,
@@ -277,12 +277,12 @@ pub fn calculate_margin_requirement_and_total_collateral(
         }
 
         let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
-        let (oracle_price_data, is_oracle_valid) = oracle_map.get_price_data_and_validity(
+        let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
             &spot_market.oracle,
             spot_market.historical_oracle_data.last_oracle_price_twap,
         )?;
         all_oracles_valid &=
-            is_oracle_valid == OracleValidity::Valid || is_oracle_valid == OracleValidity::Stale;
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
 
         if spot_market.market_index == 0 {
             let token_amount = get_token_amount(
@@ -425,12 +425,12 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
         let market = &perp_market_map.get_ref(&market_position.market_index)?;
 
-        let (oracle_price_data, is_oracle_valid) = oracle_map.get_price_data_and_validity(
+        let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
             &market.amm.oracle,
             market.amm.historical_oracle_data.last_oracle_price_twap,
         )?;
         all_oracles_valid &=
-            is_oracle_valid == OracleValidity::Valid || is_oracle_valid == OracleValidity::Stale;
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
 
         let (perp_margin_requirement, weighted_pnl, worst_case_base_asset_value) =
             calculate_perp_position_value_and_pnl(

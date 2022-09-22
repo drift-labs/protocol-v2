@@ -47,7 +47,7 @@ pub mod clearing_house {
     use crate::controller::validate::validate_market_account;
     use crate::math;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
-    use crate::math::oracle::OracleValidity;
+    use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
     use crate::math::spot_balance::get_token_amount;
     use crate::optional_accounts::{
         get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
@@ -2565,6 +2565,8 @@ pub mod clearing_house {
     pub fn reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
         // if oracle is invalid, failsafe to reset amm oracle_twap to the mark_twap
 
+        let state = &ctx.accounts.state;
+
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
@@ -2574,11 +2576,14 @@ pub mod clearing_house {
         let oracle_price_data =
             &get_oracle_price(&market.amm.oracle_source, price_oracle, clock_slot)?;
 
-        let is_oracle_valid = oracle::oracle_validity(
+        let oracle_validity = oracle::oracle_validity(
             market.amm.historical_oracle_data.last_oracle_price_twap,
             oracle_price_data,
-            &ctx.accounts.state.oracle_guard_rails.validity,
-        )? == OracleValidity::Valid;
+            &state.oracle_guard_rails.validity,
+        )?;
+
+        let is_oracle_valid =
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::UpdateFunding))?;
 
         if !is_oracle_valid {
             market.amm.historical_oracle_data.last_oracle_price_twap =

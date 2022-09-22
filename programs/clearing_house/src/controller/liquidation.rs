@@ -26,7 +26,7 @@ use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, meets_initial_margin_requirement,
     MarginRequirementType,
 };
-use crate::math::oracle::OracleValidity;
+use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::orders::{get_position_delta_for_fill, standardize_base_asset_amount};
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::spot_balance::get_token_amount;
@@ -154,10 +154,7 @@ pub fn liquidate_perp(
     )?;
 
     validate!(
-        !matches!(
-            oracle_validity,
-            OracleValidity::Invalid | OracleValidity::TooVolatile
-        ),
+        is_oracle_valid_for_action(oracle_validity, Some(DriftAction::Liquidate))?,
         ErrorCode::InvalidOracle,
         "OracleValidity for perp marketIndex={} has InvalidPrice or TooVolatile",
         market.market_index
@@ -467,12 +464,9 @@ pub fn liquidate_borrow(
         )?;
 
         validate!(
-            !matches!(
-                oracle_validity,
-                OracleValidity::Invalid | OracleValidity::TooVolatile
-            ),
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::Liquidate))?,
             ErrorCode::InvalidOracle,
-            "OracleValidity for spot marketIndex={} has InvalidPrice or TooVolatile",
+            "Invalid Oracle for Liquidate spot asset marketIndex={}",
             asset_market.market_index
         )?;
 

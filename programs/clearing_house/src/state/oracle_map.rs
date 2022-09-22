@@ -6,6 +6,7 @@ use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource};
 use crate::state::state::OracleGuardRails;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::Key;
+use solana_program::msg;
 use std::collections::BTreeMap;
 use std::iter::Peekable;
 use std::slice::Iter;
@@ -53,6 +54,7 @@ impl<'a> OracleMap<'a> {
                 oracle_source,
             }) => (account_info, oracle_source),
             None => {
+                msg!("oracle pubkey not found in oracle_map: {}", pubkey);
                 return Err(ErrorCode::OracleNotFound);
             }
         };
@@ -89,6 +91,7 @@ impl<'a> OracleMap<'a> {
                 oracle_source,
             }) => (account_info, oracle_source),
             None => {
+                msg!("oracle pubkey not found in oracle_map: {}", pubkey);
                 return Err(ErrorCode::OracleNotFound);
             }
         };

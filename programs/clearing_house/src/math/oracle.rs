@@ -15,17 +15,76 @@ use std::cmp::max;
 pub enum OracleValidity {
     Invalid,
     TooVolatile,
+    StaleForMargin,
     InsufficientDataPoints,
-    VeryStale,
-    Stale,
+    StaleForAMM,
     Valid,
 }
 
 impl Default for OracleValidity {
-    // UpOnly
     fn default() -> Self {
         OracleValidity::Valid
     }
+}
+
+pub enum DriftAction {
+    UpdateFunding,
+    SettlePnl,
+    TriggerOrder,
+    FillOrderMatch,
+    FillOrderAmm,
+    Liquidate,
+    MarginCalc,
+    UpdateTwap,
+    UpdateAMMCurve,
+}
+
+pub fn is_oracle_valid_for_action(
+    oracle_validity: OracleValidity,
+    action: Option<DriftAction>,
+) -> ClearingHouseResult<bool> {
+    let is_ok = match action {
+        Some(action) => match action {
+            DriftAction::FillOrderAmm => {
+                matches!(oracle_validity, OracleValidity::Valid)
+            }
+            DriftAction::UpdateFunding => {
+                matches!(
+                    oracle_validity,
+                    OracleValidity::Valid | OracleValidity::StaleForAMM
+                )
+            }
+            DriftAction::MarginCalc => !matches!(
+                oracle_validity,
+                OracleValidity::Invalid
+                    | OracleValidity::TooVolatile
+                    | OracleValidity::StaleForMargin
+            ),
+            DriftAction::TriggerOrder => !matches!(
+                oracle_validity,
+                OracleValidity::Invalid | OracleValidity::TooVolatile
+            ),
+            DriftAction::SettlePnl => !matches!(
+                oracle_validity,
+                OracleValidity::Invalid | OracleValidity::TooVolatile
+            ),
+            DriftAction::Liquidate => !matches!(
+                oracle_validity,
+                OracleValidity::Invalid | OracleValidity::TooVolatile
+            ),
+            DriftAction::FillOrderMatch => !matches!(
+                oracle_validity,
+                OracleValidity::Invalid | OracleValidity::TooVolatile
+            ),
+            DriftAction::UpdateTwap => !matches!(oracle_validity, OracleValidity::Invalid),
+            DriftAction::UpdateAMMCurve => !matches!(oracle_validity, OracleValidity::Invalid),
+        },
+        None => {
+            matches!(oracle_validity, OracleValidity::Valid)
+        }
+    };
+
+    Ok(is_ok)
 }
 
 pub fn block_operation(
@@ -139,12 +198,12 @@ pub fn oracle_validity(
         OracleValidity::Invalid
     } else if is_oracle_price_too_volatile {
         OracleValidity::TooVolatile
+    } else if is_stale_for_margin {
+        OracleValidity::StaleForMargin
     } else if !has_sufficient_number_of_data_points {
         OracleValidity::InsufficientDataPoints
-    } else if is_stale_for_margin {
-        OracleValidity::VeryStale
     } else if is_stale_for_amm {
-        OracleValidity::Stale
+        OracleValidity::StaleForAMM
     } else {
         OracleValidity::Valid
     };
