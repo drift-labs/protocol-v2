@@ -493,7 +493,7 @@ pub fn meets_withdraw_margin_requirement(
     }
 
     validate!(
-        total_collateral < cast_to_i128(initial_margin_requirement)?,
+        total_collateral >= cast_to_i128(initial_margin_requirement)?,
         ErrorCode::InsufficientCollateral,
         "User attempting to withdraw where total_collateral {} is below initial_margin_requirement {}",
         total_collateral,

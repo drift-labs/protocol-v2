@@ -4934,16 +4934,51 @@
             "name": "TooVolatile"
           },
           {
+            "name": "StaleForMargin"
+          },
+          {
             "name": "InsufficientDataPoints"
           },
           {
-            "name": "VeryStale"
-          },
-          {
-            "name": "Stale"
+            "name": "StaleForAMM"
           },
           {
             "name": "Valid"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DriftAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "UpdateFunding"
+          },
+          {
+            "name": "SettlePnl"
+          },
+          {
+            "name": "TriggerOrder"
+          },
+          {
+            "name": "FillOrderMatch"
+          },
+          {
+            "name": "FillOrderAmm"
+          },
+          {
+            "name": "Liquidate"
+          },
+          {
+            "name": "MarginCalc"
+          },
+          {
+            "name": "UpdateTwap"
+          },
+          {
+            "name": "UpdateAMMCurve"
           }
         ]
       }
