@@ -33,6 +33,7 @@ pub mod amm_jit {
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
+    use crate::math::constants::CONCENTRATION_PRECISION;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION,
         PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
@@ -253,7 +254,7 @@ pub mod amm_jit {
                 amm_jit_intensity: 100,
                 last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
                 user_lp_shares: 10 * AMM_RESERVE_PRECISION, // some lps exist
-
+                concentration_coef: CONCENTRATION_PRECISION,
                 ..AMM::default()
             },
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),

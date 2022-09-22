@@ -503,8 +503,8 @@ pub fn fill_order(
     // settle lp position so its tradeable
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
-    controller::lp::settle_lp(user, &user_key, &mut market, now)?;
     controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
+    controller::lp::settle_lp(user, &user_key, &mut market, now)?;
 
     drop(market);
 
@@ -538,7 +538,7 @@ pub fn fill_order(
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         market_is_reduce_only = market.is_reduce_only()?;
-        controller::validate::validate_market_account(market)?;
+        // controller::validate::validate_market_account(market)?;
         validate!(
             market.is_active(now)?,
             ErrorCode::DefaultError,
@@ -1264,6 +1264,20 @@ pub fn fulfill_order_with_amm(
         fee_to_market_for_lp,
         split_with_lps,
     )?;
+
+    if market.amm.user_lp_shares > 0 {
+        let (new_terminal_quote_reserve, new_terminal_base_reserve) =
+            crate::math::amm::calculate_terminal_reserves(&market.amm)?;
+        market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
+
+        let (min_base_asset_reserve, max_base_asset_reserve) =
+            crate::math::amm::calculate_bid_ask_bounds(
+                market.amm.concentration_coef,
+                new_terminal_base_reserve,
+            )?;
+        market.amm.min_base_asset_reserve = min_base_asset_reserve;
+        market.amm.max_base_asset_reserve = max_base_asset_reserve;
+    }
 
     // Increment the clearing house's total fee variables
     market.amm.total_fee = market
