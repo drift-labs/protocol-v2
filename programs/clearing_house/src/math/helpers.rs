@@ -133,3 +133,23 @@ pub fn on_the_hour_update(
 
     Ok(time_remaining_until_update)
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn proportion_tests() {
+        let result = get_proportion_i128(999999999369, 1000000036297, 1000000042597).unwrap();
+        assert_eq!(result, 999999993069);
+        let result = get_proportion_u128(999999999369, 1000000036297, 1000000042597).unwrap();
+        assert_eq!(result, 999999993069);
+        let result = get_proportion_u128(1000000036297, 999999999369, 1000000042597).unwrap();
+        assert_eq!(result, 999999993069);
+
+        let result = get_proportion_u128(999999999369, 1000000042597, 1000000036297).unwrap();
+        assert_eq!(result, 1000000005668);
+        let result = get_proportion_u128(1000000042597, 999999999369, 1000000036297).unwrap();
+        assert_eq!(result, 1000000005668);
+    }
+}
