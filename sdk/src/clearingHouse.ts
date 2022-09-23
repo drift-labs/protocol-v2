@@ -1957,10 +1957,7 @@ export class ClearingHouse {
 		}
 
 		for (const position of userAccount.perpPositions) {
-			if (
-				!positionIsAvailable(position) &&
-				!position.marketIndex.eq(order.marketIndex)
-			) {
+			if (!positionIsAvailable(position)) {
 				const market = this.getPerpMarketAccount(position.marketIndex);
 				perpMarketAccountMap.set(position.marketIndex.toNumber(), {
 					pubkey: market.pubkey,
