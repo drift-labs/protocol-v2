@@ -14,10 +14,24 @@ pub fn calculate_weighted_average(
     let prev_twap_99 = data1.checked_mul(weight1).ok_or_else(math_error!())?;
     let latest_price_01 = data2.checked_mul(weight2).ok_or_else(math_error!())?;
 
+    let bias: i128 = if weight2 > 1 {
+        if latest_price_01 < prev_twap_99 {
+            -1
+        } else if latest_price_01 > prev_twap_99 {
+            1
+        } else {
+            0
+        }
+    } else {
+        0
+    };
+
     prev_twap_99
         .checked_add(latest_price_01)
         .ok_or_else(math_error!())?
         .checked_div(denominator)
+        .ok_or_else(math_error!())?
+        .checked_add(bias)
         .ok_or_else(math_error!())
 }
 

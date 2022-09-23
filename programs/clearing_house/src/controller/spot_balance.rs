@@ -540,9 +540,9 @@ mod test {
 
         let old_twap = spot_market.deposit_token_twap;
         update_spot_market_cumulative_interest(&mut spot_market, None, now + 3600).unwrap();
-        assert_eq!(spot_market.deposit_token_twap, 495833);
+        assert_eq!(spot_market.deposit_token_twap, 495834);
         update_spot_market_cumulative_interest(&mut spot_market, None, now + 3600 * 24).unwrap();
-        assert_eq!(spot_market.deposit_token_twap, 403993); // little bit slower than 1 day
+        assert_eq!(spot_market.deposit_token_twap, 403992); // little bit slower than 1 day
         update_spot_market_cumulative_interest(&mut spot_market, None, now + 3600 * 48 + 100)
             .unwrap();
         let new_twap = spot_market.deposit_token_twap;
@@ -565,7 +565,7 @@ mod test {
         spot_market.last_interest_ts = now as u64;
         spot_market.last_twap_ts = now as u64;
         update_spot_market_cumulative_interest(&mut spot_market, None, now + 3600).unwrap();
-        assert_eq!(spot_market.deposit_token_twap, 4167066666); //$4167.06
+        assert_eq!(spot_market.deposit_token_twap, 4167066665); //$4167.06
         update_spot_market_cumulative_interest(&mut spot_market, None, now + 3600 * 44).unwrap();
         assert_eq!(spot_market.deposit_token_twap, 99999780925); //$4167.06
 
@@ -833,7 +833,7 @@ mod test {
         assert_eq!(spot_market.cumulative_borrow_interest, 10000158551);
         assert_eq!(spot_market.last_interest_ts, 100);
         assert_eq!(spot_market.last_twap_ts, 100);
-        assert_eq!(spot_market.utilization_twap, 144);
+        assert_eq!(spot_market.utilization_twap, 143);
 
         let deposit_tokens_1 = get_token_amount(
             spot_market.deposit_balance,
@@ -862,7 +862,7 @@ mod test {
 
         assert_eq!(spot_market.last_interest_ts, 7500);
         assert_eq!(spot_market.last_twap_ts, 7500);
-        assert_eq!(spot_market.utilization_twap, 10848);
+        assert_eq!(spot_market.utilization_twap, 10846);
 
         assert_eq!(spot_market.cumulative_deposit_interest, 10001484937);
         assert_eq!(spot_market.cumulative_borrow_interest, 10011891454);
@@ -960,7 +960,7 @@ mod test {
         assert_eq!(spot_market.total_if_shares, 0);
         assert_eq!(if_tokens_3 - (settle_amount as u128), 1689);
         assert_eq!(spot_market.revenue_pool.balance, 0);
-        assert_eq!(spot_market.utilization_twap, 462007);
+        assert_eq!(spot_market.utilization_twap, 462008);
 
         let deposit_tokens_4 = get_token_amount(
             spot_market.deposit_balance,
@@ -981,15 +981,15 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(spot_market.borrow_token_twap, 751413);
-        assert_eq!(spot_market.deposit_token_twap, 1626406);
+        assert_eq!(spot_market.borrow_token_twap, 751414);
+        assert_eq!(spot_market.deposit_token_twap, 1626407);
         assert_eq!(
             spot_market.borrow_token_twap * SPOT_UTILIZATION_PRECISION
                 / spot_market.deposit_token_twap,
             462008
         ); // 47.4%
 
-        assert_eq!(spot_market.utilization_twap, 462007); // 46.2%
+        assert_eq!(spot_market.utilization_twap, 462008); // 46.2%
         assert_eq!(
             borrow_tokens_4 * SPOT_UTILIZATION_PRECISION / deposit_tokens_4,
             462194
@@ -1169,7 +1169,7 @@ mod test {
         assert_eq!(spot_market.cumulative_borrow_interest, 10000711270);
         assert_eq!(spot_market.last_interest_ts, 100);
         assert_eq!(spot_market.last_twap_ts, 100);
-        assert_eq!(spot_market.utilization_twap, 625);
+        assert_eq!(spot_market.utilization_twap, 624);
 
         let deposit_tokens_1 = get_token_amount(
             spot_market.deposit_balance,
@@ -1198,7 +1198,7 @@ mod test {
 
         assert_eq!(spot_market.last_interest_ts, 7500);
         assert_eq!(spot_market.last_twap_ts, 7500);
-        assert_eq!(spot_market.utilization_twap, 46978);
+        assert_eq!(spot_market.utilization_twap, 46976);
 
         assert_eq!(spot_market.cumulative_deposit_interest, 10025953120);
         assert_eq!(spot_market.cumulative_borrow_interest, 10053351363);
@@ -1299,7 +1299,7 @@ mod test {
         assert_eq!(if_tokens_3 - (settle_amount as u128), 996619988395); // w/ update interest for settle_spot_market_to_if
 
         assert_eq!(spot_market.revenue_pool.balance, 83024042299);
-        assert_eq!(spot_market.utilization_twap, 965273);
+        assert_eq!(spot_market.utilization_twap, 965274);
 
         let deposit_tokens_4 = get_token_amount(
             spot_market.deposit_balance,

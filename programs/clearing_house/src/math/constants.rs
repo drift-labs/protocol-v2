@@ -6,6 +6,8 @@ pub const AMM_RESERVE_PRECISION: u128 = 1_000_000_000; //expo = -9;
 pub const BASE_PRECISION: u128 = AMM_RESERVE_PRECISION; //expo = -9;
 pub const MARK_PRICE_PRECISION: u128 = 1_000_000; //expo = -6;
 pub const MARK_PRICE_PRECISION_I128: i128 = MARK_PRICE_PRECISION as i128;
+pub const PEG_PRECISION: u128 = 1_000_000; //expo = -6
+pub const PEG_PRECISION_I128: i128 = PEG_PRECISION as i128; //expo = -6
 pub const QUOTE_PRECISION: u128 = 1_000_000; // expo = -6
 pub const QUOTE_PRECISION_I128: i128 = 1_000_000; // expo = -6
 pub const QUOTE_PRECISION_I64: i64 = 1_000_000; // expo = -6
@@ -13,8 +15,6 @@ pub const QUOTE_PRECISION_U64: u64 = 1_000_000; // expo = -6
 pub const FUNDING_RATE_BUFFER: u128 = 1_000; // expo = -3
 pub const FUNDING_RATE_BUFFER_I128: i128 = FUNDING_RATE_BUFFER as i128; // expo = -3
 pub const MARGIN_PRECISION: u128 = 10_000; // expo = -4
-pub const PEG_PRECISION: u128 = 1_000_000; //expo = -6
-pub const PEG_PRECISION_I128: i128 = PEG_PRECISION as i128; //expo = -6
 pub const BID_ASK_SPREAD_PRECISION: u128 = 1_000_000; // expo = -6
 pub const BID_ASK_SPREAD_PRECISION_I128: i128 = (BID_ASK_SPREAD_PRECISION) as i128;
 pub const LAMPORT_PER_SOL: u128 = LAMPORTS_PER_SOL as u128;

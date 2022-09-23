@@ -2501,7 +2501,7 @@ pub mod fulfill_order {
         assert_eq!(market_after.amm.last_ask_price_twap, 50000000);
         assert_eq!(market_after.amm.last_bid_price_twap, 50000000);
         assert_eq!(market_after.amm.last_mark_price_twap, 50000000);
-        assert_eq!(market_after.amm.last_mark_price_twap_5min, 333333);
+        assert_eq!(market_after.amm.last_mark_price_twap_5min, 333332);
         assert_eq!(
             market_after
                 .amm
