@@ -27,20 +27,6 @@ pub fn validate_market_account(market: &PerpMarket) -> ClearingHouseResult {
     )?;
 
     validate!(
-        market.amm.base_asset_reserve >= market.amm.min_base_asset_reserve,
-        ErrorCode::DefaultError,
-        "Market baa below min_base_asset_reserve: {} < {}",
-        market.amm.base_asset_reserve,
-        market.amm.min_base_asset_reserve,
-    )?;
-
-    validate!(
-        market.amm.base_asset_reserve <= market.amm.max_base_asset_reserve,
-        ErrorCode::DefaultError,
-        "Market baa above max_base_asset_reserve"
-    )?;
-
-    validate!(
         market.amm.peg_multiplier > 0,
         ErrorCode::DefaultError,
         "peg_multiplier out of wack"

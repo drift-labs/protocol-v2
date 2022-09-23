@@ -71,10 +71,10 @@ pub mod clearing_house {
 
     use super::*;
     use crate::math::insurance::if_shares_to_vault_amount;
+    use crate::math::repeg::get_total_fee_lower_bound;
     use crate::state::insurance_fund_stake::InsuranceFundStake;
     use crate::state::serum::{load_open_orders, load_serum_market};
     use crate::state::state::FeeStructure;
-    use crate::math::repeg::get_total_fee_lower_bound;
     use crate::validation::fee_structure::validate_fee_structure;
     use bytemuck::cast_slice;
     use std::mem::size_of;
