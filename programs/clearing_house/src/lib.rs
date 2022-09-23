@@ -74,6 +74,7 @@ pub mod clearing_house {
     use crate::state::insurance_fund_stake::InsuranceFundStake;
     use crate::state::serum::{load_open_orders, load_serum_market};
     use crate::state::state::FeeStructure;
+    use crate::math::repeg::get_total_fee_lower_bound;
     use crate::validation::fee_structure::validate_fee_structure;
     use bytemuck::cast_slice;
     use std::mem::size_of;
@@ -2441,12 +2442,8 @@ pub mod clearing_house {
         let market = &mut load_mut!(ctx.accounts.perp_market)?;
 
         // A portion of fees must always remain in protocol to be used to keep markets optimal
-        let max_withdraw = market
-            .amm
-            .total_exchange_fee
-            .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR)
-            .ok_or_else(math_error!())?
-            .checked_div(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR)
+        let max_withdraw = get_total_fee_lower_bound(market)?
+            .checked_sub(market.amm.total_liquidation_fee)
             .ok_or_else(math_error!())?
             .checked_sub(market.amm.total_fee_withdrawn)
             .ok_or_else(math_error!())?;
@@ -2921,6 +2918,8 @@ pub mod clearing_house {
             let max_cost = market
                 .amm
                 .total_fee_minus_distributions
+                .checked_sub(cast_to_i128(get_total_fee_lower_bound(market)?)?)
+                .ok_or_else(math_error!())?
                 .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
                 .ok_or_else(math_error!())?;
             if adjustment_cost > max_cost {
