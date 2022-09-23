@@ -628,6 +628,7 @@ export type SpotPosition = {
 	openOrders: number;
 	openBids: BN;
 	openAsks: BN;
+	cumulativeDeposits: BN;
 };
 
 export type Order = {
