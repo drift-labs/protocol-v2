@@ -260,7 +260,7 @@ pub struct AMM {
     pub last_update_slot: u64,
     pub last_oracle_conf_pct: u64,
     pub last_oracle_normalised_price: i128,
-    pub last_oracle_mark_spread_pct: i128,
+    pub last_oracle_reserve_price_spread_pct: i128,
 
     pub base_asset_reserve: u128,
     pub quote_asset_reserve: u128,
@@ -404,7 +404,7 @@ impl AMM {
         self.amm_jit_intensity > 0
     }
 
-    pub fn mark_price(&self) -> ClearingHouseResult<u128> {
+    pub fn reserve_price(&self) -> ClearingHouseResult<u128> {
         amm::calculate_price(
             self.quote_asset_reserve,
             self.base_asset_reserve,
@@ -412,8 +412,8 @@ impl AMM {
         )
     }
 
-    pub fn bid_price(&self, mark_price: u128) -> ClearingHouseResult<u128> {
-        let bid_price = mark_price
+    pub fn bid_price(&self, reserve_price: u128) -> ClearingHouseResult<u128> {
+        let bid_price = reserve_price
             .checked_mul(
                 BID_ASK_SPREAD_PRECISION
                     .checked_sub(self.short_spread)
@@ -426,8 +426,8 @@ impl AMM {
         Ok(bid_price)
     }
 
-    pub fn ask_price(&self, mark_price: u128) -> ClearingHouseResult<u128> {
-        let ask_price = mark_price
+    pub fn ask_price(&self, reserve_price: u128) -> ClearingHouseResult<u128> {
+        let ask_price = reserve_price
             .checked_mul(
                 BID_ASK_SPREAD_PRECISION
                     .checked_add(self.long_spread)
@@ -440,9 +440,9 @@ impl AMM {
         Ok(ask_price)
     }
 
-    pub fn bid_ask_price(&self, mark_price: u128) -> ClearingHouseResult<(u128, u128)> {
-        let bid_price = self.bid_price(mark_price)?;
-        let ask_price = self.ask_price(mark_price)?;
+    pub fn bid_ask_price(&self, reserve_price: u128) -> ClearingHouseResult<(u128, u128)> {
+        let bid_price = self.bid_price(reserve_price)?;
+        let ask_price = self.ask_price(reserve_price)?;
         Ok((bid_price, ask_price))
     }
 

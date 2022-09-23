@@ -29,7 +29,7 @@ import {
 	setFeedPrice,
 } from './testHelpers';
 import {
-	calculateMarkPrice,
+	calculateReservePrice,
 	getLimitOrderParams,
 	getSwapDirection,
 	OracleSource,
@@ -355,7 +355,7 @@ describe('amm spread: market order', () => {
 	it('unable to fill bid between mark and ask price', async () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = AMM_RESERVE_PRECISION;
-		const limitPrice = calculateMarkPrice(
+		const limitPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(0)
 		).add(MARK_PRICE_PRECISION.div(new BN(10000))); // limit price plus 1bp
 
@@ -399,7 +399,7 @@ describe('amm spread: market order', () => {
 	it('unable to fill ask between mark and bid price', async () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = AMM_RESERVE_PRECISION;
-		const limitPrice = calculateMarkPrice(
+		const limitPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(0)
 		).add(MARK_PRICE_PRECISION.sub(new BN(10000))); // limit price plus 1bp
 
@@ -445,7 +445,7 @@ describe('amm spread: market order', () => {
 
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = AMM_RESERVE_PRECISION;
-		const limitPrice = calculateMarkPrice(
+		const limitPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(0)
 		).add(MARK_PRICE_PRECISION.div(new BN(1000))); // limit price plus 10bp
 
@@ -529,7 +529,7 @@ describe('amm spread: market order', () => {
 
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = AMM_RESERVE_PRECISION;
-		const limitPrice = calculateMarkPrice(
+		const limitPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(0)
 		).sub(MARK_PRICE_PRECISION.div(new BN(1000))); // limit price minus 10bp
 

@@ -19,7 +19,7 @@ import {
 	calculateMarketMarginRatio,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	MARK_PRICE_PRECISION,
-	calculateMarkPrice,
+	calculateReservePrice,
 	convertToNumber,
 	calculatePrice,
 } from '../sdk';
@@ -237,7 +237,7 @@ describe('User Account', () => {
 		const oraclePrice2 = clearingHouse.getOracleDataForMarket(
 			market.marketIndex
 		).price;
-		const markPrice2 = calculateMarkPrice(market, oraclePrice);
+		const markPrice2 = calculateReservePrice(market, oraclePrice);
 		console.log(
 			'mark2 vs oracle2 price:',
 			convertToNumber(markPrice2),
@@ -316,7 +316,7 @@ describe('User Account', () => {
 		const oraclePrice2 = clearingHouse.getOracleDataForMarket(
 			market.marketIndex
 		).price;
-		const markPrice2 = calculateMarkPrice(market, oraclePrice);
+		const markPrice2 = calculateReservePrice(market, oraclePrice);
 		console.log(
 			'mark2 vs oracle2 price:',
 			convertToNumber(markPrice2),

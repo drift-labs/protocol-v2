@@ -6,7 +6,7 @@ import {
 	ZERO,
 } from '../constants/numericConstants';
 import { PerpMarketAccount, isVariant } from '../types';
-import { calculateMarkPrice } from './market';
+import { calculateReservePrice } from './market';
 import { OraclePriceData } from '../oracles/types';
 
 /**
@@ -48,7 +48,7 @@ export async function calculateAllEstimatedFundingRate(
 		secondsInHour,
 		BN.max(ZERO, secondsInHour.sub(timeSinceLastMarkChange))
 	);
-	const baseAssetPriceWithMantissa = calculateMarkPrice(
+	const baseAssetPriceWithMantissa = calculateReservePrice(
 		market,
 		oraclePriceData
 	);

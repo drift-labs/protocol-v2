@@ -170,14 +170,14 @@ pub fn _update_amm(
         }
     }
 
-    let mark_price_after = market.amm.mark_price()?;
+    let reserve_price_after = market.amm.reserve_price()?;
 
     if is_oracle_valid_for_action(oracle_validity, Some(DriftAction::UpdateTwap))? {
         amm::update_oracle_price_twap(
             &mut market.amm,
             now,
             oracle_price_data,
-            Some(mark_price_after),
+            Some(reserve_price_after),
         )?;
     }
 
@@ -188,7 +188,7 @@ pub fn _update_amm(
         market.amm.last_oracle_valid = false;
     }
 
-    update_spreads(&mut market.amm, mark_price_after)?;
+    update_spreads(&mut market.amm, reserve_price_after)?;
 
     Ok(amm_update_cost)
 }
@@ -434,19 +434,22 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
-        let mark_price_before = market.amm.mark_price().unwrap();
-        assert_eq!(mark_price_before, 188076686390578);
+        let reserve_price_before = market.amm.reserve_price().unwrap();
+        assert_eq!(reserve_price_before, 188076686390578);
         market
             .amm
             .historical_oracle_data
             .last_oracle_price_twap_5min = 189076686390578;
         market.amm.historical_oracle_data.last_oracle_price_twap_ts = now - 100;
-        let oracle_mark_spread_pct_before =
-            amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(mark_price_before))
-                .unwrap();
-        assert_eq!(oracle_mark_spread_pct_before, -5316);
+        let oracle_reserve_price_spread_pct_before =
+            amm::calculate_oracle_twap_5min_mark_spread_pct(
+                &market.amm,
+                Some(reserve_price_before),
+            )
+            .unwrap();
+        assert_eq!(oracle_reserve_price_spread_pct_before, -5316);
         let too_diverge = amm::is_oracle_mark_too_divergent(
-            oracle_mark_spread_pct_before,
+            oracle_reserve_price_spread_pct_before,
             &state.oracle_guard_rails.price_divergence,
         )
         .unwrap();
@@ -462,17 +465,18 @@ mod test {
         )
         .unwrap()
             == OracleValidity::Valid;
-        let mark_price_after_prepeg = market.amm.mark_price().unwrap();
-        assert_eq!(mark_price_after_prepeg, 130882003768079);
+        let reserve_price_after_prepeg = market.amm.reserve_price().unwrap();
+        assert_eq!(reserve_price_after_prepeg, 130882003768079);
 
-        let oracle_mark_spread_pct_before = amm::calculate_oracle_twap_5min_mark_spread_pct(
-            &market.amm,
-            Some(mark_price_after_prepeg),
-        )
-        .unwrap();
-        assert_eq!(oracle_mark_spread_pct_before, -292478);
+        let oracle_reserve_price_spread_pct_before =
+            amm::calculate_oracle_twap_5min_mark_spread_pct(
+                &market.amm,
+                Some(reserve_price_after_prepeg),
+            )
+            .unwrap();
+        assert_eq!(oracle_reserve_price_spread_pct_before, -292478);
         let too_diverge = amm::is_oracle_mark_too_divergent(
-            oracle_mark_spread_pct_before,
+            oracle_reserve_price_spread_pct_before,
             &state.oracle_guard_rails.price_divergence,
         )
         .unwrap();
@@ -486,11 +490,11 @@ mod test {
         assert_eq!(profit, -5808834953);
         assert_eq!(peg, 13500402);
 
-        let mark_price = market.amm.mark_price().unwrap();
-        let (bid, ask) = market.amm.bid_ask_price(mark_price).unwrap();
-        assert!(bid < mark_price);
+        let reserve_price = market.amm.reserve_price().unwrap();
+        let (bid, ask) = market.amm.bid_ask_price(reserve_price).unwrap();
+        assert!(bid < reserve_price);
         assert!(bid < ask);
-        assert!(mark_price <= ask);
+        assert!(reserve_price <= ask);
         assert_eq!(
             market.amm.long_spread + market.amm.short_spread,
             (market.margin_ratio_initial * 100) as u128
@@ -499,7 +503,7 @@ mod test {
         assert_eq!(bid, 123618052558950);
         assert!(bid < (oracle_price_data.price as u128));
         assert_eq!(ask, 130882003768079);
-        assert_eq!(mark_price, 130882003768079);
+        assert_eq!(reserve_price, 130882003768079);
         //(133487208381380-120146825282679)/133403830987014 == .1 (max spread)
         // 127060953641838
     }
@@ -594,8 +598,8 @@ mod test {
             ..State::default()
         };
 
-        let mark_price_before = market.amm.mark_price().unwrap();
-        assert_eq!(mark_price_before, 188076686390578);
+        let reserve_price_before = market.amm.reserve_price().unwrap();
+        assert_eq!(reserve_price_before, 188076686390578);
 
         let oracle_price_data = OraclePriceData {
             price: (18_850 * MARK_PRICE_PRECISION) as i128,
@@ -613,9 +617,9 @@ mod test {
         assert_eq!(market.amm.long_spread, 125);
         assert_eq!(market.amm.short_spread, 690);
 
-        let mark_price_after = market.amm.mark_price().unwrap();
-        assert_eq!(mark_price_after, 188500004355075);
-        assert_eq!(mark_price_before < mark_price_after, true);
+        let reserve_price_after = market.amm.reserve_price().unwrap();
+        assert_eq!(reserve_price_after, 188500004355075);
+        assert_eq!(reserve_price_before < reserve_price_after, true);
 
         // add large confidence
         let oracle_price_data = OraclePriceData {
@@ -629,7 +633,7 @@ mod test {
             _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
         assert_eq!(cost_of_update, 0);
 
-        let mrk = market.amm.mark_price().unwrap();
+        let mrk = market.amm.reserve_price().unwrap();
         let (bid, ask) = market.amm.bid_ask_price(mrk).unwrap();
 
         assert_eq!(bid, 188316216850828);
@@ -669,7 +673,7 @@ mod test {
         assert_eq!(market.amm.long_spread, 0);
         assert_eq!(market.amm.short_spread, 975);
 
-        let mrk = market.amm.mark_price().unwrap();
+        let mrk = market.amm.reserve_price().unwrap();
         let (bid, ask) = market.amm.bid_ask_price(mrk).unwrap();
 
         assert_eq!(bid, 188016507648348);
@@ -690,7 +694,7 @@ mod test {
         assert_eq!(market.amm.long_spread, 0);
         assert_eq!(market.amm.short_spread, 975);
 
-        let mrk = market.amm.mark_price().unwrap();
+        let mrk = market.amm.reserve_price().unwrap();
         let (bid, ask) = market.amm.bid_ask_price(mrk).unwrap();
 
         assert_eq!(bid, 188046473725985);
@@ -724,8 +728,8 @@ mod test {
             ..State::default()
         };
 
-        let mark_price_before = market.amm.mark_price().unwrap();
-        assert_eq!(mark_price_before, 188076686390578);
+        let reserve_price_before = market.amm.reserve_price().unwrap();
+        assert_eq!(reserve_price_before, 188076686390578);
 
         let oracle_price_data = OraclePriceData {
             price: (18_850 * MARK_PRICE_PRECISION) as i128,
@@ -742,9 +746,9 @@ mod test {
         assert_eq!(market.amm.long_spread, 285);
         assert_eq!(market.amm.short_spread, 690);
 
-        let mark_price_after = market.amm.mark_price().unwrap();
-        assert_eq!(mark_price_after, 188500004355075);
-        assert_eq!(mark_price_before < mark_price_after, true);
+        let reserve_price_after = market.amm.reserve_price().unwrap();
+        assert_eq!(reserve_price_after, 188500004355075);
+        assert_eq!(reserve_price_before < reserve_price_after, true);
 
         // add large confidence
         let oracle_price_data = OraclePriceData {
@@ -758,7 +762,7 @@ mod test {
             _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
         assert_eq!(cost_of_update, 0);
 
-        let mrk = market.amm.mark_price().unwrap();
+        let mrk = market.amm.reserve_price().unwrap();
         let (bid, ask) = market.amm.bid_ask_price(mrk).unwrap();
 
         assert_eq!(bid, 188316216850828);
@@ -798,7 +802,7 @@ mod test {
         assert_eq!(market.amm.long_spread, 0);
         assert_eq!(market.amm.short_spread, 975);
 
-        let mrk = market.amm.mark_price().unwrap();
+        let mrk = market.amm.reserve_price().unwrap();
         let (bid, ask) = market.amm.bid_ask_price(mrk).unwrap();
 
         assert_eq!(bid, 188199819849846);
@@ -819,7 +823,7 @@ mod test {
         assert_eq!(market.amm.long_spread, 0);
         assert_eq!(market.amm.short_spread, 975);
 
-        let mrk = market.amm.mark_price().unwrap();
+        let mrk = market.amm.reserve_price().unwrap();
         let (bid, ask) = market.amm.bid_ask_price(mrk).unwrap();
 
         assert_eq!(bid, 188199819849846);

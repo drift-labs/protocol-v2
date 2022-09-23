@@ -77,7 +77,7 @@ pub fn calculate_repeg_validity(
 
     // if oracle is valid: check on size/direction of repeg
     if oracle_is_valid {
-        let mark_price_after = amm::calculate_price(
+        let reserve_price_after = amm::calculate_price(
             market.amm.quote_asset_reserve,
             market.amm.base_asset_reserve,
             market.amm.peg_multiplier,
@@ -110,7 +110,7 @@ pub fn calculate_repeg_validity(
             }
 
             // only push mark up to top of oracle confidence band
-            if mark_price_after > oracle_conf_band_top {
+            if reserve_price_after > oracle_conf_band_top {
                 price_impact_valid = false;
             }
         } else if oracle_price_u128 < terminal_price_after {
@@ -131,7 +131,7 @@ pub fn calculate_repeg_validity(
             }
 
             // only push mark down to bottom of oracle confidence band
-            if mark_price_after < oracle_conf_band_bottom {
+            if reserve_price_after < oracle_conf_band_bottom {
                 price_impact_valid = false;
             }
         }
@@ -429,7 +429,7 @@ pub fn calculate_optimal_peg_and_budget(
     market: &PerpMarket,
     oracle_price_data: &OraclePriceData,
 ) -> ClearingHouseResult<(u128, u128, bool)> {
-    let mark_price_before = market.amm.mark_price()?;
+    let reserve_price_before = market.amm.reserve_price()?;
 
     let mut fee_budget = calculate_fee_pool(market)?;
     let target_price_i128 = oracle_price_data.price;
@@ -452,7 +452,7 @@ pub fn calculate_optimal_peg_and_budget(
                 .ok_or_else(math_error!())?,
         )?;
 
-        let target_price_gap = cast_to_i128(mark_price_before)?
+        let target_price_gap = cast_to_i128(reserve_price_before)?
             .checked_sub(target_price_i128)
             .ok_or_else(math_error!())?;
 
@@ -465,11 +465,11 @@ pub fn calculate_optimal_peg_and_budget(
             )?;
 
             let target_price = if target_price_gap < 0 {
-                mark_price_before
+                reserve_price_before
                     .checked_add(mark_adj)
                     .ok_or_else(math_error!())?
             } else {
-                mark_price_before
+                reserve_price_before
                     .checked_sub(mark_adj)
                     .ok_or_else(math_error!())?
             };
@@ -489,9 +489,9 @@ pub fn calculate_optimal_peg_and_budget(
 pub fn calculate_expected_excess_funding_payment(
     market: &PerpMarket,
     oracle_price: i128,
-    mark_price: u128,
+    reserve_price: u128,
 ) -> ClearingHouseResult<i128> {
-    let oracle_mark_spread = cast_to_i128(mark_price)?
+    let oracle_reserve_price_spread = cast_to_i128(reserve_price)?
         .checked_sub(oracle_price)
         .ok_or_else(math_error!())?;
 
@@ -499,7 +499,7 @@ pub fn calculate_expected_excess_funding_payment(
         .checked_sub(market.amm.historical_oracle_data.last_oracle_price_twap)
         .ok_or_else(math_error!())?;
 
-    let expected_excess_funding = oracle_mark_spread
+    let expected_excess_funding = oracle_reserve_price_spread
         .checked_sub(oracle_mark_twap_spread)
         .ok_or_else(math_error!())?;
 
@@ -614,8 +614,8 @@ mod test {
             ..PerpMarket::default()
         };
 
-        let mark_price = market.amm.mark_price().unwrap();
-        assert_eq!(mark_price, 188076686390578); //$ 18,807.6686390578
+        let reserve_price = market.amm.reserve_price().unwrap();
+        assert_eq!(reserve_price, 188076686390578); //$ 18,807.6686390578
 
         // positive target_price_gap exceeding max_spread
         let oracle_price_data = OraclePriceData {
@@ -739,7 +739,7 @@ mod test {
             ..PerpMarket::default()
         };
 
-        let prev_price = market.amm.mark_price().unwrap();
+        let prev_price = market.amm.reserve_price().unwrap();
 
         let px = 204_011_254_567_891;
         let optimal_peg = calculate_peg_from_target_price(
@@ -755,7 +755,7 @@ mod test {
         assert_eq!(_amm_update_cost, -1618354215);
         assert_eq!(repegged_market.amm.peg_multiplier, optimal_peg);
 
-        let post_price = repegged_market.amm.mark_price().unwrap();
+        let post_price = repegged_market.amm.reserve_price().unwrap();
         assert_eq!(post_price - prev_price, 15934564582252); // todo: (15934564582252/1e4 - 1615699103 is the slippage cost?)
     }
 

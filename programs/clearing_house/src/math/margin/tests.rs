@@ -202,7 +202,7 @@ mod test {
             ..PerpMarket::default()
         };
 
-        let current_price = market.amm.mark_price().unwrap();
+        let current_price = market.amm.reserve_price().unwrap();
         assert_eq!(current_price, 210519296000087);
 
         market.imf_factor = 1000; // 1_000/1_000_000 = .001

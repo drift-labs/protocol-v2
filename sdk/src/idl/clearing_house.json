@@ -4079,7 +4079,7 @@
             "type": "i128"
           },
           {
-            "name": "lastOracleMarkSpreadPct",
+            "name": "lastOracleReservePriceSpreadPct",
             "type": "i128"
           },
           {
