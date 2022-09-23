@@ -540,7 +540,7 @@ pub fn fill_order(
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         market_is_reduce_only = market.is_reduce_only()?;
-        // controller::validate::validate_market_account(market)?;
+        controller::validate::validate_market_account(market)?;
         validate!(
             market.is_active(now)?,
             ErrorCode::DefaultError,
