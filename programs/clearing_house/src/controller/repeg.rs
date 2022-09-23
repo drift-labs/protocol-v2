@@ -610,8 +610,8 @@ mod test {
             _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
         assert_eq!(cost_of_update, -42993230); // amm wins when price increases
 
-        assert_eq!(market.amm.long_spread, 125);
-        assert_eq!(market.amm.short_spread, 690);
+        assert_eq!(market.amm.long_spread, 0);
+        assert_eq!(market.amm.short_spread, 975);
 
         let mark_price_after = market.amm.mark_price().unwrap();
         assert_eq!(mark_price_after, 188500004355075);
@@ -739,8 +739,8 @@ mod test {
         let cost_of_update =
             _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
         assert_eq!(cost_of_update, -42993230); // amm wins when price increases
-        assert_eq!(market.amm.long_spread, 285);
-        assert_eq!(market.amm.short_spread, 690);
+        assert_eq!(market.amm.long_spread, 0);
+        assert_eq!(market.amm.short_spread, 975);
 
         let mark_price_after = market.amm.mark_price().unwrap();
         assert_eq!(mark_price_after, 188500004355075);
