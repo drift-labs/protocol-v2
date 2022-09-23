@@ -36,7 +36,12 @@ import {
 	getTokenAmount,
 } from '../sdk/src/math/spotBalance';
 import { NATIVE_MINT } from '@solana/spl-token';
-import { QUOTE_PRECISION, ZERO, ONE } from '../sdk';
+import {
+	QUOTE_PRECISION,
+	ZERO,
+	ONE,
+	SPOT_MARKET_INTEREST_PRECISION,
+} from '../sdk';
 
 describe('spot deposit and withdraw', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -60,6 +65,8 @@ describe('spot deposit and withdraw', () => {
 	let secondUserClearingHouseUSDCAccount: PublicKey;
 
 	const usdcAmount = new BN(10 * 10 ** 6);
+	const largeUsdcAmount = new BN(10_000 * 10 ** 6);
+
 	const solAmount = new BN(1 * 10 ** 9);
 
 	let marketIndexes: BN[];
@@ -68,7 +75,7 @@ describe('spot deposit and withdraw', () => {
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
-		await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		await mockUserUSDCAccount(usdcMint, largeUsdcAmount, provider);
 
 		solOracle = await mockOracle(30);
 
@@ -722,5 +729,63 @@ describe('spot deposit and withdraw', () => {
 		const userBalanceAfter =
 			secondUserClearingHouse.getSpotPosition(marketIndex);
 		assert(userBalanceAfter.balance.eq(ZERO));
+	});
+
+	it('Third user deposits when cumulative interest off init value', async () => {
+		// rounding on bank balance <-> token conversions can lead to tiny epislon of loss on deposits
+
+		const [
+			thirdUserClearingHouse,
+			_thirdUserClearingHouseWSOLAccount,
+			thirdUserClearingHouseUSDCAccount,
+		] = await createUserWithUSDCAndWSOLAccount(
+			provider,
+			usdcMint,
+			chProgram,
+			solAmount,
+			largeUsdcAmount,
+			marketIndexes,
+			spotMarketIndexes,
+			oracleInfos
+		);
+
+		const marketIndex = new BN(0);
+
+		const spotPosition = thirdUserClearingHouse.getSpotPosition(marketIndex);
+		console.log(spotPosition);
+		assert(spotPosition.balance.eq(ZERO));
+
+		const spotMarket = thirdUserClearingHouse.getSpotMarketAccount(marketIndex);
+
+		console.log(spotMarket.cumulativeDepositInterest.toString());
+		console.log(spotMarket.cumulativeBorrowInterest.toString());
+
+		assert(
+			spotMarket.cumulativeDepositInterest.gt(SPOT_MARKET_INTEREST_PRECISION)
+		);
+		assert(
+			spotMarket.cumulativeBorrowInterest.gt(SPOT_MARKET_INTEREST_PRECISION)
+		);
+
+		console.log('usdcAmount:', largeUsdcAmount.toString(), 'user deposits');
+		const txSig = await thirdUserClearingHouse.deposit(
+			largeUsdcAmount,
+			marketIndex,
+			thirdUserClearingHouseUSDCAccount
+		);
+		await printTxLogs(connection, txSig);
+
+		const spotPositionAfter =
+			thirdUserClearingHouse.getSpotPosition(marketIndex);
+		const tokenAmount = getTokenAmount(
+			spotPositionAfter.balance,
+			spotMarket,
+			spotPositionAfter.balanceType
+		);
+		console.log('tokenAmount:', tokenAmount.toString());
+		assert(
+			tokenAmount.gte(largeUsdcAmount.sub(QUOTE_PRECISION.div(new BN(100))))
+		); // didnt lose more than a penny
+		assert(tokenAmount.lt(largeUsdcAmount)); // lose a lil bit
 	});
 });
