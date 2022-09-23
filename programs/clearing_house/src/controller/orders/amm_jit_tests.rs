@@ -54,7 +54,7 @@ pub mod amm_jit {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -80,7 +80,7 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                base_asset_amount_step_size: 1000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -219,7 +219,7 @@ pub mod amm_jit {
         assert_eq!(maker_stats.maker_volume_30d, 50 * QUOTE_PRECISION_U64);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, 10000000000000);
+        assert_eq!(market_after.amm.net_base_asset_amount, 1000000000);
         assert_eq!(market_after.amm.total_fee, 2064035);
         assert_eq!(filler_stats.filler_volume_30d, 102284244);
     }
@@ -229,7 +229,7 @@ pub mod amm_jit {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -405,7 +405,7 @@ pub mod amm_jit {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -577,7 +577,7 @@ pub mod amm_jit {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -740,7 +740,7 @@ pub mod amm_jit {
         assert_eq!(maker_position.open_orders, 0);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, -10000000000000);
+        assert_eq!(market_after.amm.net_base_asset_amount, -1000000000);
     }
 
     #[test]
@@ -748,7 +748,7 @@ pub mod amm_jit {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -921,12 +921,12 @@ pub mod amm_jit {
             -50 / 2 * QUOTE_PRECISION_I128
         );
         assert_eq!(maker_position.open_orders, 1);
-        assert_eq!(maker_position.open_bids, 2500000000000);
+        assert_eq!(maker_position.open_bids, 250000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 15000 / 2);
         assert_eq!(maker_stats.maker_volume_30d, 50 / 2 * QUOTE_PRECISION_U64);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, -2500000000000);
+        assert_eq!(market_after.amm.net_base_asset_amount, -250000000);
 
         let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
 
@@ -948,7 +948,7 @@ pub mod amm_jit {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -974,7 +974,7 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                base_asset_amount_step_size: 1000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -1122,23 +1122,23 @@ pub mod amm_jit {
             50 / 2 * QUOTE_PRECISION_I128
         );
         assert_eq!(maker_position.open_orders, 1);
-        assert_eq!(maker_position.open_asks, -2500000000000);
+        assert_eq!(maker_position.open_asks, -250000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 15000 / 2);
         assert_eq!(maker_stats.maker_volume_30d, 50 / 2 * QUOTE_PRECISION_U64);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, 2500000000000);
+        assert_eq!(market_after.amm.net_base_asset_amount, 250000000);
 
         // mm gains from trade
         let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
 
         assert!(quote_asset_amount_surplus > 0);
-        assert_eq!(quote_asset_amount_surplus, 697892);
+        assert_eq!(quote_asset_amount_surplus, 697891);
 
-        assert_eq!(market_after.amm.total_fee, 736645);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 736645);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, 736645);
-        assert_eq!(market_after.amm.total_mm_fee, 697892);
+        assert_eq!(market_after.amm.total_fee, 736644);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 736644);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, 736644);
+        assert_eq!(market_after.amm.total_mm_fee, 697891);
         assert_eq!(market_after.amm.total_exchange_fee, 38892);
         assert_eq!(market_after.amm.total_fee_withdrawn, 0);
 
@@ -1150,7 +1150,7 @@ pub mod amm_jit {
         let now = 0_i64;
         let slot = 10_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1320,7 +1320,7 @@ pub mod amm_jit {
         assert_eq!(maker_position.quote_asset_amount, 5001500 / 2);
         assert_eq!(maker_position.quote_entry_amount, 2500000);
         assert_eq!(maker_position.open_orders, 1);
-        assert_eq!(maker_position.open_asks, -2500000000000);
+        assert_eq!(maker_position.open_asks, -250000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 1500 / 2);
         assert_eq!(maker_stats.maker_volume_30d, 2500000);
         assert_eq!(
@@ -1329,7 +1329,7 @@ pub mod amm_jit {
         );
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, -2500000000000);
+        assert_eq!(market_after.amm.net_base_asset_amount, -250000000);
 
         // mm gains from trade
         let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
@@ -1352,7 +1352,7 @@ pub mod amm_jit {
         let now = 0_i64;
         let slot = 10_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1522,7 +1522,7 @@ pub mod amm_jit {
         assert_eq!(maker_position.quote_asset_amount, -49985000);
         assert_eq!(maker_position.quote_entry_amount, -50000000);
         assert_eq!(maker_position.open_orders, 1);
-        assert_eq!(maker_position.open_bids, 2500000000000);
+        assert_eq!(maker_position.open_bids, 250000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
         assert_eq!(maker_stats.maker_volume_30d, 50000000);
         assert_eq!(
@@ -1531,7 +1531,7 @@ pub mod amm_jit {
         );
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, 2500000000000);
+        assert_eq!(market_after.amm.net_base_asset_amount, 250000000);
 
         // mm gains from trade
         let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
@@ -1555,7 +1555,7 @@ pub mod amm_jit {
         let now = 0_i64;
         let mut slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1578,7 +1578,7 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                base_asset_amount_step_size: 1000,
                 oracle: oracle_price_key,
                 base_spread: 5000,
                 max_spread: 1000000,
@@ -1656,8 +1656,8 @@ pub mod amm_jit {
             ..User::default()
         };
 
-        let auction_start_price = 950625000000_u128;
-        let auction_end_price = 1321540890000_u128;
+        let auction_start_price = 95062500_u128;
+        let auction_end_price = 132154089_u128;
         taker.orders[0].auction_start_price = auction_start_price;
         taker.orders[0].auction_end_price = auction_end_price;
         println!("start stop {} {}", auction_start_price, auction_end_price);
@@ -1822,7 +1822,7 @@ pub mod amm_jit {
         let now = 0_i64;
         let mut slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1845,7 +1845,7 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                base_asset_amount_step_size: 1000,
                 oracle: oracle_price_key,
                 base_spread: 5000,
                 max_spread: 1000000,
@@ -1924,8 +1924,8 @@ pub mod amm_jit {
             ..User::default()
         };
 
-        let auction_start_price = 1050625000000;
-        let auction_end_price = 795502090000;
+        let auction_start_price = 105062500;
+        let auction_end_price = 79550209;
         taker.orders[0].auction_start_price = auction_start_price;
         taker.orders[0].auction_end_price = auction_end_price;
         println!("start stop {} {}", auction_start_price, auction_end_price);

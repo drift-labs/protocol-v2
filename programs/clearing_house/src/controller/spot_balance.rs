@@ -374,7 +374,7 @@ mod test {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -707,7 +707,7 @@ mod test {
         let mut now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1043,7 +1043,7 @@ mod test {
         let mut now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();

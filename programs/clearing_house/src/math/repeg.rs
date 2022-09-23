@@ -4,8 +4,9 @@ use crate::math::amm;
 use crate::math::bn;
 use crate::math::casting::{cast_to_i128, cast_to_u128};
 use crate::math::constants::{
-    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
-    BID_ASK_SPREAD_PRECISION, MARK_PRICE_PRECISION_I128, ONE_HOUR, PRICE_TO_PEG_PRECISION_RATIO,
+    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, MARK_PRICE_PRECISION_I128,
+    ONE_HOUR, PEG_PRECISION, PEG_PRECISION_I128, PRICE_TO_PEG_PRECISION_RATIO,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, TWENTY_FOUR_HOUR,
 };
@@ -268,7 +269,7 @@ pub fn calculate_repeg_cost(amm: &AMM, new_peg: u128) -> ClearingHouseResult<i12
                 .ok_or_else(math_error!())?,
         )
         .ok_or_else(math_error!())?
-        .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
+        .checked_div(AMM_RESERVE_PRECISION_I128)
         .ok_or_else(math_error!())?;
 
     Ok(cost)
@@ -283,7 +284,7 @@ pub fn calculate_per_peg_cost(
         cast_to_i128(quote_asset_reserve)?
             .checked_sub(cast_to_i128(terminal_quote_asset_reserve)?)
             .ok_or_else(math_error!())?
-            .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
+            .checked_div(AMM_RESERVE_PRECISION_I128 / PEG_PRECISION_I128)
             .ok_or_else(math_error!())?
             .checked_add(1)
             .ok_or_else(math_error!())?
@@ -309,12 +310,12 @@ pub fn adjust_amm(
 
     let delta_peg = cast_to_i128(optimal_peg)?
         .checked_sub(cast_to_i128(market.amm.peg_multiplier)?)
-        .ok_or_else(math_error!())?;
+        .ok_or_else(math_error!())?; // PEG_PRECISION
 
     let mut per_peg_cost = calculate_per_peg_cost(
         market.amm.quote_asset_reserve,
         market.amm.terminal_quote_asset_reserve,
-    )?;
+    )?; // PEG_PRECISION
 
     let budget_i128 = cast_to_i128(budget)?;
 
@@ -326,8 +327,10 @@ pub fn adjust_amm(
 
     if per_peg_cost != 0 {
         budget_delta_peg = budget_i128
+            .checked_mul(PEG_PRECISION_I128)
+            .ok_or_else(math_error!())?
             .checked_div(per_peg_cost)
-            .ok_or_else(math_error!())?;
+            .ok_or_else(math_error!())?; // PEG_PRECISION
         budget_delta_peg_magnitude = budget_delta_peg.unsigned_abs();
     }
 
@@ -398,6 +401,8 @@ pub fn adjust_amm(
         };
         budget_delta_peg = budget_i128
             .checked_add(adjustment_cost.abs())
+            .ok_or_else(math_error!())?
+            .checked_mul(PEG_PRECISION_I128)
             .ok_or_else(math_error!())?
             .checked_div(per_peg_cost)
             .ok_or_else(math_error!())?;
@@ -572,22 +577,22 @@ mod test {
     fn calc_peg_tests() {
         let qar = AMM_RESERVE_PRECISION;
         let bar = AMM_RESERVE_PRECISION;
-        let px = 194011254567891; // 19401.125
+        let px = 19401125456; // 19401.125
 
         let mut new_peg = calculate_peg_from_target_price(qar, bar, px).unwrap();
-        assert_eq!(new_peg, 19401125);
+        assert_eq!(new_peg, 19401125456);
         new_peg = calculate_peg_from_target_price(qar - 10000, bar + 10000, px).unwrap();
-        assert_eq!(new_peg, 19401125);
+        assert_eq!(new_peg, 19401513482);
         new_peg = calculate_peg_from_target_price(qar + 10000, bar - 10000, px).unwrap();
-        assert_eq!(new_peg, 19401125);
+        assert_eq!(new_peg, 19400737437);
         new_peg = calculate_peg_from_target_price(qar / 2, bar * 2, px).unwrap();
-        assert_eq!(new_peg, (19401125 * 4) + 2);
+        assert_eq!(new_peg, 77604501824);
 
         let px2 = MARK_PRICE_PRECISION + (MARK_PRICE_PRECISION / 10000) * 5;
         new_peg = calculate_peg_from_target_price(qar, bar, px2).unwrap();
-        assert_eq!(new_peg, 1001);
+        assert_eq!(new_peg, 1000500);
         new_peg = calculate_peg_from_target_price(qar, bar, px2 - 1).unwrap();
-        assert_eq!(new_peg, 1000);
+        assert_eq!(new_peg, 1000499);
     }
 
     #[test]
@@ -595,10 +600,10 @@ mod test {
         let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 630153846154000,
+                quote_asset_reserve: 63015384615,
                 terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
                 sqrt_k: 64 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 19_400_000,
+                peg_multiplier: 19_400_000_000,
                 net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
                 mark_std: MARK_PRICE_PRECISION as u64,
                 last_mark_price_twap_ts: 0,
@@ -615,7 +620,7 @@ mod test {
         };
 
         let mark_price = market.amm.mark_price().unwrap();
-        assert_eq!(mark_price, 188076686390578); //$ 18,807.6686390578
+        assert_eq!(mark_price, 18807668638); //$ 18,807.6686390578
 
         // positive target_price_gap exceeding max_spread
         let oracle_price_data = OraclePriceData {
@@ -628,8 +633,8 @@ mod test {
         let (optimal_peg, budget, check_lb) =
             calculate_optimal_peg_and_budget(&market, &oracle_price_data).unwrap();
 
-        assert_eq!(optimal_peg, 13430054);
-        assert_eq!(budget, 5878100676);
+        assert_eq!(optimal_peg, 13430053711);
+        assert_eq!(budget, 5878100963);
         assert!(!check_lb);
 
         // positive target_price_gap within max_spread
@@ -642,7 +647,7 @@ mod test {
         let (optimal_peg, budget, check_lb) =
             calculate_optimal_peg_and_budget(&market, &oracle_price_data).unwrap();
 
-        assert_eq!(optimal_peg, 19496271);
+        assert_eq!(optimal_peg, 19496270752);
         assert_eq!(budget, 39500000);
         assert!(check_lb);
 
@@ -656,7 +661,7 @@ mod test {
         let (optimal_peg, budget, check_lb) =
             calculate_optimal_peg_and_budget(&market, &oracle_price_data).unwrap();
 
-        assert_eq!(optimal_peg, 19186823);
+        assert_eq!(optimal_peg, 19186822509);
         assert_eq!(budget, 39500000);
         assert!(check_lb);
 
@@ -670,7 +675,7 @@ mod test {
         let (optimal_peg, budget, check_lb) =
             calculate_optimal_peg_and_budget(&market, &oracle_price_data).unwrap();
 
-        assert_eq!(optimal_peg, 21042480);
+        assert_eq!(optimal_peg, 21042480468);
         assert_eq!(budget, 39500000);
         assert!(check_lb);
 
@@ -684,7 +689,7 @@ mod test {
         let (optimal_peg, budget, check_lb) =
             calculate_optimal_peg_and_budget(&market, &oracle_price_data).unwrap();
 
-        assert_eq!(optimal_peg, 43735352);
+        assert_eq!(optimal_peg, 43735351562);
         assert_eq!(budget, 39500000);
         assert!(check_lb);
 
@@ -715,8 +720,8 @@ mod test {
         let (optimal_peg, budget, check_lb) =
             calculate_optimal_peg_and_budget(&market, &oracle_price_data).unwrap();
 
-        assert_eq!(optimal_peg, 41548584);
-        assert_eq!(budget, 21146993022); // $21146.993022
+        assert_eq!(optimal_peg, 41548583984);
+        assert_eq!(budget, 21146993011); // $21146.993022
         assert!(!check_lb);
     }
 
@@ -726,10 +731,10 @@ mod test {
         let market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 630153846154000,
+                quote_asset_reserve: 63015384615,
                 terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
                 sqrt_k: 64 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 19_400_000,
+                peg_multiplier: 19_400_000_000,
                 net_base_asset_amount: AMM_RESERVE_PRECISION as i128,
                 mark_std: MARK_PRICE_PRECISION as u64,
                 last_mark_price_twap_ts: 0,
@@ -741,7 +746,7 @@ mod test {
 
         let prev_price = market.amm.mark_price().unwrap();
 
-        let px = 204_011_254_567_891;
+        let px = 20_401_125_456;
         let optimal_peg = calculate_peg_from_target_price(
             market.amm.quote_asset_reserve,
             market.amm.base_asset_reserve,
@@ -752,11 +757,11 @@ mod test {
 
         let (repegged_market, _amm_update_cost) =
             adjust_amm(&market, optimal_peg, 0, true).unwrap();
-        assert_eq!(_amm_update_cost, -1618354215);
+        assert_eq!(_amm_update_cost, -1618354580);
         assert_eq!(repegged_market.amm.peg_multiplier, optimal_peg);
 
         let post_price = repegged_market.amm.mark_price().unwrap();
-        assert_eq!(post_price - prev_price, 15934564582252); // todo: (15934564582252/1e4 - 1615699103 is the slippage cost?)
+        assert_eq!(post_price - prev_price, 1593456817); // todo: (15934564582252/1e4 - 1615699103 is the slippage cost?)
     }
 
     #[test]
@@ -765,15 +770,15 @@ mod test {
         let market = PerpMarket {
             amm: AMM {
                 minimum_quote_asset_trade_size: 10000000,
-                base_asset_amount_step_size: 10000000,
-                base_asset_reserve: 604379397200959166,
-                quote_asset_reserve: 604402124593689280,
-                terminal_quote_asset_reserve: 604390726630032096,
-                sqrt_k: 604390760790494666,
-                peg_multiplier: 34353,
+                base_asset_amount_step_size: 1000,
+                base_asset_reserve: 60437939720095,
+                quote_asset_reserve: 60440212459368,
+                terminal_quote_asset_reserve: 60439072663003,
+                sqrt_k: 60439076079049,
+                peg_multiplier: 34353000,
                 net_base_asset_amount: AMM_RESERVE_PRECISION as i128,
-                last_mark_price_twap: 341283700678,
-                last_mark_price_twap_ts: 1657054269,
+                last_mark_price_twap: 34128370,
+                last_mark_price_twap_ts: 165705,
                 curve_update_intensity: 100,
                 base_spread: 1000,
                 total_fee_minus_distributions: 304289,
@@ -809,7 +814,7 @@ mod test {
         let new_peg = repegged_market.amm.peg_multiplier;
         let old_peg = market.amm.peg_multiplier;
         assert!(new_peg > old_peg);
-        assert_eq!(new_peg, 34656);
-        assert_eq!(_amm_update_cost, 303006);
+        assert_eq!(new_peg, 34657283);
+        assert_eq!(_amm_update_cost, 304289);
     }
 }

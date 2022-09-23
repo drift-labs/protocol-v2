@@ -186,11 +186,11 @@ mod test {
         let mut market = PerpMarket {
             market_index: 0,
             amm: AMM {
-                base_asset_reserve: 5122950819670000,
+                base_asset_reserve: 512295081967,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 22_100_000,
-                net_base_asset_amount: -(122950819670000_i128),
+                peg_multiplier: 22_100_000_000,
+                net_base_asset_amount: -(12295081967_i128),
                 max_spread: 1000,
                 ..AMM::default()
             },
@@ -203,7 +203,7 @@ mod test {
         };
 
         let current_price = market.amm.mark_price().unwrap();
-        assert_eq!(current_price, 210519296000087);
+        assert_eq!(current_price, 21051929600);
 
         market.imf_factor = 1000; // 1_000/1_000_000 = .001
 
@@ -217,7 +217,7 @@ mod test {
 
         let market_position = PerpPosition {
             market_index: 0,
-            base_asset_amount: -(122950819670000 / 2_i128),
+            base_asset_amount: -(12295081967 / 2_i128),
             quote_asset_amount: 153688524588, // $25,000 entry price
             ..PerpPosition::default()
         };
@@ -240,7 +240,7 @@ mod test {
         let position_unrealized_pnl =
             calculate_position_pnl(&market_position, &market.amm, false).unwrap();
 
-        assert_eq!(position_unrealized_pnl, 22699050901);
+        assert_eq!(position_unrealized_pnl, 22699050927);
 
         // sqrt of oracle price = 149
         market.unrealized_imf_factor = market.imf_factor;
@@ -263,7 +263,7 @@ mod test {
         // assert!(upnl < position_unrealized_pnl); // margin system discounts
 
         assert!(pmr > 0);
-        assert_eq!(pmr, 13867100409);
+        assert_eq!(pmr, 13867100408);
 
         oracle_price_data.price = (21050 * MARK_PRICE_PRECISION) as i128; // lower by $1000 (in favor of user)
         oracle_price_data.confidence = MARK_PRICE_PRECISION;
@@ -274,7 +274,7 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(position_unrealized_pnl, 24282786886); // $24.282k
+        assert_eq!(position_unrealized_pnl, 24282786896); // $24.282k
 
         assert_eq!(
             market
@@ -323,7 +323,7 @@ mod test {
                 .unwrap(),
             78
         );
-        assert_eq!(position_unrealized_pnl * 800000, 19426229508800000); // 1.9 billion
+        assert_eq!(position_unrealized_pnl * 800000, 19426229516800000); // 1.9 billion
 
         let (pmr_2, upnl_2, _) = calculate_perp_position_value_and_pnl(
             &market_position,
@@ -339,10 +339,10 @@ mod test {
             .unwrap();
         assert_eq!(uaw_2, 9548);
 
-        assert_eq!(upnl_2, 23107500000);
+        assert_eq!(upnl_2, 23107500010);
         assert!(upnl_2 > upnl);
         assert!(pmr_2 > 0);
-        assert_eq!(pmr_2, 13238206966); //$12940.5737702000
+        assert_eq!(pmr_2, 13238206965); //$12940.5737702000
         assert!(pmr > pmr_2);
         assert_eq!(pmr - pmr_2, 628893443);
         //-6.1475409835 * 1000 / 10 = 614.75
@@ -517,7 +517,7 @@ mod calculate_margin_requirement_and_total_collateral {
     pub fn usdc_deposit_and_5x_sol_bid() {
         let slot = 0_u64;
 
-        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -605,7 +605,7 @@ mod calculate_margin_requirement_and_total_collateral {
     pub fn usdc_deposit_and_5x_sol_ask() {
         let slot = 0_u64;
 
-        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -693,7 +693,7 @@ mod calculate_margin_requirement_and_total_collateral {
     pub fn sol_deposit_and_5x_sol_ask() {
         let slot = 0_u64;
 
-        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -782,7 +782,7 @@ mod calculate_margin_requirement_and_total_collateral {
     pub fn user_custom_margin_ratio() {
         let slot = 0_u64;
 
-        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();

@@ -264,7 +264,7 @@ pub fn get_token_value(
         return Ok(0);
     }
 
-    let precision_decrease = 10_i128.pow(10_u32 + (spot_decimals - 6) as u32);
+    let precision_decrease = 10_i128.pow(6_u32 + (spot_decimals - 6) as u32);
 
     token_amount
         .checked_mul(oracle_price_data.price)

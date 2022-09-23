@@ -367,11 +367,11 @@ impl AMM {
     pub fn default_btc_test() -> Self {
         AMM {
             base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 630153846154000,
+            quote_asset_reserve: 63015384615,
             terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
             sqrt_k: 64 * AMM_RESERVE_PRECISION,
 
-            peg_multiplier: 19_400_000,
+            peg_multiplier: 19_400_000_000,
 
             concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
             max_base_asset_reserve: 90 * AMM_RESERVE_PRECISION,

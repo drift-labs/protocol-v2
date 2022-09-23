@@ -96,7 +96,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
             10000000 // ~$10
         );
 
-        assert_eq!(base_asset_amount, 12500000000000); // must lose 10/9 base
+        assert_eq!(base_asset_amount, 1250000000); // must lose 10/9 base
     }
 }
 
@@ -310,7 +310,7 @@ mod calculate_asset_transfer_for_liability_transfer {
         let asset_price = MARK_PRICE_PRECISION_I128;
         let liability_transfer = BASE_PRECISION;
         let liability_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
-        let liability_decimals = 13;
+        let liability_decimals = 9;
         let liability_price = 100 * MARK_PRICE_PRECISION_I128;
 
         let asset_transfer = calculate_asset_transfer_for_liability_transfer(
@@ -335,7 +335,7 @@ mod calculate_asset_transfer_for_liability_transfer {
         let asset_price = MARK_PRICE_PRECISION_I128;
         let liability_transfer = BASE_PRECISION;
         let liability_liquidation_multiplier = 99 * LIQUIDATION_FEE_PRECISION / 100;
-        let liability_decimals = 13;
+        let liability_decimals = 9;
         let liability_price = 100 * MARK_PRICE_PRECISION_I128;
 
         let asset_transfer = calculate_asset_transfer_for_liability_transfer(
@@ -386,7 +386,7 @@ mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
         let cumulative_funding_rate_delta =
             calculate_funding_rate_deltas_to_resolve_bankruptcy(loss, &market).unwrap();
 
-        assert_eq!(cumulative_funding_rate_delta, 909090900000000);
+        assert_eq!(cumulative_funding_rate_delta, 9090909000);
     }
 }
 

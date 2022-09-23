@@ -32,7 +32,7 @@ pub mod liquidate_perp {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -172,7 +172,7 @@ pub mod liquidate_perp {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -312,7 +312,7 @@ pub mod liquidate_perp {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -444,7 +444,7 @@ pub mod liquidate_perp {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -584,7 +584,7 @@ pub mod liquidate_perp {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -705,7 +705,7 @@ pub mod liquidate_perp {
         )
         .unwrap();
 
-        assert_eq!(user.perp_positions[0].base_asset_amount, 2000000000000);
+        assert_eq!(user.perp_positions[0].base_asset_amount, 200000000);
         assert_eq!(user.perp_positions[0].quote_asset_amount, -23600000);
         assert_eq!(user.perp_positions[0].quote_entry_amount, -20000000);
         assert_eq!(user.perp_positions[0].open_orders, 0);
@@ -740,10 +740,7 @@ pub mod liquidate_perp {
 
         assert_eq!(margin_ratio, 700);
 
-        assert_eq!(
-            liquidator.perp_positions[0].base_asset_amount,
-            18000000000000
-        );
+        assert_eq!(liquidator.perp_positions[0].base_asset_amount, 1800000000);
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -178200000);
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
@@ -782,7 +779,7 @@ pub mod liquidate_borrow {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -906,7 +903,7 @@ pub mod liquidate_borrow {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1056,7 +1053,7 @@ pub mod liquidate_borrow {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1256,7 +1253,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1402,7 +1399,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1588,7 +1585,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1758,7 +1755,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1904,7 +1901,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -2054,7 +2051,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -2225,7 +2222,7 @@ pub mod resolve_perp_bankruptcy {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -2443,7 +2440,7 @@ pub mod resolve_borrow_bankruptcy {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();

@@ -1582,7 +1582,7 @@ pub mod fulfill_order {
         let now = 0_i64;
         let slot = 0_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1606,7 +1606,7 @@ pub mod fulfill_order {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                base_asset_amount_step_size: 1000,
                 oracle: oracle_price_key,
                 base_spread: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -1751,9 +1751,9 @@ pub mod fulfill_order {
         assert_eq!(maker.orders[0], Order::default());
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, 5000000000000);
-        assert_eq!(market_after.base_asset_amount_long, 10000000000000);
-        assert_eq!(market_after.base_asset_amount_short, -5000000000000);
+        assert_eq!(market_after.amm.net_base_asset_amount, 500000000);
+        assert_eq!(market_after.base_asset_amount_long, 1000000000);
+        assert_eq!(market_after.base_asset_amount_short, -500000000);
         assert_eq!(market_after.amm.quote_asset_amount_long, -100296370);
         assert_eq!(market_after.amm.quote_asset_amount_short, 50015000);
         assert_eq!(market_after.amm.total_fee, 30113);
@@ -1921,8 +1921,8 @@ pub mod fulfill_order {
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.net_base_asset_amount, 0);
-        assert_eq!(market_after.base_asset_amount_long, 5000000000000);
-        assert_eq!(market_after.base_asset_amount_short, -5000000000000);
+        assert_eq!(market_after.base_asset_amount_long, 500000000);
+        assert_eq!(market_after.base_asset_amount_short, -500000000);
         assert_eq!(market_after.amm.quote_asset_amount_long, -50025000);
         assert_eq!(market_after.amm.quote_asset_amount_short, 50015000);
         assert_eq!(market_after.amm.total_fee, 10000);
@@ -1935,7 +1935,7 @@ pub mod fulfill_order {
         let now = 0_i64;
         let slot = 6_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -2070,8 +2070,8 @@ pub mod fulfill_order {
         assert_eq!(taker.orders[0], Order::default());
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, 10000000000000);
-        assert_eq!(market_after.base_asset_amount_long, 10000000000000);
+        assert_eq!(market_after.amm.net_base_asset_amount, 1000000000);
+        assert_eq!(market_after.base_asset_amount_long, 1000000000);
         assert_eq!(market_after.base_asset_amount_short, 0);
         assert_eq!(market_after.amm.quote_asset_amount_long, -104133673);
         assert_eq!(market_after.amm.quote_asset_amount_short, 0);
@@ -2085,7 +2085,7 @@ pub mod fulfill_order {
         let now = 0_i64;
         let slot = 6_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -2482,8 +2482,8 @@ pub mod fulfill_order {
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.net_base_asset_amount, 0);
-        assert_eq!(market_after.base_asset_amount_long, 5000000000000);
-        assert_eq!(market_after.base_asset_amount_short, -5000000000000);
+        assert_eq!(market_after.base_asset_amount_long, 500000000);
+        assert_eq!(market_after.base_asset_amount_short, -500000000);
         assert_eq!(market_after.amm.quote_asset_amount_long, -50025000);
         assert_eq!(market_after.amm.quote_asset_amount_short, 50015000);
         assert_eq!(market_after.amm.total_fee, 10000);
@@ -2498,10 +2498,10 @@ pub mod fulfill_order {
                 .last_oracle_price_twap_ts,
             0
         );
-        assert_eq!(market_after.amm.last_ask_price_twap, 500000000000);
-        assert_eq!(market_after.amm.last_bid_price_twap, 500000000000);
-        assert_eq!(market_after.amm.last_mark_price_twap, 500000000000);
-        assert_eq!(market_after.amm.last_mark_price_twap_5min, 3333333333);
+        assert_eq!(market_after.amm.last_ask_price_twap, 50000000);
+        assert_eq!(market_after.amm.last_bid_price_twap, 50000000);
+        assert_eq!(market_after.amm.last_mark_price_twap, 50000000);
+        assert_eq!(market_after.amm.last_mark_price_twap_5min, 333333);
         assert_eq!(
             market_after
                 .amm
@@ -2557,7 +2557,7 @@ pub mod fill_order {
             unix_timestamp: 0,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -2582,7 +2582,7 @@ pub mod fill_order {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 100,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                base_asset_amount_step_size: 1000,
                 oracle: oracle_price_key,
                 max_spread: 1000,
 
@@ -2689,7 +2689,7 @@ pub mod fill_order {
         .unwrap();
 
         let user_after = user_account_loader.load().unwrap();
-        assert_eq!(base_asset_amount, 9852450000000);
+        assert_eq!(base_asset_amount, 985245000);
         assert!(updated_user_state);
         assert_eq!(user_after.perp_positions[0].open_orders, 0);
         assert_eq!(user_after.perp_positions[0].open_bids, 0);
@@ -4457,7 +4457,7 @@ pub mod fulfill_spot_order {
             unix_timestamp: 0,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -4631,7 +4631,7 @@ pub mod fulfill_spot_order {
             unix_timestamp: 0,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -4917,7 +4917,7 @@ pub mod fill_spot_order {
             unix_timestamp: 0,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -5075,7 +5075,7 @@ pub mod fill_spot_order {
             unix_timestamp: 0,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();

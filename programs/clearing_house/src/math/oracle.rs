@@ -228,7 +228,7 @@ mod test {
             peg_multiplier: 33 * PEG_PRECISION,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap_5min: px as i128,
-                last_oracle_price_twap: (px as i128) - 10000000,
+                last_oracle_price_twap: (px as i128) - 1000,
                 last_oracle_price_twap_ts: prev,
                 ..HistoricalOracleData::default()
             },
