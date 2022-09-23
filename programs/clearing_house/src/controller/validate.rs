@@ -1,8 +1,9 @@
+use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::cast_to_i128;
 use crate::math::orders::is_multiple_of_step_size;
 use crate::math_error;
-use crate::state::market::PerpMarket;
+use crate::state::market::{PerpMarket, AMM};
 use crate::state::user::PerpPosition;
 use crate::validate;
 use solana_program::msg;
@@ -176,6 +177,32 @@ pub fn validate_market_account(market: &PerpMarket) -> ClearingHouseResult {
                 && (market.amm.max_spread < market.margin_ratio_initial * 100),
             ErrorCode::DefaultError,
             "invalid max_spread",
+        )?;
+    }
+
+    Ok(())
+}
+
+#[allow(clippy::comparison_chain)]
+pub fn validate_amm_account_for_fill(
+    amm: &AMM,
+    direction: PositionDirection,
+) -> ClearingHouseResult {
+    if direction == PositionDirection::Long {
+        validate!(
+            amm.base_asset_reserve >= amm.min_base_asset_reserve,
+            ErrorCode::DefaultError,
+            "Market baa below min_base_asset_reserve: {} < {}",
+            amm.base_asset_reserve,
+            amm.min_base_asset_reserve,
+        )?;
+    }
+
+    if direction == PositionDirection::Short {
+        validate!(
+            amm.base_asset_reserve <= amm.max_base_asset_reserve,
+            ErrorCode::DefaultError,
+            "Market baa above max_base_asset_reserve"
         )?;
     }
 

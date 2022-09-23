@@ -1241,6 +1241,8 @@ pub fn fulfill_order_with_amm(
     let (order_post_only, order_ts, order_direction) =
         get_struct_values!(user.orders[order_index], post_only, ts, direction);
 
+    controller::validate::validate_amm_account_for_fill(&market.amm, order_direction)?;
+
     let (quote_asset_amount, quote_asset_amount_surplus, mut pnl) =
         controller::position::update_position_with_base_asset_amount(
             base_asset_amount,
