@@ -54,6 +54,7 @@ pub mod delisting_test {
     use crate::controller::pnl::settle_expired_position;
     use crate::controller::repeg::settle_expired_market;
     use crate::math::amm::calculate_net_user_pnl;
+    use crate::state::oracle::HistoricalOracleData;
     use crate::state::state::{
         OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails,
     };
@@ -82,7 +83,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -133,7 +134,8 @@ pub mod delisting_test {
                     mark_oracle_divergence_denominator: 10,
                 },
                 validity: ValidityGuardRails {
-                    slots_before_stale: 10,
+                    slots_before_stale_for_amm: 10,     // 5s
+                    slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
@@ -191,7 +193,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -210,7 +212,10 @@ pub mod delisting_test {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
-                last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    ..HistoricalOracleData::default()
+                },
                 quote_asset_amount_long: -(QUOTE_PRECISION_I128 * 50), //longs have $100 cost basis
                 quote_asset_amount_short: 0,                           // no shorts
                 ..AMM::default()
@@ -247,7 +252,8 @@ pub mod delisting_test {
                     mark_oracle_divergence_denominator: 10,
                 },
                 validity: ValidityGuardRails {
-                    slots_before_stale: 10,
+                    slots_before_stale_for_amm: 10,     // 5s
+                    slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
@@ -300,7 +306,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -319,7 +325,10 @@ pub mod delisting_test {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
-                last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    ..HistoricalOracleData::default()
+                },
                 quote_asset_amount_long: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
                 quote_asset_amount_short: 0,                           // no shorts
                 ..AMM::default()
@@ -356,7 +365,8 @@ pub mod delisting_test {
                     mark_oracle_divergence_denominator: 10,
                 },
                 validity: ValidityGuardRails {
-                    slots_before_stale: 10,
+                    slots_before_stale_for_amm: 10,     // 5s
+                    slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
@@ -384,7 +394,7 @@ pub mod delisting_test {
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price > 0, true);
         assert_eq!(
-            market.settlement_price < market.amm.last_oracle_price_twap,
+            market.settlement_price < market.amm.historical_oracle_data.last_oracle_price_twap,
             true
         );
         assert_eq!(market.settlement_price, 199999999999); // best can do :/
@@ -413,7 +423,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -432,7 +442,10 @@ pub mod delisting_test {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
-                last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    ..HistoricalOracleData::default()
+                },
                 total_fee_minus_distributions: -(100000 * QUOTE_PRECISION_I128), // down $100k
                 quote_asset_amount_long: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
                 quote_asset_amount_short: 0,                           // no shorts
@@ -470,7 +483,8 @@ pub mod delisting_test {
                     mark_oracle_divergence_denominator: 10,
                 },
                 validity: ValidityGuardRails {
-                    slots_before_stale: 10,
+                    slots_before_stale_for_amm: 10,     // 5s
+                    slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
@@ -498,7 +512,7 @@ pub mod delisting_test {
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price > 0, true);
         assert_eq!(
-            market.settlement_price < market.amm.last_oracle_price_twap,
+            market.settlement_price < market.amm.historical_oracle_data.last_oracle_price_twap,
             true
         );
         assert_eq!(market.settlement_price, 199999999999); // best can do :/
@@ -527,7 +541,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -546,7 +560,10 @@ pub mod delisting_test {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
-                last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    ..HistoricalOracleData::default()
+                },
                 total_fee_minus_distributions: -(100000 * QUOTE_PRECISION_I128), // down $100k
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: (QUOTE_PRECISION_I128 * 10), //shorts have $20 cost basis
@@ -584,7 +601,8 @@ pub mod delisting_test {
                     mark_oracle_divergence_denominator: 10,
                 },
                 validity: ValidityGuardRails {
-                    slots_before_stale: 10,
+                    slots_before_stale_for_amm: 10,     // 5s
+                    slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
@@ -637,7 +655,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -656,7 +674,10 @@ pub mod delisting_test {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
-                last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    ..HistoricalOracleData::default()
+                },
                 quote_asset_amount_long: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
                 quote_asset_amount_short: 0,                           // no shorts
                 total_fee_minus_distributions: 0,
@@ -737,7 +758,8 @@ pub mod delisting_test {
                     mark_oracle_divergence_denominator: 10,
                 },
                 validity: ValidityGuardRails {
-                    slots_before_stale: 10,
+                    slots_before_stale_for_amm: 10,     // 5s
+                    slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
@@ -751,7 +773,7 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Initialized);
         assert_eq!(market.settlement_price, 0);
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, _) =
             calculate_margin_requirement_and_total_collateral(
                 &taker,
                 &market_map,
@@ -782,7 +804,7 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, _) =
             calculate_margin_requirement_and_total_collateral(
                 &taker,
                 &market_map,
@@ -882,7 +904,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -901,7 +923,10 @@ pub mod delisting_test {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
-                last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    ..HistoricalOracleData::default()
+                },
                 quote_asset_amount_long: (QUOTE_PRECISION_I128 * 10), //longs have -$20 cost basis
                 quote_asset_amount_short: 0,                          // no shorts
                 total_fee_minus_distributions: 0,
@@ -982,7 +1007,8 @@ pub mod delisting_test {
                     mark_oracle_divergence_denominator: 10,
                 },
                 validity: ValidityGuardRails {
-                    slots_before_stale: 10,
+                    slots_before_stale_for_amm: 10,     // 5s
+                    slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
@@ -996,7 +1022,7 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Initialized);
         assert_eq!(market.settlement_price, 0);
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, _) =
             calculate_margin_requirement_and_total_collateral(
                 &taker,
                 &market_map,
@@ -1027,7 +1053,7 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, _) =
             calculate_margin_requirement_and_total_collateral(
                 &taker,
                 &market_map,
@@ -1128,7 +1154,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -1147,7 +1173,10 @@ pub mod delisting_test {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
-                last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    ..HistoricalOracleData::default()
+                },
                 quote_asset_amount_long: (QUOTE_PRECISION_I128 * 20 * 2000), //longs have -$20 cost basis
                 quote_asset_amount_short: 0,                                 // no shorts
                 total_fee_minus_distributions: 0,
@@ -1228,7 +1257,8 @@ pub mod delisting_test {
                     mark_oracle_divergence_denominator: 10,
                 },
                 validity: ValidityGuardRails {
-                    slots_before_stale: 10,
+                    slots_before_stale_for_amm: 10,     // 5s
+                    slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
@@ -1259,7 +1289,7 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, _) =
             calculate_margin_requirement_and_total_collateral(
                 &taker,
                 &market_map,
@@ -1357,7 +1387,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -1376,7 +1406,10 @@ pub mod delisting_test {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
-                last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    ..HistoricalOracleData::default()
+                },
                 quote_asset_amount_long: -(QUOTE_PRECISION_I128 * 20 * 2000), // longs have $20 cost basis
                 quote_asset_amount_short: (QUOTE_PRECISION_I128 * 20 * 1000), // shorts have $20 cost basis
                 total_fee_minus_distributions: 0,
@@ -1487,7 +1520,8 @@ pub mod delisting_test {
                     mark_oracle_divergence_denominator: 10,
                 },
                 validity: ValidityGuardRails {
-                    slots_before_stale: 10,
+                    slots_before_stale_for_amm: 10,     // 5s
+                    slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
@@ -1501,7 +1535,7 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Initialized);
         assert_eq!(market.settlement_price, 0);
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, _) =
             calculate_margin_requirement_and_total_collateral(
                 &longer,
                 &market_map,
@@ -1597,7 +1631,7 @@ pub mod delisting_test {
             assert_eq!(shorter.perp_positions[0].quote_entry_amount, 0);
         }
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, _) =
             calculate_margin_requirement_and_total_collateral(
                 &longer,
                 &market_map,
@@ -1696,7 +1730,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -1715,7 +1749,10 @@ pub mod delisting_test {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
-                last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    ..HistoricalOracleData::default()
+                },
                 quote_asset_amount_long: (QUOTE_PRECISION_I128 * 200), // longs have -$1 cost basis
                 quote_asset_amount_short: (QUOTE_PRECISION_I128 * 97 * 1000), // shorts have $97 cost basis
                 total_fee_minus_distributions: 0,
@@ -1827,7 +1864,8 @@ pub mod delisting_test {
                     mark_oracle_divergence_denominator: 10,
                 },
                 validity: ValidityGuardRails {
-                    slots_before_stale: 10,
+                    slots_before_stale_for_amm: 10,     // 5s
+                    slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
@@ -1841,7 +1879,7 @@ pub mod delisting_test {
         assert_eq!(market.status, MarketStatus::Initialized);
         assert_eq!(market.settlement_price, 0);
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, _) =
             calculate_margin_requirement_and_total_collateral(
                 &longer,
                 &market_map,
@@ -1855,7 +1893,7 @@ pub mod delisting_test {
         assert_eq!(total_collateral, 20000000000);
         assert_eq!(margin_requirement, 1005000000);
 
-        let (margin_requirement_short, total_collateral_short, _) =
+        let (margin_requirement_short, total_collateral_short, _, _) =
             calculate_margin_requirement_and_total_collateral(
                 &shorter,
                 &market_map,
@@ -1888,7 +1926,7 @@ pub mod delisting_test {
 
         // try long close
         {
-            let (margin_requirement, total_collateral, _) =
+            let (margin_requirement, total_collateral, _, _) =
                 calculate_margin_requirement_and_total_collateral(
                     &longer,
                     &market_map,
@@ -2070,7 +2108,7 @@ pub mod delisting_test {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -2089,7 +2127,10 @@ pub mod delisting_test {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
-                last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    ..HistoricalOracleData::default()
+                },
                 quote_asset_amount_long: (QUOTE_PRECISION_I128 * 200), // longs have -$1 cost basis
                 quote_asset_amount_short: (QUOTE_PRECISION_I128 * 97 * 1000), // shorts have $97 cost basis
                 total_fee_minus_distributions: 0,
@@ -2213,7 +2254,8 @@ pub mod delisting_test {
                     mark_oracle_divergence_denominator: 10,
                 },
                 validity: ValidityGuardRails {
-                    slots_before_stale: 10,
+                    slots_before_stale_for_amm: 10,     // 5s
+                    slots_before_stale_for_margin: 120, // 60s
                     confidence_interval_max_size: 1000,
                     too_volatile_ratio: 5,
                 },
@@ -2222,7 +2264,7 @@ pub mod delisting_test {
             ..State::default()
         };
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, _) =
             calculate_margin_requirement_and_total_collateral(
                 &longer,
                 &market_map,
@@ -2696,7 +2738,7 @@ pub mod delisting_test {
 
         // do long close
         {
-            let (margin_requirement, total_collateral, _) =
+            let (margin_requirement, total_collateral, _, _) =
                 calculate_margin_requirement_and_total_collateral(
                     &longer,
                     &market_map,

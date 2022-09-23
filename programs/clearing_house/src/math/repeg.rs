@@ -9,9 +9,12 @@ use crate::math::constants::{
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, TWENTY_FOUR_HOUR,
 };
+use crate::math::oracle;
+use crate::math::oracle::OracleValidity;
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::math_error;
 use crate::state::market::{PerpMarket, AMM};
+use crate::state::oracle::get_oracle_price;
 use crate::state::oracle::OraclePriceData;
 use std::cmp::{max, min};
 
@@ -26,14 +29,13 @@ pub fn calculate_repeg_validity_from_oracle_account(
     clock_slot: u64,
     oracle_guard_rails: &OracleGuardRails,
 ) -> ClearingHouseResult<(bool, bool, bool, bool)> {
-    let oracle_price_data = market
-        .amm
-        .get_oracle_price(oracle_account_info, clock_slot)?;
-    let oracle_is_valid = amm::is_oracle_valid(
-        &market.amm,
+    let oracle_price_data =
+        get_oracle_price(&market.amm.oracle_source, oracle_account_info, clock_slot)?;
+    let oracle_is_valid = oracle::oracle_validity(
+        market.amm.historical_oracle_data.last_oracle_price_twap,
         &oracle_price_data,
         &oracle_guard_rails.validity,
-    )?;
+    )? == OracleValidity::Valid;
 
     let (oracle_is_valid, direction_valid, profitability_valid, price_impact_valid) =
         calculate_repeg_validity(
@@ -494,7 +496,7 @@ pub fn calculate_expected_excess_funding_payment(
         .ok_or_else(math_error!())?;
 
     let oracle_mark_twap_spread = cast_to_i128(market.amm.last_mark_price_twap)?
-        .checked_sub(market.amm.last_oracle_price_twap)
+        .checked_sub(market.amm.historical_oracle_data.last_oracle_price_twap)
         .ok_or_else(math_error!())?;
 
     let expected_excess_funding = oracle_mark_spread

@@ -1,9 +1,12 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::ids::pyth_program;
 use crate::math::constants::MARK_PRICE_PRECISION_I128;
+use crate::math::oracle::{oracle_validity, OracleValidity};
 use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource};
+use crate::state::state::OracleGuardRails;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::Key;
+use solana_program::msg;
 use std::collections::BTreeMap;
 use std::iter::Peekable;
 use std::slice::Iter;
@@ -18,6 +21,7 @@ pub struct OracleMap<'a> {
     oracles: BTreeMap<Pubkey, AccountInfoAndOracleSource<'a>>,
     price_data: BTreeMap<Pubkey, OraclePriceData>,
     pub slot: u64,
+    pub oracle_guard_rails: OracleGuardRails,
     pub quote_asset_price_data: OraclePriceData,
 }
 
@@ -50,6 +54,7 @@ impl<'a> OracleMap<'a> {
                 oracle_source,
             }) => (account_info, oracle_source),
             None => {
+                msg!("oracle pubkey not found in oracle_map: {}", pubkey);
                 return Err(ErrorCode::OracleNotFound);
             }
         };
@@ -61,9 +66,54 @@ impl<'a> OracleMap<'a> {
         Ok(self.price_data.get(pubkey).unwrap())
     }
 
+    pub fn get_price_data_and_validity(
+        &mut self,
+        pubkey: &Pubkey,
+        last_oracle_price_twap: i128,
+    ) -> ClearingHouseResult<(&OraclePriceData, OracleValidity)> {
+        if pubkey == &Pubkey::default() {
+            return Ok((&self.quote_asset_price_data, OracleValidity::Valid));
+        }
+
+        if self.price_data.contains_key(pubkey) {
+            let oracle_price_data = self.price_data.get(pubkey).unwrap();
+            let is_oracle_valid = oracle_validity(
+                last_oracle_price_twap,
+                oracle_price_data,
+                &self.oracle_guard_rails.validity,
+            )?;
+            return Ok((oracle_price_data, is_oracle_valid));
+        }
+
+        let (account_info, oracle_source) = match self.oracles.get(pubkey) {
+            Some(AccountInfoAndOracleSource {
+                account_info,
+                oracle_source,
+            }) => (account_info, oracle_source),
+            None => {
+                msg!("oracle pubkey not found in oracle_map: {}", pubkey);
+                return Err(ErrorCode::OracleNotFound);
+            }
+        };
+
+        let price_data = get_oracle_price(oracle_source, account_info, self.slot)?;
+
+        self.price_data.insert(*pubkey, price_data);
+
+        let oracle_price_data = self.price_data.get(pubkey).unwrap();
+        let is_oracle_valid = oracle_validity(
+            last_oracle_price_twap,
+            oracle_price_data,
+            &self.oracle_guard_rails.validity,
+        )?;
+
+        Ok((oracle_price_data, is_oracle_valid))
+    }
+
     pub fn load<'c>(
         account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
         slot: u64,
+        oracle_guard_rails: Option<OracleGuardRails>,
     ) -> ClearingHouseResult<OracleMap<'a>> {
         let mut oracles: BTreeMap<Pubkey, AccountInfoAndOracleSource<'a>> = BTreeMap::new();
 
@@ -85,10 +135,17 @@ impl<'a> OracleMap<'a> {
             break;
         }
 
+        let ogr: OracleGuardRails = if let Some(o) = oracle_guard_rails {
+            o
+        } else {
+            OracleGuardRails::default()
+        };
+
         Ok(OracleMap {
             oracles,
             price_data: BTreeMap::new(),
             slot,
+            oracle_guard_rails: ogr,
             quote_asset_price_data: OraclePriceData {
                 price: MARK_PRICE_PRECISION_I128,
                 confidence: 1,
@@ -101,6 +158,7 @@ impl<'a> OracleMap<'a> {
     pub fn load_one<'c>(
         account_info: &'c AccountInfo<'a>,
         slot: u64,
+        oracle_guard_rails: Option<OracleGuardRails>,
     ) -> ClearingHouseResult<OracleMap<'a>> {
         let mut oracles: BTreeMap<Pubkey, AccountInfoAndOracleSource<'a>> = BTreeMap::new();
 
@@ -117,10 +175,17 @@ impl<'a> OracleMap<'a> {
             },
         );
 
+        let ogr: OracleGuardRails = if let Some(o) = oracle_guard_rails {
+            o
+        } else {
+            OracleGuardRails::default()
+        };
+
         Ok(OracleMap {
             oracles,
             price_data: BTreeMap::new(),
             slot,
+            oracle_guard_rails: ogr,
             quote_asset_price_data: OraclePriceData {
                 price: MARK_PRICE_PRECISION_I128,
                 confidence: 1,
@@ -138,6 +203,7 @@ impl<'a> OracleMap<'a> {
             oracles: BTreeMap::new(),
             price_data: BTreeMap::new(),
             slot: 0,
+            oracle_guard_rails: OracleGuardRails::default(),
             quote_asset_price_data: OraclePriceData {
                 price: MARK_PRICE_PRECISION_I128,
                 confidence: 1,

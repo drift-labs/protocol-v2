@@ -22,7 +22,9 @@ test_files=(
   ordersWithSpread.ts
   marketOrder.ts triggerOrders.ts stopLimits.ts userOrderId.ts postOnly.ts
   roundInFavorBaseAsset.ts marketOrderBaseAssetAmount.ts oracleOffsetOrders.ts
-  userDelegate.ts subaccounts.ts pyth.ts userAccount.ts admin.ts updateK.ts adminWithdraw.ts
+  userDelegate.ts subaccounts.ts pyth.ts userAccount.ts admin.ts 
+  updateK.ts 
+  adminWithdraw.ts
   curve.ts roundInFavor.ts cappedSymFunding.ts
 )
 

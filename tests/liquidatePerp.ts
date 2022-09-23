@@ -7,6 +7,7 @@ import {
 	OracleSource,
 	QUOTE_PRECISION,
 	ZERO,
+	OracleGuardRails,
 } from '../sdk';
 import { assert } from 'chai';
 
@@ -175,6 +176,22 @@ describe('liquidate perp and lp', () => {
 
 		const oracle = clearingHouse.getPerpMarketAccount(0).amm.oracle;
 		await setFeedPrice(anchor.workspace.Pyth, 0.1, oracle);
+
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(10),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
+				confidenceIntervalMaxSize: new BN(100000),
+				tooVolatileRatio: new BN(11), // allow 11x change
+			},
+			useForLiquidations: false,
+		};
+
+		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
 
 		const txSig = await liquidatorClearingHouse.liquidatePerp(
 			await clearingHouse.getUserAccountPublicKey(),

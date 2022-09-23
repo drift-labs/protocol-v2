@@ -434,11 +434,33 @@ export type PerpMarketAccount = {
 	quoteMaxInsurance: BN;
 };
 
+export type HistoricalOracleData = {
+	lastOraclePrice: BN;
+	lastOracleDelay: BN;
+	lastOracleConf: BN;
+	lastOraclePriceTwap: BN;
+	lastOraclePriceTwap5min: BN;
+	lastOraclePriceTwapTs: BN;
+};
+
+export type HistoricalIndexData = {
+	lastIndexBidPrice: BN;
+	lastIndexAskPrice: BN;
+	lastIndexPriceTwap: BN;
+	lastIndexPriceTwap5Min: BN;
+	lastIndexPriceTwapTs: BN;
+};
+
 export type SpotMarketAccount = {
 	marketIndex: BN;
 	pubkey: PublicKey;
 	mint: PublicKey;
 	vault: PublicKey;
+
+	oracle: PublicKey;
+	oracleSource: OracleSource;
+	historicalOracleData: HistoricalOracleData;
+	historicalIndexData: HistoricalIndexData;
 
 	insuranceFundVault: PublicKey;
 	insuranceWithdrawEscrowPeriod: BN;
@@ -461,7 +483,6 @@ export type SpotMarketAccount = {
 	borrowBalance: BN;
 	lastInterestTs: BN;
 	lastTwapTs: BN;
-	oracle: PublicKey;
 	initialAssetWeight: BN;
 	maintenanceAssetWeight: BN;
 	initialLiabilityWeight: BN;
@@ -495,21 +516,20 @@ export type AMM = {
 	lastMarkPriceTwap: BN;
 	lastMarkPriceTwap5min: BN;
 	lastMarkPriceTwapTs: BN;
-	lastOraclePriceTwap: BN;
-	lastOraclePriceTwap5min: BN;
-	lastOraclePriceTwapTs: BN;
-	lastOracleMarkSpreadPct: BN;
-	lastOracleConfPct: BN;
+
 	oracle: PublicKey;
 	oracleSource: OracleSource;
+	historicalOracleData: HistoricalOracleData;
+
+	lastOracleMarkSpreadPct: BN;
+	lastOracleConfPct: BN;
+
 	fundingPeriod: BN;
 	quoteAssetReserve: BN;
 	pegMultiplier: BN;
 	cumulativeFundingRateLong: BN;
 	cumulativeFundingRateShort: BN;
 	cumulativeFundingRateLp: BN;
-	cumulativeRepegRebateLong: BN;
-	cumulativeRepegRebateShort: BN;
 	totalFeeMinusDistributions: BN;
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
@@ -522,7 +542,6 @@ export type AMM = {
 	baseAssetAmountStepSize: BN;
 	maxBaseAssetAmountRatio: number;
 	maxSlippageRatio: number;
-	lastOraclePrice: BN;
 	baseSpread: number;
 	curveUpdateIntensity: number;
 	netBaseAssetAmount: BN;
@@ -749,7 +768,8 @@ export type OracleGuardRails = {
 		markOracleDivergenceDenominator: BN;
 	};
 	validity: {
-		slotsBeforeStale: BN;
+		slotsBeforeStaleForAmm: BN;
+		slotsBeforeStaleForMargin: BN;
 		confidenceIntervalMaxSize: BN;
 		tooVolatileRatio: BN;
 	};

@@ -9,6 +9,85 @@ use std::cmp::max;
 use switchboard_v2::decimal::SwitchboardDecimal;
 use switchboard_v2::AggregatorAccountData;
 
+#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
+pub struct HistoricalOracleData {
+    // use u64?
+    pub last_oracle_price: i128,
+    pub last_oracle_conf: u128,
+    pub last_oracle_delay: i64,
+    pub last_oracle_price_twap: i128,
+    pub last_oracle_price_twap_5min: i128,
+    pub last_oracle_price_twap_ts: i64,
+}
+
+impl HistoricalOracleData {
+    pub fn default_quote_oracle() -> Self {
+        HistoricalOracleData {
+            last_oracle_price: MARK_PRICE_PRECISION_I128,
+            last_oracle_conf: 0,
+            last_oracle_delay: 0,
+            last_oracle_price_twap: MARK_PRICE_PRECISION_I128,
+            last_oracle_price_twap_5min: MARK_PRICE_PRECISION_I128,
+            ..HistoricalOracleData::default()
+        }
+    }
+
+    pub fn default_price(price: i128) -> Self {
+        HistoricalOracleData {
+            last_oracle_price: price,
+            last_oracle_conf: 0,
+            last_oracle_delay: 10,
+            last_oracle_price_twap: price,
+            last_oracle_price_twap_5min: price,
+            ..HistoricalOracleData::default()
+        }
+    }
+
+    pub fn default_with_current_oracle(oracle_price_data: OraclePriceData) -> Self {
+        HistoricalOracleData {
+            last_oracle_price: oracle_price_data.price,
+            last_oracle_conf: oracle_price_data.confidence,
+            last_oracle_delay: oracle_price_data.delay,
+            last_oracle_price_twap: oracle_price_data.price,
+            last_oracle_price_twap_5min: oracle_price_data.price,
+            ..HistoricalOracleData::default()
+        }
+    }
+}
+
+#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
+pub struct HistoricalIndexData {
+    // use u64?
+    pub last_index_bid_price: u128,
+    pub last_index_ask_price: u128,
+    pub last_index_price_twap: u128,
+    pub last_index_price_twap_5min: u128,
+    pub last_index_price_twap_ts: i64,
+}
+
+impl HistoricalIndexData {
+    pub fn default_quote_oracle() -> Self {
+        HistoricalIndexData {
+            last_index_bid_price: MARK_PRICE_PRECISION,
+            last_index_ask_price: MARK_PRICE_PRECISION,
+            last_index_price_twap: MARK_PRICE_PRECISION,
+            last_index_price_twap_5min: MARK_PRICE_PRECISION,
+            ..HistoricalIndexData::default()
+        }
+    }
+
+    pub fn default_with_current_oracle(oracle_price_data: OraclePriceData) -> Self {
+        let price = cast_to_u128(oracle_price_data.price).unwrap();
+        HistoricalIndexData {
+            last_index_bid_price: price,
+            last_index_ask_price: price,
+            last_index_price_twap: price,
+            last_index_price_twap_5min: price,
+            ..HistoricalIndexData::default()
+        }
+    }
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
 pub enum OracleSource {
     Pyth,
@@ -29,6 +108,17 @@ pub struct OraclePriceData {
     pub confidence: u128,
     pub delay: i64,
     pub has_sufficient_number_of_data_points: bool,
+}
+
+impl OraclePriceData {
+    pub fn default_usd() -> Self {
+        OraclePriceData {
+            price: MARK_PRICE_PRECISION_I128,
+            confidence: 1,
+            delay: 0,
+            has_sufficient_number_of_data_points: true,
+        }
+    }
 }
 
 pub fn get_oracle_price(

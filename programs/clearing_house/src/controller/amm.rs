@@ -371,7 +371,7 @@ pub fn formulaic_update_k(
                 adjustment_cost,
                 total_fee: market.amm.total_fee,
                 total_fee_minus_distributions: market.amm.total_fee_minus_distributions,
-                oracle_price: market.amm.last_oracle_price,
+                oracle_price: market.amm.historical_oracle_data.last_oracle_price,
                 fill_record: market.next_fill_record_id as u128,
             });
         }

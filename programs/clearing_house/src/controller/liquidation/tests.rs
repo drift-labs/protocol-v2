@@ -13,7 +13,7 @@ pub mod liquidate_perp {
     };
     use crate::math::position::calculate_base_asset_value_with_oracle_price;
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
-    use crate::state::oracle::OracleSource;
+    use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -42,7 +42,7 @@ pub mod liquidate_perp {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -60,6 +60,9 @@ pub mod liquidate_perp {
                 quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                historical_oracle_data: HistoricalOracleData::default_price(
+                    oracle_price.agg.price as i128,
+                ),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -179,7 +182,7 @@ pub mod liquidate_perp {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -197,6 +200,9 @@ pub mod liquidate_perp {
                 quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                historical_oracle_data: HistoricalOracleData::default_price(
+                    oracle_price.agg.price as i128,
+                ),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -316,7 +322,7 @@ pub mod liquidate_perp {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -334,6 +340,9 @@ pub mod liquidate_perp {
                 quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                historical_oracle_data: HistoricalOracleData::default_price(
+                    oracle_price.agg.price as i128,
+                ),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -445,7 +454,7 @@ pub mod liquidate_perp {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -463,6 +472,9 @@ pub mod liquidate_perp {
                 quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                historical_oracle_data: HistoricalOracleData::default_price(
+                    oracle_price.agg.price as i128,
+                ),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -582,7 +594,7 @@ pub mod liquidate_perp {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -600,6 +612,9 @@ pub mod liquidate_perp {
                 quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
                 net_base_asset_amount: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
+                historical_oracle_data: HistoricalOracleData::default_price(
+                    oracle_price.agg.price as i128,
+                ),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -696,7 +711,7 @@ pub mod liquidate_perp {
         assert_eq!(user.perp_positions[0].open_orders, 0);
         assert_eq!(user.perp_positions[0].open_bids, 0);
 
-        let (_, total_collateral, margin_requirement_plus_buffer) =
+        let (_, total_collateral, margin_requirement_plus_buffer, _) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &perp_market_map,
@@ -748,6 +763,7 @@ pub mod liquidate_borrow {
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
     };
     use crate::math::spot_balance::{get_token_amount, get_token_value};
+    use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
@@ -776,7 +792,7 @@ pub mod liquidate_borrow {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let perp_market_map = PerpMarketMap::empty();
 
@@ -806,6 +822,10 @@ pub mod liquidate_borrow {
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: SPOT_INTEREST_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -896,7 +916,7 @@ pub mod liquidate_borrow {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let perp_market_map = PerpMarketMap::empty();
 
@@ -926,6 +946,10 @@ pub mod liquidate_borrow {
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: SPOT_INTEREST_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 1442 / 10000) as i128,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -968,6 +992,32 @@ pub mod liquidate_borrow {
 
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
+
+        // oracle twap too volatile to liq rn
+        assert!(liquidate_borrow(
+            0,
+            1,
+            10_u128.pow(6) / 10,
+            &mut user,
+            &user_key,
+            &mut liquidator,
+            &liquidator_key,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            now,
+            slot,
+            10,
+        )
+        .is_err());
+
+        // move twap closer to oracle price (within 80% below)
+        let mut market1 = spot_market_map
+            .get_ref_mut(&sol_market.market_index)
+            .unwrap();
+        market1.historical_oracle_data.last_oracle_price_twap =
+            (sol_oracle_price.agg.price * 6744 / 10000) as i128;
+        drop(market1);
 
         liquidate_borrow(
             0,
@@ -1016,7 +1066,7 @@ pub mod liquidate_borrow {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let market_map = PerpMarketMap::empty();
 
@@ -1047,6 +1097,10 @@ pub mod liquidate_borrow {
             borrow_balance: SPOT_INTEREST_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -1112,7 +1166,7 @@ pub mod liquidate_borrow {
         assert_eq!(user.spot_positions[0].balance, 45558159);
         assert_eq!(user.spot_positions[1].balance, 406768);
 
-        let (margin_requirement, total_collateral, margin_requirement_plus_buffer) =
+        let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &market_map,
@@ -1172,6 +1226,8 @@ pub mod liquidate_borrow_for_perp_pnl {
     use crate::controller::liquidation::liquidate_borrow_for_perp_pnl;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
+    use crate::state::oracle::HistoricalOracleData;
+
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
         PEG_PRECISION, QUOTE_PRECISION_I128, SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1210,7 +1266,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -1268,6 +1324,10 @@ pub mod liquidate_borrow_for_perp_pnl {
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: SPOT_INTEREST_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -1352,7 +1412,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -1411,6 +1471,10 @@ pub mod liquidate_borrow_for_perp_pnl {
             borrow_balance: SPOT_INTEREST_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -1473,7 +1537,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         assert_eq!(user.spot_positions[0].balance, 357739);
         assert_eq!(user.perp_positions[0].quote_asset_amount, 40066807);
 
-        let (_, total_collateral, margin_requirement_plus_buffer) =
+        let (_, total_collateral, margin_requirement_plus_buffer, _) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &market_map,
@@ -1534,7 +1598,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -1591,6 +1655,10 @@ pub mod liquidate_borrow_for_perp_pnl {
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: SPOT_INTEREST_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -1665,6 +1733,8 @@ pub mod liquidate_perp_pnl_for_deposit {
     use crate::controller::liquidation::liquidate_perp_pnl_for_deposit;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
+    use crate::state::oracle::HistoricalOracleData;
+
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
         PEG_PRECISION, QUOTE_PRECISION_I128, SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1698,7 +1768,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -1756,6 +1826,10 @@ pub mod liquidate_perp_pnl_for_deposit {
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: 0,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -1840,7 +1914,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -1899,6 +1973,10 @@ pub mod liquidate_perp_pnl_for_deposit {
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: 0,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -1986,7 +2064,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -2044,6 +2122,10 @@ pub mod liquidate_perp_pnl_for_deposit {
             deposit_balance: SPOT_INTEREST_PRECISION,
             borrow_balance: 0,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                ..HistoricalOracleData::default()
+            },
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
@@ -2153,7 +2235,7 @@ pub mod resolve_perp_bankruptcy {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -2371,7 +2453,7 @@ pub mod resolve_borrow_bankruptcy {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {

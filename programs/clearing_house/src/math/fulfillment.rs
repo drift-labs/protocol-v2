@@ -6,6 +6,7 @@ use crate::state::user::Order;
 pub fn determine_perp_fulfillment_methods(
     taker_order: &Order,
     maker_available: bool,
+    amm_available: bool,
     slot: u64,
 ) -> ClearingHouseResult<Vec<PerpFulfillmentMethod>> {
     let mut fulfillment_methods = vec![];
@@ -14,7 +15,7 @@ pub fn determine_perp_fulfillment_methods(
         fulfillment_methods.push(PerpFulfillmentMethod::Match)
     }
 
-    if is_auction_complete(taker_order.slot, taker_order.auction_duration, slot)? {
+    if amm_available && is_auction_complete(taker_order.slot, taker_order.auction_duration, slot)? {
         fulfillment_methods.push(PerpFulfillmentMethod::AMM)
     }
 

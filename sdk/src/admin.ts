@@ -414,7 +414,7 @@ export class Admin extends ClearingHouse {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
-				market: marketPublicKey,
+				perpMarket: marketPublicKey,
 				spotMarket: spotMarket.pubkey,
 				spotMarketVault: spotMarket.vault,
 				clearingHouseSigner: this.getSignerPublicKey(),

@@ -16,6 +16,7 @@ import {
 	MARK_PRICE_PRECISION,
 	PositionDirection,
 	EventSubscriber,
+	OracleGuardRails,
 } from '../sdk/src';
 
 import {
@@ -113,6 +114,22 @@ describe('liquidate borrow for perp pnl', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
+
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(10),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
+				confidenceIntervalMaxSize: new BN(100000),
+				tooVolatileRatio: new BN(55), // allow 55x change
+			},
+			useForLiquidations: false,
+		};
+
+		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
 
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,

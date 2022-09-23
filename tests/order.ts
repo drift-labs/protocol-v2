@@ -25,6 +25,7 @@ import {
 	EventSubscriber,
 	standardizeBaseAssetAmount,
 	calculateBaseAssetAmountForAmmToFulfill,
+	OracleGuardRails,
 } from '../sdk/src';
 
 import {
@@ -1526,6 +1527,22 @@ describe('orders', () => {
 	});
 
 	it('PlaceAndTake LONG Order 100% filled', async () => {
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(1),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
+				confidenceIntervalMaxSize: new BN(100000),
+				tooVolatileRatio: new BN(2),
+			},
+			useForLiquidations: false,
+		};
+
+		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
+
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const price = new BN('13300000000').add(

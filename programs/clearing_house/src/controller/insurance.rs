@@ -435,7 +435,7 @@ pub fn settle_revenue_to_insurance_fund(
     spot_market: &mut SpotMarket,
     now: i64,
 ) -> ClearingHouseResult<u64> {
-    update_spot_market_cumulative_interest(spot_market, now)?;
+    update_spot_market_cumulative_interest(spot_market, None, now)?;
 
     validate!(
         spot_market.revenue_settle_period > 0,
@@ -541,9 +541,9 @@ pub fn settle_revenue_to_insurance_fund(
 }
 
 pub fn resolve_perp_pnl_deficit(
-    bank_vault_amount: u64,
+    vault_amount: u64,
     insurance_vault_amount: u64,
-    bank: &mut SpotMarket,
+    spot_market: &mut SpotMarket,
     market: &mut PerpMarket,
     now: i64,
 ) -> ClearingHouseResult<u64> {
@@ -554,8 +554,11 @@ pub fn resolve_perp_pnl_deficit(
         market.amm.total_fee_minus_distributions
     )?;
 
-    let pnl_pool_token_amount =
-        get_token_amount(market.pnl_pool.balance, bank, &SpotBalanceType::Deposit)?;
+    let pnl_pool_token_amount = get_token_amount(
+        market.pnl_pool.balance,
+        spot_market,
+        &SpotBalanceType::Deposit,
+    )?;
 
     validate!(
         pnl_pool_token_amount == 0,
@@ -564,12 +567,15 @@ pub fn resolve_perp_pnl_deficit(
         pnl_pool_token_amount
     )?;
 
-    update_spot_market_cumulative_interest(bank, now)?;
+    update_spot_market_cumulative_interest(spot_market, None, now)?;
 
-    let total_if_shares_before = bank.total_if_shares;
+    let total_if_shares_before = spot_market.total_if_shares;
 
     let excess_user_pnl_imbalance = if market.unrealized_max_imbalance > 0 {
-        let net_unsettled_pnl = calculate_net_user_pnl(&market.amm, market.amm.last_oracle_price)?;
+        let net_unsettled_pnl = calculate_net_user_pnl(
+            &market.amm,
+            market.amm.historical_oracle_data.last_oracle_price,
+        )?;
 
         net_unsettled_pnl
             .checked_sub(cast_to_i128(market.unrealized_max_imbalance)?)
@@ -655,22 +661,22 @@ pub fn resolve_perp_pnl_deficit(
     update_spot_balances(
         insurance_withdraw.unsigned_abs(),
         &SpotBalanceType::Deposit,
-        bank,
+        spot_market,
         &mut market.pnl_pool,
         false,
     )?;
 
     emit!(InsuranceFundRecord {
         ts: now,
-        spot_market_index: bank.market_index,
+        spot_market_index: spot_market.market_index,
         perp_market_index: market.market_index,
         amount: -cast_to_i64(insurance_withdraw)?,
-        user_if_factor: bank.user_if_factor,
-        total_if_factor: bank.total_if_factor,
-        vault_amount_before: bank_vault_amount,
+        user_if_factor: spot_market.user_if_factor,
+        total_if_factor: spot_market.total_if_factor,
+        vault_amount_before: vault_amount,
         insurance_vault_amount_before: insurance_vault_amount,
         total_if_shares_before,
-        total_if_shares_after: bank.total_if_shares,
+        total_if_shares_after: spot_market.total_if_shares,
     });
 
     cast_to_u64(insurance_withdraw)
