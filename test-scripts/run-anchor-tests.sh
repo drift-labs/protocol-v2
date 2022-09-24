@@ -28,6 +28,8 @@ test_files=(
   curve.ts roundInFavor.ts cappedSymFunding.ts
 )
 
+test_files=(repegAndSpread.ts)
+
 for test_file in ${test_files[@]}; do
   export ANCHOR_TEST_FILE=${test_file} && anchor test --skip-build || exit 1;
 done

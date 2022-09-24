@@ -38,7 +38,6 @@ import {
 } from './testHelpers';
 import {
 	AMM_RESERVE_PRECISION,
-	BASE_PRECISION,
 	calculateMarkPrice,
 	findComputeUnitConsumption,
 	getMarketOrderParams,

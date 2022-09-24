@@ -467,6 +467,8 @@ impl AMM {
 
         let oracle_twap = cast_to_i128(price_data.twap.val)?;
 
+        assert!(oracle_twap > cast_to_i128(price_data.agg.price)? / 10);
+
         let oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
 
         let mut oracle_scale_mult = 1;

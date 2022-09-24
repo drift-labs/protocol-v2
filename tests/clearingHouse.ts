@@ -16,7 +16,6 @@ import { PublicKey, TransactionSignature } from '@solana/web3.js';
 
 import {
 	Admin,
-	PRICE_PRECISION,
 	calculateTradeSlippage,
 	PositionDirection,
 	getMarketPublicKey,

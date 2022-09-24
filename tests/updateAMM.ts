@@ -16,6 +16,7 @@ import {
 	AMM_RESERVE_PRECISION,
 	QUOTE_PRECISION,
 	calculateMarkPrice,
+	OracleGuardRails,
 	calculateTradeSlippage,
 	PositionDirection,
 	EventSubscriber,
@@ -61,7 +62,7 @@ async function feePoolInjection(fees, marketIndex, clearingHouse) {
 				.logMessages
 		);
 
-		// cancel remaining order
+		// try to cancel remaining order
 		try {
 			await clearingHouse.cancelOrder();
 		} catch (e) {
@@ -159,7 +160,7 @@ describe('update amm', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
-			PEG_PRECISION,
+			new BN(1 * PEG_PRECISION.toNumber()),
 			undefined,
 			1000
 		);
@@ -174,7 +175,7 @@ describe('update amm', () => {
 				ammInitialBaseAssetAmount,
 				ammInitialQuoteAssetAmount,
 				periodicity,
-				new BN(PEG_PRECISION.toNumber() * i),
+				new BN(i * PEG_PRECISION.toNumber()),
 				undefined,
 				1000
 			);
@@ -211,8 +212,13 @@ describe('update amm', () => {
 		);
 
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
-		console.log(prepegAMM.pegMultiplier.toString());
-		assert(prepegAMM.pegMultiplier.eq(new BN(1002999)));
+		const expectedPeg = new BN(1002999);
+		console.log(
+			prepegAMM.pegMultiplier.toString(),
+			'==',
+			expectedPeg.toString()
+		);
+		assert(prepegAMM.pegMultiplier.eq(expectedPeg));
 		const estDist = prepegAMM.totalFee.sub(
 			prepegAMM.totalFeeMinusDistributions
 		);
@@ -263,8 +269,14 @@ describe('update amm', () => {
 		assert(ask1.gt(oraclePriceData.price));
 		assert(bid1.lt(oraclePriceData.price));
 
-		console.log(market.amm.pegMultiplier.toString());
-		assert(market.amm.pegMultiplier.eq(new BN(1002999)));
+		const expectedPeg2 = new BN(1.003 * PEG_PRECISION.toNumber());
+		console.log(
+			prepegAMM.pegMultiplier.toString(),
+			'==',
+			expectedPeg2.toString()
+		);
+		assert(market.amm.pegMultiplier.eq(expectedPeg2));
+
 		const actualDist = market.amm.totalFee.sub(
 			market.amm.totalFeeMinusDistributions
 		);
@@ -310,7 +322,9 @@ describe('update amm', () => {
 
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 		console.log(prepegAMM.pegMultiplier.toString());
-		assert(prepegAMM.pegMultiplier.eq(new BN(937800)));
+		assert(
+			prepegAMM.pegMultiplier.eq(new BN(0.9378 * PEG_PRECISION.toNumber()))
+		);
 		const estDist = prepegAMM.totalFee.sub(
 			prepegAMM.totalFeeMinusDistributions
 		);
@@ -361,8 +375,14 @@ describe('update amm', () => {
 		assert(ask1.gt(oraclePriceData.price));
 		assert(bid1.lt(oraclePriceData.price));
 
-		console.log(market.amm.pegMultiplier.toString());
-		assert(market.amm.pegMultiplier.eq(new BN(937800)));
+		const expectedPeg2 = new BN(0.9378 * PEG_PRECISION.toNumber());
+		console.log(
+			market.amm.pegMultiplier.toString(),
+			'==',
+			expectedPeg2.toString()
+		);
+		assert(market.amm.pegMultiplier.eq(expectedPeg2));
+
 		const actualDist = market.amm.totalFee.sub(
 			market.amm.totalFeeMinusDistributions
 		);
@@ -463,6 +483,22 @@ describe('update amm', () => {
 	});
 
 	it('Many market balanced prepegs, long position', async () => {
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(1),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
+				confidenceIntervalMaxSize: new BN(100000),
+				tooVolatileRatio: new BN(2),
+			},
+			useForLiquidations: false,
+		};
+
+		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
+
 		for (let i = 0; i <= 4; i++) {
 			const thisUsd = mockOracles[i];
 			const marketIndex = new BN(i);
@@ -611,6 +647,7 @@ describe('update amm', () => {
 		console.log(computeUnits21);
 
 		const txSig3 = await clearingHouse.placeAndTake(orderParams);
+		await clearingHouse.fetchAccounts();
 
 		console.log(
 			'tx logs',
@@ -643,19 +680,34 @@ describe('update amm', () => {
 			const market0 = market0s[i];
 
 			if (i == 0) {
-				assert(market.amm.pegMultiplier.eq(new BN(1008524)));
+				assert(
+					market.amm.pegMultiplier.eq(
+						new BN(1.008524 * PEG_PRECISION.toNumber())
+					)
+				);
 			} else if (i == 1) {
-				assert(market.amm.pegMultiplier.eq(new BN(1976547)));
+				assert(
+					market.amm.pegMultiplier.eq(
+						new BN(1.976553 * PEG_PRECISION.toNumber())
+					)
+				);
 			} else if (i == 2) {
-				assert(market.amm.pegMultiplier.eq(new BN(2040000)));
+				assert(market.amm.pegMultiplier.eq(new BN(2011017)));
 			} else if (i == 3) {
-				assert(market.amm.pegMultiplier.eq(new BN(3016000)));
+				assert(
+					market.amm.pegMultiplier.eq(
+						new BN(3.016526 * PEG_PRECISION.toNumber())
+					)
+				);
 			} else if (i == 4) {
-				assert(market.amm.pegMultiplier.eq(new BN(4022000)));
+				assert(
+					market.amm.pegMultiplier.eq(
+						new BN(4.022035 * PEG_PRECISION.toNumber())
+					)
+				);
 			}
 
 			assert(market.amm.pegMultiplier.gt(market0.amm.pegMultiplier));
-			// assert(market.amm.pegMultiplier.eq(new BN(1006)));
 			const actualDist = market.amm.totalFee.sub(
 				market.amm.totalFeeMinusDistributions
 			);

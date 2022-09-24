@@ -193,7 +193,7 @@ describe('repeg and spread amm', () => {
 			provider
 		);
 
-		btcUsd = await mockOracle(21966);
+		btcUsd = await mockOracle(21966.86);
 		mockOracles.push(btcUsd);
 		for (let i = 1; i <= 4; i++) {
 			// init more oracles
@@ -221,7 +221,7 @@ describe('repeg and spread amm', () => {
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.updatePerpAuctionDuration(0, 0);
+		await clearingHouse.updatePerpAuctionDuration(0);
 		await clearingHouse.subscribe();
 
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
@@ -233,7 +233,7 @@ describe('repeg and spread amm', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
-			new BN(21_966_868_000),
+			new BN(21966.868 * PEG_PRECISION.toNumber()),
 			undefined,
 			500,
 			250
@@ -241,22 +241,22 @@ describe('repeg and spread amm', () => {
 		await clearingHouse.updateMarketBaseSpread(new BN(0), 250);
 		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
 
-		for (let i = 1; i <= 4; i++) {
-			// init more markets
-			const thisUsd = mockOracles[i];
-			await clearingHouse.initializeMarket(
-				thisUsd,
-				ammInitialBaseAssetAmount,
-				ammInitialQuoteAssetAmount,
-				periodicity,
-				new BN(1_000_000 * i),
-				undefined,
-				1000,
-				201
-			);
-			await clearingHouse.updateMarketBaseSpread(new BN(i), 2000);
-			await clearingHouse.updateCurveUpdateIntensity(new BN(i), 100);
-		}
+		// for (let i = 1; i <= 4; i++) {
+		// 	// init more markets
+		// 	const thisUsd = mockOracles[i];
+		// 	await clearingHouse.initializeMarket(
+		// 		thisUsd,
+		// 		ammInitialBaseAssetAmount,
+		// 		ammInitialQuoteAssetAmount,
+		// 		periodicity,
+		// 		new BN(1_000 * i),
+		// 		undefined,
+		// 		1000,
+		// 		201
+		// 	);
+		// 	await clearingHouse.updateMarketBaseSpread(new BN(i), 2000);
+		// 	await clearingHouse.updateCurveUpdateIntensity(new BN(i), 100);
+		// }
 
 		const [, _userAccountPublicKey] =
 			await clearingHouse.initializeUserAccountAndDepositCollateral(
