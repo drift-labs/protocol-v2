@@ -349,6 +349,7 @@ export type OrderActionRecord = {
 	action: OrderAction;
 	actionExplanation: OrderActionExplanation;
 	marketIndex: BN;
+	marketType: MarketType;
 	filler: PublicKey | null;
 	fillerReward: BN | null;
 	fillRecordId: BN | null;
