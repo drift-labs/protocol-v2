@@ -609,7 +609,7 @@ mod test {
 
         let cost_of_update =
             _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
-        // assert_eq!(cost_of_update, -42993230); // amm wins when price increases
+        assert_eq!(cost_of_update, -42992787); // amm wins when price increases
 
         assert_eq!(market.amm.long_spread, 125);
         assert_eq!(market.amm.short_spread, 690);
