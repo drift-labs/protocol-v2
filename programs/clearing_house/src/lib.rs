@@ -559,7 +559,7 @@ pub mod clearing_house {
                 last_oracle_normalised_price: oracle_price,
                 last_oracle_conf_pct: 0,
                 last_oracle_mark_spread_pct: 0, // todo
-                base_asset_amount_step_size: 10000000,
+                base_asset_amount_step_size: 1000,
                 max_slippage_ratio: 50,           // ~2%
                 max_base_asset_amount_ratio: 100, // moves price ~2%
                 base_spread: 0,

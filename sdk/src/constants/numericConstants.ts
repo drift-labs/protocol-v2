@@ -17,7 +17,7 @@ export const PRICE_PRECISION_EXP = new BN(6);
 export const FUNDING_RATE_PRECISION_EXP = PRICE_PRECISION_EXP.mul(
 	FUNDING_RATE_BUFFER_PRECISION_EXP
 );
-export const PEG_PRECISION_EXP = new BN(3);
+export const PEG_PRECISION_EXP = new BN(6);
 export const AMM_RESERVE_PRECISION_EXP = new BN(9);
 
 export const SPOT_MARKET_INTEREST_PRECISION_EXP = new BN(6);

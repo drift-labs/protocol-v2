@@ -156,7 +156,7 @@ describe('delist market', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(43_133)
+			new BN(43_133_000)
 		);
 
 		// await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
@@ -238,8 +238,7 @@ describe('delist market', () => {
 		try {
 			await clearingHouseLoser.openPosition(
 				PositionDirection.LONG,
-				new BN(20000000),
-				new BN(0),
+				new BN(2000),
 				new BN(0)
 			);
 		} catch (e) {
@@ -421,7 +420,7 @@ describe('delist market', () => {
 				market.settlementPrice
 			)
 		);
-		assert(market.settlementPrice.eq(new BN(287558000001)));
+		assert(market.settlementPrice.eq(new BN(28755801)));
 	});
 
 	it('settle expired market position', async () => {

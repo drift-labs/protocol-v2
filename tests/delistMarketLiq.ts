@@ -158,7 +158,7 @@ describe('delist market, liquidation of expired position', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(42_500),
+			new BN(42_500_000),
 			undefined,
 			1000,
 			900 // easy to liq
@@ -512,7 +512,7 @@ describe('delist market, liquidation of expired position', () => {
 		console.log('new oracle price:', curPrice);
 
 		assert(market.settlementPrice.gt(ZERO));
-		assert(market.settlementPrice.eq(new BN(404999999999)));
+		assert(market.settlementPrice.eq(new BN(40499999)));
 	});
 
 	it('liq and settle expired market position', async () => {

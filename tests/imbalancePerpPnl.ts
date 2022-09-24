@@ -410,7 +410,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance00:', imbalance00.toString());
-		assert(imbalance00.eq(new BN(-9821753)));
+		assert(imbalance00.eq(new BN(-9821950)));
 
 		const bank0Value1p5 = clearingHouseLoserUser.getSpotMarketAssetValue(
 			new BN(0)
@@ -429,8 +429,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		const [bid0, ask0] = examineSpread(market00, oraclePriceData00);
 		console.log(bid0.toString(), ask0.toString());
-		assert(bid0.eq(new BN(40000000)));
-		assert(ask0.eq(new BN(42539062)));
+		assert(bid0.eq(new BN(42494732)));
+		assert(ask0.eq(new BN(42505272)));
 
 		// sol rallys big
 		// await clearingHouse.moveAmmToPrice(
@@ -451,8 +451,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			oraclePriceData00Again
 		);
 		console.log('bid0After:', bid0After.toString(), ask0After.toString());
-		assert(bid0After.eq(new BN(259967760)));
-		assert(ask0After.eq(new BN(260500240)));
+		assert(bid0After.eq(new BN(260467710)));
+		assert(ask0After.eq(new BN(260532314)));
 		try {
 			const txSig = await clearingHouse.updateAMMs([new BN(0)]);
 			console.log(
@@ -558,8 +558,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			market0.marketIndex
 		);
 		const [bid1, ask1] = examineSpread(market0, oraclePriceData0);
-		// assert(bid1.eq(bid0After)); // not sure why it's failing
-		// assert(ask1.eq(ask0After));
+		assert(bid1.eq(bid0After)); // not sure why it's failing
+		assert(ask1.eq(ask0After));
 
 		while (!market0.amm.lastOracleValid) {
 			const imbalance = calculateNetUserPnlImbalance(
@@ -569,7 +569,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			);
 
 			console.log('pnlimbalance:', imbalance.toString());
-			assert(imbalance.eq(new BN(44462178247))); //44k! :o
+			assert(imbalance.eq(new BN(44462178050))); //44k! :o
 
 			console.log(
 				'lastOraclePrice:',
@@ -610,7 +610,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance:', imbalance.toString());
-		assert(imbalance.eq(new BN(44462178247))); //44k! :o
+		assert(imbalance.eq(new BN(44462178050))); //44k! :o
 
 		console.log(
 			'lastOraclePrice:',
@@ -685,7 +685,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance:', imbalance.toString());
-		assert(imbalance.eq(new BN(44462178247))); //44k still :o
+		assert(imbalance.eq(new BN(44462178050))); //44k still :o
 
 		assert(market.revenueWithdrawSinceLastSettle, ZERO);
 		assert(
@@ -751,8 +751,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		// assert(prepegAMM.pegMultiplier.eq(new BN(248126)));
 
 		const [bid, ask] = examineSpread(market0, oraclePriceData0);
-		assert(bid.eq(new BN('259837778')));
-		assert(ask.eq(new BN('262506009')));
+		assert(bid.eq(new BN('260467710')));
+		assert(ask.eq(new BN('260532314')));
 
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
