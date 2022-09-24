@@ -101,13 +101,12 @@ describe('update amm', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
-	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 11).mul(
-		mantissaSqrtScale
-	);
-	const ammInitialBaseAssetAmount = new anchor.BN(5 * 10 ** 11).mul(
-		mantissaSqrtScale
-	);
+	const ammInitialQuoteAssetAmount = new anchor.BN(9)
+		.mul(AMM_RESERVE_PRECISION)
+		.mul(AMM_RESERVE_PRECISION);
+	const ammInitialBaseAssetAmount = new anchor.BN(9)
+		.mul(AMM_RESERVE_PRECISION)
+		.mul(AMM_RESERVE_PRECISION);
 
 	const usdcAmount = new BN(10000 * 10 ** 6);
 
@@ -455,7 +454,7 @@ describe('update amm', () => {
 			'market2.amm.pegMultiplier = ',
 			market2.amm.pegMultiplier.toString()
 		);
-		assert(market2.amm.pegMultiplier.eq(new BN(1937792)));
+		assert(market2.amm.pegMultiplier.eq(new BN(1937799)));
 		assert(
 			market2.amm.totalFeeMinusDistributions.gte(
 				market.amm.totalFeeMinusDistributions.div(new BN(2))

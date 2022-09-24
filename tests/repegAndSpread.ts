@@ -233,7 +233,7 @@ describe('repeg and spread amm', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
-			new BN(21_966_868),
+			new BN(21_966_868_000),
 			undefined,
 			500,
 			250
@@ -249,7 +249,7 @@ describe('repeg and spread amm', () => {
 				ammInitialBaseAssetAmount,
 				ammInitialQuoteAssetAmount,
 				periodicity,
-				new BN(1_000 * i),
+				new BN(1_000_000 * i),
 				undefined,
 				1000,
 				201
