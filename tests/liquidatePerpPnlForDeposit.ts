@@ -228,7 +228,7 @@ describe('liquidate perp pnl for deposit', () => {
 		);
 		assert(
 			liquidationRecord.liquidatePerpPnlForDeposit.pnlTransfer.eq(
-				new BN(9011207)
+				new BN(9011003)
 			)
 		);
 		assert(

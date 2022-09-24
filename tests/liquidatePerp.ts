@@ -222,7 +222,7 @@ describe('liquidate perp and lp', () => {
 		assert(
 			liquidatorClearingHouse
 				.getUserAccount()
-				.perpPositions[0].baseAssetAmount.eq(new BN(175000000000000))
+				.perpPositions[0].baseAssetAmount.eq(new BN(17500000000))
 		);
 
 		assert(clearingHouse.getUserAccount().beingLiquidated);
@@ -248,15 +248,13 @@ describe('liquidate perp and lp', () => {
 			)
 		);
 		assert(
-			liquidationRecord.liquidatePerp.baseAssetAmount.eq(
-				new BN(-175000000000000)
-			)
+			liquidationRecord.liquidatePerp.baseAssetAmount.eq(new BN(-17500000000))
 		);
 
 		assert(
 			liquidationRecord.liquidatePerp.quoteAssetAmount.eq(new BN(1750000))
 		);
-		assert(liquidationRecord.liquidatePerp.userPnl.eq(new BN(-15768113)));
+		assert(liquidationRecord.liquidatePerp.userPnl.eq(new BN(-15767507)));
 		assert(liquidationRecord.liquidatePerp.liquidatorPnl.eq(new BN(0)));
 		assert(liquidationRecord.liquidatePerp.lpShares.eq(nLpShares));
 
@@ -273,7 +271,7 @@ describe('liquidate perp and lp', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-5785613))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-5785007))
 		);
 
 		// try to add liq when bankrupt -- should fail
@@ -313,7 +311,7 @@ describe('liquidate perp and lp', () => {
 		assert(marketAfterBankruptcy.revenueWithdrawSinceLastSettle.eq(ZERO));
 		assert(marketAfterBankruptcy.quoteSettledInsurance.eq(ZERO));
 		assert(marketAfterBankruptcy.quoteMaxInsurance.eq(QUOTE_PRECISION));
-		assert(marketAfterBankruptcy.amm.cumulativeSocialLoss.eq(new BN(-5785613)));
+		assert(marketAfterBankruptcy.amm.cumulativeSocialLoss.eq(new BN(-5785007)));
 
 		assert(!clearingHouse.getUserAccount().bankrupt);
 		assert(!clearingHouse.getUserAccount().beingLiquidated);
@@ -326,18 +324,18 @@ describe('liquidate perp and lp', () => {
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(isVariant(perpBankruptcyRecord.liquidationType, 'perpBankruptcy'));
 		assert(perpBankruptcyRecord.perpBankruptcy.marketIndex.eq(ZERO));
-		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-5785613)));
+		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-5785007)));
 		console.log(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.toString()
 		);
 		assert(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.eq(
-				new BN(33060600000000)
+				new BN(330571000)
 			)
 		);
 
 		const market = clearingHouse.getPerpMarketAccount(0);
-		assert(market.amm.cumulativeFundingRateLong.eq(new BN(33060600000000)));
-		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-33060600000000)));
+		assert(market.amm.cumulativeFundingRateLong.eq(new BN(330571000)));
+		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-330571000)));
 	});
 });
