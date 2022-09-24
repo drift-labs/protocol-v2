@@ -18,7 +18,7 @@ use crate::math::margin::{
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
 use crate::state::market::{MarketStatus, PoolBalance};
-use crate::state::oracle::OracleSource;
+use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
 use solana_program::msg;
 
 #[account(zero_copy)]
@@ -32,6 +32,8 @@ pub struct SpotMarket {
 
     pub oracle: Pubkey,
     pub oracle_source: OracleSource,
+    pub historical_oracle_data: HistoricalOracleData,
+    pub historical_index_data: HistoricalIndexData,
     pub mint: Pubkey,
     pub vault: Pubkey,
     pub insurance_fund_vault: Pubkey,
@@ -68,8 +70,8 @@ pub struct SpotMarket {
     pub maintenance_liability_weight: u128,
     pub imf_factor: u128,
 
-    pub liquidation_fee: u128,
-    pub liquidation_if_factor: u32, // percentage of liquidation transfer for total insurance
+    pub liquidator_fee: u128,
+    pub if_liquidation_fee: u128, // percentage of liquidation transfer for total insurance
     pub withdraw_guard_threshold: u128, // no withdraw limits/guards when deposits below this threshold
 
     pub order_step_size: u128,
@@ -144,10 +146,10 @@ impl SpotMarket {
     ) -> ClearingHouseResult<u128> {
         match balance_type {
             SpotBalanceType::Deposit => LIQUIDATION_FEE_PRECISION
-                .checked_add(self.liquidation_fee)
+                .checked_add(self.liquidator_fee)
                 .ok_or_else(math_error!()),
             SpotBalanceType::Borrow => LIQUIDATION_FEE_PRECISION
-                .checked_sub(self.liquidation_fee)
+                .checked_sub(self.liquidator_fee)
                 .ok_or_else(math_error!()),
         }
     }

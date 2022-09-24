@@ -13,12 +13,14 @@ import {
 } from '../sdk/src';
 
 import {
+	createFundedKeyPair,
 	initializeQuoteSpotMarket,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
 import { decodeName } from '../sdk/src/userName';
 import { assert } from 'chai';
+import { MARGIN_PRECISION } from '../sdk';
 
 describe('subaccounts', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -58,7 +60,7 @@ describe('subaccounts', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 	});
 
 	after(async () => {
@@ -144,12 +146,38 @@ describe('subaccounts', () => {
 		assert(depositRecord.from.equals(fromUser));
 	});
 
-	it('User name', async () => {
+	it('Update user name', async () => {
 		const userId = 0;
 		const name = 'lil perp v2';
 		await clearingHouse.updateUserName(name, userId);
 
 		await clearingHouse.fetchAccounts();
 		assert(decodeName(clearingHouse.getUserAccount().name) === name);
+	});
+
+	it('Update custom margin ratio', async () => {
+		const userId = 0;
+		const customMarginRatio = MARGIN_PRECISION.toNumber() * 2;
+		await clearingHouse.updateUserCustomMarginRatio(customMarginRatio, userId);
+
+		await clearingHouse.fetchAccounts();
+		assert(
+			clearingHouse.getUserAccount().customMarginRatio === customMarginRatio
+		);
+	});
+
+	it('Update delegate', async () => {
+		const delegateKeyPair = await createFundedKeyPair(connection);
+		await clearingHouse.updateUserDelegate(delegateKeyPair.publicKey);
+
+		await clearingHouse.fetchAccounts();
+		assert(
+			clearingHouse.getUserAccount().delegate.equals(delegateKeyPair.publicKey)
+		);
+
+		const delegateUserAccount = (
+			await clearingHouse.getUserAccountsForDelegate(delegateKeyPair.publicKey)
+		)[0];
+		assert(delegateUserAccount.delegate.equals(delegateKeyPair.publicKey));
 	});
 });

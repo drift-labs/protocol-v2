@@ -25,6 +25,7 @@ use std::cmp::{max, min};
 
 use crate::controller::repeg::apply_cost_to_market;
 use crate::controller::spot_balance::{update_revenue_pool_balances, update_spot_balances};
+use crate::controller::spot_position::update_spot_position_balance;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -370,7 +371,7 @@ pub fn formulaic_update_k(
                 adjustment_cost,
                 total_fee: market.amm.total_fee,
                 total_fee_minus_distributions: market.amm.total_fee_minus_distributions,
-                oracle_price: market.amm.last_oracle_price,
+                oracle_price: market.amm.historical_oracle_data.last_oracle_price,
                 fill_record: market.next_fill_record_id as u128,
             });
         }
@@ -417,6 +418,8 @@ pub fn update_pool_balances(
     let amm_target_max_fee_pool_token_amount = market
         .amm
         .total_fee_minus_distributions
+        .checked_add(cast_to_i128(market.amm.total_liquidation_fee)?)
+        .ok_or_else(math_error!())?
         .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
         .ok_or_else(math_error!())?;
 
@@ -449,6 +452,8 @@ pub fn update_pool_balances(
 
     {
         let amm_target_min_fee_pool_token_amount = get_total_fee_lower_bound(market)?
+            .checked_add(market.amm.total_liquidation_fee)
+            .ok_or_else(math_error!())?
             .checked_sub(market.amm.total_fee_withdrawn)
             .ok_or_else(math_error!())?;
 
@@ -556,6 +561,8 @@ pub fn update_pool_balances(
             }
         } else {
             let revenue_pool_transfer = cast_to_i128(get_total_fee_lower_bound(market)?)?
+                .checked_add(cast_to_i128(market.amm.total_liquidation_fee)?)
+                .ok_or_else(math_error!())?
                 .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
                 .ok_or_else(math_error!())?
                 .max(0)
@@ -683,7 +690,8 @@ pub fn update_pnl_pool_and_user_balance(
         false,
     )?;
 
-    update_spot_balances(
+    let user_spot_position = user.get_quote_spot_position_mut();
+    update_spot_position_balance(
         pnl_to_settle_with_user.unsigned_abs(),
         if pnl_to_settle_with_user > 0 {
             &SpotBalanceType::Deposit
@@ -691,7 +699,7 @@ pub fn update_pnl_pool_and_user_balance(
             &SpotBalanceType::Borrow
         },
         bank,
-        user.get_quote_spot_position_mut(),
+        user_spot_position,
         false,
     )?;
 
@@ -1063,6 +1071,7 @@ mod test {
                 total_fee: 10 * QUOTE_PRECISION as i128,
                 total_mm_fee: 990 * QUOTE_PRECISION as i128,
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
+                total_liquidation_fee: QUOTE_PRECISION,
 
                 curve_update_intensity: 100,
 
@@ -1114,10 +1123,10 @@ mod test {
 
         update_pool_balances(&mut market, &mut spot_market, 0, now).unwrap();
 
-        assert_eq!(market.amm.fee_pool.balance, 45000000000000);
+        assert_eq!(market.amm.fee_pool.balance, 44000000000000);
         assert_eq!(market.pnl_pool.balance, 50000000000000);
-        assert_eq!(spot_market.revenue_pool.balance, 5000000000000);
-        assert_eq!(market.amm.total_fee_withdrawn, 5000000);
+        assert_eq!(spot_market.revenue_pool.balance, 6000000000000);
+        assert_eq!(market.amm.total_fee_withdrawn, 6000000);
 
         assert!(market.amm.fee_pool.balance < prev_fee_pool);
         assert_eq!(market.pnl_pool.balance, prev_pnl_pool);

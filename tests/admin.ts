@@ -3,12 +3,7 @@ import { Program } from '@project-serum/anchor';
 import { BN } from '../sdk';
 import { assert } from 'chai';
 
-import {
-	Admin,
-	FeeStructure,
-	OracleGuardRails,
-	OrderFillerRewardStructure,
-} from '../sdk/src';
+import { Admin, OracleGuardRails } from '../sdk/src';
 import { OracleSource } from '../sdk';
 
 import {
@@ -50,7 +45,7 @@ describe('admin', () => {
 		await clearingHouse.subscribe();
 
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -93,121 +88,11 @@ describe('admin', () => {
 		assert(market.marginRatioMaintenance === marginRatioMaintenance);
 	});
 
-	it('Update Partial Liquidation Close Percentages', async () => {
-		const numerator = new BN(1);
-		const denominator = new BN(10);
+	it('Update perp fee structure', async () => {
+		const newFeeStructure = clearingHouse.getStateAccount().perpFeeStructure;
+		newFeeStructure.flatFillerFee = new BN(0);
 
-		await clearingHouse.updatePartialLiquidationClosePercentage(
-			numerator,
-			denominator
-		);
-
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
-
-		assert(state.partialLiquidationClosePercentageNumerator.eq(numerator));
-		assert(state.partialLiquidationClosePercentageDenominator.eq(denominator));
-	});
-
-	it('Update Partial Liquidation Penalty Percentages', async () => {
-		const numerator = new BN(1);
-		const denominator = new BN(10);
-
-		await clearingHouse.updatePartialLiquidationPenaltyPercentage(
-			numerator,
-			denominator
-		);
-
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
-
-		assert(state.partialLiquidationPenaltyPercentageNumerator.eq(numerator));
-		assert(
-			state.partialLiquidationPenaltyPercentageDenominator.eq(denominator)
-		);
-	});
-
-	it('Update Full Liquidation Penalty Percentages', async () => {
-		const numerator = new BN(1);
-		const denominator = new BN(10);
-
-		await clearingHouse.updateFullLiquidationPenaltyPercentage(
-			numerator,
-			denominator
-		);
-
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
-
-		assert(state.fullLiquidationPenaltyPercentageNumerator.eq(numerator));
-		assert(state.fullLiquidationPenaltyPercentageDenominator.eq(denominator));
-	});
-
-	it('Update Partial Liquidation Share Denominator', async () => {
-		const denominator = new BN(10);
-
-		await clearingHouse.updatePartialLiquidationShareDenominator(denominator);
-
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
-
-		assert(state.partialLiquidationLiquidatorShareDenominator.eq(denominator));
-	});
-
-	it('Update Full Liquidation Share Denominator', async () => {
-		const denominator = new BN(10);
-
-		await clearingHouse.updateFullLiquidationShareDenominator(denominator);
-
-		await clearingHouse.fetchAccounts();
-		const state = clearingHouse.getStateAccount();
-
-		assert(state.fullLiquidationLiquidatorShareDenominator.eq(denominator));
-	});
-
-	it('Update fee', async () => {
-		const newFeeStructure: FeeStructure = {
-			feeNumerator: new BN(10),
-			feeDenominator: new BN(10),
-			discountTokenTiers: {
-				firstTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-				secondTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-				thirdTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-				fourthTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-			},
-			referralDiscount: {
-				referrerRewardNumerator: new BN(1),
-				referrerRewardDenominator: new BN(1),
-				refereeDiscountNumerator: new BN(1),
-				refereeDiscountDenominator: new BN(1),
-			},
-			makerRebateNumerator: new BN(1),
-			makerRebateDenominator: new BN(1),
-			fillerRewardStructure: {
-				rewardNumerator: new BN(1),
-				rewardDenominator: new BN(1),
-				timeBasedRewardLowerBound: new BN(1),
-			},
-			cancelOrderFee: new BN(0),
-		};
-
-		await clearingHouse.updateFee(newFeeStructure);
+		await clearingHouse.updatePerpFeeStructure(newFeeStructure);
 
 		await clearingHouse.fetchAccounts();
 		const state = clearingHouse.getStateAccount();
@@ -217,22 +102,17 @@ describe('admin', () => {
 		);
 	});
 
-	it('Update order filler reward structure', async () => {
-		const newStructure: OrderFillerRewardStructure = {
-			rewardNumerator: new BN(1),
-			rewardDenominator: new BN(1),
-			timeBasedRewardLowerBound: new BN(1),
-		};
+	it('Update spot fee structure', async () => {
+		const newFeeStructure = clearingHouse.getStateAccount().spotFeeStructure;
+		newFeeStructure.flatFillerFee = new BN(1);
 
-		await clearingHouse.updateOrderFillerRewardStructure(newStructure);
+		await clearingHouse.updateSpotFeeStructure(newFeeStructure);
 
 		await clearingHouse.fetchAccounts();
+		const state = clearingHouse.getStateAccount();
 
 		assert(
-			JSON.stringify(newStructure) ===
-				JSON.stringify(
-					clearingHouse.getStateAccount().perpFeeStructure.fillerRewardStructure
-				)
+			JSON.stringify(newFeeStructure) === JSON.stringify(state.spotFeeStructure)
 		);
 	});
 
@@ -243,7 +123,8 @@ describe('admin', () => {
 				markOracleDivergenceDenominator: new BN(1),
 			},
 			validity: {
-				slotsBeforeStale: new BN(1),
+				slotsBeforeStaleForAmm: new BN(1),
+				slotsBeforeStaleForMargin: new BN(1),
 				confidenceIntervalMaxSize: new BN(1),
 				tooVolatileRatio: new BN(1),
 			},

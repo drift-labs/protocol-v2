@@ -25,6 +25,7 @@ import {
 	EventSubscriber,
 	standardizeBaseAssetAmount,
 	calculateBaseAssetAmountForAmmToFulfill,
+	OracleGuardRails,
 } from '../sdk/src';
 
 import {
@@ -136,7 +137,7 @@ describe('orders', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -410,6 +411,7 @@ describe('orders', () => {
 				QUOTE_PRECISION
 			)
 		);
+		console.log();
 		assert(
 			fillerClearingHouse
 				.getQuoteAssetTokenAmount()
@@ -1525,6 +1527,22 @@ describe('orders', () => {
 	});
 
 	it('PlaceAndTake LONG Order 100% filled', async () => {
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(1),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
+				confidenceIntervalMaxSize: new BN(100000),
+				tooVolatileRatio: new BN(2),
+			},
+			useForLiquidations: false,
+		};
+
+		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
+
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const price = new BN('13300000000').add(

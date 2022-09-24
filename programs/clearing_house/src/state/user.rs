@@ -7,7 +7,10 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::calculate_rolling_sum;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::cast_to_i128;
-use crate::math::constants::{QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY_I128};
+use crate::math::constants::{
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, MARK_PRICE_PRECISION_I128,
+    QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY_I128,
+};
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
 use crate::math_error;
@@ -24,6 +27,7 @@ mod tests;
 #[repr(packed)]
 pub struct User {
     pub authority: Pubkey,
+    pub delegate: Pubkey,
     pub user_id: u8,
     pub name: [u8; 32],
     pub spot_positions: [SpotPosition; 8],
@@ -33,6 +37,7 @@ pub struct User {
     pub next_liquidation_id: u16,
     pub being_liquidated: bool,
     pub bankrupt: bool,
+    pub custom_margin_ratio: u32,
 }
 
 impl User {
@@ -157,6 +162,7 @@ pub struct SpotPosition {
     pub open_orders: u8,
     pub open_bids: i128,
     pub open_asks: i128,
+    pub cumulative_deposits: i64,
 }
 
 impl SpotBalance for SpotPosition {
@@ -270,7 +276,7 @@ pub struct PerpPosition {
     pub open_orders: u128,
     pub open_bids: i128,
     pub open_asks: i128,
-    pub realized_pnl: i64,
+    pub settled_pnl: i64,
 
     // lp stuff
     pub lp_shares: u128,
@@ -354,7 +360,46 @@ impl PerpPosition {
         }
     }
 
-    pub fn get_unsettled_pnl(&self, oracle_price: i128) -> ClearingHouseResult<i128> {
+    pub fn get_entry_price(&self) -> ClearingHouseResult<i128> {
+        if self.base_asset_amount == 0 {
+            return Ok(0);
+        }
+
+        (-self.quote_entry_amount)
+            .checked_mul(MARK_PRICE_PRECISION_I128)
+            .ok_or_else(math_error!())?
+            .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+            .ok_or_else(math_error!())?
+            .checked_div(self.base_asset_amount)
+            .ok_or_else(math_error!())
+    }
+
+    pub fn get_cost_basis(&self) -> ClearingHouseResult<i128> {
+        if self.base_asset_amount == 0 {
+            return Ok(0);
+        }
+
+        (-self.quote_asset_amount)
+            .checked_mul(MARK_PRICE_PRECISION_I128)
+            .ok_or_else(math_error!())?
+            .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+            .ok_or_else(math_error!())?
+            .checked_div(self.base_asset_amount)
+            .ok_or_else(math_error!())
+    }
+
+    pub fn get_unrealized_pnl(&self, oracle_price: i128) -> ClearingHouseResult<i128> {
+        let (_, unrealized_pnl) =
+            calculate_base_asset_value_and_pnl_with_oracle_price(self, oracle_price)?;
+
+        Ok(unrealized_pnl)
+    }
+
+    pub fn get_claimable_pnl(
+        &self,
+        oracle_price: i128,
+        pnl_pool_excess: i128,
+    ) -> ClearingHouseResult<i128> {
         let (_, unrealized_pnl) =
             calculate_base_asset_value_and_pnl_with_oracle_price(self, oracle_price)?;
 
@@ -365,6 +410,8 @@ impl PerpPosition {
                 .quote_asset_amount
                 .checked_sub(self.quote_entry_amount)
                 .map(|delta| delta.max(0))
+                .ok_or_else(math_error!())?
+                .checked_add(pnl_pool_excess.max(0))
                 .ok_or_else(math_error!())?;
 
             Ok(unrealized_pnl.min(max_positive_pnl))
@@ -406,7 +453,7 @@ pub struct Order {
     pub auction_start_price: u128,
     pub auction_end_price: u128,
     pub auction_duration: u8,
-    pub padding: [u16; 3],
+    pub time_in_force: u8,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
@@ -559,7 +606,7 @@ impl Default for Order {
             auction_start_price: 0,
             auction_end_price: 0,
             auction_duration: 0,
-            padding: [0; 3],
+            time_in_force: 0,
         }
     }
 }
@@ -614,6 +661,8 @@ pub struct UserStats {
     pub is_referrer: bool,
     pub referrer: Pubkey,
     pub total_referrer_reward: u64,
+    pub current_epoch_referrer_reward: u64,
+    pub next_epoch_ts: i64,
 
     pub fees: UserFees,
 
@@ -625,10 +674,7 @@ pub struct UserStats {
     pub last_taker_volume_30d_ts: i64,
     pub last_filler_volume_30d_ts: i64,
 
-    // for market_index = 0
-    // todo: offer vip fee status for users who have lp_shares > threshold
-    // lower taker fee, higher maker fee etc
-    pub quote_asset_insurance_fund_stake: u128,
+    pub staked_quote_asset_amount: u64,
 }
 
 impl UserStats {
@@ -719,11 +765,41 @@ impl UserStats {
         Ok(())
     }
 
-    pub fn increment_total_referrer_reward(&mut self, reward: u64) -> ClearingHouseResult {
+    pub fn increment_total_referrer_reward(
+        &mut self,
+        reward: u64,
+        now: i64,
+    ) -> ClearingHouseResult {
         self.total_referrer_reward = self
             .total_referrer_reward
             .checked_add(reward)
             .ok_or_else(math_error!())?;
+
+        self.current_epoch_referrer_reward = self
+            .current_epoch_referrer_reward
+            .checked_add(reward)
+            .ok_or_else(math_error!())?;
+
+        if now > self.next_epoch_ts {
+            let n_epoch_durations = now
+                .checked_sub(self.next_epoch_ts)
+                .ok_or_else(math_error!())?
+                .checked_div(EPOCH_DURATION)
+                .ok_or_else(math_error!())?
+                .checked_add(1)
+                .ok_or_else(math_error!())?;
+
+            self.next_epoch_ts = self
+                .next_epoch_ts
+                .checked_add(
+                    EPOCH_DURATION
+                        .checked_mul(n_epoch_durations)
+                        .ok_or_else(math_error!())?,
+                )
+                .ok_or_else(math_error!())?;
+
+            self.current_epoch_referrer_reward = 0;
+        }
 
         Ok(())
     }
@@ -740,5 +816,11 @@ impl UserStats {
 
     pub fn has_referrer(&self) -> bool {
         !self.referrer.eq(&Pubkey::default())
+    }
+
+    pub fn get_total_30d_volume(&self) -> ClearingHouseResult<u64> {
+        self.taker_volume_30d
+            .checked_add(self.maker_volume_30d)
+            .ok_or_else(math_error!())
     }
 }

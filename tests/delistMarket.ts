@@ -147,7 +147,7 @@ describe('delist market', () => {
 
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 		await initializeSolSpotMarket(clearingHouse, solOracle);
-		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(0);
 
@@ -400,8 +400,8 @@ describe('delist market', () => {
 			convertToNumber(market.settlementPrice)
 		);
 		console.log(
-			'market.amm.lastOraclePriceTwap:',
-			convertToNumber(market.amm.lastOraclePriceTwap)
+			'market.amm.historicalOracleData.lastOraclePriceTwap:',
+			convertToNumber(market.amm.historicalOracleData.lastOraclePriceTwap)
 		);
 
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solOracle))
@@ -416,7 +416,11 @@ describe('delist market', () => {
 		assert(market.settlementPrice.gt(ZERO));
 
 		assert(market.amm.netBaseAssetAmount.lt(ZERO));
-		assert(market.amm.lastOraclePriceTwap.lt(market.settlementPrice));
+		assert(
+			market.amm.historicalOracleData.lastOraclePriceTwap.lt(
+				market.settlementPrice
+			)
+		);
 		assert(market.settlementPrice.eq(new BN(287558000001)));
 	});
 

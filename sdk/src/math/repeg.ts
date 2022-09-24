@@ -98,6 +98,16 @@ export function calculateBudgetedKBN(
 		.div(QUOTE_PRECISION);
 	const denom2 = pegged_y_d_d;
 
+	// protocol is spending to increase k
+	if (C.lt(ZERO)) {
+		// thus denom1 is negative and solution is unstable
+		if (denom1.abs().gt(denom2.abs())) {
+			console.log('denom1 > denom2', denom1.toString(), denom2.toString());
+			console.log('budget cost exceeds stable K solution');
+			return [new BN(10000), new BN(1)];
+		}
+	}
+
 	const numerator = numer1.sub(numer2).div(AMM_TO_QUOTE_PRECISION_RATIO);
 	const denominator = denom1.add(denom2).div(AMM_TO_QUOTE_PRECISION_RATIO);
 

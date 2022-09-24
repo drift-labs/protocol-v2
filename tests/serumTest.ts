@@ -106,7 +106,7 @@ describe('serum spot market', () => {
 
 		await initializeQuoteSpotMarket(makerClearingHouse, usdcMint.publicKey);
 		await initializeSolSpotMarket(makerClearingHouse, solOracle);
-		await makerClearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await makerClearingHouse.updateSpotAuctionDuration(0);
 
 		[takerClearingHouse, _takerWSOL, takerUSDC] =
 			await createUserWithUSDCAndWSOLAccount(

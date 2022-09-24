@@ -1789,6 +1789,56 @@
       ]
     },
     {
+      "name": "updateUserCustomMarginRatio",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "userId",
+          "type": "u8"
+        },
+        {
+          "name": "marginRatio",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateUserDelegate",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "userId",
+          "type": "u8"
+        },
+        {
+          "name": "delegate",
+          "type": "publicKey"
+        }
+      ]
+    },
+    {
       "name": "settleFundingPayment",
       "accounts": [
         {
@@ -1946,7 +1996,11 @@
       ],
       "args": [
         {
-          "name": "liquidationFee",
+          "name": "liquidatorFee",
+          "type": "u128"
+        },
+        {
+          "name": "ifLiquidationFee",
           "type": "u128"
         }
       ]
@@ -1998,7 +2052,11 @@
       ],
       "args": [
         {
-          "name": "liquidationFee",
+          "name": "liquidatorFee",
+          "type": "u128"
+        },
+        {
+          "name": "ifLiquidationFee",
           "type": "u128"
         }
       ]
@@ -2059,10 +2117,6 @@
         },
         {
           "name": "totalIfFactor",
-          "type": "u32"
-        },
-        {
-          "name": "liquidationIfFactor",
           "type": "u32"
         }
       ]
@@ -2228,7 +2282,7 @@
       ]
     },
     {
-      "name": "updatePartialLiquidationClosePercentage",
+      "name": "updatePerpFeeStructure",
       "accounts": [
         {
           "name": "admin",
@@ -2243,124 +2297,7 @@
       ],
       "args": [
         {
-          "name": "numerator",
-          "type": "u128"
-        },
-        {
-          "name": "denominator",
-          "type": "u128"
-        }
-      ]
-    },
-    {
-      "name": "updatePartialLiquidationPenaltyPercentage",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "numerator",
-          "type": "u128"
-        },
-        {
-          "name": "denominator",
-          "type": "u128"
-        }
-      ]
-    },
-    {
-      "name": "updateFullLiquidationPenaltyPercentage",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "numerator",
-          "type": "u128"
-        },
-        {
-          "name": "denominator",
-          "type": "u128"
-        }
-      ]
-    },
-    {
-      "name": "updatePartialLiquidationLiquidatorShareDenominator",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "denominator",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "updateFullLiquidationLiquidatorShareDenominator",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "denominator",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "updateFee",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "fees",
+          "name": "feeStructure",
           "type": {
             "defined": "FeeStructure"
           }
@@ -2368,7 +2305,7 @@
       ]
     },
     {
-      "name": "updateOrderFillerRewardStructure",
+      "name": "updateSpotFeeStructure",
       "accounts": [
         {
           "name": "admin",
@@ -2383,9 +2320,9 @@
       ],
       "args": [
         {
-          "name": "orderFillerRewardStructure",
+          "name": "feeStructure",
           "type": {
-            "defined": "OrderFillerRewardStructure"
+            "defined": "FeeStructure"
           }
         }
       ]
@@ -2749,7 +2686,7 @@
       ]
     },
     {
-      "name": "updateAuctionDuration",
+      "name": "updatePerpAuctionDuration",
       "accounts": [
         {
           "name": "admin",
@@ -2764,11 +2701,28 @@
       ],
       "args": [
         {
-          "name": "minAuctionDuration",
+          "name": "minPerpAuctionDuration",
           "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotAuctionDuration",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
         },
         {
-          "name": "maxAuctionDuration",
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "defaultSpotAuctionDuration",
           "type": "u8"
         }
       ]
@@ -3046,6 +3000,42 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "updateUserQuoteAssetInsuranceStake",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -3207,7 +3197,11 @@
             "type": "u128"
           },
           {
-            "name": "liquidationFee",
+            "name": "liquidatorFee",
+            "type": "u128"
+          },
+          {
+            "name": "ifLiquidationFee",
             "type": "u128"
           },
           {
@@ -3272,6 +3266,18 @@
             "name": "oracleSource",
             "type": {
               "defined": "OracleSource"
+            }
+          },
+          {
+            "name": "historicalOracleData",
+            "type": {
+              "defined": "HistoricalOracleData"
+            }
+          },
+          {
+            "name": "historicalIndexData",
+            "type": {
+              "defined": "HistoricalIndexData"
             }
           },
           {
@@ -3397,12 +3403,12 @@
             "type": "u128"
           },
           {
-            "name": "liquidationFee",
+            "name": "liquidatorFee",
             "type": "u128"
           },
           {
-            "name": "liquidationIfFactor",
-            "type": "u32"
+            "name": "ifLiquidationFee",
+            "type": "u128"
           },
           {
             "name": "withdrawGuardThreshold",
@@ -3523,62 +3529,6 @@
             "type": "publicKey"
           },
           {
-            "name": "marginRatioInitial",
-            "type": "u128"
-          },
-          {
-            "name": "marginRatioMaintenance",
-            "type": "u128"
-          },
-          {
-            "name": "marginRatioPartial",
-            "type": "u128"
-          },
-          {
-            "name": "partialLiquidationClosePercentageNumerator",
-            "type": "u128"
-          },
-          {
-            "name": "partialLiquidationClosePercentageDenominator",
-            "type": "u128"
-          },
-          {
-            "name": "partialLiquidationPenaltyPercentageNumerator",
-            "type": "u128"
-          },
-          {
-            "name": "partialLiquidationPenaltyPercentageDenominator",
-            "type": "u128"
-          },
-          {
-            "name": "fullLiquidationPenaltyPercentageNumerator",
-            "type": "u128"
-          },
-          {
-            "name": "fullLiquidationPenaltyPercentageDenominator",
-            "type": "u128"
-          },
-          {
-            "name": "partialLiquidationLiquidatorShareDenominator",
-            "type": "u64"
-          },
-          {
-            "name": "fullLiquidationLiquidatorShareDenominator",
-            "type": "u64"
-          },
-          {
-            "name": "perpFeeStructure",
-            "type": {
-              "defined": "FeeStructure"
-            }
-          },
-          {
-            "name": "spotFeeStructure",
-            "type": {
-              "defined": "FeeStructure"
-            }
-          },
-          {
             "name": "whitelistMint",
             "type": "publicKey"
           },
@@ -3609,15 +3559,11 @@
             "type": "u8"
           },
           {
-            "name": "maxPerpAuctionDuration",
+            "name": "defaultMarketOrderTimeInForce",
             "type": "u8"
           },
           {
-            "name": "minSpotAuctionDuration",
-            "type": "u8"
-          },
-          {
-            "name": "maxSpotAuctionDuration",
+            "name": "defaultSpotAuctionDuration",
             "type": "u8"
           },
           {
@@ -3637,12 +3583,16 @@
             "type": "u8"
           },
           {
-            "name": "padding0",
-            "type": "u128"
+            "name": "perpFeeStructure",
+            "type": {
+              "defined": "FeeStructure"
+            }
           },
           {
-            "name": "padding1",
-            "type": "u128"
+            "name": "spotFeeStructure",
+            "type": {
+              "defined": "FeeStructure"
+            }
           }
         ]
       }
@@ -3654,6 +3604,10 @@
         "fields": [
           {
             "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "delegate",
             "type": "publicKey"
           },
           {
@@ -3717,6 +3671,10 @@
           {
             "name": "bankrupt",
             "type": "bool"
+          },
+          {
+            "name": "customMarginRatio",
+            "type": "u32"
           }
         ]
       }
@@ -3745,6 +3703,14 @@
           {
             "name": "totalReferrerReward",
             "type": "u64"
+          },
+          {
+            "name": "currentEpochReferrerReward",
+            "type": "u64"
+          },
+          {
+            "name": "nextEpochTs",
+            "type": "i64"
           },
           {
             "name": "fees",
@@ -3777,8 +3743,8 @@
             "type": "i64"
           },
           {
-            "name": "quoteAssetInsuranceFundStake",
-            "type": "u128"
+            "name": "stakedQuoteAssetAmount",
+            "type": "u64"
           }
         ]
       }
@@ -3851,24 +3817,26 @@
             }
           },
           {
-            "name": "positionLimit",
-            "type": "u128"
-          },
-          {
             "name": "oraclePriceOffset",
             "type": "i128"
           },
           {
             "name": "auctionDuration",
-            "type": "u8"
+            "type": {
+              "option": "u8"
+            }
           },
           {
-            "name": "padding0",
-            "type": "bool"
+            "name": "timeInForce",
+            "type": {
+              "option": "u8"
+            }
           },
           {
-            "name": "padding1",
-            "type": "bool"
+            "name": "auctionStartPrice",
+            "type": {
+              "option": "u128"
+            }
           }
         ]
       }
@@ -3917,6 +3885,10 @@
           {
             "name": "liquidatorOrderId",
             "type": "u64"
+          },
+          {
+            "name": "ifFee",
+            "type": "u64"
           }
         ]
       }
@@ -3949,6 +3921,10 @@
           {
             "name": "liabilityTransfer",
             "type": "u128"
+          },
+          {
+            "name": "ifFee",
+            "type": "u64"
           }
         ]
       }
@@ -4093,6 +4069,7 @@
             }
           },
           {
+<<<<<<< HEAD
             "name": "oracleQuoteSpotMarketIndex",
             "type": "u64"
           },
@@ -4103,26 +4080,28 @@
           {
             "name": "lastOracleConfPct",
             "type": "u64"
+=======
+            "name": "historicalOracleData",
+            "type": {
+              "defined": "HistoricalOracleData"
+            }
+>>>>>>> master
           },
           {
-            "name": "lastOracleDelay",
-            "type": "i64"
+            "name": "lastOracleValid",
+            "type": "bool"
+          },
+          {
+            "name": "lastUpdateSlot",
+            "type": "u64"
+          },
+          {
+            "name": "lastOracleConfPct",
+            "type": "u64"
           },
           {
             "name": "lastOracleNormalisedPrice",
             "type": "i128"
-          },
-          {
-            "name": "lastOraclePriceTwap",
-            "type": "i128"
-          },
-          {
-            "name": "lastOraclePriceTwap5min",
-            "type": "i128"
-          },
-          {
-            "name": "lastOraclePriceTwapTs",
-            "type": "i64"
           },
           {
             "name": "lastOracleMarkSpreadPct",
@@ -4231,32 +4210,8 @@
             "type": "i128"
           },
           {
-            "name": "cumulativeRepegRebateLong",
-            "type": "u128"
-          },
-          {
-            "name": "cumulativeRepegRebateShort",
-            "type": "u128"
-          },
-          {
             "name": "cumulativeSocialLoss",
             "type": "i128"
-          },
-          {
-            "name": "markStd",
-            "type": "u64"
-          },
-          {
-            "name": "lastMarkPriceTwap",
-            "type": "u128"
-          },
-          {
-            "name": "lastMarkPriceTwap5min",
-            "type": "u128"
-          },
-          {
-            "name": "lastMarkPriceTwapTs",
-            "type": "i64"
           },
           {
             "name": "minimumQuoteAssetTradeSize",
@@ -4313,14 +4268,6 @@
             "type": "u128"
           },
           {
-            "name": "lastBidPriceTwap",
-            "type": "u128"
-          },
-          {
-            "name": "lastAskPriceTwap",
-            "type": "u128"
-          },
-          {
             "name": "longIntensityCount",
             "type": "u16"
           },
@@ -4339,6 +4286,30 @@
           {
             "name": "curveUpdateIntensity",
             "type": "u8"
+          },
+          {
+            "name": "markStd",
+            "type": "u64"
+          },
+          {
+            "name": "lastBidPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastAskPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastMarkPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastMarkPriceTwap5min",
+            "type": "u128"
+          },
+          {
+            "name": "lastMarkPriceTwapTs",
+            "type": "i64"
           },
           {
             "name": "totalFee",
@@ -4365,18 +4336,14 @@
             "type": "i64"
           },
           {
+            "name": "totalLiquidationFee",
+            "type": "u128"
+          },
+          {
             "name": "feePool",
             "type": {
               "defined": "PoolBalance"
             }
-          },
-          {
-            "name": "lastUpdateSlot",
-            "type": "u64"
-          },
-          {
-            "name": "lastOracleValid",
-            "type": "bool"
           },
           {
             "name": "padding0",
@@ -4393,6 +4360,66 @@
           {
             "name": "padding3",
             "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "HistoricalOracleData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lastOraclePrice",
+            "type": "i128"
+          },
+          {
+            "name": "lastOracleConf",
+            "type": "u128"
+          },
+          {
+            "name": "lastOracleDelay",
+            "type": "i64"
+          },
+          {
+            "name": "lastOraclePriceTwap",
+            "type": "i128"
+          },
+          {
+            "name": "lastOraclePriceTwap5min",
+            "type": "i128"
+          },
+          {
+            "name": "lastOraclePriceTwapTs",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "HistoricalIndexData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lastIndexBidPrice",
+            "type": "u128"
+          },
+          {
+            "name": "lastIndexAskPrice",
+            "type": "u128"
+          },
+          {
+            "name": "lastIndexPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastIndexPriceTwap5min",
+            "type": "u128"
+          },
+          {
+            "name": "lastIndexPriceTwapTs",
+            "type": "i64"
           }
         ]
       }
@@ -4443,7 +4470,11 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "slotsBeforeStale",
+            "name": "slotsBeforeStaleForAmm",
+            "type": "i64"
+          },
+          {
+            "name": "slotsBeforeStaleForMargin",
             "type": "i64"
           },
           {
@@ -4463,32 +4494,15 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "feeNumerator",
-            "type": "u128"
-          },
-          {
-            "name": "feeDenominator",
-            "type": "u128"
-          },
-          {
-            "name": "discountTokenTiers",
+            "name": "feeTiers",
             "type": {
-              "defined": "DiscountTokenTiers"
+              "array": [
+                {
+                  "defined": "FeeTier"
+                },
+                10
+              ]
             }
-          },
-          {
-            "name": "referralDiscount",
-            "type": {
-              "defined": "ReferralDiscount"
-            }
-          },
-          {
-            "name": "makerRebateNumerator",
-            "type": "u128"
-          },
-          {
-            "name": "makerRebateDenominator",
-            "type": "u128"
           },
           {
             "name": "fillerRewardStructure",
@@ -4497,84 +4511,52 @@
             }
           },
           {
-            "name": "cancelOrderFee",
-            "type": "u128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "DiscountTokenTiers",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "firstTier",
-            "type": {
-              "defined": "DiscountTokenTier"
-            }
-          },
-          {
-            "name": "secondTier",
-            "type": {
-              "defined": "DiscountTokenTier"
-            }
-          },
-          {
-            "name": "thirdTier",
-            "type": {
-              "defined": "DiscountTokenTier"
-            }
-          },
-          {
-            "name": "fourthTier",
-            "type": {
-              "defined": "DiscountTokenTier"
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "DiscountTokenTier",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "minimumBalance",
+            "name": "referrerRewardEpochUpperBound",
             "type": "u64"
           },
           {
-            "name": "discountNumerator",
-            "type": "u128"
-          },
-          {
-            "name": "discountDenominator",
+            "name": "flatFillerFee",
             "type": "u128"
           }
         ]
       }
     },
     {
-      "name": "ReferralDiscount",
+      "name": "FeeTier",
       "type": {
         "kind": "struct",
         "fields": [
           {
+            "name": "feeNumerator",
+            "type": "u32"
+          },
+          {
+            "name": "feeDenominator",
+            "type": "u32"
+          },
+          {
+            "name": "makerRebateNumerator",
+            "type": "u32"
+          },
+          {
+            "name": "makerRebateDenominator",
+            "type": "u32"
+          },
+          {
             "name": "referrerRewardNumerator",
-            "type": "u128"
+            "type": "u32"
           },
           {
             "name": "referrerRewardDenominator",
-            "type": "u128"
+            "type": "u32"
           },
           {
-            "name": "refereeDiscountNumerator",
-            "type": "u128"
+            "name": "refereeFeeNumerator",
+            "type": "u32"
           },
           {
-            "name": "refereeDiscountDenominator",
-            "type": "u128"
+            "name": "refereeFeeDenominator",
+            "type": "u32"
           }
         ]
       }
@@ -4586,11 +4568,11 @@
         "fields": [
           {
             "name": "rewardNumerator",
-            "type": "u128"
+            "type": "u32"
           },
           {
             "name": "rewardDenominator",
-            "type": "u128"
+            "type": "u32"
           },
           {
             "name": "timeBasedRewardLowerBound",
@@ -4657,6 +4639,10 @@
           {
             "name": "openAsks",
             "type": "i128"
+          },
+          {
+            "name": "cumulativeDeposits",
+            "type": "i64"
           }
         ]
       }
@@ -4707,7 +4693,7 @@
             "type": "i128"
           },
           {
-            "name": "realizedPnl",
+            "name": "settledPnl",
             "type": "i64"
           },
           {
@@ -4875,13 +4861,8 @@
             "type": "u8"
           },
           {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u16",
-                3
-              ]
-            }
+            "name": "timeInForce",
+            "type": "u8"
           }
         ]
       }
@@ -4971,6 +4952,67 @@
       }
     },
     {
+      "name": "OracleValidity",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Invalid"
+          },
+          {
+            "name": "TooVolatile"
+          },
+          {
+            "name": "StaleForMargin"
+          },
+          {
+            "name": "InsufficientDataPoints"
+          },
+          {
+            "name": "StaleForAMM"
+          },
+          {
+            "name": "Valid"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DriftAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "UpdateFunding"
+          },
+          {
+            "name": "SettlePnl"
+          },
+          {
+            "name": "TriggerOrder"
+          },
+          {
+            "name": "FillOrderMatch"
+          },
+          {
+            "name": "FillOrderAmm"
+          },
+          {
+            "name": "Liquidate"
+          },
+          {
+            "name": "MarginCalc"
+          },
+          {
+            "name": "UpdateTwap"
+          },
+          {
+            "name": "UpdateAMMCurve"
+          }
+        ]
+      }
+    },
+    {
       "name": "PositionUpdateType",
       "type": {
         "kind": "enum",
@@ -5048,7 +5090,7 @@
             "name": "MarketOrderFilledToLimitPrice"
           },
           {
-            "name": "MarketOrderAuctionExpired"
+            "name": "OrderExpired"
           },
           {
             "name": "CanceledForLiquidation"
@@ -6339,8 +6381,8 @@
     },
     {
       "code": 6023,
-      "name": "OracleMarkSpreadLimit",
-      "msg": "Oracle/Mark Spread Too Large"
+      "name": "PriceBandsBreached",
+      "msg": "Price Bands Breached"
     },
     {
       "code": 6024,
@@ -6839,23 +6881,38 @@
     },
     {
       "code": 6123,
+      "name": "InvalidSerumBids",
+      "msg": "InvalidSerumBids"
+    },
+    {
+      "code": 6124,
+      "name": "InvalidSerumAsks",
+      "msg": "InvalidSerumAsks"
+    },
+    {
+      "code": 6125,
       "name": "InvalidSerumOpenOrders",
       "msg": "InvalidSerumOpenOrders"
     },
     {
-      "code": 6124,
+      "code": 6126,
       "name": "FailedSerumCPI",
       "msg": "FailedSerumCPI"
     },
     {
-      "code": 6125,
+      "code": 6127,
       "name": "FailedToFillOnSerum",
       "msg": "FailedToFillOnSerum"
     },
     {
-      "code": 6126,
+      "code": 6128,
       "name": "InvalidSerumFulfillmentConfig",
       "msg": "InvalidSerumFulfillmentConfig"
+    },
+    {
+      "code": 6129,
+      "name": "InvalidFeeStructure",
+      "msg": "InvalidFeeStructure"
     }
   ]
 }

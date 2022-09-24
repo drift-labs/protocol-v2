@@ -1,64 +1,16 @@
-use crate::controller::amm::{calculate_base_swap_output_with_spread, SwapDirection};
 use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
-use crate::math::amm::calculate_price;
 use crate::math::casting::cast;
 use crate::math::constants::{
     BID_ASK_SPREAD_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
 };
-use crate::math::position::calculate_entry_price;
 use crate::math_error;
-use crate::state::market::PerpMarket;
 use crate::state::oracle::OraclePriceData;
 use crate::state::user::Order;
 use solana_program::msg;
 use std::cmp::min;
 
-/// for bid (direction == Long), the auction start price is based on the bid reserves
-/// for ask (direction == Short), the auction start price is based on the ask reserves
-pub fn calculate_auction_start_price(
-    market: &PerpMarket,
-    direction: PositionDirection,
-) -> ClearingHouseResult<u128> {
-    let (base_asset_reserves, quote_asset_reserves) = match direction {
-        PositionDirection::Long => (
-            market.amm.bid_base_asset_reserve,
-            market.amm.bid_quote_asset_reserve,
-        ),
-        PositionDirection::Short => (
-            market.amm.ask_base_asset_reserve,
-            market.amm.ask_quote_asset_reserve,
-        ),
-    };
-
-    let auction_start_price = calculate_price(
-        quote_asset_reserves,
-        base_asset_reserves,
-        market.amm.peg_multiplier,
-    )?;
-
-    Ok(auction_start_price)
-}
-
 pub fn calculate_auction_end_price(
-    market: &PerpMarket,
-    direction: PositionDirection,
-    base_asset_amount: u128,
-) -> ClearingHouseResult<u128> {
-    let swap_direction = match direction {
-        PositionDirection::Long => SwapDirection::Remove,
-        PositionDirection::Short => SwapDirection::Add,
-    };
-
-    let (_, _, quote_asset_amount, _) =
-        calculate_base_swap_output_with_spread(&market.amm, base_asset_amount, swap_direction)?;
-
-    let auction_end_price = calculate_entry_price(quote_asset_amount, base_asset_amount)?;
-
-    Ok(auction_end_price)
-}
-
-pub fn calculate_spot_auction_end_price(
     oracle_price: &OraclePriceData,
     direction: PositionDirection,
 ) -> ClearingHouseResult<u128> {

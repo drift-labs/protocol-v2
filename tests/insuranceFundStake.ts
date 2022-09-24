@@ -7,6 +7,7 @@ import { PublicKey, Keypair } from '@solana/web3.js';
 
 import {
 	Admin,
+	OracleGuardRails,
 	ClearingHouse,
 	ClearingHouseUser,
 	BN,
@@ -147,7 +148,7 @@ describe('insurance fund stake', () => {
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 		assert(userStats.numberOfUsers === 1);
-		assert(userStats.quoteAssetInsuranceFundStake.eq(ZERO));
+		assert(userStats.stakedQuoteAssetAmount.eq(ZERO));
 	});
 
 	it('user if stake', async () => {
@@ -174,7 +175,8 @@ describe('insurance fund stake', () => {
 		assert(spotMarket0.userIfShares.eq(usdcAmount));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
-		assert(userStats.quoteAssetInsuranceFundStake.eq(usdcAmount));
+		console.log(userStats);
+		assert(userStats.stakedQuoteAssetAmount.eq(usdcAmount));
 	});
 
 	it('user request if unstake (half)', async () => {
@@ -196,10 +198,12 @@ describe('insurance fund stake', () => {
 			insuranceVaultAmountBefore
 		);
 
+		console.log(amountFromShare.toString());
+
 		try {
 			const txSig = await clearingHouse.requestRemoveInsuranceFundStake(
 				marketIndex,
-				amountFromShare.add(ONE)
+				amountFromShare
 			);
 			console.log(
 				'tx logs',
@@ -216,7 +220,7 @@ describe('insurance fund stake', () => {
 		assert(spotMarket0.userIfShares.eq(usdcAmount));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
-		assert(userStats.quoteAssetInsuranceFundStake.eq(usdcAmount));
+		assert(userStats.stakedQuoteAssetAmount.eq(usdcAmount));
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
 			clearingHouse.program.programId,
@@ -230,6 +234,8 @@ describe('insurance fund stake', () => {
 			)) as InsuranceFundStake;
 
 		assert(ifStakeAccount.lastWithdrawRequestShares.gt(ZERO));
+		console.log(ifStakeAccount.lastWithdrawRequestShares.toString());
+		console.log(nShares.toString());
 		assert(ifStakeAccount.lastWithdrawRequestShares.eq(nShares));
 		assert(ifStakeAccount.lastWithdrawRequestValue.eq(amountFromShare));
 	});
@@ -255,9 +261,7 @@ describe('insurance fund stake', () => {
 		assert(spotMarket0.userIfShares.eq(usdcAmount.div(new BN(2))));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
-		assert(
-			userStats.quoteAssetInsuranceFundStake.eq(usdcAmount.div(new BN(2)))
-		);
+		assert(userStats.stakedQuoteAssetAmount.eq(usdcAmount.div(new BN(2))));
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
 			clearingHouse.program.programId,
@@ -271,7 +275,7 @@ describe('insurance fund stake', () => {
 			userUSDCAccount.publicKey
 		);
 		console.log('usdc balance:', usdcbalance.value.amount);
-		assert(usdcbalance.value.amount == '499999999999');
+		assert(usdcbalance.value.amount == '500000000000');
 
 		const ifStakeAccount =
 			(await clearingHouse.program.account.insuranceFundStake.fetch(
@@ -324,7 +328,7 @@ describe('insurance fund stake', () => {
 		assert(spotMarket0.userIfShares.eq(usdcAmount.div(new BN(2))));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
-		assert(userStats.quoteAssetInsuranceFundStake.gt(ZERO));
+		assert(userStats.stakedQuoteAssetAmount.gt(ZERO));
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
 			clearingHouse.program.programId,
@@ -347,8 +351,7 @@ describe('insurance fund stake', () => {
 			await clearingHouse.updateSpotMarketIfFactor(
 				new BN(0),
 				new BN(90000),
-				new BN(100000),
-				new BN(50000)
+				new BN(100000)
 			);
 		} catch (e) {
 			console.log('cant set reserve factor');
@@ -421,7 +424,7 @@ describe('insurance fund stake', () => {
 		assert(ifStakeAccount.lastWithdrawRequestShares.eq(ZERO));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
-		assert(userStats.quoteAssetInsuranceFundStake.eq(ZERO));
+		assert(userStats.stakedQuoteAssetAmount.eq(ZERO));
 
 		const usdcbalance = await connection.getTokenAccountBalance(
 			userUSDCAccount.publicKey
@@ -684,9 +687,7 @@ describe('insurance fund stake', () => {
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 		assert(
-			userStats.quoteAssetInsuranceFundStake.eq(
-				new BN(usdcbalance.value.amount)
-			)
+			userStats.stakedQuoteAssetAmount.eq(new BN(usdcbalance.value.amount))
 		);
 	});
 
@@ -774,7 +775,10 @@ describe('insurance fund stake', () => {
 			).value.amount
 		);
 		assert(insuranceVaultAmountAfter.gt(insuranceVaultAmountBefore));
-		await clearingHouse.cancelRequestRemoveInsuranceFundStake(marketIndex);
+		const txSig = await clearingHouse.cancelRequestRemoveInsuranceFundStake(
+			marketIndex
+		);
+		await printTxLogs(connection, txSig);
 
 		const ifStakeAccountAfter =
 			(await clearingHouse.program.account.insuranceFundStake.fetch(
@@ -788,15 +792,17 @@ describe('insurance fund stake', () => {
 			'->',
 			ifStakeAccountAfter.ifShares.toString(),
 			'(quoteAssetInsuranceFundStake=',
-			userStats.quoteAssetInsuranceFundStake.toString(),
+			userStats.stakedQuoteAssetAmount.toString(),
 			')'
 		);
 
 		assert(ifStakeAccountAfter.ifShares.lt(ifStakeAccount.ifShares));
 
-		// totalIfShares lower bound, kinda random basd on timestamps
+		// the user should have slightly less quote staked than the total quote in if
 		assert(
-			userStats.quoteAssetInsuranceFundStake.eq(ifStakeAccountAfter.ifShares)
+			insuranceVaultAmountAfter
+				.sub(userStats.stakedQuoteAssetAmount)
+				.lt(QUOTE_PRECISION)
 		);
 	});
 
@@ -820,7 +826,21 @@ describe('insurance fund stake', () => {
 		await clearingHouseUser.subscribe();
 
 		const prevTC = clearingHouseUser.getTotalCollateral();
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(1),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
+				confidenceIntervalMaxSize: new BN(100000),
+				tooVolatileRatio: new BN(100000),
+			},
+			useForLiquidations: false,
+		};
 
+		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
 		await setFeedPrice(anchor.workspace.Pyth, 22500 / 10000, solOracle); // down 99.99%
 		await sleep(2000);
 
@@ -980,8 +1000,10 @@ describe('insurance fund stake', () => {
 
 		assert(afterLiquiderUSDCDeposit.gt(new BN('999400065806')));
 		assert(afterLiquiderSOLDeposit.gt(new BN('266660042')));
-		assert(afterLiquiteeUSDCBorrow.gt(new BN('499430033054')));
-		assert(afterLiquiteeSOLDeposit.gt(new BN('9733336051')));
+		console.log(afterLiquiteeUSDCBorrow.toString());
+		console.log(afterLiquiteeSOLDeposit.toString());
+		assert(afterLiquiteeUSDCBorrow.gte(new BN('499406475800')));
+		assert(afterLiquiteeSOLDeposit.gte(new BN('9733337501')));
 
 		// console.log(
 		// 	secondUserClearingHouse
@@ -1006,7 +1028,7 @@ describe('insurance fund stake', () => {
 		// );
 
 		assert(secondUserClearingHouse.getUserAccount().beingLiquidated);
-		assert(!secondUserClearingHouse.getUserAccount().spotMarketrupt);
+		assert(!secondUserClearingHouse.getUserAccount().bankrupt);
 
 		const ifPoolBalanceAfter = getTokenAmount(
 			spotMarket.revenuePool.balance,
@@ -1015,7 +1037,7 @@ describe('insurance fund stake', () => {
 		);
 		console.log('ifPoolBalance: 0 ->', ifPoolBalanceAfter.toString());
 
-		assert(ifPoolBalanceAfter.gt(new BN('20004698')));
+		assert(ifPoolBalanceAfter.gte(new BN('6004698')));
 
 		const usdcBefore = ifPoolBalanceAfter
 			.add(afterLiquiderUSDCDeposit)

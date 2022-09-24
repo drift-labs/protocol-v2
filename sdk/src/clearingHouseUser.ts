@@ -142,7 +142,7 @@ export class ClearingHouseUser {
 			openOrders: ZERO,
 			openBids: ZERO,
 			openAsks: ZERO,
-			realizedPnl: ZERO,
+			settledPnl: ZERO,
 			lpShares: ZERO,
 			lastFeePerLp: ZERO,
 			lastNetBaseAssetAmountPerLp: ZERO,
@@ -440,7 +440,19 @@ export class ClearingHouseUser {
 							spotPosition.balanceType
 						);
 
-						return totalLiabilityValue.add(tokenAmount);
+						let weight = SPOT_MARKET_WEIGHT_PRECISION;
+						if (marginCategory === 'Initial') {
+							weight = BN.max(
+								weight,
+								new BN(this.getUserAccount().customMarginRatio)
+							);
+						}
+
+						const weightedTokenValue = tokenAmount
+							.mul(weight)
+							.div(SPOT_MARKET_WEIGHT_PRECISION);
+
+						return totalLiabilityValue.add(weightedTokenValue);
 					} else {
 						return totalLiabilityValue;
 					}
@@ -492,9 +504,20 @@ export class ClearingHouseUser {
 				}
 
 				if (worstCaseQuoteTokenAmount.lt(ZERO)) {
-					newTotalLiabilityValue = newTotalLiabilityValue.add(
-						worstCaseQuoteTokenAmount
-					);
+					let weight = SPOT_MARKET_WEIGHT_PRECISION;
+					if (marginCategory === 'Initial') {
+						weight = BN.max(
+							weight,
+							new BN(this.getUserAccount().customMarginRatio)
+						);
+					}
+
+					const weightedTokenValue = worstCaseQuoteTokenAmount
+						.mul(weight)
+						.div(SPOT_MARKET_WEIGHT_PRECISION);
+
+					newTotalLiabilityValue =
+						newTotalLiabilityValue.add(weightedTokenValue);
 				}
 
 				return newTotalLiabilityValue;
@@ -522,6 +545,13 @@ export class ClearingHouseUser {
 				spotMarketAccount,
 				marginCategory
 			);
+
+			if (marginCategory === 'Initial') {
+				weight = BN.max(
+					weight,
+					new BN(this.getUserAccount().customMarginRatio)
+				);
+			}
 
 			if (liquidationBuffer !== undefined) {
 				weight = weight.add(liquidationBuffer);
@@ -745,6 +775,13 @@ export class ClearingHouseUser {
 							marginCategory
 						)
 					);
+
+					if (marginCategory === 'Initial') {
+						marginRatio = BN.max(
+							marginRatio,
+							new BN(this.getUserAccount().customMarginRatio)
+						);
+					}
 
 					if (liquidationBuffer !== undefined) {
 						marginRatio = marginRatio.add(liquidationBuffer);
@@ -1034,7 +1071,7 @@ export class ClearingHouseUser {
 			openOrders: new BN(0),
 			openBids: new BN(0),
 			openAsks: new BN(0),
-			realizedPnl: ZERO,
+			settledPnl: ZERO,
 			lpShares: ZERO,
 			lastFeePerLp: ZERO,
 			lastNetBaseAssetAmountPerLp: ZERO,
@@ -1358,11 +1395,11 @@ export class ClearingHouseUser {
 	 * @returns feeForQuote : Precision QUOTE_PRECISION
 	 */
 	public calculateFeeForQuoteAmount(quoteAmount: BN): BN {
-		const feeStructure = this.clearingHouse.getStateAccount().perpFeeStructure;
-
+		const feeTier =
+			this.clearingHouse.getStateAccount().perpFeeStructure.feeTiers[0];
 		return quoteAmount
-			.mul(feeStructure.feeNumerator)
-			.div(feeStructure.feeDenominator);
+			.mul(new BN(feeTier.feeNumerator))
+			.div(new BN(feeTier.feeDenominator));
 	}
 
 	/**

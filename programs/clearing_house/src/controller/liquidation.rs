@@ -5,8 +5,9 @@ use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount,
 };
 use crate::controller::spot_balance::{
-    update_revenue_pool_balances, update_spot_balances, update_spot_market_cumulative_interest,
+    update_revenue_pool_balances, update_spot_market_cumulative_interest,
 };
+use crate::controller::spot_position::update_spot_position_balance;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::get_then_update_id;
 use crate::math::bankruptcy::is_user_bankrupt;
@@ -25,6 +26,7 @@ use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, meets_initial_margin_requirement,
     MarginRequirementType,
 };
+use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::orders::{get_position_delta_for_fill, standardize_base_asset_amount};
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::spot_balance::get_token_amount;
@@ -106,7 +108,7 @@ pub fn liquidate_perp(
         now,
     )?;
 
-    let (margin_requirement, total_collateral, margin_requirement_plus_buffer) =
+    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -146,10 +148,22 @@ pub fn liquidate_perp(
 
     let market = perp_market_map.get_ref(&market_index)?;
 
+    let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+        &market.amm.oracle,
+        market.amm.historical_oracle_data.last_oracle_price_twap,
+    )?;
+
+    validate!(
+        is_oracle_valid_for_action(oracle_validity, Some(DriftAction::Liquidate))?,
+        ErrorCode::InvalidOracle,
+        "OracleValidity for perp marketIndex={} has InvalidPrice or TooVolatile",
+        market.market_index
+    )?;
+
     let oracle_price = if market.status == MarketStatus::Settlement {
         market.settlement_price
     } else {
-        oracle_map.get_price_data(&market.amm.oracle)?.price
+        oracle_price_data.price
     };
 
     drop(market);
@@ -168,7 +182,7 @@ pub fn liquidate_perp(
     // check if user exited liquidation territory
     let (intermediate_total_collateral, intermediate_margin_requirement_with_buffer) =
         if !canceled_order_ids.is_empty() || lp_shares > 0 {
-            let (_, intermediate_total_collateral, intermediate_margin_requirement_plus_buffer) =
+            let (_, intermediate_total_collateral, intermediate_margin_requirement_plus_buffer, _) =
                 calculate_margin_requirement_and_total_collateral(
                     user,
                     perp_market_map,
@@ -243,12 +257,14 @@ pub fn liquidate_perp(
         .unsigned_abs();
 
     let market = perp_market_map.get_ref(&market_index)?;
-    let liquidation_fee = market.liquidation_fee;
+    let liquidation_fee = market.liquidator_fee;
+    let if_liquidation_fee = market.if_liquidation_fee;
     let base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount(
         calculate_base_asset_amount_to_cover_margin_shortage(
             margin_shortage,
             margin_ratio_with_buffer,
             liquidation_fee,
+            if_liquidation_fee,
             oracle_price,
         )?,
         market.amm.base_asset_amount_step_size,
@@ -282,6 +298,13 @@ pub fn liquidate_perp(
         .ok_or_else(math_error!())?
         .checked_div(LIQUIDATION_FEE_PRECISION)
         .ok_or_else(math_error!())?;
+    let if_fee = -cast_to_i128(
+        base_asset_value
+            .checked_mul(if_liquidation_fee)
+            .ok_or_else(math_error!())?
+            .checked_div(LIQUIDATION_FEE_PRECISION)
+            .ok_or_else(math_error!())?,
+    )?;
 
     user_stats.update_taker_volume_30d(cast(quote_asset_amount)?, now)?;
     liquidator_stats.update_maker_volume_30d(cast(quote_asset_amount)?, now)?;
@@ -302,8 +325,11 @@ pub fn liquidate_perp(
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
         let user_position = user.get_perp_position_mut(market_index).unwrap();
-        let user_pnl =
+        let mut user_pnl =
             update_position_and_market(user_position, &mut market, &user_position_delta)?;
+
+        update_quote_asset_amount(user_position, &mut market, if_fee)?;
+        user_pnl = user_pnl.checked_add(if_fee).ok_or_else(math_error!())?;
 
         let liquidator_position = liquidator
             .force_get_perp_position_mut(market_index)
@@ -313,6 +339,13 @@ pub fn liquidate_perp(
             &mut market,
             &liquidator_position_delta,
         )?;
+
+        market.amm.total_liquidation_fee = market
+            .amm
+            .total_liquidation_fee
+            .checked_add(if_fee.unsigned_abs())
+            .ok_or_else(math_error!())?;
+
         (user_pnl, liquidator_pnl)
     };
 
@@ -360,6 +393,7 @@ pub fn liquidate_perp(
             user_order_id,
             liquidator_order_id,
             fill_record_id,
+            if_fee: cast(if_fee.abs())?,
         },
         ..LiquidationRecord::default()
     });
@@ -424,7 +458,19 @@ pub fn liquidate_borrow(
 
     let (asset_amount, asset_price, asset_decimals, asset_weight, asset_liquidation_multiplier) = {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
-        update_spot_market_cumulative_interest(&mut asset_market, now)?;
+        let (asset_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+            &asset_market.oracle,
+            asset_market.historical_oracle_data.last_oracle_price_twap,
+        )?;
+
+        validate!(
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::Liquidate))?,
+            ErrorCode::InvalidOracle,
+            "Invalid Oracle to Liquidate spot asset marketIndex={}",
+            asset_market.market_index
+        )?;
+
+        update_spot_market_cumulative_interest(&mut asset_market, Some(asset_price_data), now)?;
 
         let spot_deposit_position = user.get_spot_position(asset_market_index).unwrap();
 
@@ -440,16 +486,14 @@ pub fn liquidate_borrow(
             &spot_deposit_position.balance_type,
         )?;
 
-        // TODO add oracle checks
-        let asset_price = oracle_map.get_price_data(&asset_market.oracle)?.price;
-
+        let asset_price = asset_price_data.price;
         (
             token_amount,
             asset_price,
             asset_market.decimals,
             asset_market.maintenance_asset_weight,
             calculate_liquidation_multiplier(
-                asset_market.liquidation_fee,
+                asset_market.liquidator_fee,
                 LiquidationMultiplierType::Premium,
             )?,
         )
@@ -461,9 +505,29 @@ pub fn liquidate_borrow(
         liability_decimals,
         liability_weight,
         liability_liquidation_multiplier,
+        liquidation_if_fee,
     ) = {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
-        update_spot_market_cumulative_interest(&mut liability_market, now)?;
+
+        let (liability_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+            &liability_market.oracle,
+            liability_market
+                .historical_oracle_data
+                .last_oracle_price_twap,
+        )?;
+
+        validate!(
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::Liquidate))?,
+            ErrorCode::InvalidOracle,
+            "Invalid Oracle to Liquidate spot liability marketIndex={}",
+            liability_market.market_index
+        )?;
+
+        update_spot_market_cumulative_interest(
+            &mut liability_market,
+            Some(liability_price_data),
+            now,
+        )?;
 
         let spot_position = user.get_spot_position(liability_market_index).unwrap();
 
@@ -479,8 +543,7 @@ pub fn liquidate_borrow(
             &spot_position.balance_type,
         )?;
 
-        // TODO add oracle checks
-        let liability_price = oracle_map.get_price_data(&liability_market.oracle)?.price;
+        let liability_price = liability_price_data.price;
 
         (
             token_amount,
@@ -488,13 +551,14 @@ pub fn liquidate_borrow(
             liability_market.decimals,
             liability_market.maintenance_liability_weight,
             calculate_liquidation_multiplier(
-                liability_market.liquidation_fee,
+                liability_market.liquidator_fee,
                 LiquidationMultiplierType::Discount,
             )?,
+            liability_market.if_liquidation_fee,
         )
     };
 
-    let (margin_requirement, total_collateral, margin_requirement_plus_buffer) =
+    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -527,7 +591,7 @@ pub fn liquidate_borrow(
     // check if user exited liquidation territory
     let (intermediate_total_collateral, intermediate_margin_requirement_with_buffer) =
         if !canceled_order_ids.is_empty() {
-            let (_, intermediate_total_collateral, intermediate_margin_requirement_plus_buffer) =
+            let (_, intermediate_total_collateral, intermediate_margin_requirement_plus_buffer, _) =
                 calculate_margin_requirement_and_total_collateral(
                     user,
                     perp_market_map,
@@ -555,6 +619,7 @@ pub fn liquidate_borrow(
                         liability_market_index,
                         liability_price,
                         liability_transfer: 0,
+                        if_fee: 0,
                     },
                     ..LiquidationRecord::default()
                 });
@@ -590,6 +655,7 @@ pub fn liquidate_borrow(
             liability_liquidation_multiplier,
             liability_decimals,
             liability_price,
+            liquidation_if_fee,
         )?;
 
     // Given the user's deposit amount, how much borrow can be transferred?
@@ -621,37 +687,27 @@ pub fn liquidate_borrow(
         liability_price,
     )?;
 
-    let liability_transfer_for_user: u128;
+    let if_fee = liability_transfer
+        .checked_mul(liquidation_if_fee)
+        .ok_or_else(math_error!())?
+        .checked_div(LIQUIDATION_FEE_PRECISION)
+        .ok_or_else(math_error!())?;
     {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
 
-        // part liquidator liability transfer pays to insurance fund
-        // size will be eventually be 0 for sufficiently small liability size
-        let liability_transfer_for_insurance = liability_transfer
-            .checked_mul(liability_market.liquidation_if_factor as u128)
-            .ok_or_else(math_error!())?
-            .checked_div(LIQUIDATION_FEE_PRECISION)
-            .ok_or_else(math_error!())?;
-
-        liability_transfer_for_user = liability_transfer
-            .checked_sub(liability_transfer_for_insurance)
-            .ok_or_else(math_error!())?;
-
-        update_revenue_pool_balances(
-            liability_transfer_for_insurance,
-            &SpotBalanceType::Deposit,
-            &mut liability_market,
-        )?;
-
-        update_spot_balances(
-            liability_transfer_for_user,
+        update_spot_position_balance(
+            liability_transfer
+                .checked_sub(if_fee)
+                .ok_or_else(math_error!())?,
             &SpotBalanceType::Deposit,
             &mut liability_market,
             user.get_spot_position_mut(liability_market_index).unwrap(),
             false,
         )?;
 
-        update_spot_balances(
+        update_revenue_pool_balances(if_fee, &SpotBalanceType::Deposit, &mut liability_market)?;
+
+        update_spot_position_balance(
             liability_transfer,
             &SpotBalanceType::Borrow,
             &mut liability_market,
@@ -665,7 +721,7 @@ pub fn liquidate_borrow(
     {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
 
-        update_spot_balances(
+        update_spot_position_balance(
             asset_transfer,
             &SpotBalanceType::Borrow,
             &mut asset_market,
@@ -673,7 +729,7 @@ pub fn liquidate_borrow(
             false,
         )?;
 
-        update_spot_balances(
+        update_spot_position_balance(
             asset_transfer,
             &SpotBalanceType::Deposit,
             &mut asset_market,
@@ -684,7 +740,7 @@ pub fn liquidate_borrow(
         )?;
     }
 
-    if liability_transfer_for_user >= liability_transfer_to_cover_margin_shortage {
+    if liability_transfer >= liability_transfer_to_cover_margin_shortage {
         user.being_liquidated = false;
     } else {
         user.bankrupt = is_user_bankrupt(user);
@@ -715,6 +771,7 @@ pub fn liquidate_borrow(
             liability_market_index,
             liability_price,
             liability_transfer,
+            if_fee: cast(if_fee)?,
         },
         ..LiquidationRecord::default()
     });
@@ -829,7 +886,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             6_u8,
             pnl_asset_weight,
             calculate_liquidation_multiplier(
-                market.liquidation_fee,
+                market.liquidator_fee,
                 LiquidationMultiplierType::Premium,
             )?,
         )
@@ -843,7 +900,25 @@ pub fn liquidate_borrow_for_perp_pnl(
         liability_liquidation_multiplier,
     ) = {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
-        update_spot_market_cumulative_interest(&mut liability_market, now)?;
+        let (liability_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+            &liability_market.oracle,
+            liability_market
+                .historical_oracle_data
+                .last_oracle_price_twap,
+        )?;
+
+        validate!(
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::Liquidate))?,
+            ErrorCode::InvalidOracle,
+            "Invalid Oracle to Liquidate spot liability marketIndex={}",
+            liability_market.market_index
+        )?;
+
+        update_spot_market_cumulative_interest(
+            &mut liability_market,
+            Some(liability_price_data),
+            now,
+        )?;
 
         let spot_position = user.get_spot_position(liability_market_index).unwrap();
 
@@ -859,22 +934,19 @@ pub fn liquidate_borrow_for_perp_pnl(
             &spot_position.balance_type,
         )?;
 
-        // TODO add oracle checks
-        let liability_price = oracle_map.get_price_data(&liability_market.oracle)?.price;
-
         (
             token_amount,
-            liability_price,
+            liability_price_data.price,
             liability_market.decimals,
             liability_market.maintenance_liability_weight,
             calculate_liquidation_multiplier(
-                liability_market.liquidation_fee,
+                liability_market.liquidator_fee,
                 LiquidationMultiplierType::Discount,
             )?,
         )
     };
 
-    let (margin_requirement, total_collateral, margin_requirement_plus_buffer) =
+    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -907,7 +979,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     // check if user exited liquidation territory
     let (intermediate_total_collateral, intermediate_margin_requirement_with_buffer) =
         if !canceled_order_ids.is_empty() {
-            let (_, intermediate_total_collateral, intermediate_margin_requirement_plus_buffer) =
+            let (_, intermediate_total_collateral, intermediate_margin_requirement_plus_buffer, _) =
                 calculate_margin_requirement_and_total_collateral(
                     user,
                     perp_market_map,
@@ -973,6 +1045,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             liability_liquidation_multiplier,
             liability_decimals,
             liability_price,
+            0,
         )?;
 
     // Given the user's deposit amount, how much borrow can be transferred?
@@ -1006,7 +1079,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
 
-        update_spot_balances(
+        update_spot_position_balance(
             liability_transfer,
             &SpotBalanceType::Deposit,
             &mut liability_market,
@@ -1014,7 +1087,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             false,
         )?;
 
-        update_spot_balances(
+        update_spot_position_balance(
             liability_transfer,
             &SpotBalanceType::Borrow,
             &mut liability_market,
@@ -1150,7 +1223,21 @@ pub fn liquidate_perp_pnl_for_deposit(
 
     let (asset_amount, asset_price, asset_decimals, asset_weight, asset_liquidation_multiplier) = {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
-        update_spot_market_cumulative_interest(&mut asset_market, now)?;
+
+        let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+            &asset_market.oracle,
+            asset_market.historical_oracle_data.last_oracle_price_twap,
+        )?;
+
+        validate!(
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::Liquidate))?,
+            ErrorCode::InvalidOracle,
+            "Invalid Oracle to Liquidate spot asset marketIndex={}",
+            asset_market.market_index
+        )?;
+
+        let token_price = oracle_price_data.price;
+        update_spot_market_cumulative_interest(&mut asset_market, Some(oracle_price_data), now)?;
 
         let spot_position = user.get_spot_position(asset_market_index).unwrap();
 
@@ -1166,16 +1253,13 @@ pub fn liquidate_perp_pnl_for_deposit(
             &spot_position.balance_type,
         )?;
 
-        // TODO add oracle checks
-        let token_price = oracle_map.get_price_data(&asset_market.oracle)?.price;
-
         (
             token_amount,
             token_price,
             asset_market.decimals,
             asset_market.maintenance_asset_weight,
             calculate_liquidation_multiplier(
-                asset_market.liquidation_fee,
+                asset_market.liquidator_fee,
                 LiquidationMultiplierType::Premium,
             )?,
         )
@@ -1223,13 +1307,13 @@ pub fn liquidate_perp_pnl_for_deposit(
             6_u8,
             SPOT_WEIGHT_PRECISION,
             calculate_liquidation_multiplier(
-                market.liquidation_fee,
+                market.liquidator_fee,
                 LiquidationMultiplierType::Discount,
             )?,
         )
     };
 
-    let (margin_requirement, total_collateral, margin_requirement_plus_buffer) =
+    let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -1262,7 +1346,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     // check if user exited liquidation territory
     let (intermediate_total_collateral, intermediate_margin_requirement_with_buffer) =
         if !canceled_order_ids.is_empty() {
-            let (_, intermediate_total_collateral, intermediate_margin_requirement_plus_buffer) =
+            let (_, intermediate_total_collateral, intermediate_margin_requirement_plus_buffer, _) =
                 calculate_margin_requirement_and_total_collateral(
                     user,
                     perp_market_map,
@@ -1324,6 +1408,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             pnl_liquidation_multiplier,
             quote_decimals,
             quote_price,
+            0, // no if fee
         )?;
 
     // Given the user's deposit amount, how much borrow can be transferred?
@@ -1358,7 +1443,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
 
-        update_spot_balances(
+        update_spot_position_balance(
             asset_transfer,
             &SpotBalanceType::Borrow,
             &mut asset_market,
@@ -1366,7 +1451,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             false,
         )?;
 
-        update_spot_balances(
+        update_spot_position_balance(
             asset_transfer,
             &SpotBalanceType::Deposit,
             &mut asset_market,
@@ -1495,7 +1580,7 @@ pub fn resolve_perp_bankruptcy(
         "user must have negative pnl"
     )?;
 
-    let (margin_requirement, total_collateral, _) =
+    let (margin_requirement, total_collateral, _, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -1637,7 +1722,7 @@ pub fn resolve_borrow_bankruptcy(
         ErrorCode::CouldNotFindSpotPosition
     })?;
 
-    let (margin_requirement, total_collateral, _) =
+    let (margin_requirement, total_collateral, _, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -1682,7 +1767,7 @@ pub fn resolve_borrow_bankruptcy(
     {
         let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
         let spot_position = user.get_spot_position_mut(market_index).unwrap();
-        update_spot_balances(
+        update_spot_position_balance(
             borrow_amount,
             &SpotBalanceType::Deposit,
             &mut spot_market,

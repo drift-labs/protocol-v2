@@ -48,6 +48,7 @@ export class OrderType {
 	static readonly MARKET = { market: {} };
 }
 
+export declare type MarketTypeStr = 'perp' | 'spot';
 export class MarketType {
 	static readonly SPOT = { spot: {} };
 	static readonly PERP = { perp: {} };
@@ -112,6 +113,10 @@ export function isOneOfVariant(object: unknown, types: string[]) {
 	return types.reduce((result, type) => {
 		return result || object.hasOwnProperty(type);
 	}, false);
+}
+
+export function getVariant(object: unknown): string {
+	return Object.keys(object)[0];
 }
 
 export enum TradeSide {
@@ -279,6 +284,7 @@ export type LiquidatePerpRecord = {
 	userOrderId: BN;
 	liquidatorOrderId: BN;
 	fillRecordId: BN;
+	ifFee: BN;
 };
 
 export type LiquidateBorrowRecord = {
@@ -288,6 +294,7 @@ export type LiquidateBorrowRecord = {
 	liabilityMarketIndex: BN;
 	liabilityPrice: BN;
 	liabilityTransfer: BN;
+	ifFee: BN;
 };
 
 export type LiquidateBorrowForPerpPnlRecord = {
@@ -378,19 +385,6 @@ export type StateAccount = {
 	exchangePaused: boolean;
 	adminControlsPrices: boolean;
 	insuranceVault: PublicKey;
-	marginRatioInitial: BN;
-	marginRatioMaintenance: BN;
-	marginRatioPartial: BN;
-	partialLiquidationClosePercentageNumerator: BN;
-	partialLiquidationClosePercentageDenominator: BN;
-	partialLiquidationPenaltyPercentageNumerator: BN;
-	partialLiquidationPenaltyPercentageDenominator: BN;
-	fullLiquidationPenaltyPercentageNumerator: BN;
-	fullLiquidationPenaltyPercentageDenominator: BN;
-	partialLiquidationLiquidatorShareDenominator: BN;
-	fullLiquidationLiquidatorShareDenominator: BN;
-	perpFeeStructure: FeeStructure;
-	spotFeeStructure: FeeStructure;
 	totalFee: BN;
 	totalFeeWithdrawn: BN;
 	whitelistMint: PublicKey;
@@ -402,9 +396,12 @@ export type StateAccount = {
 	minOrderQuoteAssetAmount: BN;
 	signer: PublicKey;
 	signerNonce: number;
-	maxAuctionDuration: number;
-	minAuctionDuration: number;
+	defaultMarketOrderTimeInForce: number;
+	minPerpAuctionDuration: number;
+	defaultSpotAuctionDuration: number;
 	liquidationMarginBufferRatio: number;
+	perpFeeStructure: FeeStructure;
+	spotFeeStructure: FeeStructure;
 };
 
 export type PerpMarketAccount = {
@@ -423,7 +420,8 @@ export type PerpMarketAccount = {
 	marginRatioMaintenance: number;
 	nextFillRecordId: BN;
 	pnlPool: PoolBalance;
-	liquidationFee: BN;
+	liquidatorFee: BN;
+	ifLiquidationFee: BN;
 	imfFactor: BN;
 	unrealizedImfFactor: BN;
 	unrealizedMaxImbalance: BN;
@@ -436,11 +434,33 @@ export type PerpMarketAccount = {
 	quoteMaxInsurance: BN;
 };
 
+export type HistoricalOracleData = {
+	lastOraclePrice: BN;
+	lastOracleDelay: BN;
+	lastOracleConf: BN;
+	lastOraclePriceTwap: BN;
+	lastOraclePriceTwap5min: BN;
+	lastOraclePriceTwapTs: BN;
+};
+
+export type HistoricalIndexData = {
+	lastIndexBidPrice: BN;
+	lastIndexAskPrice: BN;
+	lastIndexPriceTwap: BN;
+	lastIndexPriceTwap5Min: BN;
+	lastIndexPriceTwapTs: BN;
+};
+
 export type SpotMarketAccount = {
 	marketIndex: BN;
 	pubkey: PublicKey;
 	mint: PublicKey;
 	vault: PublicKey;
+
+	oracle: PublicKey;
+	oracleSource: OracleSource;
+	historicalOracleData: HistoricalOracleData;
+	historicalIndexData: HistoricalIndexData;
 
 	insuranceFundVault: PublicKey;
 	insuranceWithdrawEscrowPeriod: BN;
@@ -451,7 +471,7 @@ export type SpotMarketAccount = {
 
 	userIfFactor: BN;
 	totalIfFactor: BN;
-	liquidationIfFactor: BN;
+	ifLiquidationFee: BN;
 
 	decimals: number;
 	optimalUtilization: BN;
@@ -463,12 +483,11 @@ export type SpotMarketAccount = {
 	borrowBalance: BN;
 	lastInterestTs: BN;
 	lastTwapTs: BN;
-	oracle: PublicKey;
 	initialAssetWeight: BN;
 	maintenanceAssetWeight: BN;
 	initialLiabilityWeight: BN;
 	maintenanceLiabilityWeight: BN;
-	liquidationFee: BN;
+	liquidatorFee: BN;
 	imfFactor: BN;
 
 	withdrawGuardThreshold: BN;
@@ -497,21 +516,20 @@ export type AMM = {
 	lastMarkPriceTwap: BN;
 	lastMarkPriceTwap5min: BN;
 	lastMarkPriceTwapTs: BN;
-	lastOraclePriceTwap: BN;
-	lastOraclePriceTwap5min: BN;
-	lastOraclePriceTwapTs: BN;
-	lastOracleMarkSpreadPct: BN;
-	lastOracleConfPct: BN;
+
 	oracle: PublicKey;
 	oracleSource: OracleSource;
+	historicalOracleData: HistoricalOracleData;
+
+	lastOracleMarkSpreadPct: BN;
+	lastOracleConfPct: BN;
+
 	fundingPeriod: BN;
 	quoteAssetReserve: BN;
 	pegMultiplier: BN;
 	cumulativeFundingRateLong: BN;
 	cumulativeFundingRateShort: BN;
 	cumulativeFundingRateLp: BN;
-	cumulativeRepegRebateLong: BN;
-	cumulativeRepegRebateShort: BN;
 	totalFeeMinusDistributions: BN;
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
@@ -524,7 +542,6 @@ export type AMM = {
 	baseAssetAmountStepSize: BN;
 	maxBaseAssetAmountRatio: number;
 	maxSlippageRatio: number;
-	lastOraclePrice: BN;
 	baseSpread: number;
 	curveUpdateIntensity: number;
 	netBaseAssetAmount: BN;
@@ -561,7 +578,7 @@ export type PerpPosition = {
 	openOrders: BN;
 	openBids: BN;
 	openAsks: BN;
-	realizedPnl: BN;
+	settledPnl: BN;
 	lpShares: BN;
 	lastFeePerLp: BN;
 	lastNetBaseAssetAmountPerLp: BN;
@@ -586,11 +603,12 @@ export type UserStatsAccount = {
 	isReferrer: boolean;
 	totalReferrerReward: BN;
 	authority: PublicKey;
-	quoteAssetInsuranceFundStake: BN;
+	stakedQuoteAssetAmount: BN;
 };
 
 export type UserAccount = {
 	authority: PublicKey;
+	delegate: PublicKey;
 	name: number[];
 	userId: number;
 	spotPositions: SpotPosition[];
@@ -600,6 +618,7 @@ export type UserAccount = {
 	bankrupt: boolean;
 	nextLiquidationId: number;
 	nextOrderId: BN;
+	customMarginRatio: number;
 };
 
 export type SpotPosition = {
@@ -609,6 +628,7 @@ export type SpotPosition = {
 	openOrders: number;
 	openBids: BN;
 	openAsks: BN;
+	cumulativeDeposits: BN;
 };
 
 export type Order = {
@@ -639,6 +659,7 @@ export type Order = {
 	auctionDuration: number;
 	auctionStartPrice: BN;
 	auctionEndPrice: BN;
+	timeInForce: number;
 };
 
 export type OrderParams = {
@@ -657,8 +678,9 @@ export type OrderParams = {
 	triggerCondition: OrderTriggerCondition;
 	positionLimit: BN;
 	oraclePriceOffset: BN;
-	padding0: boolean;
-	padding1: BN;
+	auctionDuration: number | null;
+	timeInForce: number | null;
+	auctionStartPrice: BN | null;
 };
 
 export type NecessaryOrderParams = {
@@ -688,8 +710,9 @@ export const DefaultOrderParams = {
 	triggerCondition: OrderTriggerCondition.ABOVE,
 	positionLimit: ZERO,
 	oraclePriceOffset: ZERO,
-	padding0: ZERO,
-	padding1: ZERO,
+	auctionDuration: null,
+	timeInForce: null,
+	auctionStartPrice: null,
 };
 
 export type MakerInfo = {
@@ -718,40 +741,29 @@ export interface IWallet {
 }
 
 export type FeeStructure = {
-	feeNumerator: BN;
-	feeDenominator: BN;
-	discountTokenTiers: {
-		firstTier: {
-			minimumBalance: BN;
-			discountNumerator: BN;
-			discountDenominator: BN;
-		};
-		secondTier: {
-			minimumBalance: BN;
-			discountNumerator: BN;
-			discountDenominator: BN;
-		};
-		thirdTier: {
-			minimumBalance: BN;
-			discountNumerator: BN;
-			discountDenominator: BN;
-		};
-		fourthTier: {
-			minimumBalance: BN;
-			discountNumerator: BN;
-			discountDenominator: BN;
-		};
-	};
-	referralDiscount: {
-		referrerRewardNumerator: BN;
-		referrerRewardDenominator: BN;
-		refereeDiscountNumerator: BN;
-		refereeDiscountDenominator: BN;
-	};
+	feeTiers: FeeTier[];
 	makerRebateNumerator: BN;
 	makerRebateDenominator: BN;
 	fillerRewardStructure: OrderFillerRewardStructure;
-	cancelOrderFee: BN;
+	flatFillerFee: BN;
+	referrerRewardEpochUpperBound: BN;
+};
+
+export type FeeTier = {
+	feeNumerator: number;
+	feeDenominator: number;
+	makerRebateNumerator: number;
+	makerRebateDenominator: number;
+	referrerRewardNumerator: number;
+	referrerRewardDenominator: number;
+	refereeFeeNumerator: number;
+	refereeFeeDenominator: number;
+};
+
+export type OrderFillerRewardStructure = {
+	rewardNumerator: BN;
+	rewardDenominator: BN;
+	timeBasedRewardLowerBound: BN;
 };
 
 export type OracleGuardRails = {
@@ -760,17 +772,12 @@ export type OracleGuardRails = {
 		markOracleDivergenceDenominator: BN;
 	};
 	validity: {
-		slotsBeforeStale: BN;
+		slotsBeforeStaleForAmm: BN;
+		slotsBeforeStaleForMargin: BN;
 		confidenceIntervalMaxSize: BN;
 		tooVolatileRatio: BN;
 	};
 	useForLiquidations: boolean;
-};
-
-export type OrderFillerRewardStructure = {
-	rewardNumerator: BN;
-	rewardDenominator: BN;
-	timeBasedRewardLowerBound: BN;
 };
 
 export type MarginCategory = 'Initial' | 'Maintenance';

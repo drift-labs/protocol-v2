@@ -92,7 +92,7 @@ describe('market order', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -250,13 +250,11 @@ describe('market order', () => {
 	it('Fill market short order with base asset', async () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const price = MARK_PRICE_PRECISION.mul(new BN(1));
 
 		const orderParams = getMarketOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
-			price,
 		});
 		await clearingHouse.placeAndTake(orderParams);
 
