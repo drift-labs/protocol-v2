@@ -8,7 +8,7 @@ import { PublicKey } from '@solana/web3.js';
 
 import {
 	Admin,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PositionDirection,
 	EventSubscriber,
 } from '../sdk/src';
@@ -37,7 +37,7 @@ describe('clearing_house', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);

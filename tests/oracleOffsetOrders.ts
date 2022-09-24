@@ -9,7 +9,7 @@ import { assert } from 'chai';
 import {
 	Admin,
 	BN,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	ClearingHouse,
 	PositionDirection,
 	ClearingHouseUser,
@@ -47,7 +47,7 @@ describe('oracle offset', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -162,7 +162,7 @@ describe('oracle offset', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const price = ZERO;
 		const reduceOnly = false;
-		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20)).neg();
+		const priceOffset = PRICE_PRECISION.div(new BN(20)).neg();
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
@@ -235,7 +235,7 @@ describe('oracle offset', () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
-		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20)).neg();
+		const priceOffset = PRICE_PRECISION.div(new BN(20)).neg();
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
@@ -310,7 +310,7 @@ describe('oracle offset', () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
-		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20));
+		const priceOffset = PRICE_PRECISION.div(new BN(20));
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
@@ -382,7 +382,7 @@ describe('oracle offset', () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
-		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20));
+		const priceOffset = PRICE_PRECISION.div(new BN(20));
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
@@ -413,7 +413,7 @@ describe('oracle offset', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
-		const expectedEntryPrice = MARK_PRICE_PRECISION.add(priceOffset);
+		const expectedEntryPrice = PRICE_PRECISION.add(priceOffset);
 		assert(entryPrice.eq(expectedEntryPrice));
 
 		await clearingHouse.unsubscribe();
@@ -456,7 +456,7 @@ describe('oracle offset', () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
-		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20));
+		const priceOffset = PRICE_PRECISION.div(new BN(20));
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
@@ -512,7 +512,7 @@ describe('oracle offset', () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
-		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20));
+		const priceOffset = PRICE_PRECISION.div(new BN(20));
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,

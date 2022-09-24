@@ -3,8 +3,8 @@ import {
 	AMM_RESERVE_PRECISION,
 	AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
 	AMM_TO_QUOTE_PRECISION_RATIO,
-	FUNDING_PAYMENT_PRECISION,
-	MARK_PRICE_PRECISION,
+	FUNDING_RATE_BUFFER_PRECISION,
+	PRICE_PRECISION,
 	ONE,
 	PRICE_TO_QUOTE_PRECISION,
 	ZERO,
@@ -193,7 +193,7 @@ export function calculatePositionFundingPNL(
 		.sub(perpPosition.lastCumulativeFundingRate)
 		.mul(perpPosition.baseAssetAmount)
 		.div(AMM_RESERVE_PRECISION)
-		.div(FUNDING_PAYMENT_PRECISION)
+		.div(FUNDING_RATE_BUFFER_PRECISION)
 		.mul(new BN(-1));
 
 	return perPositionFundingRate;
@@ -219,7 +219,7 @@ export function calculateEntryPrice(userPosition: PerpPosition): BN {
 	}
 
 	return userPosition.quoteEntryAmount
-		.mul(MARK_PRICE_PRECISION)
+		.mul(PRICE_PRECISION)
 		.mul(AMM_TO_QUOTE_PRECISION_RATIO)
 		.div(userPosition.baseAssetAmount)
 		.abs();
@@ -236,7 +236,7 @@ export function calculateCostBasis(userPosition: PerpPosition): BN {
 	}
 
 	return userPosition.quoteAssetAmount
-		.mul(MARK_PRICE_PRECISION)
+		.mul(PRICE_PRECISION)
 		.mul(AMM_TO_QUOTE_PRECISION_RATIO)
 		.div(userPosition.baseAssetAmount)
 		.abs();

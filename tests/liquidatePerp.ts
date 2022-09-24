@@ -20,7 +20,7 @@ import {
 	ClearingHouse,
 	EventSubscriber,
 	findComputeUnitConsumption,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PositionDirection,
 	Wallet,
 } from '../sdk/src';
@@ -55,7 +55,7 @@ describe('liquidate perp and lp', () => {
 	let liquidatorClearingHouse: ClearingHouse;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -126,7 +126,7 @@ describe('liquidate perp and lp', () => {
 					baseAssetAmount: BASE_PRECISION,
 					marketIndex: ZERO,
 					direction: PositionDirection.LONG,
-					price: MARK_PRICE_PRECISION,
+					price: PRICE_PRECISION,
 				})
 			);
 		}
@@ -244,7 +244,7 @@ describe('liquidate perp and lp', () => {
 		assert(liquidationRecord.canceledOrderIds.length === 32);
 		assert(
 			liquidationRecord.liquidatePerp.oraclePrice.eq(
-				MARK_PRICE_PRECISION.div(new BN(10))
+				PRICE_PRECISION.div(new BN(10))
 			)
 		);
 		assert(

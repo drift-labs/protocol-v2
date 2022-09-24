@@ -15,7 +15,7 @@ import { Program } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 import {
 	Admin,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	calculateMarkPrice,
 	calculateTradeSlippage,
 	PositionDirection,
@@ -57,7 +57,7 @@ describe('prepeg', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -326,7 +326,7 @@ describe('prepeg', () => {
 		const acquiredQuote = _entryPrice
 			.mul(baseAssetAmount.abs())
 			.div(AMM_TO_QUOTE_PRECISION_RATIO)
-			.div(MARK_PRICE_PRECISION);
+			.div(PRICE_PRECISION);
 		console.log(
 			'est acquiredQuote:',
 			acquiredQuote.toNumber(),
@@ -483,7 +483,7 @@ describe('prepeg', () => {
 		assert(orderActionRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		const recordEntryPrice = orderActionRecord.quoteAssetAmountFilled
 			.mul(AMM_TO_QUOTE_PRECISION_RATIO)
-			.mul(MARK_PRICE_PRECISION)
+			.mul(PRICE_PRECISION)
 			.div(orderActionRecord.baseAssetAmountFilled.abs());
 
 		console.log(
@@ -542,7 +542,7 @@ describe('prepeg', () => {
 		const acquiredQuote = _entryPrice
 			.mul(baseAssetAmount.abs())
 			.div(AMM_TO_QUOTE_PRECISION_RATIO)
-			.div(MARK_PRICE_PRECISION);
+			.div(PRICE_PRECISION);
 		console.log('est acquiredQuote:', acquiredQuote.toNumber());
 
 		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);

@@ -8,7 +8,7 @@ import { Keypair, PublicKey } from '@solana/web3.js';
 import {
 	Admin,
 	BN,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	ClearingHouse,
 	PositionDirection,
 	ClearingHouseUser,
@@ -77,7 +77,7 @@ describe('orders', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -258,9 +258,7 @@ describe('orders', () => {
 		// user has $10, no open positions, trading in market of $1 mark price coin
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const price = MARK_PRICE_PRECISION.add(
-			MARK_PRICE_PRECISION.div(new BN(100))
-		);
+		const price = PRICE_PRECISION.add(PRICE_PRECISION.div(new BN(100)));
 		const reduceOnly = false;
 		const triggerPrice = new BN(0);
 
@@ -346,9 +344,7 @@ describe('orders', () => {
 	it('Fill limit long order', async () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const price = MARK_PRICE_PRECISION.add(
-			MARK_PRICE_PRECISION.div(new BN(100))
-		);
+		const price = PRICE_PRECISION.add(PRICE_PRECISION.div(new BN(100)));
 		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 
 		console.log('markPrice:', calculateMarkPrice(market0).toString());
@@ -473,9 +469,7 @@ describe('orders', () => {
 	it('Fill stop short order', async () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const triggerPrice = MARK_PRICE_PRECISION.sub(
-			MARK_PRICE_PRECISION.div(new BN(10))
-		);
+		const triggerPrice = PRICE_PRECISION.sub(PRICE_PRECISION.div(new BN(10)));
 		const triggerCondition = OrderTriggerCondition.ABOVE;
 		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 
@@ -822,13 +816,13 @@ describe('orders', () => {
 
 		const newPrice = convertToNumber(
 			limitPrice.mul(new BN(104)).div(new BN(100)),
-			MARK_PRICE_PRECISION
+			PRICE_PRECISION
 		);
 		// move price to make liquidity for order @ $1.05 (5%)
 		setFeedPrice(anchor.workspace.Pyth, newPrice, solUsd);
 		await clearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
+			new BN(newPrice * PRICE_PRECISION.toNumber())
 		);
 
 		console.log('user leverage:', convertToNumber(userLeverage0, TEN_THOUSAND));
@@ -876,7 +870,7 @@ describe('orders', () => {
 		const userLeverage = clearingHouseUser.getLeverage();
 		console.log(
 			'mark price:',
-			convertToNumber(newMarkPrice1, MARK_PRICE_PRECISION),
+			convertToNumber(newMarkPrice1, PRICE_PRECISION),
 			'base filled / amt:',
 			convertToNumber(order1.baseAssetAmountFilled, AMM_RESERVE_PRECISION),
 			'/',
@@ -943,13 +937,13 @@ describe('orders', () => {
 
 		const newPrice = convertToNumber(
 			limitPrice.mul(new BN(96)).div(new BN(100)),
-			MARK_PRICE_PRECISION
+			PRICE_PRECISION
 		);
 		// move price to make liquidity for order @ $1.05 (5%)
 		setFeedPrice(anchor.workspace.Pyth, newPrice, solUsd);
 		await clearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
+			new BN(newPrice * PRICE_PRECISION.toNumber())
 		);
 
 		const order = clearingHouseUser.getUserAccount().orders[0];
@@ -983,7 +977,7 @@ describe('orders', () => {
 		console.log(
 			'ON PRICE MOVE:\n',
 			'mark price:',
-			convertToNumber(newMarkPricePriceMove, MARK_PRICE_PRECISION),
+			convertToNumber(newMarkPricePriceMove, PRICE_PRECISION),
 			'base filled / amt:',
 			convertToNumber(
 				orderPriceMove.baseAssetAmountFilled,
@@ -1029,7 +1023,7 @@ describe('orders', () => {
 			'->',
 			convertToNumber(postPosition.baseAssetAmount, AMM_RESERVE_PRECISION),
 			'mark price:',
-			convertToNumber(newMarkPrice1, MARK_PRICE_PRECISION),
+			convertToNumber(newMarkPrice1, PRICE_PRECISION),
 			'base filled / amt:',
 			convertToNumber(order1.baseAssetAmountFilled, AMM_RESERVE_PRECISION),
 			'/',
@@ -1095,14 +1089,14 @@ describe('orders', () => {
 
 		const newPrice = convertToNumber(
 			limitPrice.mul(new BN(97)).div(new BN(100)),
-			MARK_PRICE_PRECISION
+			PRICE_PRECISION
 		);
 		// move price to make liquidity for order @ $1.05 (5%)
 		setFeedPrice(anchor.workspace.Pyth, newPrice, solUsd);
 		try {
 			await clearingHouse.moveAmmToPrice(
 				marketIndex,
-				new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
+				new BN(newPrice * PRICE_PRECISION.toNumber())
 			);
 		} catch (e) {
 			console.error(e);
@@ -1149,7 +1143,7 @@ describe('orders', () => {
 		// assert(userNetGain.lte(ZERO)); // ensure no funny business
 		console.log(
 			'mark price:',
-			convertToNumber(newMarkPrice1, MARK_PRICE_PRECISION),
+			convertToNumber(newMarkPrice1, PRICE_PRECISION),
 			'base filled / amt:',
 			convertToNumber(order1.baseAssetAmountFilled, AMM_RESERVE_PRECISION),
 			'/',
@@ -1260,7 +1254,7 @@ describe('orders', () => {
 		console.log(
 			'ON PRICE MOVE:\n',
 			'mark price:',
-			convertToNumber(newMarkPricePriceMove, MARK_PRICE_PRECISION),
+			convertToNumber(newMarkPricePriceMove, PRICE_PRECISION),
 			'base filled / amt:',
 			convertToNumber(
 				orderPriceMove.baseAssetAmountFilled,
@@ -1309,7 +1303,7 @@ describe('orders', () => {
 			'->',
 			convertToNumber(postPosition.baseAssetAmount, AMM_RESERVE_PRECISION),
 			'mark price:',
-			convertToNumber(newMarkPrice1, MARK_PRICE_PRECISION),
+			convertToNumber(newMarkPrice1, PRICE_PRECISION),
 			'base filled / amt:',
 			convertToNumber(order1.baseAssetAmountFilled, AMM_RESERVE_PRECISION),
 			'/',
@@ -1545,9 +1539,7 @@ describe('orders', () => {
 
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const price = new BN('13300000000').add(
-			MARK_PRICE_PRECISION.div(new BN(40))
-		);
+		const price = new BN('13300000000').add(PRICE_PRECISION.div(new BN(40)));
 
 		await clearingHouseUser.fetchAccounts();
 		const prePosition = clearingHouseUser.getUserPosition(marketIndex);
@@ -1559,12 +1551,12 @@ describe('orders', () => {
 
 		const newPrice = convertToNumber(
 			price.mul(new BN(96)).div(new BN(100)),
-			MARK_PRICE_PRECISION
+			PRICE_PRECISION
 		);
 		setFeedPrice(anchor.workspace.Pyth, newPrice, solUsd);
 		await clearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
+			new BN(newPrice * PRICE_PRECISION.toNumber())
 		);
 
 		const orderParams = getLimitOrderParams({
@@ -1617,7 +1609,7 @@ describe('orders', () => {
 	it('Time-based fee reward cap', async () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION.mul(new BN(10000)));
-		const triggerPrice = MARK_PRICE_PRECISION.div(new BN(1000));
+		const triggerPrice = PRICE_PRECISION.div(new BN(1000));
 		const triggerCondition = OrderTriggerCondition.ABOVE;
 
 		const orderParams = getTriggerMarketOrderParams({
@@ -1721,7 +1713,7 @@ describe('orders', () => {
 			baseAssetAmount: TWO.mul(AMM_RESERVE_PRECISION),
 			price: calculateMarkPrice(
 				clearingHouse.getPerpMarketAccount(marketIndexEth)
-			).add(MARK_PRICE_PRECISION.div(new BN(40))),
+			).add(PRICE_PRECISION.div(new BN(40))),
 			reduceOnly: true,
 		});
 		console.log('3');

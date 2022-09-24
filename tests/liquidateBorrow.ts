@@ -13,7 +13,7 @@ import {
 	OracleSource,
 	ZERO,
 	EventSubscriber,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	getTokenAmount,
 	SpotBalanceType,
 	isVariant,
@@ -182,9 +182,7 @@ describe('liquidate borrow', () => {
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(liquidationRecord.liquidationId === 1);
 		assert(isVariant(liquidationRecord.liquidationType, 'liquidateBorrow'));
-		assert(
-			liquidationRecord.liquidateBorrow.assetPrice.eq(MARK_PRICE_PRECISION)
-		);
+		assert(liquidationRecord.liquidateBorrow.assetPrice.eq(PRICE_PRECISION));
 		assert(liquidationRecord.liquidateBorrow.assetMarketIndex.eq(ZERO));
 		console.log(
 			'asset transfer',
@@ -199,7 +197,7 @@ describe('liquidate borrow', () => {
 		);
 		assert(
 			liquidationRecord.liquidateBorrow.liabilityPrice.eq(
-				new BN(190).mul(MARK_PRICE_PRECISION)
+				new BN(190).mul(PRICE_PRECISION)
 			)
 		);
 		assert(

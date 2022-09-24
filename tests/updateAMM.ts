@@ -6,7 +6,7 @@ import { Program } from '@project-serum/anchor';
 
 import {
 	Admin,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
 	QUOTE_PRECISION,
 	calculateMarkPrice,
@@ -41,7 +41,7 @@ async function feePoolInjection(fees, marketIndex, clearingHouse) {
 			clearingHouse.getOracleDataForMarket(marketIndex)
 		);
 		const baseAmountToTrade = new BN(9000)
-			.mul(MARK_PRICE_PRECISION)
+			.mul(PRICE_PRECISION)
 			.mul(BASE_PRECISION)
 			.div(markPrice);
 		const tx = await clearingHouse.openPosition(
@@ -91,7 +91,7 @@ describe('update amm', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);

@@ -1,7 +1,7 @@
 import { BN } from '@project-serum/anchor';
 import { assert } from '../assert/assert';
 import {
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
 	PEG_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
@@ -31,15 +31,15 @@ export function calculateAdjustKCost(
 
 	const quoteScale = y.mul(d).mul(Q); //.div(AMM_RESERVE_PRECISION);
 
-	const p = numerator.mul(MARK_PRICE_PRECISION).div(denomenator);
+	const p = numerator.mul(PRICE_PRECISION).div(denomenator);
 
 	const cost = quoteScale
 		.div(x.add(d))
 		.sub(
 			quoteScale
 				.mul(p)
-				.div(MARK_PRICE_PRECISION)
-				.div(x.mul(p).div(MARK_PRICE_PRECISION).add(d))
+				.div(PRICE_PRECISION)
+				.div(x.mul(p).div(PRICE_PRECISION).add(d))
 		)
 		.div(AMM_TO_QUOTE_PRECISION_RATIO)
 		.div(PEG_PRECISION);
@@ -175,11 +175,11 @@ export function calculateBudgetedPeg(amm: AMM, cost: BN, targetPrice: BN): BN {
 		return targetPeg;
 	}
 
-	const deltaPegMultiplier = C.mul(MARK_PRICE_PRECISION).div(
+	const deltaPegMultiplier = C.mul(PRICE_PRECISION).div(
 		deltaQuoteAssetReserves.div(AMM_TO_QUOTE_PRECISION_RATIO)
 	);
 	const newPeg = Q.sub(
-		deltaPegMultiplier.mul(PEG_PRECISION).div(MARK_PRICE_PRECISION)
+		deltaPegMultiplier.mul(PEG_PRECISION).div(PRICE_PRECISION)
 	);
 
 	return newPeg;

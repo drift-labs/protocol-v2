@@ -1,7 +1,7 @@
 import { BN } from '@project-serum/anchor';
 import {
 	AMM_RESERVE_PRECISION,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	QUOTE_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
@@ -87,12 +87,12 @@ export async function calculateAllEstimatedFundingRate(
 		const oracleLiveVsTwap = oraclePrice
 			.sub(lastOracleTwapWithMantissa)
 			.abs()
-			.mul(MARK_PRICE_PRECISION)
+			.mul(PRICE_PRECISION)
 			.mul(new BN(100))
 			.div(lastOracleTwapWithMantissa);
 
 		// verify pyth live input is within 10% of last twap for live update
-		if (oracleLiveVsTwap.lte(MARK_PRICE_PRECISION.mul(new BN(10)))) {
+		if (oracleLiveVsTwap.lte(PRICE_PRECISION.mul(new BN(10)))) {
 			oracleTwapWithMantissa = oracleTwapTimeSinceLastUpdate
 				.mul(lastOracleTwapWithMantissa)
 				.add(timeSinceLastMarkChange.mul(oraclePrice))
@@ -110,7 +110,7 @@ export async function calculateAllEstimatedFundingRate(
 	);
 
 	const twapSpreadPct = twapSpread
-		.mul(MARK_PRICE_PRECISION)
+		.mul(PRICE_PRECISION)
 		.mul(new BN(100))
 		.div(shrunkLastOracleTwapwithMantissa);
 
@@ -127,7 +127,7 @@ export async function calculateAllEstimatedFundingRate(
 	const interpRateQuote = twapSpreadPct
 		.mul(periodAdjustment)
 		.div(hoursInDay)
-		.div(MARK_PRICE_PRECISION.div(QUOTE_PRECISION));
+		.div(PRICE_PRECISION.div(QUOTE_PRECISION));
 
 	let feePoolSize = calculateFundingPool(market);
 	if (interpRateQuote.lt(new BN(0))) {
@@ -175,12 +175,12 @@ export async function calculateAllEstimatedFundingRate(
 		// funding smaller flow
 		cappedAltEst = smallerSide.mul(twapSpread).div(hoursInDay);
 		const feePoolTopOff = feePoolSize
-			.mul(MARK_PRICE_PRECISION.div(QUOTE_PRECISION))
+			.mul(PRICE_PRECISION.div(QUOTE_PRECISION))
 			.mul(AMM_RESERVE_PRECISION);
 		cappedAltEst = cappedAltEst.add(feePoolTopOff).div(largerSide);
 
 		cappedAltEst = cappedAltEst
-			.mul(MARK_PRICE_PRECISION)
+			.mul(PRICE_PRECISION)
 			.mul(new BN(100))
 			.div(oracleTwapWithMantissa)
 			.mul(periodAdjustment);

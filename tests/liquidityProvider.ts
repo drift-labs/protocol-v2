@@ -21,7 +21,7 @@ import {
 	QUOTE_PRECISION,
 	AMM_RESERVE_PRECISION,
 	EventSubscriber,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PositionDirection,
 	ZERO,
 } from '../sdk/src';
@@ -49,7 +49,7 @@ async function adjustOraclePostSwap(baa, swapDirection, market) {
 	);
 
 	const newPrice = calculatePrice(newBaa, newQaa, market.amm.pegMultiplier);
-	const _newPrice = newPrice.toNumber() / MARK_PRICE_PRECISION.toNumber();
+	const _newPrice = newPrice.toNumber() / PRICE_PRECISION.toNumber();
 	await setFeedPrice(anchor.workspace.Pyth, _newPrice, market.amm.oracle);
 
 	console.log('price => new price', price.toString(), newPrice.toString());
@@ -155,7 +155,7 @@ describe('liquidity providing', () => {
 	const ammInitialBaseAssetReserve = new BN(300).mul(new BN(1e13));
 	const ammInitialQuoteAssetReserve = new BN(300).mul(new BN(1e13));
 
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const stableAmmInitialQuoteAssetReserve = new anchor.BN(1 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -327,7 +327,7 @@ describe('liquidity providing', () => {
 			PositionDirection.SHORT,
 			tradeSize,
 			market.marketIndex,
-			new BN((newPrice * MARK_PRICE_PRECISION.toNumber() * 99) / 100)
+			new BN((newPrice * PRICE_PRECISION.toNumber() * 99) / 100)
 		);
 		await _viewLogs(sig);
 
@@ -1175,7 +1175,7 @@ describe('liquidity providing', () => {
 				PositionDirection.LONG,
 				tradeSize,
 				marketIndex,
-				new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
+				new BN(newPrice * PRICE_PRECISION.toNumber())
 			);
 		} catch (e) {
 			console.error(e);

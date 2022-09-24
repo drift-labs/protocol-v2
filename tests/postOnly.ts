@@ -8,7 +8,7 @@ import { Keypair } from '@solana/web3.js';
 import {
 	Admin,
 	BN,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	ClearingHouse,
 	PositionDirection,
 	ClearingHouseUser,
@@ -50,7 +50,7 @@ describe('post only', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -186,7 +186,7 @@ describe('post only', () => {
 		setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 		await fillerClearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(newOraclePrice * MARK_PRICE_PRECISION.toNumber())
+			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
 
 		await fillerClearingHouse.fillOrder(
@@ -274,7 +274,7 @@ describe('post only', () => {
 		setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 		await fillerClearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(newOraclePrice * MARK_PRICE_PRECISION.toNumber())
+			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
 
 		await fillerClearingHouse.fillOrder(

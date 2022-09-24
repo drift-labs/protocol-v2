@@ -15,7 +15,7 @@ import {
 	Admin,
 	ClearingHouse,
 	convertToNumber,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PositionDirection,
 	EventSubscriber,
 	QUOTE_PRECISION,
@@ -280,7 +280,7 @@ describe('delist market, liquidation of expired position', () => {
 			clearingHouseLoserUser.liquidationPrice({
 				marketIndex: new BN(0),
 			}),
-			MARK_PRICE_PRECISION
+			PRICE_PRECISION
 		);
 
 		console.log(
@@ -315,7 +315,7 @@ describe('delist market, liquidation of expired position', () => {
 		// sol tanks 90%
 		await clearingHouse.moveAmmToPrice(
 			new BN(0),
-			new BN(40.5 * MARK_PRICE_PRECISION.toNumber())
+			new BN(40.5 * PRICE_PRECISION.toNumber())
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 40.5, solOracle);
 		console.log('price move to $40.5');
@@ -331,7 +331,7 @@ describe('delist market, liquidation of expired position', () => {
 			clearingHouseLoserUser.liquidationPrice({
 				marketIndex: new BN(0),
 			}),
-			MARK_PRICE_PRECISION
+			PRICE_PRECISION
 		);
 
 		const bank0Value2 = clearingHouseLoserUser.getSpotMarketAssetValue(

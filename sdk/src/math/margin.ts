@@ -5,7 +5,7 @@ import {
 	ZERO,
 	BID_ASK_SPREAD_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 } from '../constants/numericConstants';
 import { BN } from '@project-serum/anchor';
 import { OraclePriceData } from '../oracles/types';
@@ -111,7 +111,7 @@ export function calculateBaseAssetValueWithOracle(
 	return perpPosition.baseAssetAmount
 		.abs()
 		.mul(oraclePriceData.price)
-		.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
+		.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(PRICE_PRECISION));
 }
 
 export function calculateWorstCaseBaseAssetAmount(

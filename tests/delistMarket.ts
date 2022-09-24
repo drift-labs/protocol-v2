@@ -15,7 +15,7 @@ import {
 	Admin,
 	ClearingHouse,
 	convertToNumber,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PositionDirection,
 	EventSubscriber,
 	QUOTE_PRECISION,
@@ -103,7 +103,7 @@ describe('delist market', () => {
 	let solOracle: PublicKey;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -254,7 +254,7 @@ describe('delist market', () => {
 		// sol tanks 90%
 		await clearingHouse.moveAmmToPrice(
 			new BN(0),
-			new BN(43.1337 * MARK_PRICE_PRECISION.toNumber()).div(new BN(10))
+			new BN(43.1337 * PRICE_PRECISION.toNumber()).div(new BN(10))
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 43.1337 / 10, solOracle);
 

@@ -4,7 +4,7 @@ import { Keypair } from '@solana/web3.js';
 import { BASE_PRECISION, BN } from '../sdk';
 import {
 	Admin,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PEG_PRECISION,
 	QUOTE_PRECISION,
 	calculateMarkPrice,
@@ -162,7 +162,7 @@ describe('AMM Curve', () => {
 		}
 
 		console.log('------------');
-		console.log(currentMark.toNumber() / MARK_PRICE_PRECISION.toNumber());
+		console.log(currentMark.toNumber() / PRICE_PRECISION.toNumber());
 		console.log(
 			'peg:',
 			convertToNumber(market.amm.pegMultiplier, PEG_PRECISION),
@@ -202,7 +202,7 @@ describe('AMM Curve', () => {
 		// const _priceIncreaseFactor = new BN(2);
 		await clearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(initialSOLPrice * MARK_PRICE_PRECISION.toNumber() * 1.0001)
+			new BN(initialSOLPrice * PRICE_PRECISION.toNumber() * 1.0001)
 		);
 
 		showBook(marketIndex);
@@ -210,7 +210,7 @@ describe('AMM Curve', () => {
 	it('Arb back to Oracle Price Moves', async () => {
 		const [direction, basesize] = calculateTargetPriceTrade(
 			clearingHouse.getPerpMarketAccount(marketIndex),
-			new BN(initialSOLPrice).mul(MARK_PRICE_PRECISION),
+			new BN(initialSOLPrice).mul(PRICE_PRECISION),
 			undefined,
 			'base'
 		);
@@ -230,7 +230,7 @@ describe('AMM Curve', () => {
 
 		const newOraclePrice = 155;
 		const newOraclePriceWithMantissa = new BN(
-			newOraclePrice * MARK_PRICE_PRECISION.toNumber()
+			newOraclePrice * PRICE_PRECISION.toNumber()
 		);
 		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsdOracle);
 		// showCurve(marketIndex);
@@ -297,7 +297,7 @@ describe('AMM Curve', () => {
 	it('Repeg Curve SHORT', async () => {
 		const newOraclePrice = 145;
 		const newOraclePriceWithMantissa = new BN(
-			newOraclePrice * MARK_PRICE_PRECISION.toNumber()
+			newOraclePrice * PRICE_PRECISION.toNumber()
 		);
 		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsdOracle);
 		showCurve(marketIndex);
@@ -371,13 +371,13 @@ describe('AMM Curve', () => {
 		const candidatePegUp0 = calculateBudgetedPeg(
 			amm,
 			QUOTE_PRECISION,
-			new BN(200 * MARK_PRICE_PRECISION.toNumber())
+			new BN(200 * PRICE_PRECISION.toNumber())
 		);
 
 		const candidatePegDown0 = calculateBudgetedPeg(
 			amm,
 			QUOTE_PRECISION,
-			new BN(10 * MARK_PRICE_PRECISION.toNumber())
+			new BN(10 * PRICE_PRECISION.toNumber())
 		);
 		assert(candidatePegUp0.eq(new BN(202637)));
 		assert(candidatePegDown0.eq(new BN(10131)));
@@ -394,7 +394,7 @@ describe('AMM Curve', () => {
 		const candidatePegUp = calculateBudgetedPeg(
 			amm,
 			QUOTE_PRECISION,
-			new BN(200 * MARK_PRICE_PRECISION.toNumber())
+			new BN(200 * PRICE_PRECISION.toNumber())
 		);
 		console.log(amm.pegMultiplier.toString(), '->', candidatePegUp.toString());
 		assert(candidatePegUp.eq(new BN(202637)));
@@ -402,7 +402,7 @@ describe('AMM Curve', () => {
 		const candidatePegDown = calculateBudgetedPeg(
 			amm,
 			QUOTE_PRECISION,
-			new BN(10 * MARK_PRICE_PRECISION.toNumber())
+			new BN(10 * PRICE_PRECISION.toNumber())
 		);
 		console.log(
 			amm.pegMultiplier.toString(),
@@ -424,7 +424,7 @@ describe('AMM Curve', () => {
 		const candidatePegUp2 = calculateBudgetedPeg(
 			amm,
 			QUOTE_PRECISION,
-			new BN(200 * MARK_PRICE_PRECISION.toNumber())
+			new BN(200 * PRICE_PRECISION.toNumber())
 		);
 		// console.log(
 		// 	'USER LONG: target $200',
@@ -437,7 +437,7 @@ describe('AMM Curve', () => {
 		const candidatePegDown2 = calculateBudgetedPeg(
 			amm,
 			QUOTE_PRECISION,
-			new BN(10 * MARK_PRICE_PRECISION.toNumber())
+			new BN(10 * PRICE_PRECISION.toNumber())
 		);
 		// console.log(
 		// 	'USER LONG: target $10',
