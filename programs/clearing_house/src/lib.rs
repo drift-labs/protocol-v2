@@ -79,7 +79,7 @@ pub mod clearing_house {
     use bytemuck::cast_slice;
     use std::mem::size_of;
 
-    pub fn initialize(ctx: Context<Initialize>, admin_controls_prices: bool) -> Result<()> {
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         let (clearing_house_signer, clearing_house_signer_nonce) =
             Pubkey::find_program_address(&[b"clearing_house_signer".as_ref()], ctx.program_id);
 
@@ -90,9 +90,7 @@ pub mod clearing_house {
 
         **ctx.accounts.state = State {
             admin: *ctx.accounts.admin.key,
-            funding_paused: false,
-            exchange_paused: false,
-            admin_controls_prices,
+            exchange_status: ExchangeStatus::Active,
             insurance_vault: insurance_vault.key(),
             whitelist_mint: Pubkey::default(),
             discount_mint: Pubkey::default(),
@@ -706,7 +704,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        withdraw_not_paused(&ctx.accounts.state)
     )]
     pub fn withdraw(
         ctx: Context<Withdraw>,
@@ -966,7 +964,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        amm_not_paused(&ctx.accounts.state)
     )]
     pub fn settle_lp<'info>(ctx: Context<SettleLP>, market_index: u64) -> Result<()> {
         let user_key = ctx.accounts.user.key();
@@ -996,7 +994,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        amm_not_paused(&ctx.accounts.state)
     )]
     pub fn remove_liquidity<'info>(
         ctx: Context<AddRemoveLiquidity>,
@@ -1075,7 +1073,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        amm_not_paused(&ctx.accounts.state)
     )]
     pub fn add_liquidity<'info>(
         ctx: Context<AddRemoveLiquidity>,
@@ -1250,7 +1248,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        fill_not_paused(&ctx.accounts.state)
     )]
     pub fn fill_order<'info>(
         ctx: Context<FillOrder>,
@@ -1324,7 +1322,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        fill_not_paused(&ctx.accounts.state)
     )]
     pub fn place_and_take<'info>(
         ctx: Context<PlaceAndTake>,
@@ -1419,7 +1417,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        fill_not_paused(&ctx.accounts.state)
     )]
     pub fn place_and_make<'info>(
         ctx: Context<PlaceAndMake>,
@@ -1576,7 +1574,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        fill_not_paused(&ctx.accounts.state)
     )]
     pub fn fill_spot_order<'info>(
         ctx: Context<FillOrder>,
@@ -1669,7 +1667,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        withdraw_not_paused(&ctx.accounts.state)
     )]
     pub fn settle_pnl(ctx: Context<SettlePNL>, market_index: u64) -> Result<()> {
         let clock = Clock::get()?;
@@ -1715,7 +1713,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        withdraw_not_paused(&ctx.accounts.state)
     )]
     pub fn settle_expired_market(ctx: Context<UpdateAMM>, market_index: u64) -> Result<()> {
         let clock = Clock::get()?;
@@ -1750,7 +1748,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        withdraw_not_paused(&ctx.accounts.state)
     )]
     pub fn settle_expired_position(ctx: Context<SettlePNL>, market_index: u64) -> Result<()> {
         let clock = Clock::get()?;
@@ -2121,7 +2119,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        withdraw_not_paused(&ctx.accounts.state)
     )]
     pub fn resolve_perp_bankruptcy(
         ctx: Context<ResolveBankruptcy>,
@@ -2203,7 +2201,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        withdraw_not_paused(&ctx.accounts.state)
     )]
     pub fn resolve_borrow_bankruptcy(
         ctx: Context<ResolveBankruptcy>,
@@ -2271,9 +2269,7 @@ pub mod clearing_house {
 
     #[allow(unused_must_use)]
     #[access_control(
-        market_initialized(&ctx.accounts.perp_market) &&
-        exchange_not_paused(&ctx.accounts.state) &&
-        admin_controls_prices(&ctx.accounts.state)
+        market_initialized(&ctx.accounts.perp_market)
     )]
     pub fn move_amm_price(
         ctx: Context<MoveAMMPrice>,
@@ -2552,7 +2548,6 @@ pub mod clearing_house {
     #[allow(unused_must_use)]
     #[access_control(
         market_initialized(&ctx.accounts.market) &&
-        exchange_not_paused(&ctx.accounts.state) &&
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
     )]
     pub fn repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128) -> Result<()> {
@@ -2808,7 +2803,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        funding_not_paused(&ctx.accounts.state)
     )]
     pub fn settle_funding_payment(ctx: Context<SettleFunding>) -> Result<()> {
         let clock = Clock::get()?;
@@ -2830,7 +2825,7 @@ pub mod clearing_house {
     #[allow(unused_must_use)]
     #[access_control(
         market_initialized(&ctx.accounts.market) &&
-        exchange_not_paused(&ctx.accounts.state) &&
+        funding_not_paused(&ctx.accounts.state) &&
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
     )]
     pub fn update_funding_rate(ctx: Context<UpdateFundingRate>, market_index: u64) -> Result<()> {
@@ -2867,7 +2862,7 @@ pub mod clearing_house {
             &mut oracle_map,
             now,
             &state.oracle_guard_rails,
-            state.funding_paused,
+            !matches!(state.exchange_status, ExchangeStatus::FundingPaused),
             None,
         )?;
 
@@ -2881,8 +2876,7 @@ pub mod clearing_house {
     #[allow(unused_must_use)]
     #[access_control(
         market_initialized(&ctx.accounts.market) &&
-        valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market) &&
-        exchange_not_paused(&ctx.accounts.state)
+        valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
     )]
     pub fn update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         let clock = Clock::get()?;
@@ -3230,6 +3224,15 @@ pub mod clearing_house {
         Ok(())
     }
 
+    pub fn update_spot_market_status(
+        ctx: Context<AdminUpdateSpotMarket>,
+        status: MarketStatus,
+    ) -> Result<()> {
+        let market = &mut load_mut!(ctx.accounts.spot_market)?;
+        market.status = status;
+        Ok(())
+    }
+
     #[access_control(
         market_initialized(&ctx.accounts.market)
     )]
@@ -3491,6 +3494,18 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_perp_market_status(
+        ctx: Context<AdminUpdateMarket>,
+        status: MarketStatus,
+    ) -> Result<()> {
+        let market = &mut load_mut!(ctx.accounts.market)?;
+        market.status = status;
+        Ok(())
+    }
+
     pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
         ctx.accounts.state.admin = admin;
         Ok(())
@@ -3512,24 +3527,11 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn update_exchange_paused(
+    pub fn update_exchange_status(
         ctx: Context<AdminUpdateState>,
-        exchange_paused: bool,
+        exchange_status: ExchangeStatus,
     ) -> Result<()> {
-        ctx.accounts.state.exchange_paused = exchange_paused;
-        Ok(())
-    }
-
-    pub fn disable_admin_controls_prices(ctx: Context<AdminUpdateState>) -> Result<()> {
-        ctx.accounts.state.admin_controls_prices = false;
-        Ok(())
-    }
-
-    pub fn update_funding_paused(
-        ctx: Context<AdminUpdateState>,
-        funding_paused: bool,
-    ) -> Result<()> {
-        ctx.accounts.state.funding_paused = funding_paused;
+        ctx.accounts.state.exchange_status = exchange_status;
         Ok(())
     }
 
@@ -3833,16 +3835,49 @@ fn valid_oracle_for_market(oracle: &AccountInfo, market: &AccountLoader<PerpMark
     Ok(())
 }
 
-fn exchange_not_paused(state: &Account<State>) -> Result<()> {
-    if state.exchange_paused {
+fn funding_not_paused(state: &Account<State>) -> Result<()> {
+    if matches!(
+        state.exchange_status,
+        ExchangeStatus::FundingPaused | ExchangeStatus::Paused
+    ) {
         return Err(ErrorCode::ExchangePaused.into());
     }
     Ok(())
 }
 
-fn admin_controls_prices(state: &Account<State>) -> Result<()> {
-    if !state.admin_controls_prices {
-        return Err(ErrorCode::AdminControlsPricesDisabled.into());
+fn amm_not_paused(state: &Account<State>) -> Result<()> {
+    if matches!(
+        state.exchange_status,
+        ExchangeStatus::AmmPaused | ExchangeStatus::Paused
+    ) {
+        return Err(ErrorCode::ExchangePaused.into());
+    }
+    Ok(())
+}
+
+fn fill_not_paused(state: &Account<State>) -> Result<()> {
+    if matches!(
+        state.exchange_status,
+        ExchangeStatus::FillPaused | ExchangeStatus::Paused
+    ) {
+        return Err(ErrorCode::ExchangePaused.into());
+    }
+    Ok(())
+}
+
+fn withdraw_not_paused(state: &Account<State>) -> Result<()> {
+    if matches!(
+        state.exchange_status,
+        ExchangeStatus::WithdrawPaused | ExchangeStatus::Paused
+    ) {
+        return Err(ErrorCode::ExchangePaused.into());
+    }
+    Ok(())
+}
+
+fn exchange_not_paused(state: &Account<State>) -> Result<()> {
+    if state.exchange_status == ExchangeStatus::Paused {
+        return Err(ErrorCode::ExchangePaused.into());
     }
     Ok(())
 }

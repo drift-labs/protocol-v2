@@ -3,8 +3,21 @@ import { BN, ZERO } from '.';
 
 // # Utility Types / Enums / Constants
 
+export class ExchangeStatus {
+	static readonly ACTIVE = { active: {} };
+	static readonly FUNDINGPAUSED = { fundingpaused: {} };
+	static readonly AMMPAUSED = { ammpaused: {} };
+	static readonly FILLPAUSED = { fillpaused: {} };
+	static readonly WITHDRAWPAUSED = { withdrawpaused: {} };
+	static readonly PAUSED = { paused: {} };
+}
+
 export class MarketStatus {
 	static readonly INITIALIZED = { initialized: {} };
+	static readonly ACTIVE = { active: {} };
+	static readonly FUNDINGPAUSED = { fundingpaused: {} };
+	static readonly FILLPAUSED = { fillpaused: {} };
+	static readonly WITHDRAWPAUSED = { withdrawpaused: {} };
 	static readonly REDUCEONLY = { reduceonly: {} };
 	static readonly SETTLEMENT = { settlement: {} };
 	static readonly DELISTED = { delisted: {} };

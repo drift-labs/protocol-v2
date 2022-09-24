@@ -563,11 +563,12 @@ pub fn fill_order(
         oracle_price = oracle_price_data.price;
     }
 
-    let valid_oracle_price = if is_oracle_valid {
-        Some(oracle_price)
-    } else {
-        None
-    };
+    let valid_oracle_price =
+        if is_oracle_valid && state.exchange_status != ExchangeStatus::AmmPaused {
+            Some(oracle_price)
+        } else {
+            None
+        };
 
     let is_filler_taker = user_key == filler_key;
     let is_filler_maker = maker.map_or(false, |maker| maker.key() == filler_key);
@@ -741,7 +742,7 @@ pub fn fill_order(
             oracle_map,
             now,
             &state.oracle_guard_rails,
-            state.funding_paused,
+            !matches!(state.exchange_status, ExchangeStatus::FundingPaused),
             Some(mark_price_before),
         )?;
     }

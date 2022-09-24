@@ -3,7 +3,13 @@ import {
 	SYSVAR_RENT_PUBKEY,
 	TransactionSignature,
 } from '@solana/web3.js';
-import { FeeStructure, OracleGuardRails, OracleSource } from './types';
+import {
+	FeeStructure,
+	OracleGuardRails,
+	OracleSource,
+	ExchangeStatus,
+	MarketStatus,
+} from './types';
 import { BN } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
 import {
@@ -824,29 +830,42 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
-	public async updateFundingPaused(
-		fundingPaused: boolean
+	public async updateSpotMarketStatus(
+		spotMarketIndex: BN,
+		marketStatus: MarketStatus
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateFundingPaused(fundingPaused, {
+		return await this.program.rpc.updateSpotMarketStatus(marketStatus, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
-			},
-		});
-	}
-	public async updateExchangePaused(
-		exchangePaused: boolean
-	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateExchangePaused(exchangePaused, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
+				market: await getMarketPublicKey(
+					this.program.programId,
+					spotMarketIndex
+				),
 			},
 		});
 	}
 
-	public async disableAdminControlsPrices(): Promise<TransactionSignature> {
-		return await this.program.rpc.disableAdminControlsPrices({
+	public async updatePerpMarketStatus(
+		perpMarketIndex: BN,
+		marketStatus: MarketStatus
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketStatus(marketStatus, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				market: await getMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
+	}
+
+	public async updateExchangeStatus(
+		exchangeStatus: ExchangeStatus
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateExchangeStatus(exchangeStatus, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),

@@ -24,6 +24,10 @@ use borsh::{BorshDeserialize, BorshSerialize};
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum MarketStatus {
     Initialized,
+    Active,
+    FundingPaused,
+    FillPaused,
+    WithdrawPaused,
     ReduceOnly,
     Settlement,
     Delisted,
