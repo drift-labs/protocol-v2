@@ -47,7 +47,7 @@ describe('oracle offset', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(100000);
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -177,7 +177,7 @@ describe('oracle offset', () => {
 
 		await fillerClearingHouse.moveAmmPrice(
 			marketIndex,
-			ammInitialBaseAssetReserve.mul(new BN(11)).div(new BN(10)),
+			ammInitialBaseAssetReserve.mul(new BN(1049)).div(new BN(1000)),
 			ammInitialQuoteAssetReserve
 		);
 
