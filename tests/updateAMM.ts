@@ -1,6 +1,12 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BASE_PRECISION, BN, getMarketOrderParams, OracleSource } from '../sdk';
+import {
+	BASE_PRECISION,
+	BN,
+	getMarketOrderParams,
+	OracleSource,
+	PEG_PRECISION,
+} from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -56,7 +62,11 @@ async function feePoolInjection(fees, marketIndex, clearingHouse) {
 		);
 
 		// cancel remaining order
-		await clearingHouse.cancelOrder();
+		try {
+			await clearingHouse.cancelOrder();
+		} catch (e) {
+			console.error(e);
+		}
 
 		await clearingHouse.closePosition(marketIndex);
 		await clearingHouse.settlePNL(
@@ -92,10 +102,10 @@ describe('update amm', () => {
 
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
-	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
+	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 11).mul(
 		mantissaSqrtScale
 	);
-	const ammInitialBaseAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
+	const ammInitialBaseAssetAmount = new anchor.BN(5 * 10 ** 11).mul(
 		mantissaSqrtScale
 	);
 
@@ -150,7 +160,7 @@ describe('update amm', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
-			new BN(1_000),
+			PEG_PRECISION,
 			undefined,
 			1000
 		);
@@ -165,7 +175,7 @@ describe('update amm', () => {
 				ammInitialBaseAssetAmount,
 				ammInitialQuoteAssetAmount,
 				periodicity,
-				new BN(1_000 * i),
+				new BN(PEG_PRECISION.toNumber() * i),
 				undefined,
 				1000
 			);
@@ -203,7 +213,7 @@ describe('update amm', () => {
 
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 		console.log(prepegAMM.pegMultiplier.toString());
-		assert(prepegAMM.pegMultiplier.eq(new BN(1003)));
+		assert(prepegAMM.pegMultiplier.eq(new BN(1002999)));
 		const estDist = prepegAMM.totalFee.sub(
 			prepegAMM.totalFeeMinusDistributions
 		);
@@ -255,7 +265,7 @@ describe('update amm', () => {
 		assert(bid1.lt(oraclePriceData.price));
 
 		console.log(market.amm.pegMultiplier.toString());
-		assert(market.amm.pegMultiplier.eq(new BN(1003)));
+		assert(market.amm.pegMultiplier.eq(new BN(1002999)));
 		const actualDist = market.amm.totalFee.sub(
 			market.amm.totalFeeMinusDistributions
 		);
@@ -301,7 +311,7 @@ describe('update amm', () => {
 
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 		console.log(prepegAMM.pegMultiplier.toString());
-		assert(prepegAMM.pegMultiplier.eq(new BN(938)));
+		assert(prepegAMM.pegMultiplier.eq(new BN(937800)));
 		const estDist = prepegAMM.totalFee.sub(
 			prepegAMM.totalFeeMinusDistributions
 		);
@@ -353,7 +363,7 @@ describe('update amm', () => {
 		assert(bid1.lt(oraclePriceData.price));
 
 		console.log(market.amm.pegMultiplier.toString());
-		assert(market.amm.pegMultiplier.eq(new BN(938)));
+		assert(market.amm.pegMultiplier.eq(new BN(937800)));
 		const actualDist = market.amm.totalFee.sub(
 			market.amm.totalFeeMinusDistributions
 		);
@@ -445,7 +455,7 @@ describe('update amm', () => {
 			'market2.amm.pegMultiplier = ',
 			market2.amm.pegMultiplier.toString()
 		);
-		assert(market2.amm.pegMultiplier.eq(new BN(1938)));
+		assert(market2.amm.pegMultiplier.eq(new BN(1937792)));
 		assert(
 			market2.amm.totalFeeMinusDistributions.gte(
 				market.amm.totalFeeMinusDistributions.div(new BN(2))
@@ -633,17 +643,16 @@ describe('update amm', () => {
 			const prepegAMM = prepegAMMs[i];
 			const market0 = market0s[i];
 
-			console.log(market.amm.pegMultiplier.toString());
 			if (i == 0) {
-				assert(market.amm.pegMultiplier.eq(new BN(1008)));
+				assert(market.amm.pegMultiplier.eq(new BN(1008524)));
 			} else if (i == 1) {
-				assert(market.amm.pegMultiplier.eq(new BN(1976)));
+				assert(market.amm.pegMultiplier.eq(new BN(1976547)));
 			} else if (i == 2) {
-				assert(market.amm.pegMultiplier.eq(new BN(2011)));
+				assert(market.amm.pegMultiplier.eq(new BN(2040000)));
 			} else if (i == 3) {
-				assert(market.amm.pegMultiplier.eq(new BN(3016)));
+				assert(market.amm.pegMultiplier.eq(new BN(3016000)));
 			} else if (i == 4) {
-				assert(market.amm.pegMultiplier.eq(new BN(4022)));
+				assert(market.amm.pegMultiplier.eq(new BN(4022000)));
 			}
 
 			assert(market.amm.pegMultiplier.gt(market0.amm.pegMultiplier));
