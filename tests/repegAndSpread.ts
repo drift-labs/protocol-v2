@@ -15,6 +15,7 @@ import {
 	ClearingHouse,
 	OraclePriceData,
 	OracleGuardRails,
+	BASE_PRECISION,
 } from '../sdk';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
@@ -532,7 +533,9 @@ describe('repeg and spread amm', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].baseAssetAmount.toString() == '-1931600000000'
+				.perpPositions[0].baseAssetAmount.eq(
+					new BN(-0.19316 * BASE_PRECISION.toNumber())
+				)
 		);
 		// assert(
 		// 	clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==
