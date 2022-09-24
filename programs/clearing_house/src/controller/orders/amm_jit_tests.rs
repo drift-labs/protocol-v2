@@ -35,9 +35,9 @@ pub mod amm_jit {
     use crate::create_anchor_account_info;
     use crate::math::constants::CONCENTRATION_PRECISION;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION,
-        PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, PEG_PRECISION, PRICE_PRECISION,
+        QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
@@ -84,9 +84,9 @@ pub mod amm_jit {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -128,7 +128,7 @@ pub mod amm_jit {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -155,7 +155,7 @@ pub mod amm_jit {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -259,9 +259,9 @@ pub mod amm_jit {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -304,7 +304,7 @@ pub mod amm_jit {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -331,7 +331,7 @@ pub mod amm_jit {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION * 2, // maker wants full = amm wants BASE_PERCISION
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -435,9 +435,9 @@ pub mod amm_jit {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -479,7 +479,7 @@ pub mod amm_jit {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -506,7 +506,7 @@ pub mod amm_jit {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION * 2, // maker wants full = amm wants BASE_PERCISION
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -607,9 +607,9 @@ pub mod amm_jit {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -649,7 +649,7 @@ pub mod amm_jit {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -676,7 +676,7 @@ pub mod amm_jit {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -778,9 +778,9 @@ pub mod amm_jit {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -822,7 +822,7 @@ pub mod amm_jit {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -849,7 +849,7 @@ pub mod amm_jit {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -978,9 +978,9 @@ pub mod amm_jit {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -1022,7 +1022,7 @@ pub mod amm_jit {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 0,
 
                 ..Order::default()
@@ -1050,7 +1050,7 @@ pub mod amm_jit {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1180,9 +1180,9 @@ pub mod amm_jit {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -1224,7 +1224,7 @@ pub mod amm_jit {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 50, // !! amm will bid before the ask spread price
                 ..Order::default()
             }),
@@ -1251,7 +1251,7 @@ pub mod amm_jit {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 10 * MARK_PRICE_PRECISION,
+                price: 10 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1382,9 +1382,9 @@ pub mod amm_jit {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -1426,7 +1426,7 @@ pub mod amm_jit {
                 ts: 0,
                 slot: 0,
                 auction_end_price: 0,
-                auction_start_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 200 * PRICE_PRECISION,
                 auction_duration: 50, // !! amm will bid before the ask spread price
                 ..Order::default()
             }),
@@ -1453,7 +1453,7 @@ pub mod amm_jit {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 200 * MARK_PRICE_PRECISION,
+                price: 200 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1586,9 +1586,9 @@ pub mod amm_jit {
                 short_spread: 50000,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -1853,9 +1853,9 @@ pub mod amm_jit {
                 short_spread: 50000,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },

@@ -373,7 +373,7 @@ pub fn settle_expired_market(
 mod test {
     use super::*;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128, PEG_PRECISION,
+        AMM_RESERVE_PRECISION, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128,
         QUOTE_PRECISION,
     };
     use crate::math::oracle::OracleValidity;
@@ -393,10 +393,10 @@ mod test {
                 sqrt_k: 64 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 19_400 * PEG_PRECISION,
                 net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
-                mark_std: MARK_PRICE_PRECISION as u64,
+                mark_std: PRICE_PRECISION as u64,
                 last_mark_price_twap_ts: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: 19_400 * MARK_PRICE_PRECISION_I128,
+                    last_oracle_price_twap: 19_400 * PRICE_PRECISION_I128,
                     ..HistoricalOracleData::default()
                 },
                 base_spread: 250,
@@ -429,7 +429,7 @@ mod test {
         let now = 10000;
         let slot = 81680085;
         let oracle_price_data = OraclePriceData {
-            price: (12_400 * MARK_PRICE_PRECISION) as i128,
+            price: (12_400 * PRICE_PRECISION) as i128,
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
@@ -515,10 +515,10 @@ mod test {
                 sqrt_k: 64 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 19_400_000,
                 net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
-                mark_std: MARK_PRICE_PRECISION as u64,
+                mark_std: PRICE_PRECISION as u64,
                 last_mark_price_twap_ts: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: 19_400 * MARK_PRICE_PRECISION_I128,
+                    last_oracle_price_twap: 19_400 * PRICE_PRECISION_I128,
                     ..HistoricalOracleData::default()
                 },
                 base_spread: 250,
@@ -550,7 +550,7 @@ mod test {
         let now = 10000;
         let slot = 81680085;
         let oracle_price_data = OraclePriceData {
-            price: (12_400 * MARK_PRICE_PRECISION) as i128,
+            price: (12_400 * PRICE_PRECISION) as i128,
             confidence: 0,
             delay: 12,
             has_sufficient_number_of_data_points: true,
@@ -599,7 +599,7 @@ mod test {
         assert_eq!(mark_price_before, 18807668638);
 
         let oracle_price_data = OraclePriceData {
-            price: (18_850 * MARK_PRICE_PRECISION) as i128,
+            price: (18_850 * PRICE_PRECISION) as i128,
             confidence: 0,
             delay: 9,
             has_sufficient_number_of_data_points: true,
@@ -620,8 +620,8 @@ mod test {
 
         // add large confidence
         let oracle_price_data = OraclePriceData {
-            price: (18_850 * MARK_PRICE_PRECISION) as i128,
-            confidence: 100 * MARK_PRICE_PRECISION,
+            price: (18_850 * PRICE_PRECISION) as i128,
+            confidence: 100 * PRICE_PRECISION,
             delay: 1,
             has_sufficient_number_of_data_points: true,
         };
@@ -642,8 +642,8 @@ mod test {
 
         // add move lower
         let oracle_price_data = OraclePriceData {
-            price: (18_820 * MARK_PRICE_PRECISION) as i128,
-            confidence: 100 * MARK_PRICE_PRECISION,
+            price: (18_820 * PRICE_PRECISION) as i128,
+            confidence: 100 * PRICE_PRECISION,
             delay: 1,
             has_sufficient_number_of_data_points: true,
         };
@@ -679,8 +679,8 @@ mod test {
 
         // add move lower
         let oracle_price_data = OraclePriceData {
-            price: (18_823 * MARK_PRICE_PRECISION) as i128,
-            confidence: 121 * MARK_PRICE_PRECISION,
+            price: (18_823 * PRICE_PRECISION) as i128,
+            confidence: 121 * PRICE_PRECISION,
             delay: 1,
             has_sufficient_number_of_data_points: true,
         };
@@ -729,7 +729,7 @@ mod test {
         assert_eq!(mark_price_before, 18807668638);
 
         let oracle_price_data = OraclePriceData {
-            price: (18_850 * MARK_PRICE_PRECISION) as i128,
+            price: (18_850 * PRICE_PRECISION) as i128,
             confidence: 0,
             delay: 9,
             has_sufficient_number_of_data_points: true,
@@ -749,8 +749,8 @@ mod test {
 
         // add large confidence
         let oracle_price_data = OraclePriceData {
-            price: (18_850 * MARK_PRICE_PRECISION) as i128,
-            confidence: 100 * MARK_PRICE_PRECISION,
+            price: (18_850 * PRICE_PRECISION) as i128,
+            confidence: 100 * PRICE_PRECISION,
             delay: 1,
             has_sufficient_number_of_data_points: true,
         };
@@ -771,8 +771,8 @@ mod test {
 
         // add move lower
         let oracle_price_data = OraclePriceData {
-            price: (18_820 * MARK_PRICE_PRECISION) as i128,
-            confidence: 100 * MARK_PRICE_PRECISION,
+            price: (18_820 * PRICE_PRECISION) as i128,
+            confidence: 100 * PRICE_PRECISION,
             delay: 1,
             has_sufficient_number_of_data_points: true,
         };
@@ -808,8 +808,8 @@ mod test {
 
         // add move lower
         let oracle_price_data = OraclePriceData {
-            price: (18_823 * MARK_PRICE_PRECISION) as i128,
-            confidence: 121 * MARK_PRICE_PRECISION,
+            price: (18_823 * PRICE_PRECISION) as i128,
+            confidence: 121 * PRICE_PRECISION,
             delay: 1,
             has_sufficient_number_of_data_points: true,
         };

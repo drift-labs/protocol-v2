@@ -33,7 +33,7 @@ pub mod fulfill_order_with_maker_order {
     use crate::controller::orders::fulfill_order_with_match;
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{
-        BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION, QUOTE_PRECISION_I128,
+        BASE_PRECISION, BASE_PRECISION_I128, PRICE_PRECISION, QUOTE_PRECISION_I128,
         QUOTE_PRECISION_U64,
     };
     use crate::state::market::PerpMarket;
@@ -52,8 +52,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -74,7 +74,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -173,8 +173,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -195,7 +195,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 160 * MARK_PRICE_PRECISION,
+                price: 160 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -294,8 +294,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 200 * MARK_PRICE_PRECISION,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_start_price: 200 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -316,7 +316,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 180 * MARK_PRICE_PRECISION,
+                price: 180 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -415,8 +415,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 200 * MARK_PRICE_PRECISION,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_start_price: 200 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -437,7 +437,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 140 * MARK_PRICE_PRECISION,
+                price: 140 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -536,8 +536,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -558,7 +558,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 201 * MARK_PRICE_PRECISION,
+                price: 201 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -621,8 +621,8 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                auction_start_price: 200 * MARK_PRICE_PRECISION,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_start_price: 200 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -643,7 +643,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 99 * MARK_PRICE_PRECISION,
+                price: 99 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -707,8 +707,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 200 * MARK_PRICE_PRECISION,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_start_price: 200 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -729,7 +729,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 200 * MARK_PRICE_PRECISION,
+                price: 200 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -792,8 +792,8 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                auction_start_price: 200 * MARK_PRICE_PRECISION,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_start_price: 200 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -814,7 +814,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 200 * MARK_PRICE_PRECISION,
+                price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -879,8 +879,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: 100 * BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -901,7 +901,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 120 * MARK_PRICE_PRECISION,
+                price: 120 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -987,8 +987,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -1009,7 +1009,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: 100 * BASE_PRECISION,
                 ts: 0,
-                price: 120 * MARK_PRICE_PRECISION,
+                price: 120 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1095,8 +1095,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 10,
                 ..Order::default()
             }),
@@ -1118,8 +1118,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 200 * MARK_PRICE_PRECISION,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_start_price: 200 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 10,
                 ..Order::default()
             }),
@@ -1220,7 +1220,7 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1239,7 +1239,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 150 * MARK_PRICE_PRECISION,
+                price: 150 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1338,7 +1338,7 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1357,7 +1357,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 50 * MARK_PRICE_PRECISION,
+                price: 50 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1456,7 +1456,7 @@ pub mod fulfill_order {
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, BID_ASK_SPREAD_PRECISION_I128,
-        MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128, PEG_PRECISION, QUOTE_PRECISION_I128,
+        PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
         QUOTE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
         SPOT_WEIGHT_PRECISION,
     };
@@ -1493,9 +1493,9 @@ pub mod fulfill_order {
                 oracle: oracle_price_key,
                 base_spread: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -1533,7 +1533,7 @@ pub mod fulfill_order {
         market
             .amm
             .historical_oracle_data
-            .last_oracle_price_twap_5min = 50 * MARK_PRICE_PRECISION as i128;
+            .last_oracle_price_twap_5min = 50 * PRICE_PRECISION as i128;
         assert!(validate_market_within_price_band(&market, &state, true, None).is_err());
 
         // within 60% ok -> success
@@ -1547,14 +1547,14 @@ pub mod fulfill_order {
         market
             .amm
             .historical_oracle_data
-            .last_oracle_price_twap_5min = 20 * MARK_PRICE_PRECISION as i128;
+            .last_oracle_price_twap_5min = 20 * PRICE_PRECISION as i128;
         assert!(validate_market_within_price_band(&market, &state, true, None).is_err());
 
         // twap_5min $20 and mark $100 but risk reduction when already breached -> success
         market
             .amm
             .historical_oracle_data
-            .last_oracle_price_twap_5min = 20 * MARK_PRICE_PRECISION as i128;
+            .last_oracle_price_twap_5min = 20 * PRICE_PRECISION as i128;
         assert!(validate_market_within_price_band(
             &market,
             &state,
@@ -1567,7 +1567,7 @@ pub mod fulfill_order {
         market
             .amm
             .historical_oracle_data
-            .last_oracle_price_twap_5min = 20 * MARK_PRICE_PRECISION as i128;
+            .last_oracle_price_twap_5min = 20 * PRICE_PRECISION as i128;
         assert!(validate_market_within_price_band(
             &market,
             &state,
@@ -1610,9 +1610,9 @@ pub mod fulfill_order {
                 oracle: oracle_price_key,
                 base_spread: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -1651,7 +1651,7 @@ pub mod fulfill_order {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -1678,7 +1678,7 @@ pub mod fulfill_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1778,9 +1778,9 @@ pub mod fulfill_order {
                 peg_multiplier: 100 * PEG_PRECISION,
                 base_asset_amount_step_size: 1,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -1818,8 +1818,8 @@ pub mod fulfill_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -1846,7 +1846,7 @@ pub mod fulfill_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1962,9 +1962,9 @@ pub mod fulfill_order {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -2004,7 +2004,7 @@ pub mod fulfill_order {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -2112,9 +2112,9 @@ pub mod fulfill_order {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -2153,7 +2153,7 @@ pub mod fulfill_order {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -2180,7 +2180,7 @@ pub mod fulfill_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -2244,7 +2244,7 @@ pub mod fulfill_order {
                 peg_multiplier: 100 * PEG_PRECISION,
                 base_asset_amount_step_size: 1,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: 100 * MARK_PRICE_PRECISION_I128,
+                    last_oracle_price: 100 * PRICE_PRECISION_I128,
                     ..HistoricalOracleData::default()
                 },
                 max_slippage_ratio: 50,
@@ -2269,7 +2269,7 @@ pub mod fulfill_order {
                 peg_multiplier: 20000 * PEG_PRECISION,
                 base_asset_amount_step_size: 1,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: 20000 * MARK_PRICE_PRECISION_I128,
+                    last_oracle_price: 20000 * PRICE_PRECISION_I128,
                     ..HistoricalOracleData::default()
                 },
                 max_slippage_ratio: 50,
@@ -2312,8 +2312,8 @@ pub mod fulfill_order {
             base_asset_amount: BASE_PRECISION,
             ts: 0,
             slot: 0,
-            auction_start_price: 100 * MARK_PRICE_PRECISION,
-            auction_end_price: 200 * MARK_PRICE_PRECISION,
+            auction_start_price: 100 * PRICE_PRECISION,
+            auction_end_price: 200 * PRICE_PRECISION,
             auction_duration: 5,
             ..Order::default()
         };
@@ -2325,8 +2325,8 @@ pub mod fulfill_order {
             base_asset_amount: BASE_PRECISION,
             ts: 0,
             slot: 0,
-            auction_start_price: 20000 * MARK_PRICE_PRECISION,
-            auction_end_price: 20100 * MARK_PRICE_PRECISION,
+            auction_start_price: 20000 * PRICE_PRECISION,
+            auction_end_price: 20100 * PRICE_PRECISION,
             auction_duration: 5,
             ..Order::default()
         };
@@ -2367,7 +2367,7 @@ pub mod fulfill_order {
             direction: PositionDirection::Short,
             base_asset_amount: BASE_PRECISION / 2,
             ts: 0,
-            price: 20000 * MARK_PRICE_PRECISION,
+            price: 20000 * PRICE_PRECISION,
             ..Order::default()
         };
         maker_orders[1] = Order {
@@ -2377,7 +2377,7 @@ pub mod fulfill_order {
             direction: PositionDirection::Short,
             base_asset_amount: BASE_PRECISION / 2,
             ts: 0,
-            price: 100 * MARK_PRICE_PRECISION,
+            price: 100 * PRICE_PRECISION,
             ..Order::default()
         };
 
@@ -2529,9 +2529,8 @@ pub mod fill_order {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION,
-        PEG_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, PEG_PRECISION, PRICE_PRECISION,
+        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{PerpMarket, AMM};
     use crate::state::oracle::HistoricalOracleData;
@@ -2627,9 +2626,9 @@ pub mod fill_order {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 102 * MARK_PRICE_PRECISION,
+                auction_end_price: 102 * PRICE_PRECISION,
                 auction_duration: 5,
-                price: 102 * MARK_PRICE_PRECISION,
+                price: 102 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -2751,9 +2750,9 @@ pub mod fill_order {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 102 * MARK_PRICE_PRECISION,
+                auction_end_price: 102 * PRICE_PRECISION,
                 auction_duration: 5,
-                price: 102 * MARK_PRICE_PRECISION,
+                price: 102 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -2837,7 +2836,7 @@ pub mod fulfill_spot_order_with_match {
     use crate::controller::orders::fulfill_spot_order_with_match;
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{
-        LAMPORTS_PER_SOL_I128, LAMPORT_PER_SOL, MARK_PRICE_PRECISION, QUOTE_PRECISION,
+        LAMPORTS_PER_SOL_I128, LAMPORT_PER_SOL, PRICE_PRECISION, QUOTE_PRECISION,
         SPOT_INTEREST_PRECISION,
     };
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -2870,8 +2869,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -2897,7 +2896,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -2997,8 +2996,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -3024,7 +3023,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 160 * MARK_PRICE_PRECISION,
+                price: 160 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -3120,8 +3119,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 50 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 50 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -3151,7 +3150,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Long,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -3247,8 +3246,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 50 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 50 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -3278,7 +3277,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Long,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 70 * MARK_PRICE_PRECISION,
+                price: 70 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -3378,8 +3377,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -3405,7 +3404,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 201 * MARK_PRICE_PRECISION,
+                price: 201 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -3478,8 +3477,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 50 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 50 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -3509,7 +3508,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Long,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 49 * MARK_PRICE_PRECISION,
+                price: 49 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -3582,8 +3581,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 50 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 50 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -3613,7 +3612,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 70 * MARK_PRICE_PRECISION,
+                price: 70 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -3690,8 +3689,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -3717,7 +3716,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -3794,8 +3793,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: 100 * LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -3821,7 +3820,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -3931,8 +3930,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -3958,7 +3957,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Short,
                 base_asset_amount: 100 * LAMPORT_PER_SOL,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -4068,8 +4067,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -4095,8 +4094,8 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                auction_start_price: 200 * MARK_PRICE_PRECISION,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_start_price: 200 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -4197,7 +4196,7 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: taker_spot_positions,
@@ -4222,7 +4221,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -4318,7 +4317,7 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: taker_spot_positions,
@@ -4347,7 +4346,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Long,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -4434,7 +4433,7 @@ pub mod fulfill_spot_order {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        LAMPORTS_PER_SOL_I128, LAMPORT_PER_SOL, MARK_PRICE_PRECISION, SPOT_INTEREST_PRECISION,
+        LAMPORTS_PER_SOL_I128, LAMPORT_PER_SOL, PRICE_PRECISION, SPOT_INTEREST_PRECISION,
     };
     use crate::math::margin::calculate_free_collateral;
     use crate::state::perp_market_map::PerpMarketMap;
@@ -4513,10 +4512,10 @@ pub mod fulfill_spot_order {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: taker_spot_positions,
@@ -4551,7 +4550,7 @@ pub mod fulfill_spot_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -4708,10 +4707,10 @@ pub mod fulfill_spot_order {
             base_asset_amount: LAMPORT_PER_SOL,
             ts: 0,
             slot: 0,
-            auction_start_price: 100 * MARK_PRICE_PRECISION,
-            auction_end_price: 200 * MARK_PRICE_PRECISION,
+            auction_start_price: 100 * PRICE_PRECISION,
+            auction_end_price: 200 * PRICE_PRECISION,
             auction_duration: 5,
-            price: 100 * MARK_PRICE_PRECISION,
+            price: 100 * PRICE_PRECISION,
             ..Order::default()
         };
         taker_orders[1] = Order {
@@ -4724,10 +4723,10 @@ pub mod fulfill_spot_order {
             base_asset_amount: LAMPORT_PER_SOL,
             ts: 0,
             slot: 0,
-            auction_start_price: 100 * MARK_PRICE_PRECISION,
-            auction_end_price: 200 * MARK_PRICE_PRECISION,
+            auction_start_price: 100 * PRICE_PRECISION,
+            auction_end_price: 200 * PRICE_PRECISION,
             auction_duration: 5,
-            price: 100 * MARK_PRICE_PRECISION,
+            price: 100 * PRICE_PRECISION,
             ..Order::default()
         };
         let mut taker = User {
@@ -4772,7 +4771,7 @@ pub mod fulfill_spot_order {
             direction: PositionDirection::Short,
             base_asset_amount: LAMPORT_PER_SOL,
             ts: 0,
-            price: 100 * MARK_PRICE_PRECISION,
+            price: 100 * PRICE_PRECISION,
             ..Order::default()
         };
         maker_orders[1] = Order {
@@ -4785,7 +4784,7 @@ pub mod fulfill_spot_order {
             direction: PositionDirection::Short,
             base_asset_amount: LAMPORT_PER_SOL,
             ts: 0,
-            price: 100 * MARK_PRICE_PRECISION,
+            price: 100 * PRICE_PRECISION,
             ..Order::default()
         };
         let mut maker = User {
@@ -4894,7 +4893,7 @@ pub mod fill_spot_order {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        LAMPORTS_PER_SOL_I128, LAMPORT_PER_SOL, MARK_PRICE_PRECISION, SPOT_INTEREST_PRECISION,
+        LAMPORTS_PER_SOL_I128, LAMPORT_PER_SOL, PRICE_PRECISION, SPOT_INTEREST_PRECISION,
     };
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -4971,10 +4970,10 @@ pub mod fill_spot_order {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: taker_spot_positions,
@@ -5009,7 +5008,7 @@ pub mod fill_spot_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -5129,10 +5128,10 @@ pub mod fill_spot_order {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 time_in_force: 10,
                 ..Order::default()
             }),
@@ -5168,7 +5167,7 @@ pub mod fill_spot_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,

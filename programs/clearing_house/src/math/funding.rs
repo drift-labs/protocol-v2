@@ -2,7 +2,7 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO, FUNDING_RATE_BUFFER, MARK_PRICE_PRECISION, ONE_HOUR,
+    AMM_TO_QUOTE_PRECISION_RATIO, FUNDING_RATE_BUFFER, ONE_HOUR, PRICE_PRECISION,
     QUOTE_TO_BASE_AMT_FUNDING_PRECISION,
 };
 use crate::math::repeg::{calculate_fee_pool, get_total_fee_lower_bound};
@@ -203,7 +203,7 @@ fn _calculate_funding_payment(
         bn::U192::from(funding_rate_delta.unsigned_abs())
             .checked_mul(bn::U192::from(base_asset_amount.unsigned_abs()))
             .ok_or_else(math_error!())?
-            .checked_div(bn::U192::from(MARK_PRICE_PRECISION))
+            .checked_div(bn::U192::from(PRICE_PRECISION))
             .ok_or_else(math_error!())?
             .checked_div(bn::U192::from(FUNDING_RATE_BUFFER))
             .ok_or_else(math_error!())?
@@ -258,7 +258,7 @@ pub fn calculate_funding_payment_in_quote_precision(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::math::constants::{AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION};
+    use crate::math::constants::{AMM_RESERVE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION};
     use crate::state::market::{PerpMarket, AMM};
     use crate::state::oracle::HistoricalOracleData;
     #[test]
@@ -276,9 +276,9 @@ mod test {
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
 
-                last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
+                last_mark_price_twap: 50 * PRICE_PRECISION,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (49 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -320,9 +320,9 @@ mod test {
                 net_base_asset_amount: 12295081967,
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
-                last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
+                last_mark_price_twap: 50 * PRICE_PRECISION,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (49 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -367,9 +367,9 @@ mod test {
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
 
-                last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
+                last_mark_price_twap: 50 * PRICE_PRECISION,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (49 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -433,9 +433,9 @@ mod test {
                 net_unsettled_lp_base_asset_amount: (AMM_RESERVE_PRECISION * 500) as i128, //wowsers
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
-                last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
+                last_mark_price_twap: 50 * PRICE_PRECISION,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (49 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -487,9 +487,9 @@ mod test {
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: ((QUOTE_PRECISION * 99999) as i128),
 
-                last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
+                last_mark_price_twap: 50 * PRICE_PRECISION,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (49 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },
@@ -553,9 +553,9 @@ mod test {
                 net_unsettled_lp_base_asset_amount: -((AMM_RESERVE_PRECISION * 500) as i128), //wowsers
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
-                last_mark_price_twap: 50 * MARK_PRICE_PRECISION,
+                last_mark_price_twap: 50 * PRICE_PRECISION,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (49 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (49 * PRICE_PRECISION) as i128,
 
                     ..HistoricalOracleData::default()
                 },

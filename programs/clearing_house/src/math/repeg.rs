@@ -5,8 +5,8 @@ use crate::math::bn;
 use crate::math::casting::{cast_to_i128, cast_to_u128};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, MARK_PRICE_PRECISION_I128,
-    ONE_HOUR, PEG_PRECISION, PEG_PRECISION_I128, PRICE_TO_PEG_PRECISION_RATIO,
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, ONE_HOUR, PEG_PRECISION,
+    PEG_PRECISION_I128, PRICE_PRECISION_I128, PRICE_TO_PEG_PRECISION_RATIO,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, TWENTY_FOUR_HOUR,
 };
@@ -523,7 +523,7 @@ pub fn calculate_expected_excess_funding_payment(
     let adjusted_excess_funding = expected_excess_funding
         .checked_div(period_adjustment)
         .ok_or_else(math_error!())?
-        .checked_div(MARK_PRICE_PRECISION_I128)
+        .checked_div(PRICE_PRECISION_I128)
         .ok_or_else(math_error!())?;
 
     let expected_excess_funding_payment = base_asset_amount
@@ -571,7 +571,7 @@ mod test {
     use super::*;
     use crate::controller::amm::SwapDirection;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, QUOTE_PRECISION,
+        AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION, QUOTE_PRECISION,
     };
     #[test]
     fn calc_peg_tests() {
@@ -588,7 +588,7 @@ mod test {
         new_peg = calculate_peg_from_target_price(qar / 2, bar * 2, px).unwrap();
         assert_eq!(new_peg, 77604501824);
 
-        let px2 = MARK_PRICE_PRECISION + (MARK_PRICE_PRECISION / 10000) * 5;
+        let px2 = PRICE_PRECISION + (PRICE_PRECISION / 10000) * 5;
         new_peg = calculate_peg_from_target_price(qar, bar, px2).unwrap();
         assert_eq!(new_peg, 1000500);
         new_peg = calculate_peg_from_target_price(qar, bar, px2 - 1).unwrap();
@@ -605,7 +605,7 @@ mod test {
                 sqrt_k: 64 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 19_400_000_000,
                 net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
-                mark_std: MARK_PRICE_PRECISION as u64,
+                mark_std: PRICE_PRECISION as u64,
                 last_mark_price_twap_ts: 0,
                 base_spread: 250,
                 curve_update_intensity: 100,
@@ -624,7 +624,7 @@ mod test {
 
         // positive target_price_gap exceeding max_spread
         let oracle_price_data = OraclePriceData {
-            price: (12_400 * MARK_PRICE_PRECISION) as i128,
+            price: (12_400 * PRICE_PRECISION) as i128,
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
@@ -639,7 +639,7 @@ mod test {
 
         // positive target_price_gap within max_spread
         let oracle_price_data = OraclePriceData {
-            price: (18_901 * MARK_PRICE_PRECISION) as i128,
+            price: (18_901 * PRICE_PRECISION) as i128,
             confidence: 167,
             delay: 21,
             has_sufficient_number_of_data_points: true,
@@ -653,7 +653,7 @@ mod test {
 
         // positive target_price_gap 2 within max_spread?
         let oracle_price_data = OraclePriceData {
-            price: (18_601 * MARK_PRICE_PRECISION) as i128,
+            price: (18_601 * PRICE_PRECISION) as i128,
             confidence: 167,
             delay: 21,
             has_sufficient_number_of_data_points: true,
@@ -667,7 +667,7 @@ mod test {
 
         // negative target_price_gap within max_spread
         let oracle_price_data = OraclePriceData {
-            price: (20_400 * MARK_PRICE_PRECISION) as i128,
+            price: (20_400 * PRICE_PRECISION) as i128,
             confidence: 1234567,
             delay: 21,
             has_sufficient_number_of_data_points: true,
@@ -681,7 +681,7 @@ mod test {
 
         // negative target_price_gap exceeding max_spread (in favor of vAMM)
         let oracle_price_data = OraclePriceData {
-            price: (42_400 * MARK_PRICE_PRECISION) as i128,
+            price: (42_400 * PRICE_PRECISION) as i128,
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
@@ -712,7 +712,7 @@ mod test {
 
         // negative target_price_gap exceeding max_spread (not in favor of vAMM)
         let oracle_price_data = OraclePriceData {
-            price: (42_400 * MARK_PRICE_PRECISION) as i128,
+            price: (42_400 * PRICE_PRECISION) as i128,
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
@@ -736,7 +736,7 @@ mod test {
                 sqrt_k: 64 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 19_400_000_000,
                 net_base_asset_amount: AMM_RESERVE_PRECISION as i128,
-                mark_std: MARK_PRICE_PRECISION as u64,
+                mark_std: PRICE_PRECISION as u64,
                 last_mark_price_twap_ts: 0,
                 curve_update_intensity: 100,
                 ..AMM::default()
@@ -797,7 +797,7 @@ mod test {
             ..PerpMarket::default()
         };
 
-        let px = 35768 * MARK_PRICE_PRECISION / 1000;
+        let px = 35768 * PRICE_PRECISION / 1000;
         let optimal_peg = calculate_peg_from_target_price(
             market.amm.quote_asset_reserve,
             market.amm.base_asset_reserve,

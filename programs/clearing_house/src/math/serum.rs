@@ -80,7 +80,7 @@ pub fn calculate_price_from_serum_limit_price(
 
 #[cfg(test)]
 mod test {
-    use crate::math::constants::{LAMPORT_PER_SOL, MARK_PRICE_PRECISION};
+    use crate::math::constants::{LAMPORT_PER_SOL, PRICE_PRECISION};
     use crate::math::serum::{
         calculate_price_from_serum_limit_price, calculate_serum_limit_price,
         calculate_serum_max_coin_qty, calculate_serum_max_native_pc_quantity,
@@ -96,7 +96,7 @@ mod test {
 
     #[test]
     fn test_calculate_serum_limit_price() {
-        let limit_price = 100 * MARK_PRICE_PRECISION;
+        let limit_price = 100 * PRICE_PRECISION;
         let pc_lot_size = 100_u64;
         let coin_lot_size = 100000000;
         let coin_decimals = 9;
@@ -136,6 +136,6 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(price, 100 * MARK_PRICE_PRECISION);
+        assert_eq!(price, 100 * PRICE_PRECISION);
     }
 }
