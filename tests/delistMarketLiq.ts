@@ -2,7 +2,6 @@ import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
 
 import { Program } from '@project-serum/anchor';
-import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 import { PublicKey } from '@solana/web3.js';
 
@@ -35,11 +34,7 @@ import {
 	sleep,
 } from './testHelpers';
 import { AMM_RESERVE_PRECISION, isVariant, MARGIN_PRECISION } from '../sdk';
-import {
-	Keypair,
-	sendAndConfirmTransaction,
-	Transaction,
-} from '@solana/web3.js';
+import { Keypair } from '@solana/web3.js';
 
 async function depositToFeePoolFromIF(
 	amount: number,
@@ -47,33 +42,12 @@ async function depositToFeePoolFromIF(
 	userUSDCAccount: Keypair
 ) {
 	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
-	const state = await clearingHouse.getStateAccount();
-	const tokenIx = Token.createTransferInstruction(
-		TOKEN_PROGRAM_ID,
-		userUSDCAccount.publicKey,
-		state.insuranceVault,
-		clearingHouse.provider.wallet.publicKey,
-		// usdcMint.publicKey,
-		[],
-		ifAmount.toNumber()
-	);
-
-	await sendAndConfirmTransaction(
-		clearingHouse.provider.connection,
-		new Transaction().add(tokenIx),
-		// @ts-ignore
-		[clearingHouse.provider.wallet.payer],
-		{
-			skipPreflight: false,
-			commitment: 'recent',
-			preflightCommitment: 'recent',
-		}
-	);
 
 	// // send $50 to market from IF
-	const txSig00 = await clearingHouse.withdrawFromInsuranceVaultToMarket(
+	const txSig00 = await clearingHouse.depositIntoMarketFeePool(
 		new BN(0),
-		ifAmount
+		ifAmount,
+		userUSDCAccount.publicKey
 	);
 	console.log(txSig00);
 }
