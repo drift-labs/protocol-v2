@@ -3707,6 +3707,47 @@ pub mod clearing_house {
         Ok(())
     }
 
+    pub fn admin_remove_insurance_fund_stake(
+        ctx: Context<AdminRemoveInsuranceFundStake>,
+        market_index: u64,
+        n_shares: u128,
+    ) -> Result<()> {
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+        let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+        let state = &ctx.accounts.state;
+
+        validate!(
+            market_index == spot_market.market_index,
+            ErrorCode::DefaultError,
+            "market_index doesnt match spot_market"
+        )?;
+
+        let amount = controller::insurance::admin_remove_insurance_fund_stake(
+            ctx.accounts.insurance_fund_vault.amount,
+            n_shares,
+            spot_market,
+            now,
+        )?;
+
+        controller::token::send_from_program_vault(
+            &ctx.accounts.token_program,
+            &ctx.accounts.insurance_fund_vault,
+            &ctx.accounts.user_token_account,
+            &ctx.accounts.clearing_house_signer,
+            state.signer_nonce,
+            amount,
+        )?;
+
+        validate!(
+            ctx.accounts.insurance_fund_vault.amount > 0,
+            ErrorCode::DefaultError,
+            "insurance_fund_vault.amount must remain > 0"
+        )?;
+
+        Ok(())
+    }
+
     pub fn update_user_quote_asset_insurance_stake(
         ctx: Context<UpdateUserQuoteAssetInsuranceStake>,
     ) -> Result<()> {
