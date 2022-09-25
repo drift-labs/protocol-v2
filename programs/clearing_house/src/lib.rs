@@ -15,7 +15,8 @@ use state::oracle::{get_oracle_price, HistoricalIndexData, HistoricalOracleData,
 
 use crate::math::amm::get_update_k_result;
 use crate::state::events::{LPAction, LPRecord};
-use crate::state::market::{ContractType, MarketStatus, PerpMarket};
+use crate::state::market::{ContractTier, ContractType, MarketStatus, PerpMarket};
+use crate::state::spot_market::AssetTier;
 use crate::state::user::PerpPosition;
 use crate::state::{market::AMM, state::*, user::*};
 
@@ -62,7 +63,7 @@ pub mod clearing_house {
         PerpMarketMap,
     };
     use crate::state::spot_market::{
-        SerumV3FulfillmentConfig, SpotBalanceType, SpotFulfillmentStatus, SpotMarket,
+        AssetTier, SerumV3FulfillmentConfig, SpotBalanceType, SpotFulfillmentStatus, SpotMarket,
     };
     use crate::state::spot_market_map::{
         get_writable_spot_market_set, SpotMarketMap, SpotMarketSet,
@@ -266,6 +267,7 @@ pub mod clearing_house {
             market_index: spot_market_index,
             pubkey: spot_market_pubkey,
             status: MarketStatus::Initialized,
+            asset_tier: AssetTier::Collateral,
             expiry_ts: 0,
             oracle: ctx.accounts.oracle.key(),
             oracle_source,
@@ -479,6 +481,7 @@ pub mod clearing_house {
         let market_index = state.number_of_markets;
         **market = PerpMarket {
             contract_type: ContractType::Perpetual,
+            contract_tier: ContractTier::Speculative,
             status: MarketStatus::Initialized,
             settlement_price: 0,
             expiry_ts: 0,
@@ -3043,16 +3046,25 @@ pub mod clearing_house {
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
 
+        let max_insurance_tier = match market.contract_tier {
+            ContractTier::A => INSURANCE_A_MAX,
+            ContractTier::B => INSURANCE_B_MAX,
+            ContractTier::C => INSURANCE_C_MAX,
+            ContractTier::Speculative => INSURANCE_SPECULATIVE_MAX,
+        };
+
         validate!(
-            max_revenue_withdraw_per_period < 100_000 * QUOTE_PRECISION,
+            max_revenue_withdraw_per_period < max_insurance_tier,
             ErrorCode::DefaultError,
-            "max_revenue_withdraw_per_period must be less than 100k"
+            "max_revenue_withdraw_per_period must be less than max_insurance_tier={}",
+            max_insurance_tier
         )?;
 
         validate!(
-            unrealized_max_imbalance < 100_000 * QUOTE_PRECISION,
+            unrealized_max_imbalance < max_insurance_tier,
             ErrorCode::DefaultError,
-            "unrealized_max_imbalance must be less than 100k"
+            "unrealized_max_imbalance must be less than max_insurance_tier={}",
+            max_insurance_tier
         )?;
 
         validate!(
@@ -3230,6 +3242,45 @@ pub mod clearing_house {
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.spot_market)?;
         market.status = status;
+        Ok(())
+    }
+
+    pub fn update_spot_market_asset_tier(
+        ctx: Context<AdminUpdateSpotMarket>,
+        asset_tier: AssetTier,
+    ) -> Result<()> {
+        let market = &mut load_mut!(ctx.accounts.spot_market)?;
+        market.asset_tier = asset_tier;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_perp_market_status(
+        ctx: Context<AdminUpdateMarket>,
+        status: MarketStatus,
+    ) -> Result<()> {
+        validate!(
+            !matches!(status, MarketStatus::Delisted | MarketStatus::Settlement),
+            ErrorCode::DefaultError,
+            "must set settlement/delist through another instruction",
+        )?;
+
+        let market = &mut load_mut!(ctx.accounts.market)?;
+        market.status = status;
+        Ok(())
+    }
+
+    #[access_control(
+        market_initialized(&ctx.accounts.market)
+    )]
+    pub fn update_perp_market_contract_tier(
+        ctx: Context<AdminUpdateMarket>,
+        contract_tier: ContractTier,
+    ) -> Result<()> {
+        let market = &mut load_mut!(ctx.accounts.market)?;
+        market.contract_tier = contract_tier;
         Ok(())
     }
 
@@ -3491,18 +3542,6 @@ pub mod clearing_house {
         validate!(max_base_asset_amount_ratio > 0, ErrorCode::DefaultError)?;
         let market = &mut load_mut!(ctx.accounts.market)?;
         market.amm.max_base_asset_amount_ratio = max_base_asset_amount_ratio;
-        Ok(())
-    }
-
-    #[access_control(
-        market_initialized(&ctx.accounts.market)
-    )]
-    pub fn update_perp_market_status(
-        ctx: Context<AdminUpdateMarket>,
-        status: MarketStatus,
-    ) -> Result<()> {
-        let market = &mut load_mut!(ctx.accounts.market)?;
-        market.status = status;
         Ok(())
     }
 

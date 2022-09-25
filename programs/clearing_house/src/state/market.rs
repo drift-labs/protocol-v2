@@ -51,6 +51,20 @@ impl Default for ContractType {
     }
 }
 
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum ContractTier {
+    A,           // max insurance capped at A level
+    B,           // max insurance capped at B level
+    C,           // max insurance capped at C level
+    Speculative, // no insurance
+}
+
+impl Default for ContractTier {
+    fn default() -> Self {
+        ContractTier::Speculative
+    }
+}
+
 #[account(zero_copy)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(packed)]
@@ -59,6 +73,7 @@ pub struct PerpMarket {
     pub pubkey: Pubkey,
     pub status: MarketStatus,
     pub contract_type: ContractType,
+    pub contract_tier: ContractTier,
     pub settlement_price: i128, // iff market has expired, price users can settle position
     pub expiry_ts: i64,         // iff market in reduce only mode
     pub amm: AMM,
