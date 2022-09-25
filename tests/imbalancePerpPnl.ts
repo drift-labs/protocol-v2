@@ -49,6 +49,7 @@ import {
 	MARGIN_PRECISION,
 	MarketAccount,
 	OraclePriceData,
+	SPOT_MARKET_BALANCE_PRECISION,
 } from '../sdk';
 import {
 	Keypair,
@@ -172,12 +173,28 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	let solOracle: PublicKey;
 
 	// ammInvariant == k == x * y
-	const ammInitialQuoteAssetReserve = new anchor.BN(9)
+	const ammInitialQuoteAssetReserve = new anchor.BN(
+		9 * AMM_RESERVE_PRECISION.toNumber()
+	).mul(new BN(1000000000));
+	const ammInitialBaseAssetReserve = new anchor.BN(
+		9 * AMM_RESERVE_PRECISION.toNumber()
+	).mul(new BN(1000000000));
+
+	console.log(ammInitialQuoteAssetReserve.toString());
+	console.log(ammInitialBaseAssetReserve.toString());
+
+	const ammInitialQuoteAssetReserve2 = new anchor.BN(9)
 		.mul(AMM_RESERVE_PRECISION)
-		.mul(AMM_RESERVE_PRECISION);
-	const ammInitialBaseAssetReserve = new anchor.BN(9)
+		.mul(AMM_RESERVE_PRECISION.div(new BN(10000)));
+	const ammInitialBaseAssetReserve2 = new anchor.BN(9)
 		.mul(AMM_RESERVE_PRECISION)
-		.mul(AMM_RESERVE_PRECISION);
+		.mul(AMM_RESERVE_PRECISION.div(new BN(10000)));
+
+	console.log(ammInitialQuoteAssetReserve2.toString());
+	console.log(ammInitialBaseAssetReserve2.toString());
+
+	assert(ammInitialBaseAssetReserve.eq(ammInitialBaseAssetReserve2));
+	assert(ammInitialQuoteAssetReserve.eq(ammInitialQuoteAssetReserve2));
 
 	const usdcAmount = new BN(1000 * 10 ** 6);
 	const userKeypair = new Keypair();
@@ -337,13 +354,17 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			'uL.spotPositions[0].balance:',
 			uL.spotPositions[0].balance.toString()
 		);
-		assert(uL.spotPositions[0].balance.eq(new BN(1000 * 1e6)));
+		assert(
+			uL.spotPositions[0].balance.eq(
+				new BN(1000 * SPOT_MARKET_BALANCE_PRECISION.toNumber())
+			)
+		);
 
 		const bank0Value = clearingHouseLoserUser.getSpotMarketAssetValue(
 			new BN(0)
 		);
 		console.log('uL.bank0Value:', bank0Value.toString());
-		assert(bank0Value.eq(new BN(1000 * 1e6)));
+		assert(bank0Value.eq(new BN(1000 * QUOTE_PRECISION.toNumber())));
 
 		const clearingHouseLoserUserValue = convertToNumber(
 			clearingHouseLoserUser.getTotalCollateral(),
@@ -409,7 +430,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance00:', imbalance00.toString());
-		assert(imbalance00.eq(new BN(-9821950)));
+		assert(imbalance00.eq(new BN(-9821753)));
 
 		const bank0Value1p5 = clearingHouseLoserUser.getSpotMarketAssetValue(
 			new BN(0)

@@ -473,15 +473,15 @@ pub mod clearing_house {
 
         let max_spread = (margin_ratio_initial - margin_ratio_maintenance) * (100 - 5);
 
-        // peg within 1 cent of current oracle
-        validate!(
-            cast_to_i128(amm_peg_multiplier)?
-                .checked_sub(oracle_price)
-                .ok_or_else(math_error!())?
-                .unsigned_abs()
-                < PRICE_PRECISION / 100,
-            ErrorCode::InvalidInitialPeg
-        )?;
+        // todo? should ensure peg within 1 cent of current oracle?
+        // validate!(
+        //     cast_to_i128(amm_peg_multiplier)?
+        //         .checked_sub(oracle_price)
+        //         .ok_or_else(math_error!())?
+        //         .unsigned_abs()
+        //         < PRICE_PRECISION / 100,
+        //     ErrorCode::InvalidInitialPeg
+        // )?;
 
         validate_margin(
             margin_ratio_initial,
