@@ -185,10 +185,10 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 	const ammInitialQuoteAssetReserve2 = new anchor.BN(9)
 		.mul(AMM_RESERVE_PRECISION)
-		.mul(AMM_RESERVE_PRECISION.div(new BN(10000)));
+		.mul(AMM_RESERVE_PRECISION);
 	const ammInitialBaseAssetReserve2 = new anchor.BN(9)
 		.mul(AMM_RESERVE_PRECISION)
-		.mul(AMM_RESERVE_PRECISION.div(new BN(10000)));
+		.mul(AMM_RESERVE_PRECISION);
 
 	console.log(ammInitialQuoteAssetReserve2.toString());
 	console.log(ammInitialBaseAssetReserve2.toString());
@@ -430,7 +430,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance00:', imbalance00.toString());
-		assert(imbalance00.eq(new BN(-9821753)));
+		assert(imbalance00.eq(new BN(-9821950)));
 
 		const bank0Value1p5 = clearingHouseLoserUser.getSpotMarketAssetValue(
 			new BN(0)
