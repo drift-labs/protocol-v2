@@ -542,65 +542,67 @@ describe('update k', () => {
 	it('budget k change (sdk math)', async () => {
 		// // pay $.11 to increase k
 		let [numer1, denom1] = calculateBudgetedKBN(
-			new BN('49750000004950'), // x
-			new BN('50250000000000'), // y
+			new BN('4975000000'), // x
+			new BN('5025000000'), // y
 			new BN('114638'), // cost
-			new BN('40000'), // peg
-			new BN('49750000004950') // net position
+			new BN('40000000'), // peg
+			new BN('4975000000') // net position
 		);
 		console.log(numer1.toString(), '/', denom1.toString());
 
 		// Z-TODO
-		assert(denom1.eq(new BN(4969200901)));
-		assert(numer1.gte(new BN(4980550350)));
+		console.log(denom1.toString());
+		console.log(numer1.toString());
+		assert(denom1.eq(new BN(4969200900)));
+		assert(numer1.gte(new BN(4980550349)));
 
 		// gain $.11 by decreasing k
 		[numer1, denom1] = calculateBudgetedKBN(
-			new BN('49750000004950'), // x
-			new BN('50250000000000'), // y
+			new BN('4975000000'), // x
+			new BN('5025000000'), // y
 			new BN('-114638'), // cost
-			new BN('40000'), // peg
-			new BN('49750000004950') // net position
+			new BN('40000000'), // peg
+			new BN('4975000000') // net position
 		);
 		console.log(numer1.toString(), '/', denom1.toString());
-		assert(numer1.eq(new BN(4969200901)));
-		assert(denom1.eq(new BN(4980550350)));
+		assert(numer1.eq(new BN(4969200900)));
+		assert(denom1.eq(new BN(4980550349)));
 		assert(numer1.lt(denom1));
 
 		// pay $11 to increase k
 		[numer1, denom1] = calculateBudgetedKBN(
-			new BN('49750000004950'),
-			new BN('50250000000000'),
+			new BN('4975000000'),
+			new BN('5025000000'),
 			new BN('11463800'),
-			new BN('40000'),
-			new BN('49750000004950')
+			new BN('40000000'),
+			new BN('4975000000')
 		);
 		console.log(numer1.toString(), '/', denom1.toString());
 
-		assert(numer1.eq(new BN(5542348055)));
-		assert(denom1.eq(new BN(4407403196)));
+		assert(numer1.eq(new BN(5542348054)));
+		assert(denom1.eq(new BN(4407403195)));
 		assert(numer1.gt(denom1));
 
 		// net pos so small that decreasing k for .01 is sending to zero (squeezing a stone)
 		[numer1, denom1] = calculateBudgetedKBN(
-			new BN('500000000049750000004950'),
-			new BN('499999999950250000000000'),
+			new BN('50000000004975000000'),
+			new BN('49999999995025000000'),
 			new BN('-10000'),
-			new BN('40000'),
-			new BN('-49750000004950')
+			new BN('40000000'),
+			new BN('-4975000000')
 		);
 		console.log(numer1.toString(), '/', denom1.toString());
 
-		assert(numer1.eq(new BN('49498762504924880624')));
-		assert(denom1.eq(new BN('25000049503737504925373124')));
+		assert(numer1.eq(new BN('49498762495074625625')));
+		assert(denom1.eq(new BN('25000049503737495074625625')));
 
 		// impossible task trying to spend more than amount to make k infinity
 		[numer1, denom1] = calculateBudgetedKBN(
-			new BN('500000000049750000004950'),
-			new BN('499999999950250000000000'),
+			new BN('50000000004975000000'),
+			new BN('49999999995025000000'),
 			new BN('10000'),
-			new BN('40000'),
-			new BN('-49750000004950')
+			new BN('40000000'),
+			new BN('-4975000000')
 		);
 		console.log(numer1.toString(), '/', denom1.toString());
 

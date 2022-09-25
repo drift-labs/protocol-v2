@@ -48,10 +48,10 @@ describe('oracle offset', () => {
 
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(100000);
-	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 9).mul(
 		mantissaSqrtScale
 	);
-	const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+	const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 9).mul(
 		mantissaSqrtScale
 	);
 
@@ -177,7 +177,7 @@ describe('oracle offset', () => {
 
 		await fillerClearingHouse.moveAmmPrice(
 			marketIndex,
-			ammInitialBaseAssetReserve.mul(new BN(1049)).div(new BN(1000)),
+			ammInitialBaseAssetReserve.mul(new BN(11)).div(new BN(10)),
 			ammInitialQuoteAssetReserve
 		);
 
@@ -193,7 +193,7 @@ describe('oracle offset', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
-		assert(entryPrice.eq(new BN(9090930000)));
+		assert(entryPrice.eq(new BN(909093)));
 
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();
@@ -267,7 +267,7 @@ describe('oracle offset', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
-		const expectedEntryPrice = new BN(9500010000);
+		const expectedEntryPrice = new BN(950001);
 		assert(entryPrice.eq(expectedEntryPrice));
 
 		await clearingHouse.unsubscribe();
@@ -340,7 +340,7 @@ describe('oracle offset', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
-		assert(entryPrice.eq(new BN(10999970000)));
+		assert(entryPrice.eq(new BN(1099997)));
 
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();
@@ -414,6 +414,7 @@ describe('oracle offset', () => {
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
 		const expectedEntryPrice = PRICE_PRECISION.add(priceOffset);
+		console.log(entryPrice.toString());
 		assert(entryPrice.eq(expectedEntryPrice));
 
 		await clearingHouse.unsubscribe();

@@ -25,7 +25,7 @@ test_files=(
   userDelegate.ts subaccounts.ts pyth.ts userAccount.ts admin.ts 
   updateK.ts 
   adminWithdraw.ts
-  curve.ts roundInFavor.ts cappedSymFunding.ts
+  curve.ts cappedSymFunding.ts
 )
 
 test_files=(repegAndSpread.ts)

@@ -119,10 +119,7 @@ export function calculatePositionPNL(
 		.add(perpPosition.quoteAssetAmount);
 
 	if (withFunding) {
-		const fundingRatePnL = calculatePositionFundingPNL(
-			market,
-			perpPosition
-		).div(PRICE_TO_QUOTE_PRECISION);
+		const fundingRatePnL = calculatePositionFundingPNL(market, perpPosition);
 
 		pnl = pnl.add(fundingRatePnL);
 	}
@@ -143,9 +140,7 @@ export function calculateClaimablePnl(
 		oraclePriceData
 	);
 
-	const fundingPnL = calculatePositionFundingPNL(market, perpPosition).div(
-		PRICE_TO_QUOTE_PRECISION
-	);
+	const fundingPnL = calculatePositionFundingPNL(market, perpPosition);
 
 	let unsettledPnl = unrealizedPnl.add(fundingPnL);
 	if (unrealizedPnl.gt(ZERO)) {
