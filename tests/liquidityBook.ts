@@ -35,6 +35,8 @@ export function liquidityBook(
 			market,
 			BN.max(targetPriceDefaultSlippage, new BN(1))
 		);
+
+		console.log(liquidity.toString());
 		if (liquidity.gt(ZERO)) {
 			asksPrice.push(entryPrice);
 			asksCumSize.push(liquidity);
