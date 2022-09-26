@@ -777,7 +777,7 @@ export class ClearingHouse {
 
 		if (createWSOLTokenAccount) {
 			const { ixs, signers, pubkey } =
-				await this.getWrappedSolAccountCreationIxs(amount);
+				await this.getWrappedSolAccountCreationIxs(amount, true);
 
 			collateralAccountPublicKey = pubkey;
 
@@ -889,60 +889,10 @@ export class ClearingHouse {
 		}
 	}
 
-	private async getSolWithdrawalIxs(
-		marketIndex: BN,
-		amount: BN
+	private async getWrappedSolAccountCreationIxs(
+		amount: BN,
+		isDeposit?: boolean
 	): Promise<{
-		ixs: anchor.web3.TransactionInstruction[];
-		signers: Signer[];
-		pubkey: PublicKey;
-	}> {
-		const result = {
-			ixs: [],
-			signers: [],
-			pubkey: PublicKey.default,
-		};
-
-		// Create a temporary wrapped SOL account to store the SOL that we're withdrawing
-
-		const authority = this.wallet.publicKey;
-
-		const { ixs, signers, pubkey } = await this.getWrappedSolAccountCreationIxs(
-			amount
-		);
-		result.pubkey = pubkey;
-
-		ixs.forEach((ix) => {
-			result.ixs.push(ix);
-		});
-
-		signers.forEach((ix) => {
-			result.signers.push(ix);
-		});
-
-		const withdrawIx = await this.getWithdrawIx(
-			amount,
-			marketIndex,
-			pubkey,
-			true
-		);
-
-		result.ixs.push(withdrawIx);
-
-		result.ixs.push(
-			Token.createCloseAccountInstruction(
-				TOKEN_PROGRAM_ID,
-				pubkey,
-				authority,
-				authority,
-				[]
-			)
-		);
-
-		return result;
-	}
-
-	private async getWrappedSolAccountCreationIxs(amount: BN): Promise<{
 		ixs: anchor.web3.TransactionInstruction[];
 		signers: Signer[];
 		pubkey: PublicKey;
@@ -957,7 +907,9 @@ export class ClearingHouse {
 
 		const rentSpaceLamports = new BN(LAMPORTS_PER_SOL / 100);
 
-		const depositAmountLamports = amount.add(rentSpaceLamports);
+		const lamports = isDeposit
+			? amount.add(rentSpaceLamports)
+			: rentSpaceLamports;
 
 		const authority = this.wallet.publicKey;
 
@@ -965,7 +917,7 @@ export class ClearingHouse {
 			SystemProgram.createAccount({
 				fromPubkey: authority,
 				newAccountPubkey: wrappedSolAccount.publicKey,
-				lamports: depositAmountLamports.toNumber(),
+				lamports: lamports.toNumber(),
 				space: 165,
 				programId: TOKEN_PROGRAM_ID,
 			})
@@ -1042,7 +994,7 @@ export class ClearingHouse {
 				ixs: startIxs,
 				signers,
 				pubkey,
-			} = await this.getWrappedSolAccountCreationIxs(amount);
+			} = await this.getWrappedSolAccountCreationIxs(amount, true);
 
 			userTokenAccount = pubkey;
 
@@ -1155,7 +1107,7 @@ export class ClearingHouse {
 
 		if (createWSOLTokenAccount) {
 			const { ixs, signers, pubkey } =
-				await this.getWrappedSolAccountCreationIxs(amount);
+				await this.getWrappedSolAccountCreationIxs(amount, false);
 
 			userTokenAccount = pubkey;
 
