@@ -14,7 +14,6 @@ import {
 	AMM_RESERVE_PRECISION,
 	calculateTradeAcquiredAmounts,
 	convertToNumber,
-	FeeStructure,
 	ZERO,
 	calculateQuoteAssetAmountSwapped,
 	EventSubscriber,
@@ -105,39 +104,6 @@ describe('amm spread: market order', () => {
 		);
 
 		await clearingHouse.updateMarketBaseSpread(marketIndex, 500);
-		const feeStructure: FeeStructure = {
-			feeNumerator: new BN(0), // 5bps
-			feeDenominator: new BN(10000),
-			discountTokenTiers: {
-				firstTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-				secondTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-				thirdTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-				fourthTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-			},
-			referralDiscount: {
-				referrerRewardNumerator: new BN(1),
-				referrerRewardDenominator: new BN(1),
-				refereeDiscountNumerator: new BN(1),
-				refereeDiscountDenominator: new BN(1),
-			},
-		};
-		await clearingHouse.updateFee(feeStructure);
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -236,7 +202,11 @@ describe('amm spread: market order', () => {
 		console.log('unrealized pnl', unrealizedPnl.toString());
 
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		const expectedFeeToMarket = new BN(250);
+		const expectedQuoteAssetSurplus = new BN(250);
+		const expectedExchangeFee = new BN(1000);
+		const expectedFeeToMarket = expectedExchangeFee.add(
+			expectedQuoteAssetSurplus
+		);
 		console.log(market.amm.totalFee.toString());
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 
@@ -255,7 +225,9 @@ describe('amm spread: market order', () => {
 		assert.ok(
 			orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount.abs())
 		);
-		assert.ok(orderRecord.quoteAssetAmountSurplus.eq(expectedFeeToMarket));
+		assert.ok(
+			orderRecord.quoteAssetAmountSurplus.eq(expectedQuoteAssetSurplus)
+		);
 
 		await clearingHouse.closePosition(marketIndex);
 
@@ -271,7 +243,7 @@ describe('amm spread: market order', () => {
 		const pnl = clearingHouse.getQuoteAssetTokenAmount().sub(initialCollateral);
 		console.log(pnl.toString());
 		console.log(clearingHouse.getPerpMarketAccount(0).amm.totalFee.toString());
-		assert(clearingHouse.getPerpMarketAccount(0).amm.totalFee.eq(new BN(500)));
+		assert(clearingHouse.getPerpMarketAccount(0).amm.totalFee.eq(new BN(2499)));
 	});
 
 	it('short market order base', async () => {
@@ -376,7 +348,7 @@ describe('amm spread: market order', () => {
 			clearingHouse
 				.getPerpMarketAccount(0)
 				.amm.totalFee.sub(initialAmmTotalFee)
-				.eq(new BN(500))
+				.eq(new BN(2499))
 		);
 	});
 
@@ -547,7 +519,7 @@ describe('amm spread: market order', () => {
 			clearingHouse
 				.getPerpMarketAccount(0)
 				.amm.totalFee.sub(initialAmmTotalFee)
-				.eq(new BN(500))
+				.eq(new BN(2499))
 		);
 	});
 
@@ -631,7 +603,7 @@ describe('amm spread: market order', () => {
 			clearingHouse
 				.getPerpMarketAccount(0)
 				.amm.totalFee.sub(initialAmmTotalFee)
-				.eq(new BN(500))
+				.eq(new BN(2499))
 		);
 	});
 
@@ -785,7 +757,7 @@ describe('amm spread: market order', () => {
 		assert(
 			clearingHouse
 				.getPerpMarketAccount(marketIndex2Num)
-				.amm.totalFee.eq(new BN(2000))
+				.amm.totalFee.eq(new BN(9990))
 		);
 	});
 });

@@ -230,7 +230,7 @@ pub fn is_user_being_liquidated(
     oracle_map: &mut OracleMap,
     liquidation_margin_buffer_ratio: u32,
 ) -> ClearingHouseResult<bool> {
-    let (_, total_collateral, margin_requirement_plus_buffer) =
+    let (_, total_collateral, margin_requirement_plus_buffer, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             market_map,

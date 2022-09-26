@@ -1,5 +1,6 @@
 use crate::controller::amm::{update_pnl_pool_and_user_balance, update_pool_balances};
 use crate::controller::funding::settle_funding_payment;
+use crate::controller::orders::validate_market_within_price_band;
 use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount, update_settled_pnl,
     PositionDelta,
@@ -44,15 +45,18 @@ pub fn settle_pnl(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     now: i64,
+    state: &State,
 ) -> ClearingHouseResult {
     validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
 
     {
         let spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
-        update_spot_market_cumulative_interest(spot_market, now)?;
+        update_spot_market_cumulative_interest(spot_market, None, now)?;
     }
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
+
+    validate_market_within_price_band(&market, state, true, None)?;
 
     crate::controller::lp::settle_lp(user, user_key, &mut market, now)?;
 
@@ -71,14 +75,19 @@ pub fn settle_pnl(
     let spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
     let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
 
-    // todo, check amm updated
-    validate!(
-        ((oracle_map.slot == perp_market.amm.last_update_slot
-            && perp_market.amm.last_oracle_valid)
-            || perp_market.amm.curve_update_intensity == 0),
-        ErrorCode::AMMNotUpdatedInSameSlot,
-        "AMM must be updated in a prior instruction within same slot"
-    )?;
+    if perp_market.amm.curve_update_intensity > 0 {
+        validate!(
+            perp_market.amm.last_oracle_valid,
+            ErrorCode::InvalidOracle,
+            "Oracle Price detected as invalid"
+        )?;
+
+        validate!(
+            oracle_map.slot == perp_market.amm.last_update_slot,
+            ErrorCode::AMMNotUpdatedInSameSlot,
+            "AMM must be updated in a prior instruction within same slot"
+        )?;
+    }
 
     validate!(
         perp_market.status == MarketStatus::Initialized,
@@ -119,9 +128,11 @@ pub fn settle_pnl(
     }
 
     validate!(
-        pnl_to_settle_with_user < 0 || max_pnl_pool_excess > 0 || user.authority.eq(authority),
+        pnl_to_settle_with_user < 0
+            || max_pnl_pool_excess > 0
+            || (user.authority.eq(authority) || user.delegate.eq(authority)),
         ErrorCode::UserMustSettleTheirOwnPositiveUnsettledPNL,
-        "User must settle their own unsettled pnl when its positive and pnl pool not in excess",
+        "User must settle their own unsettled pnl when its positive and pnl pool not in excess"
     )?;
 
     update_spot_position_balance(
@@ -184,7 +195,7 @@ pub fn settle_expired_position(
 
     {
         let quote_spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
-        update_spot_market_cumulative_interest(quote_spot_market, now)?;
+        update_spot_market_cumulative_interest(quote_spot_market, None, now)?;
     }
 
     settle_funding_payment(
@@ -235,9 +246,9 @@ pub fn settle_expired_position(
         )?;
 
     let fee = base_asset_value
-        .checked_mul(fee_structure.fee_numerator)
+        .checked_mul(fee_structure.fee_tiers[0].fee_numerator as u128)
         .ok_or_else(math_error!())?
-        .checked_div(fee_structure.fee_denominator)
+        .checked_div(fee_structure.fee_tiers[0].fee_denominator as u128)
         .ok_or_else(math_error!())?;
 
     let unrealized_pnl_with_fee = unrealized_pnl

@@ -1,7 +1,7 @@
 use crate::error::ClearingHouseResult;
+use crate::error::ErrorCode;
 use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION_I128, MARGIN_PRECISION,
-    SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION,
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, MARGIN_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION,
 };
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
@@ -10,13 +10,17 @@ use crate::math::position::{
 use crate::math_error;
 
 use crate::state::user::User;
+use crate::validate;
 
 use crate::math::casting::cast_to_i128;
 use crate::math::funding::calculate_funding_payment;
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
+use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
+
 use crate::math::spot_balance::{
     get_balance_value_and_token_amount, get_token_amount, get_token_value,
 };
+
 use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
@@ -128,42 +132,6 @@ pub fn calculate_spot_position_value(
     };
 
     Ok(balance_equity_value)
-}
-
-pub fn calculate_oracle_price_for_perp_margin(
-    market_position: &PerpPosition,
-    market: &PerpMarket,
-    oracle_price_data: &OraclePriceData,
-) -> ClearingHouseResult<i128> {
-    let oracle_price_offset = min(
-        (market.amm.max_spread as i128)
-            .checked_mul(oracle_price_data.price)
-            .ok_or_else(math_error!())?
-            .checked_div(BID_ASK_SPREAD_PRECISION_I128)
-            .ok_or_else(math_error!())?,
-        cast_to_i128(oracle_price_data.confidence)?
-            .checked_add(
-                (market.amm.base_spread as i128)
-                    .checked_mul(oracle_price_data.price)
-                    .ok_or_else(math_error!())?
-                    .checked_div(BID_ASK_SPREAD_PRECISION_I128)
-                    .ok_or_else(math_error!())?,
-            )
-            .ok_or_else(math_error!())?,
-    );
-    let oracle_price = if market_position.base_asset_amount > 0 {
-        oracle_price_data
-            .price
-            .checked_sub(oracle_price_offset)
-            .ok_or_else(math_error!())?
-    } else {
-        oracle_price_data
-            .price
-            .checked_add(oracle_price_offset)
-            .ok_or_else(math_error!())?
-    };
-
-    Ok(oracle_price)
 }
 
 pub fn calculate_perp_position_value_and_pnl(
@@ -291,10 +259,11 @@ pub fn calculate_margin_requirement_and_total_collateral(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     margin_buffer_ratio: Option<u128>,
-) -> ClearingHouseResult<(u128, i128, u128)> {
+) -> ClearingHouseResult<(u128, i128, u128, bool)> {
     let mut total_collateral: i128 = 0;
     let mut margin_requirement: u128 = 0;
     let mut margin_requirement_plus_buffer: u128 = 0;
+    let mut all_oracles_valid = true;
 
     let user_custom_margin_ratio = if margin_requirement_type == MarginRequirementType::Initial {
         user.custom_margin_ratio as u128
@@ -308,7 +277,13 @@ pub fn calculate_margin_requirement_and_total_collateral(
         }
 
         let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
-        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+        let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+            &spot_market.oracle,
+            spot_market.historical_oracle_data.last_oracle_price_twap,
+        )?;
+        all_oracles_valid &=
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
+
         if spot_market.market_index == 0 {
             let token_amount = get_token_amount(
                 spot_position.balance,
@@ -450,7 +425,12 @@ pub fn calculate_margin_requirement_and_total_collateral(
 
         let market = &perp_market_map.get_ref(&market_position.market_index)?;
 
-        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+        let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+            &market.amm.oracle,
+            market.amm.historical_oracle_data.last_oracle_price_twap,
+        )?;
+        all_oracles_valid &=
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
 
         let (perp_margin_requirement, weighted_pnl, worst_case_base_asset_value) =
             calculate_perp_position_value_and_pnl(
@@ -484,7 +464,43 @@ pub fn calculate_margin_requirement_and_total_collateral(
         margin_requirement,
         total_collateral,
         margin_requirement_plus_buffer,
+        all_oracles_valid,
     ))
+}
+
+pub fn meets_withdraw_margin_requirement(
+    user: &User,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+) -> ClearingHouseResult<bool> {
+    let (initial_margin_requirement, total_collateral, _, oracles_valid) =
+        calculate_margin_requirement_and_total_collateral(
+            user,
+            perp_market_map,
+            MarginRequirementType::Initial,
+            spot_market_map,
+            oracle_map,
+            None,
+        )?;
+
+    if initial_margin_requirement > 0 {
+        validate!(
+            oracles_valid,
+            ErrorCode::InvalidOracle,
+            "User attempting to withdraw with outstanding liabilities when an oracle is invalid"
+        )?;
+    }
+
+    validate!(
+        total_collateral >= cast_to_i128(initial_margin_requirement)?,
+        ErrorCode::InsufficientCollateral,
+        "User attempting to withdraw where total_collateral {} is below initial_margin_requirement {}",
+        total_collateral,
+        initial_margin_requirement
+    )?;
+
+    Ok(true)
 }
 
 fn calculate_margin_requirement_with_buffer(
@@ -508,7 +524,7 @@ pub fn meets_initial_margin_requirement(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<bool> {
-    let (margin_requirement, total_collateral, _) =
+    let (margin_requirement, total_collateral, _, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -526,7 +542,7 @@ pub fn meets_maintenance_margin_requirement(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<bool> {
-    let (margin_requirement, total_collateral, _) =
+    let (margin_requirement, total_collateral, _, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -545,7 +561,7 @@ pub fn calculate_free_collateral(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<i128> {
-    let (margin_requirement, total_collateral, _) =
+    let (margin_requirement, total_collateral, _, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,

@@ -3,12 +3,7 @@ import {
 	SYSVAR_RENT_PUBKEY,
 	TransactionSignature,
 } from '@solana/web3.js';
-import {
-	FeeStructure,
-	OracleGuardRails,
-	OracleSource,
-	OrderFillerRewardStructure,
-} from './types';
+import { FeeStructure, OracleGuardRails, OracleSource } from './types';
 import { BN } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
 import {
@@ -419,7 +414,7 @@ export class Admin extends ClearingHouse {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
-				market: marketPublicKey,
+				perpMarket: marketPublicKey,
 				spotMarket: spotMarket.pubkey,
 				spotMarketVault: spotMarket.vault,
 				clearingHouseSigner: this.getSignerPublicKey(),
@@ -611,22 +606,21 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
-	public async updateOrderFillerRewardStructure(
-		orderFillerRewardStructure: OrderFillerRewardStructure
+	public async updatePerpFeeStructure(
+		feeStructure: FeeStructure
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateOrderFillerRewardStructure(
-			orderFillerRewardStructure,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-				},
-			}
-		);
+		return await this.program.rpc.updatePerpFeeStructure(feeStructure, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
 	}
 
-	public async updateFee(fees: FeeStructure): Promise<TransactionSignature> {
-		return await this.program.rpc.updateFee(fees, {
+	public async updateSpotFeeStructure(
+		feeStructure: FeeStructure
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSpotFeeStructure(feeStructure, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),

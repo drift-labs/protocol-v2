@@ -1,4 +1,5 @@
 import { AnchorProvider, BN, Idl, Program } from '@project-serum/anchor';
+import bs58 from 'bs58';
 import {
 	ASSOCIATED_TOKEN_PROGRAM_ID,
 	Token,
@@ -101,6 +102,7 @@ export class ClearingHouse {
 	_isSubscribed = false;
 	txSender: TxSender;
 	marketLastSlotCache = new Map<number, number>();
+	authority: PublicKey;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -125,6 +127,7 @@ export class ClearingHouse {
 			this.provider
 		);
 
+		this.authority = config.authority ?? this.wallet.publicKey;
 		const userIds = config.userIds ?? [0];
 		this.activeUserId = config.activeUserId ?? userIds[0];
 		this.userAccountSubscriptionConfig =
@@ -142,7 +145,7 @@ export class ClearingHouse {
 				clearingHouse: this,
 				userStatsAccountPublicKey: getUserStatsAccountPublicKey(
 					this.program.programId,
-					this.wallet.publicKey
+					this.authority
 				),
 				accountSubscription: this.userAccountSubscriptionConfig,
 			});
@@ -207,7 +210,7 @@ export class ClearingHouse {
 	): ClearingHouseUser {
 		const userAccountPublicKey = getUserAccountPublicKeySync(
 			this.program.programId,
-			this.wallet.publicKey,
+			this.authority,
 			userId
 		);
 
@@ -367,6 +370,7 @@ export class ClearingHouse {
 		this.wallet = newWallet;
 		this.provider = newProvider;
 		this.program = newProgram;
+		this.authority = newWallet.publicKey;
 
 		if (this.isSubscribed) {
 			await Promise.all(this.unsubscribeUsers());
@@ -498,6 +502,36 @@ export class ClearingHouse {
 		);
 	}
 
+	public async updateUserDelegate(
+		delegate: PublicKey,
+		userId = 0
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateUserDelegate(userId, delegate, {
+			accounts: {
+				user: await this.getUserAccountPublicKey(),
+				authority: this.wallet.publicKey,
+			},
+		});
+	}
+
+	public async getUserAccountsForDelegate(
+		delegate: PublicKey
+	): Promise<UserAccount[]> {
+		const programAccounts = await this.program.account.user.all([
+			{
+				memcmp: {
+					offset: 40,
+					/** data to match, as base-58 encoded string and limited to less than 129 bytes */
+					bytes: bs58.encode(delegate.toBuffer()),
+				},
+			},
+		]);
+
+		return programAccounts.map(
+			(programAccount) => programAccount.account as UserAccount
+		);
+	}
+
 	public getUser(userId?: number): ClearingHouseUser {
 		userId = userId ?? this.activeUserId;
 		if (!this.users.has(userId)) {
@@ -522,7 +556,7 @@ export class ClearingHouse {
 
 		this.userStatsAccountPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
-			this.wallet.publicKey
+			this.authority
 		);
 		return this.userStatsAccountPublicKey;
 	}
@@ -736,7 +770,7 @@ export class ClearingHouse {
 
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 
-		const authority = this.wallet.publicKey;
+		const authority = this.authority;
 
 		const createWSOLTokenAccount =
 			isSolMarket && collateralAccountPublicKey.equals(authority);
@@ -797,7 +831,7 @@ export class ClearingHouse {
 		const userAccountPublicKey = userId
 			? await getUserAccountPublicKey(
 					this.program.programId,
-					this.wallet.publicKey,
+					this.authority,
 					userId
 			  )
 			: await this.getUserAccountPublicKey();
@@ -1923,10 +1957,7 @@ export class ClearingHouse {
 		}
 
 		for (const position of userAccount.perpPositions) {
-			if (
-				!positionIsAvailable(position) &&
-				!position.marketIndex.eq(order.marketIndex)
-			) {
+			if (!positionIsAvailable(position)) {
 				const market = this.getPerpMarketAccount(position.marketIndex);
 				perpMarketAccountMap.set(position.marketIndex.toNumber(), {
 					pubkey: market.pubkey,

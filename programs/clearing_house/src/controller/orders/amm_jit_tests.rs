@@ -1,16 +1,23 @@
-use crate::state::oracle_map::OracleMap;
-use crate::state::state::FeeStructure;
-use crate::state::user::{Order, PerpPosition};
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
 
+use crate::math::constants::ONE_BPS_DENOMINATOR;
+use crate::state::oracle_map::OracleMap;
+use crate::state::state::{FeeStructure, FeeTier};
+use crate::state::user::{Order, PerpPosition};
+
 fn get_fee_structure() -> FeeStructure {
-    FeeStructure {
+    let mut fee_tiers = [FeeTier::default(); 10];
+    fee_tiers[0] = FeeTier {
         fee_numerator: 5,
-        fee_denominator: 10000,
+        fee_denominator: ONE_BPS_DENOMINATOR,
         maker_rebate_numerator: 3,
-        maker_rebate_denominator: 5,
-        ..FeeStructure::default()
+        maker_rebate_denominator: ONE_BPS_DENOMINATOR,
+        ..FeeTier::default()
+    };
+    FeeStructure {
+        fee_tiers,
+        ..FeeStructure::test_default()
     }
 }
 
@@ -20,24 +27,27 @@ fn get_user_keys() -> (Pubkey, Pubkey, Pubkey) {
 
 #[cfg(test)]
 pub mod amm_jit {
-    use super::*;
+    use std::str::FromStr;
+
     use crate::controller::orders::fulfill_order;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
+    use crate::math::constants::CONCENTRATION_PRECISION;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION,
         PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
-    use crate::state::oracle::OracleSource;
+    use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::tests::utils::*;
-    use std::str::FromStr;
+
+    use super::*;
 
     #[test]
     fn no_fulfill_with_amm_jit_taker_long() {
@@ -54,7 +64,7 @@ pub mod amm_jit {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -73,7 +83,13 @@ pub mod amm_jit {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
-                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
 
                 ..AMM::default()
             },
@@ -180,7 +196,7 @@ pub mod amm_jit {
             &mut oracle_map,
             &fee_structure,
             0,
-            None,
+            Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
             false,
@@ -223,7 +239,7 @@ pub mod amm_jit {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -242,9 +258,15 @@ pub mod amm_jit {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
-                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
-                user_lp_shares: 10 * AMM_RESERVE_PRECISION, // some lps exist
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
 
+                    ..HistoricalOracleData::default()
+                },
+                user_lp_shares: 10 * AMM_RESERVE_PRECISION, // some lps exist
+                concentration_coef: CONCENTRATION_PRECISION,
                 ..AMM::default()
             },
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
@@ -393,7 +415,7 @@ pub mod amm_jit {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -412,7 +434,13 @@ pub mod amm_jit {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
-                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
 
                 ..AMM::default()
             },
@@ -559,7 +587,7 @@ pub mod amm_jit {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // amm is short
         let mut market = PerpMarket {
@@ -578,8 +606,13 @@ pub mod amm_jit {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
-                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
 
+                    ..HistoricalOracleData::default()
+                },
                 ..AMM::default()
             },
             base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
@@ -684,7 +717,7 @@ pub mod amm_jit {
             &mut oracle_map,
             &fee_structure,
             0,
-            None,
+            Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
             false,
@@ -725,7 +758,7 @@ pub mod amm_jit {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -744,7 +777,13 @@ pub mod amm_jit {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
-                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
 
                 ..AMM::default()
             },
@@ -857,7 +896,7 @@ pub mod amm_jit {
             &mut oracle_map,
             &fee_structure,
             0,
-            None,
+            Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
             false,
@@ -919,7 +958,7 @@ pub mod amm_jit {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -938,7 +977,13 @@ pub mod amm_jit {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
-                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
 
                 ..AMM::default()
             },
@@ -1052,7 +1097,7 @@ pub mod amm_jit {
             &mut oracle_map,
             &fee_structure,
             0,
-            None,
+            Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
             false,
@@ -1115,7 +1160,7 @@ pub mod amm_jit {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -1134,7 +1179,13 @@ pub mod amm_jit {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
-                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
 
                 ..AMM::default()
             },
@@ -1311,7 +1362,7 @@ pub mod amm_jit {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let mut market = PerpMarket {
@@ -1330,7 +1381,13 @@ pub mod amm_jit {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
-                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
 
                 ..AMM::default()
             },
@@ -1508,7 +1565,7 @@ pub mod amm_jit {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let reserves = 5 * AMM_RESERVE_PRECISION;
@@ -1528,7 +1585,13 @@ pub mod amm_jit {
                 long_spread: 50000,
                 short_spread: 50000,
                 amm_jit_intensity: 100,
-                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
                 ..AMM::default()
             },
             base_asset_amount_short: -(100 * AMM_RESERVE_PRECISION as i128),
@@ -1769,7 +1832,7 @@ pub mod amm_jit {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         // net users are short
         let reserves = 5 * AMM_RESERVE_PRECISION;
@@ -1789,7 +1852,13 @@ pub mod amm_jit {
                 long_spread: 50000,
                 short_spread: 50000,
                 amm_jit_intensity: 100,
-                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * MARK_PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
 
                 ..AMM::default()
             },

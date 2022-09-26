@@ -27,6 +27,7 @@ import {
 	calculateUpdatedAMM,
 	oraclePriceBands,
 	InsuranceFundRecord,
+	OracleGuardRails,
 } from '../sdk/src';
 
 import {
@@ -568,7 +569,10 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			console.log('pnlimbalance:', imbalance.toString());
 			assert(imbalance.eq(new BN(44462178050))); //44k! :o
 
-			console.log('lastOraclePrice:', market0.amm.lastOraclePrice.toString());
+			console.log(
+				'lastOraclePrice:',
+				market0.amm.historicalOracleData.lastOraclePrice.toString()
+			);
 			console.log('lastOracleValid:', market0.amm.lastOracleValid.toString());
 			console.log('lastUpdateSlot:', market0.amm.lastUpdateSlot.toString());
 
@@ -576,7 +580,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			console.log('lastBidPriceTwap:', market0.amm.lastBidPriceTwap.toString());
 			console.log(
 				'lastOraclePriceTwap:',
-				market0.amm.lastOraclePriceTwap.toString()
+				market0.amm.historicalOracleData.lastOraclePriceTwap.toString()
 			);
 
 			try {
@@ -606,7 +610,10 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		console.log('pnlimbalance:', imbalance.toString());
 		assert(imbalance.eq(new BN(44462178050))); //44k! :o
 
-		console.log('lastOraclePrice:', market0.amm.lastOraclePrice.toString());
+		console.log(
+			'lastOraclePrice:',
+			market0.amm.historicalOracleData.lastOraclePrice.toString()
+		);
 		console.log('lastOracleValid:', market0.amm.lastOracleValid.toString());
 		console.log('lastUpdateSlot:', market0.amm.lastUpdateSlot.toString());
 
@@ -614,7 +621,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		console.log('lastBidPriceTwap:', market0.amm.lastBidPriceTwap.toString());
 		console.log(
 			'lastOraclePriceTwap:',
-			market0.amm.lastOraclePriceTwap.toString()
+			market0.amm.historicalOracleData.lastOraclePriceTwap.toString()
 		);
 		assert(market0.amm.lastOracleValid == true);
 	});
@@ -803,12 +810,37 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 
+		//will fail
+		try {
+			const txSig2 = await clearingHouse.resolvePerpPnlDeficit(
+				bankIndex,
+				marketIndex
+			);
+			await printTxLogs(connection, txSig2);
+		} catch (e) {
+			console.error(e);
+		}
+
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(1),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
+				confidenceIntervalMaxSize: new BN(100000),
+				tooVolatileRatio: new BN(2),
+			},
+			useForLiquidations: false,
+		};
+
+		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
 		const txSig2 = await clearingHouse.resolvePerpPnlDeficit(
 			bankIndex,
 			marketIndex
 		);
 		await printTxLogs(connection, txSig2);
-
 		const ifRecord: InsuranceFundRecord = eventSubscriber.getEventsArray(
 			'InsuranceFundRecord'
 		)[0];

@@ -10,6 +10,7 @@ import {
 	AMM_RESERVE_PRECISION,
 	QUOTE_PRECISION,
 	calculateMarkPrice,
+	OracleGuardRails,
 	calculateTradeSlippage,
 	PositionDirection,
 	EventSubscriber,
@@ -454,6 +455,22 @@ describe('update amm', () => {
 	});
 
 	it('Many market balanced prepegs, long position', async () => {
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(1),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(1),
+				slotsBeforeStaleForMargin: new BN(1),
+				confidenceIntervalMaxSize: new BN(1),
+				tooVolatileRatio: new BN(1000),
+			},
+			useForLiquidations: false,
+		};
+
+		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
+
 		for (let i = 0; i <= 4; i++) {
 			const thisUsd = mockOracles[i];
 			const marketIndex = new BN(i);

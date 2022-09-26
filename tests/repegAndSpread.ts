@@ -14,6 +14,7 @@ import {
 	getLimitOrderParams,
 	ClearingHouse,
 	OraclePriceData,
+	OracleGuardRails,
 } from '../sdk';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
@@ -270,6 +271,30 @@ describe('repeg and spread amm', () => {
 	});
 
 	it('BTC market massive spread', async () => {
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(1),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
+				confidenceIntervalMaxSize: new BN(100000),
+				tooVolatileRatio: new BN(2),
+			},
+			useForLiquidations: false,
+		};
+
+		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
+
+		await clearingHouse.fetchAccounts();
+		const state = clearingHouse.getStateAccount();
+
+		assert(
+			JSON.stringify(oracleGuardRails) ===
+				JSON.stringify(state.oracleGuardRails)
+		);
+
 		const marketIndex = new BN(0);
 		const baseAssetAmount = new BN(0.19316 * AMM_RESERVE_PRECISION.toNumber());
 		const orderParams = getMarketOrderParams({

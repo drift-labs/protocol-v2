@@ -8,8 +8,7 @@ mod test {
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
     };
     use crate::math::margin::{
-        calculate_oracle_price_for_perp_margin, calculate_perp_position_value_and_pnl,
-        calculate_spot_position_value, MarginRequirementType,
+        calculate_perp_position_value_and_pnl, calculate_spot_position_value, MarginRequirementType,
     };
     use crate::math::position::{
         calculate_base_asset_value_and_pnl_with_oracle_price, calculate_position_pnl,
@@ -246,11 +245,6 @@ mod test {
         // sqrt of oracle price = 149
         market.unrealized_imf_factor = market.imf_factor;
 
-        let oracle_price_for_margin =
-            calculate_oracle_price_for_perp_margin(&market_position, &market, &oracle_price_data)
-                .unwrap();
-        assert_eq!(oracle_price_for_margin, 220500000000000);
-
         let uaw = market
             .get_unrealized_asset_weight(position_unrealized_pnl, MarginRequirementType::Initial)
             .unwrap();
@@ -274,36 +268,31 @@ mod test {
         oracle_price_data.price = (21050 * MARK_PRICE_PRECISION) as i128; // lower by $1000 (in favor of user)
         oracle_price_data.confidence = MARK_PRICE_PRECISION;
 
-        let oracle_price_for_margin_2 =
-            calculate_oracle_price_for_perp_margin(&market_position, &market, &oracle_price_data)
-                .unwrap();
-        assert_eq!(oracle_price_for_margin_2, 210510000000000);
-
         let (_, position_unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
             &market_position,
-            oracle_price_for_margin_2,
+            oracle_price_data.price,
         )
         .unwrap();
 
-        assert_eq!(position_unrealized_pnl, 24276639345); // $24.276k
+        assert_eq!(position_unrealized_pnl, 24282786886); // $24.282k
 
         assert_eq!(
             market
                 .get_unrealized_asset_weight(position_unrealized_pnl, margin_requirement_type)
                 .unwrap(),
-            9517
+            9516
         );
         assert_eq!(
             market
                 .get_unrealized_asset_weight(position_unrealized_pnl * 10, margin_requirement_type)
                 .unwrap(),
-            7369
+            7368
         );
         assert_eq!(
             market
                 .get_unrealized_asset_weight(position_unrealized_pnl * 100, margin_requirement_type)
                 .unwrap(),
-            4300
+            4299
         );
         assert_eq!(
             market
@@ -334,7 +323,7 @@ mod test {
                 .unwrap(),
             78
         );
-        assert_eq!(position_unrealized_pnl * 800000, 19421311476000000); // 1.9 billion
+        assert_eq!(position_unrealized_pnl * 800000, 19426229508800000); // 1.9 billion
 
         let (pmr_2, upnl_2, _) = calculate_perp_position_value_and_pnl(
             &market_position,
@@ -538,7 +527,7 @@ mod calculate_margin_requirement_and_total_collateral {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let market_map = PerpMarketMap::empty();
 
@@ -597,7 +586,7 @@ mod calculate_margin_requirement_and_total_collateral {
             ..User::default()
         };
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, _) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &market_map,
@@ -626,7 +615,7 @@ mod calculate_margin_requirement_and_total_collateral {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let market_map = PerpMarketMap::empty();
 
@@ -685,7 +674,7 @@ mod calculate_margin_requirement_and_total_collateral {
             ..User::default()
         };
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, _) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &market_map,
@@ -714,7 +703,7 @@ mod calculate_margin_requirement_and_total_collateral {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let market_map = PerpMarketMap::empty();
 
@@ -774,7 +763,7 @@ mod calculate_margin_requirement_and_total_collateral {
             ..User::default()
         };
 
-        let (margin_requirement, total_collateral, _) =
+        let (margin_requirement, total_collateral, _, _) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &market_map,
@@ -803,7 +792,7 @@ mod calculate_margin_requirement_and_total_collateral {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -887,7 +876,7 @@ mod calculate_margin_requirement_and_total_collateral {
             ..User::default()
         };
 
-        let (margin_requirement, _, _) = calculate_margin_requirement_and_total_collateral(
+        let (margin_requirement, _, _, _) = calculate_margin_requirement_and_total_collateral(
             &user,
             &perp_market_map,
             MarginRequirementType::Initial,
@@ -904,7 +893,7 @@ mod calculate_margin_requirement_and_total_collateral {
             ..user
         };
 
-        let (margin_requirement, _, _) = calculate_margin_requirement_and_total_collateral(
+        let (margin_requirement, _, _, _) = calculate_margin_requirement_and_total_collateral(
             &user,
             &perp_market_map,
             MarginRequirementType::Initial,
@@ -921,7 +910,7 @@ mod calculate_margin_requirement_and_total_collateral {
             ..user
         };
 
-        let (margin_requirement, _, _) = calculate_margin_requirement_and_total_collateral(
+        let (margin_requirement, _, _, _) = calculate_margin_requirement_and_total_collateral(
             &user,
             &perp_market_map,
             MarginRequirementType::Initial,
@@ -938,7 +927,7 @@ mod calculate_margin_requirement_and_total_collateral {
             ..user
         };
 
-        let (maintenance_margin_requirement, _, _) =
+        let (maintenance_margin_requirement, _, _, _) =
             calculate_margin_requirement_and_total_collateral(
                 &user,
                 &perp_market_map,
