@@ -827,6 +827,33 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
+	public async updateSpotMarketMarginWeights(
+		spotMarketIndex: BN,
+		initialAssetWeight: BN,
+		maintenanceAssetWeight: BN,
+		initialLiabilityWeight: BN,
+		maintenanceLiabilityWeight: BN,
+		imfFactor = new BN(0)
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSpotMarketMarginWeights(
+			initialAssetWeight,
+			maintenanceAssetWeight,
+			initialLiabilityWeight,
+			maintenanceLiabilityWeight,
+			imfFactor,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					market: await getMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
+	}
+
 	public async updateSpotMarketStatus(
 		spotMarketIndex: BN,
 		marketStatus: MarketStatus
