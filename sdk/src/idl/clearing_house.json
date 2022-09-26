@@ -21,11 +21,6 @@
           "isSigner": false
         },
         {
-          "name": "insuranceVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "clearingHouseSigner",
           "isMut": false,
           "isSigner": false
@@ -1431,127 +1426,15 @@
           "isSigner": false
         },
         {
-          "name": "spotMarketVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "clearingHouseSigner",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "perpMarket",
           "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "recipient",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
           "isSigner": false
         }
       ],
       "args": []
     },
     {
-      "name": "withdrawFromMarketToInsuranceVault",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarketVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "clearingHouseSigner",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "recipient",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "amount",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "withdrawFromInsuranceVault",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "insuranceVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "clearingHouseSigner",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "recipient",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "amount",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "withdrawFromInsuranceVaultToMarket",
+      "name": "depositIntoMarketFeePool",
       "accounts": [
         {
           "name": "state",
@@ -1569,7 +1452,7 @@
           "isSigner": true
         },
         {
-          "name": "insuranceVault",
+          "name": "sourceVault",
           "isMut": true,
           "isSigner": false
         },
@@ -3536,10 +3419,6 @@
           {
             "name": "adminControlsPrices",
             "type": "bool"
-          },
-          {
-            "name": "insuranceVault",
-            "type": "publicKey"
           },
           {
             "name": "whitelistMint",

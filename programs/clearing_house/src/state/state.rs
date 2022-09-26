@@ -12,7 +12,6 @@ pub struct State {
     pub exchange_paused: bool,
     pub funding_paused: bool,
     pub admin_controls_prices: bool,
-    pub insurance_vault: Pubkey,
     pub whitelist_mint: Pubkey,
     pub discount_mint: Pubkey,
     pub oracle_guard_rails: OracleGuardRails,
