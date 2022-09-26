@@ -68,7 +68,7 @@ pub mod clearing_house {
     use crate::state::spot_market_map::{
         get_writable_spot_market_set, SpotMarketMap, SpotMarketSet,
     };
-    use crate::validation::margin::validate_margin;
+    use crate::validation::margin::{validate_margin, validate_margin_weights};
 
     use super::*;
     use crate::math::insurance::if_shares_to_vault_amount;
@@ -3049,7 +3049,7 @@ pub mod clearing_house {
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
 
-        let max_insurance_tier = match market.contract_tier {
+        let max_insurance_for_tier = match market.contract_tier {
             ContractTier::A => INSURANCE_A_MAX,
             ContractTier::B => INSURANCE_B_MAX,
             ContractTier::C => INSURANCE_C_MAX,
@@ -3057,21 +3057,16 @@ pub mod clearing_house {
         };
 
         validate!(
-            max_revenue_withdraw_per_period < max_insurance_tier,
+            max_revenue_withdraw_per_period <= max_insurance_for_tier
+                && unrealized_max_imbalance <= max_insurance_for_tier
+                && quote_max_insurance <= max_insurance_for_tier,
             ErrorCode::DefaultError,
-            "max_revenue_withdraw_per_period must be less than max_insurance_tier={}",
-            max_insurance_tier
+            "all maxs must be less than max_insurance for ContractTier ={}",
+            max_insurance_for_tier
         )?;
 
         validate!(
-            unrealized_max_imbalance < max_insurance_tier,
-            ErrorCode::DefaultError,
-            "unrealized_max_imbalance must be less than max_insurance_tier={}",
-            max_insurance_tier
-        )?;
-
-        validate!(
-            market.quote_settled_insurance < quote_max_insurance,
+            market.quote_settled_insurance <= quote_max_insurance,
             ErrorCode::DefaultError,
             "quote_max_insurance must be above market.quote_settled_insurance={}",
             market.quote_settled_insurance
@@ -3263,6 +3258,34 @@ pub mod clearing_house {
         }
 
         market.asset_tier = asset_tier;
+        Ok(())
+    }
+
+    pub fn update_spot_market_margin_weights(
+        ctx: Context<AdminUpdateSpotMarket>,
+        initial_asset_weight: u128,
+        maintenance_asset_weight: u128,
+        initial_liability_weight: u128,
+        maintenance_liability_weight: u128,
+        imf_factor: u128,
+    ) -> Result<()> {
+        let market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+        validate_margin_weights(
+            market.market_index,
+            initial_asset_weight,
+            maintenance_asset_weight,
+            initial_liability_weight,
+            maintenance_liability_weight,
+            imf_factor,
+        )?;
+
+        market.initial_asset_weight = initial_asset_weight;
+        market.maintenance_asset_weight = maintenance_asset_weight;
+        market.initial_liability_weight = initial_liability_weight;
+        market.maintenance_liability_weight = maintenance_liability_weight;
+        market.imf_factor = imf_factor;
+
         Ok(())
     }
 
