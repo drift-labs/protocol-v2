@@ -1,6 +1,6 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::ids::pyth_program;
-use crate::math::constants::MARK_PRICE_PRECISION_I128;
+use crate::math::constants::PRICE_PRECISION_I128;
 use crate::math::oracle::{oracle_validity, OracleValidity};
 use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource};
 use crate::state::state::OracleGuardRails;
@@ -147,7 +147,7 @@ impl<'a> OracleMap<'a> {
             slot,
             oracle_guard_rails: ogr,
             quote_asset_price_data: OraclePriceData {
-                price: MARK_PRICE_PRECISION_I128,
+                price: PRICE_PRECISION_I128,
                 confidence: 1,
                 delay: 0,
                 has_sufficient_number_of_data_points: true,
@@ -187,7 +187,7 @@ impl<'a> OracleMap<'a> {
             slot,
             oracle_guard_rails: ogr,
             quote_asset_price_data: OraclePriceData {
-                price: MARK_PRICE_PRECISION_I128,
+                price: PRICE_PRECISION_I128,
                 confidence: 1,
                 delay: 0,
                 has_sufficient_number_of_data_points: true,
@@ -205,7 +205,7 @@ impl<'a> OracleMap<'a> {
             slot: 0,
             oracle_guard_rails: OracleGuardRails::default(),
             quote_asset_price_data: OraclePriceData {
-                price: MARK_PRICE_PRECISION_I128,
+                price: PRICE_PRECISION_I128,
                 confidence: 1,
                 delay: 0,
                 has_sufficient_number_of_data_points: true,

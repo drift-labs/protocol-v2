@@ -24,7 +24,7 @@ import {
 	getBalance,
 	isVariant,
 	PEG_PRECISION,
-	SPOT_MARKET_INTEREST_PRECISION,
+	SPOT_MARKET_RATE_PRECISION,
 	findComputeUnitConsumption,
 	convertToNumber,
 	AMM_RESERVE_PRECISION,
@@ -495,7 +495,7 @@ describe('insurance fund stake', () => {
 		await printTxLogs(connection, txSig);
 
 		const spotMarket = await clearingHouse.getSpotMarketAccount(marketIndex);
-		const expectedBorrowBalance = new BN(500000000001);
+		const expectedBorrowBalance = new BN(500000000000001);
 		console.log(
 			'spotMarket.borrowBalance:',
 			spotMarket.borrowBalance.toString()
@@ -570,12 +570,8 @@ describe('insurance fund stake', () => {
 			SpotBalanceType.DEPOSIT
 		);
 		assert(ifPoolBalanceAfterUpdate.gt(new BN(0)));
-		assert(
-			spotMarket.cumulativeBorrowInterest.gt(SPOT_MARKET_INTEREST_PRECISION)
-		);
-		assert(
-			spotMarket.cumulativeDepositInterest.gt(SPOT_MARKET_INTEREST_PRECISION)
-		);
+		assert(spotMarket.cumulativeBorrowInterest.gt(SPOT_MARKET_RATE_PRECISION));
+		assert(spotMarket.cumulativeDepositInterest.gt(SPOT_MARKET_RATE_PRECISION));
 
 		const insuranceVaultAmountBefore = new BN(
 			(

@@ -12,9 +12,7 @@ use crate::error::ClearingHouseResult;
 use crate::get_then_update_id;
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_PAYMENT_PRECISION, ONE_HOUR,
-};
+use crate::math::constants::{AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_RATE_BUFFER, ONE_HOUR};
 use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
 use crate::math::helpers::on_the_hour_update;
 use crate::math::oracle;
@@ -211,7 +209,7 @@ pub fn update_funding_rate(
         let clamped_price_spread = max(-max_price_spread, min(price_spread, max_price_spread));
 
         let funding_rate = clamped_price_spread
-            .checked_mul(cast(FUNDING_PAYMENT_PRECISION)?)
+            .checked_mul(cast(FUNDING_RATE_BUFFER)?)
             .ok_or_else(math_error!())?
             .checked_div(cast(period_adjustment)?)
             .ok_or_else(math_error!())?;

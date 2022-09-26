@@ -8,7 +8,7 @@ import { Keypair } from '@solana/web3.js';
 import {
 	Admin,
 	BN,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	ClearingHouse,
 	PositionDirection,
 	ClearingHouseUser,
@@ -40,7 +40,7 @@ describe('trigger orders', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -163,7 +163,7 @@ describe('trigger orders', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			triggerPrice: MARK_PRICE_PRECISION.div(new BN(2)),
+			triggerPrice: PRICE_PRECISION.div(new BN(2)),
 			triggerCondition: OrderTriggerCondition.BELOW,
 			userOrderId: 1,
 		});
@@ -237,7 +237,7 @@ describe('trigger orders', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			triggerPrice: MARK_PRICE_PRECISION.mul(new BN(2)),
+			triggerPrice: PRICE_PRECISION.mul(new BN(2)),
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			userOrderId: 1,
 		});

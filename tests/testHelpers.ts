@@ -23,7 +23,7 @@ import {
 	Admin,
 	SPOT_MARKET_RATE_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	QUOTE_PRECISION,
 	ClearingHouse,
 	ClearingHouseUser,
@@ -517,9 +517,9 @@ export const getOraclePriceData = async (
 	);
 	const interData = parsePriceData(info.data);
 	const oraclePriceData: OraclePriceData = {
-		price: new BN(interData.price * MARK_PRICE_PRECISION.toNumber()),
+		price: new BN(interData.price * PRICE_PRECISION.toNumber()),
 		slot: new BN(interData.currentSlot.toString()),
-		confidence: new BN(interData.confidence * MARK_PRICE_PRECISION.toNumber()),
+		confidence: new BN(interData.confidence * PRICE_PRECISION.toNumber()),
 		hasSufficientNumberOfDataPoints: true,
 	};
 

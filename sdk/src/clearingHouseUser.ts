@@ -11,7 +11,7 @@ import {
 } from './types';
 import { calculateEntryPrice } from './math/position';
 import {
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	ZERO,
 	TEN_THOUSAND,
@@ -765,7 +765,7 @@ export class ClearingHouseUser {
 				let baseAssetValue = baseAssetAmount
 					.abs()
 					.mul(valuationPrice)
-					.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
+					.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(PRICE_PRECISION));
 
 				if (marginCategory) {
 					let marginRatio = new BN(
@@ -880,13 +880,13 @@ export class ClearingHouseUser {
 
 		const exitPrice = baseAssetValue
 			.mul(AMM_TO_QUOTE_PRECISION_RATIO)
-			.mul(MARK_PRICE_PRECISION)
+			.mul(PRICE_PRECISION)
 			.div(position.baseAssetAmount.abs());
 
 		const pnlPerBase = exitPrice.sub(entryPrice);
 		const pnl = pnlPerBase
 			.mul(position.baseAssetAmount)
-			.div(MARK_PRICE_PRECISION)
+			.div(PRICE_PRECISION)
 			.div(AMM_TO_QUOTE_PRECISION_RATIO);
 
 		return [exitPrice, pnl];

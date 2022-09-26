@@ -27,8 +27,8 @@ import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
 	Admin,
-	MARK_PRICE_PRECISION,
-	FUNDING_PAYMENT_PRECISION,
+	PRICE_PRECISION,
+	FUNDING_RATE_BUFFER_PRECISION,
 	ClearingHouse,
 	ClearingHouseUser,
 	QUOTE_SPOT_MARKET_INDEX,
@@ -65,7 +65,7 @@ async function updateFundingRateHelper(
 			frontEndFundingCalc0,
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber() /
-				MARK_PRICE_PRECISION.toNumber(),
+				PRICE_PRECISION.toNumber(),
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber(),
 			'oracleTwap0(vamm):',
@@ -91,8 +91,7 @@ async function updateFundingRateHelper(
 			console.error(e);
 		}
 
-		const CONVERSION_SCALE =
-			FUNDING_PAYMENT_PRECISION.mul(MARK_PRICE_PRECISION);
+		const CONVERSION_SCALE = FUNDING_RATE_BUFFER_PRECISION.mul(PRICE_PRECISION);
 
 		const marketData = clearingHouse.getPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
@@ -132,7 +131,7 @@ async function updateFundingRateHelper(
 		const priceSpread =
 			(ammAccountState.lastMarkPriceTwap.toNumber() -
 				ammAccountState.historicalOracleData.lastOraclePriceTwap.toNumber()) /
-			MARK_PRICE_PRECISION.toNumber();
+			PRICE_PRECISION.toNumber();
 		const frontEndFundingCalc =
 			priceSpread / ((24 * 3600) / Math.max(1, peroidicity.toNumber()));
 
@@ -140,8 +139,7 @@ async function updateFundingRateHelper(
 			'funding rate frontend calc:',
 			frontEndFundingCalc,
 			'markTwap:',
-			ammAccountState.lastMarkPriceTwap.toNumber() /
-				MARK_PRICE_PRECISION.toNumber(),
+			ammAccountState.lastMarkPriceTwap.toNumber() / PRICE_PRECISION.toNumber(),
 			'markTwap:',
 			ammAccountState.lastMarkPriceTwap.toNumber(),
 			'oracleTwap(vamm):',

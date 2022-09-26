@@ -7,7 +7,7 @@ import {
 	isVariant,
 	SpotMarketAccount,
 	PerpMarketAccount,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	OraclePriceData,
 	Order,
 	ZERO,
@@ -56,10 +56,9 @@ export abstract class OrderNode implements DLOBNode {
 			AMM_RESERVE_PRECISION
 		).toFixed(3)}`;
 		if (this.order.price.gt(ZERO)) {
-			msg += ` @ ${convertToNumber(
-				this.order.price,
-				MARK_PRICE_PRECISION
-			).toFixed(3)}`;
+			msg += ` @ ${convertToNumber(this.order.price, PRICE_PRECISION).toFixed(
+				3
+			)}`;
 		}
 		if (this.order.triggerPrice.gt(ZERO)) {
 			msg += ` ${
@@ -67,7 +66,7 @@ export abstract class OrderNode implements DLOBNode {
 			}`;
 			msg += ` ${convertToNumber(
 				this.order.triggerPrice,
-				MARK_PRICE_PRECISION
+				PRICE_PRECISION
 			).toFixed(3)}`;
 		}
 		return msg;

@@ -13,7 +13,7 @@ import {
 	OracleSource,
 	ZERO,
 	EventSubscriber,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	getTokenAmount,
 	SpotBalanceType,
 } from '../sdk/src';
@@ -159,27 +159,26 @@ describe('liquidate borrow w/ social loss', () => {
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
 		assert(clearingHouse.getUserAccount().spotPositions[0].balance.eq(ZERO));
 		assert(
-			clearingHouse.getUserAccount().spotPositions[1].balance.eq(new BN(5002))
-		);
-
-		console.log(
-			clearingHouse.getUserAccount().spotPositions[0].balance.toString()
+			clearingHouse
+				.getUserAccount()
+				.spotPositions[1].balance.gt(new BN(5001000)) &&
+				clearingHouse
+					.getUserAccount()
+					.spotPositions[1].balance.lt(new BN(5002000))
 		);
 
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(liquidationRecord.liquidationId === 1);
 		assert(isVariant(liquidationRecord.liquidationType, 'liquidateBorrow'));
-		assert(
-			liquidationRecord.liquidateBorrow.assetPrice.eq(MARK_PRICE_PRECISION)
-		);
+		assert(liquidationRecord.liquidateBorrow.assetPrice.eq(PRICE_PRECISION));
 		assert(liquidationRecord.liquidateBorrow.assetMarketIndex.eq(ZERO));
 		assert(
 			liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(100000000))
 		);
 		assert(
 			liquidationRecord.liquidateBorrow.liabilityPrice.eq(
-				new BN(200).mul(MARK_PRICE_PRECISION)
+				new BN(200).mul(PRICE_PRECISION)
 			)
 		);
 		assert(
@@ -283,8 +282,7 @@ describe('liquidate borrow w/ social loss', () => {
 
 		const interestOfUpdate = currentDepositAmount.sub(depositAmountBefore);
 		console.log('interestOfUpdate:', interestOfUpdate.toString());
-		assert(interestOfUpdate.lt(ZERO));
-		assert(interestOfUpdate.abs().lt(new BN(10000)));
+		assert(interestOfUpdate.eq(ONE));
 	});
 
 	it('resolve bankruptcy', async () => {
@@ -313,8 +311,8 @@ describe('liquidate borrow w/ social loss', () => {
 		assert(bankruptcyRecord.borrowBankruptcy.marketIndex.eq(ONE));
 		console.log(bankruptcyRecord.borrowBankruptcy.borrowAmount.toString());
 		assert(
-			bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(5002015)) ||
-				bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(5002012))
+			bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(5001585)) ||
+				bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(5001268))
 		);
 		const spotMarket = clearingHouse.getSpotMarketAccount(1);
 		assert(

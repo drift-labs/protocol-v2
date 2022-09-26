@@ -12,7 +12,7 @@ import {
 	EventSubscriber,
 	ClearingHouse,
 	Wallet,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -56,9 +56,7 @@ describe('referrer', () => {
 	let solOracle: PublicKey;
 
 	// ammInvariant == k == x * y
-	const ammReservePrecision = new BN(
-		Math.sqrt(MARK_PRICE_PRECISION.toNumber())
-	);
+	const ammReservePrecision = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		ammReservePrecision
 	);
