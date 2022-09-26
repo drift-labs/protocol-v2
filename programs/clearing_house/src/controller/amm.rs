@@ -92,16 +92,6 @@ pub fn swap_base_asset(
         None => amm.mark_price()?,
     };
 
-    amm::update_mark_twap(
-        amm,
-        now,
-        Some(match position_direction {
-            PositionDirection::Long => amm.ask_price(mark_price)?,
-            PositionDirection::Short => amm.bid_price(mark_price)?,
-        }),
-        Some(position_direction),
-    )?;
-
     let (
         new_base_asset_reserve,
         new_quote_asset_reserve,
@@ -111,6 +101,18 @@ pub fn swap_base_asset(
 
     amm.base_asset_reserve = new_base_asset_reserve;
     amm.quote_asset_reserve = new_quote_asset_reserve;
+
+    amm::update_amm_long_short_intensity(amm, now, quote_asset_amount, position_direction)?;
+
+    amm::update_mark_twap(
+        amm,
+        now,
+        Some(match position_direction {
+            PositionDirection::Long => amm.ask_price(mark_price)?,
+            PositionDirection::Short => amm.bid_price(mark_price)?,
+        }),
+        Some(position_direction),
+    )?;
 
     Ok((
         quote_asset_amount,

@@ -1104,6 +1104,10 @@ fn fulfill_order(
         quote_asset_amount = quote_asset_amount
             .checked_add(_quote_asset_amount)
             .ok_or_else(math_error!())?;
+
+        if fulfillment_method == fulfillment_methods.last().unwrap() {
+            market.amm.update_volume_24h(quote_asset_amount, now)?;
+        }
     }
 
     for order_record in order_records {
@@ -1282,13 +1286,6 @@ pub fn fulfill_order_with_amm(
         referrer_stats,
         quote_asset_amount_surplus,
         order_post_only,
-    )?;
-
-    amm::update_amm_long_short_intensity(
-        &mut market.amm,
-        now,
-        quote_asset_amount,
-        order_direction,
     )?;
 
     let user_position_delta =
@@ -3046,21 +3043,21 @@ pub fn fulfill_spot_order_with_serum(
         };
     }
 
-    base_market.historical_index_data.last_index_price_twap = calculate_new_twap(
-        mid_price,
+    base_market.historical_index_data.last_index_price_twap = cast(calculate_new_twap(
+        cast(mid_price)?,
         now,
-        base_market.historical_index_data.last_index_price_twap,
+        cast(base_market.historical_index_data.last_index_price_twap)?,
         base_market.historical_index_data.last_index_price_twap_ts,
         60 * 60,
-    )?;
+    )?)?;
 
-    base_market.historical_index_data.last_index_price_twap_5min = calculate_new_twap(
-        mid_price,
+    base_market.historical_index_data.last_index_price_twap_5min = cast(calculate_new_twap(
+        cast(mid_price)?,
         now,
-        base_market.historical_index_data.last_index_price_twap_5min,
+        cast(base_market.historical_index_data.last_index_price_twap_5min)?,
         base_market.historical_index_data.last_index_price_twap_ts,
         60 * 5,
-    )?;
+    )?)?;
 
     let market_state_before = load_serum_market(
         serum_new_order_accounts.serum_market,

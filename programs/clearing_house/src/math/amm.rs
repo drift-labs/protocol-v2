@@ -3,7 +3,7 @@ use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
 use crate::math::bn::U192;
-use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u64};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
@@ -357,56 +357,58 @@ pub fn update_mark_twap(
     };
 
     let (bid_price_capped_update, ask_price_capped_update) = (
-        cast_to_u128(sanitize_new_price(
+        sanitize_new_price(
             cast_to_i128(bid_price)?,
             cast_to_i128(amm.last_bid_price_twap)?,
-        )?)?,
-        cast_to_u128(sanitize_new_price(
+        )?,
+        sanitize_new_price(
             cast_to_i128(ask_price)?,
             cast_to_i128(amm.last_ask_price_twap)?,
-        )?)?,
+        )?,
     );
 
     // update bid and ask twaps
     let bid_twap = calculate_new_twap(
         bid_price_capped_update,
         now,
-        amm.last_bid_price_twap,
+        cast(amm.last_bid_price_twap)?,
         amm.last_mark_price_twap_ts,
         amm.funding_period,
     )?;
-    amm.last_bid_price_twap = bid_twap;
+    amm.last_bid_price_twap = cast(bid_twap)?;
 
     let ask_twap = calculate_new_twap(
         ask_price_capped_update,
         now,
-        amm.last_ask_price_twap,
+        cast(amm.last_ask_price_twap)?,
         amm.last_mark_price_twap_ts,
         amm.funding_period,
     )?;
 
-    amm.last_ask_price_twap = ask_twap;
+    amm.last_ask_price_twap = cast(ask_twap)?;
 
     let mid_twap = bid_twap.checked_add(ask_twap).ok_or_else(math_error!())? / 2;
 
     // update std stat
     update_amm_mark_std(amm, now, trade_price, amm.last_mark_price_twap)?;
 
-    amm.last_mark_price_twap = mid_twap;
-    amm.last_mark_price_twap_5min = calculate_new_twap(
-        bid_price_capped_update
-            .checked_add(ask_price_capped_update)
-            .ok_or_else(math_error!())?
-            / 2,
+    amm.last_mark_price_twap = cast(mid_twap)?;
+    amm.last_mark_price_twap_5min = cast(calculate_new_twap(
+        cast(
+            bid_price_capped_update
+                .checked_add(ask_price_capped_update)
+                .ok_or_else(math_error!())?
+                / 2,
+        )?,
         now,
-        amm.last_mark_price_twap_5min,
+        cast(amm.last_mark_price_twap_5min)?,
         amm.last_mark_price_twap_ts,
         60 * 5,
-    )?;
+    )?)?;
 
     amm.last_mark_price_twap_ts = now;
 
-    Ok(mid_twap)
+    cast(mid_twap)
 }
 
 pub fn sanitize_new_price(new_price: i128, last_price_twap: i128) -> ClearingHouseResult<i128> {
