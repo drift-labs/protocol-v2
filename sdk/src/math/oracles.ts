@@ -3,7 +3,7 @@ import { OraclePriceData } from '../oracles/types';
 import {
 	BID_ASK_SPREAD_PRECISION,
 	MARGIN_PRECISION,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	ONE,
 	ZERO,
 } from '../constants/numericConstants';
@@ -76,9 +76,7 @@ export function isOracleTooDivergent(
 		.div(sinceStart.add(sinceLastUpdate));
 
 	const oracleSpread = oracleTwap5min.sub(oraclePriceData.price);
-	const oracleSpreadPct = oracleSpread
-		.mul(MARK_PRICE_PRECISION)
-		.div(oracleTwap5min);
+	const oracleSpreadPct = oracleSpread.mul(PRICE_PRECISION).div(oracleTwap5min);
 
 	const tooDivergent = oracleSpreadPct
 		.abs()

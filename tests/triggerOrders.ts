@@ -8,7 +8,7 @@ import { Keypair } from '@solana/web3.js';
 import {
 	Admin,
 	BN,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	ClearingHouse,
 	PositionDirection,
 	ClearingHouseUser,
@@ -47,7 +47,7 @@ describe('trigger orders', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -175,7 +175,7 @@ describe('trigger orders', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			triggerPrice: MARK_PRICE_PRECISION.div(new BN(2)),
+			triggerPrice: PRICE_PRECISION.div(new BN(2)),
 			triggerCondition: OrderTriggerCondition.BELOW,
 			userOrderId: 1,
 		});
@@ -199,7 +199,7 @@ describe('trigger orders', () => {
 		const newOraclePrice = 0.49;
 		await fillerClearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(newOraclePrice * MARK_PRICE_PRECISION.toNumber())
+			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
 		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 
@@ -272,10 +272,10 @@ describe('trigger orders', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: MARK_PRICE_PRECISION.div(new BN(2)).sub(
-				MARK_PRICE_PRECISION.div(new BN(50))
+			price: PRICE_PRECISION.div(new BN(2)).sub(
+				PRICE_PRECISION.div(new BN(50))
 			),
-			triggerPrice: MARK_PRICE_PRECISION.div(new BN(2)),
+			triggerPrice: PRICE_PRECISION.div(new BN(2)),
 			triggerCondition: OrderTriggerCondition.BELOW,
 			userOrderId: 1,
 		});
@@ -299,7 +299,7 @@ describe('trigger orders', () => {
 		const newOraclePrice = 0.49;
 		await fillerClearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(newOraclePrice * MARK_PRICE_PRECISION.toNumber())
+			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
 		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 
@@ -372,7 +372,7 @@ describe('trigger orders', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			triggerPrice: MARK_PRICE_PRECISION.mul(new BN(2)),
+			triggerPrice: PRICE_PRECISION.mul(new BN(2)),
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			userOrderId: 1,
 		});
@@ -396,7 +396,7 @@ describe('trigger orders', () => {
 		const newOraclePrice = 2.01;
 		await fillerClearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(newOraclePrice * MARK_PRICE_PRECISION.toNumber())
+			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
 		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 
@@ -465,8 +465,8 @@ describe('trigger orders', () => {
 		});
 		await clearingHouse.placeAndTake(marketOrderParams);
 
-		const triggerPrice = MARK_PRICE_PRECISION.mul(new BN(6)).div(new BN(5));
-		const limitPrice = triggerPrice.add(MARK_PRICE_PRECISION.div(new BN(50)));
+		const triggerPrice = PRICE_PRECISION.mul(new BN(6)).div(new BN(5));
+		const limitPrice = triggerPrice.add(PRICE_PRECISION.div(new BN(50)));
 		const stopLimitOrderParams = getTriggerLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.LONG,
@@ -504,7 +504,7 @@ describe('trigger orders', () => {
 		const newOraclePrice = 1.201;
 		await fillerClearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(newOraclePrice * MARK_PRICE_PRECISION.toNumber())
+			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
 		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 
@@ -586,7 +586,7 @@ describe('trigger orders', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			triggerPrice: MARK_PRICE_PRECISION.mul(new BN(2)),
+			triggerPrice: PRICE_PRECISION.mul(new BN(2)),
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			userOrderId: 1,
 		});
@@ -679,8 +679,8 @@ describe('trigger orders', () => {
 		});
 		await clearingHouse.placeAndTake(marketOrderParams);
 
-		const triggerPrice = MARK_PRICE_PRECISION.mul(new BN(2));
-		const limitPrice = triggerPrice.sub(MARK_PRICE_PRECISION.div(new BN(50)));
+		const triggerPrice = PRICE_PRECISION.mul(new BN(2));
+		const limitPrice = triggerPrice.sub(PRICE_PRECISION.div(new BN(50)));
 		const stopLimitOrderParams = getTriggerLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
@@ -710,7 +710,7 @@ describe('trigger orders', () => {
 		const newOraclePrice = 2.01;
 		await fillerClearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(newOraclePrice * MARK_PRICE_PRECISION.toNumber())
+			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
 		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 
@@ -783,7 +783,7 @@ describe('trigger orders', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			triggerPrice: MARK_PRICE_PRECISION.div(new BN(2)),
+			triggerPrice: PRICE_PRECISION.div(new BN(2)),
 			triggerCondition: OrderTriggerCondition.BELOW,
 			userOrderId: 1,
 		});
@@ -876,8 +876,8 @@ describe('trigger orders', () => {
 		});
 		await clearingHouse.placeAndTake(marketOrderParams);
 
-		const triggerPrice = MARK_PRICE_PRECISION.div(new BN(2));
-		const limitPrice = triggerPrice.add(MARK_PRICE_PRECISION.div(new BN(50)));
+		const triggerPrice = PRICE_PRECISION.div(new BN(2));
+		const limitPrice = triggerPrice.add(PRICE_PRECISION.div(new BN(50)));
 		const stopLimitOrderParams = getTriggerLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.LONG,
@@ -907,7 +907,7 @@ describe('trigger orders', () => {
 		const newOraclePrice = 0.49;
 		await fillerClearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(newOraclePrice * MARK_PRICE_PRECISION.toNumber())
+			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
 		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 

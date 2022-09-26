@@ -13,7 +13,7 @@ import {
 	Admin,
 	ClearingHouse,
 	findComputeUnitConsumption,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PositionDirection,
 	EventSubscriber,
 	OracleGuardRails,
@@ -55,7 +55,7 @@ describe('liquidate perp pnl for deposit', () => {
 	let solOracle: PublicKey;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -142,7 +142,7 @@ describe('liquidate perp pnl for deposit', () => {
 		await setFeedPrice(anchor.workspace.Pyth, 0.1, solOracle);
 		await clearingHouse.moveAmmToPrice(
 			new BN(0),
-			new BN(1).mul(MARK_PRICE_PRECISION).div(new BN(10))
+			new BN(1).mul(PRICE_PRECISION).div(new BN(10))
 		);
 
 		const txSig = await clearingHouse.closePosition(new BN(0));
@@ -220,7 +220,7 @@ describe('liquidate perp pnl for deposit', () => {
 		);
 		assert(
 			liquidationRecord.liquidatePerpPnlForDeposit.marketOraclePrice.eq(
-				new BN(50).mul(MARK_PRICE_PRECISION)
+				new BN(50).mul(PRICE_PRECISION)
 			)
 		);
 		assert(
@@ -228,12 +228,12 @@ describe('liquidate perp pnl for deposit', () => {
 		);
 		assert(
 			liquidationRecord.liquidatePerpPnlForDeposit.pnlTransfer.eq(
-				new BN(9011207)
+				new BN(9011003)
 			)
 		);
 		assert(
 			liquidationRecord.liquidatePerpPnlForDeposit.assetPrice.eq(
-				MARK_PRICE_PRECISION
+				PRICE_PRECISION
 			)
 		);
 		assert(

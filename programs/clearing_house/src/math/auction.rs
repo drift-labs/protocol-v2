@@ -1,9 +1,7 @@
 use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
 use crate::math::casting::cast;
-use crate::math::constants::{
-    BID_ASK_SPREAD_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
-};
+use crate::math::constants::{BID_ASK_SPREAD_PRECISION, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
 use crate::math_error;
 use crate::state::oracle::OraclePriceData;
 use crate::state::user::Order;
@@ -115,7 +113,7 @@ pub fn calculate_auction_fill_amount(
     let quote_asset_amount = base_asset_amount_to_fill
         .checked_mul(auction_price)
         .ok_or_else(math_error!())?
-        .checked_div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
+        .checked_div(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
         .ok_or_else(math_error!())?;
 
     Ok((base_asset_amount_to_fill, quote_asset_amount))
@@ -139,12 +137,12 @@ pub fn is_auction_complete(
 mod test {
     use super::*;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION,
     };
 
     #[test]
     fn maker_order_fills_entire_taker_order() {
-        let auction_price = 10 * MARK_PRICE_PRECISION;
+        let auction_price = 10 * PRICE_PRECISION;
         let taker_order = Order {
             base_asset_amount: 2 * BASE_PRECISION,
             ..Order::default()
@@ -167,7 +165,7 @@ mod test {
 
     #[test]
     fn maker_order_fills_portion_taker_order() {
-        let auction_price = 10 * MARK_PRICE_PRECISION;
+        let auction_price = 10 * PRICE_PRECISION;
         let taker_order = Order {
             base_asset_amount: 2 * BASE_PRECISION,
             ..Order::default()
@@ -190,7 +188,7 @@ mod test {
 
     #[test]
     fn portion_of_maker_order_fills_taker_order() {
-        let auction_price = 10 * MARK_PRICE_PRECISION;
+        let auction_price = 10 * PRICE_PRECISION;
         let taker_order = Order {
             base_asset_amount: BASE_PRECISION,
             ..Order::default()

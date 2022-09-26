@@ -42,7 +42,7 @@ pub fn calculate_fill_for_matched_orders(
 ) -> ClearingHouseResult<(u128, u128)> {
     let base_asset_amount = min(maker_base_asset_amount, taker_base_asset_amount);
 
-    let precision_decrease = 10_u128.pow(10 + base_precision - 6);
+    let precision_decrease = 10_u128.pow(6 + base_precision - 6);
 
     let quote_asset_amount = base_asset_amount
         .checked_mul(maker_price)

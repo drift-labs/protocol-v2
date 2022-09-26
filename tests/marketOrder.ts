@@ -8,7 +8,7 @@ import { Keypair } from '@solana/web3.js';
 import {
 	Admin,
 	BN,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	ClearingHouse,
 	PositionDirection,
 	ClearingHouseUser,
@@ -23,7 +23,13 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { AMM_RESERVE_PRECISION, isVariant, OracleSource, ZERO } from '../sdk';
+import {
+	AMM_RESERVE_PRECISION,
+	isVariant,
+	OracleSource,
+	PEG_PRECISION,
+	ZERO,
+} from '../sdk';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 describe('market order', () => {
@@ -40,8 +46,7 @@ describe('market order', () => {
 	let usdcMint;
 	let userUSDCAccount;
 
-	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(100000);
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -108,7 +113,7 @@ describe('market order', () => {
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),
 			periodicity,
-			new BN(60000000) // btc-ish price level
+			new BN(60000).mul(PEG_PRECISION) // btc-ish price level
 		);
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -190,7 +195,7 @@ describe('market order', () => {
 	it('Fill market long order with base asset', async () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const price = MARK_PRICE_PRECISION.mul(new BN(1049)).div(new BN(1000)); // dont breach oracle price bands
+		const price = PRICE_PRECISION.mul(new BN(1049)).div(new BN(1000)); // dont breach oracle price bands
 
 		const orderParams = getMarketOrderParams({
 			marketIndex,
@@ -219,7 +224,7 @@ describe('market order', () => {
 		const firstPosition = clearingHouseUser.getUserAccount().perpPositions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 
-		const expectedQuoteAssetAmount = new BN(-1000003);
+		const expectedQuoteAssetAmount = new BN(-1000001);
 		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
 		const orderActionRecord =
@@ -271,7 +276,7 @@ describe('market order', () => {
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(baseAssetAmount));
-		const expectedQuoteAssetAmount = new BN(1000002);
+		const expectedQuoteAssetAmount = new BN(1000000);
 		assert.ok(
 			orderActionRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount)
 		);

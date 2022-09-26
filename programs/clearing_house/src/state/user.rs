@@ -8,7 +8,7 @@ use crate::math::amm::calculate_rolling_sum;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::cast_to_i128;
 use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, MARK_PRICE_PRECISION_I128,
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, PRICE_PRECISION_I128,
     QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY_I128,
 };
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
@@ -341,7 +341,7 @@ impl PerpPosition {
         }
 
         (-self.quote_entry_amount)
-            .checked_mul(MARK_PRICE_PRECISION_I128)
+            .checked_mul(PRICE_PRECISION_I128)
             .ok_or_else(math_error!())?
             .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)
             .ok_or_else(math_error!())?
@@ -355,7 +355,7 @@ impl PerpPosition {
         }
 
         (-self.quote_asset_amount)
-            .checked_mul(MARK_PRICE_PRECISION_I128)
+            .checked_mul(PRICE_PRECISION_I128)
             .ok_or_else(math_error!())?
             .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)
             .ok_or_else(math_error!())?
@@ -476,14 +476,14 @@ impl Order {
                 match amm {
                     Some(amm) => match self.direction {
                         PositionDirection::Long => {
-                            let ask_price = amm.ask_price(amm.mark_price()?)?;
+                            let ask_price = amm.ask_price(amm.reserve_price()?)?;
                             let delta = ask_price
                                 .checked_div(amm.max_slippage_ratio as u128)
                                 .ok_or_else(math_error!())?;
                             ask_price.checked_add(delta).ok_or_else(math_error!())?
                         }
                         PositionDirection::Short => {
-                            let bid_price = amm.bid_price(amm.mark_price()?)?;
+                            let bid_price = amm.bid_price(amm.reserve_price()?)?;
                             let delta = bid_price
                                 .checked_div(amm.max_slippage_ratio as u128)
                                 .ok_or_else(math_error!())?;

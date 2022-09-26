@@ -4,8 +4,8 @@ import { Keypair } from '@solana/web3.js';
 import { BN } from '../sdk';
 import {
 	Admin,
-	MARK_PRICE_PRECISION,
-	calculateMarkPrice,
+	PRICE_PRECISION,
+	calculateReservePrice,
 	calculateTradeSlippage,
 	calculateTargetPriceTrade,
 	PositionDirection,
@@ -55,7 +55,7 @@ describe('AMM Curve', () => {
 	// 		return new BN(0);
 	// 	}
 	// 	const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
-	// 	const oldPrice = this.calculateMarkPrice(marketIndex);
+	// 	const oldPrice = this.calculateReservePrice(marketIndex);
 	// 	const invariant = market.amm.sqrtK.mul(market.amm.sqrtK);
 
 	// 	const [newQuoteAssetAmount, newBaseAssetAmount] = this.findSwapOutput(
@@ -184,7 +184,7 @@ describe('AMM Curve', () => {
 	const initialSOLPriceBN = new BN(initialSOLPrice * PEG_PRECISION.toNumber());
 	function normAssetAmount(assetAmount: BN, pegMultiplier: BN): BN {
 		// assetAmount is scaled to offer comparable slippage
-		return assetAmount.mul(MARK_PRICE_PRECISION).div(pegMultiplier);
+		return assetAmount.mul(PRICE_PRECISION).div(pegMultiplier);
 	}
 	const usdcAmount = new BN(1000 * 10 ** 6);
 	const solPositionInitialValue = usdcAmount;
@@ -226,7 +226,7 @@ describe('AMM Curve', () => {
 
 	const showBook = (marketIndex) => {
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		const currentMark = calculateMarkPrice(market);
+		const currentMark = calculateReservePrice(market);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
 			market,
@@ -242,7 +242,7 @@ describe('AMM Curve', () => {
 		}
 
 		console.log('------------');
-		console.log(currentMark.toNumber() / MARK_PRICE_PRECISION.toNumber());
+		console.log(currentMark.toNumber() / PRICE_PRECISION.toNumber());
 		console.log(
 			'peg:',
 			convertToNumber(market.amm.pegMultiplier, PEG_PRECISION),
@@ -271,13 +271,13 @@ describe('AMM Curve', () => {
 
 		const avgSlippageCenter = calculateTradeSlippage(
 			PositionDirection.LONG,
-			new BN(MAX_USER_TRADE * MARK_PRICE_PRECISION.toNumber()),
+			new BN(MAX_USER_TRADE * PRICE_PRECISION.toNumber()),
 			clearingHouse.getPerpMarketAccount(0)
 		)[0];
 		showBook(marketIndex);
 
 		const targetPriceUp = new BN(
-			initialSOLPrice * MARK_PRICE_PRECISION.toNumber() * 2
+			initialSOLPrice * PRICE_PRECISION.toNumber() * 2
 		);
 
 		const [_direction, tradeSize, _] = calculateTargetPriceTrade(
@@ -289,7 +289,7 @@ describe('AMM Curve', () => {
 
 		const avgSlippage25PctOut = calculateTradeSlippage(
 			PositionDirection.LONG,
-			new BN(MAX_USER_TRADE * MARK_PRICE_PRECISION.toNumber()),
+			new BN(MAX_USER_TRADE * PRICE_PRECISION.toNumber()),
 			clearingHouse.getPerpMarketAccount(0)
 		)[0];
 
