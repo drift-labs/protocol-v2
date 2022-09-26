@@ -13,7 +13,7 @@ import {
 	getVariant,
 	Order,
 	ZERO,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	SpotMarketAccount,
 	PerpMarketAccount,
 	OraclePriceData,
@@ -804,13 +804,13 @@ export class DLOB {
 			const mid = bestAsk.add(bestBid).div(new BN(2));
 
 			const bidSpread =
-				(convertToNumber(bestBid, MARK_PRICE_PRECISION) /
-					convertToNumber(oraclePriceData.price, MARK_PRICE_PRECISION) -
+				(convertToNumber(bestBid, PRICE_PRECISION) /
+					convertToNumber(oraclePriceData.price, PRICE_PRECISION) -
 					1) *
 				100.0;
 			const askSpread =
-				(convertToNumber(bestAsk, MARK_PRICE_PRECISION) /
-					convertToNumber(oraclePriceData.price, MARK_PRICE_PRECISION) -
+				(convertToNumber(bestAsk, PRICE_PRECISION) /
+					convertToNumber(oraclePriceData.price, PRICE_PRECISION) -
 					1) *
 				100.0;
 
@@ -819,16 +819,13 @@ export class DLOB {
 			);
 			console.log(
 				`  Ask`,
-				convertToNumber(bestAsk, MARK_PRICE_PRECISION).toFixed(3),
+				convertToNumber(bestAsk, PRICE_PRECISION).toFixed(3),
 				`(${askSpread.toFixed(4)}%)`
 			);
-			console.log(
-				`  Mid`,
-				convertToNumber(mid, MARK_PRICE_PRECISION).toFixed(3)
-			);
+			console.log(`  Mid`, convertToNumber(mid, PRICE_PRECISION).toFixed(3));
 			console.log(
 				`  Bid`,
-				convertToNumber(bestBid, MARK_PRICE_PRECISION).toFixed(3),
+				convertToNumber(bestBid, PRICE_PRECISION).toFixed(3),
 				`(${bidSpread.toFixed(4)}%)`
 			);
 		} else if (isVariant(marketType, 'spot')) {
@@ -852,13 +849,13 @@ export class DLOB {
 			const mid = bestAsk.add(bestBid).div(new BN(2));
 
 			const bidSpread =
-				(convertToNumber(bestBid, MARK_PRICE_PRECISION) /
-					convertToNumber(oraclePriceData.price, MARK_PRICE_PRECISION) -
+				(convertToNumber(bestBid, PRICE_PRECISION) /
+					convertToNumber(oraclePriceData.price, PRICE_PRECISION) -
 					1) *
 				100.0;
 			const askSpread =
-				(convertToNumber(bestAsk, MARK_PRICE_PRECISION) /
-					convertToNumber(oraclePriceData.price, MARK_PRICE_PRECISION) -
+				(convertToNumber(bestAsk, PRICE_PRECISION) /
+					convertToNumber(oraclePriceData.price, PRICE_PRECISION) -
 					1) *
 				100.0;
 
@@ -867,16 +864,13 @@ export class DLOB {
 			);
 			console.log(
 				`  Ask`,
-				convertToNumber(bestAsk, MARK_PRICE_PRECISION).toFixed(3),
+				convertToNumber(bestAsk, PRICE_PRECISION).toFixed(3),
 				`(${askSpread.toFixed(4)}%)`
 			);
-			console.log(
-				`  Mid`,
-				convertToNumber(mid, MARK_PRICE_PRECISION).toFixed(3)
-			);
+			console.log(`  Mid`, convertToNumber(mid, PRICE_PRECISION).toFixed(3));
 			console.log(
 				`  Bid`,
-				convertToNumber(bestBid, MARK_PRICE_PRECISION).toFixed(3),
+				convertToNumber(bestBid, PRICE_PRECISION).toFixed(3),
 				`(${bidSpread.toFixed(4)}%)`
 			);
 		}

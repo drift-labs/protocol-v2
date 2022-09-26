@@ -16,7 +16,6 @@ import { PublicKey, TransactionSignature } from '@solana/web3.js';
 
 import {
 	Admin,
-	MARK_PRICE_PRECISION,
 	calculateTradeSlippage,
 	PositionDirection,
 	getMarketPublicKey,
@@ -53,7 +52,7 @@ describe('clearing_house', () => {
 	let solUsd;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(100000);
 	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -240,7 +239,7 @@ describe('clearing_house', () => {
 		);
 
 		const marketIndex = new BN(0);
-		const baseAssetAmount = new BN(480000000000000);
+		const baseAssetAmount = new BN(48000000000);
 		const txSig = await clearingHouse.openPosition(
 			PositionDirection.LONG,
 			baseAssetAmount,
@@ -275,26 +274,24 @@ describe('clearing_house', () => {
 			clearingHouse
 				.getUserStats()
 				.getAccountAndSlot()
-				.data.fees.totalFeePaid.eq(new BN(48004))
+				.data.fees.totalFeePaid.eq(new BN(48000))
 		);
 
-		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(-48004609)));
-		assert.ok(
-			user.perpPositions[0].baseAssetAmount.eq(new BN(480000000000000))
-		);
+		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(-48000001)));
+		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(48000000000)));
 
 		const market = clearingHouse.getPerpMarketAccount(0);
 		console.log(market.amm.netBaseAssetAmount.toNumber());
 		console.log(market);
 
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(480000000000000)));
+		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(48000000000)));
 		console.log(market.amm.totalFee.toString());
-		assert.ok(market.amm.totalFee.eq(new BN(48004)));
-		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(48004)));
+		assert.ok(market.amm.totalFee.eq(new BN(48000)));
+		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(48000)));
 
 		console.log(market.amm.marketPosition);
 		assert.ok(
-			market.amm.marketPosition.baseAssetAmount.eq(new BN(-480000000000000))
+			market.amm.marketPosition.baseAssetAmount.eq(new BN(-48000000000))
 		);
 		console.log(market.amm.marketPosition.quoteAssetAmount.toString());
 		// assert.ok(market.amm.marketPosition.quoteAssetAmount.eq(new BN(48052613)));
@@ -305,10 +302,8 @@ describe('clearing_house', () => {
 
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderActionRecord.fillRecordId.eq(new BN(1)));
-		assert.ok(
-			orderActionRecord.baseAssetAmountFilled.eq(new BN(480000000000000))
-		);
-		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(48004609)));
+		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(new BN(48000000000)));
+		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(48000001)));
 		assert.ok(orderActionRecord.marketIndex.eq(marketIndex));
 
 		assert(
@@ -343,7 +338,7 @@ describe('clearing_house', () => {
 
 	it('Reduce long position', async () => {
 		const marketIndex = new BN(0);
-		const baseAssetAmount = new BN(240000000000000);
+		const baseAssetAmount = new BN(24000000000);
 		const txSig = await clearingHouse.openPosition(
 			PositionDirection.SHORT,
 			baseAssetAmount,
@@ -369,42 +364,38 @@ describe('clearing_house', () => {
 			user.perpPositions[0].quoteEntryAmount.toNumber()
 		);
 
-		assert.ok(user.perpPositions[0].quoteAssetAmount.eq(new BN(-24073160)));
-		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(-24002305)));
+		assert.ok(user.perpPositions[0].quoteAssetAmount.eq(new BN(-24072001)));
+		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(-24000001)));
 
-		assert.ok(
-			user.perpPositions[0].baseAssetAmount.eq(new BN(240000000000000))
-		);
+		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(24000000000)));
 		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(10000000)));
 		assert(
 			clearingHouse
 				.getUserStats()
 				.getAccountAndSlot()
-				.data.fees.totalFeePaid.eq(new BN(72007))
+				.data.fees.totalFeePaid.eq(new BN(72000))
 		);
 
 		const market = clearingHouse.getPerpMarketAccount(0);
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(240000000000000)));
-		assert.ok(market.amm.totalFee.eq(new BN(72007)));
-		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(72007)));
+		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(24000000000)));
+		assert.ok(market.amm.totalFee.eq(new BN(72000)));
+		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(72000)));
 
 		console.log(market.amm.marketPosition);
 		assert.ok(
-			market.amm.marketPosition.baseAssetAmount.eq(new BN(-240000000000000))
+			market.amm.marketPosition.baseAssetAmount.eq(new BN(-24000000000))
 		);
-		assert.ok(market.amm.marketPosition.quoteAssetAmount.eq(new BN(24073160)));
-		assert.ok(market.amm.marketPosition.quoteEntryAmount.eq(new BN(24002305)));
+		assert.ok(market.amm.marketPosition.quoteAssetAmount.eq(new BN(24072001)));
+		assert.ok(market.amm.marketPosition.quoteEntryAmount.eq(new BN(24000001)));
 
 		await eventSubscriber.awaitTx(txSig);
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderActionRecord.fillRecordId.eq(new BN(2)));
-		assert.ok(
-			orderActionRecord.baseAssetAmountFilled.eq(new BN(240000000000000))
-		);
-		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(24003456)));
+		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(new BN(24000000000)));
+		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(24000000)));
 		assert.ok(orderActionRecord.marketIndex.eq(new BN(0)));
 	});
 
@@ -412,7 +403,7 @@ describe('clearing_house', () => {
 		const marketData = clearingHouse.getPerpMarketAccount(0);
 		await setFeedPrice(anchor.workspace.Pyth, 1.0, marketData.amm.oracle);
 
-		const baseAssetAmount = new BN(480000000000000);
+		const baseAssetAmount = new BN(48000000000);
 		const txSig = await clearingHouse.openPosition(
 			PositionDirection.SHORT,
 			baseAssetAmount,
@@ -437,32 +428,36 @@ describe('clearing_house', () => {
 			user.perpPositions[0].quoteEntryAmount.toNumber()
 		);
 		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9878840)));
+		console.log(
+			clearingHouse
+				.getUserStats()
+				.getAccountAndSlot()
+				.data.fees.totalFeePaid.toString()
+		);
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9879999)));
 		assert(
 			clearingHouse
 				.getUserStats()
 				.getAccountAndSlot()
-				.data.fees.totalFeePaid.eq(new BN(120007))
+				.data.fees.totalFeePaid.eq(new BN(120000))
 		);
 		console.log(user.perpPositions[0].quoteEntryAmount.toString());
 
 		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(24000000)));
 		assert.ok(user.perpPositions[0].quoteAssetAmount.eq(new BN(24000000)));
 		console.log(user.perpPositions[0].baseAssetAmount.toString());
-		assert.ok(
-			user.perpPositions[0].baseAssetAmount.eq(new BN(-240000000000000))
-		);
+		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(-24000000000)));
 
 		const market = clearingHouse.getPerpMarketAccount(0);
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-240000000000000)));
-		assert.ok(market.amm.totalFee.eq(new BN(120007)));
-		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120007)));
+		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-24000000000)));
+		assert.ok(market.amm.totalFee.eq(new BN(120000)));
+		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120000)));
 
 		console.log(market.amm.marketPosition);
 		assert.ok(
-			market.amm.marketPosition.baseAssetAmount.eq(new BN(240000000000000))
+			market.amm.marketPosition.baseAssetAmount.eq(new BN(24000000000))
 		);
-		assert.ok(market.amm.marketPosition.quoteAssetAmount.eq(new BN(-23878840)));
+		assert.ok(market.amm.marketPosition.quoteAssetAmount.eq(new BN(-23879999)));
 
 		await eventSubscriber.awaitTx(txSig);
 		const orderActionRecord =
@@ -470,9 +465,7 @@ describe('clearing_house', () => {
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderActionRecord.fillRecordId.eq(new BN(3)));
 		console.log(orderActionRecord.baseAssetAmountFilled.toNumber());
-		assert.ok(
-			orderActionRecord.baseAssetAmountFilled.eq(new BN(480000000000000))
-		);
+		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(new BN(48000000000)));
 		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(48000000)));
 
 		assert.ok(orderActionRecord.marketIndex.eq(new BN(0)));
@@ -493,18 +486,24 @@ describe('clearing_house', () => {
 		);
 		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(0)));
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(0)));
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9855993)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9855999)));
+		console.log(
+			clearingHouse
+				.getUserStats()
+				.getAccountAndSlot()
+				.data.fees.totalFeePaid.toString()
+		);
 		assert(
 			clearingHouse
 				.getUserStats()
 				.getAccountAndSlot()
-				.data.fees.totalFeePaid.eq(new BN(144005))
+				.data.fees.totalFeePaid.eq(new BN(144000))
 		);
 
 		const market = clearingHouse.getPerpMarketAccount(0);
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(0)));
-		assert.ok(market.amm.totalFee.eq(new BN(144005)));
-		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(144005)));
+		assert.ok(market.amm.totalFee.eq(new BN(144000)));
+		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(144000)));
 
 		await eventSubscriber.awaitTx(txSig);
 		const orderActionRecord =
@@ -512,15 +511,13 @@ describe('clearing_house', () => {
 
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderActionRecord.fillRecordId.eq(new BN(4)));
-		assert.ok(
-			orderActionRecord.baseAssetAmountFilled.eq(new BN(240000000000000))
-		);
-		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(23998849)));
+		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(new BN(24000000000)));
+		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(24000000)));
 		assert.ok(orderActionRecord.marketIndex.eq(new BN(0)));
 	});
 
 	it('Open short position', async () => {
-		const baseAssetAmount = new BN(480000000000000);
+		const baseAssetAmount = new BN(48000000000);
 		const txSig = await clearingHouse.openPosition(
 			PositionDirection.SHORT,
 			baseAssetAmount,
@@ -537,13 +534,11 @@ describe('clearing_house', () => {
 			userAccountPublicKey
 		);
 		console.log(user.perpPositions[0].quoteEntryAmount.toString());
-		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(47995392)));
-		assert.ok(
-			user.perpPositions[0].baseAssetAmount.eq(new BN(-480000000000000))
-		);
+		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(47999999)));
+		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(-48000000000)));
 
 		const market = clearingHouse.getPerpMarketAccount(0);
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-480000000000000)));
+		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-48000000000)));
 
 		await eventSubscriber.awaitTx(txSig);
 		const orderActionRecord =
@@ -551,10 +546,8 @@ describe('clearing_house', () => {
 
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderActionRecord.fillRecordId.eq(new BN(5)));
-		assert.ok(
-			orderActionRecord.baseAssetAmountFilled.eq(new BN(480000000000000))
-		);
-		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(47995392)));
+		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(new BN(48000000000)));
+		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(47999999)));
 		assert.ok(orderActionRecord.marketIndex.eq(new BN(0)));
 	});
 

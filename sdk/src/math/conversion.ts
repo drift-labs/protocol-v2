@@ -1,9 +1,9 @@
 import { BN } from '../';
-import { MARK_PRICE_PRECISION } from '../constants/numericConstants';
+import { PRICE_PRECISION } from '../constants/numericConstants';
 
 export const convertToNumber = (
 	bigNumber: BN,
-	precision: BN = MARK_PRICE_PRECISION
+	precision: BN = PRICE_PRECISION
 ) => {
 	if (!bigNumber) return 0;
 	return (

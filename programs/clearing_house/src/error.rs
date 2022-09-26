@@ -265,6 +265,8 @@ pub enum ErrorCode {
     InvalidSerumFulfillmentConfig,
     #[msg("InvalidFeeStructure")]
     InvalidFeeStructure,
+    #[msg("Insufficient IF shares")]
+    InsufficientIFShares,
 }
 
 #[macro_export]

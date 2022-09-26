@@ -11,7 +11,7 @@ import { Keypair } from '@solana/web3.js';
 import { Program } from '@project-serum/anchor';
 import {
 	Admin,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	calculateMarkPrice,
 	ClearingHouseUser,
 	PEG_PRECISION,
@@ -45,7 +45,7 @@ describe('update k', () => {
 	const initialSOLPrice = 150;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -152,7 +152,7 @@ describe('update k', () => {
 		const marketIndex = new BN(0);
 
 		const targetPriceUp = new BN(
-			initialSOLPrice * MARK_PRICE_PRECISION.toNumber() * 44.1
+			initialSOLPrice * PRICE_PRECISION.toNumber() * 44.1
 		);
 		await clearingHouse.moveAmmToPrice(marketIndex, targetPriceUp);
 		await clearingHouse.fetchAccounts();
@@ -165,8 +165,8 @@ describe('update k', () => {
 		const ammOld = marketOld.amm;
 
 		const newSqrtK = ammOld.sqrtK
-			.mul(new BN(1.000132325235 * MARK_PRICE_PRECISION.toNumber()))
-			.div(MARK_PRICE_PRECISION);
+			.mul(new BN(1.000132325235 * PRICE_PRECISION.toNumber()))
+			.div(PRICE_PRECISION);
 
 		await clearingHouse.updateK(newSqrtK, marketIndex);
 
@@ -177,7 +177,7 @@ describe('update k', () => {
 
 		const amm = clearingHouse.getPerpMarketAccount(0).amm;
 
-		const marginOfError = new BN(MARK_PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
+		const marginOfError = new BN(PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
 		console.log(
 			'oldSqrtK',
@@ -209,7 +209,7 @@ describe('update k', () => {
 		const marketIndex = new BN(0);
 
 		const targetPriceBack = new BN(
-			initialSOLPrice * MARK_PRICE_PRECISION.toNumber()
+			initialSOLPrice * PRICE_PRECISION.toNumber()
 		);
 
 		// const [direction, tradeSize, _] = clearingHouse.calculateTargetPriceTrade(
@@ -239,8 +239,8 @@ describe('update k', () => {
 		);
 
 		const newSqrtK = ammOld.sqrtK
-			.mul(new BN(0.5 * MARK_PRICE_PRECISION.toNumber()))
-			.div(MARK_PRICE_PRECISION);
+			.mul(new BN(0.5 * PRICE_PRECISION.toNumber()))
+			.div(PRICE_PRECISION);
 
 		try {
 			await clearingHouse.updateK(newSqrtK, marketIndex);
@@ -261,7 +261,7 @@ describe('update k', () => {
 
 			const amm = clearingHouse.getPerpMarketAccount(0).amm;
 
-			const marginOfError = new BN(MARK_PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
+			const marginOfError = new BN(PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
 			console.log(
 				'oldSqrtK',
@@ -300,7 +300,7 @@ describe('update k', () => {
 		const marketIndex = new BN(0);
 
 		const targetPriceBack = new BN(
-			initialSOLPrice * MARK_PRICE_PRECISION.toNumber()
+			initialSOLPrice * PRICE_PRECISION.toNumber()
 		);
 
 		// const [direction, tradeSize, _] = clearingHouse.calculateTargetPriceTrade(
@@ -330,8 +330,8 @@ describe('update k', () => {
 		);
 
 		const newSqrtK = ammOld.sqrtK
-			.mul(new BN(0.98 * MARK_PRICE_PRECISION.toNumber()))
-			.div(MARK_PRICE_PRECISION);
+			.mul(new BN(0.98 * PRICE_PRECISION.toNumber()))
+			.div(PRICE_PRECISION);
 		const smallTradeSlipOld = calculateTradeSlippage(
 			PositionDirection.LONG,
 			QUOTE_PRECISION,
@@ -374,7 +374,7 @@ describe('update k', () => {
 
 		const amm = clearingHouse.getPerpMarketAccount(0).amm;
 
-		const marginOfError = new BN(MARK_PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
+		const marginOfError = new BN(PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
 		console.log(
 			'oldSqrtK',
@@ -411,7 +411,7 @@ describe('update k', () => {
 	it('increase k position imbalance (AMM LOSS)', async () => {
 		const marketIndex = new BN(0);
 		const targetPriceBack = new BN(
-			initialSOLPrice * MARK_PRICE_PRECISION.toNumber()
+			initialSOLPrice * PRICE_PRECISION.toNumber()
 		);
 
 		// const [direction, tradeSize, _] = clearingHouse.calculateTargetPriceTrade(
@@ -447,8 +447,8 @@ describe('update k', () => {
 		)[0];
 
 		const newSqrtK = ammOld.sqrtK
-			.mul(new BN(1.02 * MARK_PRICE_PRECISION.toNumber()))
-			.div(MARK_PRICE_PRECISION);
+			.mul(new BN(1.02 * PRICE_PRECISION.toNumber()))
+			.div(PRICE_PRECISION);
 		await clearingHouse.updateK(newSqrtK, marketIndex);
 
 		await clearingHouse.fetchAccounts();
@@ -481,7 +481,7 @@ describe('update k', () => {
 		const markets = clearingHouse.getPerpMarketAccount(0);
 		const amm = markets.amm;
 
-		const marginOfError = new BN(MARK_PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
+		const marginOfError = new BN(PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
 		console.log(
 			'oldSqrtK',
@@ -542,65 +542,67 @@ describe('update k', () => {
 	it('budget k change (sdk math)', async () => {
 		// // pay $.11 to increase k
 		let [numer1, denom1] = calculateBudgetedKBN(
-			new BN('49750000004950'), // x
-			new BN('50250000000000'), // y
+			new BN('4975000000'), // x
+			new BN('5025000000'), // y
 			new BN('114638'), // cost
-			new BN('40000'), // peg
-			new BN('49750000004950') // net position
+			new BN('40000000'), // peg
+			new BN('4975000000') // net position
 		);
 		console.log(numer1.toString(), '/', denom1.toString());
 
 		// Z-TODO
-		assert(denom1.eq(new BN(4969200901)));
-		assert(numer1.gte(new BN(4980550350)));
+		console.log(denom1.toString());
+		console.log(numer1.toString());
+		assert(denom1.eq(new BN(4969200900)));
+		assert(numer1.gte(new BN(4980550349)));
 
 		// gain $.11 by decreasing k
 		[numer1, denom1] = calculateBudgetedKBN(
-			new BN('49750000004950'), // x
-			new BN('50250000000000'), // y
+			new BN('4975000000'), // x
+			new BN('5025000000'), // y
 			new BN('-114638'), // cost
-			new BN('40000'), // peg
-			new BN('49750000004950') // net position
+			new BN('40000000'), // peg
+			new BN('4975000000') // net position
 		);
 		console.log(numer1.toString(), '/', denom1.toString());
-		assert(numer1.eq(new BN(4969200901)));
-		assert(denom1.eq(new BN(4980550350)));
+		assert(numer1.eq(new BN(4969200900)));
+		assert(denom1.eq(new BN(4980550349)));
 		assert(numer1.lt(denom1));
 
 		// pay $11 to increase k
 		[numer1, denom1] = calculateBudgetedKBN(
-			new BN('49750000004950'),
-			new BN('50250000000000'),
+			new BN('4975000000'),
+			new BN('5025000000'),
 			new BN('11463800'),
-			new BN('40000'),
-			new BN('49750000004950')
+			new BN('40000000'),
+			new BN('4975000000')
 		);
 		console.log(numer1.toString(), '/', denom1.toString());
 
-		assert(numer1.eq(new BN(5542348055)));
-		assert(denom1.eq(new BN(4407403196)));
+		assert(numer1.eq(new BN(5542348054)));
+		assert(denom1.eq(new BN(4407403195)));
 		assert(numer1.gt(denom1));
 
 		// net pos so small that decreasing k for .01 is sending to zero (squeezing a stone)
 		[numer1, denom1] = calculateBudgetedKBN(
-			new BN('500000000049750000004950'),
-			new BN('499999999950250000000000'),
+			new BN('50000000004975000000'),
+			new BN('49999999995025000000'),
 			new BN('-10000'),
-			new BN('40000'),
-			new BN('-49750000004950')
+			new BN('40000000'),
+			new BN('-4975000000')
 		);
 		console.log(numer1.toString(), '/', denom1.toString());
 
-		assert(numer1.eq(new BN('49498762504924880624')));
-		assert(denom1.eq(new BN('25000049503737504925373124')));
+		assert(numer1.eq(new BN('49498762495074625625')));
+		assert(denom1.eq(new BN('25000049503737495074625625')));
 
 		// impossible task trying to spend more than amount to make k infinity
 		[numer1, denom1] = calculateBudgetedKBN(
-			new BN('500000000049750000004950'),
-			new BN('499999999950250000000000'),
+			new BN('50000000004975000000'),
+			new BN('49999999995025000000'),
 			new BN('10000'),
-			new BN('40000'),
-			new BN('-49750000004950')
+			new BN('40000000'),
+			new BN('-4975000000')
 		);
 		console.log(numer1.toString(), '/', denom1.toString());
 

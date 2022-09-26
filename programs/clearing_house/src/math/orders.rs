@@ -11,7 +11,7 @@ use crate::math;
 use crate::math::amm::calculate_max_base_asset_amount_fillable;
 use crate::math::auction::is_auction_complete;
 use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::{MARGIN_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
+use crate::math::constants::{MARGIN_PRECISION, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
 use crate::math::position::calculate_entry_price;
 
 use crate::math_error;
@@ -96,7 +96,7 @@ pub fn calculate_quote_asset_amount_for_maker_order(
     let mut quote_asset_amount = base_asset_amount
         .checked_mul(fill_price)
         .ok_or_else(math_error!())?
-        .div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO);
+        .div(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO);
 
     // when a user goes long base asset, make the base asset slightly more expensive
     // by adding one unit of quote asset
@@ -582,9 +582,7 @@ mod test {
 
     mod order_breaches_oracle_price_limits {
         use crate::controller::position::PositionDirection;
-        use crate::math::constants::{
-            MARGIN_PRECISION, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128,
-        };
+        use crate::math::constants::{MARGIN_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128};
         use crate::math::orders::order_breaches_oracle_price_limits;
         use crate::state::market::PerpMarket;
         use crate::state::user::Order;
@@ -597,11 +595,11 @@ mod test {
             };
 
             let order = Order {
-                price: 101 * MARK_PRICE_PRECISION,
+                price: 101 * PRICE_PRECISION,
                 ..Order::default()
             };
 
-            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+            let oracle_price = 100 * PRICE_PRECISION_I128;
 
             let slot = 0;
 
@@ -628,11 +626,11 @@ mod test {
             };
 
             let order = Order {
-                price: 105 * MARK_PRICE_PRECISION - 1,
+                price: 105 * PRICE_PRECISION - 1,
                 ..Order::default()
             };
 
-            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+            let oracle_price = 100 * PRICE_PRECISION_I128;
 
             let slot = 0;
 
@@ -661,11 +659,11 @@ mod test {
 
             let order = Order {
                 direction: PositionDirection::Long,
-                price: 105 * MARK_PRICE_PRECISION,
+                price: 105 * PRICE_PRECISION,
                 ..Order::default()
             };
 
-            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+            let oracle_price = 100 * PRICE_PRECISION_I128;
 
             let slot = 0;
 
@@ -694,11 +692,11 @@ mod test {
 
             let order = Order {
                 direction: PositionDirection::Short,
-                price: 99 * MARK_PRICE_PRECISION,
+                price: 99 * PRICE_PRECISION,
                 ..Order::default()
             };
 
-            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+            let oracle_price = 100 * PRICE_PRECISION_I128;
 
             let slot = 0;
 
@@ -727,11 +725,11 @@ mod test {
 
             let order = Order {
                 direction: PositionDirection::Short,
-                price: 95 * MARK_PRICE_PRECISION + 1,
+                price: 95 * PRICE_PRECISION + 1,
                 ..Order::default()
             };
 
-            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+            let oracle_price = 100 * PRICE_PRECISION_I128;
 
             let slot = 0;
 
@@ -760,11 +758,11 @@ mod test {
 
             let order = Order {
                 direction: PositionDirection::Short,
-                price: 95 * MARK_PRICE_PRECISION,
+                price: 95 * PRICE_PRECISION,
                 ..Order::default()
             };
 
-            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+            let oracle_price = 100 * PRICE_PRECISION_I128;
 
             let slot = 0;
 

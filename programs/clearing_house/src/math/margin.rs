@@ -51,7 +51,7 @@ pub fn calculate_size_premium_liability_weight(
         return Ok(liability_weight);
     }
 
-    let size_sqrt = ((size / 1000) + 1).nth_root(2); //1e13 -> 1e10 -> 1e5
+    let size_sqrt = ((size * 10) + 1).nth_root(2); //1e9 -> 1e10 -> 1e5
 
     let liability_weight_numerator = liability_weight
         .checked_sub(
@@ -85,7 +85,7 @@ pub fn calculate_size_discount_asset_weight(
         return Ok(asset_weight);
     }
 
-    let size_sqrt = ((size / 1000) + 1).nth_root(2); //1e13 -> 1e10 -> 1e5
+    let size_sqrt = ((size * 10) + 1).nth_root(2); //1e9 -> 1e10 -> 1e5
     let imf_numerator = SPOT_IMF_PRECISION + SPOT_IMF_PRECISION / 10;
 
     let size_discount_asset_weight = imf_numerator

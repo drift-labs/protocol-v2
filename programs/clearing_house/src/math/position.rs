@@ -8,7 +8,7 @@ use crate::math::amm::calculate_quote_asset_amount_swapped;
 use crate::math::casting::cast_to_i128;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO,
-    MARK_PRICE_PRECISION, PRICE_TO_QUOTE_PRECISION_RATIO,
+    PRICE_PRECISION, PRICE_TO_QUOTE_PRECISION_RATIO,
 };
 use crate::math::helpers::get_proportion_u128;
 use crate::math::pnl::calculate_pnl;
@@ -202,7 +202,7 @@ pub fn calculate_entry_price(
     base_asset_amount: u128,
 ) -> ClearingHouseResult<u128> {
     let price = quote_asset_amount
-        .checked_mul(MARK_PRICE_PRECISION * AMM_TO_QUOTE_PRECISION_RATIO)
+        .checked_mul(PRICE_PRECISION * AMM_TO_QUOTE_PRECISION_RATIO)
         .ok_or_else(math_error!())?
         .checked_div(base_asset_amount)
         .ok_or_else(math_error!())?;

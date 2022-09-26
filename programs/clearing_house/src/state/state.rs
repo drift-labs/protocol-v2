@@ -10,7 +10,6 @@ use crate::math::constants::{
 pub struct State {
     pub admin: Pubkey,
     pub exchange_status: ExchangeStatus,
-    pub insurance_vault: Pubkey,
     pub whitelist_mint: Pubkey,
     pub discount_mint: Pubkey,
     pub oracle_guard_rails: OracleGuardRails,
@@ -24,6 +23,7 @@ pub struct State {
     pub settlement_duration: u16,
     pub signer: Pubkey,
     pub signer_nonce: u8,
+    pub srm_vault: Pubkey,
     pub perp_fee_structure: FeeStructure,
     pub spot_fee_structure: FeeStructure,
 }

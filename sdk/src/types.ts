@@ -413,7 +413,6 @@ export type StateAccount = {
 	fundingPaused: boolean;
 	exchangePaused: boolean;
 	adminControlsPrices: boolean;
-	insuranceVault: PublicKey;
 	totalFee: BN;
 	totalFeeWithdrawn: BN;
 	whitelistMint: PublicKey;
@@ -429,6 +428,7 @@ export type StateAccount = {
 	minPerpAuctionDuration: number;
 	defaultSpotAuctionDuration: number;
 	liquidationMarginBufferRatio: number;
+	srmVault: PublicKey;
 	perpFeeStructure: FeeStructure;
 	spotFeeStructure: FeeStructure;
 };

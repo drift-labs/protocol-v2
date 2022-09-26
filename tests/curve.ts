@@ -4,7 +4,7 @@ import { Keypair } from '@solana/web3.js';
 import { BASE_PRECISION, BN } from '../sdk';
 import {
 	Admin,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PEG_PRECISION,
 	QUOTE_PRECISION,
 	calculateMarkPrice,
@@ -45,12 +45,8 @@ describe('AMM Curve', () => {
 		spotMarketIndexes: [new BN(0)],
 	});
 
-	const ammInitialQuoteAssetAmount = new anchor.BN(10 ** 8).mul(
-		new BN(10 ** 10)
-	);
-	const ammInitialBaseAssetAmount = new anchor.BN(10 ** 8).mul(
-		new BN(10 ** 10)
-	);
+	const ammInitialQuoteAssetAmount = new anchor.BN(10 ** 8).mul(BASE_PRECISION);
+	const ammInitialBaseAssetAmount = new anchor.BN(10 ** 8).mul(BASE_PRECISION);
 
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
@@ -59,8 +55,10 @@ describe('AMM Curve', () => {
 	const marketIndex = new BN(0);
 	const initialSOLPrice = 150;
 
-	const usdcAmount = new BN(1e9 * 10 ** 6);
-	const initialBaseAssmount = new BN('6622516556291390728');
+	const usdcAmount = new BN(1e9 * QUOTE_PRECISION.toNumber());
+	const initialBaseAssetAmount = new BN(
+		662251.6556291390728 * BASE_PRECISION.toNumber()
+	);
 
 	let userAccount: ClearingHouseUser;
 
@@ -82,8 +80,8 @@ describe('AMM Curve', () => {
 
 		await clearingHouse.initializeMarket(
 			solUsdOracle,
-			ammInitialBaseAssetAmount.mul(PEG_PRECISION),
-			ammInitialQuoteAssetAmount.mul(PEG_PRECISION),
+			ammInitialBaseAssetAmount,
+			ammInitialQuoteAssetAmount,
 			periodicity,
 			PEG_PRECISION.mul(new BN(initialSOLPrice))
 		);
@@ -115,20 +113,6 @@ describe('AMM Curve', () => {
 		console.log(
 			'pegMultiplier',
 			convertToNumber(ammAccountState.pegMultiplier, PEG_PRECISION)
-		);
-		console.log(
-			'cumulativeRepegRebateShort',
-			convertToNumber(
-				ammAccountState.cumulativeRepegRebateShort,
-				QUOTE_PRECISION
-			)
-		);
-		console.log(
-			'cumulativeRepegRebateLong',
-			convertToNumber(
-				ammAccountState.cumulativeRepegRebateLong,
-				QUOTE_PRECISION
-			)
 		);
 
 		const totalFeeNum = convertToNumber(
@@ -162,12 +146,12 @@ describe('AMM Curve', () => {
 		}
 
 		console.log('------------');
-		console.log(currentMark.toNumber() / MARK_PRICE_PRECISION.toNumber());
+		console.log(currentMark.toNumber() / PRICE_PRECISION.toNumber());
 		console.log(
 			'peg:',
 			convertToNumber(market.amm.pegMultiplier, PEG_PRECISION),
 			'k (M*M):',
-			convertToNumber(market.amm.sqrtK)
+			convertToNumber(market.amm.sqrtK, BASE_PRECISION)
 		);
 		console.log('------------');
 		for (let i = 0; i < bidsCumSize.length; i++) {
@@ -191,7 +175,7 @@ describe('AMM Curve', () => {
 	it('After Position Taken', async () => {
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			initialBaseAssmount,
+			initialBaseAssetAmount,
 			marketIndex
 		);
 
@@ -202,7 +186,7 @@ describe('AMM Curve', () => {
 		// const _priceIncreaseFactor = new BN(2);
 		await clearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(initialSOLPrice * MARK_PRICE_PRECISION.toNumber() * 1.0001)
+			new BN(initialSOLPrice * PRICE_PRECISION.toNumber() * 1.0001)
 		);
 
 		showBook(marketIndex);
@@ -210,7 +194,7 @@ describe('AMM Curve', () => {
 	it('Arb back to Oracle Price Moves', async () => {
 		const [direction, basesize] = calculateTargetPriceTrade(
 			clearingHouse.getPerpMarketAccount(marketIndex),
-			new BN(initialSOLPrice).mul(MARK_PRICE_PRECISION),
+			new BN(initialSOLPrice).mul(PRICE_PRECISION),
 			undefined,
 			'base'
 		);
@@ -230,7 +214,7 @@ describe('AMM Curve', () => {
 
 		const newOraclePrice = 155;
 		const newOraclePriceWithMantissa = new BN(
-			newOraclePrice * MARK_PRICE_PRECISION.toNumber()
+			newOraclePrice * PRICE_PRECISION.toNumber()
 		);
 		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsdOracle);
 		// showCurve(marketIndex);
@@ -294,68 +278,68 @@ describe('AMM Curve', () => {
 		// const feeDist2 = calculateFeeDist(marketIndex);
 	});
 
-	it('Repeg Curve SHORT', async () => {
-		const newOraclePrice = 145;
-		const newOraclePriceWithMantissa = new BN(
-			newOraclePrice * MARK_PRICE_PRECISION.toNumber()
-		);
-		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsdOracle);
-		showCurve(marketIndex);
+	// it('Repeg Curve SHORT', async () => {
+	// 	const newOraclePrice = 145;
+	// 	const newOraclePriceWithMantissa = new BN(
+	// 		newOraclePrice * PRICE_PRECISION.toNumber()
+	// 	);
+	// 	await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsdOracle);
+	// 	showCurve(marketIndex);
 
-		await clearingHouse.openPosition(
-			PositionDirection.SHORT,
-			BASE_PRECISION.div(new BN(1000)),
-			marketIndex
-		);
-		const marketData1 = clearingHouse.getPerpMarketAccount(marketIndex);
-		const ammAccountState = marketData1.amm;
-		const oldPeg = ammAccountState.pegMultiplier;
+	// 	await clearingHouse.openPosition(
+	// 		PositionDirection.SHORT,
+	// 		BASE_PRECISION.div(new BN(1000)),
+	// 		marketIndex
+	// 	);
+	// 	const marketData1 = clearingHouse.getPerpMarketAccount(marketIndex);
+	// 	const ammAccountState = marketData1.amm;
+	// 	const oldPeg = ammAccountState.pegMultiplier;
 
-		const priceBefore = calculateMarkPrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
-		);
+	// 	const priceBefore = calculateMarkPrice(
+	// 		clearingHouse.getPerpMarketAccount(marketIndex)
+	// 	);
 
-		await clearingHouse.repegAmmCurve(
-			new BN(148 * PEG_PRECISION.toNumber()),
-			marketIndex
-		);
+	// 	await clearingHouse.repegAmmCurve(
+	// 		new BN(148 * PEG_PRECISION.toNumber()),
+	// 		marketIndex
+	// 	);
 
-		const priceAfter = calculateMarkPrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
-		);
+	// 	const priceAfter = calculateMarkPrice(
+	// 		clearingHouse.getPerpMarketAccount(marketIndex)
+	// 	);
 
-		assert(newOraclePriceWithMantissa.lt(priceBefore));
-		assert(priceAfter.lt(priceBefore));
-		assert(newOraclePriceWithMantissa.lt(priceAfter));
+	// 	assert(newOraclePriceWithMantissa.lt(priceBefore));
+	// 	assert(priceAfter.lt(priceBefore));
+	// 	assert(newOraclePriceWithMantissa.lt(priceAfter));
 
-		const marketData = clearingHouse.getPerpMarketAccount(marketIndex);
-		const newPeg = marketData.amm.pegMultiplier;
+	// 	const marketData = clearingHouse.getPerpMarketAccount(marketIndex);
+	// 	const newPeg = marketData.amm.pegMultiplier;
 
-		const userPerpPosition = userAccount.getUserAccount().perpPositions[0];
+	// 	const userPerpPosition = userAccount.getUserAccount().perpPositions[0];
 
-		console.log('\n post repeg: \n --------');
+	// 	console.log('\n post repeg: \n --------');
 
-		const linearApproxCostToAMM = convertToNumber(
-			newPeg
-				.sub(oldPeg)
-				.mul(userPerpPosition.baseAssetAmount)
-				.div(PEG_PRECISION),
-			BASE_PRECISION
-		);
+	// 	const linearApproxCostToAMM = convertToNumber(
+	// 		newPeg
+	// 			.sub(oldPeg)
+	// 			.mul(userPerpPosition.baseAssetAmount)
+	// 			.div(PEG_PRECISION),
+	// 		BASE_PRECISION
+	// 	);
 
-		showCurve(marketIndex);
-		const totalCostToAMMChain = convertToNumber(
-			marketData1.amm.totalFeeMinusDistributions.sub(
-				marketData.amm.totalFeeMinusDistributions
-			),
-			QUOTE_PRECISION
-		);
-		console.log(linearApproxCostToAMM, 'vs', totalCostToAMMChain);
-		assert(linearApproxCostToAMM > totalCostToAMMChain);
-		assert(linearApproxCostToAMM / totalCostToAMMChain < 1.02);
+	// 	showCurve(marketIndex);
+	// 	const totalCostToAMMChain = convertToNumber(
+	// 		marketData1.amm.totalFeeMinusDistributions.sub(
+	// 			marketData.amm.totalFeeMinusDistributions
+	// 		),
+	// 		QUOTE_PRECISION
+	// 	);
+	// 	console.log(linearApproxCostToAMM, 'vs', totalCostToAMMChain);
+	// 	assert(linearApproxCostToAMM > totalCostToAMMChain);
+	// 	assert(linearApproxCostToAMM / totalCostToAMMChain < 1.02);
 
-		await clearingHouse.closePosition(marketIndex);
-	});
+	// 	await clearingHouse.closePosition(marketIndex);
+	// });
 
 	it('calculateBudgetedPeg (sdk tests)', async () => {
 		const marketData1 = clearingHouse.getPerpMarketAccount(marketIndex);
@@ -371,16 +355,18 @@ describe('AMM Curve', () => {
 		const candidatePegUp0 = calculateBudgetedPeg(
 			amm,
 			QUOTE_PRECISION,
-			new BN(200 * MARK_PRICE_PRECISION.toNumber())
+			new BN(200 * PRICE_PRECISION.toNumber())
 		);
 
 		const candidatePegDown0 = calculateBudgetedPeg(
 			amm,
 			QUOTE_PRECISION,
-			new BN(10 * MARK_PRICE_PRECISION.toNumber())
+			new BN(10 * PRICE_PRECISION.toNumber())
 		);
-		assert(candidatePegUp0.eq(new BN(202637)));
-		assert(candidatePegDown0.eq(new BN(10131)));
+
+		console.log(candidatePegUp0.toString(), candidatePegDown0.toString());
+		assert(candidatePegUp0.eq(new BN(202637647)));
+		assert(candidatePegDown0.eq(new BN(10131882)));
 
 		// check if short
 		await clearingHouse.openPosition(
@@ -394,22 +380,22 @@ describe('AMM Curve', () => {
 		const candidatePegUp = calculateBudgetedPeg(
 			amm,
 			QUOTE_PRECISION,
-			new BN(200 * MARK_PRICE_PRECISION.toNumber())
+			new BN(200 * PRICE_PRECISION.toNumber())
 		);
 		console.log(amm.pegMultiplier.toString(), '->', candidatePegUp.toString());
-		assert(candidatePegUp.eq(new BN(202637)));
+		assert(candidatePegUp.eq(new BN(202637651)));
 
 		const candidatePegDown = calculateBudgetedPeg(
 			amm,
 			QUOTE_PRECISION,
-			new BN(10 * MARK_PRICE_PRECISION.toNumber())
+			new BN(10 * PRICE_PRECISION.toNumber())
 		);
 		console.log(
 			amm.pegMultiplier.toString(),
 			'->',
 			candidatePegDown.toString()
 		);
-		assert(candidatePegDown.eq(new BN(146987)));
+		assert(candidatePegDown.eq(new BN(148987812)));
 
 		await clearingHouse.closePosition(marketIndex);
 
@@ -424,28 +410,28 @@ describe('AMM Curve', () => {
 		const candidatePegUp2 = calculateBudgetedPeg(
 			amm,
 			QUOTE_PRECISION,
-			new BN(200 * MARK_PRICE_PRECISION.toNumber())
+			new BN(200 * PRICE_PRECISION.toNumber())
 		);
-		// console.log(
-		// 	'USER LONG: target $200',
-		// 	amm.pegMultiplier.toString(),
-		// 	'->',
-		// 	candidatePegUp2.toString()
-		// );
-		assert(candidatePegUp2.eq(new BN(149013)));
+		console.log(
+			'USER LONG: target $200',
+			amm.pegMultiplier.toString(),
+			'->',
+			candidatePegUp2.toString()
+		);
+		assert(candidatePegUp2.eq(new BN(151014188)));
 
 		const candidatePegDown2 = calculateBudgetedPeg(
 			amm,
 			QUOTE_PRECISION,
-			new BN(10 * MARK_PRICE_PRECISION.toNumber())
+			new BN(10 * PRICE_PRECISION.toNumber())
 		);
-		// console.log(
-		// 	'USER LONG: target $10',
-		// 	amm.pegMultiplier.toString(),
-		// 	'->',
-		// 	candidatePegDown2.toString()
-		// );
-		assert(candidatePegDown2.eq(new BN(10131)));
+		console.log(
+			'USER LONG: target $10',
+			amm.pegMultiplier.toString(),
+			'->',
+			candidatePegDown2.toString()
+		);
+		assert(candidatePegDown2.eq(new BN(10131882)));
 
 		await clearingHouse.closePosition(marketIndex);
 	});

@@ -1,6 +1,6 @@
 import { BN } from '@project-serum/anchor';
 import {
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PerpMarketAccount,
 	calculateMarkPrice,
 	calculateTargetPriceTrade,
@@ -20,9 +20,7 @@ export function liquidityBook(
 	N = 5,
 	incrementSize = 0.1
 ) {
-	const defaultSlippageBN = new BN(
-		incrementSize * MARK_PRICE_PRECISION.toNumber()
-	);
+	const defaultSlippageBN = new BN(incrementSize * PRICE_PRECISION.toNumber());
 	const baseAssetPriceWithMantissa = calculateMarkPrice(market);
 	const bidsPrice = [];
 	const bidsCumSize = [];
@@ -31,20 +29,22 @@ export function liquidityBook(
 
 	for (let i = 1; i <= N; i++) {
 		const targetPriceDefaultSlippage = baseAssetPriceWithMantissa
-			.mul(MARK_PRICE_PRECISION.add(defaultSlippageBN.mul(new BN(i))))
-			.div(MARK_PRICE_PRECISION);
+			.mul(PRICE_PRECISION.add(defaultSlippageBN.mul(new BN(i))))
+			.div(PRICE_PRECISION);
 		const [_direction, liquidity, entryPrice] = calculateTargetPriceTrade(
 			market,
 			BN.max(targetPriceDefaultSlippage, new BN(1))
 		);
+
+		console.log(liquidity.toString());
 		if (liquidity.gt(ZERO)) {
 			asksPrice.push(entryPrice);
 			asksCumSize.push(liquidity);
 		}
 
 		const targetPriceDefaultSlippageBid = baseAssetPriceWithMantissa
-			.mul(MARK_PRICE_PRECISION.sub(defaultSlippageBN.mul(new BN(i))))
-			.div(MARK_PRICE_PRECISION);
+			.mul(PRICE_PRECISION.sub(defaultSlippageBN.mul(new BN(i))))
+			.div(PRICE_PRECISION);
 		const [_directionBid, liquidityBid, entryPriceBid] =
 			calculateTargetPriceTrade(
 				market,

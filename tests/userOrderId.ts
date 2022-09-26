@@ -6,7 +6,7 @@ import { Program } from '@project-serum/anchor';
 import {
 	Admin,
 	BN,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PositionDirection,
 	ClearingHouseUser,
 	getLimitOrderParams,
@@ -34,7 +34,7 @@ describe('user order id', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -143,7 +143,7 @@ describe('user order id', () => {
 	it('place order', async () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const price = MARK_PRICE_PRECISION.mul(new BN(2));
+		const price = PRICE_PRECISION.mul(new BN(2));
 		const reduceOnly = false;
 		const userOrderId = 1;
 
@@ -167,7 +167,7 @@ describe('user order id', () => {
 	it('fail to place same user id twice', async () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const price = MARK_PRICE_PRECISION.mul(new BN(2));
+		const price = PRICE_PRECISION.mul(new BN(2));
 		const reduceOnly = false;
 		const userOrderId = 1;
 
