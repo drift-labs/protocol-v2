@@ -532,8 +532,8 @@ pub fn fill_order(
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    let mark_price_before: u128;
-    let oracle_mark_spread_pct_before: i128;
+    let reserve_price_before: u128;
+    let oracle_reserve_price_spread_pct_before: i128;
     let is_oracle_valid: bool;
     let oracle_price: i128;
     let market_is_reduce_only: bool;
@@ -557,9 +557,11 @@ pub fn fill_order(
         is_oracle_valid =
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::FillOrderAmm))?;
 
-        mark_price_before = market.amm.mark_price()?;
-        oracle_mark_spread_pct_before =
-            amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(mark_price_before))?;
+        reserve_price_before = market.amm.reserve_price()?;
+        oracle_reserve_price_spread_pct_before = amm::calculate_oracle_twap_5min_mark_spread_pct(
+            &market.amm,
+            Some(reserve_price_before),
+        )?;
         oracle_price = oracle_price_data.price;
     }
 
@@ -682,7 +684,7 @@ pub fn fill_order(
         perp_market_map,
         oracle_map,
         &state.perp_fee_structure,
-        mark_price_before,
+        reserve_price_before,
         valid_oracle_price,
         now,
         slot,
@@ -728,7 +730,7 @@ pub fn fill_order(
             &market,
             state,
             potentially_risk_increasing,
-            Some(oracle_mark_spread_pct_before),
+            Some(oracle_reserve_price_spread_pct_before),
         )?;
     }
 
@@ -742,7 +744,7 @@ pub fn fill_order(
             now,
             &state.oracle_guard_rails,
             state.funding_paused,
-            Some(mark_price_before),
+            Some(reserve_price_before),
         )?;
     }
 
@@ -753,33 +755,35 @@ pub fn validate_market_within_price_band(
     market: &PerpMarket,
     state: &State,
     potentially_risk_increasing: bool,
-    oracle_mark_spread_pct_before: Option<i128>,
+    oracle_reserve_price_spread_pct_before: Option<i128>,
 ) -> ClearingHouseResult<bool> {
-    let mark_price_after = market.amm.mark_price()?;
+    let reserve_price_after = market.amm.reserve_price()?;
 
-    let is_oracle_mark_too_divergent_before =
-        if let Some(oracle_mark_spread_pct_before) = oracle_mark_spread_pct_before {
-            amm::is_oracle_mark_too_divergent(
-                oracle_mark_spread_pct_before,
-                &state.oracle_guard_rails.price_divergence,
-            )?
-        } else {
-            false
-        };
-
-    let oracle_mark_spread_pct_after =
-        amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(mark_price_after))?;
-
-    let breach_increases = if let Some(oracle_mark_spread_pct_before) =
-        oracle_mark_spread_pct_before
+    let is_oracle_mark_too_divergent_before = if let Some(oracle_reserve_price_spread_pct_before) =
+        oracle_reserve_price_spread_pct_before
     {
-        oracle_mark_spread_pct_after.unsigned_abs() >= oracle_mark_spread_pct_before.unsigned_abs()
+        amm::is_oracle_mark_too_divergent(
+            oracle_reserve_price_spread_pct_before,
+            &state.oracle_guard_rails.price_divergence,
+        )?
+    } else {
+        false
+    };
+
+    let oracle_reserve_price_spread_pct_after =
+        amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(reserve_price_after))?;
+
+    let breach_increases = if let Some(oracle_reserve_price_spread_pct_before) =
+        oracle_reserve_price_spread_pct_before
+    {
+        oracle_reserve_price_spread_pct_after.unsigned_abs()
+            >= oracle_reserve_price_spread_pct_before.unsigned_abs()
     } else {
         false
     };
 
     let is_oracle_mark_too_divergent_after = amm::is_oracle_mark_too_divergent(
-        oracle_mark_spread_pct_after,
+        oracle_reserve_price_spread_pct_after,
         &state.oracle_guard_rails.price_divergence,
     )?;
 
@@ -787,8 +791,8 @@ pub fn validate_market_within_price_band(
     if is_oracle_mark_too_divergent_after && !is_oracle_mark_too_divergent_before {
         msg!("price pushed outside bounds: last_oracle_price_twap_5min={} vs mark_price={},(breach spread {})",
                 market.amm.historical_oracle_data.last_oracle_price_twap_5min,
-                mark_price_after,
-                oracle_mark_spread_pct_after,
+                reserve_price_after,
+                oracle_reserve_price_spread_pct_after,
             );
         return Err(ErrorCode::PriceBandsBreached);
     }
@@ -797,8 +801,8 @@ pub fn validate_market_within_price_band(
     if is_oracle_mark_too_divergent_after && breach_increases && potentially_risk_increasing {
         msg!("risk-increasing outside bounds: last_oracle_price_twap_5min={} vs mark_price={}, (breach spread {})", 
                 market.amm.historical_oracle_data.last_oracle_price_twap_5min,
-                mark_price_after,
-                oracle_mark_spread_pct_after,
+                reserve_price_after,
+                oracle_reserve_price_spread_pct_after,
             );
 
         return Err(ErrorCode::PriceBandsBreached);
@@ -992,7 +996,7 @@ fn fulfill_order(
     perp_market_map: &PerpMarketMap,
     oracle_map: &mut OracleMap,
     fee_structure: &FeeStructure,
-    mark_price_before: u128,
+    reserve_price_before: u128,
     valid_oracle_price: Option<i128>,
     now: i64,
     slot: u64,
@@ -1057,7 +1061,7 @@ fn fulfill_order(
                 user_order_index,
                 market.deref_mut(),
                 oracle_map,
-                mark_price_before,
+                reserve_price_before,
                 now,
                 slot,
                 valid_oracle_price,
@@ -1088,7 +1092,7 @@ fn fulfill_order(
                 filler_key,
                 referrer,
                 referrer_stats,
-                mark_price_before,
+                reserve_price_before,
                 valid_oracle_price,
                 now,
                 slot,
@@ -1186,7 +1190,7 @@ pub fn fulfill_order_with_amm(
     order_index: usize,
     market: &mut PerpMarket,
     oracle_map: &mut OracleMap,
-    mark_price_before: u128,
+    reserve_price_before: u128,
     now: i64,
     slot: u64,
     valid_oracle_price: Option<i128>,
@@ -1250,7 +1254,7 @@ pub fn fulfill_order_with_amm(
             market,
             user,
             position_index,
-            mark_price_before,
+            reserve_price_before,
             now,
             fill_price,
         )?;
@@ -1459,7 +1463,7 @@ pub fn fulfill_order_with_match(
     filler_key: &Pubkey,
     referrer: &mut Option<&mut User>,
     referrer_stats: &mut Option<&mut UserStats>,
-    mark_price_before: u128,
+    reserve_price_before: u128,
     valid_oracle_price: Option<i128>,
     now: i64,
     slot: u64,
@@ -1535,7 +1539,7 @@ pub fn fulfill_order_with_match(
                     taker_order_index,
                     market,
                     oracle_map,
-                    mark_price_before,
+                    reserve_price_before,
                     now,
                     slot,
                     valid_oracle_price,

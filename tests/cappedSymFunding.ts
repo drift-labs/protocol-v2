@@ -24,7 +24,7 @@ import {
 	PositionDirection,
 	QUOTE_PRECISION,
 	AMM_RESERVE_PRECISION,
-	calculateMarkPrice,
+	calculateReservePrice,
 	convertToNumber,
 } from '../sdk/src';
 
@@ -235,7 +235,7 @@ async function cappedSymFundingScenario(
 	console.log(
 		'PRICE',
 		convertToNumber(
-			calculateMarkPrice(clearingHouse.getPerpMarketAccount(marketIndex))
+			calculateReservePrice(clearingHouse.getPerpMarketAccount(marketIndex))
 		),
 		'oracleData:',
 		convertToNumber(oracleData.price),

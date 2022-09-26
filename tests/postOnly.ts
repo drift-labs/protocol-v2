@@ -25,7 +25,7 @@ import {
 } from './testHelpers';
 import {
 	BASE_PRECISION,
-	calculateMarkPrice,
+	calculateReservePrice,
 	getLimitOrderParams,
 	isVariant,
 	OracleSource,
@@ -166,7 +166,7 @@ describe('post only', () => {
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = BASE_PRECISION;
-		const markPrice = calculateMarkPrice(
+		const markPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 		const makerOrderParams = getLimitOrderParams({
@@ -252,7 +252,7 @@ describe('post only', () => {
 
 		const marketIndex = new BN(0);
 		const baseAssetAmount = BASE_PRECISION;
-		const markPrice = calculateMarkPrice(
+		const markPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 		const makerOrderParams = getLimitOrderParams({

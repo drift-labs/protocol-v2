@@ -80,24 +80,24 @@ pub fn swap_base_asset(
     base_asset_swap_amount: u128,
     direction: SwapDirection,
     now: i64,
-    precomputed_mark_price: Option<u128>,
+    precomputed_reserve_price: Option<u128>,
 ) -> ClearingHouseResult<(u128, i128)> {
     let position_direction = match direction {
         SwapDirection::Add => PositionDirection::Short,
         SwapDirection::Remove => PositionDirection::Long,
     };
 
-    let mark_price = match precomputed_mark_price {
-        Some(mark_price) => mark_price,
-        None => amm.mark_price()?,
+    let reserve_price = match precomputed_reserve_price {
+        Some(reserve_price) => reserve_price,
+        None => amm.reserve_price()?,
     };
 
     amm::update_mark_twap(
         amm,
         now,
         Some(match position_direction {
-            PositionDirection::Long => amm.ask_price(mark_price)?,
-            PositionDirection::Short => amm.bid_price(mark_price)?,
+            PositionDirection::Long => amm.ask_price(reserve_price)?,
+            PositionDirection::Short => amm.bid_price(reserve_price)?,
         }),
         Some(position_direction),
     )?;
@@ -204,18 +204,18 @@ fn calculate_base_swap_output_without_spread(
     ))
 }
 
-pub fn update_spreads(amm: &mut AMM, mark_price: u128) -> ClearingHouseResult<(u128, u128)> {
+pub fn update_spreads(amm: &mut AMM, reserve_price: u128) -> ClearingHouseResult<(u128, u128)> {
     let (long_spread, short_spread) = if amm.curve_update_intensity > 0 {
         amm::calculate_spread(
             amm.base_spread,
-            amm.last_oracle_mark_spread_pct,
+            amm.last_oracle_reserve_price_spread_pct,
             amm.last_oracle_conf_pct,
             amm.max_spread,
             amm.quote_asset_reserve,
             amm.terminal_quote_asset_reserve,
             amm.peg_multiplier,
             amm.net_base_asset_amount,
-            mark_price,
+            reserve_price,
             amm.total_fee_minus_distributions,
             amm.base_asset_reserve,
             amm.min_base_asset_reserve,
@@ -275,8 +275,8 @@ pub fn update_concentration_coef(amm: &mut AMM, scale: u128) -> ClearingHouseRes
     amm.max_base_asset_reserve = max_base_asset_reserve;
     amm.min_base_asset_reserve = min_base_asset_reserve;
 
-    let mark_price_after = amm.mark_price()?;
-    update_spreads(amm, mark_price_after)?;
+    let reserve_price_after = amm.reserve_price()?;
+    update_spreads(amm, reserve_price_after)?;
 
     let (max_bids, max_asks) = amm::calculate_market_open_bids_asks(amm)?;
     validate!(
@@ -733,8 +733,8 @@ pub fn move_price(
     amm.max_base_asset_reserve = max_base_asset_reserve;
     amm.min_base_asset_reserve = min_base_asset_reserve;
 
-    let mark_price_after = amm.mark_price()?;
-    update_spreads(amm, mark_price_after)?;
+    let reserve_price_after = amm.reserve_price()?;
+    update_spreads(amm, reserve_price_after)?;
 
     Ok(())
 }
@@ -886,7 +886,7 @@ mod test {
 
         let prev_sqrt_k = market.amm.sqrt_k;
 
-        // let mark_price = market.amm.mark_price().unwrap();
+        // let reserve_price = market.amm.reserve_price().unwrap();
         let now = 10000;
         let oracle_price_data = OraclePriceData {
             price: (50 * PRICE_PRECISION) as i128,
