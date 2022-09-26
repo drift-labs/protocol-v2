@@ -31,7 +31,7 @@ import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 export class Admin extends ClearingHouse {
 	public async initialize(
 		usdcMint: PublicKey,
-		adminControlsPrices: boolean
+		_adminControlsPrices: boolean
 	): Promise<[TransactionSignature]> {
 		const stateAccountRPCResponse = await this.connection.getParsedAccountInfo(
 			await this.getStatePublicKey()
@@ -50,21 +50,18 @@ export class Admin extends ClearingHouse {
 			this.program.programId
 		);
 
-		const initializeTx = await this.program.transaction.initialize(
-			adminControlsPrices,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: clearingHouseStatePublicKey,
-					quoteAssetMint: usdcMint,
-					rent: SYSVAR_RENT_PUBKEY,
-					insuranceVault: insuranceVaultPublicKey,
-					clearingHouseSigner: this.getSignerPublicKey(),
-					systemProgram: anchor.web3.SystemProgram.programId,
-					tokenProgram: TOKEN_PROGRAM_ID,
-				},
-			}
-		);
+		const initializeTx = await this.program.transaction.initialize({
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: clearingHouseStatePublicKey,
+				quoteAssetMint: usdcMint,
+				rent: SYSVAR_RENT_PUBKEY,
+				insuranceVault: insuranceVaultPublicKey,
+				clearingHouseSigner: this.getSignerPublicKey(),
+				systemProgram: anchor.web3.SystemProgram.programId,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+		});
 
 		const { txSig: initializeTxSig } = await this.txSender.send(
 			initializeTx,
