@@ -4069,23 +4069,14 @@
             }
           },
           {
-<<<<<<< HEAD
             "name": "oracleQuoteSpotMarketIndex",
             "type": "u64"
           },
           {
-            "name": "lastOraclePrice",
-            "type": "i128"
-          },
-          {
-            "name": "lastOracleConfPct",
-            "type": "u64"
-=======
             "name": "historicalOracleData",
             "type": {
               "defined": "HistoricalOracleData"
             }
->>>>>>> master
           },
           {
             "name": "lastOracleValid",

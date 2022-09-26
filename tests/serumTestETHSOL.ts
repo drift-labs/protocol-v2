@@ -134,7 +134,7 @@ describe('serum spot market', () => {
 			wEthMint.publicKey
 		);
 
-		await makerClearingHouse.updateAuctionDuration(new BN(0), new BN(0));
+		await makerClearingHouse.updateSpotAuctionDuration(0);
 		[takerClearingHouse, takerWSOL, takerUSDC] =
 			await createUserWithUSDCAndWSOLAccount(
 				provider,
@@ -173,8 +173,8 @@ describe('serum spot market', () => {
 			wallet: provider.wallet,
 			baseMint: wEthMint.publicKey,
 			quoteMint: wSolMint.publicKey,
-			baseLotSize: 1000000,
-			quoteLotSize: 1,
+			baseLotSize: 10000,
+			quoteLotSize: 10,
 			dexProgramId: serumHelper.DEX_PID,
 			feeRateBps: 0,
 		});
