@@ -930,4 +930,16 @@ export class Admin extends ClearingHouse {
 			}
 		);
 	}
+
+	public async updateSerumVault(
+		srmVault: PublicKey
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSerumVault({
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				srmVault: srmVault,
+			},
+		});
+	}
 }

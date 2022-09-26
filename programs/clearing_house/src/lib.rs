@@ -107,6 +107,7 @@ pub mod clearing_house {
             settlement_duration: 0, // extra duration after market expiry to allow settlement
             signer: clearing_house_signer,
             signer_nonce: clearing_house_signer_nonce,
+            srm_vault: Pubkey::default(),
             perp_fee_structure: FeeStructure::perps_default(),
             spot_fee_structure: FeeStructure::spot_default(),
         };
@@ -311,6 +312,26 @@ pub mod clearing_house {
             spot_fee_pool: PoolBalance::default(),
             total_spot_fee: 0,
         };
+
+        Ok(())
+    }
+
+    pub fn update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
+        let vault = &ctx.accounts.srm_vault;
+        validate!(
+            vault.mint == crate::ids::srm_mint::id() || vault.mint == crate::ids::msrm_mint::id(),
+            ErrorCode::DefaultError,
+            "vault did not hav srm or msrm mint"
+        )?;
+
+        validate!(
+            vault.owner == ctx.accounts.state.signer,
+            ErrorCode::DefaultError,
+            "vault owner was not program signer"
+        )?;
+
+        let state = &mut ctx.accounts.state;
+        state.srm_vault = vault.key();
 
         Ok(())
     }

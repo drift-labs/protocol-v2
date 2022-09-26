@@ -2107,6 +2107,11 @@ export class ClearingHouse {
 				isWritable: true,
 				isSigner: false,
 			});
+			remainingAccounts.push({
+				pubkey: this.getStateAccount().srmVault,
+				isWritable: false,
+				isSigner: false,
+			});
 		}
 
 		return await this.program.instruction.fillSpotOrder(

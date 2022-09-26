@@ -3124,6 +3124,7 @@ pub fn fulfill_spot_order_with_serum(
         serum_new_order_accounts.clearing_house_signer,
         serum_new_order_accounts.serum_base_vault,
         serum_new_order_accounts.serum_quote_vault,
+        serum_new_order_accounts.srm_vault,
         &serum_new_order_accounts.token_program.to_account_info(),
         serum_order,
         serum_new_order_accounts.signer_nonce,

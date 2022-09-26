@@ -158,6 +158,27 @@
       ]
     },
     {
+      "name": "updateSerumVault",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "srmVault",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initializeSerumFulfillmentConfig",
       "accounts": [
         {
@@ -3573,6 +3594,10 @@
           {
             "name": "signerNonce",
             "type": "u8"
+          },
+          {
+            "name": "srmVault",
+            "type": "publicKey"
           },
           {
             "name": "perpFeeStructure",

@@ -26,6 +26,7 @@ pub struct State {
     pub settlement_duration: u16,
     pub signer: Pubkey,
     pub signer_nonce: u8,
+    pub srm_vault: Pubkey,
     pub perp_fee_structure: FeeStructure,
     pub spot_fee_structure: FeeStructure,
 }
