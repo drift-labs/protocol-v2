@@ -132,22 +132,22 @@ pub fn update_funding_rate(
     now: UnixTimestamp,
     guard_rails: &OracleGuardRails,
     funding_paused: bool,
-    precomputed_mark_price: Option<u128>,
+    precomputed_reserve_price: Option<u128>,
 ) -> ClearingHouseResult<bool> {
     if market.status != MarketStatus::Initialized {
         return Ok(false);
     }
 
-    let mark_price = match precomputed_mark_price {
-        Some(mark_price) => mark_price,
-        None => market.amm.mark_price()?,
+    let reserve_price = match precomputed_reserve_price {
+        Some(reserve_price) => reserve_price,
+        None => market.amm.reserve_price()?,
     };
     // Pause funding if oracle is invalid or if mark/oracle spread is too divergent
     let block_funding_rate_update = oracle::block_operation(
         &market.amm,
         oracle_map.get_price_data(&market.amm.oracle)?,
         guard_rails,
-        Some(mark_price),
+        Some(reserve_price),
     )?;
 
     let time_until_next_update = on_the_hour_update(
@@ -165,23 +165,23 @@ pub fn update_funding_rate(
             &mut market.amm,
             now,
             oracle_price_data,
-            Some(mark_price),
+            Some(reserve_price),
         )?;
 
         // price relates to execution premium / direction
         let (execution_premium_price, execution_premium_direction) =
             if market.amm.long_spread > market.amm.short_spread {
                 (
-                    market.amm.ask_price(mark_price)?,
+                    market.amm.ask_price(reserve_price)?,
                     Some(PositionDirection::Long),
                 )
             } else if market.amm.long_spread < market.amm.short_spread {
                 (
-                    market.amm.bid_price(mark_price)?,
+                    market.amm.bid_price(reserve_price)?,
                     Some(PositionDirection::Short),
                 )
             } else {
-                (mark_price, None)
+                (reserve_price, None)
             };
 
         let mid_price_twap = amm::update_mark_twap(

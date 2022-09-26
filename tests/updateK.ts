@@ -12,7 +12,7 @@ import { Program } from '@project-serum/anchor';
 import {
 	Admin,
 	PRICE_PRECISION,
-	calculateMarkPrice,
+	calculateReservePrice,
 	ClearingHouseUser,
 	PEG_PRECISION,
 	PositionDirection,
@@ -108,7 +108,7 @@ describe('update k', () => {
 	it('increase k (FREE)', async () => {
 		const marketIndex = new BN(0);
 
-		const oldKPrice = calculateMarkPrice(
+		const oldKPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 		const ammOld = clearingHouse.getPerpMarketAccount(0).amm;
@@ -116,7 +116,7 @@ describe('update k', () => {
 		await clearingHouse.updateK(newSqrtK, marketIndex);
 
 		await clearingHouse.fetchAccounts();
-		const newKPrice = calculateMarkPrice(
+		const newKPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 
@@ -159,7 +159,7 @@ describe('update k', () => {
 
 		const marketOld = clearingHouse.getPerpMarketAccount(0);
 
-		const oldKPrice = calculateMarkPrice(
+		const oldKPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 		const ammOld = marketOld.amm;
@@ -171,7 +171,7 @@ describe('update k', () => {
 		await clearingHouse.updateK(newSqrtK, marketIndex);
 
 		await clearingHouse.fetchAccounts();
-		const newKPrice = calculateMarkPrice(
+		const newKPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 
@@ -229,7 +229,7 @@ describe('update k', () => {
 		const marketOld = clearingHouse.getPerpMarketAccount(0);
 		assert(!marketOld.amm.netBaseAssetAmount.eq(ZERO));
 
-		const oldKPrice = calculateMarkPrice(
+		const oldKPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 		const ammOld = marketOld.amm;
@@ -250,7 +250,7 @@ describe('update k', () => {
 			const marketKChange = await clearingHouse.getPerpMarketAccount(0);
 			const ammKChange = marketKChange.amm;
 
-			const newKPrice = calculateMarkPrice(
+			const newKPrice = calculateReservePrice(
 				clearingHouse.getPerpMarketAccount(marketIndex)
 			);
 
@@ -320,7 +320,7 @@ describe('update k', () => {
 		const marketOld = await clearingHouse.getPerpMarketAccount(0);
 		assert(!marketOld.amm.netBaseAssetAmount.eq(ZERO));
 
-		const oldKPrice = calculateMarkPrice(
+		const oldKPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 		const ammOld = marketOld.amm;
@@ -349,7 +349,7 @@ describe('update k', () => {
 		const marketKChange = await clearingHouse.getPerpMarketAccount(0);
 		const ammKChange = marketKChange.amm;
 
-		const newKPrice = calculateMarkPrice(
+		const newKPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 
@@ -431,7 +431,7 @@ describe('update k', () => {
 		const marketOld = await clearingHouse.getPerpMarketAccount(0);
 		assert(!marketOld.amm.netBaseAssetAmount.eq(ZERO));
 
-		const oldKPrice = calculateMarkPrice(
+		const oldKPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 		const ammOld = marketOld.amm;
@@ -454,7 +454,7 @@ describe('update k', () => {
 		await clearingHouse.fetchAccounts();
 		const marketKChange = await clearingHouse.getPerpMarketAccount(0);
 		const ammKChange = marketKChange.amm;
-		const newKPrice = calculateMarkPrice(
+		const newKPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 

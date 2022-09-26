@@ -32,7 +32,7 @@ import { getTokenAmount } from './spotBalance';
  * @param market
  * @return markPrice : Precision MARK_PRICE_PRECISION
  */
-export function calculateMarkPrice(
+export function calculateReservePrice(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
@@ -110,7 +110,7 @@ export function calculateMarkOracleSpread(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
-	const markPrice = calculateMarkPrice(market, oraclePriceData);
+	const markPrice = calculateReservePrice(market, oraclePriceData);
 	return calculateOracleSpread(markPrice, oraclePriceData);
 }
 
