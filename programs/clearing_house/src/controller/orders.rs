@@ -508,6 +508,15 @@ pub fn fill_order(
     controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
     controller::lp::settle_lp(user, &user_key, &mut market, now)?;
 
+    validate!(
+        matches!(
+            market.status,
+            MarketStatus::Active | MarketStatus::FundingPaused | MarketStatus::ReduceOnly
+        ),
+        ErrorCode::DefaultError,
+        "Market unavailable for fills"
+    )?;
+
     drop(market);
 
     validate!(

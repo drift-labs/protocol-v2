@@ -685,7 +685,7 @@ pub mod clearing_house {
         )?;
 
         validate!(
-            matches!(
+            !matches!(
                 spot_market.status,
                 MarketStatus::ReduceOnly | MarketStatus::Settlement | MarketStatus::Delisted
             ),
@@ -2314,7 +2314,7 @@ pub mod clearing_house {
 
     #[allow(unused_must_use)]
     #[access_control(
-        market_initialized(&ctx.accounts.perp_market)
+        market_valid(&ctx.accounts.perp_market)
     )]
     pub fn move_amm_price(
         ctx: Context<MoveAMMPrice>,
@@ -2335,7 +2335,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.perp_market)
+        market_valid(&ctx.accounts.perp_market)
     )]
     pub fn update_market_expiry(ctx: Context<MoveAMMPrice>, expiry_ts: i64) -> Result<()> {
         let clock = Clock::get()?;
@@ -2354,7 +2354,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.perp_market)
+        market_valid(&ctx.accounts.perp_market)
     )]
     pub fn settle_expired_market_pools_to_revenue_pool(
         ctx: Context<SettleExpiredMarketPoolsToRevenuePool>,
@@ -2473,7 +2473,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn deposit_into_market_fee_pool(
         ctx: Context<DepositIntoMarketFeePool>,
@@ -2510,7 +2510,7 @@ pub mod clearing_house {
 
     #[allow(unused_must_use)]
     #[access_control(
-        market_initialized(&ctx.accounts.market) &&
+        market_valid(&ctx.accounts.market) &&
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
     )]
     pub fn repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128) -> Result<()> {
@@ -2573,7 +2573,7 @@ pub mod clearing_house {
 
     #[allow(unused_must_use)]
     #[access_control(
-        market_initialized(&ctx.accounts.market) &&
+        market_valid(&ctx.accounts.market) &&
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
     )]
     pub fn update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
@@ -2618,7 +2618,7 @@ pub mod clearing_house {
 
     #[allow(unused_must_use)]
     #[access_control(
-        market_initialized(&ctx.accounts.market) &&
+        market_valid(&ctx.accounts.market) &&
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
      )]
     pub fn reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
@@ -2787,7 +2787,7 @@ pub mod clearing_house {
 
     #[allow(unused_must_use)]
     #[access_control(
-        market_initialized(&ctx.accounts.market) &&
+        market_valid(&ctx.accounts.market) &&
         funding_not_paused(&ctx.accounts.state) &&
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
     )]
@@ -2807,9 +2807,9 @@ pub mod clearing_house {
         controller::repeg::_update_amm(market, oracle_price_data, state, now, clock_slot)?;
 
         validate!(
-            market.status == MarketStatus::Initialized,
+            matches!(market.status, MarketStatus::Active),
             ErrorCode::DefaultError,
-            "Market is in reduce only / settlement mode",
+            "Market funding is paused",
         )?;
 
         validate!(
@@ -2838,7 +2838,7 @@ pub mod clearing_house {
 
     #[allow(unused_must_use)]
     #[access_control(
-        market_initialized(&ctx.accounts.market) &&
+        market_valid(&ctx.accounts.market) &&
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
     )]
     pub fn update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
@@ -2975,7 +2975,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_margin_ratio(
         ctx: Context<AdminUpdateMarket>,
@@ -2996,7 +2996,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_market_max_imbalances(
         ctx: Context<AdminUpdateMarket>,
@@ -3055,7 +3055,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_perp_liquidation_fee(
         ctx: Context<AdminUpdateMarket>,
@@ -3247,7 +3247,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_perp_market_status(
         ctx: Context<AdminUpdateMarket>,
@@ -3265,7 +3265,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_perp_market_contract_tier(
         ctx: Context<AdminUpdateMarket>,
@@ -3277,7 +3277,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_market_imf_factor(
         ctx: Context<AdminUpdateMarket>,
@@ -3294,7 +3294,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_market_unrealized_asset_weight(
         ctx: Context<AdminUpdateMarket>,
@@ -3323,7 +3323,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_concentration_coef(
         ctx: Context<AdminUpdateMarket>,
@@ -3356,7 +3356,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_curve_update_intensity(
         ctx: Context<AdminUpdateMarket>,
@@ -3373,7 +3373,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_lp_cooldown_time(
         ctx: Context<AdminUpdateMarket>,
@@ -3412,7 +3412,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_market_oracle(
         ctx: Context<AdminUpdateMarket>,
@@ -3426,7 +3426,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_market_minimum_quote_asset_trade_size(
         ctx: Context<AdminUpdateMarket>,
@@ -3438,7 +3438,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_market_base_spread(
         ctx: Context<AdminUpdateMarket>,
@@ -3452,7 +3452,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_amm_jit_intensity(
         ctx: Context<AdminUpdateMarket>,
@@ -3471,7 +3471,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_market_max_spread(
         ctx: Context<AdminUpdateMarket>,
@@ -3496,7 +3496,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_market_base_asset_amount_step_size(
         ctx: Context<AdminUpdateMarket>,
@@ -3512,7 +3512,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_market_max_slippage_ratio(
         ctx: Context<AdminUpdateMarket>,
@@ -3525,7 +3525,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_max_base_asset_amount_ratio(
         ctx: Context<AdminUpdateMarket>,
@@ -3899,9 +3899,8 @@ pub mod clearing_house {
     }
 }
 
-fn market_initialized(market: &AccountLoader<PerpMarket>) -> Result<()> {
-    // todo?
-    if market.load()?.status != MarketStatus::Initialized {
+fn market_valid(market: &AccountLoader<PerpMarket>) -> Result<()> {
+    if market.load()?.status == MarketStatus::Delisted {
         return Err(ErrorCode::MarketIndexNotInitialized.into());
     }
     Ok(())
