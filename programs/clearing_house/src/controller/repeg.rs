@@ -471,12 +471,13 @@ mod test {
         let reserve_price_after_prepeg = market.amm.reserve_price().unwrap();
         assert_eq!(reserve_price_after_prepeg, 13088199999);
 
-        let oracle_mark_spread_pct_before = amm::calculate_oracle_twap_5min_mark_spread_pct(
-            &market.amm,
-            Some(reserve_price_after_prepeg),
-        )
-        .unwrap();
-        assert_eq!(oracle_mark_spread_pct_before, -292478);
+        let oracle_reserve_price_spread_pct_before =
+            amm::calculate_oracle_twap_5min_mark_spread_pct(
+                &market.amm,
+                Some(reserve_price_after_prepeg),
+            )
+            .unwrap();
+        assert_eq!(oracle_reserve_price_spread_pct_before, -292478);
         let too_diverge = amm::is_oracle_mark_too_divergent(
             oracle_reserve_price_spread_pct_before,
             &state.oracle_guard_rails.price_divergence,
