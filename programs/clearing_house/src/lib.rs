@@ -3710,7 +3710,7 @@ pub mod clearing_house {
     pub fn admin_remove_insurance_fund_stake(
         ctx: Context<AdminRemoveInsuranceFundStake>,
         market_index: u64,
-        n_shares: u128,
+        amount: u64,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -3723,7 +3723,13 @@ pub mod clearing_house {
             "market_index doesnt match spot_market"
         )?;
 
-        let amount = controller::insurance::admin_remove_insurance_fund_stake(
+        let n_shares = math::insurance::vault_amount_to_if_shares(
+            amount,
+            spot_market.total_if_shares,
+            ctx.accounts.insurance_fund_vault.amount,
+        )?;
+
+        let withdrawn_amount = controller::insurance::admin_remove_insurance_fund_stake(
             ctx.accounts.insurance_fund_vault.amount,
             n_shares,
             spot_market,
@@ -3737,7 +3743,7 @@ pub mod clearing_house {
             &ctx.accounts.admin_token_account,
             &ctx.accounts.clearing_house_signer,
             state.signer_nonce,
-            amount,
+            withdrawn_amount,
         )?;
 
         validate!(
