@@ -2,8 +2,8 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO,
-    LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, MARK_PRICE_PRECISION,
-    MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, SPOT_WEIGHT_PRECISION,
+    LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, PRICE_PRECISION,
+    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, SPOT_WEIGHT_PRECISION,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, MarginRequirementType,
@@ -37,7 +37,7 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
     }
 
     margin_shortage
-        .checked_mul(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
+        .checked_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
         .ok_or_else(math_error!())?
         .checked_div(
             oracle_price
@@ -87,7 +87,7 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
     margin_shortage
         .checked_mul(numerator_scale)
         .ok_or_else(math_error!())?
-        .checked_mul(MARK_PRICE_PRECISION * SPOT_WEIGHT_PRECISION * 10)
+        .checked_mul(PRICE_PRECISION * SPOT_WEIGHT_PRECISION * 10)
         .ok_or_else(math_error!())?
         .checked_div(
             liability_price
@@ -209,7 +209,7 @@ pub fn calculate_asset_transfer_for_liability_transfer(
     let asset_value_delta = asset_delta
         .checked_mul(asset_price.unsigned_abs())
         .ok_or_else(math_error!())?
-        .checked_div(MARK_PRICE_PRECISION)
+        .checked_div(PRICE_PRECISION)
         .ok_or_else(math_error!())?
         .checked_mul(asset_value_numerator_scale)
         .ok_or_else(math_error!())?

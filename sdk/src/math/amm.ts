@@ -1,7 +1,7 @@
 import { BN } from '@project-serum/anchor';
 import {
 	AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PEG_PRECISION,
 	ZERO,
 	BID_ASK_SPREAD_PRECISION,
@@ -254,7 +254,7 @@ export function calculatePrice(
 	}
 
 	return quoteAssetReserves
-		.mul(MARK_PRICE_PRECISION)
+		.mul(PRICE_PRECISION)
 		.mul(pegMultiplier)
 		.div(PEG_PRECISION)
 		.div(baseAssetReserves);
@@ -370,7 +370,7 @@ export function calculateEffectiveLeverage(
 
 	const localBaseAssetValue = netBaseAssetAmount
 		.mul(markPrice)
-		.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
+		.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(PRICE_PRECISION));
 
 	const effectiveLeverage =
 		localBaseAssetValue.sub(netBaseAssetValue).toNumber() /
@@ -630,7 +630,7 @@ export function calculateTerminalPrice(market: PerpMarketAccount) {
 		);
 
 	const terminalPrice = newQuoteAssetReserve
-		.mul(MARK_PRICE_PRECISION)
+		.mul(PRICE_PRECISION)
 		.mul(market.amm.pegMultiplier)
 		.div(PEG_PRECISION)
 		.div(newBaseAssetReserve);
@@ -647,7 +647,7 @@ export function calculateMaxBaseAssetAmountToTrade(
 	const invariant = amm.sqrtK.mul(amm.sqrtK);
 
 	const newBaseAssetReserveSquared = invariant
-		.mul(MARK_PRICE_PRECISION)
+		.mul(PRICE_PRECISION)
 		.mul(amm.pegMultiplier)
 		.div(limit_price)
 		.div(PEG_PRECISION);

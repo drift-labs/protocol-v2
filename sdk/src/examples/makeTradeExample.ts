@@ -12,7 +12,7 @@ import {
 	calculateTradeSlippage,
 	BulkAccountLoader,
 	PerpMarkets,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	QUOTE_PRECISION,
 } from '..';
 import { SpotMarkets } from '../constants/spotMarkets';
@@ -125,10 +125,7 @@ const main = async () => {
 		undefined
 	);
 
-	const formattedPrice = convertToNumber(
-		currentMarketPrice,
-		MARK_PRICE_PRECISION
-	);
+	const formattedPrice = convertToNumber(currentMarketPrice, PRICE_PRECISION);
 
 	console.log(`Current Market Price is $${formattedPrice}`);
 
@@ -146,7 +143,7 @@ const main = async () => {
 			'quote',
 			undefined
 		)[0],
-		MARK_PRICE_PRECISION
+		PRICE_PRECISION
 	);
 
 	console.log(

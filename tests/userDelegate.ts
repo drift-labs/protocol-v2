@@ -7,7 +7,7 @@ import {
 	Admin,
 	BN,
 	EventSubscriber,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -45,7 +45,7 @@ describe('user delegate', () => {
 	let solUsd;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);

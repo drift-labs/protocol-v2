@@ -18,7 +18,7 @@ import {
 	getLimitOrderParams,
 	getTokenAmount,
 	isVariant,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	SpotBalanceType,
 } from '../sdk/src';
 
@@ -207,7 +207,7 @@ describe('serum spot market', () => {
 				direction: PositionDirection.LONG,
 				baseAssetAmount,
 				userOrderId: 1,
-				price: new BN(100).mul(MARK_PRICE_PRECISION),
+				price: new BN(100).mul(PRICE_PRECISION),
 			})
 		);
 
@@ -315,7 +315,7 @@ describe('serum spot market', () => {
 				direction: PositionDirection.SHORT,
 				baseAssetAmount,
 				userOrderId: 1,
-				price: new BN(100).mul(MARK_PRICE_PRECISION),
+				price: new BN(100).mul(PRICE_PRECISION),
 			})
 		);
 
@@ -425,7 +425,7 @@ describe('serum spot market', () => {
 				direction: PositionDirection.LONG,
 				baseAssetAmount,
 				userOrderId: 1,
-				price: new BN(100).mul(MARK_PRICE_PRECISION),
+				price: new BN(100).mul(PRICE_PRECISION),
 			})
 		);
 

@@ -10,7 +10,7 @@ import {
 	ONE,
 	TEN,
 	ZERO,
-	SPOT_MARKET_INTEREST_PRECISION,
+	SPOT_MARKET_RATE_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	ONE_YEAR,
 	AMM_RESERVE_PRECISION,
@@ -26,7 +26,7 @@ export function getBalance(
 	spotMarket: SpotMarketAccount,
 	balanceType: SpotBalanceType
 ): BN {
-	const precisionIncrease = TEN.pow(new BN(16 - spotMarket.decimals));
+	const precisionIncrease = TEN.pow(new BN(19 - spotMarket.decimals));
 
 	const cumulativeInterest = isVariant(balanceType, 'deposit')
 		? spotMarket.cumulativeDepositInterest
@@ -46,7 +46,7 @@ export function getTokenAmount(
 	spotMarket: SpotMarketAccount,
 	balanceType: SpotBalanceType
 ): BN {
-	const precisionDecrease = TEN.pow(new BN(16 - spotMarket.decimals));
+	const precisionDecrease = TEN.pow(new BN(19 - spotMarket.decimals));
 
 	const cumulativeInterest = isVariant(balanceType, 'deposit')
 		? spotMarket.cumulativeDepositInterest
@@ -75,7 +75,7 @@ export function getTokenValue(
 		return ZERO;
 	}
 
-	const precisionDecrease = TEN.pow(new BN(10 + spotDecimals - 6));
+	const precisionDecrease = TEN.pow(new BN(spotDecimals));
 
 	return tokenAmount.mul(oraclePriceData.price).div(precisionDecrease);
 }
@@ -253,12 +253,12 @@ export function calculateInterestAccumulated(
 	const borrowInterest = bank.cumulativeBorrowInterest
 		.mul(modifiedBorrowRate)
 		.div(ONE_YEAR)
-		.div(SPOT_MARKET_INTEREST_PRECISION)
+		.div(SPOT_MARKET_RATE_PRECISION)
 		.add(ONE);
 	const depositInterest = bank.cumulativeDepositInterest
 		.mul(modifiedDepositRate)
 		.div(ONE_YEAR)
-		.div(SPOT_MARKET_INTEREST_PRECISION);
+		.div(SPOT_MARKET_RATE_PRECISION);
 
 	return { borrowInterest, depositInterest };
 }

@@ -385,7 +385,6 @@ export type StateAccount = {
 	fundingPaused: boolean;
 	exchangePaused: boolean;
 	adminControlsPrices: boolean;
-	insuranceVault: PublicKey;
 	totalFee: BN;
 	totalFeeWithdrawn: BN;
 	whitelistMint: PublicKey;
