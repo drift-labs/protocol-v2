@@ -390,7 +390,7 @@ mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
 
 mod calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy {
     use crate::math::constants::{
-        QUOTE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
+        QUOTE_PRECISION, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
     };
     use crate::math::liquidation::calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy;
     use crate::state::spot_market::SpotMarket;
@@ -415,7 +415,7 @@ mod calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy {
     fn non_zero_total_deposits() {
         let loss = 11 * QUOTE_PRECISION;
         let spot_market = SpotMarket {
-            deposit_balance: 120 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 120 * SPOT_BALANCE_PRECISION,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             ..SpotMarket::default()

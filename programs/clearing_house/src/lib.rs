@@ -3206,7 +3206,7 @@ pub mod clearing_house {
         )?;
 
         validate!(
-            total_if_factor <= cast_to_u32(SPOT_INTEREST_PRECISION)?,
+            total_if_factor <= cast_to_u32(IF_FACTOR_PRECISION)?,
             ErrorCode::DefaultError,
             "total_if_factor must be <= 100%"
         )?;

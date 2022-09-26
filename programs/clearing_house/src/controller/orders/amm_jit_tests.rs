@@ -36,8 +36,8 @@ pub mod amm_jit {
     use crate::math::constants::CONCENTRATION_PRECISION;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, PEG_PRECISION, PRICE_PRECISION,
-        QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
-        SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION,
+        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
@@ -141,7 +141,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_INTEREST_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -317,7 +317,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_INTEREST_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -492,7 +492,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_INTEREST_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -662,7 +662,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_INTEREST_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -835,7 +835,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_INTEREST_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1036,7 +1036,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_INTEREST_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1237,7 +1237,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_INTEREST_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1439,7 +1439,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_INTEREST_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1650,7 +1650,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * 100 * SPOT_INTEREST_PRECISION,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1918,7 +1918,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * 100 * SPOT_INTEREST_PRECISION,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION,
                 ..SpotPosition::default()
             }),
             ..User::default()

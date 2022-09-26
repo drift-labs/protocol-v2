@@ -494,7 +494,7 @@ mod calculate_margin_requirement_and_total_collateral {
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
-        PEG_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
+        PEG_PRECISION, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
         SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::{
@@ -538,7 +538,7 @@ mod calculate_margin_requirement_and_total_collateral {
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             ..SpotMarket::default()
         };
@@ -569,7 +569,7 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 10000 * SPOT_INTEREST_PRECISION,
+            balance: 10000 * SPOT_BALANCE_PRECISION,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
@@ -626,7 +626,7 @@ mod calculate_margin_requirement_and_total_collateral {
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             ..SpotMarket::default()
         };
@@ -657,7 +657,7 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 10000 * SPOT_INTEREST_PRECISION,
+            balance: 10000 * SPOT_BALANCE_PRECISION,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
@@ -714,7 +714,7 @@ mod calculate_margin_requirement_and_total_collateral {
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             ..SpotMarket::default()
         };
@@ -731,7 +731,7 @@ mod calculate_margin_requirement_and_total_collateral {
             initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
-            deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
@@ -751,7 +751,7 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: 500 * SPOT_INTEREST_PRECISION,
+            balance: 500 * SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -3000 * 10_i128.pow(9),
             ..SpotPosition::default()
@@ -823,7 +823,7 @@ mod calculate_margin_requirement_and_total_collateral {
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             ..SpotMarket::default()
         };
@@ -854,13 +854,13 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100 * SPOT_INTEREST_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Borrow,
-            balance: 100 * SPOT_INTEREST_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION,
             ..SpotPosition::default()
         };
 
