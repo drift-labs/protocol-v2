@@ -2,7 +2,7 @@ import { parsePriceData } from '@pythnetwork/client';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { OracleClient, OraclePriceData } from './types';
 import { BN } from '@project-serum/anchor';
-import { MARK_PRICE_PRECISION, TEN } from '../constants/numericConstants';
+import { PRICE_PRECISION, TEN } from '../constants/numericConstants';
 
 export class PythClient implements OracleClient {
 	private connection: Connection;
@@ -38,6 +38,6 @@ export function convertPythPrice(price: number, exponent: number): BN {
 	exponent = Math.abs(exponent);
 	const pythPrecision = TEN.pow(new BN(exponent).abs());
 	return new BN(price * Math.pow(10, exponent))
-		.mul(MARK_PRICE_PRECISION)
+		.mul(PRICE_PRECISION)
 		.div(pythPrecision);
 }

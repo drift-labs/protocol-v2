@@ -86,7 +86,7 @@ pub fn update_spot_position_balance(
 mod test {
     mod update_spot_position_balance {
         use crate::controller::spot_position::update_spot_position_balance;
-        use crate::math::constants::SPOT_INTEREST_PRECISION;
+        use crate::math::constants::SPOT_BALANCE_PRECISION;
         use crate::state::spot_market::{SpotBalanceType, SpotMarket};
         use crate::state::user::User;
 
@@ -112,7 +112,7 @@ mod test {
         fn borrow() {
             let mut user = User::default();
             let mut spot_market = SpotMarket {
-                deposit_balance: 101 * SPOT_INTEREST_PRECISION,
+                deposit_balance: 101 * SPOT_BALANCE_PRECISION,
                 ..SpotMarket::default_quote_market()
             };
 

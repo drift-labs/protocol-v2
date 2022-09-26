@@ -15,6 +15,7 @@ import {
 	ClearingHouse,
 	OraclePriceData,
 	OracleGuardRails,
+	BASE_PRECISION,
 } from '../sdk';
 import { Keypair } from '@solana/web3.js';
 import { Program } from '@project-serum/anchor';
@@ -164,7 +165,7 @@ describe('repeg and spread amm', () => {
 			provider
 		);
 
-		btcUsd = await mockOracle(21966);
+		btcUsd = await mockOracle(21966.86);
 		mockOracles.push(btcUsd);
 		for (let i = 1; i <= 4; i++) {
 			// init more oracles
@@ -192,7 +193,7 @@ describe('repeg and spread amm', () => {
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.updatePerpAuctionDuration(0, 0);
+		await clearingHouse.updatePerpAuctionDuration(0);
 		await clearingHouse.subscribe();
 
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
@@ -204,7 +205,7 @@ describe('repeg and spread amm', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
-			new BN(21_966_868),
+			new BN(21966.868 * PEG_PRECISION.toNumber()),
 			undefined,
 			500,
 			250
@@ -212,22 +213,22 @@ describe('repeg and spread amm', () => {
 		await clearingHouse.updateMarketBaseSpread(new BN(0), 250);
 		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
 
-		for (let i = 1; i <= 4; i++) {
-			// init more markets
-			const thisUsd = mockOracles[i];
-			await clearingHouse.initializeMarket(
-				thisUsd,
-				ammInitialBaseAssetAmount,
-				ammInitialQuoteAssetAmount,
-				periodicity,
-				new BN(1_000 * i),
-				undefined,
-				1000,
-				201
-			);
-			await clearingHouse.updateMarketBaseSpread(new BN(i), 2000);
-			await clearingHouse.updateCurveUpdateIntensity(new BN(i), 100);
-		}
+		// for (let i = 1; i <= 4; i++) {
+		// 	// init more markets
+		// 	const thisUsd = mockOracles[i];
+		// 	await clearingHouse.initializeMarket(
+		// 		thisUsd,
+		// 		ammInitialBaseAssetAmount,
+		// 		ammInitialQuoteAssetAmount,
+		// 		periodicity,
+		// 		new BN(1_000 * i),
+		// 		undefined,
+		// 		1000,
+		// 		201
+		// 	);
+		// 	await clearingHouse.updateMarketBaseSpread(new BN(i), 2000);
+		// 	await clearingHouse.updateCurveUpdateIntensity(new BN(i), 100);
+		// }
 
 		const [, _userAccountPublicKey] =
 			await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -503,7 +504,9 @@ describe('repeg and spread amm', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].baseAssetAmount.toString() == '-1931600000000'
+				.perpPositions[0].baseAssetAmount.eq(
+					new BN(-0.19316 * BASE_PRECISION.toNumber())
+				)
 		);
 		// assert(
 		// 	clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==

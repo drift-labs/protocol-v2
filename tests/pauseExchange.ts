@@ -4,7 +4,7 @@ import { BN, QUOTE_SPOT_MARKET_INDEX } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
-import { Admin, MARK_PRICE_PRECISION, PositionDirection } from '../sdk/src';
+import { Admin, PRICE_PRECISION, PositionDirection } from '../sdk/src';
 
 import { mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 
@@ -20,7 +20,7 @@ describe('admin withdraw', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);

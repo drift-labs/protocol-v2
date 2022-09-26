@@ -6,7 +6,7 @@ import { Program } from '@project-serum/anchor';
 import {
 	Admin,
 	BN,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PositionDirection,
 	ClearingHouseUser,
 	getMarketOrderParams,
@@ -33,6 +33,7 @@ import {
 	getLimitOrderParams,
 	getSwapDirection,
 	OracleSource,
+	PEG_PRECISION,
 } from '../sdk';
 
 describe('amm spread: market order', () => {
@@ -53,7 +54,7 @@ describe('amm spread: market order', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(100000);
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -357,7 +358,7 @@ describe('amm spread: market order', () => {
 		const baseAssetAmount = AMM_RESERVE_PRECISION;
 		const limitPrice = calculateMarkPrice(
 			clearingHouse.getPerpMarketAccount(0)
-		).add(MARK_PRICE_PRECISION.div(new BN(10000))); // limit price plus 1bp
+		).add(PRICE_PRECISION.div(new BN(10000))); // limit price plus 1bp
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
@@ -401,7 +402,7 @@ describe('amm spread: market order', () => {
 		const baseAssetAmount = AMM_RESERVE_PRECISION;
 		const limitPrice = calculateMarkPrice(
 			clearingHouse.getPerpMarketAccount(0)
-		).add(MARK_PRICE_PRECISION.sub(new BN(10000))); // limit price plus 1bp
+		).add(PRICE_PRECISION.sub(new BN(10000))); // limit price plus 1bp
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
@@ -447,7 +448,7 @@ describe('amm spread: market order', () => {
 		const baseAssetAmount = AMM_RESERVE_PRECISION;
 		const limitPrice = calculateMarkPrice(
 			clearingHouse.getPerpMarketAccount(0)
-		).add(MARK_PRICE_PRECISION.div(new BN(1000))); // limit price plus 10bp
+		).add(PRICE_PRECISION.div(new BN(1000))); // limit price plus 10bp
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
@@ -531,7 +532,7 @@ describe('amm spread: market order', () => {
 		const baseAssetAmount = AMM_RESERVE_PRECISION;
 		const limitPrice = calculateMarkPrice(
 			clearingHouse.getPerpMarketAccount(0)
-		).sub(MARK_PRICE_PRECISION.div(new BN(1000))); // limit price minus 10bp
+		).sub(PRICE_PRECISION.div(new BN(1000))); // limit price minus 10bp
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
@@ -614,9 +615,7 @@ describe('amm spread: market order', () => {
 		const btcUsd = await mockOracle(peg);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
-		const mantissaSqrtScale = new BN(
-			Math.sqrt(MARK_PRICE_PRECISION.toNumber())
-		);
+		const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 		const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 15).mul(
 			mantissaSqrtScale
 		);
@@ -629,7 +628,7 @@ describe('amm spread: market order', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(peg * 1e3)
+			new BN(peg * PEG_PRECISION.toNumber())
 		);
 
 		await clearingHouse.updateMarketBaseSpread(marketIndex2, 500);
@@ -757,7 +756,7 @@ describe('amm spread: market order', () => {
 		assert(
 			clearingHouse
 				.getPerpMarketAccount(marketIndex2Num)
-				.amm.totalFee.eq(new BN(9990))
+				.amm.totalFee.eq(new BN(9995))
 		);
 	});
 });

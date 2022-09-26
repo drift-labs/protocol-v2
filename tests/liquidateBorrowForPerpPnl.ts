@@ -13,7 +13,7 @@ import {
 	Admin,
 	ClearingHouse,
 	findComputeUnitConsumption,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PositionDirection,
 	EventSubscriber,
 	OracleGuardRails,
@@ -54,7 +54,7 @@ describe('liquidate borrow for perp pnl', () => {
 	let solOracle: PublicKey;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -140,7 +140,7 @@ describe('liquidate borrow for perp pnl', () => {
 
 		await clearingHouse.moveAmmToPrice(
 			new BN(0),
-			new BN(2).mul(MARK_PRICE_PRECISION)
+			new BN(2).mul(PRICE_PRECISION)
 		);
 
 		await clearingHouse.closePosition(new BN(0));
@@ -219,7 +219,7 @@ describe('liquidate borrow for perp pnl', () => {
 		);
 		assert(
 			liquidationRecord.liquidateBorrowForPerpPnl.marketOraclePrice.eq(
-				new BN(50).mul(MARK_PRICE_PRECISION)
+				new BN(50).mul(PRICE_PRECISION)
 			)
 		);
 		assert(
@@ -227,12 +227,12 @@ describe('liquidate borrow for perp pnl', () => {
 		);
 		assert(
 			liquidationRecord.liquidateBorrowForPerpPnl.pnlTransfer.eq(
-				new BN(9969234)
+				new BN(9969992)
 			)
 		);
 		assert(
 			liquidationRecord.liquidateBorrowForPerpPnl.liabilityPrice.eq(
-				new BN(50).mul(MARK_PRICE_PRECISION)
+				new BN(50).mul(PRICE_PRECISION)
 			)
 		);
 		assert(
@@ -242,7 +242,7 @@ describe('liquidate borrow for perp pnl', () => {
 		);
 		assert(
 			liquidationRecord.liquidateBorrowForPerpPnl.liabilityTransfer.eq(
-				new BN(199384680)
+				new BN(199399840)
 			)
 		);
 	});

@@ -4,7 +4,7 @@ mod test {
     use crate::controller::amm::SwapDirection;
     use crate::math::collateral::calculate_updated_collateral;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, MARK_PRICE_PRECISION, QUOTE_PRECISION,
+        AMM_RESERVE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
     };
     use crate::math::margin::{
@@ -91,7 +91,7 @@ mod test {
 
         let spot_position = SpotPosition {
             balance_type: SpotBalanceType::Deposit,
-            balance: MARK_PRICE_PRECISION,
+            balance: PRICE_PRECISION,
             ..SpotPosition::default()
         };
 
@@ -126,7 +126,7 @@ mod test {
 
         // btc
         let oracle_price_data = OraclePriceData {
-            price: (22050 * MARK_PRICE_PRECISION) as i128,
+            price: (22050 * PRICE_PRECISION) as i128,
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
@@ -142,7 +142,7 @@ mod test {
         .unwrap();
 
         let quote_asset_oracle_price_data = OraclePriceData {
-            price: MARK_PRICE_PRECISION as i128,
+            price: PRICE_PRECISION as i128,
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
@@ -172,7 +172,7 @@ mod test {
 
         let spot_position = SpotPosition {
             balance_type: SpotBalanceType::Deposit,
-            balance: MARK_PRICE_PRECISION,
+            balance: PRICE_PRECISION,
             ..SpotPosition::default()
         };
 
@@ -186,11 +186,11 @@ mod test {
         let mut market = PerpMarket {
             market_index: 0,
             amm: AMM {
-                base_asset_reserve: 5122950819670000,
+                base_asset_reserve: 512295081967,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 22_100_000,
-                net_base_asset_amount: -(122950819670000_i128),
+                peg_multiplier: 22_100_000_000,
+                net_base_asset_amount: -(12295081967_i128),
                 max_spread: 1000,
                 ..AMM::default()
             },
@@ -203,13 +203,13 @@ mod test {
         };
 
         let current_price = market.amm.mark_price().unwrap();
-        assert_eq!(current_price, 210519296000087);
+        assert_eq!(current_price, 21051929600);
 
         market.imf_factor = 1000; // 1_000/1_000_000 = .001
 
         // btc
         let mut oracle_price_data = OraclePriceData {
-            price: (22050 * MARK_PRICE_PRECISION) as i128,
+            price: (22050 * PRICE_PRECISION) as i128,
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
@@ -217,14 +217,14 @@ mod test {
 
         let market_position = PerpPosition {
             market_index: 0,
-            base_asset_amount: -(122950819670000 / 2_i128),
+            base_asset_amount: -(12295081967 / 2_i128),
             quote_asset_amount: 153688524588, // $25,000 entry price
             ..PerpPosition::default()
         };
 
         let margin_requirement_type = MarginRequirementType::Initial;
         let quote_asset_oracle_price_data = OraclePriceData {
-            price: MARK_PRICE_PRECISION as i128,
+            price: PRICE_PRECISION as i128,
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
@@ -240,7 +240,7 @@ mod test {
         let position_unrealized_pnl =
             calculate_position_pnl(&market_position, &market.amm, false).unwrap();
 
-        assert_eq!(position_unrealized_pnl, 22699050901);
+        assert_eq!(position_unrealized_pnl, 22699050927);
 
         // sqrt of oracle price = 149
         market.unrealized_imf_factor = market.imf_factor;
@@ -263,10 +263,10 @@ mod test {
         // assert!(upnl < position_unrealized_pnl); // margin system discounts
 
         assert!(pmr > 0);
-        assert_eq!(pmr, 13867100409);
+        assert_eq!(pmr, 13867100408);
 
-        oracle_price_data.price = (21050 * MARK_PRICE_PRECISION) as i128; // lower by $1000 (in favor of user)
-        oracle_price_data.confidence = MARK_PRICE_PRECISION;
+        oracle_price_data.price = (21050 * PRICE_PRECISION) as i128; // lower by $1000 (in favor of user)
+        oracle_price_data.confidence = PRICE_PRECISION;
 
         let (_, position_unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
             &market_position,
@@ -274,7 +274,7 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(position_unrealized_pnl, 24282786886); // $24.282k
+        assert_eq!(position_unrealized_pnl, 24282786896); // $24.282k
 
         assert_eq!(
             market
@@ -323,7 +323,7 @@ mod test {
                 .unwrap(),
             78
         );
-        assert_eq!(position_unrealized_pnl * 800000, 19426229508800000); // 1.9 billion
+        assert_eq!(position_unrealized_pnl * 800000, 19426229516800000); // 1.9 billion
 
         let (pmr_2, upnl_2, _) = calculate_perp_position_value_and_pnl(
             &market_position,
@@ -339,10 +339,10 @@ mod test {
             .unwrap();
         assert_eq!(uaw_2, 9548);
 
-        assert_eq!(upnl_2, 23107500000);
+        assert_eq!(upnl_2, 23107500010);
         assert!(upnl_2 > upnl);
         assert!(pmr_2 > 0);
-        assert_eq!(pmr_2, 13238206966); //$12940.5737702000
+        assert_eq!(pmr_2, 13238206965); //$12940.5737702000
         assert!(pmr > pmr_2);
         assert_eq!(pmr - pmr_2, 628893443);
         //-6.1475409835 * 1000 / 10 = 614.75
@@ -380,7 +380,7 @@ mod test {
         };
 
         let oracle_price_data = OraclePriceData {
-            price: (2 * MARK_PRICE_PRECISION) as i128,
+            price: (2 * PRICE_PRECISION) as i128,
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
@@ -447,7 +447,7 @@ mod test {
         };
 
         let oracle_price_data = OraclePriceData {
-            price: (2 * MARK_PRICE_PRECISION) as i128,
+            price: (2 * PRICE_PRECISION) as i128,
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
@@ -494,7 +494,7 @@ mod calculate_margin_requirement_and_total_collateral {
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
-        PEG_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
+        PEG_PRECISION, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
         SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::{
@@ -517,7 +517,7 @@ mod calculate_margin_requirement_and_total_collateral {
     pub fn usdc_deposit_and_5x_sol_bid() {
         let slot = 0_u64;
 
-        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -538,7 +538,7 @@ mod calculate_margin_requirement_and_total_collateral {
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             ..SpotMarket::default()
         };
@@ -569,7 +569,7 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 10000 * SPOT_INTEREST_PRECISION,
+            balance: 10000 * SPOT_BALANCE_PRECISION,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
@@ -605,7 +605,7 @@ mod calculate_margin_requirement_and_total_collateral {
     pub fn usdc_deposit_and_5x_sol_ask() {
         let slot = 0_u64;
 
-        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -626,7 +626,7 @@ mod calculate_margin_requirement_and_total_collateral {
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             ..SpotMarket::default()
         };
@@ -657,7 +657,7 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 10000 * SPOT_INTEREST_PRECISION,
+            balance: 10000 * SPOT_BALANCE_PRECISION,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
@@ -693,7 +693,7 @@ mod calculate_margin_requirement_and_total_collateral {
     pub fn sol_deposit_and_5x_sol_ask() {
         let slot = 0_u64;
 
-        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -714,7 +714,7 @@ mod calculate_margin_requirement_and_total_collateral {
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             ..SpotMarket::default()
         };
@@ -731,7 +731,7 @@ mod calculate_margin_requirement_and_total_collateral {
             initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
-            deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
@@ -751,7 +751,7 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: 500 * SPOT_INTEREST_PRECISION,
+            balance: 500 * SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -3000 * 10_i128.pow(9),
             ..SpotPosition::default()
@@ -782,7 +782,7 @@ mod calculate_margin_requirement_and_total_collateral {
     pub fn user_custom_margin_ratio() {
         let slot = 0_u64;
 
-        let mut sol_oracle_price = get_pyth_price(100, 10);
+        let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -823,7 +823,7 @@ mod calculate_margin_requirement_and_total_collateral {
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             ..SpotMarket::default()
         };
@@ -854,13 +854,13 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100 * SPOT_INTEREST_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Borrow,
-            balance: 100 * SPOT_INTEREST_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION,
             ..SpotPosition::default()
         };
 

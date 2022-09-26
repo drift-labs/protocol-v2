@@ -85,6 +85,6 @@ pub fn get_pyth_price(price: i64, expo: i32) -> Price {
     let price = price * 10_i64.pow(expo as u32);
     pyth_price.agg.price = price;
     pyth_price.twap = price;
-    pyth_price.expo = 10;
+    pyth_price.expo = expo;
     pyth_price
 }

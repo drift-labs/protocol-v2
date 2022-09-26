@@ -17,11 +17,10 @@ import {
 	OracleSource,
 	calculateWorstCaseBaseAssetAmount,
 	calculateMarketMarginRatio,
-	AMM_TO_QUOTE_PRECISION_RATIO,
-	MARK_PRICE_PRECISION,
 	calculateMarkPrice,
 	convertToNumber,
 	calculatePrice,
+	AMM_RESERVE_PRECISION,
 } from '../sdk';
 import { assert } from 'chai';
 import {
@@ -38,11 +37,11 @@ describe('User Account', () => {
 
 	let clearingHouse;
 
-	const ammInitialQuoteAssetAmount = new anchor.BN(2 * 10 ** 12).mul(
-		new BN(10 ** 6)
+	const ammInitialQuoteAssetAmount = new anchor.BN(2 * 10 ** 9).mul(
+		new BN(10 ** 5)
 	);
-	const ammInitialBaseAssetAmount = new anchor.BN(2 * 10 ** 12).mul(
-		new BN(10 ** 6)
+	const ammInitialBaseAssetAmount = new anchor.BN(2 * 10 ** 9).mul(
+		new BN(10 ** 5)
 	);
 
 	let usdcMint: Keypair;
@@ -125,7 +124,7 @@ describe('User Account', () => {
 			expectedTotalCollateral.toNumber()
 		);
 
-		const pnl = userAccount.getUnrealizedPNL();
+		const pnl = userAccount.getUnrealizedPNL(false);
 		console.log('pnl', pnl.toNumber(), expectedPNL.toNumber());
 		const freeCollateral = userAccount.getFreeCollateral();
 		console.log(
@@ -226,7 +225,7 @@ describe('User Account', () => {
 		);
 		await setFeedPrice(
 			anchor.workspace.Pyth,
-			convertToNumber(markPrice.sub(new BN(250 * 10 ** 4))),
+			convertToNumber(markPrice.sub(new BN(250))),
 			solUsdOracle
 		);
 		await sleep(5000);
@@ -250,7 +249,7 @@ describe('User Account', () => {
 		const worstCaseAssetValue = worstCaseBaseAssetAmount
 			.abs()
 			.mul(oraclePrice)
-			.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
+			.div(AMM_RESERVE_PRECISION);
 
 		console.log('worstCaseAssetValue:', worstCaseAssetValue.toNumber());
 
@@ -305,7 +304,7 @@ describe('User Account', () => {
 		);
 		await setFeedPrice(
 			anchor.workspace.Pyth,
-			convertToNumber(markPrice.sub(new BN(275 * 10 ** 4))),
+			convertToNumber(markPrice.sub(new BN(275))),
 			solUsdOracle
 		);
 		await sleep(5000);

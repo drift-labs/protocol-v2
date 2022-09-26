@@ -1,6 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(unaligned_references)]
 #![allow(clippy::bool_assert_comparison)]
+#![allow(clippy::comparison_chain)]
 
 use std::convert::identity;
 
@@ -454,6 +455,8 @@ pub mod clearing_house {
             amm_peg_multiplier,
         )?;
 
+        assert_eq!(amm_peg_multiplier, init_mark_price);
+
         let concentration_coef = MAX_CONCENTRATION_COEFFICIENT;
 
         // Verify there's no overflow
@@ -484,6 +487,16 @@ pub mod clearing_house {
         };
 
         let max_spread = (margin_ratio_initial - margin_ratio_maintenance) * (100 - 5);
+
+        // todo? should ensure peg within 1 cent of current oracle?
+        // validate!(
+        //     cast_to_i128(amm_peg_multiplier)?
+        //         .checked_sub(oracle_price)
+        //         .ok_or_else(math_error!())?
+        //         .unsigned_abs()
+        //         < PRICE_PRECISION / 100,
+        //     ErrorCode::InvalidInitialPeg
+        // )?;
 
         validate_margin(
             margin_ratio_initial,
@@ -573,7 +586,7 @@ pub mod clearing_house {
                 last_oracle_normalised_price: oracle_price,
                 last_oracle_conf_pct: 0,
                 last_oracle_mark_spread_pct: 0, // todo
-                base_asset_amount_step_size: 10000000,
+                base_asset_amount_step_size: 1000,
                 max_slippage_ratio: 50,           // ~2%
                 max_base_asset_amount_ratio: 100, // moves price ~2%
                 base_spread: 0,
@@ -3126,7 +3139,7 @@ pub mod clearing_house {
         )?;
 
         validate!(
-            total_if_factor <= cast_to_u32(SPOT_INTEREST_PRECISION)?,
+            total_if_factor <= cast_to_u32(IF_FACTOR_PRECISION)?,
             ErrorCode::DefaultError,
             "total_if_factor must be <= 100%"
         )?;

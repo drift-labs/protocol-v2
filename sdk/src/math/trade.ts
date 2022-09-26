@@ -2,7 +2,7 @@ import { PerpMarketAccount, PositionDirection } from '../types';
 import { BN } from '@project-serum/anchor';
 import { assert } from '../assert/assert';
 import {
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PEG_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	ZERO,
@@ -90,7 +90,7 @@ export function calculateTradeSlippage(
 
 	const entryPrice = acquiredQuoteAssetAmount
 		.mul(AMM_TO_QUOTE_PRECISION_RATIO)
-		.mul(MARK_PRICE_PRECISION)
+		.mul(PRICE_PRECISION)
 		.div(acquiredBaseReserve.abs());
 
 	let amm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
@@ -121,12 +121,12 @@ export function calculateTradeSlippage(
 
 	const pctMaxSlippage = newPrice
 		.sub(oldPrice)
-		.mul(MARK_PRICE_PRECISION)
+		.mul(PRICE_PRECISION)
 		.div(oldPrice)
 		.abs();
 	const pctAvgSlippage = entryPrice
 		.sub(oldPrice)
-		.mul(MARK_PRICE_PRECISION)
+		.mul(PRICE_PRECISION)
 		.div(oldPrice)
 		.abs();
 
@@ -252,7 +252,7 @@ export function calculateTargetPriceTrade(
 	}
 
 	const invariant = market.amm.sqrtK.mul(market.amm.sqrtK);
-	const k = invariant.mul(MARK_PRICE_PRECISION);
+	const k = invariant.mul(PRICE_PRECISION);
 
 	let baseAssetReserveAfter;
 	let quoteAssetReserveAfter;
@@ -277,9 +277,7 @@ export function calculateTargetPriceTrade(
 		baseAssetReserveAfter = squareRootBN(
 			k.div(targetPrice).mul(peg).div(PEG_PRECISION).sub(biasModifier)
 		).sub(new BN(1));
-		quoteAssetReserveAfter = k
-			.div(MARK_PRICE_PRECISION)
-			.div(baseAssetReserveAfter);
+		quoteAssetReserveAfter = k.div(PRICE_PRECISION).div(baseAssetReserveAfter);
 
 		markPriceAfter = calculatePrice(
 			baseAssetReserveAfter,
@@ -298,9 +296,7 @@ export function calculateTargetPriceTrade(
 		baseAssetReserveAfter = squareRootBN(
 			k.div(targetPrice).mul(peg).div(PEG_PRECISION).add(biasModifier)
 		).add(new BN(1));
-		quoteAssetReserveAfter = k
-			.div(MARK_PRICE_PRECISION)
-			.div(baseAssetReserveAfter);
+		quoteAssetReserveAfter = k.div(PRICE_PRECISION).div(baseAssetReserveAfter);
 
 		markPriceAfter = calculatePrice(
 			baseAssetReserveAfter,
@@ -334,7 +330,7 @@ export function calculateTargetPriceTrade(
 
 	const entryPrice = tradeSize
 		.mul(AMM_TO_QUOTE_PRECISION_RATIO)
-		.mul(MARK_PRICE_PRECISION)
+		.mul(PRICE_PRECISION)
 		.div(baseSize.abs());
 
 	assert(tp1.sub(tp2).lte(originalDiff), 'Target Price Calculation incorrect');

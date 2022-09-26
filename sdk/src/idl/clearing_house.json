@@ -2902,6 +2902,56 @@
       ]
     },
     {
+      "name": "adminRemoveInsuranceFundStake",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "adminTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u64"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "updateUserQuoteAssetInsuranceStake",
       "accounts": [
         {
@@ -6788,6 +6838,11 @@
       "code": 6129,
       "name": "InvalidFeeStructure",
       "msg": "InvalidFeeStructure"
+    },
+    {
+      "code": 6130,
+      "name": "InsufficientIFShares",
+      "msg": "Insufficient IF shares"
     }
   ]
 }
