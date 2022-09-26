@@ -540,7 +540,7 @@ pub fn fill_order(
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         market_is_reduce_only = market.is_reduce_only()?;
-        // controller::validate::validate_market_account(market)?;
+        controller::validate::validate_market_account(market)?;
         validate!(
             market.is_active(now)?,
             ErrorCode::DefaultError,
@@ -1240,6 +1240,8 @@ pub fn fulfill_order_with_amm(
 
     let (order_post_only, order_ts, order_direction) =
         get_struct_values!(user.orders[order_index], post_only, ts, direction);
+
+    controller::validate::validate_amm_account_for_fill(&market.amm, order_direction)?;
 
     let (quote_asset_amount, quote_asset_amount_surplus, mut pnl) =
         controller::position::update_position_with_base_asset_amount(
@@ -3122,6 +3124,7 @@ pub fn fulfill_spot_order_with_serum(
         serum_new_order_accounts.clearing_house_signer,
         serum_new_order_accounts.serum_base_vault,
         serum_new_order_accounts.serum_quote_vault,
+        serum_new_order_accounts.srm_vault,
         &serum_new_order_accounts.token_program.to_account_info(),
         serum_order,
         serum_new_order_accounts.signer_nonce,

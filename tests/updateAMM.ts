@@ -492,7 +492,7 @@ describe('update amm', () => {
 				slotsBeforeStaleForAmm: new BN(100),
 				slotsBeforeStaleForMargin: new BN(100),
 				confidenceIntervalMaxSize: new BN(100000),
-				tooVolatileRatio: new BN(2),
+				tooVolatileRatio: new BN(1000),
 			},
 			useForLiquidations: false,
 		};

@@ -349,6 +349,7 @@ export type OrderActionRecord = {
 	action: OrderAction;
 	actionExplanation: OrderActionExplanation;
 	marketIndex: BN;
+	marketType: MarketType;
 	filler: PublicKey | null;
 	fillerReward: BN | null;
 	fillRecordId: BN | null;
@@ -384,7 +385,6 @@ export type StateAccount = {
 	fundingPaused: boolean;
 	exchangePaused: boolean;
 	adminControlsPrices: boolean;
-	insuranceVault: PublicKey;
 	totalFee: BN;
 	totalFeeWithdrawn: BN;
 	whitelistMint: PublicKey;
@@ -400,6 +400,7 @@ export type StateAccount = {
 	minPerpAuctionDuration: number;
 	defaultSpotAuctionDuration: number;
 	liquidationMarginBufferRatio: number;
+	srmVault: PublicKey;
 	perpFeeStructure: FeeStructure;
 	spotFeeStructure: FeeStructure;
 };
@@ -628,6 +629,7 @@ export type SpotPosition = {
 	openOrders: number;
 	openBids: BN;
 	openAsks: BN;
+	cumulativeDeposits: BN;
 };
 
 export type Order = {
