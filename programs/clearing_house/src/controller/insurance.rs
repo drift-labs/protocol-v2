@@ -1,3 +1,5 @@
+use anchor_lang::prelude::*;
+
 use crate::controller::spot_balance::{
     update_revenue_pool_balances, update_spot_balances, update_spot_market_cumulative_interest,
 };
@@ -363,7 +365,7 @@ pub fn remove_insurance_fund_stake(
 
     validate!(
         if_shares_before >= n_shares,
-        ErrorCode::InsufficientLPTokens
+        ErrorCode::InsufficientIFShares
     )?;
 
     let amount = if_shares_to_vault_amount(
@@ -434,6 +436,7 @@ pub fn admin_remove_insurance_fund_stake(
     n_shares: u128,
     spot_market: &mut SpotMarket,
     now: i64,
+    admin_pubkey: Pubkey,
 ) -> ClearingHouseResult<u64> {
     apply_rebase_to_insurance_fund(insurance_vault_amount, spot_market)?;
 
@@ -446,19 +449,17 @@ pub fn admin_remove_insurance_fund_stake(
 
     validate!(
         if_shares_before >= n_shares,
-        ErrorCode::InsufficientLPTokens,
+        ErrorCode::InsufficientIFShares,
         "if_shares_before={} < n_shares={}",
         if_shares_before,
         n_shares
     )?;
 
-    let amount = if_shares_to_vault_amount(
+    let withdraw_amount = if_shares_to_vault_amount(
         n_shares,
         spot_market.total_if_shares,
         insurance_vault_amount,
     )?;
-
-    let withdraw_amount = amount;
 
     spot_market.total_if_shares = spot_market
         .total_if_shares
@@ -469,7 +470,7 @@ pub fn admin_remove_insurance_fund_stake(
 
     emit!(InsuranceFundStakeRecord {
         ts: now,
-        user_authority: spot_market.pubkey,
+        user_authority: admin_pubkey,
         action: StakeAction::Unstake,
         amount: withdraw_amount,
         market_index: spot_market.market_index,
@@ -1907,6 +1908,7 @@ mod test {
             (if_balance / 2) as u128,
             &mut spot_market,
             1,
+            Pubkey::default(),
         )
         .unwrap();
         if_balance -= amount_returned;
@@ -1991,6 +1993,7 @@ mod test {
             spot_market.total_if_shares - spot_market.user_if_shares,
             &mut spot_market,
             1,
+            Pubkey::default(),
         )
         .unwrap();
         if_balance -= amount_returned;
@@ -2017,8 +2020,14 @@ mod test {
         assert_eq!(spot_market.user_if_shares, 0);
         assert_eq!(spot_market.total_if_shares, 0);
 
-        let amount_returned =
-            admin_remove_insurance_fund_stake(if_balance, 250, &mut spot_market, 1).unwrap();
+        let amount_returned = admin_remove_insurance_fund_stake(
+            if_balance,
+            250,
+            &mut spot_market,
+            1,
+            Pubkey::default(),
+        )
+        .unwrap();
         // if_balance -= amount_returned;
 
         assert_eq!(amount_returned, 250);

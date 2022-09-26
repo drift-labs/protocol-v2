@@ -3617,7 +3617,7 @@ pub mod clearing_house {
         )?;
 
         let user_if_shares = insurance_fund_stake.checked_if_shares(spot_market)?;
-        validate!(user_if_shares >= n_shares, ErrorCode::InsufficientLPTokens)?;
+        validate!(user_if_shares >= n_shares, ErrorCode::InsufficientIFShares)?;
 
         controller::insurance::request_remove_insurance_fund_stake(
             n_shares,
@@ -3728,12 +3728,13 @@ pub mod clearing_house {
             n_shares,
             spot_market,
             now,
+            *ctx.accounts.admin.key,
         )?;
 
         controller::token::send_from_program_vault(
             &ctx.accounts.token_program,
             &ctx.accounts.insurance_fund_vault,
-            &ctx.accounts.user_token_account,
+            &ctx.accounts.admin_token_account,
             &ctx.accounts.clearing_house_signer,
             state.signer_nonce,
             amount,

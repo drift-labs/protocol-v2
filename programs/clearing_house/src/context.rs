@@ -906,7 +906,6 @@ pub struct AdminRemoveInsuranceFundStake<'info> {
         bump
     )]
     pub spot_market: AccountLoader<'info, SpotMarket>,
-    pub authority: Signer<'info>,
     #[account(
         mut,
         seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
@@ -923,7 +922,7 @@ pub struct AdminRemoveInsuranceFundStake<'info> {
         token::mint = insurance_fund_vault.mint,
         token::authority = admin
     )]
-    pub user_token_account: Box<Account<'info, TokenAccount>>,
+    pub admin_token_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
 }
 
