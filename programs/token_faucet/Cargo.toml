@@ -14,7 +14,7 @@ cpi = ["no-entrypoint"]
 mainnet-beta=[]
 
 [dependencies]
-anchor-lang = "0.24.2"
-solana-program = "1.8.0"
-anchor-spl = "0.24.2"
+anchor-lang = "0.25.0"
+solana-program = "1.10.29"
+anchor-spl = "0.25.0"
 bytemuck = { version = "1.4.0" }
