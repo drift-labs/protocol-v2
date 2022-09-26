@@ -215,14 +215,16 @@ pub mod clearing_house {
             )?;
         } else {
             validate!(
-                initial_asset_weight > 0 && initial_asset_weight < SPOT_WEIGHT_PRECISION,
+                initial_asset_weight < SPOT_WEIGHT_PRECISION,
                 ErrorCode::InvalidSpotMarketInitialization,
-                "Initial asset weight must be between 0 {}",
+                "Initial asset weight must be less than {}",
                 SPOT_WEIGHT_PRECISION
             )?;
 
             validate!(
-                maintenance_asset_weight > 0 && maintenance_asset_weight < SPOT_WEIGHT_PRECISION,
+                initial_asset_weight <= maintenance_asset_weight
+                    && maintenance_asset_weight > 0
+                    && maintenance_asset_weight < SPOT_WEIGHT_PRECISION,
                 ErrorCode::InvalidSpotMarketInitialization,
                 "Maintenance asset weight must be between 0 {}",
                 SPOT_WEIGHT_PRECISION
@@ -236,7 +238,8 @@ pub mod clearing_house {
             )?;
 
             validate!(
-                maintenance_liability_weight > SPOT_WEIGHT_PRECISION,
+                initial_liability_weight <= maintenance_liability_weight
+                    && maintenance_liability_weight > SPOT_WEIGHT_PRECISION,
                 ErrorCode::InvalidSpotMarketInitialization,
                 "Maintenance liability weight must be greater than {}",
                 SPOT_WEIGHT_PRECISION
@@ -3250,6 +3253,15 @@ pub mod clearing_house {
         asset_tier: AssetTier,
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+        if market.initial_asset_weight > 0 {
+            validate!(
+                matches!(asset_tier, AssetTier::Collateral | AssetTier::Protected),
+                ErrorCode::DefaultError,
+                "initial_asset_weight > 0 so AssetTier must be collateral or protected"
+            )?;
+        }
+
         market.asset_tier = asset_tier;
         Ok(())
     }

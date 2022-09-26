@@ -10,9 +10,9 @@ use crate::math::spot_balance::{
 };
 use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
 use crate::math_error;
-use crate::state::market::PerpMarket;
+use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
-use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
+use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::user::SpotPosition;
 use crate::validate;
 use std::cmp::max;
@@ -113,6 +113,10 @@ pub fn update_spot_market_cumulative_interest(
     oracle_price_data: Option<&OraclePriceData>,
     now: i64,
 ) -> ClearingHouseResult {
+    if spot_market.status == MarketStatus::FundingPaused {
+        return Ok(());
+    }
+
     let InterestAccumulated {
         deposit_interest,
         borrow_interest,
@@ -276,6 +280,19 @@ pub fn update_spot_position_balance_with_limits(
         valid_withdraw,
         ErrorCode::DailyWithdrawLimit,
         "Spot Market has hit daily withdraw limit"
+    )?;
+
+    validate!(
+        spot_market.status != MarketStatus::WithdrawPaused,
+        ErrorCode::DailyWithdrawLimit,
+        "Spot Market withdraws are currently paused"
+    )?;
+
+    validate!(
+        !(spot_market.asset_tier == AssetTier::Protected
+            && spot_position.balance_type() == &SpotBalanceType::Borrow),
+        ErrorCode::DefaultError,
+        "Spot Market has Protected status and cannot be borrowed"
     )?;
 
     Ok(())

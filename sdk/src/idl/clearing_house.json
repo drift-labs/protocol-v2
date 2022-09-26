@@ -46,12 +46,7 @@
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "adminControlsPrices",
-          "type": "bool"
-        }
-      ]
+      "args": []
     },
     {
       "name": "initializeSpotMarket",
@@ -2144,6 +2139,118 @@
       ]
     },
     {
+      "name": "updateSpotMarketStatus",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": "MarketStatus"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketAssetTier",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "assetTier",
+          "type": {
+            "defined": "AssetTier"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketStatus",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": "MarketStatus"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketContractTier",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "contractTier",
+          "type": {
+            "defined": "ContractTier"
+          }
+        }
+      ]
+    },
+    {
       "name": "updateMarketImfFactor",
       "accounts": [
         {
@@ -2624,7 +2731,7 @@
       ]
     },
     {
-      "name": "updateExchangePaused",
+      "name": "updateExchangeStatus",
       "accounts": [
         {
           "name": "admin",
@@ -2639,45 +2746,10 @@
       ],
       "args": [
         {
-          "name": "exchangePaused",
-          "type": "bool"
-        }
-      ]
-    },
-    {
-      "name": "disableAdminControlsPrices",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "updateFundingPaused",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "fundingPaused",
-          "type": "bool"
+          "name": "exchangeStatus",
+          "type": {
+            "defined": "ExchangeStatus"
+          }
         }
       ]
     },
@@ -3105,6 +3177,12 @@
             }
           },
           {
+            "name": "contractTier",
+            "type": {
+              "defined": "ContractTier"
+            }
+          },
+          {
             "name": "settlementPrice",
             "type": "i128"
           },
@@ -3244,6 +3322,12 @@
             "name": "status",
             "type": {
               "defined": "MarketStatus"
+            }
+          },
+          {
+            "name": "assetTier",
+            "type": {
+              "defined": "AssetTier"
             }
           },
           {
@@ -3505,16 +3589,10 @@
             "type": "publicKey"
           },
           {
-            "name": "exchangePaused",
-            "type": "bool"
-          },
-          {
-            "name": "fundingPaused",
-            "type": "bool"
-          },
-          {
-            "name": "adminControlsPrices",
-            "type": "bool"
+            "name": "exchangeStatus",
+            "type": {
+              "defined": "ExchangeStatus"
+            }
           },
           {
             "name": "insuranceVault",
@@ -5175,6 +5253,18 @@
             "name": "Initialized"
           },
           {
+            "name": "Active"
+          },
+          {
+            "name": "FundingPaused"
+          },
+          {
+            "name": "FillPaused"
+          },
+          {
+            "name": "WithdrawPaused"
+          },
+          {
             "name": "ReduceOnly"
           },
           {
@@ -5196,6 +5286,26 @@
           },
           {
             "name": "Future"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ContractTier",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "A"
+          },
+          {
+            "name": "B"
+          },
+          {
+            "name": "C"
+          },
+          {
+            "name": "Speculative"
           }
         ]
       }
@@ -5241,6 +5351,55 @@
           },
           {
             "name": "Disabled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AssetTier",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Collateral"
+          },
+          {
+            "name": "Protected"
+          },
+          {
+            "name": "Cross"
+          },
+          {
+            "name": "Isolated"
+          },
+          {
+            "name": "Unlisted"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ExchangeStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "FundingPaused"
+          },
+          {
+            "name": "AmmPaused"
+          },
+          {
+            "name": "FillPaused"
+          },
+          {
+            "name": "WithdrawPaused"
+          },
+          {
+            "name": "Paused"
           }
         ]
       }

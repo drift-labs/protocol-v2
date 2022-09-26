@@ -28,6 +28,21 @@ export class ContractType {
 	static readonly FUTURE = { future: {} };
 }
 
+export class ContractTier {
+	static readonly A = { a: {} };
+	static readonly B = { b: {} };
+	static readonly C = { c: {} };
+	static readonly Speculative = { speculative: {} };
+}
+
+export class AssetTier {
+	static readonly COLLATERAL = { collateral: {} };
+	static readonly PROTECTED = { protected: {} };
+	static readonly CROSS = { cross: {} };
+	static readonly ISOLATED = { isolated: {} };
+	static readonly UNLISTED = { unlisted: {} };
+}
+
 export class SwapDirection {
 	static readonly ADD = { add: {} };
 	static readonly REMOVE = { remove: {} };
