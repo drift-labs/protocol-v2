@@ -3,12 +3,7 @@ import {
 	SYSVAR_RENT_PUBKEY,
 	TransactionSignature,
 } from '@solana/web3.js';
-import {
-	FeeStructure,
-	OracleGuardRails,
-	OracleSource,
-	OrderFillerRewardStructure,
-} from './types';
+import { FeeStructure, OracleGuardRails, OracleSource } from './types';
 import { BN } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
 import {
@@ -44,11 +39,6 @@ export class Admin extends ClearingHouse {
 				this.program.programId
 			);
 
-		const [insuranceVaultPublicKey] = await PublicKey.findProgramAddress(
-			[Buffer.from(anchor.utils.bytes.utf8.encode('insurance_vault'))],
-			this.program.programId
-		);
-
 		const initializeTx = await this.program.transaction.initialize(
 			adminControlsPrices,
 			{
@@ -57,7 +47,6 @@ export class Admin extends ClearingHouse {
 					state: clearingHouseStatePublicKey,
 					quoteAssetMint: usdcMint,
 					rent: SYSVAR_RENT_PUBKEY,
-					insuranceVault: insuranceVaultPublicKey,
 					clearingHouseSigner: this.getSignerPublicKey(),
 					systemProgram: anchor.web3.SystemProgram.programId,
 					tokenProgram: TOKEN_PROGRAM_ID,
@@ -278,7 +267,7 @@ export class Admin extends ClearingHouse {
 		marketIndex: BN,
 		concentrationScale: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateConcentrationScale(concentrationScale, {
+		return await this.program.rpc.updateConcentrationCoef(concentrationScale, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				admin: this.wallet.publicKey,
@@ -386,62 +375,19 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
-	public async withdrawFromInsuranceVault(
-		amount: BN,
-		recipient: PublicKey
-	): Promise<TransactionSignature> {
-		const state = await this.getStateAccount();
-		const spotMarket = this.getQuoteSpotMarketAccount();
-		return await this.program.rpc.withdrawFromInsuranceVault(amount, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				spotMarket: spotMarket.pubkey,
-				insuranceVault: state.insuranceVault,
-				clearingHouseSigner: this.getSignerPublicKey(),
-				recipient: recipient,
-				tokenProgram: TOKEN_PROGRAM_ID,
-			},
-		});
-	}
-
-	public async withdrawFromMarketToInsuranceVault(
+	public async depositIntoMarketFeePool(
 		marketIndex: BN,
 		amount: BN,
-		recipient: PublicKey
+		sourceVault: PublicKey
 	): Promise<TransactionSignature> {
-		const marketPublicKey = await getMarketPublicKey(
-			this.program.programId,
-			marketIndex
-		);
-		const spotMarket = this.getQuoteSpotMarketAccount();
-		return await this.program.rpc.withdrawFromMarketToInsuranceVault(amount, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				market: marketPublicKey,
-				spotMarket: spotMarket.pubkey,
-				spotMarketVault: spotMarket.vault,
-				clearingHouseSigner: this.getSignerPublicKey(),
-				recipient: recipient,
-				tokenProgram: TOKEN_PROGRAM_ID,
-			},
-		});
-	}
-
-	public async withdrawFromInsuranceVaultToMarket(
-		marketIndex: BN,
-		amount: BN
-	): Promise<TransactionSignature> {
-		const state = await this.getStateAccount();
 		const spotMarket = this.getQuoteSpotMarketAccount();
 
-		return await this.program.rpc.withdrawFromInsuranceVaultToMarket(amount, {
+		return await this.program.rpc.depositIntoMarketFeePool(amount, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
 				market: await getMarketPublicKey(this.program.programId, marketIndex),
-				insuranceVault: state.insuranceVault,
+				sourceVault,
 				clearingHouseSigner: this.getSignerPublicKey(),
 				quoteSpotMarket: spotMarket.pubkey,
 				spotMarketVault: spotMarket.vault,
@@ -611,22 +557,21 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
-	public async updateOrderFillerRewardStructure(
-		orderFillerRewardStructure: OrderFillerRewardStructure
+	public async updatePerpFeeStructure(
+		feeStructure: FeeStructure
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateOrderFillerRewardStructure(
-			orderFillerRewardStructure,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-				},
-			}
-		);
+		return await this.program.rpc.updatePerpFeeStructure(feeStructure, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
 	}
 
-	public async updateFee(fees: FeeStructure): Promise<TransactionSignature> {
-		return await this.program.rpc.updateFee(fees, {
+	public async updateSpotFeeStructure(
+		feeStructure: FeeStructure
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSpotFeeStructure(feeStructure, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
@@ -935,5 +880,17 @@ export class Admin extends ClearingHouse {
 				},
 			}
 		);
+	}
+
+	public async updateSerumVault(
+		srmVault: PublicKey
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSerumVault({
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				srmVault: srmVault,
+			},
+		});
 	}
 }

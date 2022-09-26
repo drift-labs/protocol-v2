@@ -1,23 +1,37 @@
 use crate::error::ClearingHouseResult;
-use crate::math::casting::cast_to_i128;
+use crate::math::bn::U192;
+use crate::math::casting::{cast_to_i128, cast_to_u128};
 use crate::math_error;
 use solana_program::msg;
+
+pub fn standardize_value_with_remainder_i128(
+    value: i128,
+    step_size: u128,
+) -> ClearingHouseResult<(i128, i128)> {
+    let remainder = cast_to_i128(
+        value
+            .unsigned_abs()
+            .checked_rem_euclid(step_size)
+            .ok_or_else(math_error!())?,
+    )?
+    .checked_mul(value.signum())
+    .ok_or_else(math_error!())?;
+
+    let standardized_value = value.checked_sub(remainder).ok_or_else(math_error!())?;
+
+    Ok((standardized_value, remainder))
+}
 
 pub fn get_proportion_i128(
     value: i128,
     numerator: u128,
     denominator: u128,
 ) -> ClearingHouseResult<i128> {
-    let proportional_value = cast_to_i128(
-        value
-            .unsigned_abs()
-            .checked_mul(numerator)
-            .ok_or_else(math_error!())?
-            .checked_div(denominator)
-            .ok_or_else(math_error!())?,
-    )?
-    .checked_mul(value.signum())
-    .ok_or_else(math_error!())?;
+    let proportional_u128 = get_proportion_u128(value.unsigned_abs(), numerator, denominator)?;
+    let proportional_value = cast_to_i128(proportional_u128)?
+        .checked_mul(value.signum())
+        .ok_or_else(math_error!())?;
+
     Ok(proportional_value)
 }
 
@@ -26,15 +40,43 @@ pub fn get_proportion_u128(
     numerator: u128,
     denominator: u128,
 ) -> ClearingHouseResult<u128> {
-    let proportional_value = if numerator > denominator / 2 && denominator >= numerator {
+    // we use u128::max.sqrt() here
+    let large_constant = cast_to_u128(u64::MAX)?;
+
+    let proportional_value = if numerator == denominator {
+        value
+    } else if value >= large_constant || numerator >= large_constant {
+        let value = U192::from(value)
+            .checked_mul(U192::from(numerator))
+            .ok_or_else(math_error!())?
+            .checked_div(U192::from(denominator))
+            .ok_or_else(math_error!())?;
+
+        cast_to_u128(value)?
+    } else if numerator > denominator / 2 && denominator > numerator {
+        // get values to ensure a ceiling division
+        let (std_value, r) = standardize_value_with_remainder_i128(
+            cast_to_i128(
+                value
+                    .checked_mul(
+                        denominator
+                            .checked_sub(numerator)
+                            .ok_or_else(math_error!())?,
+                    )
+                    .ok_or_else(math_error!())?,
+            )?,
+            denominator,
+        )?;
+
+        // perform ceiling division by subtracting one if there is a remainder
         value
             .checked_sub(
-                value
-                    .checked_mul(denominator - numerator)
-                    .ok_or_else(math_error!())?
+                cast_to_u128(std_value)?
                     .checked_div(denominator)
                     .ok_or_else(math_error!())?,
             )
+            .ok_or_else(math_error!())?
+            .checked_sub(cast_to_u128(r.signum())?)
             .ok_or_else(math_error!())?
     } else {
         value

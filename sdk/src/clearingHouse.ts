@@ -1,5 +1,10 @@
 import { AnchorProvider, BN, Idl, Program } from '@project-serum/anchor';
-import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import bs58 from 'bs58';
+import {
+	ASSOCIATED_TOKEN_PROGRAM_ID,
+	Token,
+	TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 import {
 	StateAccount,
 	IWallet,
@@ -97,6 +102,7 @@ export class ClearingHouse {
 	_isSubscribed = false;
 	txSender: TxSender;
 	marketLastSlotCache = new Map<number, number>();
+	authority: PublicKey;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -121,6 +127,7 @@ export class ClearingHouse {
 			this.provider
 		);
 
+		this.authority = config.authority ?? this.wallet.publicKey;
 		const userIds = config.userIds ?? [0];
 		this.activeUserId = config.activeUserId ?? userIds[0];
 		this.userAccountSubscriptionConfig =
@@ -138,7 +145,7 @@ export class ClearingHouse {
 				clearingHouse: this,
 				userStatsAccountPublicKey: getUserStatsAccountPublicKey(
 					this.program.programId,
-					this.wallet.publicKey
+					this.authority
 				),
 				accountSubscription: this.userAccountSubscriptionConfig,
 			});
@@ -203,7 +210,7 @@ export class ClearingHouse {
 	): ClearingHouseUser {
 		const userAccountPublicKey = getUserAccountPublicKeySync(
 			this.program.programId,
-			this.wallet.publicKey,
+			this.authority,
 			userId
 		);
 
@@ -305,6 +312,12 @@ export class ClearingHouse {
 		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
 	}
 
+	public getSpotMarketAccounts(): SpotMarketAccount[] {
+		return this.accountSubscriber
+			.getSpotMarketAccountsAndSlots()
+			.map((value) => value.data);
+	}
+
 	public getQuoteSpotMarketAccount(): SpotMarketAccount {
 		return this.accountSubscriber.getSpotMarketAccountAndSlot(
 			QUOTE_SPOT_MARKET_INDEX
@@ -357,6 +370,7 @@ export class ClearingHouse {
 		this.wallet = newWallet;
 		this.provider = newProvider;
 		this.program = newProgram;
+		this.authority = newWallet.publicKey;
 
 		if (this.isSubscribed) {
 			await Promise.all(this.unsubscribeUsers());
@@ -488,6 +502,36 @@ export class ClearingHouse {
 		);
 	}
 
+	public async updateUserDelegate(
+		delegate: PublicKey,
+		userId = 0
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateUserDelegate(userId, delegate, {
+			accounts: {
+				user: await this.getUserAccountPublicKey(),
+				authority: this.wallet.publicKey,
+			},
+		});
+	}
+
+	public async getUserAccountsForDelegate(
+		delegate: PublicKey
+	): Promise<UserAccount[]> {
+		const programAccounts = await this.program.account.user.all([
+			{
+				memcmp: {
+					offset: 40,
+					/** data to match, as base-58 encoded string and limited to less than 129 bytes */
+					bytes: bs58.encode(delegate.toBuffer()),
+				},
+			},
+		]);
+
+		return programAccounts.map(
+			(programAccount) => programAccount.account as UserAccount
+		);
+	}
+
 	public getUser(userId?: number): ClearingHouseUser {
 		userId = userId ?? this.activeUserId;
 		if (!this.users.has(userId)) {
@@ -512,7 +556,7 @@ export class ClearingHouse {
 
 		this.userStatsAccountPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
-			this.wallet.publicKey
+			this.authority
 		);
 		return this.userStatsAccountPublicKey;
 	}
@@ -726,14 +770,14 @@ export class ClearingHouse {
 
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 
-		const authority = this.wallet.publicKey;
+		const authority = this.authority;
 
 		const createWSOLTokenAccount =
 			isSolMarket && collateralAccountPublicKey.equals(authority);
 
 		if (createWSOLTokenAccount) {
 			const { ixs, signers, pubkey } =
-				await this.getWrappedSolAccountCreationIxs(amount);
+				await this.getWrappedSolAccountCreationIxs(amount, true);
 
 			collateralAccountPublicKey = pubkey;
 
@@ -787,7 +831,7 @@ export class ClearingHouse {
 		const userAccountPublicKey = userId
 			? await getUserAccountPublicKey(
 					this.program.programId,
-					this.wallet.publicKey,
+					this.authority,
 					userId
 			  )
 			: await this.getUserAccountPublicKey();
@@ -835,70 +879,20 @@ export class ClearingHouse {
 		);
 	}
 
-	private async checkIfAccountExists(account: PublicKey) {
+	private async checkIfAccountExists(account: PublicKey): Promise<boolean> {
 		try {
 			const accountInfo = await this.connection.getAccountInfo(account);
-			return accountInfo && true;
+			return accountInfo != null;
 		} catch (e) {
 			// Doesn't already exist
 			return false;
 		}
 	}
 
-	private async getSolWithdrawalIxs(
-		marketIndex: BN,
-		amount: BN
+	private async getWrappedSolAccountCreationIxs(
+		amount: BN,
+		isDeposit?: boolean
 	): Promise<{
-		ixs: anchor.web3.TransactionInstruction[];
-		signers: Signer[];
-		pubkey: PublicKey;
-	}> {
-		const result = {
-			ixs: [],
-			signers: [],
-			pubkey: PublicKey.default,
-		};
-
-		// Create a temporary wrapped SOL account to store the SOL that we're withdrawing
-
-		const authority = this.wallet.publicKey;
-
-		const { ixs, signers, pubkey } = await this.getWrappedSolAccountCreationIxs(
-			amount
-		);
-		result.pubkey = pubkey;
-
-		ixs.forEach((ix) => {
-			result.ixs.push(ix);
-		});
-
-		signers.forEach((ix) => {
-			result.signers.push(ix);
-		});
-
-		const withdrawIx = await this.getWithdrawIx(
-			amount,
-			marketIndex,
-			pubkey,
-			true
-		);
-
-		result.ixs.push(withdrawIx);
-
-		result.ixs.push(
-			Token.createCloseAccountInstruction(
-				TOKEN_PROGRAM_ID,
-				pubkey,
-				authority,
-				authority,
-				[]
-			)
-		);
-
-		return result;
-	}
-
-	private async getWrappedSolAccountCreationIxs(amount: BN): Promise<{
 		ixs: anchor.web3.TransactionInstruction[];
 		signers: Signer[];
 		pubkey: PublicKey;
@@ -913,7 +907,9 @@ export class ClearingHouse {
 
 		const rentSpaceLamports = new BN(LAMPORTS_PER_SOL / 100);
 
-		const depositAmountLamports = amount.add(rentSpaceLamports);
+		const lamports = isDeposit
+			? amount.add(rentSpaceLamports)
+			: rentSpaceLamports;
 
 		const authority = this.wallet.publicKey;
 
@@ -921,7 +917,7 @@ export class ClearingHouse {
 			SystemProgram.createAccount({
 				fromPubkey: authority,
 				newAccountPubkey: wrappedSolAccount.publicKey,
-				lamports: depositAmountLamports.toNumber(),
+				lamports: lamports.toNumber(),
 				space: 165,
 				programId: TOKEN_PROGRAM_ID,
 			})
@@ -939,6 +935,23 @@ export class ClearingHouse {
 		result.signers.push(wrappedSolAccount);
 
 		return result;
+	}
+
+	public getAssociatedTokenAccountCreationIx(
+		tokenMintAddress: PublicKey,
+		associatedTokenAddress: PublicKey
+	): anchor.web3.TransactionInstruction {
+		const createAssociatedAccountIx =
+			Token.createAssociatedTokenAccountInstruction(
+				ASSOCIATED_TOKEN_PROGRAM_ID,
+				TOKEN_PROGRAM_ID,
+				tokenMintAddress,
+				associatedTokenAddress,
+				this.wallet.publicKey,
+				this.wallet.publicKey
+			);
+
+		return createAssociatedAccountIx;
 	}
 
 	/**
@@ -981,7 +994,7 @@ export class ClearingHouse {
 				ixs: startIxs,
 				signers,
 				pubkey,
-			} = await this.getWrappedSolAccountCreationIxs(amount);
+			} = await this.getWrappedSolAccountCreationIxs(amount, true);
 
 			userTokenAccount = pubkey;
 
@@ -1094,7 +1107,7 @@ export class ClearingHouse {
 
 		if (createWSOLTokenAccount) {
 			const { ixs, signers, pubkey } =
-				await this.getWrappedSolAccountCreationIxs(amount);
+				await this.getWrappedSolAccountCreationIxs(amount, false);
 
 			userTokenAccount = pubkey;
 
@@ -1103,6 +1116,18 @@ export class ClearingHouse {
 			});
 
 			signers.forEach((signer) => additionalSigners.push(signer));
+		} else {
+			const accountExists = await this.checkIfAccountExists(userTokenAccount);
+
+			if (!accountExists) {
+				const createAssociatedTokenAccountIx =
+					this.getAssociatedTokenAccountCreationIx(
+						spotMarketAccount.mint,
+						userTokenAccount
+					);
+
+				tx.add(createAssociatedTokenAccountIx);
+			}
 		}
 
 		const withdrawCollateral = await this.getWithdrawIx(
@@ -1884,10 +1909,7 @@ export class ClearingHouse {
 		}
 
 		for (const position of userAccount.perpPositions) {
-			if (
-				!positionIsAvailable(position) &&
-				!position.marketIndex.eq(order.marketIndex)
-			) {
+			if (!positionIsAvailable(position)) {
 				const market = this.getPerpMarketAccount(position.marketIndex);
 				perpMarketAccountMap.set(position.marketIndex.toNumber(), {
 					pubkey: market.pubkey,
@@ -2035,6 +2057,11 @@ export class ClearingHouse {
 			remainingAccounts.push({
 				pubkey: quoteMarketAccount.vault,
 				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: this.getStateAccount().srmVault,
+				isWritable: false,
 				isSigner: false,
 			});
 		}
@@ -3188,6 +3215,13 @@ export class ClearingHouse {
 
 	public getOracleDataForMarket(marketIndex: BN): OraclePriceData {
 		const oracleKey = this.getPerpMarketAccount(marketIndex).amm.oracle;
+		const oracleData = this.getOraclePriceDataAndSlot(oracleKey).data;
+
+		return oracleData;
+	}
+
+	public getOracleDataForSpotMarket(marketIndex: BN): OraclePriceData {
+		const oracleKey = this.getSpotMarketAccount(marketIndex).oracle;
 		const oracleData = this.getOraclePriceDataAndSlot(oracleKey).data;
 
 		return oracleData;

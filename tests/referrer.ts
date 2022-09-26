@@ -12,7 +12,7 @@ import {
 	EventSubscriber,
 	ClearingHouse,
 	Wallet,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -56,9 +56,7 @@ describe('referrer', () => {
 	let solOracle: PublicKey;
 
 	// ammInvariant == k == x * y
-	const ammReservePrecision = new BN(
-		Math.sqrt(MARK_PRICE_PRECISION.toNumber())
-	);
+	const ammReservePrecision = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		ammReservePrecision
 	);
@@ -209,16 +207,16 @@ describe('referrer', () => {
 		const eventRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert(eventRecord.referrer.equals(provider.wallet.publicKey));
 		assert(eventRecord.takerFee.eq(new BN(95000)));
-		assert(eventRecord.referrerReward.eq(new BN(5000)));
+		assert(eventRecord.referrerReward.eq(new BN(15000)));
 		assert(eventRecord.refereeDiscount.eq(new BN(5000)));
 
 		await referrerClearingHouse.fetchAccounts();
 		const referrerStats = referrerClearingHouse.getUserStats().getAccount();
-		assert(referrerStats.totalReferrerReward.eq(new BN(5000)));
+		assert(referrerStats.totalReferrerReward.eq(new BN(15000)));
 
 		const referrerPosition = referrerClearingHouse.getUser().getUserAccount()
 			.perpPositions[0];
-		assert(referrerPosition.quoteAssetAmount.eq(new BN(5000)));
+		assert(referrerPosition.quoteAssetAmount.eq(new BN(15000)));
 
 		const refereeStats = refereeClearingHouse.getUserStats().getAccount();
 		assert(refereeStats.fees.totalRefereeDiscount.eq(new BN(5000)));

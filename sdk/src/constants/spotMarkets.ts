@@ -15,6 +15,7 @@ export type SpotMarketConfig = {
 	oracleSource: OracleSource;
 	precision: BN;
 	precisionExp: BN;
+	serumMarket?: PublicKey;
 };
 
 export const WRAPPED_SOL_MINT = new PublicKey(
@@ -39,6 +40,7 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		mint: new PublicKey(WRAPPED_SOL_MINT),
 		precision: LAMPORTS_PRECISION,
 		precisionExp: LAMPORTS_EXP,
+		serumMarket: new PublicKey('8N37SsnTu8RYxtjrV9SStjkkwVhmU8aCWhLvwduAPEKW'),
 	},
 	{
 		symbol: 'BTC',
@@ -48,6 +50,7 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		mint: new PublicKey('3BZPwbcqB5kKScF3TEXxwNfx5ipV13kbRVDvfVp5c6fv'),
 		precision: SPOT_MARKET_BALANCE_PRECISION,
 		precisionExp: SPOT_MARKET_BALANCE_PRECISION_EXP,
+		serumMarket: new PublicKey('AGsmbVu3MS9u68GEYABWosQQCZwmLcBHu4pWEuBYH7Za'),
 	},
 ];
 

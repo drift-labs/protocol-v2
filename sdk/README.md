@@ -57,7 +57,7 @@ The Drift SDK uses some common precisions, which are available as constants to i
 | Precision Name            | Value |
 | ------------------------- | ----- |
 | QUOTE_PRECISION           | 10^6  |
-| MARK_PRICE_PRECISION      | 10^10 |
+| PRICE_PRECISION           | 10^10 |
 | AMM_RESERVE_PRECISION     | 10^13 |
 | FUNDING_PAYMENT_PRECISION | 10^4  |
 | PEG_PRECISION             | 10^3  |
@@ -96,9 +96,9 @@ import {
 	PositionDirection,
 	convertToNumber,
 	calculateTradeSlippage,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	QUOTE_PRECISION,
-	Wallet
+	Wallet,
 } from '@drift-labs/sdk';
 
 export const getTokenAddress = (
@@ -181,7 +181,7 @@ const main = async () => {
 		clearingHouse.getMarket(solMarketInfo.marketIndex)
 	);
 
-	const formattedPrice = convertToNumber(currentMarketPrice, MARK_PRICE_PRECISION);
+	const formattedPrice = convertToNumber(currentMarketPrice, PRICE_PRECISION);
 
 	console.log(`Current Market Price is $${formattedPrice}`);
 
@@ -194,7 +194,7 @@ const main = async () => {
 			new BN(5000).mul(QUOTE_PRECISION),
 			solMarketAccount
 		)[0],
-		MARK_PRICE_PRECISION
+		PRICE_PRECISION
 	);
 
 	console.log(

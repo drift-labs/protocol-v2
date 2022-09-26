@@ -11,6 +11,7 @@ import {
 	setFeedPrice,
 	initializeQuoteSpotMarket,
 	initUserAccounts,
+	sleep,
 } from './testHelpers';
 
 import {
@@ -26,8 +27,8 @@ import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
 	Admin,
-	MARK_PRICE_PRECISION,
-	FUNDING_PAYMENT_PRECISION,
+	PRICE_PRECISION,
+	FUNDING_RATE_BUFFER_PRECISION,
 	ClearingHouse,
 	ClearingHouseUser,
 	QUOTE_SPOT_MARKET_INDEX,
@@ -54,7 +55,9 @@ async function updateFundingRateHelper(
 
 		const priceSpread0 =
 			convertToNumber(ammAccountState0.lastMarkPriceTwap) -
-			convertToNumber(ammAccountState0.lastOraclePriceTwap);
+			convertToNumber(
+				ammAccountState0.historicalOracleData.lastOraclePriceTwap
+			);
 		const frontEndFundingCalc0 = priceSpread0 / oraclePx0.twap / (24 * 3600);
 
 		console.log(
@@ -62,11 +65,11 @@ async function updateFundingRateHelper(
 			frontEndFundingCalc0,
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber() /
-				MARK_PRICE_PRECISION.toNumber(),
+				PRICE_PRECISION.toNumber(),
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber(),
 			'oracleTwap0(vamm):',
-			ammAccountState0.lastOraclePriceTwap.toNumber(),
+			ammAccountState0.historicalOracleData.lastOraclePriceTwap.toNumber(),
 			'oracleTwap0:',
 			oraclePx0.twap,
 			'oraclePrice',
@@ -88,8 +91,7 @@ async function updateFundingRateHelper(
 			console.error(e);
 		}
 
-		const CONVERSION_SCALE =
-			FUNDING_PAYMENT_PRECISION.mul(MARK_PRICE_PRECISION);
+		const CONVERSION_SCALE = FUNDING_RATE_BUFFER_PRECISION.mul(PRICE_PRECISION);
 
 		const marketData = clearingHouse.getPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
@@ -128,8 +130,8 @@ async function updateFundingRateHelper(
 
 		const priceSpread =
 			(ammAccountState.lastMarkPriceTwap.toNumber() -
-				ammAccountState.lastOraclePriceTwap.toNumber()) /
-			MARK_PRICE_PRECISION.toNumber();
+				ammAccountState.historicalOracleData.lastOraclePriceTwap.toNumber()) /
+			PRICE_PRECISION.toNumber();
 		const frontEndFundingCalc =
 			priceSpread / ((24 * 3600) / Math.max(1, peroidicity.toNumber()));
 
@@ -137,12 +139,11 @@ async function updateFundingRateHelper(
 			'funding rate frontend calc:',
 			frontEndFundingCalc,
 			'markTwap:',
-			ammAccountState.lastMarkPriceTwap.toNumber() /
-				MARK_PRICE_PRECISION.toNumber(),
+			ammAccountState.lastMarkPriceTwap.toNumber() / PRICE_PRECISION.toNumber(),
 			'markTwap:',
 			ammAccountState.lastMarkPriceTwap.toNumber(),
 			'oracleTwap(vamm):',
-			ammAccountState.lastOraclePriceTwap.toNumber(),
+			ammAccountState.historicalOracleData.lastOraclePriceTwap.toNumber(),
 			'priceSpread:',
 			priceSpread
 		);
@@ -299,7 +300,7 @@ describe('pyth-oracle', () => {
 
 		// await clearingHouse.moveAmmToPrice(
 		// 	marketIndex,
-		// 	new BN(41.5 * MARK_PRICE_PRECISION.toNumber())
+		// 	new BN(41.5 * PRICE_PRECISION.toNumber())
 		// );
 
 		await updateFundingRateHelper(
@@ -315,7 +316,7 @@ describe('pyth-oracle', () => {
 
 		// await clearingHouse.moveAmmToPrice(
 		// 	marketIndex,
-		// 	new BN(41.5 * MARK_PRICE_PRECISION.toNumber())
+		// 	new BN(41.5 * PRICE_PRECISION.toNumber())
 		// );
 
 		console.log(
@@ -327,29 +328,58 @@ describe('pyth-oracle', () => {
 
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			BASE_PRECISION.div(new BN(20)),
+			BASE_PRECISION,
 			marketIndex
 		);
 
 		await clearingHouse2.openPosition(
 			PositionDirection.SHORT,
-			BASE_PRECISION.div(new BN(80)),
+			BASE_PRECISION.div(new BN(100)),
 			marketIndex
 		);
+		await clearingHouse.fetchAccounts();
 
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
+
+		console.log('PRICE AFTER', convertToNumber(calculateMarkPrice(market)));
 
 		await updateFundingRateHelper(
 			clearingHouse,
 			marketIndex,
 			market.amm.oracle,
-			[43.501, 41.499]
+			[43.501, 44.499]
 		);
+		await sleep(1000);
+		await clearingHouse.fetchAccounts();
 
 		const marketNew = clearingHouse.getPerpMarketAccount(marketIndex);
 
+		console.log(
+			'lastOraclePriceTwap before:',
+			market.amm.historicalOracleData.lastOraclePriceTwap.toString()
+		);
+		console.log(
+			'lastMarkPriceTwap before:',
+			market.amm.lastMarkPriceTwap.toString()
+		);
+
+		console.log(
+			'lastOraclePriceTwap after:',
+			marketNew.amm.historicalOracleData.lastOraclePriceTwap.toString()
+		);
+		console.log(
+			'lastMarkPriceTwap after:',
+			marketNew.amm.lastMarkPriceTwap.toString()
+		);
+
 		const fundingRateLong = marketNew.amm.cumulativeFundingRateLong.sub(
 			market.amm.cumulativeFundingRateLong
+		);
+		console.log(
+			marketNew.amm.cumulativeFundingRateLong.toString(),
+			market.amm.cumulativeFundingRateLong.toString(),
+			marketNew.amm.cumulativeFundingRateShort.toString(),
+			market.amm.cumulativeFundingRateShort.toString()
 		);
 		const fundingRateShort = marketNew.amm.cumulativeFundingRateShort.sub(
 			market.amm.cumulativeFundingRateShort
@@ -357,8 +387,8 @@ describe('pyth-oracle', () => {
 
 		// more dollars long than short
 		console.log(fundingRateLong.toString(), 'vs', fundingRateShort.toString());
-		assert(fundingRateLong.gt(new BN(0)));
-		assert(fundingRateShort.gt(new BN(0)));
-		// assert(fundingRateShort.gt(fundingRateLong));
+		assert(fundingRateLong.lt(new BN(0)));
+		assert(fundingRateShort.lt(new BN(0))); // Z-TODO
+		assert(fundingRateShort.abs().gt(fundingRateLong.abs()));
 	});
 });

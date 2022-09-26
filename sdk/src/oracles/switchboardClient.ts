@@ -1,7 +1,7 @@
 import { SwitchboardDecimal } from '@switchboard-xyz/switchboard-v2';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { BN, Program, Idl, AnchorProvider } from '@project-serum/anchor';
-import { MARK_PRICE_PRECISION, TEN } from '../constants/numericConstants';
+import { PRICE_PRECISION, TEN } from '../constants/numericConstants';
 import { OracleClient, OraclePriceData } from './types';
 import { Wallet } from '../wallet';
 import switchboardV2Idl from '../idl/switchboard_v2.json';
@@ -74,6 +74,6 @@ function getSwitchboardProgram(connection: Connection): Program {
 function convertSwitchboardDecimal(switchboardDecimal: SwitchboardDecimal): BN {
 	const switchboardPrecision = TEN.pow(new BN(switchboardDecimal.scale));
 	return switchboardDecimal.mantissa
-		.mul(MARK_PRICE_PRECISION)
+		.mul(PRICE_PRECISION)
 		.div(switchboardPrecision);
 }

@@ -1,17 +1,23 @@
-use crate::state::market::MarketStatus;
-use crate::state::oracle_map::OracleMap;
-use crate::state::state::FeeStructure;
-use crate::state::user::{Order, PerpPosition};
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
 
+use crate::state::market::MarketStatus;
+use crate::state::oracle_map::OracleMap;
+use crate::state::state::{FeeStructure, FeeTier};
+use crate::state::user::{Order, PerpPosition};
+
 fn get_fee_structure() -> FeeStructure {
-    FeeStructure {
+    let mut fee_tiers = [FeeTier::default(); 10];
+    fee_tiers[0] = FeeTier {
         fee_numerator: 5,
         fee_denominator: 10000,
         maker_rebate_numerator: 3,
-        maker_rebate_denominator: 5,
-        ..FeeStructure::default()
+        maker_rebate_denominator: 10000,
+        ..FeeTier::default()
+    };
+    FeeStructure {
+        fee_tiers,
+        ..FeeStructure::test_default()
     }
 }
 
@@ -24,17 +30,17 @@ fn get_oracle_map<'a>() -> OracleMap<'a> {
 }
 
 pub mod fulfill_order_with_maker_order {
-    use super::*;
     use crate::controller::orders::fulfill_order_with_match;
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{
-        BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION, QUOTE_PRECISION_I128,
+        BASE_PRECISION, BASE_PRECISION_I128, PRICE_PRECISION, QUOTE_PRECISION_I128,
         QUOTE_PRECISION_U64,
     };
     use crate::state::market::PerpMarket;
-    use crate::state::state::FeeStructure;
     use crate::state::user::{Order, OrderType, PerpPosition, User, UserStats};
     use crate::tests::utils::*;
+
+    use super::*;
 
     #[test]
     fn long_taker_order_fulfilled_start_of_auction() {
@@ -46,8 +52,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -68,7 +74,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -167,8 +173,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -189,7 +195,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 160 * MARK_PRICE_PRECISION,
+                price: 160 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -288,8 +294,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 200 * MARK_PRICE_PRECISION,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_start_price: 200 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -310,7 +316,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 180 * MARK_PRICE_PRECISION,
+                price: 180 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -409,8 +415,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 200 * MARK_PRICE_PRECISION,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_start_price: 200 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -431,7 +437,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 140 * MARK_PRICE_PRECISION,
+                price: 140 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -530,8 +536,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -552,7 +558,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 201 * MARK_PRICE_PRECISION,
+                price: 201 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -569,7 +575,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 3_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure::test_default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -615,8 +621,8 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                auction_start_price: 200 * MARK_PRICE_PRECISION,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_start_price: 200 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -637,7 +643,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 99 * MARK_PRICE_PRECISION,
+                price: 99 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -654,7 +660,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 3_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure::test_default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -701,8 +707,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 200 * MARK_PRICE_PRECISION,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_start_price: 200 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -723,7 +729,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 200 * MARK_PRICE_PRECISION,
+                price: 200 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -740,7 +746,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure::test_default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -786,8 +792,8 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                auction_start_price: 200 * MARK_PRICE_PRECISION,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_start_price: 200 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -808,7 +814,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 200 * MARK_PRICE_PRECISION,
+                price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -826,7 +832,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure::test_default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -873,8 +879,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: 100 * BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -895,7 +901,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 120 * MARK_PRICE_PRECISION,
+                price: 120 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -912,7 +918,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure::test_default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -981,8 +987,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -1003,7 +1009,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: 100 * BASE_PRECISION,
                 ts: 0,
-                price: 120 * MARK_PRICE_PRECISION,
+                price: 120 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1020,7 +1026,7 @@ pub mod fulfill_order_with_maker_order {
         let now = 1_i64;
         let slot = 1_u64;
 
-        let fee_structure = FeeStructure::default();
+        let fee_structure = FeeStructure::test_default();
 
         let (taker_key, maker_key, filler_key) = get_user_keys();
 
@@ -1089,8 +1095,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 10,
                 ..Order::default()
             }),
@@ -1112,8 +1118,8 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 200 * MARK_PRICE_PRECISION,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_start_price: 200 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 10,
                 ..Order::default()
             }),
@@ -1214,7 +1220,7 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1233,7 +1239,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 150 * MARK_PRICE_PRECISION,
+                price: 150 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1332,7 +1338,7 @@ pub mod fulfill_order_with_maker_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1351,7 +1357,7 @@ pub mod fulfill_order_with_maker_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
-                price: 50 * MARK_PRICE_PRECISION,
+                price: 50 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1442,41 +1448,34 @@ pub mod fulfill_order_with_maker_order {
 }
 
 pub mod fulfill_order {
-    use super::*;
-    use crate::controller::orders::fulfill_order;
+    use std::str::FromStr;
+
+    use crate::controller::orders::{fulfill_order, validate_market_within_price_band};
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION,
-        MARK_PRICE_PRECISION_I128, PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, BID_ASK_SPREAD_PRECISION_I128,
+        PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
+        QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{PerpMarket, AMM};
-    use crate::state::oracle::OracleSource;
+    use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
+    use crate::state::state::{
+        OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails,
+    };
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::tests::utils::*;
-    use std::str::FromStr;
 
+    use super::*;
     #[test]
-    fn fulfill_with_amm_and_maker() {
-        let now = 0_i64;
-        let slot = 0_u64;
-
-        let mut oracle_price = get_pyth_price(100, 10);
+    fn validate_market_within_price_band_tests() {
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
-            oracle_price,
-            &oracle_price_key,
-            &pyth_program,
-            oracle_account_info
-        );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -1493,7 +1492,130 @@ pub mod fulfill_order {
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
                 base_spread: 100,
-                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
+        };
+        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.min_base_asset_reserve = 0;
+
+        let mut state = State {
+            oracle_guard_rails: OracleGuardRails {
+                price_divergence: PriceDivergenceGuardRails {
+                    mark_oracle_divergence_numerator: 1,
+                    mark_oracle_divergence_denominator: 10,
+                },
+                validity: ValidityGuardRails {
+                    slots_before_stale_for_amm: 10,     // 5s
+                    slots_before_stale_for_margin: 120, // 60s
+                    confidence_interval_max_size: 1000,
+                    too_volatile_ratio: 5,
+                },
+                use_for_liquidations: true,
+            },
+            ..State::default()
+        };
+
+        // valid initial state
+        assert!(validate_market_within_price_band(&market, &state, true, None).unwrap());
+
+        // twap_5min $50 and mark $100 breaches 10% divergence -> failure
+        market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min = 50 * PRICE_PRECISION as i128;
+        assert!(validate_market_within_price_band(&market, &state, true, None).is_err());
+
+        // within 60% ok -> success
+        state
+            .oracle_guard_rails
+            .price_divergence
+            .mark_oracle_divergence_numerator = 6;
+        assert!(validate_market_within_price_band(&market, &state, true, None).unwrap());
+
+        // twap_5min $20 and mark $100 breaches 60% divergence -> failure
+        market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min = 20 * PRICE_PRECISION as i128;
+        assert!(validate_market_within_price_band(&market, &state, true, None).is_err());
+
+        // twap_5min $20 and mark $100 but risk reduction when already breached -> success
+        market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min = 20 * PRICE_PRECISION as i128;
+        assert!(validate_market_within_price_band(
+            &market,
+            &state,
+            false,
+            Some(BID_ASK_SPREAD_PRECISION_I128 * 77 / 100)
+        )
+        .unwrap());
+
+        // twap_5min $20 and mark $100 but risk reduction when not already breached -> failure
+        market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min = 20 * PRICE_PRECISION as i128;
+        assert!(validate_market_within_price_band(
+            &market,
+            &state,
+            false,
+            Some(BID_ASK_SPREAD_PRECISION_I128 * 51 / 100)
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn fulfill_with_amm_and_maker() {
+        let now = 0_i64;
+        let slot = 0_u64;
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_base_asset_amount_ratio: 100,
+                base_asset_amount_step_size: 1000,
+                oracle: oracle_price_key,
+                base_spread: 100,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1529,7 +1651,7 @@ pub mod fulfill_order {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -1542,7 +1664,7 @@ pub mod fulfill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_INTEREST_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1556,7 +1678,7 @@ pub mod fulfill_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1597,7 +1719,7 @@ pub mod fulfill_order {
             &mut oracle_map,
             &fee_structure,
             0,
-            None,
+            Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
             false,
@@ -1629,9 +1751,9 @@ pub mod fulfill_order {
         assert_eq!(maker.orders[0], Order::default());
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, 5000000000000);
-        assert_eq!(market_after.base_asset_amount_long, 10000000000000);
-        assert_eq!(market_after.base_asset_amount_short, -5000000000000);
+        assert_eq!(market_after.amm.net_base_asset_amount, 500000000);
+        assert_eq!(market_after.base_asset_amount_long, 1000000000);
+        assert_eq!(market_after.base_asset_amount_short, -500000000);
         assert_eq!(market_after.amm.quote_asset_amount_long, -100296370);
         assert_eq!(market_after.amm.quote_asset_amount_short, 50015000);
         assert_eq!(market_after.amm.total_fee, 30113);
@@ -1655,7 +1777,13 @@ pub mod fulfill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 base_asset_amount_step_size: 1,
-                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
 
                 ..AMM::default()
             },
@@ -1690,8 +1818,8 @@ pub mod fulfill_order {
                 base_asset_amount: BASE_PRECISION,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -1704,7 +1832,7 @@ pub mod fulfill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_INTEREST_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1718,7 +1846,7 @@ pub mod fulfill_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1793,8 +1921,8 @@ pub mod fulfill_order {
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.net_base_asset_amount, 0);
-        assert_eq!(market_after.base_asset_amount_long, 5000000000000);
-        assert_eq!(market_after.base_asset_amount_short, -5000000000000);
+        assert_eq!(market_after.base_asset_amount_long, 500000000);
+        assert_eq!(market_after.base_asset_amount_short, -500000000);
         assert_eq!(market_after.amm.quote_asset_amount_long, -50025000);
         assert_eq!(market_after.amm.quote_asset_amount_short, 50015000);
         assert_eq!(market_after.amm.total_fee, 10000);
@@ -1807,7 +1935,7 @@ pub mod fulfill_order {
         let now = 0_i64;
         let slot = 6_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1817,7 +1945,7 @@ pub mod fulfill_order {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -1833,7 +1961,13 @@ pub mod fulfill_order {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
-                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
 
                 ..AMM::default()
             },
@@ -1870,7 +2004,7 @@ pub mod fulfill_order {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -1883,7 +2017,7 @@ pub mod fulfill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_INTEREST_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1914,7 +2048,7 @@ pub mod fulfill_order {
             &mut oracle_map,
             &fee_structure,
             0,
-            None,
+            Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
             false,
@@ -1936,8 +2070,8 @@ pub mod fulfill_order {
         assert_eq!(taker.orders[0], Order::default());
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, 10000000000000);
-        assert_eq!(market_after.base_asset_amount_long, 10000000000000);
+        assert_eq!(market_after.amm.net_base_asset_amount, 1000000000);
+        assert_eq!(market_after.base_asset_amount_long, 1000000000);
         assert_eq!(market_after.base_asset_amount_short, 0);
         assert_eq!(market_after.amm.quote_asset_amount_long, -104133673);
         assert_eq!(market_after.amm.quote_asset_amount_short, 0);
@@ -1951,7 +2085,7 @@ pub mod fulfill_order {
         let now = 0_i64;
         let slot = 6_u64;
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1961,7 +2095,7 @@ pub mod fulfill_order {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -1977,7 +2111,13 @@ pub mod fulfill_order {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
                 oracle: oracle_price_key,
-                last_oracle_price: (100 * MARK_PRICE_PRECISION) as i128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+
+                    ..HistoricalOracleData::default()
+                },
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2013,7 +2153,7 @@ pub mod fulfill_order {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -2026,7 +2166,7 @@ pub mod fulfill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: SPOT_INTEREST_PRECISION,
+                balance: SPOT_BALANCE_PRECISION,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2040,7 +2180,7 @@ pub mod fulfill_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -2103,7 +2243,10 @@ pub mod fulfill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 base_asset_amount_step_size: 1,
-                last_oracle_price: 100 * MARK_PRICE_PRECISION_I128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: 100 * PRICE_PRECISION_I128,
+                    ..HistoricalOracleData::default()
+                },
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 ..AMM::default()
@@ -2125,7 +2268,10 @@ pub mod fulfill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 20000 * PEG_PRECISION,
                 base_asset_amount_step_size: 1,
-                last_oracle_price: 20000 * MARK_PRICE_PRECISION_I128,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: 20000 * PRICE_PRECISION_I128,
+                    ..HistoricalOracleData::default()
+                },
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 ..AMM::default()
@@ -2166,8 +2312,8 @@ pub mod fulfill_order {
             base_asset_amount: BASE_PRECISION,
             ts: 0,
             slot: 0,
-            auction_start_price: 100 * MARK_PRICE_PRECISION,
-            auction_end_price: 200 * MARK_PRICE_PRECISION,
+            auction_start_price: 100 * PRICE_PRECISION,
+            auction_end_price: 200 * PRICE_PRECISION,
             auction_duration: 5,
             ..Order::default()
         };
@@ -2179,8 +2325,8 @@ pub mod fulfill_order {
             base_asset_amount: BASE_PRECISION,
             ts: 0,
             slot: 0,
-            auction_start_price: 20000 * MARK_PRICE_PRECISION,
-            auction_end_price: 20100 * MARK_PRICE_PRECISION,
+            auction_start_price: 20000 * PRICE_PRECISION,
+            auction_end_price: 20100 * PRICE_PRECISION,
             auction_duration: 5,
             ..Order::default()
         };
@@ -2206,7 +2352,7 @@ pub mod fulfill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 10_000 * SPOT_INTEREST_PRECISION,
+                balance: 10_000 * SPOT_BALANCE_PRECISION,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2221,7 +2367,7 @@ pub mod fulfill_order {
             direction: PositionDirection::Short,
             base_asset_amount: BASE_PRECISION / 2,
             ts: 0,
-            price: 20000 * MARK_PRICE_PRECISION,
+            price: 20000 * PRICE_PRECISION,
             ..Order::default()
         };
         maker_orders[1] = Order {
@@ -2231,7 +2377,7 @@ pub mod fulfill_order {
             direction: PositionDirection::Short,
             base_asset_amount: BASE_PRECISION / 2,
             ts: 0,
-            price: 100 * MARK_PRICE_PRECISION,
+            price: 100 * PRICE_PRECISION,
             ..Order::default()
         };
 
@@ -2336,8 +2482,8 @@ pub mod fulfill_order {
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.net_base_asset_amount, 0);
-        assert_eq!(market_after.base_asset_amount_long, 5000000000000);
-        assert_eq!(market_after.base_asset_amount_short, -5000000000000);
+        assert_eq!(market_after.base_asset_amount_long, 500000000);
+        assert_eq!(market_after.base_asset_amount_short, -500000000);
         assert_eq!(market_after.amm.quote_asset_amount_long, -50025000);
         assert_eq!(market_after.amm.quote_asset_amount_short, 50015000);
         assert_eq!(market_after.amm.total_fee, 10000);
@@ -2345,29 +2491,51 @@ pub mod fulfill_order {
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 10000);
 
         assert_eq!(market_after.amm.last_mark_price_twap_ts, 1);
-        assert_eq!(market_after.amm.last_oracle_price_twap_ts, 0);
-        assert_eq!(market_after.amm.last_ask_price_twap, 500000000000);
-        assert_eq!(market_after.amm.last_bid_price_twap, 500000000000);
-        assert_eq!(market_after.amm.last_mark_price_twap, 500000000000);
-        assert_eq!(market_after.amm.last_mark_price_twap_5min, 3333333333);
-        assert_eq!(market_after.amm.last_oracle_price_twap, 0);
-        assert_eq!(market_after.amm.last_oracle_price_twap_5min, 0);
+        assert_eq!(
+            market_after
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap_ts,
+            0
+        );
+        assert_eq!(market_after.amm.last_ask_price_twap, 50000000);
+        assert_eq!(market_after.amm.last_bid_price_twap, 50000000);
+        assert_eq!(market_after.amm.last_mark_price_twap, 50000000);
+        assert_eq!(market_after.amm.last_mark_price_twap_5min, 333332);
+        assert_eq!(
+            market_after
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap,
+            0
+        );
+        assert_eq!(
+            market_after
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
+            0
+        );
     }
 }
 
 pub mod fill_order {
-    use super::*;
+    use std::str::FromStr;
+
+    use anchor_lang::prelude::{AccountLoader, Clock};
+
     use crate::controller::orders::fill_order;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, MARK_PRICE_PRECISION,
-        PEG_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, PEG_PRECISION, PRICE_PRECISION,
+        SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{PerpMarket, AMM};
+    use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
+
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
@@ -2375,8 +2543,8 @@ pub mod fill_order {
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::tests::utils::create_account_info;
     use crate::tests::utils::*;
-    use anchor_lang::prelude::{AccountLoader, Clock};
-    use std::str::FromStr;
+
+    use super::*;
 
     #[test]
     fn cancel_order_after_fulfill() {
@@ -2388,7 +2556,7 @@ pub mod fill_order {
             unix_timestamp: 0,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -2398,7 +2566,7 @@ pub mod fill_order {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -2413,11 +2581,16 @@ pub mod fill_order {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 100,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                base_asset_amount_step_size: 1000,
                 oracle: oracle_price_key,
-                last_oracle_price_twap: oracle_price.twap as i128,
                 max_spread: 1000,
-                last_oracle_price: oracle_price.agg.price as i128,
+
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: oracle_price.twap as i128,
+                    last_oracle_price_twap_5min: oracle_price.twap as i128,
+                    last_oracle_price: oracle_price.agg.price as i128,
+                    ..HistoricalOracleData::default()
+                },
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2453,9 +2626,9 @@ pub mod fill_order {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 102 * MARK_PRICE_PRECISION,
+                auction_end_price: 102 * PRICE_PRECISION,
                 auction_duration: 5,
-                price: 102 * MARK_PRICE_PRECISION,
+                price: 102 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -2467,7 +2640,7 @@ pub mod fill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_INTEREST_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2515,7 +2688,7 @@ pub mod fill_order {
         .unwrap();
 
         let user_after = user_account_loader.load().unwrap();
-        assert_eq!(base_asset_amount, 9852450000000);
+        assert_eq!(base_asset_amount, 985245000);
         assert!(updated_user_state);
         assert_eq!(user_after.perp_positions[0].open_orders, 0);
         assert_eq!(user_after.perp_positions[0].open_bids, 0);
@@ -2577,9 +2750,9 @@ pub mod fill_order {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 102 * MARK_PRICE_PRECISION,
+                auction_end_price: 102 * PRICE_PRECISION,
                 auction_duration: 5,
-                price: 102 * MARK_PRICE_PRECISION,
+                price: 102 * PRICE_PRECISION,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -2591,7 +2764,7 @@ pub mod fill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_INTEREST_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2660,23 +2833,24 @@ pub mod fill_order {
 
 #[cfg(test)]
 pub mod fulfill_spot_order_with_match {
-    use super::*;
     use crate::controller::orders::fulfill_spot_order_with_match;
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{
-        LAMPORTS_PER_SOL_I128, LAMPORT_PER_SOL, MARK_PRICE_PRECISION, QUOTE_PRECISION,
-        SPOT_INTEREST_PRECISION,
+        LAMPORTS_PER_SOL_I128, LAMPORT_PER_SOL, PRICE_PRECISION, QUOTE_PRECISION,
+        SPOT_BALANCE_PRECISION,
     };
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::user::{MarketType, Order, OrderType, SpotPosition, User, UserStats};
     use crate::tests::utils::*;
+
+    use super::*;
 
     #[test]
     fn long_taker_order_fulfilled_start_of_auction() {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_INTEREST_PRECISION,
+            balance: 101 * SPOT_BALANCE_PRECISION,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -2695,8 +2869,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -2708,7 +2882,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I128,
             ..SpotPosition::default()
@@ -2722,7 +2896,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -2730,11 +2904,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_quote_market()
         };
 
@@ -2773,10 +2947,10 @@ pub mod fulfill_spot_order_with_match {
         .unwrap();
 
         let taker_quote_position = taker.spot_positions[0];
-        assert_eq!(taker_quote_position.balance, 950000);
+        assert_eq!(taker_quote_position.balance, 950000000);
 
         let taker_base_position = taker.spot_positions[1];
-        assert_eq!(taker_base_position.balance, SPOT_INTEREST_PRECISION);
+        assert_eq!(taker_base_position.balance, SPOT_BALANCE_PRECISION);
         assert_eq!(taker_base_position.open_bids, 0);
         assert_eq!(taker_base_position.open_orders, 0);
 
@@ -2784,7 +2958,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
 
         let maker_quote_position = maker.spot_positions[0];
-        assert_eq!(maker_quote_position.balance, 100030000);
+        assert_eq!(maker_quote_position.balance, 100030000000);
 
         let maker_base_position = maker.spot_positions[1];
         assert_eq!(maker_base_position.balance, 0);
@@ -2795,7 +2969,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
         assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.balance, 20000);
+        assert_eq!(base_market.spot_fee_pool.balance, 20000000);
     }
 
     #[test]
@@ -2803,7 +2977,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 161 * SPOT_INTEREST_PRECISION,
+            balance: 161 * SPOT_BALANCE_PRECISION,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -2822,8 +2996,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -2835,7 +3009,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I128,
             ..SpotPosition::default()
@@ -2849,7 +3023,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 160 * MARK_PRICE_PRECISION,
+                price: 160 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -2857,11 +3031,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 161 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 161 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_quote_market()
         };
 
@@ -2900,10 +3074,10 @@ pub mod fulfill_spot_order_with_match {
         .unwrap();
 
         let taker_quote_position = taker.spot_positions[0];
-        assert_eq!(taker_quote_position.balance, 920000);
+        assert_eq!(taker_quote_position.balance, 920000000);
 
         let taker_base_position = taker.spot_positions[1];
-        assert_eq!(taker_base_position.balance, SPOT_INTEREST_PRECISION);
+        assert_eq!(taker_base_position.balance, SPOT_BALANCE_PRECISION);
         assert_eq!(taker_base_position.open_bids, 0);
         assert_eq!(taker_base_position.open_orders, 0);
 
@@ -2911,7 +3085,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_stats.fees.total_fee_paid, 80000);
 
         let maker_quote_position = maker.spot_positions[0];
-        assert_eq!(maker_quote_position.balance, 160048000);
+        assert_eq!(maker_quote_position.balance, 160048000000);
 
         let maker_base_position = maker.spot_positions[1];
         assert_eq!(maker_base_position.balance, 0);
@@ -2922,7 +3096,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.fees.total_fee_rebate, 48000);
 
         assert_eq!(base_market.total_spot_fee, 32000);
-        assert_eq!(base_market.spot_fee_pool.balance, 32000);
+        assert_eq!(base_market.spot_fee_pool.balance, 32000000);
     }
 
     #[test]
@@ -2931,7 +3105,7 @@ pub mod fulfill_spot_order_with_match {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I128,
             ..SpotPosition::default()
@@ -2945,8 +3119,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 50 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 50 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -2957,7 +3131,7 @@ pub mod fulfill_spot_order_with_match {
         let mut maker_spot_positions = [SpotPosition::default(); 8];
         maker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_INTEREST_PRECISION,
+            balance: 101 * SPOT_BALANCE_PRECISION,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -2976,7 +3150,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Long,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -2984,11 +3158,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_quote_market()
         };
 
@@ -3027,7 +3201,7 @@ pub mod fulfill_spot_order_with_match {
         .unwrap();
 
         let taker_quote_position = taker.spot_positions[0];
-        assert_eq!(taker_quote_position.balance, 99950000);
+        assert_eq!(taker_quote_position.balance, 99950000000);
 
         let taker_base_position = taker.spot_positions[1];
         assert_eq!(taker_base_position.balance, 0);
@@ -3038,10 +3212,10 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
 
         let maker_quote_position = maker.spot_positions[0];
-        assert_eq!(maker_quote_position.balance, 1030000);
+        assert_eq!(maker_quote_position.balance, 1030000000);
 
         let maker_base_position = maker.spot_positions[1];
-        assert_eq!(maker_base_position.balance, SPOT_INTEREST_PRECISION);
+        assert_eq!(maker_base_position.balance, SPOT_BALANCE_PRECISION);
         assert_eq!(maker_base_position.open_bids, 0);
         assert_eq!(maker_base_position.open_orders, 0);
 
@@ -3049,7 +3223,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
         assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.balance, 20000);
+        assert_eq!(base_market.spot_fee_pool.balance, 20000000);
     }
 
     #[test]
@@ -3058,7 +3232,7 @@ pub mod fulfill_spot_order_with_match {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I128,
             ..SpotPosition::default()
@@ -3072,8 +3246,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 50 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 50 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -3084,7 +3258,7 @@ pub mod fulfill_spot_order_with_match {
         let mut maker_spot_positions = [SpotPosition::default(); 8];
         maker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_INTEREST_PRECISION,
+            balance: 101 * SPOT_BALANCE_PRECISION,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -3103,7 +3277,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Long,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 70 * MARK_PRICE_PRECISION,
+                price: 70 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -3111,11 +3285,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_quote_market()
         };
 
@@ -3154,7 +3328,7 @@ pub mod fulfill_spot_order_with_match {
         .unwrap();
 
         let taker_quote_position = taker.spot_positions[0];
-        assert_eq!(taker_quote_position.balance, 69965000);
+        assert_eq!(taker_quote_position.balance, 69965000000);
 
         let taker_base_position = taker.spot_positions[1];
         assert_eq!(taker_base_position.balance, 0);
@@ -3165,10 +3339,10 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_stats.fees.total_fee_paid, 35000);
 
         let maker_quote_position = maker.spot_positions[0];
-        assert_eq!(maker_quote_position.balance, 31021000);
+        assert_eq!(maker_quote_position.balance, 31021000000);
 
         let maker_base_position = maker.spot_positions[1];
-        assert_eq!(maker_base_position.balance, SPOT_INTEREST_PRECISION);
+        assert_eq!(maker_base_position.balance, SPOT_BALANCE_PRECISION);
         assert_eq!(maker_base_position.open_bids, 0);
         assert_eq!(maker_base_position.open_orders, 0);
 
@@ -3176,7 +3350,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.fees.total_fee_rebate, 21000);
 
         assert_eq!(base_market.total_spot_fee, 14000);
-        assert_eq!(base_market.spot_fee_pool.balance, 14000);
+        assert_eq!(base_market.spot_fee_pool.balance, 14000000);
     }
 
     #[test]
@@ -3184,7 +3358,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_INTEREST_PRECISION,
+            balance: 101 * SPOT_BALANCE_PRECISION,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -3203,8 +3377,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -3216,7 +3390,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I128,
             ..SpotPosition::default()
@@ -3230,7 +3404,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 201 * MARK_PRICE_PRECISION,
+                price: 201 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -3238,11 +3412,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_quote_market()
         };
 
@@ -3289,7 +3463,7 @@ pub mod fulfill_spot_order_with_match {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I128,
             ..SpotPosition::default()
@@ -3303,8 +3477,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 50 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 50 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -3315,7 +3489,7 @@ pub mod fulfill_spot_order_with_match {
         let mut maker_spot_positions = [SpotPosition::default(); 8];
         maker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_INTEREST_PRECISION,
+            balance: 101 * SPOT_BALANCE_PRECISION,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -3334,7 +3508,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Long,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 49 * MARK_PRICE_PRECISION,
+                price: 49 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -3342,11 +3516,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_quote_market()
         };
 
@@ -3393,7 +3567,7 @@ pub mod fulfill_spot_order_with_match {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I128,
             ..SpotPosition::default()
@@ -3407,8 +3581,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 50 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 50 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -3419,7 +3593,7 @@ pub mod fulfill_spot_order_with_match {
         let mut maker_spot_positions = [SpotPosition::default(); 8];
         maker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_INTEREST_PRECISION,
+            balance: 101 * SPOT_BALANCE_PRECISION,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -3438,7 +3612,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 70 * MARK_PRICE_PRECISION,
+                price: 70 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -3446,11 +3620,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_quote_market()
         };
 
@@ -3496,7 +3670,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_INTEREST_PRECISION,
+            balance: 101 * SPOT_BALANCE_PRECISION,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -3515,8 +3689,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -3528,7 +3702,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I128,
             ..SpotPosition::default()
@@ -3542,7 +3716,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -3550,11 +3724,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_quote_market()
         };
 
@@ -3600,7 +3774,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_INTEREST_PRECISION,
+            balance: 101 * SPOT_BALANCE_PRECISION,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -3619,8 +3793,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: 100 * LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -3632,7 +3806,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I128,
             ..SpotPosition::default()
@@ -3646,7 +3820,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -3654,11 +3828,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_quote_market()
         };
 
@@ -3699,10 +3873,10 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(base_asset_amount, LAMPORT_PER_SOL);
 
         let taker_quote_position = taker.spot_positions[0];
-        assert_eq!(taker_quote_position.balance, 950000);
+        assert_eq!(taker_quote_position.balance, 950000000);
 
         let taker_base_position = taker.spot_positions[1];
-        assert_eq!(taker_base_position.balance, SPOT_INTEREST_PRECISION);
+        assert_eq!(taker_base_position.balance, SPOT_BALANCE_PRECISION);
         assert_eq!(taker_base_position.open_bids, 99 * LAMPORTS_PER_SOL_I128);
         assert_eq!(taker_base_position.open_orders, 1);
 
@@ -3715,7 +3889,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
 
         let maker_quote_position = maker.spot_positions[0];
-        assert_eq!(maker_quote_position.balance, 100030000);
+        assert_eq!(maker_quote_position.balance, 100030000000);
 
         let maker_base_position = maker.spot_positions[1];
         assert_eq!(maker_base_position.balance, 0);
@@ -3729,7 +3903,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
         assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.balance, 20000);
+        assert_eq!(base_market.spot_fee_pool.balance, 20000000);
     }
 
     #[test]
@@ -3737,7 +3911,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_INTEREST_PRECISION,
+            balance: 101 * SPOT_BALANCE_PRECISION,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -3756,8 +3930,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -3769,7 +3943,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -100 * LAMPORTS_PER_SOL_I128,
             ..SpotPosition::default()
@@ -3783,7 +3957,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Short,
                 base_asset_amount: 100 * LAMPORT_PER_SOL,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -3791,11 +3965,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_quote_market()
         };
 
@@ -3836,10 +4010,10 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(base_asset_amount, LAMPORT_PER_SOL);
 
         let taker_quote_position = taker.spot_positions[0];
-        assert_eq!(taker_quote_position.balance, 950000);
+        assert_eq!(taker_quote_position.balance, 950000000);
 
         let taker_base_position = taker.spot_positions[1];
-        assert_eq!(taker_base_position.balance, SPOT_INTEREST_PRECISION);
+        assert_eq!(taker_base_position.balance, SPOT_BALANCE_PRECISION);
         assert_eq!(taker_base_position.open_bids, 0);
         assert_eq!(taker_base_position.open_orders, 0);
 
@@ -3850,7 +4024,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
 
         let maker_quote_position = maker.spot_positions[0];
-        assert_eq!(maker_quote_position.balance, 100030000);
+        assert_eq!(maker_quote_position.balance, 100030000000);
 
         let maker_base_position = maker.spot_positions[1];
         assert_eq!(maker_base_position.balance, 0);
@@ -3866,7 +4040,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
         assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.balance, 20000);
+        assert_eq!(base_market.spot_fee_pool.balance, 20000000);
     }
 
     #[test]
@@ -3874,7 +4048,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_INTEREST_PRECISION,
+            balance: 101 * SPOT_BALANCE_PRECISION,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -3893,8 +4067,8 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -3906,7 +4080,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I128,
             ..SpotPosition::default()
@@ -3920,8 +4094,8 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                auction_start_price: 200 * MARK_PRICE_PRECISION,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_start_price: 200 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION,
                 auction_duration: 5,
                 ..Order::default()
             }),
@@ -3930,11 +4104,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_quote_market()
         };
 
@@ -3973,10 +4147,10 @@ pub mod fulfill_spot_order_with_match {
         .unwrap();
 
         let taker_quote_position = taker.spot_positions[0];
-        assert_eq!(taker_quote_position.balance, 950000);
+        assert_eq!(taker_quote_position.balance, 950000000);
 
         let taker_base_position = taker.spot_positions[1];
-        assert_eq!(taker_base_position.balance, SPOT_INTEREST_PRECISION);
+        assert_eq!(taker_base_position.balance, SPOT_BALANCE_PRECISION);
         assert_eq!(taker_base_position.open_bids, 0);
         assert_eq!(taker_base_position.open_orders, 0);
 
@@ -3984,7 +4158,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
 
         let maker_quote_position = maker.spot_positions[0];
-        assert_eq!(maker_quote_position.balance, 100030000);
+        assert_eq!(maker_quote_position.balance, 100030000000);
 
         let maker_base_position = maker.spot_positions[1];
         assert_eq!(maker_base_position.balance, 0);
@@ -3995,7 +4169,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
         assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.balance, 20000);
+        assert_eq!(base_market.spot_fee_pool.balance, 20000000);
     }
 
     #[test]
@@ -4003,7 +4177,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_INTEREST_PRECISION,
+            balance: 101 * SPOT_BALANCE_PRECISION,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -4022,7 +4196,7 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: taker_spot_positions,
@@ -4033,7 +4207,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I128,
             ..SpotPosition::default()
@@ -4047,7 +4221,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -4055,11 +4229,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_quote_market()
         };
 
@@ -4098,10 +4272,10 @@ pub mod fulfill_spot_order_with_match {
         .unwrap();
 
         let taker_quote_position = taker.spot_positions[0];
-        assert_eq!(taker_quote_position.balance, 950000);
+        assert_eq!(taker_quote_position.balance, 950000000);
 
         let taker_base_position = taker.spot_positions[1];
-        assert_eq!(taker_base_position.balance, SPOT_INTEREST_PRECISION);
+        assert_eq!(taker_base_position.balance, SPOT_BALANCE_PRECISION);
         assert_eq!(taker_base_position.open_bids, 0);
         assert_eq!(taker_base_position.open_orders, 0);
 
@@ -4109,7 +4283,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
 
         let maker_quote_position = maker.spot_positions[0];
-        assert_eq!(maker_quote_position.balance, 100030000);
+        assert_eq!(maker_quote_position.balance, 100030000000);
 
         let maker_base_position = maker.spot_positions[1];
         assert_eq!(maker_base_position.balance, 0);
@@ -4120,7 +4294,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
         assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.balance, 20000);
+        assert_eq!(base_market.spot_fee_pool.balance, 20000000);
     }
 
     #[test]
@@ -4129,7 +4303,7 @@ pub mod fulfill_spot_order_with_match {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I128,
             ..SpotPosition::default()
@@ -4143,7 +4317,7 @@ pub mod fulfill_spot_order_with_match {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: taker_spot_positions,
@@ -4153,7 +4327,7 @@ pub mod fulfill_spot_order_with_match {
         let mut maker_spot_positions = [SpotPosition::default(); 8];
         maker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_INTEREST_PRECISION,
+            balance: 101 * SPOT_BALANCE_PRECISION,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -4172,7 +4346,7 @@ pub mod fulfill_spot_order_with_match {
                 direction: PositionDirection::Long,
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -4180,11 +4354,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_quote_market()
         };
 
@@ -4223,7 +4397,7 @@ pub mod fulfill_spot_order_with_match {
         .unwrap();
 
         let taker_quote_position = taker.spot_positions[0];
-        assert_eq!(taker_quote_position.balance, 99950000);
+        assert_eq!(taker_quote_position.balance, 99950000000);
 
         let taker_base_position = taker.spot_positions[1];
         assert_eq!(taker_base_position.balance, 0);
@@ -4234,10 +4408,10 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
 
         let maker_quote_position = maker.spot_positions[0];
-        assert_eq!(maker_quote_position.balance, 1030000);
+        assert_eq!(maker_quote_position.balance, 1030000000);
 
         let maker_base_position = maker.spot_positions[1];
-        assert_eq!(maker_base_position.balance, SPOT_INTEREST_PRECISION);
+        assert_eq!(maker_base_position.balance, SPOT_BALANCE_PRECISION);
         assert_eq!(maker_base_position.open_bids, 0);
         assert_eq!(maker_base_position.open_orders, 0);
 
@@ -4245,28 +4419,32 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
         assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.balance, 20000);
+        assert_eq!(base_market.spot_fee_pool.balance, 20000000);
     }
 }
 
 pub mod fulfill_spot_order {
-    use super::*;
+    use std::str::FromStr;
+
+    use anchor_lang::prelude::{AccountLoader, Clock};
+
     use crate::controller::orders::fill_spot_order;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        LAMPORTS_PER_SOL_I128, LAMPORT_PER_SOL, MARK_PRICE_PRECISION, SPOT_INTEREST_PRECISION,
+        LAMPORTS_PER_SOL_I128, LAMPORT_PER_SOL, PRICE_PRECISION, SPOT_BALANCE_PRECISION,
     };
     use crate::math::margin::calculate_free_collateral;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
+
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::tests::utils::*;
-    use anchor_lang::prelude::{AccountLoader, Clock};
-    use std::str::FromStr;
+
+    use super::*;
 
     #[test]
     fn fulfill_with_negative_free_collateral() {
@@ -4278,7 +4456,7 @@ pub mod fulfill_spot_order {
             unix_timestamp: 0,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -4288,19 +4466,19 @@ pub mod fulfill_spot_order {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
         let perp_market_map = PerpMarketMap::empty();
 
         let mut base_market = SpotMarket {
             oracle: oracle_price_key,
             market_index: 1,
-            deposit_balance: SPOT_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_base_market()
         };
         create_anchor_account_info!(base_market, SpotMarket, base_market_account_info);
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_quote_market()
         };
         create_anchor_account_info!(quote_market, SpotMarket, quote_market_account_info);
@@ -4313,7 +4491,7 @@ pub mod fulfill_spot_order {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -4334,10 +4512,10 @@ pub mod fulfill_spot_order {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: taker_spot_positions,
@@ -4356,7 +4534,7 @@ pub mod fulfill_spot_order {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I128 / 2,
             ..SpotPosition::default()
@@ -4372,7 +4550,7 @@ pub mod fulfill_spot_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -4452,7 +4630,7 @@ pub mod fulfill_spot_order {
             unix_timestamp: 0,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -4462,20 +4640,20 @@ pub mod fulfill_spot_order {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
         let perp_market_map = PerpMarketMap::empty();
 
         let mut base_market = SpotMarket {
             market_index: 1,
-            deposit_balance: SPOT_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION,
             oracle: oracle_price_key,
             ..SpotMarket::default_base_market()
         };
         create_anchor_account_info!(base_market, SpotMarket, base_market_account_info);
         let mut second_base_market = SpotMarket {
             market_index: 2,
-            deposit_balance: SPOT_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_base_market()
         };
         create_anchor_account_info!(
@@ -4485,7 +4663,7 @@ pub mod fulfill_spot_order {
         );
         let mut quote_market = SpotMarket {
             market_index: 0,
-            deposit_balance: 101 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_quote_market()
         };
         create_anchor_account_info!(quote_market, SpotMarket, quote_market_account_info);
@@ -4502,7 +4680,7 @@ pub mod fulfill_spot_order {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_INTEREST_PRECISION,
+            balance: 101 * SPOT_BALANCE_PRECISION,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -4529,10 +4707,10 @@ pub mod fulfill_spot_order {
             base_asset_amount: LAMPORT_PER_SOL,
             ts: 0,
             slot: 0,
-            auction_start_price: 100 * MARK_PRICE_PRECISION,
-            auction_end_price: 200 * MARK_PRICE_PRECISION,
+            auction_start_price: 100 * PRICE_PRECISION,
+            auction_end_price: 200 * PRICE_PRECISION,
             auction_duration: 5,
-            price: 100 * MARK_PRICE_PRECISION,
+            price: 100 * PRICE_PRECISION,
             ..Order::default()
         };
         taker_orders[1] = Order {
@@ -4545,10 +4723,10 @@ pub mod fulfill_spot_order {
             base_asset_amount: LAMPORT_PER_SOL,
             ts: 0,
             slot: 0,
-            auction_start_price: 100 * MARK_PRICE_PRECISION,
-            auction_end_price: 200 * MARK_PRICE_PRECISION,
+            auction_start_price: 100 * PRICE_PRECISION,
+            auction_end_price: 200 * PRICE_PRECISION,
             auction_duration: 5,
-            price: 100 * MARK_PRICE_PRECISION,
+            price: 100 * PRICE_PRECISION,
             ..Order::default()
         };
         let mut taker = User {
@@ -4569,7 +4747,7 @@ pub mod fulfill_spot_order {
         maker_spot_positions[1] = SpotPosition {
             market_index: 2,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I128 / 2,
             ..SpotPosition::default()
@@ -4577,7 +4755,7 @@ pub mod fulfill_spot_order {
         maker_spot_positions[2] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I128,
             ..SpotPosition::default()
@@ -4593,7 +4771,7 @@ pub mod fulfill_spot_order {
             direction: PositionDirection::Short,
             base_asset_amount: LAMPORT_PER_SOL,
             ts: 0,
-            price: 100 * MARK_PRICE_PRECISION,
+            price: 100 * PRICE_PRECISION,
             ..Order::default()
         };
         maker_orders[1] = Order {
@@ -4606,7 +4784,7 @@ pub mod fulfill_spot_order {
             direction: PositionDirection::Short,
             base_asset_amount: LAMPORT_PER_SOL,
             ts: 0,
-            price: 100 * MARK_PRICE_PRECISION,
+            price: 100 * PRICE_PRECISION,
             ..Order::default()
         };
         let mut maker = User {
@@ -4643,13 +4821,15 @@ pub mod fulfill_spot_order {
         expected_taker.spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 900000,
+            balance: 900000000,
+            cumulative_deposits: -100100000,
             ..SpotPosition::default()
         };
         expected_taker.spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
+            cumulative_deposits: 1000000000,
             ..SpotPosition::default()
         };
 
@@ -4658,13 +4838,15 @@ pub mod fulfill_spot_order {
         expected_maker.spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100060000,
+            balance: 100020000000,
+            cumulative_deposits: 100020000,
             ..SpotPosition::default()
         };
         expected_maker.spot_positions[2] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
             balance: 0,
+            cumulative_deposits: -1000000000,
             ..SpotPosition::default()
         };
 
@@ -4697,28 +4879,32 @@ pub mod fulfill_spot_order {
         assert_eq!(*maker_after, expected_maker);
 
         let maker_stats_after = maker_stats_account_loader.load().unwrap();
-        assert_eq!(maker_stats_after.fees.total_fee_rebate, 60000);
+        assert_eq!(maker_stats_after.fees.total_fee_rebate, 20000);
     }
 }
 
 pub mod fill_spot_order {
-    use super::*;
+    use std::str::FromStr;
+
+    use anchor_lang::prelude::{AccountLoader, Clock};
+
     use crate::controller::orders::fill_spot_order;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        LAMPORTS_PER_SOL_I128, LAMPORT_PER_SOL, MARK_PRICE_PRECISION, SPOT_INTEREST_PRECISION,
+        LAMPORTS_PER_SOL_I128, LAMPORT_PER_SOL, PRICE_PRECISION, SPOT_BALANCE_PRECISION,
     };
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
+
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::tests::utils::create_account_info;
     use crate::tests::utils::*;
-    use anchor_lang::prelude::{AccountLoader, Clock};
-    use std::str::FromStr;
+
+    use super::*;
 
     #[test]
     fn cancel_order_after_fulfill() {
@@ -4730,7 +4916,7 @@ pub mod fill_spot_order {
             unix_timestamp: 0,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -4740,17 +4926,17 @@ pub mod fill_spot_order {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
         let perp_market_map = PerpMarketMap::empty();
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_base_market()
         };
         create_anchor_account_info!(base_market, SpotMarket, base_market_account_info);
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_quote_market()
         };
         create_anchor_account_info!(quote_market, SpotMarket, quote_market_account_info);
@@ -4763,7 +4949,7 @@ pub mod fill_spot_order {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_INTEREST_PRECISION,
+            balance: 101 * SPOT_BALANCE_PRECISION,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -4784,10 +4970,10 @@ pub mod fill_spot_order {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: taker_spot_positions,
@@ -4806,7 +4992,7 @@ pub mod fill_spot_order {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I128 / 2,
             ..SpotPosition::default()
@@ -4822,7 +5008,7 @@ pub mod fill_spot_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,
@@ -4888,7 +5074,7 @@ pub mod fill_spot_order {
             unix_timestamp: 0,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -4898,17 +5084,17 @@ pub mod fill_spot_order {
             &pyth_program,
             oracle_account_info
         );
-        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot).unwrap();
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
         let perp_market_map = PerpMarketMap::empty();
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_base_market()
         };
         create_anchor_account_info!(base_market, SpotMarket, base_market_account_info);
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default_quote_market()
         };
         create_anchor_account_info!(quote_market, SpotMarket, quote_market_account_info);
@@ -4921,7 +5107,7 @@ pub mod fill_spot_order {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_INTEREST_PRECISION,
+            balance: 101 * SPOT_BALANCE_PRECISION,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -4942,10 +5128,10 @@ pub mod fill_spot_order {
                 base_asset_amount: LAMPORT_PER_SOL,
                 ts: 0,
                 slot: 0,
-                auction_start_price: 100 * MARK_PRICE_PRECISION,
-                auction_end_price: 200 * MARK_PRICE_PRECISION,
+                auction_start_price: 100 * PRICE_PRECISION,
+                auction_end_price: 200 * PRICE_PRECISION,
                 auction_duration: 5,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 time_in_force: 10,
                 ..Order::default()
             }),
@@ -4965,7 +5151,7 @@ pub mod fill_spot_order {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_INTEREST_PRECISION,
+            balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I128 / 2,
             ..SpotPosition::default()
@@ -4981,7 +5167,7 @@ pub mod fill_spot_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: LAMPORT_PER_SOL / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION,
                 ..Order::default()
             }),
             spot_positions: maker_spot_positions,

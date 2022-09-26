@@ -9,7 +9,7 @@ import { PublicKey, TransactionSignature } from '@solana/web3.js';
 
 import {
 	Admin,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	ClearingHouseUser,
 	PositionDirection,
 	MAX_LEVERAGE,
@@ -54,7 +54,7 @@ describe('clearing_house', () => {
 	let solUsd;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -217,7 +217,7 @@ describe('clearing_house', () => {
 		// make user have small loss
 		await clearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(MARK_PRICE_PRECISION.toNumber() * 1.05)
+			new BN(PRICE_PRECISION.toNumber() * 1.05)
 		);
 
 		await clearingHouse.fetchAccounts();
@@ -346,7 +346,7 @@ describe('clearing_house', () => {
 		// make user have small loss
 		await clearingHouse.moveAmmToPrice(
 			marketIndex,
-			new BN(MARK_PRICE_PRECISION.toNumber() * 0.95)
+			new BN(PRICE_PRECISION.toNumber() * 0.95)
 		);
 		await clearingHouse.closePosition(marketIndex);
 

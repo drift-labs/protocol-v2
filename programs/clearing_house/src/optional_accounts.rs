@@ -127,8 +127,8 @@ pub fn get_serum_fulfillment_accounts<'a, 'b, 'c>(
     quote_market: &SpotMarket,
 ) -> ClearingHouseResult<Option<SerumFulfillmentParams<'a, 'c>>> {
     let account_info_vec = account_info_iter.collect::<Vec<_>>();
-    let account_infos = array_ref![account_info_vec, 0, 15];
-    let [serum_fulfillment_config, serum_program_id, serum_market, serum_request_queue, serum_event_queue, serum_bids, serum_asks, serum_base_vault, serum_quote_vault, serum_open_orders, serum_signer, clearing_house_signer, token_program, base_market_vault, quote_market_vault] =
+    let account_infos = array_ref![account_info_vec, 0, 16];
+    let [serum_fulfillment_config, serum_program_id, serum_market, serum_request_queue, serum_event_queue, serum_bids, serum_asks, serum_base_vault, serum_quote_vault, serum_open_orders, serum_signer, clearing_house_signer, token_program, base_market_vault, quote_market_vault, srm_vault] =
         account_infos;
 
     let serum_fulfillment_config_loader: AccountLoader<SerumV3FulfillmentConfig> =
@@ -192,6 +192,11 @@ pub fn get_serum_fulfillment_accounts<'a, 'b, 'c>(
         ErrorCode::InvalidSerumFulfillmentConfig
     })?;
 
+    validate!(
+        &state.srm_vault == srm_vault.key,
+        ErrorCode::InvalidSerumFulfillmentConfig
+    )?;
+
     let serum_fulfillment_accounts = SerumFulfillmentParams {
         clearing_house_signer,
         serum_program_id,
@@ -207,6 +212,7 @@ pub fn get_serum_fulfillment_accounts<'a, 'b, 'c>(
         base_market_vault,
         quote_market_vault,
         serum_signer,
+        srm_vault,
         signer_nonce: state.signer_nonce,
     };
 

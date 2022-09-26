@@ -1,6 +1,12 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, getMarketOrderParams, OracleSource, Wallet } from '../sdk';
+import {
+	BASE_PRECISION,
+	BN,
+	getMarketOrderParams,
+	OracleSource,
+	Wallet,
+} from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -14,7 +20,6 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { FeeStructure } from '../sdk';
 
 describe('round in favor', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -27,8 +32,12 @@ describe('round in favor', () => {
 	let primaryClearingHouse: Admin;
 
 	// ammInvariant == k == x * y
-	const ammInitialQuoteAssetReserve = new anchor.BN(17 * 10 ** 13);
-	const ammInitialBaseAssetReserve = new anchor.BN(17 * 10 ** 13);
+	const ammInitialQuoteAssetReserve = new anchor.BN(
+		17 * BASE_PRECISION.toNumber()
+	);
+	const ammInitialBaseAssetReserve = new anchor.BN(
+		17 * BASE_PRECISION.toNumber()
+	);
 
 	const usdcAmount = new BN(9999 * 10 ** 3);
 
@@ -70,43 +79,8 @@ describe('round in favor', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(63000000)
+			new BN(63000000000)
 		);
-
-		const newFeeStructure: FeeStructure = {
-			feeNumerator: new BN(0),
-			feeDenominator: new BN(1),
-			discountTokenTiers: {
-				firstTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-				secondTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-				thirdTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-				fourthTier: {
-					minimumBalance: new BN(1),
-					discountNumerator: new BN(1),
-					discountDenominator: new BN(1),
-				},
-			},
-			referralDiscount: {
-				referrerRewardNumerator: new BN(1),
-				referrerRewardDenominator: new BN(1),
-				refereeDiscountNumerator: new BN(1),
-				refereeDiscountDenominator: new BN(1),
-			},
-		};
-
-		await primaryClearingHouse.updateFee(newFeeStructure);
 	});
 
 	after(async () => {
@@ -143,7 +117,7 @@ describe('round in favor', () => {
 		await clearingHouse.fetchAccounts();
 
 		const marketIndex = new BN(0);
-		const baseAssetAmount = new BN(7896402480);
+		const baseAssetAmount = new BN(789640);
 		const orderParams = getMarketOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
@@ -161,7 +135,7 @@ describe('round in favor', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-1))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-99409))
 		);
 		await clearingHouse.unsubscribe();
 	});
@@ -197,7 +171,7 @@ describe('round in favor', () => {
 		await clearingHouse.fetchAccounts();
 
 		const marketIndex = new BN(0);
-		const baseAssetAmount = new BN(7895668982);
+		const baseAssetAmount = new BN(789566);
 		const orderParams = getMarketOrderParams({
 			marketIndex,
 			direction: PositionDirection.LONG,
@@ -211,7 +185,7 @@ describe('round in favor', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-1))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-99419))
 		);
 		await clearingHouse.unsubscribe();
 	});

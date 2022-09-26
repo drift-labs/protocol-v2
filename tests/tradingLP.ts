@@ -9,7 +9,7 @@ import * as web3 from '@solana/web3.js';
 import {
 	Admin,
 	EventSubscriber,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PositionDirection,
 	ZERO,
 } from '../sdk/src';
@@ -92,7 +92,7 @@ describe('liquidity providing', () => {
 	const ammInitialBaseAssetReserve = new BN(300).mul(new BN(1e13));
 	const ammInitialQuoteAssetReserve = new BN(300).mul(new BN(1e13));
 
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const stableAmmInitialQuoteAssetReserve = new anchor.BN(1 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);

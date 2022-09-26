@@ -13,9 +13,10 @@ import {
 	Admin,
 	ClearingHouse,
 	findComputeUnitConsumption,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PositionDirection,
 	EventSubscriber,
+	OracleGuardRails,
 } from '../sdk/src';
 
 import {
@@ -53,7 +54,7 @@ describe('liquidate borrow for perp pnl', () => {
 	let solOracle: PublicKey;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -114,6 +115,22 @@ describe('liquidate borrow for perp pnl', () => {
 			userUSDCAccount.publicKey
 		);
 
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(10),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
+				confidenceIntervalMaxSize: new BN(100000),
+				tooVolatileRatio: new BN(55), // allow 55x change
+			},
+			useForLiquidations: false,
+		};
+
+		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
+
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
 			new BN(10).mul(BASE_PRECISION),
@@ -123,7 +140,7 @@ describe('liquidate borrow for perp pnl', () => {
 
 		await clearingHouse.moveAmmToPrice(
 			new BN(0),
-			new BN(2).mul(MARK_PRICE_PRECISION)
+			new BN(2).mul(PRICE_PRECISION)
 		);
 
 		await clearingHouse.closePosition(new BN(0));
@@ -202,7 +219,7 @@ describe('liquidate borrow for perp pnl', () => {
 		);
 		assert(
 			liquidationRecord.liquidateBorrowForPerpPnl.marketOraclePrice.eq(
-				new BN(50).mul(MARK_PRICE_PRECISION)
+				new BN(50).mul(PRICE_PRECISION)
 			)
 		);
 		assert(
@@ -210,12 +227,12 @@ describe('liquidate borrow for perp pnl', () => {
 		);
 		assert(
 			liquidationRecord.liquidateBorrowForPerpPnl.pnlTransfer.eq(
-				new BN(9969234)
+				new BN(9969992)
 			)
 		);
 		assert(
 			liquidationRecord.liquidateBorrowForPerpPnl.liabilityPrice.eq(
-				new BN(50).mul(MARK_PRICE_PRECISION)
+				new BN(50).mul(PRICE_PRECISION)
 			)
 		);
 		assert(
@@ -225,7 +242,7 @@ describe('liquidate borrow for perp pnl', () => {
 		);
 		assert(
 			liquidationRecord.liquidateBorrowForPerpPnl.liabilityTransfer.eq(
-				new BN(199384680)
+				new BN(199399840)
 			)
 		);
 	});

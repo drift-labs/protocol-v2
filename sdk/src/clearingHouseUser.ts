@@ -11,7 +11,7 @@ import {
 } from './types';
 import { calculateEntryPrice } from './math/position';
 import {
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	ZERO,
 	TEN_THOUSAND,
@@ -142,7 +142,7 @@ export class ClearingHouseUser {
 			openOrders: ZERO,
 			openBids: ZERO,
 			openAsks: ZERO,
-			realizedPnl: ZERO,
+			settledPnl: ZERO,
 			lpShares: ZERO,
 			lastFeePerLp: ZERO,
 			lastNetBaseAssetAmountPerLp: ZERO,
@@ -765,7 +765,7 @@ export class ClearingHouseUser {
 				let baseAssetValue = baseAssetAmount
 					.abs()
 					.mul(valuationPrice)
-					.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
+					.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(PRICE_PRECISION));
 
 				if (marginCategory) {
 					let marginRatio = new BN(
@@ -832,7 +832,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates average exit price (optionally for closing up to 100% of position)
-	 * @returns : Precision MARK_PRICE_PRECISION
+	 * @returns : Precision PRICE_PRECISION
 	 */
 	public getPositionEstimatedExitPriceAndPnl(
 		position: PerpPosition,
@@ -880,13 +880,13 @@ export class ClearingHouseUser {
 
 		const exitPrice = baseAssetValue
 			.mul(AMM_TO_QUOTE_PRECISION_RATIO)
-			.mul(MARK_PRICE_PRECISION)
+			.mul(PRICE_PRECISION)
 			.div(position.baseAssetAmount.abs());
 
 		const pnlPerBase = exitPrice.sub(entryPrice);
 		const pnl = pnlPerBase
 			.mul(position.baseAssetAmount)
-			.div(MARK_PRICE_PRECISION)
+			.div(PRICE_PRECISION)
 			.div(AMM_TO_QUOTE_PRECISION_RATIO);
 
 		return [exitPrice, pnl];
@@ -1026,7 +1026,7 @@ export class ClearingHouseUser {
 	 * @param PerpPosition
 	 * @param positionBaseSizeChange // change in position size to calculate liquidation price for : Precision 10^13
 	 * @param partial
-	 * @returns Precision : MARK_PRICE_PRECISION
+	 * @returns Precision : PRICE_PRECISION
 	 */
 	public liquidationPrice(
 		perpPosition: Pick<PerpPosition, 'marketIndex'>,
@@ -1071,7 +1071,7 @@ export class ClearingHouseUser {
 			openOrders: new BN(0),
 			openBids: new BN(0),
 			openAsks: new BN(0),
-			realizedPnl: ZERO,
+			settledPnl: ZERO,
 			lpShares: ZERO,
 			lastFeePerLp: ZERO,
 			lastNetBaseAssetAmountPerLp: ZERO,
@@ -1208,7 +1208,7 @@ export class ClearingHouseUser {
 	 * Calculates the estimated liquidation price for a position after closing a quote amount of the position.
 	 * @param positionMarketIndex
 	 * @param closeQuoteAmount
-	 * @returns : Precision MARK_PRICE_PRECISION
+	 * @returns : Precision PRICE_PRECISION
 	 */
 	public liquidationPriceAfterClose(
 		positionMarketIndex: BN,
@@ -1395,11 +1395,11 @@ export class ClearingHouseUser {
 	 * @returns feeForQuote : Precision QUOTE_PRECISION
 	 */
 	public calculateFeeForQuoteAmount(quoteAmount: BN): BN {
-		const feeStructure = this.clearingHouse.getStateAccount().perpFeeStructure;
-
+		const feeTier =
+			this.clearingHouse.getStateAccount().perpFeeStructure.feeTiers[0];
 		return quoteAmount
-			.mul(feeStructure.feeNumerator)
-			.div(feeStructure.feeDenominator);
+			.mul(new BN(feeTier.feeNumerator))
+			.div(new BN(feeTier.feeDenominator));
 	}
 
 	/**

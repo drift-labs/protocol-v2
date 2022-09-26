@@ -16,8 +16,8 @@ import {
 	Admin,
 	BN,
 	QUOTE_SPOT_MARKET_INDEX,
-	MARK_PRICE_PRECISION,
-	FUNDING_PAYMENT_PRECISION,
+	PRICE_PRECISION,
+	FUNDING_RATE_BUFFER_PRECISION,
 	PEG_PRECISION,
 	ClearingHouse,
 	ClearingHouseUser,
@@ -60,7 +60,9 @@ async function updateFundingRateHelper(
 
 		const priceSpread0 =
 			convertToNumber(ammAccountState0.lastMarkPriceTwap) -
-			convertToNumber(ammAccountState0.lastOraclePriceTwap);
+			convertToNumber(
+				ammAccountState0.historicalOracleData.lastOraclePriceTwap
+			);
 		const frontEndFundingCalc0 = priceSpread0 / oraclePx0.twap / (24 * 3600);
 
 		console.log(
@@ -68,10 +70,10 @@ async function updateFundingRateHelper(
 			frontEndFundingCalc0,
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber() /
-				MARK_PRICE_PRECISION.toNumber(),
+				PRICE_PRECISION.toNumber(),
 			'oracleTwap0:',
-			ammAccountState0.lastOraclePriceTwap.toNumber() /
-				MARK_PRICE_PRECISION.toNumber(),
+			ammAccountState0.historicalOracleData.lastOraclePriceTwap.toNumber() /
+				PRICE_PRECISION.toNumber(),
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber(),
 			'oracleTwapPyth:',
@@ -95,8 +97,7 @@ async function updateFundingRateHelper(
 			console.error(e);
 		}
 
-		const CONVERSION_SCALE =
-			FUNDING_PAYMENT_PRECISION.mul(MARK_PRICE_PRECISION);
+		const CONVERSION_SCALE = FUNDING_RATE_BUFFER_PRECISION.mul(PRICE_PRECISION);
 
 		await clearingHouse.fetchAccounts();
 		const marketData = clearingHouse.getPerpMarketAccount(marketIndex);
@@ -132,10 +133,10 @@ async function updateFundingRateHelper(
 		assert(ammAccountState.lastFundingRate.abs().gte(lastFundingLong.abs()));
 		console.log(
 			convertToNumber(ammAccountState.lastFundingRate.abs()) /
-				FUNDING_PAYMENT_PRECISION.toNumber(),
+				FUNDING_RATE_BUFFER_PRECISION.toNumber(),
 			'>=',
 			convertToNumber(lastFundingShort.abs()) /
-				FUNDING_PAYMENT_PRECISION.toNumber()
+				FUNDING_RATE_BUFFER_PRECISION.toNumber()
 		);
 		assert(ammAccountState.lastFundingRate.abs().gte(lastFundingShort.abs()));
 
@@ -148,9 +149,9 @@ async function updateFundingRateHelper(
 
 		const priceSpread =
 			ammAccountState.lastMarkPriceTwap.toNumber() /
-				MARK_PRICE_PRECISION.toNumber() -
-			ammAccountState.lastOraclePriceTwap.toNumber() /
-				MARK_PRICE_PRECISION.toNumber();
+				PRICE_PRECISION.toNumber() -
+			ammAccountState.historicalOracleData.lastOraclePriceTwap.toNumber() /
+				PRICE_PRECISION.toNumber();
 		const frontEndFundingCalc =
 			priceSpread / ((24 * 3600) / Math.max(1, peroidicity.toNumber()));
 
@@ -158,11 +159,10 @@ async function updateFundingRateHelper(
 			'funding rate frontend calc:',
 			frontEndFundingCalc,
 			'markTwap:',
-			ammAccountState.lastMarkPriceTwap.toNumber() /
-				MARK_PRICE_PRECISION.toNumber(),
+			ammAccountState.lastMarkPriceTwap.toNumber() / PRICE_PRECISION.toNumber(),
 			'oracleTwap:',
-			ammAccountState.lastOraclePriceTwap.toNumber() /
-				MARK_PRICE_PRECISION.toNumber(),
+			ammAccountState.historicalOracleData.lastOraclePriceTwap.toNumber() /
+				PRICE_PRECISION.toNumber(),
 			'markTwap:',
 			ammAccountState.lastMarkPriceTwap.toNumber(),
 			'oracleTwapPyth:',
@@ -330,12 +330,12 @@ async function cappedSymFundingScenario(
 		'fundingRateLong',
 		convertToNumber(
 			fundingRateLong,
-			MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 		),
 		'fundingRateShort',
 		convertToNumber(
 			fundingRateShort,
-			MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 		)
 	);
 	console.log(
@@ -361,14 +361,14 @@ async function cappedSymFundingScenario(
 		'fundingPnLForLongs',
 		convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		),
 		'fundingPnLForShorts',
 		convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		)
@@ -380,7 +380,7 @@ async function cappedSymFundingScenario(
 
 	// await clearingHouse.moveAmmToPrice(
 	// 	marketIndex,
-	// 	new BN(priceAction[1] * MARK_PRICE_PRECISION.toNumber())
+	// 	new BN(priceAction[1] * PRICE_PRECISION.toNumber())
 	// );
 
 	setFeedPrice(anchor.workspace.Pyth, priceAction[0], priceFeedAddress);
@@ -450,7 +450,7 @@ describe('capped funding', () => {
 	let userUSDCAccount: Keypair;
 
 	const ammInitialBaseAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
-		MARK_PRICE_PRECISION
+		PRICE_PRECISION
 	);
 
 	const usdcAmount = new BN(100000 * 10 ** 6);
@@ -554,13 +554,13 @@ describe('capped funding', () => {
 		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
@@ -612,13 +612,13 @@ describe('capped funding', () => {
 		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
@@ -671,13 +671,13 @@ describe('capped funding', () => {
 		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
@@ -731,13 +731,13 @@ describe('capped funding', () => {
 		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
@@ -781,27 +781,28 @@ describe('capped funding', () => {
 		await clearingHouse.fetchAccounts();
 		const marketNew = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log(
-			'marketNew.amm.lastOraclePriceTwap:',
-			marketNew.amm.lastOraclePriceTwap.toString()
+			'marketNew.amm.historicalOracleData.lastOraclePriceTwap:',
+			marketNew.amm.historicalOracleData.lastOraclePriceTwap.toString()
 		);
 		const clampedFundingRatePct = new BN(
-			(0.03 * MARK_PRICE_PRECISION.toNumber()) / 24
-		).mul(FUNDING_PAYMENT_PRECISION);
-		const clampedFundingRate = new BN(44.5 * MARK_PRICE_PRECISION.toNumber())
-			.mul(FUNDING_PAYMENT_PRECISION)
+			(0.03 * PRICE_PRECISION.toNumber()) / 24
+		).mul(FUNDING_RATE_BUFFER_PRECISION);
+		const clampedFundingRate = new BN(44.5 * PRICE_PRECISION.toNumber())
+			.mul(FUNDING_RATE_BUFFER_PRECISION)
 			.div(new BN(24))
 			.div(new BN(33));
 		console.log(
 			'clamped funding:',
 			convertToNumber(clampedFundingRate) /
-				FUNDING_PAYMENT_PRECISION.toNumber(),
+				FUNDING_RATE_BUFFER_PRECISION.toNumber(),
 			'hourly pct:',
 			convertToNumber(clampedFundingRatePct) /
-				FUNDING_PAYMENT_PRECISION.toNumber()
+				FUNDING_RATE_BUFFER_PRECISION.toNumber()
 		);
 		console.log(
 			'short funding:',
-			convertToNumber(fundingRateShort) / FUNDING_PAYMENT_PRECISION.toNumber()
+			convertToNumber(fundingRateShort) /
+				FUNDING_RATE_BUFFER_PRECISION.toNumber()
 		);
 
 		assert(fundingRateShort.abs().eq(fundingRateLong.abs()));
@@ -827,13 +828,13 @@ describe('capped funding', () => {
 		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
@@ -878,23 +879,24 @@ describe('capped funding', () => {
 		await clearingHouse.fetchAccounts();
 		const _marketNew = clearingHouse.getPerpMarketAccount(marketIndex);
 		const clampedFundingRatePct = new BN(
-			(0.03 * MARK_PRICE_PRECISION.toNumber()) / 24
-		).mul(FUNDING_PAYMENT_PRECISION);
-		const clampedFundingRate = new BN(45.1 * MARK_PRICE_PRECISION.toNumber())
-			.mul(FUNDING_PAYMENT_PRECISION)
+			(0.03 * PRICE_PRECISION.toNumber()) / 24
+		).mul(FUNDING_RATE_BUFFER_PRECISION);
+		const clampedFundingRate = new BN(45.1 * PRICE_PRECISION.toNumber())
+			.mul(FUNDING_RATE_BUFFER_PRECISION)
 			.div(new BN(24))
 			.div(new BN(33));
 		console.log(
 			'clamped funding:',
 			convertToNumber(clampedFundingRate) /
-				FUNDING_PAYMENT_PRECISION.toNumber(),
+				FUNDING_RATE_BUFFER_PRECISION.toNumber(),
 			'hourly pct:',
 			convertToNumber(clampedFundingRatePct) /
-				FUNDING_PAYMENT_PRECISION.toNumber()
+				FUNDING_RATE_BUFFER_PRECISION.toNumber()
 		);
 		console.log(
 			'short funding:',
-			convertToNumber(fundingRateShort) / FUNDING_PAYMENT_PRECISION.toNumber()
+			convertToNumber(fundingRateShort) /
+				FUNDING_RATE_BUFFER_PRECISION.toNumber()
 		);
 
 		assert(fundingRateShort.abs().gt(fundingRateLong.abs()));
@@ -922,13 +924,13 @@ describe('capped funding', () => {
 		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
@@ -984,13 +986,13 @@ describe('capped funding', () => {
 		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
@@ -1045,13 +1047,13 @@ describe('capped funding', () => {
 		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
@@ -1107,13 +1109,13 @@ describe('capped funding', () => {
 		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
