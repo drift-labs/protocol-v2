@@ -54,7 +54,7 @@ use crate::print_error;
 use crate::state::events::{get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::market::PerpMarket;
+use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -736,13 +736,16 @@ pub fn fill_order(
     // Try to update the funding rate at the end of every trade
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
+        let funding_paused = matches!(state.exchange_status, ExchangeStatus::FundingPaused)
+            || matches!(market.status, MarketStatus::FundingPaused);
+
         controller::funding::update_funding_rate(
             market_index,
             market,
             oracle_map,
             now,
             &state.oracle_guard_rails,
-            !matches!(state.exchange_status, ExchangeStatus::FundingPaused),
+            funding_paused,
             Some(mark_price_before),
         )?;
     }
