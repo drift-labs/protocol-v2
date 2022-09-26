@@ -417,7 +417,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		const bank00 = clearingHouse.getSpotMarketAccount(new BN(0));
 		const market00 = clearingHouse.getPerpMarketAccount(new BN(0));
-		assert(market00.amm.feePool.balance.eq(new BN(1000000000)));
+		assert(market00.amm.feePool.balance.eq(new BN(1000000000000)));
 
 		const oraclePriceData00 = clearingHouse.getOracleDataForMarket(
 			market00.marketIndex

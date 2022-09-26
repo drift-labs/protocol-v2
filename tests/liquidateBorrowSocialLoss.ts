@@ -159,11 +159,12 @@ describe('liquidate borrow w/ social loss', () => {
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
 		assert(clearingHouse.getUserAccount().spotPositions[0].balance.eq(ZERO));
 		assert(
-			clearingHouse.getUserAccount().spotPositions[1].balance.eq(new BN(5002))
-		);
-
-		console.log(
-			clearingHouse.getUserAccount().spotPositions[0].balance.toString()
+			clearingHouse
+				.getUserAccount()
+				.spotPositions[1].balance.gt(new BN(5001000)) &&
+				clearingHouse
+					.getUserAccount()
+					.spotPositions[1].balance.lt(new BN(5002000))
 		);
 
 		const liquidationRecord =
@@ -281,8 +282,7 @@ describe('liquidate borrow w/ social loss', () => {
 
 		const interestOfUpdate = currentDepositAmount.sub(depositAmountBefore);
 		console.log('interestOfUpdate:', interestOfUpdate.toString());
-		assert(interestOfUpdate.lt(ZERO));
-		assert(interestOfUpdate.abs().lt(new BN(10000)));
+		assert(interestOfUpdate.eq(ONE));
 	});
 
 	it('resolve bankruptcy', async () => {
@@ -311,8 +311,8 @@ describe('liquidate borrow w/ social loss', () => {
 		assert(bankruptcyRecord.borrowBankruptcy.marketIndex.eq(ONE));
 		console.log(bankruptcyRecord.borrowBankruptcy.borrowAmount.toString());
 		assert(
-			bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(5002015)) ||
-				bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(5002012))
+			bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(5001585)) ||
+				bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(5001268))
 		);
 		const spotMarket = clearingHouse.getSpotMarketAccount(1);
 		assert(

@@ -17,12 +17,9 @@ import {
 	OracleSource,
 	calculateWorstCaseBaseAssetAmount,
 	calculateMarketMarginRatio,
-	AMM_TO_QUOTE_PRECISION_RATIO,
-	MARK_PRICE_PRECISION,
 	calculateMarkPrice,
 	convertToNumber,
 	calculatePrice,
-	PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
 } from '../sdk';
 import { assert } from 'chai';

@@ -688,7 +688,7 @@ describe('update amm', () => {
 			} else if (i == 1) {
 				assert(
 					market.amm.pegMultiplier.eq(
-						new BN(1.976553 * PEG_PRECISION.toNumber())
+						new BN(1.976555 * PEG_PRECISION.toNumber())
 					)
 				);
 			} else if (i == 2) {

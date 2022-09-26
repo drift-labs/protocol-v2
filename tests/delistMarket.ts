@@ -248,7 +248,7 @@ describe('delist market', () => {
 		}
 
 		const market00 = clearingHouse.getPerpMarketAccount(new BN(0));
-		assert(market00.amm.feePool.balance.eq(new BN(1000000000)));
+		assert(market00.amm.feePool.balance.eq(new BN(1000000000000)));
 
 		// sol tanks 90%
 		await clearingHouse.moveAmmToPrice(
@@ -463,7 +463,7 @@ describe('delist market', () => {
 		const finalPnlResultMin0 = new BN(999978435 - 1090);
 		console.log(marketAfter0.pnlPool.balance.toString());
 		assert(marketAfter0.pnlPool.balance.gt(finalPnlResultMin0));
-		assert(marketAfter0.pnlPool.balance.lt(new BN(999978435 + 1000)));
+		assert(marketAfter0.pnlPool.balance.lt(new BN(999978435000 + 1000000)));
 
 		const txSig2 = await clearingHouse.settleExpiredPosition(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -488,13 +488,13 @@ describe('delist market', () => {
 		const finalPnlResultMin = new BN(985673294 - 1090);
 		console.log('pnlPool:', marketAfter.pnlPool.balance.toString());
 		assert(marketAfter.pnlPool.balance.gt(finalPnlResultMin));
-		assert(marketAfter.pnlPool.balance.lt(new BN(986673294)));
+		assert(marketAfter.pnlPool.balance.lt(new BN(986673294000)));
 
 		console.log('feePool:', marketAfter.amm.feePool.balance.toString());
 		console.log(
 			'totalExchangeFee:',
 			marketAfter.amm.totalExchangeFee.toString()
 		);
-		assert(marketAfter.amm.feePool.balance.eq(new BN(21566)));
+		assert(marketAfter.amm.feePool.balance.eq(new BN(21566000)));
 	});
 });

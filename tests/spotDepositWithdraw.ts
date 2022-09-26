@@ -36,7 +36,12 @@ import {
 	getTokenAmount,
 } from '../sdk/src/math/spotBalance';
 import { NATIVE_MINT } from '@solana/spl-token';
-import { QUOTE_PRECISION, ZERO, ONE } from '../sdk';
+import {
+	QUOTE_PRECISION,
+	ZERO,
+	ONE,
+	SPOT_MARKET_BALANCE_PRECISION,
+} from '../sdk';
 
 describe('spot deposit and withdraw', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -229,7 +234,11 @@ describe('spot deposit and withdraw', () => {
 		await printTxLogs(connection, txSig);
 
 		const spotMarket = await admin.getSpotMarketAccount(marketIndex);
-		assert(spotMarket.depositBalance.eq(usdcAmount));
+		assert(
+			spotMarket.depositBalance.eq(
+				new BN(10 * SPOT_MARKET_BALANCE_PRECISION.toNumber())
+			)
+		);
 
 		const vaultAmount = new BN(
 			(
@@ -274,7 +283,7 @@ describe('spot deposit and withdraw', () => {
 		await printTxLogs(connection, txSig);
 
 		const spotMarket = await admin.getSpotMarketAccount(marketIndex);
-		assert(spotMarket.depositBalance.eq(SPOT_MARKET_RATE_PRECISION));
+		assert(spotMarket.depositBalance.eq(SPOT_MARKET_BALANCE_PRECISION));
 
 		const vaultAmount = new BN(
 			(
@@ -305,7 +314,7 @@ describe('spot deposit and withdraw', () => {
 		await printTxLogs(connection, txSig);
 
 		const spotMarket = await admin.getSpotMarketAccount(marketIndex);
-		const expectedBorrowBalance = new BN(5000001);
+		const expectedBorrowBalance = new BN(5000000001);
 		assert(spotMarket.borrowBalance.eq(expectedBorrowBalance));
 
 		const vaultAmount = new BN(

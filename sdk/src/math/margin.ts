@@ -4,8 +4,6 @@ import {
 	SPOT_MARKET_IMF_PRECISION,
 	ZERO,
 	BID_ASK_SPREAD_PRECISION,
-	AMM_TO_QUOTE_PRECISION_RATIO,
-	PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
 } from '../constants/numericConstants';
 import { BN } from '@project-serum/anchor';

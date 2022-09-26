@@ -297,7 +297,7 @@ describe('post only', () => {
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.takerFee.eq(new BN(0)));
-		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN()));
+		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(19492)));
 
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();

@@ -6,7 +6,6 @@ import {
 	FUNDING_RATE_BUFFER_PRECISION,
 	PRICE_PRECISION,
 	ONE,
-	PRICE_TO_QUOTE_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
 import { OraclePriceData } from '../oracles/types';

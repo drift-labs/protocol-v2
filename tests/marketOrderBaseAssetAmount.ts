@@ -6,12 +6,7 @@ import { Program } from '@project-serum/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 
-import {
-	Admin,
-	PRICE_PRECISION,
-	PositionDirection,
-	EventSubscriber,
-} from '../sdk/src';
+import { Admin, PositionDirection, EventSubscriber } from '../sdk/src';
 
 import {
 	mockUSDCMint,
