@@ -657,7 +657,10 @@ pub mod clearing_house {
         )?;
 
         validate!(
-            spot_market.status == MarketStatus::Initialized,
+            matches!(
+                spot_market.status,
+                MarketStatus::ReduceOnly | MarketStatus::Settlement | MarketStatus::Delisted
+            ),
             ErrorCode::DefaultError,
             "spot_market in reduce only mode",
         )?;
@@ -867,6 +870,11 @@ pub mod clearing_house {
 
         {
             let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+            validate!(
+                spot_market.status != MarketStatus::WithdrawPaused,
+                ErrorCode::DailyWithdrawLimit
+            )?;
+
             let from_spot_position =
                 from_user.force_get_spot_position_mut(spot_market.market_index)?;
 
@@ -1108,7 +1116,10 @@ pub mod clearing_house {
             controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
 
             validate!(
-                market.status == MarketStatus::Initialized,
+                !matches!(
+                    market.status,
+                    |MarketStatus::ReduceOnly| MarketStatus::Settlement | MarketStatus::Delisted
+                ),
                 ErrorCode::DefaultError,
                 "Market Status doesn't allow for new LP liquidity"
             )?;
