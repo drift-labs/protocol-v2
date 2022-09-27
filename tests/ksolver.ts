@@ -91,9 +91,9 @@ describe('AMM Curve', () => {
 	// 	let slippage;
 	// 	if (newPrice.gt(oldPrice)) {
 	// 		if (unit == 'pctMax') {
-	// 			slippage = newPrice.sub(oldPrice).mul(MARK_PRICE_PRECISION).div(oldPrice);
+	// 			slippage = newPrice.sub(oldPrice).mul(PRICE_PRECISION).div(oldPrice);
 	// 		} else if (unit == 'pctAvg') {
-	// 			slippage = entryPrice.sub(oldPrice).mul(MARK_PRICE_PRECISION).div(oldPrice);
+	// 			slippage = entryPrice.sub(oldPrice).mul(PRICE_PRECISION).div(oldPrice);
 	// 		} else if (
 	// 			[
 	// 				'priceDelta',
@@ -106,9 +106,9 @@ describe('AMM Curve', () => {
 	// 		}
 	// 	} else {
 	// 		if (unit == 'pctMax') {
-	// 			slippage = oldPrice.sub(newPrice).mul(MARK_PRICE_PRECISION).div(oldPrice);
+	// 			slippage = oldPrice.sub(newPrice).mul(PRICE_PRECISION).div(oldPrice);
 	// 		} else if (unit == 'pctAvg') {
-	// 			slippage = oldPrice.sub(entryPrice).mul(MARK_PRICE_PRECISION).div(oldPrice);
+	// 			slippage = oldPrice.sub(entryPrice).mul(PRICE_PRECISION).div(oldPrice);
 	// 		} else if (
 	// 			[
 	// 				'priceDelta',
@@ -138,13 +138,13 @@ describe('AMM Curve', () => {
 
 	// 	let avgSlippageCenter = calculateTheoPriceImpact(
 	// 		PositionDirection.LONG,
-	// 		new BN(MAX_DEPOSIT).mul(MAX_LEVERAGE).mul(MARK_PRICE_PRECISION),
+	// 		new BN(MAX_DEPOSIT).mul(MAX_LEVERAGE).mul(PRICE_PRECISION),
 	// 		kSqrt0,
 	// 		'pctMax'
 	// 	);
 
 	// 	const targetSlippageBN = new BN(
-	// 		TARGET_MAX_SLIPPAGE * MARK_PRICE_PRECISION.toNumber()
+	// 		TARGET_MAX_SLIPPAGE * PRICE_PRECISION.toNumber()
 	// 	);
 	// 	let kSqrtI: BN;
 
@@ -152,7 +152,7 @@ describe('AMM Curve', () => {
 	// 		kSqrtI = kSqrt0.mul(targetSlippageBN.div(avgSlippageCenter));
 	// 		avgSlippageCenter = calculateTheoPriceImpact(
 	// 			PositionDirection.LONG,
-	// 			new BN(MAX_DEPOSIT).mul(MAX_LEVERAGE).mul(MARK_PRICE_PRECISION),
+	// 			new BN(MAX_DEPOSIT).mul(MAX_LEVERAGE).mul(PRICE_PRECISION),
 	// 			kSqrtI,
 	// 			'pctMax'
 	// 		);

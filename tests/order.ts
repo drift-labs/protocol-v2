@@ -1223,7 +1223,7 @@ describe('orders', () => {
 		// setFeedPrice(anchor.workspace.Pyth, 1.55, solUsd);
 		// await clearingHouse.moveAmmToPrice(
 		// 	marketIndex,
-		// 	new BN(1.55 * MARK_PRICE_PRECISION.toNumber())
+		// 	new BN(1.55 * PRICE_PRECISION.toNumber())
 		// );
 
 		await clearingHouseUser.fetchAccounts();

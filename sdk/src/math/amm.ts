@@ -242,7 +242,7 @@ export function calculateBidAskPrice(
  * @param baseAssetReserves
  * @param quoteAssetReserves
  * @param pegMultiplier
- * @returns price : Precision MARK_PRICE_PRECISION
+ * @returns price : Precision PRICE_PRECISION
  */
 export function calculatePrice(
 	baseAssetReserves: BN,
@@ -343,11 +343,14 @@ export function calculateInventoryScale(
 		maxBaseAssetReserve
 	);
 
-	const totalLiquidity = BN.max(openBids.abs().add(openAsks.abs()), new BN(1));
+	const minSideLiquidity = BN.max(
+		new BN(1),
+		BN.min(openBids.abs(), openAsks.abs())
+	);
 	const inventoryScale =
-		BN.min(netBaseAssetAmount.abs(), totalLiquidity)
-			.mul(BID_ASK_SPREAD_PRECISION.mul(new BN(5)))
-			.div(totalLiquidity)
+		BN.min(netBaseAssetAmount.abs(), minSideLiquidity)
+			.mul(BID_ASK_SPREAD_PRECISION.mul(new BN(10)))
+			.div(minSideLiquidity)
 			.toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
 
 	return inventoryScale;
@@ -614,7 +617,7 @@ export function getSwapDirection(
  * Helper function calculating terminal price of amm
  *
  * @param market
- * @returns cost : Precision MARK_PRICE_PRECISION
+ * @returns cost : Precision PRICE_PRECISION
  */
 export function calculateTerminalPrice(market: PerpMarketAccount) {
 	const directionToClose = market.amm.netBaseAssetAmount.gt(ZERO)

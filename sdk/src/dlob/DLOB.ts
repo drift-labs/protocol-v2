@@ -191,7 +191,7 @@ export class DLOB {
 				.get(marketType)
 				.add(getOrderSignature(order.orderId, userAccount));
 		}
-		this.getListForOrder(order).insert(
+		this.getListForOrder(order)?.insert(
 			order,
 			marketType,
 			this.marketIndexToAccount
@@ -223,7 +223,7 @@ export class DLOB {
 		];
 		triggerList.remove(order, userAccount);
 
-		this.getListForOrder(order).insert(
+		this.getListForOrder(order)?.insert(
 			order,
 			marketType,
 			this.marketIndexToAccount
@@ -236,7 +236,7 @@ export class DLOB {
 		}
 	}
 
-	public getListForOrder(order: Order): NodeList<any> {
+	public getListForOrder(order: Order): NodeList<any> | undefined {
 		const isInactiveTriggerOrder =
 			isOneOfVariant(order.orderType, ['triggerMarket', 'triggerLimit']) &&
 			!order.triggered;
@@ -260,6 +260,11 @@ export class DLOB {
 		}
 
 		const marketType = getVariant(order.marketType) as MarketTypeStr;
+
+		if (!this.orderLists.has(marketType)) {
+			return undefined;
+		}
+
 		return this.orderLists.get(marketType).get(order.marketIndex.toNumber())[
 			type
 		][subType];

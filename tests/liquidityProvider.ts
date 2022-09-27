@@ -785,7 +785,7 @@ describe('liquidity providing', () => {
 				PositionDirection.SHORT,
 				tradeSize,
 				market.marketIndex
-				// new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
+				// new BN(newPrice * PRICE_PRECISION.toNumber())
 			);
 		} catch (e) {
 			console.error(e);
@@ -901,7 +901,7 @@ describe('liquidity providing', () => {
 			PositionDirection.LONG,
 			tradeSize,
 			market.marketIndex
-			// new BN(newPrice0 * MARK_PRICE_PRECISION.toNumber())
+			// new BN(newPrice0 * PRICE_PRECISION.toNumber())
 		);
 
 		const position = traderClearingHouse.getUserAccount().perpPositions[0];
@@ -1003,7 +1003,7 @@ describe('liquidity providing', () => {
 			PositionDirection.SHORT,
 			tradeSize,
 			market.marketIndex
-			// new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
+			// new BN(newPrice * PRICE_PRECISION.toNumber())
 		);
 
 		console.log('removing liquidity...');

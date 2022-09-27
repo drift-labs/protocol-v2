@@ -23,7 +23,7 @@ import { Program } from '@project-serum/anchor';
 import {
 	Admin,
 	ClearingHouseUser,
-	// MARK_PRICE_PRECISION,
+	// PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
 	QUOTE_PRECISION,
 	// calculateReservePrice,
@@ -141,7 +141,7 @@ describe('repeg and spread amm', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	// const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	// const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetAmount = new anchor.BN(94).mul(
 		AMM_RESERVE_PRECISION
 	);

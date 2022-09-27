@@ -832,7 +832,7 @@ export class ClearingHouseUser {
 
 	/**
 	 * calculates average exit price (optionally for closing up to 100% of position)
-	 * @returns : Precision MARK_PRICE_PRECISION
+	 * @returns : Precision PRICE_PRECISION
 	 */
 	public getPositionEstimatedExitPriceAndPnl(
 		position: PerpPosition,
@@ -1026,7 +1026,7 @@ export class ClearingHouseUser {
 	 * @param PerpPosition
 	 * @param positionBaseSizeChange // change in position size to calculate liquidation price for : Precision 10^13
 	 * @param partial
-	 * @returns Precision : MARK_PRICE_PRECISION
+	 * @returns Precision : PRICE_PRECISION
 	 */
 	public liquidationPrice(
 		perpPosition: Pick<PerpPosition, 'marketIndex'>,
@@ -1208,7 +1208,7 @@ export class ClearingHouseUser {
 	 * Calculates the estimated liquidation price for a position after closing a quote amount of the position.
 	 * @param positionMarketIndex
 	 * @param closeQuoteAmount
-	 * @returns : Precision MARK_PRICE_PRECISION
+	 * @returns : Precision PRICE_PRECISION
 	 */
 	public liquidationPriceAfterClose(
 		positionMarketIndex: BN,

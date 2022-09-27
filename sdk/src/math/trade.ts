@@ -48,13 +48,13 @@ export type PriceImpactUnit =
  * @param useSpread whether to consider spread with calculating slippage
  * @return [pctAvgSlippage, pctMaxSlippage, entryPrice, newPrice]
  *
- * 'pctAvgSlippage' =>  the percentage change to entryPrice (average est slippage in execution) : Precision MARK_PRICE_PRECISION
+ * 'pctAvgSlippage' =>  the percentage change to entryPrice (average est slippage in execution) : Precision PRICE_PRECISION
  *
- * 'pctMaxSlippage' =>  the percentage change to maxPrice (highest est slippage in execution) : Precision MARK_PRICE_PRECISION
+ * 'pctMaxSlippage' =>  the percentage change to maxPrice (highest est slippage in execution) : Precision PRICE_PRECISION
  *
- * 'entryPrice' => the average price of the trade : Precision MARK_PRICE_PRECISION
+ * 'entryPrice' => the average price of the trade : Precision PRICE_PRECISION
  *
- * 'newPrice' => the price of the asset after the trade : Precision MARK_PRICE_PRECISION
+ * 'newPrice' => the price of the asset after the trade : Precision PRICE_PRECISION
  */
 export function calculateTradeSlippage(
 	direction: PositionDirection,
@@ -199,8 +199,8 @@ export function calculateTradeAcquiredAmounts(
  * [
  *   direction => direction of trade required, PositionDirection
  *   tradeSize => size of trade required, TODO-PRECISION
- *   entryPrice => the entry price for the trade, MARK_PRICE_PRECISION
- *   targetPrice => the target price MARK_PRICE_PRECISION
+ *   entryPrice => the entry price for the trade, PRICE_PRECISION
+ *   targetPrice => the target price PRICE_PRECISION
  * ]
  */
 export function calculateTargetPriceTrade(

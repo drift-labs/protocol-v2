@@ -300,7 +300,7 @@ describe('pyth-oracle', () => {
 
 		// await clearingHouse.moveAmmToPrice(
 		// 	marketIndex,
-		// 	new BN(41.5 * MARK_PRICE_PRECISION.toNumber())
+		// 	new BN(41.5 * PRICE_PRECISION.toNumber())
 		// );
 
 		await updateFundingRateHelper(
@@ -316,7 +316,7 @@ describe('pyth-oracle', () => {
 
 		// await clearingHouse.moveAmmToPrice(
 		// 	marketIndex,
-		// 	new BN(41.5 * MARK_PRICE_PRECISION.toNumber())
+		// 	new BN(41.5 * PRICE_PRECISION.toNumber())
 		// );
 
 		console.log(
