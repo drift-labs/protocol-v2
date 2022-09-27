@@ -242,7 +242,7 @@ export function calculateBidAskPrice(
  * @param baseAssetReserves
  * @param quoteAssetReserves
  * @param pegMultiplier
- * @returns price : Precision MARK_PRICE_PRECISION
+ * @returns price : Precision PRICE_PRECISION
  */
 export function calculatePrice(
 	baseAssetReserves: BN,
@@ -617,7 +617,7 @@ export function getSwapDirection(
  * Helper function calculating terminal price of amm
  *
  * @param market
- * @returns cost : Precision MARK_PRICE_PRECISION
+ * @returns cost : Precision PRICE_PRECISION
  */
 export function calculateTerminalPrice(market: PerpMarketAccount) {
 	const directionToClose = market.amm.netBaseAssetAmount.gt(ZERO)

@@ -7,7 +7,7 @@ use crate::error::ClearingHouseResult;
 use crate::math::casting::cast_to_u128;
 use crate::math::constants::{
     FIFTY_MILLION_QUOTE, FIVE_MILLION_QUOTE, ONE_HUNDRED_MILLION_QUOTE, ONE_HUNDRED_THOUSAND_QUOTE,
-    ONE_MILLION_QUOTE, ONE_THOUSAND_QUOTE, TEN_MILLION_QUOTE, TEN_THOUSAND_QUOTE,
+    ONE_MILLION_QUOTE, ONE_THOUSAND_QUOTE, TEN_BPS, TEN_MILLION_QUOTE, TEN_THOUSAND_QUOTE,
     TWENTY_FIVE_THOUSAND_QUOTE, TWO_HUNDRED_FIFTY_THOUSAND_QUOTE,
 };
 use crate::math::helpers::get_proportion_u128;
@@ -51,6 +51,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
                 quote_asset_amount,
                 order_ts,
                 now,
+                0,
                 &fee_structure.filler_reward_structure,
             )?
         };
@@ -88,7 +89,13 @@ pub fn calculate_fee_for_fulfillment_with_amm(
         let filler_reward: u128 = if !reward_filler {
             0
         } else {
-            calculate_filler_reward(fee, order_ts, now, &fee_structure.filler_reward_structure)?
+            calculate_filler_reward(
+                fee,
+                order_ts,
+                now,
+                0,
+                &fee_structure.filler_reward_structure,
+            )?
         };
 
         let fee_to_market = cast_to_i128(
@@ -155,6 +162,7 @@ fn calculate_filler_reward(
     fee: u128,
     order_ts: i64,
     now: i64,
+    multiplier: u128,
     filler_reward_structure: &OrderFillerRewardStructure,
 ) -> ClearingHouseResult<u128> {
     // incentivize keepers to prioritize filling older orders (rather than just largest orders)
@@ -166,7 +174,19 @@ fn calculate_filler_reward(
         .checked_div(filler_reward_structure.reward_denominator as u128)
         .ok_or_else(math_error!())?;
 
-    let min_time_filler_reward = filler_reward_structure.time_based_reward_lower_bound;
+    let multiplier_precision = cast_to_u128(TEN_BPS)?;
+
+    let min_time_filler_reward = filler_reward_structure
+        .time_based_reward_lower_bound
+        .checked_mul(
+            multiplier
+                .max(multiplier_precision)
+                .min(multiplier_precision * 100),
+        )
+        .ok_or_else(math_error!())?
+        .checked_div(multiplier_precision)
+        .ok_or_else(math_error!())?;
+
     let time_since_order = max(
         1,
         cast_to_u128(now.checked_sub(order_ts).ok_or_else(math_error!())?)?,
@@ -193,7 +213,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     fee_structure: &FeeStructure,
     order_ts: i64,
     now: i64,
-    reward_filler: bool,
+    filler_multiplier: u128,
     reward_referrer: bool,
     referrer_stats: &Option<&mut UserStats>,
     market_type: &MarketType,
@@ -224,13 +244,14 @@ pub fn calculate_fee_for_fulfillment_with_match(
         .checked_div(maker_fee_tier.maker_rebate_denominator as u128)
         .ok_or_else(math_error!())?;
 
-    let filler_reward: u128 = if !reward_filler {
+    let filler_reward: u128 = if filler_multiplier == 0 {
         0
     } else {
         calculate_filler_reward(
             taker_fee,
             order_ts,
             now,
+            filler_multiplier,
             &fee_structure.filler_reward_structure,
         )?
     };
@@ -306,6 +327,7 @@ pub fn calculate_fee_for_fulfillment_with_serum(
             quote_asset_amount,
             order_ts,
             now,
+            0,
             &fee_structure.filler_reward_structure,
         )?
         .min(available_fee)
@@ -415,7 +437,7 @@ mod test {
                 &FeeStructure::test_default(),
                 0,
                 0,
-                false,
+                0,
                 false,
                 &None,
                 &MarketType::Perp,
@@ -457,7 +479,7 @@ mod test {
                 &fee_structure,
                 0,
                 0,
-                true,
+                1,
                 false,
                 &None,
                 &MarketType::Perp,
@@ -498,7 +520,7 @@ mod test {
                 &fee_structure,
                 0,
                 0,
-                true,
+                1,
                 false,
                 &None,
                 &MarketType::Perp,
@@ -539,7 +561,7 @@ mod test {
                 &fee_structure,
                 0,
                 60,
-                true,
+                1,
                 false,
                 &None,
                 &MarketType::Perp,
@@ -578,7 +600,7 @@ mod test {
                 &fee_structure,
                 0,
                 0,
-                false,
+                0,
                 true,
                 &None,
                 &MarketType::Perp,

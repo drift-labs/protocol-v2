@@ -429,7 +429,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		// sol rallys big
 		// await clearingHouse.moveAmmToPrice(
 		// 	new BN(0),
-		// 	new BN(260.5 * MARK_PRICE_PRECISION.toNumber())
+		// 	new BN(260.5 * PRICE_PRECISION.toNumber())
 		// );
 		await setFeedPrice(anchor.workspace.Pyth, 260.5, solOracle);
 		console.log('price move to $260.5');

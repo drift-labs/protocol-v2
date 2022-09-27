@@ -400,7 +400,7 @@ describe('delist market, liquidation of expired position', () => {
 
 		// await clearingHouse.moveAmmToPrice(
 		// 	new BN(0),
-		// 	new BN(43.1337 * MARK_PRICE_PRECISION.toNumber())
+		// 	new BN(43.1337 * PRICE_PRECISION.toNumber())
 		// );
 
 		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);

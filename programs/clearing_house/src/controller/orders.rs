@@ -37,8 +37,8 @@ use crate::math::fulfillment::{
 };
 use crate::math::liquidation::validate_user_not_being_liquidated;
 use crate::math::matching::{
-    are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders, do_orders_cross,
-    is_maker_for_taker,
+    are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders,
+    calculate_filler_multiplier_for_matched_orders, do_orders_cross, is_maker_for_taker,
 };
 use crate::math::oracle;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
@@ -1606,6 +1606,12 @@ pub fn fulfill_order_with_match(
             .force_get_perp_position_mut(market.market_index)
             .is_ok();
 
+    let filler_multiplier = if filler.is_some() {
+        calculate_filler_multiplier_for_matched_orders(maker_price, maker_direction, oracle_price)?
+    } else {
+        0
+    };
+
     let FillFees {
         user_fee: taker_fee,
         maker_rebate,
@@ -1621,7 +1627,7 @@ pub fn fulfill_order_with_match(
         fee_structure,
         taker.orders[taker_order_index].ts,
         now,
-        filler.is_some(),
+        filler_multiplier,
         reward_referrer,
         referrer_stats,
         &MarketType::Perp,
@@ -2759,6 +2765,12 @@ pub fn fulfill_spot_order_with_match(
         return Ok(0_u128);
     }
 
+    let filler_multiplier = if filler.is_some() {
+        calculate_filler_multiplier_for_matched_orders(maker_price, maker_direction, oracle_price)?
+    } else {
+        0
+    };
+
     let FillFees {
         user_fee: taker_fee,
         maker_rebate,
@@ -2772,7 +2784,7 @@ pub fn fulfill_spot_order_with_match(
         fee_structure,
         taker_order_ts,
         now,
-        filler.is_some(),
+        filler_multiplier,
         false,
         &None,
         &MarketType::Spot,
