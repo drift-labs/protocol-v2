@@ -92,16 +92,6 @@ pub fn swap_base_asset(
         None => amm.reserve_price()?,
     };
 
-    let (
-        new_base_asset_reserve,
-        new_quote_asset_reserve,
-        quote_asset_amount,
-        quote_asset_amount_surplus,
-    ) = calculate_base_swap_output_with_spread(amm, base_asset_swap_amount, direction)?;
-
-    amm.base_asset_reserve = new_base_asset_reserve;
-    amm.quote_asset_reserve = new_quote_asset_reserve;
-
     amm::update_mark_twap(
         amm,
         now,
@@ -111,6 +101,16 @@ pub fn swap_base_asset(
         }),
         Some(position_direction),
     )?;
+
+    let (
+        new_base_asset_reserve,
+        new_quote_asset_reserve,
+        quote_asset_amount,
+        quote_asset_amount_surplus,
+    ) = calculate_base_swap_output_with_spread(amm, base_asset_swap_amount, direction)?;
+
+    amm.base_asset_reserve = new_base_asset_reserve;
+    amm.quote_asset_reserve = new_quote_asset_reserve;
 
     Ok((
         quote_asset_amount,
