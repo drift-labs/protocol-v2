@@ -6,9 +6,9 @@ use solana_program::msg;
 use crate::error::ClearingHouseResult;
 use crate::math::casting::cast_to_u128;
 use crate::math::constants::{
-    BID_ASK_SPREAD_PRECISION, FIFTY_MILLION_QUOTE, FIVE_MILLION_QUOTE, ONE_HUNDRED_MILLION_QUOTE,
-    ONE_HUNDRED_THOUSAND_QUOTE, ONE_MILLION_QUOTE, ONE_THOUSAND_QUOTE, TEN_MILLION_QUOTE,
-    TEN_THOUSAND_QUOTE, TWENTY_FIVE_THOUSAND_QUOTE, TWO_HUNDRED_FIFTY_THOUSAND_QUOTE,
+    FIFTY_MILLION_QUOTE, FIVE_MILLION_QUOTE, ONE_HUNDRED_MILLION_QUOTE, ONE_HUNDRED_THOUSAND_QUOTE,
+    ONE_MILLION_QUOTE, ONE_THOUSAND_QUOTE, TEN_BPS, TEN_MILLION_QUOTE, TEN_THOUSAND_QUOTE,
+    TWENTY_FIVE_THOUSAND_QUOTE, TWO_HUNDRED_FIFTY_THOUSAND_QUOTE,
 };
 use crate::math::helpers::get_proportion_u128;
 use crate::math_error;
@@ -174,7 +174,7 @@ fn calculate_filler_reward(
         .checked_div(filler_reward_structure.reward_denominator as u128)
         .ok_or_else(math_error!())?;
 
-    let multiplier_precision = BID_ASK_SPREAD_PRECISION / 1000;
+    let multiplier_precision = cast_to_u128(TEN_BPS)?;
 
     let min_time_filler_reward = filler_reward_structure
         .time_based_reward_lower_bound
