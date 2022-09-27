@@ -330,7 +330,7 @@ describe('prepeg', () => {
 		);
 		const newAmm = calculateUpdatedAMM(market0.amm, oraclePriceData);
 
-		const markPrice = calculatePrice(
+		const reservePrice = calculatePrice(
 			newAmm.baseAssetReserve,
 			newAmm.quoteAssetReserve,
 			newAmm.pegMultiplier
@@ -341,7 +341,7 @@ describe('prepeg', () => {
 			newAmm.terminalQuoteAssetReserve,
 			newAmm.pegMultiplier,
 			newAmm.netBaseAssetAmount,
-			markPrice,
+			reservePrice,
 			newAmm.totalFeeMinusDistributions
 		);
 		const inventoryScale = calculateInventoryScale(

@@ -43,14 +43,14 @@ async function feePoolInjection(fees, marketIndex, clearingHouse) {
 	const connection = anchor.AnchorProvider.local().connection;
 
 	while (market0.amm.totalFeeMinusDistributions.lt(fees)) {
-		const markPrice = calculateReservePrice(
+		const reservePrice = calculateReservePrice(
 			market0,
 			clearingHouse.getOracleDataForMarket(marketIndex)
 		);
 		const baseAmountToTrade = new BN(9000)
 			.mul(PRICE_PRECISION)
 			.mul(BASE_PRECISION)
-			.div(markPrice);
+			.div(reservePrice);
 		const tx = await clearingHouse.openPosition(
 			PositionDirection.LONG,
 			baseAmountToTrade,

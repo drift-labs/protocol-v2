@@ -49,7 +49,7 @@ export const mockAMM = {
 		lastOraclePriceTwap5min: new BN(0),
 		lastOraclePriceTwapTs: new BN(0),
 	},
-	lastOracleMarkSpreadPct: new BN(0),
+	lastOracleReserveSpreadPct: new BN(0),
 	lastOracleConfPct: new BN(0),
 	oracle: PublicKey.default,
 	oracleSource: OracleSource.PYTH,
