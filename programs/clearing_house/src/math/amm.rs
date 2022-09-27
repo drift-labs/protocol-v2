@@ -327,6 +327,18 @@ pub fn update_mark_twap(
         "amm.historical_oracle_data.last_oracle_price <= 0"
     )?;
 
+    let amm_reserve_price = amm.reserve_price()?;
+    let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(amm_reserve_price)?;
+
+    // validate!(
+    //     amm_bid_price <= last_oracle_price_u128 && last_oracle_price_u128 <= amm_ask_price,
+    //     ErrorCode::DefaultError,
+    //     "amm_bid_price={}, last_oracle_price_u128={}, amm_ask_price={} off",
+    //     amm_bid_price,
+    //     last_oracle_price_u128,
+    //     amm_ask_price
+    // )?;
+
     // estimation of bid/ask by looking at execution premium
 
     // trade is a long
@@ -349,6 +361,16 @@ pub fn update_mark_twap(
         trade_price
     };
 
+    validate!(
+        best_bid_estimate <= best_ask_estimate,
+        ErrorCode::DefaultError,
+        "best_bid_estimate({}, {}) not <= best_ask_estimate({}, {})",
+        amm_bid_price,
+        best_bid_estimate,
+        best_ask_estimate,
+        amm_ask_price,
+    )?;
+
     let (bid_price, ask_price) = match direction {
         Some(direction) => match direction {
             PositionDirection::Long => (best_bid_estimate, trade_price),
@@ -356,6 +378,16 @@ pub fn update_mark_twap(
         },
         None => (trade_price, trade_price),
     };
+
+    validate!(
+        bid_price <= ask_price,
+        ErrorCode::DefaultError,
+        "bid_price({}, {}) not <= ask_price({}, {}),",
+        best_bid_estimate,
+        bid_price,
+        ask_price,
+        best_ask_estimate,
+    )?;
 
     let (bid_price_capped_update, ask_price_capped_update) = (
         sanitize_new_price(
@@ -367,6 +399,12 @@ pub fn update_mark_twap(
             cast_to_i128(amm.last_ask_price_twap)?,
         )?,
     );
+
+    validate!(
+        bid_price_capped_update <= ask_price_capped_update,
+        ErrorCode::DefaultError,
+        "bid_price_capped_update not <= ask_price_capped_update,"
+    )?;
 
     // update bid and ask twaps
     let bid_twap = calculate_new_twap(
@@ -1444,7 +1482,8 @@ mod test {
     use crate::controller::lp::mint_lp_shares;
     use crate::controller::lp::settle_lp_position;
     use crate::math::constants::{
-        K_BPS_INCREASE_MAX, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION, QUOTE_PRECISION_I128,
+        BID_ASK_SPREAD_PRECISION, K_BPS_INCREASE_MAX, MAX_CONCENTRATION_COEFFICIENT,
+        PRICE_PRECISION, QUOTE_PRECISION_I128,
     };
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::user::PerpPosition;
@@ -2224,7 +2263,10 @@ mod test {
         let prev = 1656682258;
         let mut now = prev + 60;
         let mut amm = AMM {
-            // base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+            base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+            peg_multiplier: PRICE_PRECISION,
+            base_spread: 65535, //max base spread is 6.5%
             mark_std: PRICE_PRECISION as u64,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: PRICE_PRECISION as i128,
@@ -2254,6 +2296,7 @@ mod test {
                 amm.historical_oracle_data.last_oracle_price =
                     amm.historical_oracle_data.last_oracle_price * 100001 / 100133;
             }
+            amm.peg_multiplier = px;
             let trade_direction = PositionDirection::Long;
             update_mark_twap(&mut amm, now, Some(px), Some(trade_direction)).unwrap();
         }
@@ -2269,11 +2312,15 @@ mod test {
             if now % 15 == 0 {
                 px = 31_986_658; //31.98
                 amm.historical_oracle_data.last_oracle_price = (px - 1000000) as i128;
+                amm.peg_multiplier = px;
+
                 let trade_direction = PositionDirection::Long;
                 update_mark_twap(&mut amm, now, Some(px), Some(trade_direction)).unwrap();
             }
             if now % 189 == 0 {
                 px = 31_883_651; //31.88
+                amm.peg_multiplier = px;
+
                 amm.historical_oracle_data.last_oracle_price = (px + 1000000) as i128;
                 let trade_direction = PositionDirection::Short;
                 update_mark_twap(&mut amm, now, Some(px), Some(trade_direction)).unwrap();
@@ -2290,12 +2337,16 @@ mod test {
             now += 1;
             if now % 2 == 1 {
                 px = 31_986_658; //31.98
+                amm.peg_multiplier = px;
+
                 amm.historical_oracle_data.last_oracle_price = (px - 1000000) as i128;
                 let trade_direction = PositionDirection::Long;
                 update_mark_twap(&mut amm, now, Some(px), Some(trade_direction)).unwrap();
             }
             if now % 2 == 0 {
                 px = 31_883_651; //31.88
+                amm.peg_multiplier = px;
+
                 amm.historical_oracle_data.last_oracle_price = (px + 1000000) as i128;
                 let trade_direction = PositionDirection::Short;
                 update_mark_twap(&mut amm, now, Some(px), Some(trade_direction)).unwrap();
@@ -2324,7 +2375,9 @@ mod test {
             quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
             base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
             peg_multiplier: 40 * PEG_PRECISION,
-
+            base_spread: 0,
+            long_spread: 0,
+            short_spread: 0,
             last_mark_price_twap: (40 * PRICE_PRECISION),
             last_bid_price_twap: (40 * PRICE_PRECISION),
             last_ask_price_twap: (40 * PRICE_PRECISION),
@@ -2359,10 +2412,10 @@ mod test {
         let new_ask_twap = amm.last_ask_price_twap;
 
         assert!(new_mark_twap > old_mark_twap);
-        assert!(new_bid_twap < new_ask_twap);
+        assert_eq!(new_ask_twap, 40000015);
         assert_eq!(new_bid_twap, 40000006);
         assert_eq!(new_mark_twap, 40000010);
-        assert_eq!(new_ask_twap, 40000015);
+        assert!(new_bid_twap < new_ask_twap);
 
         while now < 3600 {
             now += 1;

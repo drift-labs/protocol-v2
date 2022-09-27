@@ -1495,13 +1495,6 @@ pub fn fulfill_order_with_match(
     let maker_base_asset_amount =
         maker.orders[maker_order_index].get_base_asset_amount_unfilled()?;
 
-    amm::update_mark_twap(
-        &mut market.amm,
-        now,
-        Some(maker_price),
-        Some(taker_direction),
-    )?;
-
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
     if !orders_cross {
@@ -1518,6 +1511,13 @@ pub fn fulfill_order_with_match(
     if base_asset_amount == 0 {
         return Ok((0_u128, 0_u128));
     }
+
+    amm::update_mark_twap(
+        &mut market.amm,
+        now,
+        Some(maker_price),
+        Some(taker_direction),
+    )?;
 
     let amm_wants_to_make = match taker_direction {
         PositionDirection::Long => market.amm.net_base_asset_amount < 0,
