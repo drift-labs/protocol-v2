@@ -41,8 +41,8 @@ describe('AMM Curve', () => {
 			commitment: 'confirmed',
 		},
 		activeUserId: 0,
-		perpMarketIndexes: [new BN(0)],
-		spotMarketIndexes: [new BN(0)],
+		perpMarketIndexes: [0],
+		spotMarketIndexes: [0],
 	});
 
 	const ammInitialQuoteAssetAmount = new anchor.BN(10 ** 8).mul(BASE_PRECISION);
@@ -52,7 +52,7 @@ describe('AMM Curve', () => {
 	let userUSDCAccount: Keypair;
 
 	let solUsdOracle;
-	const marketIndex = new BN(0);
+	const marketIndex = 0;
 	const initialSOLPrice = 150;
 
 	const usdcAmount = new BN(1e9 * QUOTE_PRECISION.toNumber());

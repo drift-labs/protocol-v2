@@ -59,7 +59,7 @@ async function depositToFeePoolFromIF(
 	// // send $50 to market from IF
 	try {
 		const txSig00 = await clearingHouse.depositIntoMarketFeePool(
-			new BN(0),
+			0,
 			ifAmount,
 			userUSDCAccount.publicKey
 		);
@@ -73,7 +73,7 @@ async function depositToFeePoolFromIF(
 
 async function iterClosePosition(
 	clearingHouse: ClearingHouse,
-	marketIndex: BN,
+	marketIndex: number,
 	oraclePriceData: OraclePriceData
 ) {
 	let userPosition = clearingHouse.getUser().getUserPosition(marketIndex);
@@ -173,8 +173,8 @@ describe('repeg and spread amm', () => {
 			mockOracles.push(thisUsd);
 		}
 
-		spotMarketIndexes = [new BN(0)];
-		marketIndexes = mockOracles.map((_, i) => new BN(i));
+		spotMarketIndexes = [0];
+		marketIndexes = mockOracles.map((_, i) => i);
 		oracleInfos = mockOracles.map((oracle) => {
 			return { publicKey: oracle, source: OracleSource.PYTH };
 		});
@@ -210,8 +210,8 @@ describe('repeg and spread amm', () => {
 			500,
 			250
 		);
-		await clearingHouse.updateMarketBaseSpread(new BN(0), 250);
-		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
+		await clearingHouse.updateMarketBaseSpread(0, 250);
+		await clearingHouse.updateCurveUpdateIntensity(0, 100);
 
 		// for (let i = 1; i <= 4; i++) {
 		// 	// init more markets
@@ -267,7 +267,7 @@ describe('repeg and spread amm', () => {
 				JSON.stringify(state.oracleGuardRails)
 		);
 
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = new BN(0.19316 * AMM_RESERVE_PRECISION.toNumber());
 		const orderParams = getMarketOrderParams({
 			marketIndex,
@@ -727,7 +727,7 @@ describe('repeg and spread amm', () => {
 			}
 
 			const orderParams = getMarketOrderParams({
-				marketIndex: new BN(0),
+				marketIndex: 0,
 				direction: tradeDirection,
 				baseAssetAmount: new BN(tradeSize),
 			});
@@ -789,11 +789,11 @@ describe('repeg and spread amm', () => {
 			);
 			if (!pos.baseAssetAmount.eq(ZERO)) {
 				// await clearingHouses[i].closePosition(new BN(0));
-				await iterClosePosition(clearingHouses[i], new BN(0), oraclePriceData1);
+				await iterClosePosition(clearingHouses[i], 0, oraclePriceData1);
 				await clearingHouses[i].settlePNL(
 					await clearingHouses[i].getUserAccountPublicKey(),
 					clearingHouses[i].getUserAccount(),
-					new BN(0)
+					0
 				);
 			}
 

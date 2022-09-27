@@ -51,8 +51,8 @@ describe('clearing_house', () => {
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
 		const solUsd = await mockOracle(1);
-		marketIndexes = [new BN(0)];
-		spotMarketIndexes = [new BN(0)];
+		marketIndexes = [0];
+		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		clearingHouse = new Admin({
@@ -97,7 +97,7 @@ describe('clearing_house', () => {
 	});
 
 	it('Long from 0 position', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = new BN(48000000000);
 		const orderParams = getMarketOrderParams({
 			marketIndex,
@@ -147,11 +147,11 @@ describe('clearing_house', () => {
 		assert.ok(orderRecord.fillRecordId.eq(new BN(1)));
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(48000000000)));
 		assert.ok(orderRecord.quoteAssetAmountFilled.eq(new BN(48000001)));
-		assert.ok(orderRecord.marketIndex.eq(marketIndex));
+		assert.ok(orderRecord.marketIndex === marketIndex);
 	});
 
 	it('Reduce long position', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = new BN(24000000000);
 		const orderParams = getMarketOrderParams({
 			marketIndex,
@@ -206,11 +206,11 @@ describe('clearing_house', () => {
 		console.log(orderRecord.baseAssetAmountFilled.toNumber());
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(24000000000)));
 		assert.ok(orderRecord.quoteAssetAmountFilled.eq(new BN(24000000)));
-		assert.ok(orderRecord.marketIndex.eq(new BN(0)));
+		assert.ok(orderRecord.marketIndex === 0);
 	});
 
 	it('Reverse long position', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = new BN(48000000000);
 		const orderParams = getMarketOrderParams({
 			marketIndex,
@@ -261,11 +261,11 @@ describe('clearing_house', () => {
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(48000000000)));
 		console.log(orderRecord.quoteAssetAmountFilled.toString());
 		assert.ok(orderRecord.quoteAssetAmountFilled.eq(new BN(48000000)));
-		assert.ok(orderRecord.marketIndex.eq(new BN(0)));
+		assert.ok(orderRecord.marketIndex === 0);
 	});
 
 	it('Close position', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = new BN(24000000000);
 		const orderParams = getMarketOrderParams({
 			marketIndex,
@@ -311,6 +311,6 @@ describe('clearing_house', () => {
 		assert.ok(orderRecord.fillRecordId.eq(new BN(4)));
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(24000000000)));
 		assert.ok(orderRecord.quoteAssetAmountFilled.eq(new BN(24000000)));
-		assert.ok(orderRecord.marketIndex.eq(new BN(0)));
+		assert.ok(orderRecord.marketIndex === 0);
 	});
 });

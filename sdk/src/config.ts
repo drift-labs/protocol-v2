@@ -68,8 +68,8 @@ export const initialize = (props: {
 };
 
 export function getMarketsAndOraclesForSubscription(env: DriftEnv): {
-	perpMarketIndexes: BN[];
-	spotMarketIndexes: BN[];
+	perpMarketIndexes: number[];
+	spotMarketIndexes: number[];
 	oracleInfos: OracleInfo[];
 } {
 	const perpMarketIndexes = [];

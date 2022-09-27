@@ -51,7 +51,7 @@ use std::ops::{Deref, DerefMut};
 mod tests;
 
 pub fn liquidate_perp(
-    market_index: u64,
+    market_index: u16,
     liquidator_max_base_asset_amount: u128,
     user: &mut User,
     user_key: &Pubkey,
@@ -402,8 +402,8 @@ pub fn liquidate_perp(
 }
 
 pub fn liquidate_borrow(
-    asset_market_index: u64,
-    liability_market_index: u64,
+    asset_market_index: u16,
+    liability_market_index: u16,
     liquidator_max_liability_transfer: u128,
     user: &mut User,
     user_key: &Pubkey,
@@ -780,8 +780,8 @@ pub fn liquidate_borrow(
 }
 
 pub fn liquidate_borrow_for_perp_pnl(
-    perp_market_index: u64,
-    liability_market_index: u64,
+    perp_market_index: u16,
+    liability_market_index: u16,
     liquidator_max_liability_transfer: u128,
     user: &mut User,
     user_key: &Pubkey,
@@ -1155,8 +1155,8 @@ pub fn liquidate_borrow_for_perp_pnl(
 }
 
 pub fn liquidate_perp_pnl_for_deposit(
-    perp_market_index: u64,
-    asset_market_index: u64,
+    perp_market_index: u16,
+    asset_market_index: u16,
     liquidator_max_pnl_transfer: u128,
     user: &mut User,
     user_key: &Pubkey,
@@ -1532,7 +1532,7 @@ pub fn set_being_liquidated_and_get_liquidation_id(user: &mut User) -> ClearingH
 }
 
 pub fn resolve_perp_bankruptcy(
-    market_index: u64,
+    market_index: u16,
     user: &mut User,
     user_key: &Pubkey,
     liquidator: &mut User,
@@ -1684,7 +1684,7 @@ pub fn resolve_perp_bankruptcy(
 }
 
 pub fn resolve_borrow_bankruptcy(
-    market_index: u64,
+    market_index: u16,
     user: &mut User,
     user_key: &Pubkey,
     liquidator: &mut User,

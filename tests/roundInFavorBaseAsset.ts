@@ -50,8 +50,8 @@ describe('round in favor', () => {
 
 		const solUsd = await mockOracle(63000);
 
-		marketIndexes = [new BN(0)];
-		spotMarketIndexes = [new BN(0)];
+		marketIndexes = [0];
+		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		primaryClearingHouse = new Admin({
@@ -116,7 +116,7 @@ describe('round in favor', () => {
 		);
 		await clearingHouse.fetchAccounts();
 
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = new BN(789640);
 		const orderParams = getMarketOrderParams({
 			marketIndex,
@@ -170,7 +170,7 @@ describe('round in favor', () => {
 		);
 		await clearingHouse.fetchAccounts();
 
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = new BN(789566);
 		const orderParams = getMarketOrderParams({
 			marketIndex,

@@ -68,8 +68,8 @@ describe('trigger orders', () => {
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
 		solUsd = await mockOracle(1);
-		marketIndexes = [new BN(0)];
-		spotMarketIndexes = [new BN(0)];
+		marketIndexes = [0];
+		spotMarketIndexes = [0];
 		oracleInfos = [
 			{
 				publicKey: solUsd,
@@ -117,7 +117,7 @@ describe('trigger orders', () => {
 
 	beforeEach(async () => {
 		await fillerClearingHouse.moveAmmPrice(
-			ZERO,
+			0,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve
 		);
@@ -162,7 +162,7 @@ describe('trigger orders', () => {
 		});
 		await clearingHouseUser.subscribe();
 
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
 		const marketOrderParams = getMarketOrderParams({
 			marketIndex,
@@ -259,7 +259,7 @@ describe('trigger orders', () => {
 		});
 		await clearingHouseUser.subscribe();
 
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION.mul(new BN(10));
 		const marketOrderParams = getMarketOrderParams({
 			marketIndex,
@@ -359,7 +359,7 @@ describe('trigger orders', () => {
 		});
 		await clearingHouseUser.subscribe();
 
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
 		const marketOrderParams = getMarketOrderParams({
 			marketIndex,
@@ -456,7 +456,7 @@ describe('trigger orders', () => {
 		});
 		await clearingHouseUser.subscribe();
 
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION.mul(new BN(10));
 		const marketOrderParams = getMarketOrderParams({
 			marketIndex,
@@ -573,7 +573,7 @@ describe('trigger orders', () => {
 		});
 		await clearingHouseUser.subscribe();
 
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
 		const marketOrderParams = getMarketOrderParams({
 			marketIndex,
@@ -670,7 +670,7 @@ describe('trigger orders', () => {
 		});
 		await clearingHouseUser.subscribe();
 
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION.mul(new BN(10));
 		const marketOrderParams = getMarketOrderParams({
 			marketIndex,
@@ -770,7 +770,7 @@ describe('trigger orders', () => {
 		});
 		await clearingHouseUser.subscribe();
 
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
 		const marketOrderParams = getMarketOrderParams({
 			marketIndex,
@@ -867,7 +867,7 @@ describe('trigger orders', () => {
 		});
 		await clearingHouseUser.subscribe();
 
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION.mul(new BN(10));
 		const marketOrderParams = getMarketOrderParams({
 			marketIndex,

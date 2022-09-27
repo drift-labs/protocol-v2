@@ -180,7 +180,7 @@ describe('AMM Curve', () => {
 	let userUSDCAccount: Keypair;
 
 	let solUsdOracle;
-	const marketIndex = new BN(0);
+	const marketIndex = 0;
 	const initialSOLPriceBN = new BN(initialSOLPrice * PEG_PRECISION.toNumber());
 	function normAssetAmount(assetAmount: BN, pegMultiplier: BN): BN {
 		// assetAmount is scaled to offer comparable slippage
@@ -259,7 +259,7 @@ describe('AMM Curve', () => {
 	};
 
 	it('After Deposit', async () => {
-		await clearingHouse.deposit(usdcAmount, userUSDCAccount.publicKey);
+		await clearingHouse.deposit(usdcAmount, 0, userUSDCAccount.publicKey);
 	});
 
 	it('After Position Taken', async () => {

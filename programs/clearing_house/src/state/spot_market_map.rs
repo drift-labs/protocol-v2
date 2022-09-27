@@ -11,10 +11,10 @@ use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use anchor_lang::Discriminator;
 use arrayref::array_ref;
 
-pub struct SpotMarketMap<'a>(pub BTreeMap<u64, AccountLoader<'a, SpotMarket>>);
+pub struct SpotMarketMap<'a>(pub BTreeMap<u16, AccountLoader<'a, SpotMarket>>);
 
 impl<'a> SpotMarketMap<'a> {
-    pub fn get_ref(&self, market_index: &u64) -> ClearingHouseResult<Ref<SpotMarket>> {
+    pub fn get_ref(&self, market_index: &u16) -> ClearingHouseResult<Ref<SpotMarket>> {
         self.0
             .get(market_index)
             .ok_or(ErrorCode::SpotMarketNotFound)?
@@ -25,7 +25,7 @@ impl<'a> SpotMarketMap<'a> {
             })
     }
 
-    pub fn get_ref_mut(&self, market_index: &u64) -> ClearingHouseResult<RefMut<SpotMarket>> {
+    pub fn get_ref_mut(&self, market_index: &u16) -> ClearingHouseResult<RefMut<SpotMarket>> {
         self.0
             .get(market_index)
             .ok_or(ErrorCode::SpotMarketNotFound)?
@@ -65,7 +65,7 @@ impl<'a> SpotMarketMap<'a> {
                 break;
             }
 
-            let market_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
+            let market_index = u16::from_le_bytes(*array_ref![data, 8, 2]);
 
             let account_info = account_info_iter.next().unwrap();
             let is_writable = account_info.is_writable;
@@ -106,7 +106,7 @@ impl<'a> SpotMarketMap<'a> {
             return Err(ErrorCode::CouldNotLoadSpotMarketData);
         }
 
-        let market_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
+        let market_index = u16::from_le_bytes(*array_ref![data, 8, 2]);
         let is_writable = account_info.is_writable;
         let account_loader: AccountLoader<SpotMarket> =
             AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidSpotMarketAccount))?;
@@ -142,7 +142,7 @@ impl<'a> SpotMarketMap<'a> {
                 return Err(ErrorCode::CouldNotLoadSpotMarketData);
             }
 
-            let market_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
+            let market_index = u16::from_le_bytes(*array_ref![data, 8, 2]);
             let is_writable = account_info.is_writable;
             let account_loader: AccountLoader<SpotMarket> =
                 AccountLoader::try_from(account_info)
@@ -159,9 +159,9 @@ impl<'a> SpotMarketMap<'a> {
     }
 }
 
-pub type SpotMarketSet = BTreeSet<u64>;
+pub type SpotMarketSet = BTreeSet<u16>;
 
-pub fn get_writable_spot_market_set(market_index: u64) -> SpotMarketSet {
+pub fn get_writable_spot_market_set(market_index: u16) -> SpotMarketSet {
     let mut writable_markets = SpotMarketSet::new();
     writable_markets.insert(market_index);
     writable_markets

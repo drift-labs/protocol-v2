@@ -42,17 +42,17 @@ export interface ClearingHouseAccountSubscriber {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	addPerpMarket(marketIndex: BN): Promise<boolean>;
-	addSpotMarket(marketIndex: BN): Promise<boolean>;
+	addPerpMarket(marketIndex: number): Promise<boolean>;
+	addSpotMarket(marketIndex: number): Promise<boolean>;
 	addOracle(oracleInfo: OracleInfo): Promise<boolean>;
 
 	getStateAccountAndSlot(): DataAndSlot<StateAccount>;
 	getMarketAccountAndSlot(
-		marketIndex: BN
+		marketIndex: number
 	): DataAndSlot<PerpMarketAccount> | undefined;
 	getMarketAccountsAndSlots(): DataAndSlot<PerpMarketAccount>[];
 	getSpotMarketAccountAndSlot(
-		marketIndex: BN
+		marketIndex: number
 	): DataAndSlot<SpotMarketAccount> | undefined;
 	getSpotMarketAccountsAndSlots(): DataAndSlot<SpotMarketAccount>[];
 	getOraclePriceDataAndSlot(

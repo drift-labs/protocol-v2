@@ -73,7 +73,7 @@ describe('stop limit', () => {
 	let fillerClearingHouse: ClearingHouse;
 	let fillerUser: ClearingHouseUser;
 
-	const marketIndex = new BN(0);
+	const marketIndex = 0;
 	let solUsd;
 	let btcUsd;
 
@@ -85,7 +85,7 @@ describe('stop limit', () => {
 		btcUsd = await mockOracle(60000);
 
 		const marketIndexes = [marketIndex];
-		const spotMarketIndexes = [new BN(0)];
+		const spotMarketIndexes = [0];
 		const oracleInfos = [
 			{
 				publicKey: solUsd,
@@ -259,7 +259,7 @@ describe('stop limit', () => {
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
-		assert(order.marketIndex.eq(new BN(0)));
+		assert(order.marketIndex === 0);
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
@@ -344,7 +344,7 @@ describe('stop limit', () => {
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
-		assert(order.marketIndex.eq(new BN(0)));
+		assert(order.marketIndex === 0);
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 

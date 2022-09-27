@@ -87,8 +87,8 @@ describe('prepeg', () => {
 			mockOracles.push(thisUsd);
 		}
 
-		spotMarketIndexes = [new BN(0)];
-		marketIndexes = mockOracles.map((_, i) => new BN(i));
+		spotMarketIndexes = [0];
+		marketIndexes = mockOracles.map((_, i) => i);
 		oracleInfos = mockOracles.map((oracle) => {
 			return { publicKey: oracle, source: OracleSource.PYTH };
 		});
@@ -107,7 +107,7 @@ describe('prepeg', () => {
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.updatePerpAuctionDuration(0, 0);
+		await clearingHouse.updatePerpAuctionDuration(0);
 
 		await clearingHouse.subscribe();
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
@@ -122,12 +122,9 @@ describe('prepeg', () => {
 			undefined,
 			1000
 		);
-		await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
-		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
-		await clearingHouse.updateMarketBaseAssetAmountStepSize(
-			new BN(0),
-			new BN(1)
-		);
+		await clearingHouse.updateMarketBaseSpread(0, 2000);
+		await clearingHouse.updateCurveUpdateIntensity(0, 100);
+		await clearingHouse.updateMarketBaseAssetAmountStepSize(0, new BN(1));
 
 		for (let i = 1; i <= 4; i++) {
 			// init more markets
@@ -141,12 +138,9 @@ describe('prepeg', () => {
 				undefined,
 				1000
 			);
-			await clearingHouse.updateMarketBaseSpread(new BN(i), 2000);
-			await clearingHouse.updateCurveUpdateIntensity(new BN(i), 100);
-			await clearingHouse.updateMarketBaseAssetAmountStepSize(
-				new BN(i),
-				new BN(1)
-			);
+			await clearingHouse.updateMarketBaseSpread(i, 2000);
+			await clearingHouse.updateCurveUpdateIntensity(i, 100);
+			await clearingHouse.updateMarketBaseAssetAmountStepSize(i, new BN(1));
 		}
 
 		[, userAccountPublicKey] =
@@ -162,7 +156,7 @@ describe('prepeg', () => {
 	});
 
 	it('Long from 0 position', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = new BN(49745050000);
 		const direction = PositionDirection.LONG;
 		const market0 = clearingHouse.getPerpMarketAccount(0);
@@ -269,7 +263,7 @@ describe('prepeg', () => {
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(49745050000)));
 		assert.ok(orderRecord.quoteAssetAmountFilled.gt(new BN(49750001)));
-		assert.ok(orderRecord.marketIndex.eq(marketIndex));
+		assert.ok(orderRecord.marketIndex === 0);
 
 		// console.log(orderRecord);
 		console.log(market.amm.totalExchangeFee.toNumber());
@@ -283,7 +277,7 @@ describe('prepeg', () => {
 	});
 
 	it('Long even more', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = new BN(49745050367 / 50);
 		const market0 = clearingHouse.getPerpMarketAccount(0);
 
@@ -518,7 +512,7 @@ describe('prepeg', () => {
 	});
 
 	it('Reduce long position', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = new BN(24872525000);
 		const market0 = clearingHouse.getPerpMarketAccount(0);
 		const orderParams = getMarketOrderParams({
@@ -596,13 +590,13 @@ describe('prepeg', () => {
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
 		console.log(orderRecord.baseAssetAmountFilled.toNumber());
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(24872525000)));
-		assert.ok(orderRecord.marketIndex.eq(new BN(0)));
+		assert.ok(orderRecord.marketIndex === 0);
 	});
 
 	it('Many market balanced prepegs, long position', async () => {
 		for (let i = 1; i <= 4; i++) {
 			const thisUsd = mockOracles[i];
-			const marketIndex = new BN(i);
+			const marketIndex = i;
 			const baseAssetAmount = new BN(31.02765 * BASE_PRECISION.toNumber());
 			const market0 = clearingHouse.getPerpMarketAccount(i);
 			const orderParams = getMarketOrderParams({
@@ -692,7 +686,7 @@ describe('prepeg', () => {
 		await setFeedPrice(anchor.workspace.Pyth, curPrice * 1.01, mockOracles[0]);
 
 		const orderParams = getMarketOrderParams({
-			marketIndex: new BN(0),
+			marketIndex: 0,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount: user.perpPositions[0].baseAssetAmount.div(new BN(2)),
 		});

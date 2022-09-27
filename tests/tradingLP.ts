@@ -54,8 +54,8 @@ async function createNewUser(
 			commitment: 'confirmed',
 		},
 		activeUserId: 0,
-		marketIndexes: [new BN(0), new BN(1)],
-		bankIndexes: [new BN(0)],
+		marketIndexes: [0, 1],
+		bankIndexes: [0],
 		oracleInfos,
 	});
 	await clearingHouse.subscribe();

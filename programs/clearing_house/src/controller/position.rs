@@ -39,7 +39,7 @@ impl Default for PositionDirection {
 
 pub fn add_new_position(
     user_positions: &mut UserPositions,
-    market_index: u64,
+    market_index: u16,
 ) -> ClearingHouseResult<usize> {
     let new_position_index = user_positions
         .iter()
@@ -58,7 +58,7 @@ pub fn add_new_position(
 
 pub fn get_position_index(
     user_positions: &UserPositions,
-    market_index: u64,
+    market_index: u16,
 ) -> ClearingHouseResult<usize> {
     let position_index = user_positions
         .iter()
