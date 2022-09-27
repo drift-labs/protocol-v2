@@ -88,7 +88,7 @@ import { BN, Provider } from '@project-serum/anchor';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
-	calculateMarkPrice,
+	calculateReservePrice,
 	ClearingHouse,
 	ClearingHouseUser,
 	initialize,
@@ -98,7 +98,7 @@ import {
 	calculateTradeSlippage,
 	MARK_PRICE_PRECISION,
 	QUOTE_PRECISION,
-	Wallet
+	Wallet,
 } from '@drift-labs/sdk';
 
 export const getTokenAddress = (
@@ -177,11 +177,14 @@ const main = async () => {
 		(market) => market.baseAssetSymbol === 'SOL'
 	);
 
-	const currentMarketPrice = calculateMarkPrice(
+	const currentMarketPrice = calculateReservePrice(
 		clearingHouse.getMarket(solMarketInfo.marketIndex)
 	);
 
-	const formattedPrice = convertToNumber(currentMarketPrice, MARK_PRICE_PRECISION);
+	const formattedPrice = convertToNumber(
+		currentMarketPrice,
+		MARK_PRICE_PRECISION
+	);
 
 	console.log(`Current Market Price is $${formattedPrice}`);
 

@@ -18,7 +18,7 @@ import { PublicKey } from '@solana/web3.js';
 import {
 	Admin,
 	PRICE_PRECISION,
-	calculateMarkPrice,
+	calculateReservePrice,
 	calculateTradeSlippage,
 	PositionDirection,
 	EventSubscriber,
@@ -237,7 +237,7 @@ describe('prepeg', () => {
 			'/',
 			convertToNumber(ask1),
 			'after trade mark price:',
-			convertToNumber(calculateMarkPrice(market, oraclePriceData))
+			convertToNumber(calculateReservePrice(market, oraclePriceData))
 		);
 
 		const position0 = clearingHouse.getUserAccount().perpPositions[0];
@@ -417,7 +417,7 @@ describe('prepeg', () => {
 			'/',
 			convertToNumber(ask1),
 			'after trade mark price:',
-			convertToNumber(calculateMarkPrice(market, oraclePriceData))
+			convertToNumber(calculateReservePrice(market, oraclePriceData))
 		);
 		assert(bid1.lt(ask1));
 		assert(ask1.gt(oraclePriceData.price));
@@ -582,7 +582,7 @@ describe('prepeg', () => {
 			'/',
 			convertToNumber(ask1),
 			'after trade mark price:',
-			convertToNumber(calculateMarkPrice(market, oraclePriceData))
+			convertToNumber(calculateReservePrice(market, oraclePriceData))
 		);
 
 		console.log(
@@ -664,7 +664,7 @@ describe('prepeg', () => {
 				'/',
 				convertToNumber(ask1),
 				'after trade mark price:',
-				convertToNumber(calculateMarkPrice(market, oraclePriceData))
+				convertToNumber(calculateReservePrice(market, oraclePriceData))
 			);
 			console.log('----');
 		}

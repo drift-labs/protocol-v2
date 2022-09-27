@@ -91,14 +91,19 @@ pub fn block_operation(
     amm: &AMM,
     oracle_price_data: &OraclePriceData,
     guard_rails: &OracleGuardRails,
-    precomputed_mark_price: Option<u128>,
+    precomputed_reserve_price: Option<u128>,
 ) -> ClearingHouseResult<bool> {
     let OracleStatus {
         oracle_validity,
         mark_too_divergent: is_oracle_mark_too_divergent,
-        oracle_mark_spread_pct: _,
+        oracle_reserve_price_spread_pct: _,
         ..
-    } = get_oracle_status(amm, oracle_price_data, guard_rails, precomputed_mark_price)?;
+    } = get_oracle_status(
+        amm,
+        oracle_price_data,
+        guard_rails,
+        precomputed_reserve_price,
+    )?;
     let is_oracle_valid =
         is_oracle_valid_for_action(oracle_validity, Some(DriftAction::UpdateFunding))?;
     let block = !is_oracle_valid || is_oracle_mark_too_divergent;
@@ -108,7 +113,7 @@ pub fn block_operation(
 #[derive(Default, Clone, Copy, Debug)]
 pub struct OracleStatus {
     pub price_data: OraclePriceData,
-    pub oracle_mark_spread_pct: i128,
+    pub oracle_reserve_price_spread_pct: i128,
     pub mark_too_divergent: bool,
     pub oracle_validity: OracleValidity,
 }
@@ -117,21 +122,23 @@ pub fn get_oracle_status<'a>(
     amm: &AMM,
     oracle_price_data: &'a OraclePriceData,
     guard_rails: &OracleGuardRails,
-    precomputed_mark_price: Option<u128>,
+    precomputed_reserve_price: Option<u128>,
 ) -> ClearingHouseResult<OracleStatus> {
     let oracle_validity = oracle_validity(
         amm.historical_oracle_data.last_oracle_price_twap,
         oracle_price_data,
         &guard_rails.validity,
     )?;
-    let oracle_mark_spread_pct =
-        amm::calculate_oracle_twap_5min_mark_spread_pct(amm, precomputed_mark_price)?;
-    let is_oracle_mark_too_divergent =
-        amm::is_oracle_mark_too_divergent(oracle_mark_spread_pct, &guard_rails.price_divergence)?;
+    let oracle_reserve_price_spread_pct =
+        amm::calculate_oracle_twap_5min_mark_spread_pct(amm, precomputed_reserve_price)?;
+    let is_oracle_mark_too_divergent = amm::is_oracle_mark_too_divergent(
+        oracle_reserve_price_spread_pct,
+        &guard_rails.price_divergence,
+    )?;
 
     Ok(OracleStatus {
         price_data: *oracle_price_data,
-        oracle_mark_spread_pct,
+        oracle_reserve_price_spread_pct,
         mark_too_divergent: is_oracle_mark_too_divergent,
         oracle_validity,
     })
@@ -265,7 +272,7 @@ mod test {
             get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
 
         assert!(oracle_status.oracle_validity == OracleValidity::Valid);
-        assert_eq!(oracle_status.oracle_mark_spread_pct, 30303); //0.030303 ()
+        assert_eq!(oracle_status.oracle_reserve_price_spread_pct, 30303); //0.030303 ()
         assert!(!oracle_status.mark_too_divergent);
 
         let _new_oracle_twap =

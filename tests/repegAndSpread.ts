@@ -26,7 +26,7 @@ import {
 	// MARK_PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
 	QUOTE_PRECISION,
-	// calculateMarkPrice,
+	// calculateReservePrice,
 	PositionDirection,
 	EventSubscriber,
 	convertToNumber,

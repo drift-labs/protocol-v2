@@ -553,7 +553,7 @@ pub fn update_position_with_base_asset_amount(
     market: &mut PerpMarket,
     user: &mut User,
     position_index: usize,
-    mark_price_before: u128,
+    reserve_price_before: u128,
     now: i64,
     fill_price: Option<u128>,
 ) -> ClearingHouseResult<(u128, i128, i128)> {
@@ -567,7 +567,7 @@ pub fn update_position_with_base_asset_amount(
         base_asset_amount,
         swap_direction,
         now,
-        Some(mark_price_before),
+        Some(reserve_price_before),
     )?;
 
     let (quote_asset_amount, quote_asset_amount_surplus) = match fill_price {

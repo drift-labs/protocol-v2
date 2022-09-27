@@ -10,7 +10,7 @@ use solana_program::msg;
 pub fn calculate_slippage(
     exit_value: u128,
     base_asset_amount: u128,
-    mark_price_before: i128,
+    reserve_price_before: i128,
 ) -> ClearingHouseResult<i128> {
     let amm_exit_price = exit_value
         .checked_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
@@ -19,17 +19,17 @@ pub fn calculate_slippage(
         .ok_or_else(math_error!())?;
 
     cast_to_i128(amm_exit_price)?
-        .checked_sub(mark_price_before)
+        .checked_sub(reserve_price_before)
         .ok_or_else(math_error!())
 }
 
 pub fn calculate_slippage_pct(
     slippage: i128,
-    mark_price_before: i128,
+    reserve_price_before: i128,
 ) -> ClearingHouseResult<i128> {
     slippage
         .checked_mul(BID_ASK_SPREAD_PRECISION_I128)
         .ok_or_else(math_error!())?
-        .checked_div(mark_price_before)
+        .checked_div(reserve_price_before)
         .ok_or_else(math_error!())
 }

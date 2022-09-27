@@ -10,7 +10,7 @@ import {
 import {
 	calculateBidPrice,
 	calculateAskPrice,
-	calculateMarkPrice,
+	calculateReservePrice,
 } from './market';
 import {
 	calculateAmmReservesAfterSwap,
@@ -73,7 +73,7 @@ export function calculateTradeSlippage(
 			oldPrice = calculateBidPrice(market, oraclePriceData);
 		}
 	} else {
-		oldPrice = calculateMarkPrice(market, oraclePriceData);
+		oldPrice = calculateReservePrice(market, oraclePriceData);
 	}
 	if (amount.eq(ZERO)) {
 		return [ZERO, ZERO, oldPrice, oldPrice];
@@ -215,7 +215,7 @@ export function calculateTargetPriceTrade(
 	assert(targetPrice.gt(ZERO));
 	assert(pct.lte(MAXPCT) && pct.gt(ZERO));
 
-	const markPriceBefore = calculateMarkPrice(market, oraclePriceData);
+	const markPriceBefore = calculateReservePrice(market, oraclePriceData);
 	const bidPriceBefore = calculateBidPrice(market, oraclePriceData);
 	const askPriceBefore = calculateAskPrice(market, oraclePriceData);
 
