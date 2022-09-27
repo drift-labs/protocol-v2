@@ -529,9 +529,11 @@ pub fn settle_revenue_to_insurance_fund(
                 .ok_or_else(math_error!())?
                 .checked_div(MAX_APR_PER_REVENUE_SETTLE_PRECISION)
                 .ok_or_else(math_error!())?
-                .checked_div(cast_to_u64(ONE_YEAR)?)
-                .ok_or_else(math_error!())?
-                .checked_div(cast_to_u64(spot_market.revenue_settle_period)?)
+                .checked_div(
+                    cast_to_u64(ONE_YEAR)?
+                        .checked_div(cast_to_u64(spot_market.revenue_settle_period)?)
+                        .ok_or_else(math_error!())?
+                )
                 .ok_or_else(math_error!())?,
         )?;
         token_amount = token_amount.min(capped_apr_amount);
