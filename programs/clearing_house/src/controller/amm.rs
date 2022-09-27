@@ -102,8 +102,6 @@ pub fn swap_base_asset(
     amm.base_asset_reserve = new_base_asset_reserve;
     amm.quote_asset_reserve = new_quote_asset_reserve;
 
-    amm::update_amm_long_short_intensity(amm, now, quote_asset_amount, position_direction)?;
-
     amm::update_mark_twap(
         amm,
         now,

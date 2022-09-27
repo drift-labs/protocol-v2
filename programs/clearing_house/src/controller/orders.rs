@@ -1044,13 +1044,15 @@ fn fulfill_order(
     let mut quote_asset_amount = 0_u128;
     let mut order_records: Vec<OrderActionRecord> = vec![];
     for fulfillment_method in fulfillment_methods.iter() {
-        if user.orders[user_order_index].status != OrderStatus::Open {
+        let user_order = user.orders[user_order_index];
+
+        if user_order.status != OrderStatus::Open {
             break;
         }
 
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
-        let (_base_asset_amount, _quote_asset_amount) = match fulfillment_method {
+        let (fill_base_asset_amount, fill_quote_asset_amount) = match fulfillment_method {
             PerpFulfillmentMethod::AMM => fulfill_order_with_amm(
                 user,
                 user_stats,
@@ -1099,15 +1101,14 @@ fn fulfill_order(
         };
 
         base_asset_amount = base_asset_amount
-            .checked_add(_base_asset_amount)
+            .checked_add(fill_base_asset_amount)
             .ok_or_else(math_error!())?;
         quote_asset_amount = quote_asset_amount
-            .checked_add(_quote_asset_amount)
+            .checked_add(fill_quote_asset_amount)
             .ok_or_else(math_error!())?;
-
-        if fulfillment_method == fulfillment_methods.last().unwrap() {
-            market.amm.update_volume_24h(quote_asset_amount, now)?;
-        }
+        market
+            .amm
+            .update_volume_24h(fill_quote_asset_amount, user_order.direction, now)?;
     }
 
     for order_record in order_records {

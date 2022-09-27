@@ -611,7 +611,7 @@ pub fn update_amm_long_short_intensity(
 ) -> ClearingHouseResult<bool> {
     let since_last = cast_to_i128(max(
         1,
-        now.checked_sub(amm.last_mark_price_twap_ts)
+        now.checked_sub(amm.last_trade_ts)
             .ok_or_else(math_error!())?,
     ))?;
 

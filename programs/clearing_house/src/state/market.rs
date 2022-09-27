@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use solana_program::msg;
 use std::cmp::max;
 
+use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128};
@@ -317,10 +318,10 @@ pub struct AMM {
     pub long_intensity_volume: u64,
     pub short_intensity_count: u16,
     pub short_intensity_volume: u64,
-    pub last_trade_ts: i64,
     pub curve_update_intensity: u8,
-    pub mark_std: u64,
+    pub last_trade_ts: i64,
 
+    pub mark_std: u64,
     pub last_bid_price_twap: u128,
     pub last_ask_price_twap: u128,
     pub last_mark_price_twap: u128,
@@ -496,12 +497,19 @@ impl AMM {
         Ok(oracle_twap_scaled)
     }
 
-    pub fn update_volume_24h(&mut self, quote_asset_amount: u128, now: i64) -> ClearingHouseResult {
+    pub fn update_volume_24h(
+        &mut self,
+        quote_asset_amount: u128,
+        position_direction: PositionDirection,
+        now: i64,
+    ) -> ClearingHouseResult {
         let since_last = cast_to_i128(max(
             1,
             now.checked_sub(self.last_trade_ts)
                 .ok_or_else(math_error!())?,
         ))?;
+
+        amm::update_amm_long_short_intensity(self, now, quote_asset_amount, position_direction)?;
 
         self.volume_24h = amm::calculate_rolling_sum(
             self.volume_24h,
