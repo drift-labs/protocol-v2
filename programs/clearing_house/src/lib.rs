@@ -524,7 +524,7 @@ pub mod clearing_house {
             next_fill_record_id: 1,
             next_funding_rate_record_id: 1,
             next_curve_record_id: 1,
-            pnl_pool: PoolBalance { balance: 0 },
+            pnl_pool: PoolBalance::default(),
             revenue_withdraw_since_last_settle: 0,
             max_revenue_withdraw_per_period: 0,
             last_revenue_withdraw_ts: now,
@@ -606,7 +606,7 @@ pub mod clearing_house {
                 short_intensity_count: 0,
                 short_intensity_volume: 0,
                 curve_update_intensity: 0,
-                fee_pool: PoolBalance { balance: 0 },
+                fee_pool: PoolBalance::default(),
                 market_position_per_lp: PerpPosition {
                     market_index,
                     ..PerpPosition::default()

@@ -6,7 +6,9 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::LIQUIDATION_FEE_PRECISION;
-use crate::math::constants::{AMM_RESERVE_PRECISION, SPOT_WEIGHT_PRECISION};
+use crate::math::constants::{
+    AMM_RESERVE_PRECISION, QUOTE_SPOT_MARKET_INDEX, SPOT_WEIGHT_PRECISION,
+};
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
@@ -219,9 +221,19 @@ impl PerpMarket {
 }
 
 #[zero_copy]
-#[derive(Default, Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub struct PoolBalance {
     pub balance: u128,
+    pub market_index: u16,
+}
+
+impl Default for PoolBalance {
+    fn default() -> Self {
+        PoolBalance {
+            balance: 0,
+            market_index: QUOTE_SPOT_MARKET_INDEX as u16,
+        }
+    }
 }
 
 impl SpotBalance for PoolBalance {

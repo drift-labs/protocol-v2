@@ -36,6 +36,7 @@ pub mod delisting_test {
         PRICE_PRECISION,
         PRICE_PRECISION_I128,
         QUOTE_PRECISION_I128,
+        QUOTE_SPOT_MARKET_INDEX,
         SPOT_BALANCE_PRECISION,
         //  QUOTE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -690,6 +691,7 @@ pub mod delisting_test {
             status: MarketStatus::Initialized,
             pnl_pool: PoolBalance {
                 balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
+                market_index: QUOTE_SPOT_MARKET_INDEX as u16,
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
@@ -937,6 +939,7 @@ pub mod delisting_test {
             status: MarketStatus::Initialized,
             pnl_pool: PoolBalance {
                 balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
+                market_index: QUOTE_SPOT_MARKET_INDEX as u16,
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
@@ -1187,6 +1190,7 @@ pub mod delisting_test {
             status: MarketStatus::Initialized,
             pnl_pool: PoolBalance {
                 balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
+                market_index: QUOTE_SPOT_MARKET_INDEX as u16,
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
@@ -1421,6 +1425,7 @@ pub mod delisting_test {
             status: MarketStatus::Initialized,
             pnl_pool: PoolBalance {
                 balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
+                market_index: QUOTE_SPOT_MARKET_INDEX as u16,
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
@@ -1761,6 +1766,7 @@ pub mod delisting_test {
             status: MarketStatus::Initialized,
             pnl_pool: PoolBalance {
                 balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
+                market_index: QUOTE_SPOT_MARKET_INDEX as u16,
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
@@ -2139,6 +2145,7 @@ pub mod delisting_test {
             status: MarketStatus::Initialized,
             pnl_pool: PoolBalance {
                 balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
+                market_index: QUOTE_SPOT_MARKET_INDEX as u16,
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 

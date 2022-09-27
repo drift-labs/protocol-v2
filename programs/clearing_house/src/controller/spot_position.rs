@@ -3,10 +3,12 @@ use crate::checked_increment;
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_spot_balances;
 use crate::error::ClearingHouseResult;
+use crate::error::ErrorCode;
 use crate::math::casting::cast;
 use crate::math_error;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::user::SpotPosition;
+use crate::validate;
 use solana_program::msg;
 
 pub fn increase_spot_open_bids_and_asks(
@@ -88,12 +90,18 @@ pub fn transfer_spot_position_deposit(
     from_spot_position: &mut SpotPosition,
     to_spot_position: &mut SpotPosition,
 ) -> ClearingHouseResult {
+    validate!(
+        from_spot_position.market_index == to_spot_position.market_index,
+        ErrorCode::DefaultError,
+        "transfer market indexes arent equal",
+    )?;
+
     update_spot_position_balance(
         token_amount,
         &SpotBalanceType::Borrow,
         spot_market,
         from_spot_position,
-        true,
+        false,
     )?;
 
     update_spot_position_balance(

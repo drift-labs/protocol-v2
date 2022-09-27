@@ -5,7 +5,7 @@ use crate::error::ErrorCode;
 use crate::math::casting::cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
-    QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION,
+    QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION,
     SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
 };
 use crate::state::market::{MarketStatus, PerpMarket, PoolBalance, AMM};
@@ -87,6 +87,7 @@ pub fn user_no_position() {
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_BALANCE_PRECISION,
+            market_index: QUOTE_SPOT_MARKET_INDEX as u16,
         },
         ..PerpMarket::default()
     };
@@ -199,6 +200,7 @@ pub fn user_does_not_meet_maintenance_requirement() {
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_BALANCE_PRECISION,
+            market_index: QUOTE_SPOT_MARKET_INDEX as u16,
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -315,6 +317,7 @@ pub fn user_unsettled_negative_pnl() {
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_BALANCE_PRECISION,
+            market_index: QUOTE_SPOT_MARKET_INDEX as u16,
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -443,6 +446,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_BALANCE_PRECISION,
+            market_index: QUOTE_SPOT_MARKET_INDEX as u16,
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -571,6 +575,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_BALANCE_PRECISION,
+            market_index: QUOTE_SPOT_MARKET_INDEX as u16,
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -700,6 +705,7 @@ pub fn market_fee_pool_receives_portion() {
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_BALANCE_PRECISION,
+            market_index: QUOTE_SPOT_MARKET_INDEX as u16,
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -817,6 +823,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
             total_fee_minus_distributions: QUOTE_PRECISION_I128,
             fee_pool: PoolBalance {
                 balance: 2 * SPOT_BALANCE_PRECISION,
+                market_index: QUOTE_SPOT_MARKET_INDEX as u16,
             },
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price as i128,
@@ -833,6 +840,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_BALANCE_PRECISION,
+            market_index: QUOTE_SPOT_MARKET_INDEX as u16,
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -962,6 +970,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_BALANCE_PRECISION,
+            market_index: QUOTE_SPOT_MARKET_INDEX as u16,
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -1092,6 +1101,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_BALANCE_PRECISION,
+            market_index: QUOTE_SPOT_MARKET_INDEX as u16,
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -1219,6 +1229,7 @@ pub fn user_long_negative_unrealized_pnl() {
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_BALANCE_PRECISION,
+            market_index: QUOTE_SPOT_MARKET_INDEX as u16,
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -1349,6 +1360,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_BALANCE_PRECISION,
+            market_index: QUOTE_SPOT_MARKET_INDEX as u16,
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -1479,6 +1491,7 @@ pub fn user_short_negative_unrealized_pnl() {
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
             balance: 50 * SPOT_BALANCE_PRECISION,
+            market_index: QUOTE_SPOT_MARKET_INDEX as u16,
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
