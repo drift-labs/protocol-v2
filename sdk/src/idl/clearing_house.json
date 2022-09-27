@@ -4123,6 +4123,10 @@
             "type": "i128"
           },
           {
+            "name": "last24hAvgFundingRate",
+            "type": "i128"
+          },
+          {
             "name": "lastFundingRateTs",
             "type": "i64"
           },
@@ -4197,6 +4201,10 @@
             "type": "u128"
           },
           {
+            "name": "volume24h",
+            "type": "u64"
+          },
+          {
             "name": "longIntensityCount",
             "type": "u16"
           },
@@ -4215,6 +4223,10 @@
           {
             "name": "curveUpdateIntensity",
             "type": "u8"
+          },
+          {
+            "name": "lastTradeTs",
+            "type": "i64"
           },
           {
             "name": "markStd",
