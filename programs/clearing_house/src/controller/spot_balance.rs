@@ -2,7 +2,7 @@ use solana_program::msg;
 
 use crate::controller::spot_position::update_spot_position_balance;
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
 use crate::math::constants::{IF_FACTOR_PRECISION, ONE_HOUR, TWENTY_FOUR_HOUR};
 use crate::math::spot_balance::{
     calculate_accumulated_interest, calculate_utilization, check_withdraw_limits,
@@ -69,12 +69,12 @@ pub fn update_spot_market_twap_stats(
     )?)?;
 
     if let Some(oracle_price_data) = oracle_price_data {
-        let capped_oracle_update_price = cast_to_u128(oracle_price_data.price)?;
+        let capped_oracle_update_price = oracle_price_data.price;
 
         let oracle_price_twap = calculate_new_twap(
             capped_oracle_update_price,
             now,
-            cast_to_u128(spot_market.historical_oracle_data.last_oracle_price_twap)?,
+            spot_market.historical_oracle_data.last_oracle_price_twap,
             spot_market.historical_oracle_data.last_oracle_price_twap_ts,
             ONE_HOUR as i64,
         )?;
@@ -82,20 +82,17 @@ pub fn update_spot_market_twap_stats(
         let oracle_price_twap_5min = calculate_new_twap(
             capped_oracle_update_price,
             now,
-            cast_to_u128(
-                spot_market
-                    .historical_oracle_data
-                    .last_oracle_price_twap_5min,
-            )?,
+            spot_market
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
             spot_market.historical_oracle_data.last_oracle_price_twap_ts,
             (60 * 5) as i64,
         )?;
 
-        spot_market.historical_oracle_data.last_oracle_price_twap =
-            cast_to_i128(oracle_price_twap)?;
+        spot_market.historical_oracle_data.last_oracle_price_twap = oracle_price_twap;
         spot_market
             .historical_oracle_data
-            .last_oracle_price_twap_5min = cast_to_i128(oracle_price_twap_5min)?;
+            .last_oracle_price_twap_5min = oracle_price_twap_5min;
 
         spot_market.historical_oracle_data.last_oracle_price = oracle_price_data.price;
         spot_market.historical_oracle_data.last_oracle_conf = oracle_price_data.confidence;

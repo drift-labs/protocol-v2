@@ -1,5 +1,5 @@
 use crate::error::ClearingHouseResult;
-use crate::math::casting::{cast, cast_to_i128};
+use crate::math::casting::cast_to_i128;
 use crate::math_error;
 use solana_program::msg;
 use std::cmp::max;
@@ -36,12 +36,12 @@ pub fn calculate_weighted_average(
 }
 
 pub fn calculate_new_twap(
-    current_price: u128,
+    current_price: i128,
     current_ts: i64,
-    last_twap: u128,
+    last_twap: i128,
     last_ts: i64,
     period: i64,
-) -> ClearingHouseResult<u128> {
+) -> ClearingHouseResult<i128> {
     let since_last = cast_to_i128(max(
         1,
         current_ts.checked_sub(last_ts).ok_or_else(math_error!())?,
@@ -53,12 +53,8 @@ pub fn calculate_new_twap(
             .ok_or_else(math_error!())?,
     );
 
-    let new_twap: u128 = cast(calculate_weighted_average(
-        cast(current_price)?,
-        cast(last_twap)?,
-        since_last,
-        from_start,
-    )?)?;
+    let new_twap: i128 =
+        calculate_weighted_average(current_price, last_twap, since_last, from_start)?;
 
     Ok(new_twap)
 }
