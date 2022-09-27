@@ -494,14 +494,13 @@ export type SpotMarketAccount = {
 
 	orderStepSize: BN;
 	nextFillRecordId: BN;
-	spotFeePool: {
-		balance: BN;
-	};
+	spotFeePool: PoolBalance;
 	totalSpotFee: BN;
 };
 
 export type PoolBalance = {
 	balance: BN;
+	marketIndex: number;
 };
 
 export type AMM = {

@@ -3991,6 +3991,10 @@
           {
             "name": "balance",
             "type": "u128"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
           }
         ]
       }

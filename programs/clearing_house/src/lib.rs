@@ -272,7 +272,10 @@ pub mod clearing_house {
             mint: ctx.accounts.spot_market_mint.key(),
             vault: *ctx.accounts.spot_market_vault.to_account_info().key,
             insurance_fund_vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
-            revenue_pool: PoolBalance::default(), // in base asset
+            revenue_pool: PoolBalance {
+                balance: 0,
+                market_index: spot_market_index as u16,
+            }, // in base asset
             total_if_factor: 0,
             user_if_factor: 0,
             total_if_shares: 0,
