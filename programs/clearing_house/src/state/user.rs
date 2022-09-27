@@ -246,9 +246,8 @@ pub struct PerpPosition {
     pub quote_asset_amount: i128,
     pub quote_entry_amount: i128,
     pub last_cumulative_funding_rate: i128,
-    pub last_cumulative_repeg_rebate: u128,
     pub last_funding_rate_ts: i64,
-    pub open_orders: u128,
+    pub open_orders: u8,
     pub open_bids: i128,
     pub open_asks: i128,
     pub settled_pnl: i64,
@@ -259,13 +258,6 @@ pub struct PerpPosition {
     pub last_net_base_asset_amount_per_lp: i128,
     pub last_net_quote_asset_amount_per_lp: i128,
     pub last_lp_add_time: i64,
-
-    // upgrade-ability
-    pub padding0: u128,
-    pub padding1: u128,
-    pub padding2: u128,
-    pub padding3: u128,
-    pub padding4: u128,
 }
 
 impl PerpPosition {
@@ -795,5 +787,16 @@ impl UserStats {
         self.taker_volume_30d
             .checked_add(self.maker_volume_30d)
             .ok_or_else(math_error!())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::state::user::User;
+
+    #[test]
+    fn test() {
+        let size = std::mem::size_of::<User>();
+        println!("size {}", size);
     }
 }
