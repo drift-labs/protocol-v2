@@ -1,4 +1,4 @@
-import { BN, OracleSource } from '../';
+import { OracleSource } from '../';
 import { DriftEnv } from '../';
 import { PublicKey } from '@solana/web3.js';
 

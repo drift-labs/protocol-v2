@@ -11,7 +11,6 @@ import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { AccountInfo } from '@solana/spl-token';
 import { OracleInfo, OraclePriceData } from '..';
-import { BN } from '@project-serum/anchor';
 
 export interface AccountSubscriber<T> {
 	dataAndSlot?: DataAndSlot<T>;

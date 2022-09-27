@@ -10,7 +10,6 @@ import {
 	DevnetSpotMarkets,
 	MainnetSpotMarkets,
 } from './constants/spotMarkets';
-import { BN } from '@project-serum/anchor';
 import { OracleInfo } from './oracles/types';
 
 type DriftConfig = {

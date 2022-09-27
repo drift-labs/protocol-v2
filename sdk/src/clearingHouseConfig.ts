@@ -1,6 +1,5 @@
 import { ConfirmOptions, Connection, PublicKey } from '@solana/web3.js';
 import { IWallet } from './types';
-import { BN } from '@project-serum/anchor';
 import { OracleInfo } from './oracles/types';
 import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { DriftEnv } from './config';
