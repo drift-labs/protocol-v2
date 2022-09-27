@@ -30,7 +30,7 @@ import { getTokenAmount } from './spotBalance';
  * Calculates market mark price
  *
  * @param market
- * @return markPrice : Precision MARK_PRICE_PRECISION
+ * @return markPrice : Precision PRICE_PRECISION
  */
 export function calculateReservePrice(
 	market: PerpMarketAccount,
@@ -48,7 +48,7 @@ export function calculateReservePrice(
  * Calculates market bid price
  *
  * @param market
- * @return bidPrice : Precision MARK_PRICE_PRECISION
+ * @return bidPrice : Precision PRICE_PRECISION
  */
 export function calculateBidPrice(
 	market: PerpMarketAccount,
@@ -68,7 +68,7 @@ export function calculateBidPrice(
  * Calculates market ask price
  *
  * @param market
- * @return askPrice : Precision MARK_PRICE_PRECISION
+ * @return askPrice : Precision PRICE_PRECISION
  */
 export function calculateAskPrice(
 	market: PerpMarketAccount,

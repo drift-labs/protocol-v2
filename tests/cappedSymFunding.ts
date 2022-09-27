@@ -380,7 +380,7 @@ async function cappedSymFundingScenario(
 
 	// await clearingHouse.moveAmmToPrice(
 	// 	marketIndex,
-	// 	new BN(priceAction[1] * MARK_PRICE_PRECISION.toNumber())
+	// 	new BN(priceAction[1] * PRICE_PRECISION.toNumber())
 	// );
 
 	setFeedPrice(anchor.workspace.Pyth, priceAction[0], priceFeedAddress);

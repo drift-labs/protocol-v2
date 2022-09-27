@@ -5668,13 +5668,6 @@
           "index": false
         },
         {
-          "name": "referrer",
-          "type": {
-            "option": "publicKey"
-          },
-          "index": false
-        },
-        {
           "name": "baseAssetAmountFilled",
           "type": {
             "option": "u128"
@@ -5689,20 +5682,6 @@
           "index": false
         },
         {
-          "name": "takerPnl",
-          "type": {
-            "option": "i64"
-          },
-          "index": false
-        },
-        {
-          "name": "makerPnl",
-          "type": {
-            "option": "i64"
-          },
-          "index": false
-        },
-        {
           "name": "takerFee",
           "type": {
             "option": "u64"
@@ -5710,23 +5689,16 @@
           "index": false
         },
         {
-          "name": "makerRebate",
+          "name": "makerFee",
           "type": {
-            "option": "u64"
+            "option": "i64"
           },
           "index": false
         },
         {
           "name": "referrerReward",
           "type": {
-            "option": "u64"
-          },
-          "index": false
-        },
-        {
-          "name": "refereeDiscount",
-          "type": {
-            "option": "u64"
+            "option": "u32"
           },
           "index": false
         },
@@ -5734,6 +5706,13 @@
           "name": "quoteAssetAmountSurplus",
           "type": {
             "option": "i64"
+          },
+          "index": false
+        },
+        {
+          "name": "spotFulfillmentMethodFee",
+          "type": {
+            "option": "u64"
           },
           "index": false
         },
@@ -5768,14 +5747,14 @@
           "index": false
         },
         {
-          "name": "takerOrderBaseAssetAmountFilled",
+          "name": "takerOrderCumulativeBaseAssetAmountFilled",
           "type": {
             "option": "u128"
           },
           "index": false
         },
         {
-          "name": "takerOrderQuoteAssetAmountFilled",
+          "name": "takerOrderCumulativeQuoteAssetAmountFilled",
           "type": {
             "option": "u64"
           },
@@ -5785,13 +5764,6 @@
           "name": "takerOrderFee",
           "type": {
             "option": "i64"
-          },
-          "index": false
-        },
-        {
-          "name": "spotFulfillmentMethodFee",
-          "type": {
-            "option": "u64"
           },
           "index": false
         },
@@ -5826,14 +5798,14 @@
           "index": false
         },
         {
-          "name": "makerOrderBaseAssetAmountFilled",
+          "name": "makerOrderCumulativeBaseAssetAmountFilled",
           "type": {
             "option": "u128"
           },
           "index": false
         },
         {
-          "name": "makerOrderQuoteAssetAmountFilled",
+          "name": "makerOrderCumulativeQuoteAssetAmountFilled",
           "type": {
             "option": "u64"
           },

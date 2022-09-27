@@ -205,7 +205,7 @@ export function positionIsAvailable(position: PerpPosition): boolean {
 /**
  *
  * @param userPosition
- * @returns Precision: MARK_PRICE_PRECISION (10^10)
+ * @returns Precision: PRICE_PRECISION (10^10)
  */
 export function calculateEntryPrice(userPosition: PerpPosition): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
@@ -222,7 +222,7 @@ export function calculateEntryPrice(userPosition: PerpPosition): BN {
 /**
  *
  * @param userPosition
- * @returns Precision: MARK_PRICE_PRECISION (10^10)
+ * @returns Precision: PRICE_PRECISION (10^10)
  */
 export function calculateCostBasis(userPosition: PerpPosition): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
