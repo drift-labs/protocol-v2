@@ -72,13 +72,13 @@ export function getUserStatsAccountPublicKey(
 
 export async function getMarketPublicKey(
 	programId: PublicKey,
-	marketIndex: BN
+	marketIndex: number
 ): Promise<PublicKey> {
 	return (
 		await anchor.web3.PublicKey.findProgramAddress(
 			[
 				Buffer.from(anchor.utils.bytes.utf8.encode('market')),
-				marketIndex.toArrayLike(Buffer, 'le', 8),
+				new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
 			],
 			programId
 		)
@@ -87,13 +87,13 @@ export async function getMarketPublicKey(
 
 export async function getSpotMarketPublicKey(
 	programId: PublicKey,
-	marketIndex: BN
+	marketIndex: number
 ): Promise<PublicKey> {
 	return (
 		await anchor.web3.PublicKey.findProgramAddress(
 			[
 				Buffer.from(anchor.utils.bytes.utf8.encode('spot_market')),
-				marketIndex.toArrayLike(Buffer, 'le', 8),
+				new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
 			],
 			programId
 		)
@@ -102,13 +102,13 @@ export async function getSpotMarketPublicKey(
 
 export async function getSpotMarketVaultPublicKey(
 	programId: PublicKey,
-	marketIndex: BN
+	marketIndex: number
 ): Promise<PublicKey> {
 	return (
 		await anchor.web3.PublicKey.findProgramAddress(
 			[
 				Buffer.from(anchor.utils.bytes.utf8.encode('spot_market_vault')),
-				marketIndex.toArrayLike(Buffer, 'le', 8),
+				new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
 			],
 			programId
 		)
@@ -117,13 +117,13 @@ export async function getSpotMarketVaultPublicKey(
 
 export async function getInsuranceFundVaultPublicKey(
 	programId: PublicKey,
-	marketIndex: BN
+	marketIndex: number
 ): Promise<PublicKey> {
 	return (
 		await anchor.web3.PublicKey.findProgramAddress(
 			[
 				Buffer.from(anchor.utils.bytes.utf8.encode('insurance_fund_vault')),
-				marketIndex.toArrayLike(Buffer, 'le', 8),
+				new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
 			],
 			programId
 		)
@@ -133,13 +133,13 @@ export async function getInsuranceFundVaultPublicKey(
 export function getInsuranceFundStakeAccountPublicKey(
 	programId: PublicKey,
 	authority: PublicKey,
-	marketIndex: BN
+	marketIndex: number
 ): PublicKey {
 	return anchor.web3.PublicKey.findProgramAddressSync(
 		[
 			Buffer.from(anchor.utils.bytes.utf8.encode('insurance_fund_stake')),
 			authority.toBuffer(),
-			marketIndex.toArrayLike(Buffer, 'le', 8),
+			new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
 		],
 		programId
 	)[0];

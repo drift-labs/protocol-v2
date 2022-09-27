@@ -10,7 +10,6 @@ import {
 	DevnetSpotMarkets,
 	MainnetSpotMarkets,
 } from './constants/spotMarkets';
-import { BN } from '@project-serum/anchor';
 import { OracleInfo } from './oracles/types';
 
 type DriftConfig = {
@@ -68,8 +67,8 @@ export const initialize = (props: {
 };
 
 export function getMarketsAndOraclesForSubscription(env: DriftEnv): {
-	perpMarketIndexes: BN[];
-	spotMarketIndexes: BN[];
+	perpMarketIndexes: number[];
+	spotMarketIndexes: number[];
 	oracleInfos: OracleInfo[];
 } {
 	const perpMarketIndexes = [];

@@ -41,8 +41,8 @@ describe('subaccounts', () => {
 		usdcMint = await mockUSDCMint(provider);
 		usdcAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		const marketIndexes = [new BN(0)];
-		const spotMarketIndexes = [new BN(0)];
+		const marketIndexes = [0];
+		const spotMarketIndexes = [0];
 
 		clearingHouse = new Admin({
 			connection,

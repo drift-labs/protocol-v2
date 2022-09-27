@@ -120,4 +120,4 @@ pub const PEG_BPS_UPDATE_SCALE: u128 = 1_000_000; // expo = -6 (represents 100%)
 pub const PEG_BPS_DECREASE_MAX: u128 = 1000; // 10 bps decrease
 pub const PEG_BPS_INCREASE_MAX: u128 = 1000; // 10 bps increase
 
-pub const QUOTE_SPOT_MARKET_INDEX: u64 = 0;
+pub const QUOTE_SPOT_MARKET_INDEX: u16 = 0;

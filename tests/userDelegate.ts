@@ -39,8 +39,8 @@ describe('user delegate', () => {
 	let delegateClearingHouse: ClearingHouse;
 	let delegateUsdcAccount: Keypair;
 
-	const marketIndexes = [new BN(0)];
-	const spotMarketIndexes = [new BN(0)];
+	const marketIndexes = [0];
+	const spotMarketIndexes = [0];
 
 	let solUsd;
 
@@ -171,7 +171,7 @@ describe('user delegate', () => {
 		await delegateClearingHouse.openPosition(
 			PositionDirection.LONG,
 			usdcAmount,
-			new BN(0)
+			0
 		);
 	});
 });
