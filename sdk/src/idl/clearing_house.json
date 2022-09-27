@@ -234,7 +234,7 @@
       "args": [
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         }
       ]
     },
@@ -355,7 +355,7 @@
       "args": [
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         },
         {
           "name": "amount",
@@ -414,7 +414,7 @@
       "args": [
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         },
         {
           "name": "amount",
@@ -458,7 +458,7 @@
       "args": [
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         },
         {
           "name": "amount",
@@ -510,7 +510,7 @@
       "args": [
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         }
       ]
     },
@@ -540,7 +540,7 @@
         },
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         }
       ]
     },
@@ -570,7 +570,7 @@
         },
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         }
       ]
     },
@@ -957,7 +957,7 @@
           "name": "marketIndexes",
           "type": {
             "array": [
-              "u64",
+              "u16",
               5
             ]
           }
@@ -986,7 +986,7 @@
       "args": [
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         }
       ]
     },
@@ -1007,7 +1007,7 @@
       "args": [
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         }
       ]
     },
@@ -1033,7 +1033,7 @@
       "args": [
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         }
       ]
     },
@@ -1074,7 +1074,7 @@
       "args": [
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         },
         {
           "name": "liquidatorMaxBaseAssetAmount",
@@ -1109,11 +1109,11 @@
       "args": [
         {
           "name": "assetMarketIndex",
-          "type": "u64"
+          "type": "u16"
         },
         {
           "name": "liabilityMarketIndex",
-          "type": "u64"
+          "type": "u16"
         },
         {
           "name": "liquidatorMaxLiabilityTransfer",
@@ -1148,11 +1148,11 @@
       "args": [
         {
           "name": "perpMarketIndex",
-          "type": "u64"
+          "type": "u16"
         },
         {
           "name": "spotMarketIndex",
-          "type": "u64"
+          "type": "u16"
         },
         {
           "name": "liquidatorMaxLiabilityTransfer",
@@ -1187,11 +1187,11 @@
       "args": [
         {
           "name": "perpMarketIndex",
-          "type": "u64"
+          "type": "u16"
         },
         {
           "name": "spotMarketIndex",
-          "type": "u64"
+          "type": "u16"
         },
         {
           "name": "liquidatorMaxPnlTransfer",
@@ -1236,11 +1236,11 @@
       "args": [
         {
           "name": "spotMarketIndex",
-          "type": "u64"
+          "type": "u16"
         },
         {
           "name": "perpMarketIndex",
-          "type": "u64"
+          "type": "u16"
         }
       ]
     },
@@ -1291,11 +1291,11 @@
       "args": [
         {
           "name": "quoteSpotMarketIndex",
-          "type": "u64"
+          "type": "u16"
         },
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         }
       ]
     },
@@ -1346,7 +1346,7 @@
       "args": [
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         }
       ]
     },
@@ -1779,7 +1779,7 @@
       "args": [
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         }
       ]
     },
@@ -2012,7 +2012,7 @@
       "args": [
         {
           "name": "spotMarketIndex",
-          "type": "u64"
+          "type": "u16"
         },
         {
           "name": "userIfFactor",
@@ -2796,7 +2796,7 @@
       "args": [
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         }
       ]
     },
@@ -2837,7 +2837,7 @@
       "args": [
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         }
       ]
     },
@@ -2883,7 +2883,7 @@
       "args": [
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         },
         {
           "name": "amount",
@@ -2923,7 +2923,7 @@
       "args": [
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         },
         {
           "name": "amount",
@@ -2963,7 +2963,7 @@
       "args": [
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         }
       ]
     },
@@ -3019,7 +3019,7 @@
       "args": [
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         }
       ]
     },
@@ -3065,7 +3065,7 @@
       "args": [
         {
           "name": "marketIndex",
-          "type": "u64"
+          "type": "u16"
         },
         {
           "name": "amount",
@@ -3122,7 +3122,7 @@
           },
           {
             "name": "marketIndex",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "ifShares",
@@ -3162,7 +3162,7 @@
         "fields": [
           {
             "name": "marketIndex",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "pubkey",
@@ -3316,7 +3316,7 @@
         "fields": [
           {
             "name": "marketIndex",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "pubkey",
@@ -3538,7 +3538,7 @@
           },
           {
             "name": "marketIndex",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "serumProgramId",
@@ -3614,11 +3614,11 @@
           },
           {
             "name": "numberOfMarkets",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "numberOfSpotMarkets",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "minOrderQuoteAssetAmount",
@@ -3862,7 +3862,7 @@
           },
           {
             "name": "marketIndex",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "reduceOnly",
@@ -3918,7 +3918,7 @@
         "fields": [
           {
             "name": "marketIndex",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "oraclePrice",
@@ -3970,7 +3970,7 @@
         "fields": [
           {
             "name": "assetMarketIndex",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "assetPrice",
@@ -3982,7 +3982,7 @@
           },
           {
             "name": "liabilityMarketIndex",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "liabilityPrice",
@@ -4006,7 +4006,7 @@
         "fields": [
           {
             "name": "perpMarketIndex",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "marketOraclePrice",
@@ -4018,7 +4018,7 @@
           },
           {
             "name": "liabilityMarketIndex",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "liabilityPrice",
@@ -4038,7 +4038,7 @@
         "fields": [
           {
             "name": "perpMarketIndex",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "marketOraclePrice",
@@ -4050,7 +4050,7 @@
           },
           {
             "name": "assetMarketIndex",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "assetPrice",
@@ -4070,7 +4070,7 @@
         "fields": [
           {
             "name": "marketIndex",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "pnl",
@@ -4094,7 +4094,7 @@
         "fields": [
           {
             "name": "marketIndex",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "borrowAmount",
@@ -4251,6 +4251,10 @@
             "type": "i128"
           },
           {
+            "name": "last24hAvgFundingRate",
+            "type": "i128"
+          },
+          {
             "name": "lastFundingRateTs",
             "type": "i64"
           },
@@ -4325,6 +4329,10 @@
             "type": "u128"
           },
           {
+            "name": "volume24h",
+            "type": "u64"
+          },
+          {
             "name": "longIntensityCount",
             "type": "u16"
           },
@@ -4343,6 +4351,10 @@
           {
             "name": "curveUpdateIntensity",
             "type": "u8"
+          },
+          {
+            "name": "lastTradeTs",
+            "type": "i64"
           },
           {
             "name": "markStd",
@@ -4673,7 +4685,7 @@
         "fields": [
           {
             "name": "marketIndex",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "balanceType",
@@ -4711,7 +4723,7 @@
         "fields": [
           {
             "name": "marketIndex",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "baseAssetAmount",
@@ -4730,16 +4742,12 @@
             "type": "i128"
           },
           {
-            "name": "lastCumulativeRepegRebate",
-            "type": "u128"
-          },
-          {
             "name": "lastFundingRateTs",
             "type": "i64"
           },
           {
             "name": "openOrders",
-            "type": "u128"
+            "type": "u8"
           },
           {
             "name": "openBids",
@@ -4772,26 +4780,6 @@
           {
             "name": "lastLpAddTime",
             "type": "i64"
-          },
-          {
-            "name": "padding0",
-            "type": "u128"
-          },
-          {
-            "name": "padding1",
-            "type": "u128"
-          },
-          {
-            "name": "padding2",
-            "type": "u128"
-          },
-          {
-            "name": "padding3",
-            "type": "u128"
-          },
-          {
-            "name": "padding4",
-            "type": "u128"
           }
         ]
       }
@@ -4837,7 +4825,7 @@
           },
           {
             "name": "marketIndex",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "price",
@@ -5564,7 +5552,7 @@
         },
         {
           "name": "marketIndex",
-          "type": "u64",
+          "type": "u16",
           "index": false
         },
         {
@@ -5613,7 +5601,7 @@
         },
         {
           "name": "marketIndex",
-          "type": "u64",
+          "type": "u16",
           "index": false
         },
         {
@@ -5663,7 +5651,7 @@
         },
         {
           "name": "marketIndex",
-          "type": "u64",
+          "type": "u16",
           "index": false
         },
         {
@@ -5733,7 +5721,7 @@
         },
         {
           "name": "marketIndex",
-          "type": "u64",
+          "type": "u16",
           "index": false
         },
         {
@@ -5869,7 +5857,7 @@
         },
         {
           "name": "marketIndex",
-          "type": "u64",
+          "type": "u16",
           "index": false
         },
         {
@@ -5901,13 +5889,6 @@
           "index": false
         },
         {
-          "name": "referrer",
-          "type": {
-            "option": "publicKey"
-          },
-          "index": false
-        },
-        {
           "name": "baseAssetAmountFilled",
           "type": {
             "option": "u128"
@@ -5922,20 +5903,6 @@
           "index": false
         },
         {
-          "name": "takerPnl",
-          "type": {
-            "option": "i64"
-          },
-          "index": false
-        },
-        {
-          "name": "makerPnl",
-          "type": {
-            "option": "i64"
-          },
-          "index": false
-        },
-        {
           "name": "takerFee",
           "type": {
             "option": "u64"
@@ -5943,23 +5910,16 @@
           "index": false
         },
         {
-          "name": "makerRebate",
+          "name": "makerFee",
           "type": {
-            "option": "u64"
+            "option": "i64"
           },
           "index": false
         },
         {
           "name": "referrerReward",
           "type": {
-            "option": "u64"
-          },
-          "index": false
-        },
-        {
-          "name": "refereeDiscount",
-          "type": {
-            "option": "u64"
+            "option": "u32"
           },
           "index": false
         },
@@ -5967,6 +5927,13 @@
           "name": "quoteAssetAmountSurplus",
           "type": {
             "option": "i64"
+          },
+          "index": false
+        },
+        {
+          "name": "spotFulfillmentMethodFee",
+          "type": {
+            "option": "u64"
           },
           "index": false
         },
@@ -6001,14 +5968,14 @@
           "index": false
         },
         {
-          "name": "takerOrderBaseAssetAmountFilled",
+          "name": "takerOrderCumulativeBaseAssetAmountFilled",
           "type": {
             "option": "u128"
           },
           "index": false
         },
         {
-          "name": "takerOrderQuoteAssetAmountFilled",
+          "name": "takerOrderCumulativeQuoteAssetAmountFilled",
           "type": {
             "option": "u64"
           },
@@ -6018,13 +5985,6 @@
           "name": "takerOrderFee",
           "type": {
             "option": "i64"
-          },
-          "index": false
-        },
-        {
-          "name": "spotFulfillmentMethodFee",
-          "type": {
-            "option": "u64"
           },
           "index": false
         },
@@ -6059,14 +6019,14 @@
           "index": false
         },
         {
-          "name": "makerOrderBaseAssetAmountFilled",
+          "name": "makerOrderCumulativeBaseAssetAmountFilled",
           "type": {
             "option": "u128"
           },
           "index": false
         },
         {
-          "name": "makerOrderQuoteAssetAmountFilled",
+          "name": "makerOrderCumulativeQuoteAssetAmountFilled",
           "type": {
             "option": "u64"
           },
@@ -6113,7 +6073,7 @@
         },
         {
           "name": "marketIndex",
-          "type": "u64",
+          "type": "u16",
           "index": false
         },
         {
@@ -6244,7 +6204,7 @@
         },
         {
           "name": "marketIndex",
-          "type": "u64",
+          "type": "u16",
           "index": false
         },
         {
@@ -6284,12 +6244,12 @@
         },
         {
           "name": "spotMarketIndex",
-          "type": "u64",
+          "type": "u16",
           "index": false
         },
         {
           "name": "perpMarketIndex",
-          "type": "u64",
+          "type": "u16",
           "index": false
         },
         {
@@ -6356,7 +6316,7 @@
         },
         {
           "name": "marketIndex",
-          "type": "u64",
+          "type": "u16",
           "index": false
         },
         {

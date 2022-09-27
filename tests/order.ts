@@ -98,9 +98,9 @@ describe('orders', () => {
 	let fillerClearingHouse: ClearingHouse;
 	let fillerUser: ClearingHouseUser;
 
-	const marketIndex = new BN(0);
-	const marketIndexBTC = new BN(1);
-	const marketIndexEth = new BN(2);
+	const marketIndex = 0;
+	const marketIndexBTC = 1;
+	const marketIndexEth = 2;
 
 	let solUsd;
 	let btcUsd;
@@ -115,7 +115,7 @@ describe('orders', () => {
 		ethUsd = await mockOracle(1);
 
 		const marketIndexes = [marketIndex, marketIndexBTC, marketIndexEth];
-		const bankIndexes = [new BN(0)];
+		const bankIndexes = [0];
 		const oracleInfos = [
 			{ publicKey: solUsd, source: OracleSource.PYTH },
 			{ publicKey: btcUsd, source: OracleSource.PYTH },
@@ -290,7 +290,7 @@ describe('orders', () => {
 		assert(order.baseAssetAmount.eq(baseAssetAmount));
 		assert(order.price.eq(price));
 		assert(order.triggerPrice.eq(triggerPrice));
-		assert(order.marketIndex.eq(marketIndex));
+		assert(order.marketIndex === marketIndex);
 		assert(order.reduceOnly === reduceOnly);
 		assert(enumsAreEqual(order.direction, direction));
 		assert(enumsAreEqual(order.status, OrderStatus.OPEN));
@@ -298,8 +298,7 @@ describe('orders', () => {
 		assert(order.ts.gt(ZERO));
 
 		const position = clearingHouseUser.getUserAccount().perpPositions[0];
-		const expectedOpenOrders = new BN(1);
-		assert(position.openOrders.eq(expectedOpenOrders));
+		assert(position.openOrders === 1);
 		assert(position.openBids.eq(baseAssetAmount));
 		assert(position.openAsks.eq(ZERO));
 
@@ -324,13 +323,12 @@ describe('orders', () => {
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
-		assert(order.marketIndex.eq(new BN(0)));
+		assert(order.marketIndex === 0);
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
 		const position = clearingHouseUser.getUserAccount().perpPositions[0];
-		const expectedOpenOrders = new BN(0);
-		assert(position.openOrders.eq(expectedOpenOrders));
+		assert(position.openOrders === 0);
 		assert(position.openBids.eq(ZERO));
 		assert(position.openAsks.eq(ZERO));
 
@@ -430,7 +428,7 @@ describe('orders', () => {
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
-		assert(order.marketIndex.eq(new BN(0)));
+		assert(order.marketIndex === 0);
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
@@ -572,7 +570,7 @@ describe('orders', () => {
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
-		assert(order.marketIndex.eq(new BN(0)));
+		assert(order.marketIndex === 0);
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
@@ -1228,7 +1226,7 @@ describe('orders', () => {
 		// setFeedPrice(anchor.workspace.Pyth, 1.55, solUsd);
 		// await clearingHouse.moveAmmToPrice(
 		// 	marketIndex,
-		// 	new BN(1.55 * MARK_PRICE_PRECISION.toNumber())
+		// 	new BN(1.55 * PRICE_PRECISION.toNumber())
 		// );
 
 		await clearingHouseUser.fetchAccounts();

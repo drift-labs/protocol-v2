@@ -289,7 +289,7 @@ pub mod clearing_house {
 
     pub fn initialize_serum_fulfillment_config(
         ctx: Context<InitializeSerumFulfillmentConfig>,
-        market_index: u64,
+        market_index: u16,
     ) -> Result<()> {
         validate!(
             market_index != 0,
@@ -518,6 +518,7 @@ pub mod clearing_house {
                 last_funding_rate: 0,
                 last_funding_rate_long: 0,
                 last_funding_rate_short: 0,
+                last_24h_avg_funding_rate: 0,
                 last_funding_rate_ts: now,
                 funding_period: amm_periodicity,
                 last_mark_price_twap: init_reserve_price,
@@ -562,10 +563,12 @@ pub mod clearing_house {
                 quote_entry_amount_long: 0,
                 quote_entry_amount_short: 0,
                 mark_std: 0,
+                volume_24h: 0,
                 long_intensity_count: 0,
                 long_intensity_volume: 0,
                 short_intensity_count: 0,
                 short_intensity_volume: 0,
+                last_trade_ts: now,
                 curve_update_intensity: 0,
                 fee_pool: PoolBalance { balance: 0 },
                 market_position_per_lp: PerpPosition {
@@ -599,7 +602,7 @@ pub mod clearing_house {
 
     pub fn deposit(
         ctx: Context<Deposit>,
-        market_index: u64,
+        market_index: u16,
         amount: u64,
         reduce_only: bool,
     ) -> Result<()> {
@@ -702,7 +705,7 @@ pub mod clearing_house {
     )]
     pub fn withdraw(
         ctx: Context<Withdraw>,
-        market_index: u64,
+        market_index: u16,
         amount: u64,
         reduce_only: bool,
     ) -> Result<()> {
@@ -806,7 +809,7 @@ pub mod clearing_house {
 
     pub fn transfer_deposit(
         ctx: Context<TransferDeposit>,
-        market_index: u64,
+        market_index: u16,
         amount: u64,
     ) -> Result<()> {
         let authority_key = ctx.accounts.authority.key;
@@ -965,7 +968,7 @@ pub mod clearing_house {
     #[access_control(
         amm_not_paused(&ctx.accounts.state)
     )]
-    pub fn settle_lp<'info>(ctx: Context<SettleLP>, market_index: u64) -> Result<()> {
+    pub fn settle_lp<'info>(ctx: Context<SettleLP>, market_index: u16) -> Result<()> {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
 
@@ -998,7 +1001,7 @@ pub mod clearing_house {
     pub fn remove_liquidity<'info>(
         ctx: Context<AddRemoveLiquidity>,
         shares_to_burn: u128,
-        market_index: u64,
+        market_index: u16,
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
@@ -1077,7 +1080,7 @@ pub mod clearing_house {
     pub fn add_liquidity<'info>(
         ctx: Context<AddRemoveLiquidity>,
         n_shares: u128,
-        market_index: u64,
+        market_index: u16,
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
@@ -1649,7 +1652,7 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn update_amms(ctx: Context<UpdateAMM>, market_indexes: [u64; 5]) -> Result<()> {
+    pub fn update_amms(ctx: Context<UpdateAMM>, market_indexes: [u16; 5]) -> Result<()> {
         // up to ~60k compute units (per amm) worst case
 
         let clock = Clock::get()?;
@@ -1671,7 +1674,7 @@ pub mod clearing_house {
     #[access_control(
         withdraw_not_paused(&ctx.accounts.state)
     )]
-    pub fn settle_pnl(ctx: Context<SettlePNL>, market_index: u64) -> Result<()> {
+    pub fn settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
         let clock = Clock::get()?;
         let state = &ctx.accounts.state;
 
@@ -1717,7 +1720,7 @@ pub mod clearing_house {
     #[access_control(
         withdraw_not_paused(&ctx.accounts.state)
     )]
-    pub fn settle_expired_market(ctx: Context<UpdateAMM>, market_index: u64) -> Result<()> {
+    pub fn settle_expired_market(ctx: Context<UpdateAMM>, market_index: u16) -> Result<()> {
         let clock = Clock::get()?;
         let _now = clock.unix_timestamp;
         let state = &ctx.accounts.state;
@@ -1752,7 +1755,7 @@ pub mod clearing_house {
     #[access_control(
         withdraw_not_paused(&ctx.accounts.state)
     )]
-    pub fn settle_expired_position(ctx: Context<SettlePNL>, market_index: u64) -> Result<()> {
+    pub fn settle_expired_position(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
         let clock = Clock::get()?;
         let state = &ctx.accounts.state;
 
@@ -1803,7 +1806,7 @@ pub mod clearing_house {
     )]
     pub fn liquidate_perp(
         ctx: Context<LiquidatePerp>,
-        market_index: u64,
+        market_index: u16,
         liquidator_max_base_asset_amount: u128,
     ) -> Result<()> {
         let clock = Clock::get()?;
@@ -1859,8 +1862,8 @@ pub mod clearing_house {
     )]
     pub fn liquidate_borrow(
         ctx: Context<LiquidateBorrow>,
-        asset_market_index: u64,
-        liability_market_index: u64,
+        asset_market_index: u16,
+        liability_market_index: u16,
         liquidator_max_liability_transfer: u128,
     ) -> Result<()> {
         let clock = Clock::get()?;
@@ -1915,8 +1918,8 @@ pub mod clearing_house {
     )]
     pub fn liquidate_borrow_for_perp_pnl(
         ctx: Context<LiquidateBorrowForPerpPnl>,
-        perp_market_index: u64,
-        spot_market_index: u64,
+        perp_market_index: u16,
+        spot_market_index: u16,
         liquidator_max_liability_transfer: u128,
     ) -> Result<()> {
         let clock = Clock::get()?;
@@ -1970,8 +1973,8 @@ pub mod clearing_house {
     )]
     pub fn liquidate_perp_pnl_for_deposit(
         ctx: Context<LiquidatePerpPnlForDeposit>,
-        perp_market_index: u64,
-        spot_market_index: u64,
+        perp_market_index: u16,
+        spot_market_index: u16,
         liquidator_max_pnl_transfer: u128,
     ) -> Result<()> {
         let state = &ctx.accounts.state;
@@ -2022,8 +2025,8 @@ pub mod clearing_house {
 
     pub fn resolve_perp_pnl_deficit(
         ctx: Context<ResolvePerpPnlDeficit>,
-        spot_market_index: u64,
-        perp_market_index: u64,
+        spot_market_index: u16,
+        perp_market_index: u16,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -2125,8 +2128,8 @@ pub mod clearing_house {
     )]
     pub fn resolve_perp_bankruptcy(
         ctx: Context<ResolveBankruptcy>,
-        quote_spot_market_index: u64,
-        market_index: u64,
+        quote_spot_market_index: u16,
+        market_index: u16,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -2207,7 +2210,7 @@ pub mod clearing_house {
     )]
     pub fn resolve_borrow_bankruptcy(
         ctx: Context<ResolveBankruptcy>,
-        market_index: u64,
+        market_index: u16,
     ) -> Result<()> {
         let state = &ctx.accounts.state;
         let clock = Clock::get()?;
@@ -2748,7 +2751,7 @@ pub mod clearing_house {
         funding_not_paused(&ctx.accounts.state) &&
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
     )]
-    pub fn update_funding_rate(ctx: Context<UpdateFundingRate>, market_index: u64) -> Result<()> {
+    pub fn update_funding_rate(ctx: Context<UpdateFundingRate>, market_index: u16) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -3092,7 +3095,7 @@ pub mod clearing_house {
 
     pub fn update_spot_market_if_factor(
         ctx: Context<AdminUpdateSpotMarket>,
-        spot_market_index: u64,
+        spot_market_index: u16,
         user_if_factor: u32,
         total_if_factor: u32,
     ) -> Result<()> {
@@ -3541,7 +3544,7 @@ pub mod clearing_house {
 
     pub fn initialize_insurance_fund_stake(
         ctx: Context<InitializeInsuranceFundStake>,
-        market_index: u64,
+        market_index: u16,
     ) -> Result<()> {
         let mut if_stake = ctx
             .accounts
@@ -3559,7 +3562,7 @@ pub mod clearing_house {
 
     pub fn settle_revenue_to_insurance_fund(
         ctx: Context<SettleRevenueToInsuranceFund>,
-        _market_index: u64,
+        _market_index: u16,
     ) -> Result<()> {
         let state = &ctx.accounts.state;
         let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
@@ -3615,7 +3618,7 @@ pub mod clearing_house {
 
     pub fn add_insurance_fund_stake(
         ctx: Context<AddInsuranceFundStake>,
-        market_index: u64,
+        market_index: u16,
         amount: u64,
     ) -> Result<()> {
         if amount == 0 {
@@ -3662,7 +3665,7 @@ pub mod clearing_house {
 
     pub fn request_remove_insurance_fund_stake(
         ctx: Context<RequestRemoveInsuranceFundStake>,
-        market_index: u64,
+        market_index: u16,
         amount: u64,
     ) -> Result<()> {
         let clock = Clock::get()?;
@@ -3711,7 +3714,7 @@ pub mod clearing_house {
 
     pub fn cancel_request_remove_insurance_fund_stake(
         ctx: Context<RequestRemoveInsuranceFundStake>,
-        market_index: u64,
+        market_index: u16,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -3744,7 +3747,7 @@ pub mod clearing_house {
 
     pub fn remove_insurance_fund_stake(
         ctx: Context<RemoveInsuranceFundStake>,
-        market_index: u64,
+        market_index: u16,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -3787,7 +3790,7 @@ pub mod clearing_house {
 
     pub fn admin_remove_insurance_fund_stake(
         ctx: Context<AdminRemoveInsuranceFundStake>,
-        market_index: u64,
+        market_index: u16,
         amount: u64,
     ) -> Result<()> {
         let clock = Clock::get()?;

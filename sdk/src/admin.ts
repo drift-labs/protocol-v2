@@ -139,7 +139,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async initializeSerumFulfillmentConfig(
-		marketIndex: BN,
+		marketIndex: number,
 		serumMarket: PublicKey,
 		serumProgram: PublicKey
 	): Promise<TransactionSignature> {
@@ -229,7 +229,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async moveAmmPrice(
-		marketIndex: BN,
+		marketIndex: number,
 		baseAssetReserve: BN,
 		quoteAssetReserve: BN,
 		sqrtK?: BN
@@ -259,7 +259,7 @@ export class Admin extends ClearingHouse {
 
 	public async updateK(
 		sqrtK: BN,
-		marketIndex: BN
+		marketIndex: number
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateK(sqrtK, {
 			accounts: {
@@ -272,7 +272,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateConcentrationScale(
-		marketIndex: BN,
+		marketIndex: number,
 		concentrationScale: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateConcentrationCoef(concentrationScale, {
@@ -285,7 +285,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async moveAmmToPrice(
-		perpMarketIndex: BN,
+		perpMarketIndex: number,
 		targetPrice: BN
 	): Promise<TransactionSignature> {
 		const market = this.getPerpMarketAccount(perpMarketIndex);
@@ -327,7 +327,7 @@ export class Admin extends ClearingHouse {
 
 	public async repegAmmCurve(
 		newPeg: BN,
-		marketIndex: BN
+		marketIndex: number
 	): Promise<TransactionSignature> {
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
@@ -346,7 +346,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateAmmOracleTwap(
-		marketIndex: BN
+		marketIndex: number
 	): Promise<TransactionSignature> {
 		const ammData = this.getPerpMarketAccount(marketIndex).amm;
 		const marketPublicKey = await getMarketPublicKey(
@@ -365,7 +365,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async resetAmmOracleTwap(
-		marketIndex: BN
+		marketIndex: number
 	): Promise<TransactionSignature> {
 		const ammData = this.getPerpMarketAccount(marketIndex).amm;
 		const marketPublicKey = await getMarketPublicKey(
@@ -384,7 +384,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async depositIntoMarketFeePool(
-		marketIndex: BN,
+		marketIndex: number,
 		amount: BN,
 		sourceVault: PublicKey
 	): Promise<TransactionSignature> {
@@ -414,7 +414,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateCurveUpdateIntensity(
-		marketIndex: BN,
+		marketIndex: number,
 		curveUpdateIntensity: number
 	): Promise<TransactionSignature> {
 		// assert(curveUpdateIntensity >= 0 && curveUpdateIntensity <= 100);
@@ -433,7 +433,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMarginRatio(
-		marketIndex: BN,
+		marketIndex: number,
 		marginRatioInitial: number,
 		marginRatioMaintenance: number
 	): Promise<TransactionSignature> {
@@ -451,7 +451,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMarketBaseSpread(
-		marketIndex: BN,
+		marketIndex: number,
 		baseSpread: number
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMarketBaseSpread(baseSpread, {
@@ -464,7 +464,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateAmmJitIntensity(
-		marketIndex: BN,
+		marketIndex: number,
 		ammJitIntensity: number
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateAmmJitIntensity(ammJitIntensity, {
@@ -477,7 +477,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMarketMaxSpread(
-		marketIndex: BN,
+		marketIndex: number,
 		maxSpread: number
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMarketMaxSpread(maxSpread, {
@@ -599,7 +599,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateWithdrawGuardThreshold(
-		marketIndex: BN,
+		marketIndex: number,
 		withdrawGuardThreshold: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateWithdrawGuardThreshold(
@@ -618,7 +618,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateSpotMarketIfFactor(
-		marketIndex: BN,
+		marketIndex: number,
 		userIfFactor: BN,
 		totalIfFactor: BN
 	): Promise<TransactionSignature> {
@@ -640,7 +640,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateSpotMarketRevenueSettlePeriod(
-		marketIndex: BN,
+		marketIndex: number,
 		revenueSettlePeriod: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateSpotMarketRevenueSettlePeriod(
@@ -659,7 +659,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateInsuranceWithdrawEscrowPeriod(
-		marketIndex: BN,
+		marketIndex: number,
 		insuranceWithdrawEscrowPeriod: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateInsuranceWithdrawEscrowPeriod(
@@ -678,7 +678,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateLpCooldownTime(
-		marketIndex: BN,
+		marketIndex: number,
 		cooldownTime: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateLpCooldownTime(cooldownTime, {
@@ -691,7 +691,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMarketOracle(
-		marketIndex: BN,
+		marketIndex: number,
 		oracle: PublicKey,
 		oracleSource: OracleSource
 	): Promise<TransactionSignature> {
@@ -705,7 +705,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMarketMinimumQuoteAssetTradeSize(
-		marketIndex: BN,
+		marketIndex: number,
 		minimumTradeSize: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMarketMinimumQuoteAssetTradeSize(
@@ -721,7 +721,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMarketBaseAssetAmountStepSize(
-		marketIndex: BN,
+		marketIndex: number,
 		stepSize: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMarketBaseAssetAmountStepSize(
@@ -737,7 +737,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMarketExpiry(
-		perpMarketIndex: BN,
+		perpMarketIndex: number,
 		expiryTs: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMarketExpiry(expiryTs, {
@@ -784,7 +784,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateSpotMarketMarginWeights(
-		spotMarketIndex: BN,
+		spotMarketIndex: number,
 		initialAssetWeight: BN,
 		maintenanceAssetWeight: BN,
 		initialLiabilityWeight: BN,
@@ -811,7 +811,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateSpotMarketStatus(
-		spotMarketIndex: BN,
+		spotMarketIndex: number,
 		marketStatus: MarketStatus
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateSpotMarketStatus(marketStatus, {
@@ -827,7 +827,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updatePerpMarketStatus(
-		perpMarketIndex: BN,
+		perpMarketIndex: number,
 		marketStatus: MarketStatus
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updatePerpMarketStatus(marketStatus, {
@@ -843,7 +843,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updatePerpMarketContractTier(
-		perpMarketIndex: BN,
+		perpMarketIndex: number,
 		contractTier: ContractTier
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updatePerpMarketContractTier(contractTier, {
@@ -898,7 +898,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMaxBaseAssetAmountRatio(
-		marketIndex: BN,
+		marketIndex: number,
 		maxBaseAssetAmountRatio: number
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMaxBaseAssetAmountRatio(
@@ -914,7 +914,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMaxSlippageRatio(
-		marketIndex: BN,
+		marketIndex: number,
 		maxSlippageRatio: number
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMaxSlippageRatio(maxSlippageRatio, {
@@ -927,7 +927,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMarketMaxImbalances(
-		marketIndex: BN,
+		marketIndex: number,
 		unrealizedMaxImbalance: BN,
 		maxRevenueWithdrawPerPeriod: BN,
 		quoteMaxInsurance: BN

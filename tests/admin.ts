@@ -37,8 +37,8 @@ describe('admin', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: [new BN(0)],
-			spotMarketIndexes: [new BN(0)],
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0],
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
@@ -62,11 +62,11 @@ describe('admin', () => {
 		await clearingHouse.fetchAccounts();
 		assert(clearingHouse.getPerpMarketAccount(0).amm.ammJitIntensity == 0);
 
-		await clearingHouse.updateAmmJitIntensity(new BN(0), 100);
+		await clearingHouse.updateAmmJitIntensity(0, 100);
 		await clearingHouse.fetchAccounts();
 		assert(clearingHouse.getPerpMarketAccount(0).amm.ammJitIntensity == 100);
 
-		await clearingHouse.updateAmmJitIntensity(new BN(0), 50);
+		await clearingHouse.updateAmmJitIntensity(0, 50);
 		await clearingHouse.fetchAccounts();
 		assert(clearingHouse.getPerpMarketAccount(0).amm.ammJitIntensity == 50);
 	});
@@ -76,7 +76,7 @@ describe('admin', () => {
 		const marginRatioMaintenance = 1000;
 
 		await clearingHouse.updateMarginRatio(
-			new BN(0),
+			0,
 			marginRatioInitial,
 			marginRatioMaintenance
 		);
@@ -168,11 +168,7 @@ describe('admin', () => {
 		const newOracle = PublicKey.default;
 		const newOracleSource = OracleSource.SWITCHBOARD;
 
-		await clearingHouse.updateMarketOracle(
-			new BN(0),
-			newOracle,
-			newOracleSource
-		);
+		await clearingHouse.updateMarketOracle(0, newOracle, newOracleSource);
 
 		await clearingHouse.fetchAccounts();
 		const market = clearingHouse.getPerpMarketAccount(0);
@@ -187,7 +183,7 @@ describe('admin', () => {
 		const minimumTradeSize = new BN(1);
 
 		await clearingHouse.updateMarketMinimumQuoteAssetTradeSize(
-			new BN(0),
+			0,
 			minimumTradeSize
 		);
 
@@ -199,10 +195,7 @@ describe('admin', () => {
 	it('Update market base asset step size', async () => {
 		const stepSize = new BN(2);
 
-		await clearingHouse.updateMarketBaseAssetAmountStepSize(
-			new BN(0),
-			stepSize
-		);
+		await clearingHouse.updateMarketBaseAssetAmountStepSize(0, stepSize);
 
 		await clearingHouse.fetchAccounts();
 		const market = clearingHouse.getPerpMarketAccount(0);

@@ -81,8 +81,8 @@ describe('liquidate perp and lp', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: [new BN(0)],
-			spotMarketIndexes: [new BN(0)],
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0],
 			oracleInfos: [
 				{
 					publicKey: oracle,
@@ -115,18 +115,18 @@ describe('liquidate perp and lp', () => {
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
 			new BN(175).mul(BASE_PRECISION).div(new BN(10)), // 25 SOL
-			new BN(0),
+			0,
 			new BN(0)
 		);
 
-		const txSig = await clearingHouse.addLiquidity(nLpShares, ZERO);
+		const txSig = await clearingHouse.addLiquidity(nLpShares, 0);
 		await printTxLogs(connection, txSig);
 
 		for (let i = 0; i < 32; i++) {
 			await clearingHouse.placeOrder(
 				getLimitOrderParams({
 					baseAssetAmount: BASE_PRECISION,
-					marketIndex: ZERO,
+					marketIndex: 0,
 					direction: PositionDirection.LONG,
 					price: PRICE_PRECISION,
 				})
@@ -148,8 +148,8 @@ describe('liquidate perp and lp', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: [new BN(0)],
-			spotMarketIndexes: [new BN(0)],
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0],
 			oracleInfos: [
 				{
 					publicKey: oracle,
@@ -198,7 +198,7 @@ describe('liquidate perp and lp', () => {
 		const txSig = await liquidatorClearingHouse.liquidatePerp(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
-			new BN(0),
+			0,
 			new BN(175).mul(BASE_PRECISION).div(new BN(10))
 		);
 
@@ -232,7 +232,7 @@ describe('liquidate perp and lp', () => {
 
 		// try to add liq when being liquidated -- should fail
 		try {
-			await clearingHouse.addLiquidity(nLpShares, ZERO);
+			await clearingHouse.addLiquidity(nLpShares, 0);
 			assert(false);
 		} catch (err) {
 			assert(err.message.includes('0x17d6'));
@@ -242,7 +242,7 @@ describe('liquidate perp and lp', () => {
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(liquidationRecord.liquidationId === 1);
 		assert(isVariant(liquidationRecord.liquidationType, 'liquidatePerp'));
-		assert(liquidationRecord.liquidatePerp.marketIndex.eq(ZERO));
+		assert(liquidationRecord.liquidatePerp.marketIndex === 0);
 		assert(liquidationRecord.canceledOrderIds.length === 32);
 		assert(
 			liquidationRecord.liquidatePerp.oraclePrice.eq(
@@ -263,8 +263,8 @@ describe('liquidate perp and lp', () => {
 		await liquidatorClearingHouse.liquidatePerpPnlForDeposit(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
-			new BN(0),
-			new BN(0),
+			0,
+			0,
 			clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount
 		);
 
@@ -278,7 +278,7 @@ describe('liquidate perp and lp', () => {
 
 		// try to add liq when bankrupt -- should fail
 		try {
-			await clearingHouse.addLiquidity(nLpShares, ZERO);
+			await clearingHouse.addLiquidity(nLpShares, 0);
 			assert(false);
 		} catch (err) {
 			// cant add when bankrupt
@@ -287,7 +287,7 @@ describe('liquidate perp and lp', () => {
 
 		await clearingHouse.updatePerpMarketContractTier(new BN(0), ContractTier.A);
 		const tx1 = await clearingHouse.updateMarketMaxImbalances(
-			new BN(marketIndex),
+			marketIndex,
 			new BN(40000).mul(QUOTE_PRECISION),
 			QUOTE_PRECISION,
 			QUOTE_PRECISION
@@ -304,7 +304,7 @@ describe('liquidate perp and lp', () => {
 		await liquidatorClearingHouse.resolvePerpBankruptcy(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
-			new BN(0)
+			0
 		);
 
 		await clearingHouse.fetchAccounts();
@@ -326,7 +326,7 @@ describe('liquidate perp and lp', () => {
 		const perpBankruptcyRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(isVariant(perpBankruptcyRecord.liquidationType, 'perpBankruptcy'));
-		assert(perpBankruptcyRecord.perpBankruptcy.marketIndex.eq(ZERO));
+		assert(perpBankruptcyRecord.perpBankruptcy.marketIndex === 0);
 		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-5785007)));
 		console.log(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.toString()

@@ -31,14 +31,14 @@ export function getWorstCaseTokenAmounts(
 
 	if (tokenAmountAllAsksFill.abs().gt(tokenAmountAllBidsFill.abs())) {
 		const worstCaseQuoteTokenAmount = getTokenValue(
-			spotPosition.openBids.neg(),
+			spotPosition.openAsks.neg(),
 			spotMarketAccount.decimals,
 			oraclePriceData
 		);
 		return [tokenAmountAllBidsFill, worstCaseQuoteTokenAmount];
 	} else {
 		const worstCaseQuoteTokenAmount = getTokenValue(
-			spotPosition.openAsks.neg(),
+			spotPosition.openBids.neg(),
 			spotMarketAccount.decimals,
 			oraclePriceData
 		);

@@ -2,11 +2,12 @@ use anchor_lang::prelude::*;
 use solana_program::msg;
 use std::cmp::max;
 
+use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::LIQUIDATION_FEE_PRECISION;
 use crate::math::constants::{AMM_RESERVE_PRECISION, SPOT_WEIGHT_PRECISION};
+use crate::math::constants::{LIQUIDATION_FEE_PRECISION, TWENTY_FOUR_HOUR};
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
@@ -69,7 +70,7 @@ impl Default for ContractTier {
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(packed)]
 pub struct PerpMarket {
-    pub market_index: u64,
+    pub market_index: u16,
     pub pubkey: Pubkey,
     pub status: MarketStatus,
     pub contract_type: ContractType,
@@ -307,6 +308,7 @@ pub struct AMM {
     pub last_funding_rate: i128,
     pub last_funding_rate_long: i128,
     pub last_funding_rate_short: i128,
+    pub last_24h_avg_funding_rate: i128,
     pub last_funding_rate_ts: i64,
     pub funding_period: i64,
     pub cumulative_funding_rate_long: i128,
@@ -330,13 +332,15 @@ pub struct AMM {
     pub bid_base_asset_reserve: u128,
     pub bid_quote_asset_reserve: u128,
 
+    pub volume_24h: u64,
     pub long_intensity_count: u16,
     pub long_intensity_volume: u64,
     pub short_intensity_count: u16,
     pub short_intensity_volume: u64,
     pub curve_update_intensity: u8,
-    pub mark_std: u64,
+    pub last_trade_ts: i64,
 
+    pub mark_std: u64,
     pub last_bid_price_twap: u128,
     pub last_ask_price_twap: u128,
     pub last_mark_price_twap: u128,
@@ -510,5 +514,31 @@ impl AMM {
             .ok_or_else(math_error!())?;
 
         Ok(oracle_twap_scaled)
+    }
+
+    pub fn update_volume_24h(
+        &mut self,
+        quote_asset_amount: u128,
+        position_direction: PositionDirection,
+        now: i64,
+    ) -> ClearingHouseResult {
+        let since_last = cast_to_i128(max(
+            1,
+            now.checked_sub(self.last_trade_ts)
+                .ok_or_else(math_error!())?,
+        ))?;
+
+        amm::update_amm_long_short_intensity(self, now, quote_asset_amount, position_direction)?;
+
+        self.volume_24h = amm::calculate_rolling_sum(
+            self.volume_24h,
+            cast(quote_asset_amount)?,
+            since_last,
+            TWENTY_FOUR_HOUR as i128,
+        )?;
+
+        self.last_trade_ts = now;
+
+        Ok(())
     }
 }

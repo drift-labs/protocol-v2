@@ -37,7 +37,7 @@ mod tests;
 mod delisting;
 
 pub fn settle_pnl(
-    market_index: u64,
+    market_index: u16,
     user: &mut User,
     authority: &Pubkey,
     user_key: &Pubkey,
@@ -177,7 +177,7 @@ pub fn settle_pnl(
 }
 
 pub fn settle_expired_position(
-    market_index: u64,
+    market_index: u16,
     user: &mut User,
     user_key: &Pubkey,
     market_map: &PerpMarketMap,

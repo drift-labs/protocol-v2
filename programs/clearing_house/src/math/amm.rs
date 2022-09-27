@@ -3,7 +3,7 @@ use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
 use crate::math::bn::U192;
-use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u64};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
@@ -208,15 +208,13 @@ pub fn calculate_spread(
         max_base_asset_reserve,
     )?;
 
-    let total_liquidity = max_bids
-        .checked_add(max_asks.abs())
-        .ok_or_else(math_error!())?;
+    let min_side_liquidity = max_bids.min(max_asks.abs());
 
     // inventory scale
     let inventory_scale = net_base_asset_amount
-        .checked_mul(BID_ASK_SPREAD_PRECISION_I128 * 5)
+        .checked_mul(BID_ASK_SPREAD_PRECISION_I128 * 10)
         .ok_or_else(math_error!())?
-        .checked_div(total_liquidity.max(1))
+        .checked_div(min_side_liquidity.max(1))
         .ok_or_else(math_error!())?
         .unsigned_abs();
 
@@ -327,6 +325,8 @@ pub fn update_mark_twap(
         "amm.historical_oracle_data.last_oracle_price <= 0"
     )?;
 
+    let amm_reserve_price = amm.reserve_price()?;
+    let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(amm_reserve_price)?;
     // estimation of bid/ask by looking at execution premium
 
     // trade is a long
@@ -349,6 +349,16 @@ pub fn update_mark_twap(
         trade_price
     };
 
+    validate!(
+        best_bid_estimate <= best_ask_estimate,
+        ErrorCode::DefaultError,
+        "best_bid_estimate({}, {}) not <= best_ask_estimate({}, {})",
+        amm_bid_price,
+        best_bid_estimate,
+        best_ask_estimate,
+        amm_ask_price,
+    )?;
+
     let (bid_price, ask_price) = match direction {
         Some(direction) => match direction {
             PositionDirection::Long => (best_bid_estimate, trade_price),
@@ -357,57 +367,75 @@ pub fn update_mark_twap(
         None => (trade_price, trade_price),
     };
 
+    validate!(
+        bid_price <= ask_price,
+        ErrorCode::DefaultError,
+        "bid_price({}, {}) not <= ask_price({}, {}),",
+        best_bid_estimate,
+        bid_price,
+        ask_price,
+        best_ask_estimate,
+    )?;
+
     let (bid_price_capped_update, ask_price_capped_update) = (
-        cast_to_u128(sanitize_new_price(
+        sanitize_new_price(
             cast_to_i128(bid_price)?,
             cast_to_i128(amm.last_bid_price_twap)?,
-        )?)?,
-        cast_to_u128(sanitize_new_price(
+        )?,
+        sanitize_new_price(
             cast_to_i128(ask_price)?,
             cast_to_i128(amm.last_ask_price_twap)?,
-        )?)?,
+        )?,
     );
+
+    validate!(
+        bid_price_capped_update <= ask_price_capped_update,
+        ErrorCode::DefaultError,
+        "bid_price_capped_update not <= ask_price_capped_update,"
+    )?;
 
     // update bid and ask twaps
     let bid_twap = calculate_new_twap(
         bid_price_capped_update,
         now,
-        amm.last_bid_price_twap,
+        cast(amm.last_bid_price_twap)?,
         amm.last_mark_price_twap_ts,
         amm.funding_period,
     )?;
-    amm.last_bid_price_twap = bid_twap;
+    amm.last_bid_price_twap = cast(bid_twap)?;
 
     let ask_twap = calculate_new_twap(
         ask_price_capped_update,
         now,
-        amm.last_ask_price_twap,
+        cast(amm.last_ask_price_twap)?,
         amm.last_mark_price_twap_ts,
         amm.funding_period,
     )?;
 
-    amm.last_ask_price_twap = ask_twap;
+    amm.last_ask_price_twap = cast(ask_twap)?;
 
     let mid_twap = bid_twap.checked_add(ask_twap).ok_or_else(math_error!())? / 2;
 
     // update std stat
     update_amm_mark_std(amm, now, trade_price, amm.last_mark_price_twap)?;
 
-    amm.last_mark_price_twap = mid_twap;
-    amm.last_mark_price_twap_5min = calculate_new_twap(
-        bid_price_capped_update
-            .checked_add(ask_price_capped_update)
-            .ok_or_else(math_error!())?
-            / 2,
+    amm.last_mark_price_twap = cast(mid_twap)?;
+    amm.last_mark_price_twap_5min = cast(calculate_new_twap(
+        cast(
+            bid_price_capped_update
+                .checked_add(ask_price_capped_update)
+                .ok_or_else(math_error!())?
+                / 2,
+        )?,
         now,
-        amm.last_mark_price_twap_5min,
+        cast(amm.last_mark_price_twap_5min)?,
         amm.last_mark_price_twap_ts,
         60 * 5,
-    )?;
+    )?)?;
 
     amm.last_mark_price_twap_ts = now;
 
-    Ok(mid_twap)
+    cast(mid_twap)
 }
 
 pub fn sanitize_new_price(new_price: i128, last_price_twap: i128) -> ClearingHouseResult<i128> {
@@ -609,7 +637,7 @@ pub fn update_amm_long_short_intensity(
 ) -> ClearingHouseResult<bool> {
     let since_last = cast_to_i128(max(
         1,
-        now.checked_sub(amm.last_mark_price_twap_ts)
+        now.checked_sub(amm.last_trade_ts)
             .ok_or_else(math_error!())?,
     ))?;
 
@@ -1442,7 +1470,8 @@ mod test {
     use crate::controller::lp::mint_lp_shares;
     use crate::controller::lp::settle_lp_position;
     use crate::math::constants::{
-        K_BPS_INCREASE_MAX, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION, QUOTE_PRECISION_I128,
+        BID_ASK_SPREAD_PRECISION, K_BPS_INCREASE_MAX, MAX_CONCENTRATION_COEFFICIENT,
+        PRICE_PRECISION, QUOTE_PRECISION_I128,
     };
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::user::PerpPosition;
@@ -1849,12 +1878,13 @@ mod test {
             max_base_asset_reserve,
         )
         .unwrap();
-        assert_eq!(long_spread1, (base_spread * 5 / 2) as u128);
-        assert_eq!(short_spread1, (base_spread * 5 / 2) as u128);
+        assert_eq!(long_spread1, (base_spread * 10 / 2) as u128);
+        assert_eq!(short_spread1, (base_spread * 10 / 2) as u128);
 
         // even at imbalance with 0 fee, be max spread
         terminal_quote_asset_reserve -= AMM_RESERVE_PRECISION;
         net_base_asset_amount += AMM_RESERVE_PRECISION as i128;
+
         let (long_spread2, short_spread2) = calculate_spread(
             base_spread,
             last_oracle_reserve_price_spread_pct,
@@ -1871,8 +1901,8 @@ mod test {
             max_base_asset_reserve,
         )
         .unwrap();
-        assert_eq!(long_spread2, (base_spread * 5 / 2) as u128);
-        assert_eq!(short_spread2, (base_spread * 5 / 2) as u128);
+        assert_eq!(long_spread2, (base_spread * 10) as u128);
+        assert_eq!(short_spread2, (base_spread * 10 / 2) as u128);
 
         // oracle retreat * skew that increases long spread
         last_oracle_reserve_price_spread_pct = BID_ASK_SPREAD_PRECISION_I128 / 20; //5%
@@ -1897,7 +1927,7 @@ mod test {
         assert!(short_spread3 > long_spread3);
 
         // 1000/2 * (1+(34562000-34000000)/QUOTE_PRECISION) -> 781
-        assert_eq!(long_spread3, 781);
+        assert_eq!(long_spread3, 1562);
 
         // last_oracle_reserve_price_spread_pct + conf retreat
         // assert_eq!(short_spread3, 1010000);
@@ -1922,8 +1952,8 @@ mod test {
         )
         .unwrap();
         assert!(short_spread4 < long_spread4);
-        // (1000000/777 + 1 )* 1.562 -> 2012
-        assert_eq!(long_spread4, 2012);
+        // (1000000/777 + 1 )* 1.562 * 2 -> 2012 * 2
+        assert_eq!(long_spread4, 2012 * 2);
         // base_spread
         assert_eq!(short_spread4, 500);
 
@@ -1966,8 +1996,8 @@ mod test {
         assert!(qar_s < amm.quote_asset_reserve);
         assert!(bar_s > amm.base_asset_reserve);
         assert_eq!(bar_s, 2000500125);
-        assert_eq!(bar_l, 1998351195);
-        assert_eq!(qar_l, 2001650165);
+        assert_eq!(bar_l, 1996705107);
+        assert_eq!(qar_l, 2003300330);
         assert_eq!(qar_s, 1999500000);
 
         let (long_spread_btc, short_spread_btc) = calculate_spread(
@@ -1988,7 +2018,7 @@ mod test {
         .unwrap();
 
         assert_eq!(long_spread_btc, 500 / 2);
-        assert_eq!(short_spread_btc, 62510);
+        assert_eq!(short_spread_btc, 74584);
 
         let (long_spread_btc1, short_spread_btc1) = calculate_spread(
             500,
@@ -2007,9 +2037,8 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(long_spread_btc1, 500 / 2);
-        // assert_eq!(short_spread_btc1, 197670);
-        assert_eq!(short_spread_btc1, 197668); // max spread
+        assert_eq!(long_spread_btc1, 0);
+        assert_eq!(short_spread_btc1, 200000); // max spread
     }
 
     #[test]
@@ -2073,7 +2102,7 @@ mod test {
         assert_eq!(inventory_scale, 714285);
 
         assert_eq!(long_spread1, 500);
-        assert_eq!(short_spread1, 857);
+        assert_eq!(short_spread1, 2166);
 
         net_base_asset_amount *= 2;
         let (long_spread1, short_spread1) = calculate_spread(
@@ -2093,7 +2122,7 @@ mod test {
         )
         .unwrap();
         assert_eq!(long_spread1, 500);
-        assert_eq!(short_spread1, 1214);
+        assert_eq!(short_spread1, 3833);
 
         terminal_quote_asset_reserve = AMM_RESERVE_PRECISION * 11;
         total_fee_minus_distributions = QUOTE_PRECISION_I128 * 5;
@@ -2114,7 +2143,7 @@ mod test {
         )
         .unwrap();
         assert_eq!(long_spread1, 500);
-        assert_eq!(short_spread1, 2619);
+        assert_eq!(short_spread1, 8269);
 
         total_fee_minus_distributions = QUOTE_PRECISION_I128;
         let (long_spread1, short_spread1) = calculate_spread(
@@ -2134,7 +2163,7 @@ mod test {
         )
         .unwrap();
         assert_eq!(long_spread1, 500);
-        assert_eq!(short_spread1, 6070); // 1214 * 5
+        assert_eq!(short_spread1, 26017); // 1214 * 5
 
         // flip sign
         let (long_spread1, short_spread1) = calculate_spread(
@@ -2153,7 +2182,7 @@ mod test {
             max_base_asset_reserve,
         )
         .unwrap();
-        assert_eq!(long_spread1, 6070);
+        assert_eq!(long_spread1, 38330);
         assert_eq!(short_spread1, 500);
 
         let (long_spread1, short_spread1) = calculate_spread(
@@ -2172,7 +2201,7 @@ mod test {
             max_base_asset_reserve,
         )
         .unwrap();
-        assert_eq!(long_spread1, 12500);
+        assert_eq!(long_spread1, 50000);
         assert_eq!(short_spread1, 500);
 
         let (long_spread1, short_spread1) = calculate_spread(
@@ -2191,7 +2220,7 @@ mod test {
             max_base_asset_reserve * 2,
         )
         .unwrap();
-        assert_eq!(long_spread1, 3520);
+        assert_eq!(long_spread1, 18330);
         assert_eq!(short_spread1, 500);
     }
 
@@ -2222,7 +2251,10 @@ mod test {
         let prev = 1656682258;
         let mut now = prev + 60;
         let mut amm = AMM {
-            // base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+            base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+            peg_multiplier: PRICE_PRECISION,
+            base_spread: 65535, //max base spread is 6.5%
             mark_std: PRICE_PRECISION as u64,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: PRICE_PRECISION as i128,
@@ -2252,6 +2284,7 @@ mod test {
                 amm.historical_oracle_data.last_oracle_price =
                     amm.historical_oracle_data.last_oracle_price * 100001 / 100133;
             }
+            amm.peg_multiplier = px;
             let trade_direction = PositionDirection::Long;
             update_mark_twap(&mut amm, now, Some(px), Some(trade_direction)).unwrap();
         }
@@ -2267,11 +2300,15 @@ mod test {
             if now % 15 == 0 {
                 px = 31_986_658; //31.98
                 amm.historical_oracle_data.last_oracle_price = (px - 1000000) as i128;
+                amm.peg_multiplier = px;
+
                 let trade_direction = PositionDirection::Long;
                 update_mark_twap(&mut amm, now, Some(px), Some(trade_direction)).unwrap();
             }
             if now % 189 == 0 {
                 px = 31_883_651; //31.88
+                amm.peg_multiplier = px;
+
                 amm.historical_oracle_data.last_oracle_price = (px + 1000000) as i128;
                 let trade_direction = PositionDirection::Short;
                 update_mark_twap(&mut amm, now, Some(px), Some(trade_direction)).unwrap();
@@ -2288,12 +2325,16 @@ mod test {
             now += 1;
             if now % 2 == 1 {
                 px = 31_986_658; //31.98
+                amm.peg_multiplier = px;
+
                 amm.historical_oracle_data.last_oracle_price = (px - 1000000) as i128;
                 let trade_direction = PositionDirection::Long;
                 update_mark_twap(&mut amm, now, Some(px), Some(trade_direction)).unwrap();
             }
             if now % 2 == 0 {
                 px = 31_883_651; //31.88
+                amm.peg_multiplier = px;
+
                 amm.historical_oracle_data.last_oracle_price = (px + 1000000) as i128;
                 let trade_direction = PositionDirection::Short;
                 update_mark_twap(&mut amm, now, Some(px), Some(trade_direction)).unwrap();
@@ -2322,7 +2363,9 @@ mod test {
             quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
             base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
             peg_multiplier: 40 * PEG_PRECISION,
-
+            base_spread: 0,
+            long_spread: 0,
+            short_spread: 0,
             last_mark_price_twap: (40 * PRICE_PRECISION),
             last_bid_price_twap: (40 * PRICE_PRECISION),
             last_ask_price_twap: (40 * PRICE_PRECISION),
@@ -2357,10 +2400,10 @@ mod test {
         let new_ask_twap = amm.last_ask_price_twap;
 
         assert!(new_mark_twap > old_mark_twap);
-        assert!(new_bid_twap < new_ask_twap);
+        assert_eq!(new_ask_twap, 40000015);
         assert_eq!(new_bid_twap, 40000006);
         assert_eq!(new_mark_twap, 40000010);
-        assert_eq!(new_ask_twap, 40000015);
+        assert!(new_bid_twap < new_ask_twap);
 
         while now < 3600 {
             now += 1;

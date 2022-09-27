@@ -71,8 +71,8 @@ describe('post only', () => {
 
 		solUsd = await mockOracle(1);
 
-		marketIndexes = [new BN(0)];
-		spotMarketIndexes = [new BN(0)];
+		marketIndexes = [0];
+		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		fillerClearingHouse = new Admin({
@@ -102,7 +102,7 @@ describe('post only', () => {
 		);
 		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
 
-		await fillerClearingHouse.updateMarketBaseSpread(new BN(0), 500);
+		await fillerClearingHouse.updateMarketBaseSpread(0, 500);
 
 		await fillerClearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -118,7 +118,7 @@ describe('post only', () => {
 
 	beforeEach(async () => {
 		await fillerClearingHouse.moveAmmPrice(
-			ZERO,
+			0,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve
 		);
@@ -165,7 +165,7 @@ describe('post only', () => {
 		});
 		await clearingHouseUser.subscribe();
 
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
 		const markPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
@@ -251,7 +251,7 @@ describe('post only', () => {
 		});
 		await clearingHouseUser.subscribe();
 
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
 		const markPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)

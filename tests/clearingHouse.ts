@@ -76,8 +76,8 @@ describe('clearing_house', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: [new BN(0)],
-			spotMarketIndexes: [new BN(0)],
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0],
 			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
 			userStats: true,
 		});
@@ -106,7 +106,7 @@ describe('clearing_house', () => {
 	it('Initialize Market', async () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const txSig = await clearingHouse.initializeMarket(
 			solUsd,
 			ammInitialBaseAssetAmount,
@@ -238,7 +238,7 @@ describe('clearing_house', () => {
 			userUSDCAccount.publicKey
 		);
 
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = new BN(48000000000);
 		const txSig = await clearingHouse.openPosition(
 			PositionDirection.LONG,
@@ -304,7 +304,7 @@ describe('clearing_house', () => {
 		assert.ok(orderActionRecord.fillRecordId.eq(new BN(1)));
 		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(new BN(48000000000)));
 		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(48000001)));
-		assert.ok(orderActionRecord.marketIndex.eq(marketIndex));
+		assert.ok(orderActionRecord.marketIndex === marketIndex);
 
 		assert(
 			clearingHouse.getPerpMarketAccount(0).nextFillRecordId.eq(new BN(2))
@@ -337,7 +337,7 @@ describe('clearing_house', () => {
 	});
 
 	it('Reduce long position', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const baseAssetAmount = new BN(24000000000);
 		const txSig = await clearingHouse.openPosition(
 			PositionDirection.SHORT,
@@ -396,7 +396,7 @@ describe('clearing_house', () => {
 		assert.ok(orderActionRecord.fillRecordId.eq(new BN(2)));
 		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(new BN(24000000000)));
 		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(24000000)));
-		assert.ok(orderActionRecord.marketIndex.eq(new BN(0)));
+		assert.ok(orderActionRecord.marketIndex === 0);
 	});
 
 	it('Reverse long position', async () => {
@@ -407,14 +407,14 @@ describe('clearing_house', () => {
 		const txSig = await clearingHouse.openPosition(
 			PositionDirection.SHORT,
 			baseAssetAmount,
-			new BN(0)
+			0
 		);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
-			new BN(0)
+			0
 		);
 
 		await clearingHouse.fetchAccounts();
@@ -468,11 +468,11 @@ describe('clearing_house', () => {
 		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(new BN(48000000000)));
 		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(48000000)));
 
-		assert.ok(orderActionRecord.marketIndex.eq(new BN(0)));
+		assert.ok(orderActionRecord.marketIndex === 0);
 	});
 
 	it('Close position', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const txSig = await clearingHouse.closePosition(marketIndex);
 
 		await clearingHouse.settlePNL(
@@ -513,7 +513,7 @@ describe('clearing_house', () => {
 		assert.ok(orderActionRecord.fillRecordId.eq(new BN(4)));
 		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(new BN(24000000000)));
 		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(24000000)));
-		assert.ok(orderActionRecord.marketIndex.eq(new BN(0)));
+		assert.ok(orderActionRecord.marketIndex === 0);
 	});
 
 	it('Open short position', async () => {
@@ -521,13 +521,13 @@ describe('clearing_house', () => {
 		const txSig = await clearingHouse.openPosition(
 			PositionDirection.SHORT,
 			baseAssetAmount,
-			new BN(0)
+			0
 		);
 
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
-			new BN(0)
+			0
 		);
 
 		const user = await clearingHouse.program.account.user.fetch(
@@ -548,7 +548,7 @@ describe('clearing_house', () => {
 		assert.ok(orderActionRecord.fillRecordId.eq(new BN(5)));
 		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(new BN(48000000000)));
 		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(47999999)));
-		assert.ok(orderActionRecord.marketIndex.eq(new BN(0)));
+		assert.ok(orderActionRecord.marketIndex === 0);
 	});
 
 	it('Trade small size position', async () => {
@@ -568,9 +568,8 @@ describe('clearing_house', () => {
 		try {
 			await clearingHouse.openPosition(
 				PositionDirection.LONG,
-				clearingHouse.getPerpMarketAccount(new BN(0)).amm
-					.baseAssetAmountStepSize,
-				new BN(0)
+				clearingHouse.getPerpMarketAccount(0).amm.baseAssetAmountStepSize,
+				0
 			);
 		} catch (e) {
 			console.log(e);
@@ -579,7 +578,7 @@ describe('clearing_house', () => {
 
 	it('Short order succeeds due to realiziable limit price ', async () => {
 		const baseAssetAmount = BASE_PRECISION;
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		const estTradePrice = calculateTradeSlippage(
 			PositionDirection.SHORT,
@@ -604,7 +603,7 @@ describe('clearing_house', () => {
 
 	it('Long order succeeds due to realiziable limit price ', async () => {
 		const baseAssetAmount = BASE_PRECISION;
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		const estTradePrice = calculateTradeSlippage(
 			PositionDirection.LONG,

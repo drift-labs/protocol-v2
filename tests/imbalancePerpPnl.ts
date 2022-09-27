@@ -63,7 +63,7 @@ async function depositToFeePoolFromIF(
 
 	// // send $50 to market from IF
 	const txSig00 = await clearingHouse.depositIntoMarketFeePool(
-		new BN(0),
+		0,
 		ifAmount,
 		userUSDCAccount.publicKey
 	);
@@ -193,8 +193,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: [new BN(0)],
-			spotMarketIndexes: [new BN(0), new BN(1)],
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0, 1],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
@@ -226,9 +226,9 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			1000,
 			500
 		);
-		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
-		await clearingHouse.updateMarketBaseSpread(new BN(0), 250);
-		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
+		await clearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
+		await clearingHouse.updateMarketBaseSpread(0, 250);
+		await clearingHouse.updateCurveUpdateIntensity(0, 100);
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -250,8 +250,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: [new BN(0)],
-			spotMarketIndexes: [new BN(0), new BN(1)],
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0, 1],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
@@ -292,7 +292,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		await setFeedPrice(anchor.workspace.Pyth, newPrice, solOracle);
 		console.log('price move to $', newPrice);
 
-		const txSig1 = await clearingHouse.updateAMMs([new BN(0)]);
+		const txSig1 = await clearingHouse.updateAMMs([0]);
 		console.log(
 			'tx logs',
 			(await connection.getTransaction(txSig1, { commitment: 'confirmed' }))
@@ -302,7 +302,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const txSig = await clearingHouse.openPosition(
 			PositionDirection.SHORT,
 			BASE_PRECISION,
-			new BN(0),
+			0,
 			new BN(0)
 		);
 		await printTxLogs(connection, txSig);
@@ -321,7 +321,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		await setFeedPrice(anchor.workspace.Pyth, newPrice2, solOracle);
 		console.log('price move to $', newPrice2);
 
-		const txSig2 = await clearingHouse.updateAMMs([new BN(0)]);
+		const txSig2 = await clearingHouse.updateAMMs([0]);
 		console.log(
 			'tx logs',
 			(await connection.getTransaction(txSig2, { commitment: 'confirmed' }))
@@ -341,9 +341,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			)
 		);
 
-		const bank0Value = clearingHouseLoserUser.getSpotMarketAssetValue(
-			new BN(0)
-		);
+		const bank0Value = clearingHouseLoserUser.getSpotMarketAssetValue(0);
 		console.log('uL.bank0Value:', bank0Value.toString());
 		assert(bank0Value.eq(new BN(1000 * QUOTE_PRECISION.toNumber())));
 
@@ -360,7 +358,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			const txSig = await clearingHouseLoser.openPosition(
 				PositionDirection.LONG,
 				BASE_PRECISION.mul(new BN(205)),
-				new BN(0),
+				0,
 				new BN(0)
 			);
 			await printTxLogs(connection, txSig);
@@ -379,7 +377,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 		const clearingHouseLoserUserLiqPrice = convertToNumber(
 			clearingHouseLoserUser.liquidationPrice({
-				marketIndex: new BN(0),
+				marketIndex: 0,
 			}),
 			PRICE_PRECISION
 		);
@@ -396,8 +394,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		assert(clearingHouseLoserUserLiqPrice < 41);
 		assert(clearingHouseLoserUserLiqPrice > 30.5);
 
-		const bank00 = clearingHouse.getSpotMarketAccount(new BN(0));
-		const market00 = clearingHouse.getPerpMarketAccount(new BN(0));
+		const bank00 = clearingHouse.getSpotMarketAccount(0);
+		const market00 = clearingHouse.getPerpMarketAccount(0);
 		assert(market00.amm.feePool.balance.eq(new BN(1000000000000)));
 
 		const oraclePriceData00 = clearingHouse.getOracleDataForMarket(
@@ -413,9 +411,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		console.log('pnlimbalance00:', imbalance00.toString());
 		assert(imbalance00.eq(new BN(-9821950)));
 
-		const bank0Value1p5 = clearingHouseLoserUser.getSpotMarketAssetValue(
-			new BN(0)
-		);
+		const bank0Value1p5 = clearingHouseLoserUser.getSpotMarketAssetValue(0);
 		console.log('uL.bank0Value1p5:', bank0Value1p5.toString());
 
 		const clearingHouseLoserUserValue1p5 = convertToNumber(
@@ -431,12 +427,12 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const [bid0, ask0] = examineSpread(market00, oraclePriceData00);
 		console.log(bid0.toString(), ask0.toString());
 		assert(bid0.eq(new BN(42494730)));
-		assert(ask0.eq(new BN(42505270)));
+		assert(ask0.eq(new BN(42526525)));
 
 		// sol rallys big
 		// await clearingHouse.moveAmmToPrice(
 		// 	new BN(0),
-		// 	new BN(260.5 * MARK_PRICE_PRECISION.toNumber())
+		// 	new BN(260.5 * PRICE_PRECISION.toNumber())
 		// );
 		await setFeedPrice(anchor.workspace.Pyth, 260.5, solOracle);
 		console.log('price move to $260.5');
@@ -455,7 +451,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		assert(bid0After.eq(new BN(248126249)));
 		assert(ask0After.eq(new BN(260687640)));
 		try {
-			const txSig = await clearingHouse.updateAMMs([new BN(0)]);
+			const txSig = await clearingHouse.updateAMMs([0]);
 			console.log(
 				'tx logs',
 				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
@@ -474,14 +470,12 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 		const clearingHouseLoserUserLiqPrice2 = convertToNumber(
 			clearingHouseLoserUser.liquidationPrice({
-				marketIndex: new BN(0),
+				marketIndex: 0,
 			}),
 			PRICE_PRECISION
 		);
 
-		const bank0Value2 = clearingHouseLoserUser.getSpotMarketAssetValue(
-			new BN(0)
-		);
+		const bank0Value2 = clearingHouseLoserUser.getSpotMarketAssetValue(0);
 		console.log('uL.bank0Value2:', bank0Value2.toString());
 
 		const clearingHouseLoserUserValue2 = convertToNumber(
@@ -513,8 +507,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			chProgram,
 			solAmount,
 			usdcAmount.mul(new BN(10)),
-			[new BN(0)],
-			[new BN(0), new BN(1)],
+			[0],
+			[0, 1],
 			[
 				{
 					publicKey: solOracle,
@@ -524,7 +518,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 		await liquidatorClearingHouse.subscribe();
 
-		const bankIndex = new BN(1);
+		const bankIndex = 1;
 		await liquidatorClearingHouse.deposit(
 			solAmount,
 			bankIndex,
@@ -532,12 +526,12 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 		await liquidatorClearingHouse.deposit(
 			usdcAmount.mul(new BN(10)),
-			new BN(0),
+			0,
 			liquidatorClearingHouseWUSDCAccount
 		);
 
-		const bank0 = clearingHouse.getSpotMarketAccount(new BN(0));
-		let market0 = clearingHouse.getPerpMarketAccount(new BN(0));
+		const bank0 = clearingHouse.getSpotMarketAccount(0);
+		let market0 = clearingHouse.getPerpMarketAccount(0);
 		const winnerUser = clearingHouse.getUserAccount();
 		const loserUser = clearingHouseLoser.getUserAccount();
 		console.log(winnerUser.perpPositions[0].quoteAssetAmount.toString());
@@ -587,7 +581,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			);
 
 			try {
-				const txSig = await clearingHouse.updateAMMs([new BN(0)]);
+				const txSig = await clearingHouse.updateAMMs([0]);
 				console.log(
 					'tx logs',
 					(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
@@ -598,7 +592,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			}
 			clearingHouse.fetchAccounts();
 
-			market0 = clearingHouse.getPerpMarketAccount(new BN(0));
+			market0 = clearingHouse.getPerpMarketAccount(0);
 		}
 		const oraclePriceData = clearingHouse.getOracleDataForMarket(
 			market0.marketIndex
@@ -630,12 +624,12 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	});
 
 	it('update market imbalance limits', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const slot = await connection.getSlot();
 		const now = await connection.getBlockTime(slot);
 
 		try {
-			const txSig = await clearingHouse.updateAMMs([new BN(0)]);
+			const txSig = await clearingHouse.updateAMMs([0]);
 			console.log(
 				'tx logs',
 				(await connection.getTransaction(txSig, { commitment: 'confirmed' }))
@@ -725,7 +719,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 		const clearingHouseLoserUserLiqPrice = convertToNumber(
 			clearingHouseLoserUser.liquidationPrice({
-				marketIndex: new BN(0),
+				marketIndex: 0,
 			}),
 			PRICE_PRECISION
 		);
@@ -740,7 +734,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	});
 
 	it('whale takes tiny profit', async () => {
-		const market0 = clearingHouse.getPerpMarketAccount(new BN(0));
+		const market0 = clearingHouse.getPerpMarketAccount(0);
 		assert(market0.marginRatioInitial == 1000);
 		assert(market0.marginRatioMaintenance == 500);
 
@@ -764,7 +758,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const price = bid.mul(new BN(1000)).div(new BN(1049)); // dont breach oracle price bands
 
 		const orderParams = getMarketOrderParams({
-			marketIndex: new BN(0),
+			marketIndex: 0,
 			direction,
 			baseAssetAmount,
 			price,
@@ -774,7 +768,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const txSig = await clearingHouseLoser.placeAndTake(orderParams);
 		await printTxLogs(connection, txSig);
 
-		const market1 = clearingHouse.getPerpMarketAccount(new BN(0));
+		const market1 = clearingHouse.getPerpMarketAccount(0);
 
 		const oraclePriceData1 = clearingHouse.getOracleDataForMarket(
 			market1.marketIndex
@@ -785,8 +779,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	});
 
 	it('resolvePerpPnlDeficit', async () => {
-		const bankIndex = new BN(0);
-		const marketIndex = new BN(0);
+		const bankIndex = 0;
+		const marketIndex = 0;
 
 		const usdcbalance = await connection.getTokenAccountBalance(
 			userUSDCAccount.publicKey
@@ -805,7 +799,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			(await clearingHouse.program.account.insuranceFundStake.fetch(
 				ifStakePublicKey
 			)) as InsuranceFundStake;
-		assert(ifStakeAccount.marketIndex.eq(bankIndex));
+		assert(ifStakeAccount.marketIndex === bankIndex);
 		assert(ifStakeAccount.authority.equals(provider.wallet.publicKey));
 
 		const txSig = await clearingHouse.addInsuranceFundStake(
@@ -914,10 +908,10 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	});
 
 	// it('liq and settle expired market position', async () => {
-	// 	const marketIndex = new BN(0);
+	// 	const marketIndex = 0;
 	// 	const loserUser0 = clearingHouseLoser.getUserAccount();
-	// 	assert(loserUser0.perpPositions[0].baseAssetAmount.gt(new BN(0)));
-	// 	assert(loserUser0.perpPositions[0].quoteAssetAmount.lt(new BN(0)));
+	// 	assert(loserUser0.perpPositions[0].baseAssetAmount.gt(0));
+	// 	assert(loserUser0.perpPositions[0].quoteAssetAmount.lt(0));
 	// 	// console.log(loserUser0.perpPositions[0]);
 
 	// 	const liquidatorClearingHouseUser = new ClearingHouseUser({
@@ -983,8 +977,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	// 	await clearingHouseLoser.fetchAccounts();
 	// 	const loserUser = clearingHouseLoser.getUserAccount();
 	// 	// console.log(loserUser.perpPositions[0]);
-	// 	assert(loserUser.perpPositions[0].baseAssetAmount.eq(new BN(0)));
-	// 	assert(loserUser.perpPositions[0].quoteAssetAmount.eq(new BN(0)));
+	// 	assert(loserUser.perpPositions[0].baseAssetAmount.eq(0));
+	// 	assert(loserUser.perpPositions[0].quoteAssetAmount.eq(0));
 	// 	const marketAfter0 = clearingHouse.getPerpMarketAccount(marketIndex);
 
 	// 	const finalPnlResultMin0 = new BN(1415296436 - 11090);
@@ -994,7 +988,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	// 	assert(marketAfter0.pnlPool.balance.gt(finalPnlResultMin0));
 	// 	assert(marketAfter0.pnlPool.balance.lt(finalPnlResultMax0));
 
-	// 	// const ammPnlResult = new BN(0);
+	// 	// const ammPnlResult = 0;
 	// 	console.log('feePool:', marketAfter0.amm.feePool.balance.toString());
 	// 	console.log(
 	// 		'totalExchangeFee:',

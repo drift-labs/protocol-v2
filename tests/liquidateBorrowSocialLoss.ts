@@ -75,7 +75,7 @@ describe('liquidate borrow w/ social loss', () => {
 			},
 			activeUserId: 0,
 			perpMarketIndexes: [],
-			spotMarketIndexes: [new BN(0), new BN(1)],
+			spotMarketIndexes: [0, 1],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
@@ -104,7 +104,7 @@ describe('liquidate borrow w/ social loss', () => {
 				solAmount,
 				usdcAmount,
 				[],
-				[new BN(0), new BN(1)],
+				[0, 1],
 				[
 					{
 						publicKey: solOracle,
@@ -113,14 +113,14 @@ describe('liquidate borrow w/ social loss', () => {
 				]
 			);
 
-		const marketIndex = new BN(1);
+		const marketIndex = 1;
 		await liquidatorClearingHouse.deposit(
 			solAmount,
 			marketIndex,
 			liquidatorClearingHouseWSOLAccount
 		);
 		const solBorrow = new BN(5 * 10 ** 8);
-		await clearingHouse.withdraw(solBorrow, new BN(1), userWSOLAccount);
+		await clearingHouse.withdraw(solBorrow, 1, userWSOLAccount);
 	});
 
 	after(async () => {
@@ -137,8 +137,8 @@ describe('liquidate borrow w/ social loss', () => {
 		const txSig = await liquidatorClearingHouse.liquidateBorrow(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
-			new BN(0),
-			new BN(1),
+			0,
+			1,
 			new BN(6 * 10 ** 8)
 		);
 
@@ -172,7 +172,7 @@ describe('liquidate borrow w/ social loss', () => {
 		assert(liquidationRecord.liquidationId === 1);
 		assert(isVariant(liquidationRecord.liquidationType, 'liquidateBorrow'));
 		assert(liquidationRecord.liquidateBorrow.assetPrice.eq(PRICE_PRECISION));
-		assert(liquidationRecord.liquidateBorrow.assetMarketIndex.eq(ZERO));
+		assert(liquidationRecord.liquidateBorrow.assetMarketIndex === 0);
 		assert(
 			liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(100000000))
 		);
@@ -181,9 +181,7 @@ describe('liquidate borrow w/ social loss', () => {
 				new BN(200).mul(PRICE_PRECISION)
 			)
 		);
-		assert(
-			liquidationRecord.liquidateBorrow.liabilityMarketIndex.eq(new BN(1))
-		);
+		assert(liquidationRecord.liquidateBorrow.liabilityMarketIndex === 1);
 		assert(
 			liquidationRecord.liquidateBorrow.liabilityTransfer.eq(new BN(500000000))
 		);
@@ -295,7 +293,7 @@ describe('liquidate borrow w/ social loss', () => {
 		await liquidatorClearingHouse.resolveBorrowBankruptcy(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
-			new BN(1)
+			1
 		);
 
 		await clearingHouse.fetchAccounts();
@@ -308,7 +306,7 @@ describe('liquidate borrow w/ social loss', () => {
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(isVariant(bankruptcyRecord.liquidationType, 'borrowBankruptcy'));
 		console.log(bankruptcyRecord.borrowBankruptcy);
-		assert(bankruptcyRecord.borrowBankruptcy.marketIndex.eq(ONE));
+		assert(bankruptcyRecord.borrowBankruptcy.marketIndex === 1);
 		console.log(bankruptcyRecord.borrowBankruptcy.borrowAmount.toString());
 		assert(
 			bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(5001585)) ||

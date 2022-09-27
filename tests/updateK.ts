@@ -68,8 +68,8 @@ describe('update k', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: [new BN(0)],
-			spotMarketIndexes: [new BN(0)],
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0],
 		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
@@ -107,7 +107,7 @@ describe('update k', () => {
 	});
 
 	it('increase k (FREE)', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		const oldKPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
@@ -150,7 +150,7 @@ describe('update k', () => {
 			userUSDCAccount.publicKey
 		);
 
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		const targetPriceUp = new BN(
 			initialSOLPrice * PRICE_PRECISION.toNumber() * 44.1
@@ -207,7 +207,7 @@ describe('update k', () => {
 	});
 
 	it('failure: lower k (more than 2.5%) position imbalance (AMM PROFIT)', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		const targetPriceBack = new BN(
 			initialSOLPrice * PRICE_PRECISION.toNumber()
@@ -298,7 +298,7 @@ describe('update k', () => {
 		}
 	});
 	it('lower k (2%) position imbalance (AMM PROFIT)', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		const targetPriceBack = new BN(
 			initialSOLPrice * PRICE_PRECISION.toNumber()
@@ -410,7 +410,7 @@ describe('update k', () => {
 		// assert(amm.totalFeeMinusDistributions.lt(ammOld.totalFeeMinusDistributions));
 	});
 	it('increase k position imbalance (AMM LOSS)', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const targetPriceBack = new BN(
 			initialSOLPrice * PRICE_PRECISION.toNumber()
 		);

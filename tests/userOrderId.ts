@@ -47,7 +47,7 @@ describe('user order id', () => {
 	let discountMint: Token;
 	let discountTokenAccount: AccountInfo;
 
-	const marketIndex = new BN(0);
+	const marketIndex = 0;
 	let solUsd;
 	let btcUsd;
 
@@ -59,7 +59,7 @@ describe('user order id', () => {
 		btcUsd = await mockOracle(60000);
 
 		const marketIndexes = [marketIndex];
-		const spotMarketIndexes = [new BN(0)];
+		const spotMarketIndexes = [0];
 		const oracleInfos = [
 			{ publicKey: solUsd, source: OracleSource.PYTH },
 			{ publicKey: btcUsd, source: OracleSource.PYTH },

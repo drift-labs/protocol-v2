@@ -89,9 +89,9 @@ export class DLOB {
 
 		for (const market of perpMarkets) {
 			const marketIndex = market.marketIndex;
-			this.marketIndexToAccount.get('perp').set(marketIndex.toNumber(), market);
+			this.marketIndexToAccount.get('perp').set(marketIndex, market);
 
-			this.orderLists.get('perp').set(marketIndex.toNumber(), {
+			this.orderLists.get('perp').set(marketIndex, {
 				limit: {
 					ask: new NodeList('limit', 'asc'),
 					bid: new NodeList('limit', 'desc'),
@@ -112,9 +112,9 @@ export class DLOB {
 		}
 		for (const market of spotMarkets) {
 			const marketIndex = market.marketIndex;
-			this.marketIndexToAccount.get('spot').set(marketIndex.toNumber(), market);
+			this.marketIndexToAccount.get('spot').set(marketIndex, market);
 
-			this.orderLists.get('spot').set(marketIndex.toNumber(), {
+			this.orderLists.get('spot').set(marketIndex, {
 				limit: {
 					ask: new NodeList('limit', 'asc'),
 					bid: new NodeList('limit', 'desc'),
@@ -191,12 +191,10 @@ export class DLOB {
 				.get(marketType)
 				.add(getOrderSignature(order.orderId, userAccount));
 		}
-		this.getListForOrder(order).insert(
+		this.getListForOrder(order)?.insert(
 			order,
 			marketType,
-			this.marketIndexToAccount
-				.get(marketType)
-				.get(order.marketIndex.toNumber()),
+			this.marketIndexToAccount.get(marketType).get(order.marketIndex),
 			userAccount
 		);
 
@@ -216,19 +214,14 @@ export class DLOB {
 
 		const marketType = getVariant(order.marketType) as MarketTypeStr;
 
-		const triggerList = this.orderLists
-			.get(marketType)
-			.get(order.marketIndex.toNumber()).trigger[
-			isVariant(order.triggerCondition, 'above') ? 'above' : 'below'
-		];
+		const triggerList = this.orderLists.get(marketType).get(order.marketIndex)
+			.trigger[isVariant(order.triggerCondition, 'above') ? 'above' : 'below'];
 		triggerList.remove(order, userAccount);
 
-		this.getListForOrder(order).insert(
+		this.getListForOrder(order)?.insert(
 			order,
 			marketType,
-			this.marketIndexToAccount
-				.get(marketType)
-				.get(order.marketIndex.toNumber()),
+			this.marketIndexToAccount.get(marketType).get(order.marketIndex),
 			userAccount
 		);
 		if (onTrigger) {
@@ -236,7 +229,7 @@ export class DLOB {
 		}
 	}
 
-	public getListForOrder(order: Order): NodeList<any> {
+	public getListForOrder(order: Order): NodeList<any> | undefined {
 		const isInactiveTriggerOrder =
 			isOneOfVariant(order.orderType, ['triggerMarket', 'triggerLimit']) &&
 			!order.triggered;
@@ -260,13 +253,18 @@ export class DLOB {
 		}
 
 		const marketType = getVariant(order.marketType) as MarketTypeStr;
-		return this.orderLists.get(marketType).get(order.marketIndex.toNumber())[
-			type
-		][subType];
+
+		if (!this.orderLists.has(marketType)) {
+			return undefined;
+		}
+
+		return this.orderLists.get(marketType).get(order.marketIndex)[type][
+			subType
+		];
 	}
 
 	public findNodesToFill(
-		marketIndex: BN,
+		marketIndex: number,
 		vBid: BN | undefined,
 		vAsk: BN | undefined,
 		slot: number,
@@ -293,7 +291,7 @@ export class DLOB {
 	}
 
 	public findCrossingNodesToFill(
-		marketIndex: BN,
+		marketIndex: number,
 		vBid: BN | undefined,
 		vAsk: BN | undefined,
 		slot: number,
@@ -356,7 +354,7 @@ export class DLOB {
 	}
 
 	public findMarketNodesToFill(
-		marketIndex: BN,
+		marketIndex: number,
 		slot: number,
 		marketType: MarketType
 	): NodeToFill[] {
@@ -387,7 +385,7 @@ export class DLOB {
 	}
 
 	public findJitAuctionNodesToFill(
-		marketIndex: BN,
+		marketIndex: number,
 		slot: number,
 		marketType: MarketType
 	): NodeToFill[] {
@@ -412,29 +410,29 @@ export class DLOB {
 	}
 
 	public getMarketBids(
-		marketIndex: BN,
+		marketIndex: number,
 		marketType: MarketType
 	): Generator<DLOBNode> {
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		return this.orderLists
 			.get(marketTypeStr)
-			.get(marketIndex.toNumber())
+			.get(marketIndex)
 			.market.bid.getGenerator();
 	}
 
 	public getMarketAsks(
-		marketIndex: BN,
+		marketIndex: number,
 		marketType: MarketType
 	): Generator<DLOBNode> {
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		return this.orderLists
 			.get(marketTypeStr)
-			.get(marketIndex.toNumber())
+			.get(marketIndex)
 			.market.ask.getGenerator();
 	}
 
 	*getAsks(
-		marketIndex: BN,
+		marketIndex: number,
 		vAsk: BN | undefined,
 		slot: number,
 		marketType: MarketType,
@@ -444,9 +442,7 @@ export class DLOB {
 			throw new Error('Must provide OraclePriceData to get spot asks');
 		}
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
-		const nodeLists = this.orderLists
-			.get(marketTypeStr)
-			.get(marketIndex.toNumber());
+		const nodeLists = this.orderLists.get(marketTypeStr).get(marketIndex);
 
 		const generatorList = [
 			nodeLists.limit.ask.getGenerator(),
@@ -502,7 +498,7 @@ export class DLOB {
 	}
 
 	*getBids(
-		marketIndex: BN,
+		marketIndex: number,
 		vBid: BN | undefined,
 		slot: number,
 		marketType: MarketType,
@@ -513,9 +509,7 @@ export class DLOB {
 		}
 
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
-		const nodeLists = this.orderLists
-			.get(marketTypeStr)
-			.get(marketIndex.toNumber());
+		const nodeLists = this.orderLists.get(marketTypeStr).get(marketIndex);
 
 		const generatorList = [
 			nodeLists.limit.bid.getGenerator(),
@@ -708,7 +702,7 @@ export class DLOB {
 	}
 
 	public getBestAsk(
-		marketIndex: BN,
+		marketIndex: number,
 		vAsk: BN | undefined,
 		slot: number,
 		marketType: MarketType,
@@ -720,7 +714,7 @@ export class DLOB {
 	}
 
 	public getBestBid(
-		marketIndex: BN,
+		marketIndex: number,
 		vBid: BN | undefined,
 		slot: number,
 		marketType: MarketType,
@@ -732,7 +726,7 @@ export class DLOB {
 	}
 
 	public findNodesToTrigger(
-		marketIndex: BN,
+		marketIndex: number,
 		slot: number,
 		oraclePrice: BN,
 		marketType: MarketType
@@ -741,7 +735,7 @@ export class DLOB {
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		for (const node of this.orderLists
 			.get(marketTypeStr)
-			.get(marketIndex.toNumber())
+			.get(marketIndex)
 			.trigger.above.getGenerator()) {
 			if (oraclePrice.gt(node.order.triggerPrice)) {
 				if (isAuctionComplete(node.order, slot)) {
@@ -756,7 +750,7 @@ export class DLOB {
 
 		for (const node of this.orderLists
 			.get(marketTypeStr)
-			.get(marketIndex.toNumber())
+			.get(marketIndex)
 			.trigger.below.getGenerator()) {
 			if (oraclePrice.lt(node.order.triggerPrice)) {
 				if (isAuctionComplete(node.order, slot)) {
@@ -776,7 +770,7 @@ export class DLOB {
 		sdkConfig: any,
 		clearingHouse: ClearingHouse,
 		slotSubscriber: SlotSubscriber,
-		marketIndex: BN,
+		marketIndex: number,
 		marketType: MarketType
 	) {
 		if (isVariant(marketType, 'perp')) {
@@ -814,9 +808,7 @@ export class DLOB {
 					1) *
 				100.0;
 
-			console.log(
-				`Market ${sdkConfig.MARKETS[marketIndex.toNumber()].symbol} Orders`
-			);
+			console.log(`Market ${sdkConfig.MARKETS[marketIndex].symbol} Orders`);
 			console.log(
 				`  Ask`,
 				convertToNumber(bestAsk, PRICE_PRECISION).toFixed(3),
@@ -859,9 +851,7 @@ export class DLOB {
 					1) *
 				100.0;
 
-			console.log(
-				`Market ${sdkConfig.MARKETS[marketIndex.toNumber()].symbol} Orders`
-			);
+			console.log(`Market ${sdkConfig.MARKETS[marketIndex].symbol} Orders`);
 			console.log(
 				`  Ask`,
 				convertToNumber(bestAsk, PRICE_PRECISION).toFixed(3),

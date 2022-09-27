@@ -41,7 +41,7 @@ pub fn validate_margin(
 }
 
 pub fn validate_margin_weights(
-    spot_market_index: u64,
+    spot_market_index: u16,
     initial_asset_weight: u128,
     maintenance_asset_weight: u128,
     initial_liability_weight: u128,

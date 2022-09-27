@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum PerpFulfillmentMethod {
     AMM,
     Match,
