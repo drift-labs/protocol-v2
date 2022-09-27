@@ -272,7 +272,7 @@ pub mod clearing_house {
             mint: ctx.accounts.spot_market_mint.key(),
             vault: *ctx.accounts.spot_market_vault.to_account_info().key,
             insurance_fund_vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
-            revenue_pool: PoolBalance { balance: 0 },
+            revenue_pool: PoolBalance::default(), // in base asset
             total_if_factor: 0,
             user_if_factor: 0,
             total_if_shares: 0,
@@ -304,7 +304,7 @@ pub mod clearing_house {
             withdraw_guard_threshold: 0,
             order_step_size,
             next_fill_record_id: 1,
-            spot_fee_pool: PoolBalance::default(),
+            spot_fee_pool: PoolBalance::default(), // in quote asset
             total_spot_fee: 0,
         };
 
@@ -3561,8 +3561,6 @@ pub mod clearing_house {
             state.signer_nonce,
             token_amount as u64,
         )?;
-
-        // todo: settle remaining revenue pool to a revenue vault
 
         spot_market.last_revenue_settle_ts = now;
 

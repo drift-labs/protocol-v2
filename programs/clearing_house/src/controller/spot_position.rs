@@ -82,6 +82,31 @@ pub fn update_spot_position_balance(
     Ok(())
 }
 
+pub fn transfer_spot_position_deposit(
+    token_amount: u128,
+    spot_market: &mut SpotMarket,
+    from_spot_position: &mut SpotPosition,
+    to_spot_position: &mut SpotPosition,
+) -> ClearingHouseResult {
+    update_spot_position_balance(
+        token_amount,
+        &SpotBalanceType::Borrow,
+        spot_market,
+        from_spot_position,
+        true,
+    )?;
+
+    update_spot_position_balance(
+        token_amount,
+        &SpotBalanceType::Deposit,
+        spot_market,
+        to_spot_position,
+        false,
+    )?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod test {
     mod update_spot_position_balance {
