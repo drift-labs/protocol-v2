@@ -48,7 +48,7 @@ describe('User Account', () => {
 	let userUSDCAccount: Keypair;
 
 	let solUsdOracle;
-	const marketIndex = new BN(0);
+	const marketIndex = 0;
 	const initialSOLPrice = 50;
 
 	const usdcAmount = new BN(20 * 10 ** 6);
@@ -73,8 +73,8 @@ describe('User Account', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: [new BN(0)],
-			spotMarketIndexes: [new BN(0)],
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0],
 			oracleInfos: [{ publicKey: solUsdOracle, source: OracleSource.PYTH }],
 		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
@@ -141,7 +141,7 @@ describe('User Account', () => {
 			expectedMarginRatio.toNumber()
 		);
 
-		const buyingPower = userAccount.getBuyingPower(new BN(0));
+		const buyingPower = userAccount.getBuyingPower(0);
 		console.log(
 			'buyingPower',
 			buyingPower.toNumber(),

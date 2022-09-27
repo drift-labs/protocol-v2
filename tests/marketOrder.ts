@@ -64,7 +64,7 @@ describe('market order', () => {
 	let fillerClearingHouse: ClearingHouse;
 	let fillerUser: ClearingHouseUser;
 
-	const marketIndex = new BN(0);
+	const marketIndex = 0;
 	let solUsd;
 	let btcUsd;
 
@@ -75,8 +75,8 @@ describe('market order', () => {
 		solUsd = await mockOracle(1);
 		btcUsd = await mockOracle(60000);
 
-		const marketIndexes = [new BN(0), new BN(1)];
-		const spotMarketIndexes = [new BN(0)];
+		const marketIndexes = [0, 1];
+		const spotMarketIndexes = [0];
 		const oracleInfos = [
 			{ publicKey: solUsd, source: OracleSource.PYTH },
 			{ publicKey: btcUsd, source: OracleSource.PYTH },
@@ -219,7 +219,7 @@ describe('market order', () => {
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
-		assert(order.marketIndex.eq(new BN(0)));
+		assert(order.marketIndex === 0);
 
 		const firstPosition = clearingHouseUser.getUserAccount().perpPositions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));

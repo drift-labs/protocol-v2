@@ -36,7 +36,7 @@ import {
 
 async function updateFundingRateHelper(
 	clearingHouse: ClearingHouse,
-	marketIndex: BN,
+	marketIndex: number,
 	priceFeedAddress: PublicKey,
 	prices: Array<number>
 ) {
@@ -197,8 +197,8 @@ describe('pyth-oracle', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: [new BN(0), new BN(1)],
-			spotMarketIndexes: [new BN(0)],
+			perpMarketIndexes: [0, 1],
+			spotMarketIndexes: [0],
 		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
@@ -221,14 +221,7 @@ describe('pyth-oracle', () => {
 
 		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
 		const [_userUSDCAccounts, _user_keys, clearingHouses, userAccountInfos] =
-			await initUserAccounts(
-				1,
-				usdcMint,
-				usdcAmount,
-				provider,
-				[new BN(0), new BN(1)],
-				[new BN(0)]
-			);
+			await initUserAccounts(1, usdcMint, usdcAmount, provider, [0, 1], [0]);
 
 		clearingHouse2 = clearingHouses[0];
 		userAccount2 = userAccountInfos[0];
@@ -267,7 +260,7 @@ describe('pyth-oracle', () => {
 	it('oracle/vamm: funding rate calc 0hour periodicity', async () => {
 		const priceFeedAddress = await mockOracle(40, -10);
 		const periodicity = new BN(0); // 1 HOUR
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		await clearingHouse.initializeMarket(
 			priceFeedAddress,
@@ -288,7 +281,7 @@ describe('pyth-oracle', () => {
 	it('oracle/vamm: funding rate calc2 0hour periodicity', async () => {
 		const priceFeedAddress = await mockOracle(40, -10);
 		const periodicity = new BN(0);
-		const marketIndex = new BN(1);
+		const marketIndex = 1;
 
 		await clearingHouse.initializeMarket(
 			priceFeedAddress,
@@ -312,7 +305,7 @@ describe('pyth-oracle', () => {
 	});
 
 	it('oracle/vamm: asym funding rate calc 0hour periodicity', async () => {
-		const marketIndex = new BN(1);
+		const marketIndex = 1;
 
 		// await clearingHouse.moveAmmToPrice(
 		// 	marketIndex,

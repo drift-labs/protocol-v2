@@ -84,8 +84,8 @@ describe('liquidate borrow for perp pnl', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: [new BN(0)],
-			spotMarketIndexes: [new BN(0), new BN(1)],
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0, 1],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
@@ -134,16 +134,13 @@ describe('liquidate borrow for perp pnl', () => {
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
 			new BN(10).mul(BASE_PRECISION),
-			new BN(0),
+			0,
 			new BN(0)
 		);
 
-		await clearingHouse.moveAmmToPrice(
-			new BN(0),
-			new BN(2).mul(PRICE_PRECISION)
-		);
+		await clearingHouse.moveAmmToPrice(0, new BN(2).mul(PRICE_PRECISION));
 
-		await clearingHouse.closePosition(new BN(0));
+		await clearingHouse.closePosition(0);
 
 		const solAmount = new BN(1 * 10 ** 9);
 		[liquidatorClearingHouse, liquidatorClearingHouseWSOLAccount] =
@@ -153,8 +150,8 @@ describe('liquidate borrow for perp pnl', () => {
 				chProgram,
 				solAmount,
 				usdcAmount,
-				[new BN(0)],
-				[new BN(0), new BN(1)],
+				[0],
+				[0, 1],
 				[
 					{
 						publicKey: solOracle,
@@ -164,14 +161,14 @@ describe('liquidate borrow for perp pnl', () => {
 			);
 		await liquidatorClearingHouse.subscribe();
 
-		const spotMarketIndex = new BN(1);
+		const spotMarketIndex = 1;
 		await liquidatorClearingHouse.deposit(
 			solAmount,
 			spotMarketIndex,
 			liquidatorClearingHouseWSOLAccount
 		);
 		const solBorrow = new BN(5 * 10 ** 8);
-		await clearingHouse.withdraw(solBorrow, new BN(1), userWSOLAccount);
+		await clearingHouse.withdraw(solBorrow, 1, userWSOLAccount);
 	});
 
 	after(async () => {
@@ -186,8 +183,8 @@ describe('liquidate borrow for perp pnl', () => {
 		const txSig = await liquidatorClearingHouse.liquidateBorrowForPerpPnl(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
-			new BN(0),
-			new BN(1),
+			0,
+			1,
 			new BN(6 * 10 ** 8)
 		);
 
@@ -222,9 +219,7 @@ describe('liquidate borrow for perp pnl', () => {
 				new BN(50).mul(PRICE_PRECISION)
 			)
 		);
-		assert(
-			liquidationRecord.liquidateBorrowForPerpPnl.perpMarketIndex.eq(ZERO)
-		);
+		assert(liquidationRecord.liquidateBorrowForPerpPnl.perpMarketIndex === 0);
 		assert(
 			liquidationRecord.liquidateBorrowForPerpPnl.pnlTransfer.eq(
 				new BN(9969992)
@@ -236,9 +231,7 @@ describe('liquidate borrow for perp pnl', () => {
 			)
 		);
 		assert(
-			liquidationRecord.liquidateBorrowForPerpPnl.liabilityMarketIndex.eq(
-				new BN(1)
-			)
+			liquidationRecord.liquidateBorrowForPerpPnl.liabilityMarketIndex === 1
 		);
 		assert(
 			liquidationRecord.liquidateBorrowForPerpPnl.liabilityTransfer.eq(

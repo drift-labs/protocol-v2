@@ -107,7 +107,7 @@ pub fn update_amms(
 }
 
 pub fn update_amm(
-    market_index: u64,
+    market_index: u16,
     perp_market_map: &PerpMarketMap,
     oracle_map: &mut OracleMap,
     state: &State,
@@ -238,7 +238,7 @@ pub fn apply_cost_to_market(
 }
 
 pub fn settle_expired_market(
-    market_index: u64,
+    market_index: u16,
     market_map: &PerpMarketMap,
     _oracle_map: &mut OracleMap,
     spot_market_map: &SpotMarketMap,
