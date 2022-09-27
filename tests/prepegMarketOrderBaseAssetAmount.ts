@@ -122,6 +122,8 @@ describe('prepeg', () => {
 			undefined,
 			1000
 		);
+		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
+
 		await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
 		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
 		await clearingHouse.updateMarketBaseAssetAmountStepSize(
@@ -141,6 +143,11 @@ describe('prepeg', () => {
 				undefined,
 				1000
 			);
+			await clearingHouse.updatePerpMarketStatus(
+				new BN(i),
+				MarketStatus.ACTIVE
+			);
+
 			await clearingHouse.updateMarketBaseSpread(new BN(i), 2000);
 			await clearingHouse.updateCurveUpdateIntensity(new BN(i), 100);
 			await clearingHouse.updateMarketBaseAssetAmountStepSize(

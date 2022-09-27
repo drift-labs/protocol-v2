@@ -9,6 +9,7 @@ import {
 	OracleSource,
 	ExchangeStatus,
 	MarketStatus,
+	ContractTier,
 } from './types';
 import { BN } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
@@ -78,7 +79,8 @@ export class Admin extends ClearingHouse {
 		initialLiabilityWeight: BN,
 		maintenanceLiabilityWeight: BN,
 		imfFactor = new BN(0),
-		liquidationFee = ZERO
+		liquidationFee = ZERO,
+		activeStatus = true
 	): Promise<TransactionSignature> {
 		const spotMarketIndex = this.getStateAccount().numberOfSpotMarkets;
 		const spotMarket = await getSpotMarketPublicKey(
@@ -107,6 +109,7 @@ export class Admin extends ClearingHouse {
 			maintenanceLiabilityWeight,
 			imfFactor,
 			liquidationFee,
+			activeStatus,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
@@ -179,7 +182,8 @@ export class Admin extends ClearingHouse {
 		oracleSource: OracleSource = OracleSource.PYTH,
 		marginRatioInitial = 2000,
 		marginRatioMaintenance = 500,
-		liquidationFee = ZERO
+		liquidationFee = ZERO,
+		activeStatus = true
 	): Promise<TransactionSignature> {
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
@@ -195,6 +199,7 @@ export class Admin extends ClearingHouse {
 			marginRatioInitial,
 			marginRatioMaintenance,
 			liquidationFee,
+			activeStatus,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -826,6 +831,22 @@ export class Admin extends ClearingHouse {
 		marketStatus: MarketStatus
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updatePerpMarketStatus(marketStatus, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				market: await getMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
+	}
+
+	public async updatePerpMarketContractTier(
+		perpMarketIndex: BN,
+		contractTier: ContractTier
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketContractTier(contractTier, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),

@@ -120,6 +120,7 @@ describe('clearing_house', () => {
 			ammInitialQuoteAssetAmount,
 			periodicity
 		);
+		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
 
 		console.log(
 			'tx logs',

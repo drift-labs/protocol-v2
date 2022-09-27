@@ -1,18 +1,17 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import {
-	BASE_PRECISION,
-	BN,
-	getMarketOrderParams,
-	OracleSource,
-	Wallet,
-} from '../sdk';
+import { BN } from '../sdk';
 
-import { Program } from '@project-serum/anchor';
+import { Program, Wallet } from '@project-serum/anchor';
 
 import { Keypair } from '@solana/web3.js';
 
-import { Admin, ClearingHouse, PositionDirection } from '../sdk/src';
+import {
+	Admin,
+	ClearingHouse,
+	MAX_LEVERAGE,
+	PositionDirection,
+} from '../sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
@@ -20,6 +19,16 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
+
+const calculateTradeAmount = (amountOfCollateral: BN) => {
+	const ONE_MANTISSA = new BN(100000);
+	const fee = ONE_MANTISSA.div(new BN(1000));
+	const tradeAmount = amountOfCollateral
+		.mul(MAX_LEVERAGE)
+		.mul(ONE_MANTISSA.sub(MAX_LEVERAGE.mul(fee)))
+		.div(ONE_MANTISSA);
+	return tradeAmount;
+};
 
 describe('round in favor', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -32,27 +41,13 @@ describe('round in favor', () => {
 	let primaryClearingHouse: Admin;
 
 	// ammInvariant == k == x * y
-	const ammInitialQuoteAssetReserve = new anchor.BN(
-		17 * BASE_PRECISION.toNumber()
-	);
-	const ammInitialBaseAssetReserve = new anchor.BN(
-		17 * BASE_PRECISION.toNumber()
-	);
+	const ammInitialQuoteAssetReserve = new anchor.BN(17 * 10 ** 13);
+	const ammInitialBaseAssetReserve = new anchor.BN(17 * 10 ** 13);
 
 	const usdcAmount = new BN(9999 * 10 ** 3);
 
-	let marketIndexes;
-	let spotMarketIndexes;
-	let oracleInfos;
-
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
-
-		const solUsd = await mockOracle(63000);
-
-		marketIndexes = [new BN(0)];
-		spotMarketIndexes = [new BN(0)];
-		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		primaryClearingHouse = new Admin({
 			connection,
@@ -62,9 +57,8 @@ describe('round in favor', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: marketIndexes,
-			spotMarketIndexes: spotMarketIndexes,
-			oracleInfos,
+			perpMarketIndexes: [new BN(0)],
+			spotMarketIndexes: [new BN(0)],
 		});
 		await primaryClearingHouse.initialize(usdcMint.publicKey, true);
 		await primaryClearingHouse.subscribe();
@@ -72,6 +66,7 @@ describe('round in favor', () => {
 		await initializeQuoteSpotMarket(primaryClearingHouse, usdcMint.publicKey);
 		await primaryClearingHouse.updatePerpAuctionDuration(new BN(0));
 
+		const solUsd = await mockOracle(63000);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await primaryClearingHouse.initializeMarket(
@@ -79,12 +74,9 @@ describe('round in favor', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(63000000000)
+			new BN(63000000)
 		);
-		await primaryClearingHouse.updatePerpMarketStatus(
-			new BN(0),
-			MarketStatus.ACTIVE
-		);
+		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
 	});
 
 	after(async () => {
@@ -103,44 +95,48 @@ describe('round in favor', () => {
 		);
 		const clearingHouse = new ClearingHouse({
 			connection,
-			wallet,
+			wallet: wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: marketIndexes,
-			spotMarketIndexes: spotMarketIndexes,
-			oracleInfos,
+			perpMarketIndexes: [
+				new BN(0),
+				new BN(1),
+				new BN(2),
+				new BN(3),
+				new BN(4),
+			],
+			spotMarketIndexes: [new BN(0)],
 		});
 		await clearingHouse.subscribe();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		await clearingHouse.fetchAccounts();
 
 		const marketIndex = new BN(0);
-		const baseAssetAmount = new BN(789640);
-		const orderParams = getMarketOrderParams({
+		await clearingHouse.openPosition(
+			PositionDirection.SHORT,
+			calculateTradeAmount(usdcAmount),
 			marketIndex,
-			direction: PositionDirection.SHORT,
-			baseAssetAmount,
-		});
-		await clearingHouse.placeAndTake(orderParams);
+			new BN(0)
+		);
 
+		await clearingHouse.fetchAccounts();
+		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9999000)));
 
-		await clearingHouse.fetchAccounts();
 		await clearingHouse.closePosition(marketIndex);
-
-		await clearingHouse.fetchAccounts();
 
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-99409))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-504))
 		);
+
+		await clearingHouse.fetchAccounts();
 		await clearingHouse.unsubscribe();
 	});
 
@@ -156,15 +152,20 @@ describe('round in favor', () => {
 		);
 		const clearingHouse = new ClearingHouse({
 			connection,
-			wallet,
+			wallet: wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: marketIndexes,
-			spotMarketIndexes: spotMarketIndexes,
-			oracleInfos,
+			perpMarketIndexes: [
+				new BN(0),
+				new BN(1),
+				new BN(2),
+				new BN(3),
+				new BN(4),
+			],
+			spotMarketIndexes: [new BN(0)],
 		});
 		await clearingHouse.subscribe();
 
@@ -172,24 +173,26 @@ describe('round in favor', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		await clearingHouse.fetchAccounts();
 
 		const marketIndex = new BN(0);
-		const baseAssetAmount = new BN(789566);
-		const orderParams = getMarketOrderParams({
+		await clearingHouse.openPosition(
+			PositionDirection.LONG,
+			calculateTradeAmount(usdcAmount),
 			marketIndex,
-			direction: PositionDirection.LONG,
-			baseAssetAmount,
-		});
-		await clearingHouse.placeAndTake(orderParams);
+			new BN(0)
+		);
 
+		await clearingHouse.fetchAccounts();
+		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9999000)));
 
 		await clearingHouse.closePosition(marketIndex);
+
+		await clearingHouse.fetchAccounts();
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-99419))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-505))
 		);
 		await clearingHouse.unsubscribe();
 	});

@@ -27,6 +27,7 @@ import {
 	oraclePriceBands,
 	InsuranceFundRecord,
 	OracleGuardRails,
+	MarketStatus,
 } from '../sdk/src';
 
 import {
@@ -44,6 +45,7 @@ import {
 	AMM_RESERVE_PRECISION,
 	BID_ASK_SPREAD_PRECISION,
 	calculateBidAskPrice,
+	ContractTier,
 	isVariant,
 	MARGIN_PRECISION,
 	MarketAccount,
@@ -204,8 +206,12 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await initializeSolSpotMarket(clearingHouse, solOracle);
+		try {
+			await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
+			await initializeSolSpotMarket(clearingHouse, solOracle);
+		} catch (e) {
+			console.error(e);
+		}
 		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(0);
@@ -220,6 +226,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			1000,
 			500
 		);
+		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
 		await clearingHouse.updateMarketBaseSpread(new BN(0), 250);
 		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
 
@@ -650,6 +657,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		assert(market0.unrealizedMaxImbalance.eq(ZERO));
 
+		await clearingHouse.updatePerpMarketContractTier(new BN(0), ContractTier.A);
+
 		try {
 			const tx1 = await clearingHouse.updateMarketMaxImbalances(
 				marketIndex,
@@ -699,7 +708,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		assert(market.quoteMaxInsurance.eq(QUOTE_PRECISION));
 
 		console.log(market.status);
-		assert(isVariant(market.status, 'initialized'));
+		assert(isVariant(market.status, 'active'));
 		console.log('totalExchangeFee:', market.amm.totalExchangeFee.toString());
 		console.log('totalFee:', market.amm.totalFee.toString());
 		console.log('totalMMFee:', market.amm.totalMmFee.toString());
@@ -894,7 +903,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		assert(market.pnlPool.balance.gt(market0.pnlPool.balance));
 
 		console.log(market.status);
-		assert(isVariant(market.status, 'initialized'));
+		assert(isVariant(market.status, 'active'));
 		console.log('totalExchangeFee:', market.amm.totalExchangeFee.toString());
 		console.log('totalFee:', market.amm.totalFee.toString());
 		console.log('totalMMFee:', market.amm.totalMmFee.toString());

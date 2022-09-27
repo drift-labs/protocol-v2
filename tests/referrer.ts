@@ -111,6 +111,10 @@ describe('referrer', () => {
 			periodicity,
 			new BN(100).mul(PEG_PRECISION)
 		);
+		await referrerClearingHouse.updatePerpMarketStatus(
+			new BN(0),
+			MarketStatus.ACTIVE
+		);
 
 		await initializeQuoteSpotMarket(referrerClearingHouse, usdcMint.publicKey);
 

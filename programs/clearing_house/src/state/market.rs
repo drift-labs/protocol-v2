@@ -23,14 +23,14 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum MarketStatus {
-    Initialized,
-    Active,
-    FundingPaused,
-    FillPaused,
-    WithdrawPaused,
-    ReduceOnly,
-    Settlement,
-    Delisted,
+    Initialized,    // warm up period for initialization, fills are paused
+    Active,         // all operations allowed
+    FundingPaused,  // perp: pause funding rate updates | spot: pause interest updates
+    FillPaused,     // fills are blocked
+    WithdrawPaused, // perp: pause settling positive pnl | spot: pause withdrawing asset
+    ReduceOnly,     // fills only able to reduce liability
+    Settlement, // market has determined settlement price and positions are expired must be settled
+    Delisted,   // market has no remaining participants
 }
 
 impl Default for MarketStatus {

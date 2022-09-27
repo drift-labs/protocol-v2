@@ -17,6 +17,7 @@ import {
 	PositionDirection,
 	EventSubscriber,
 	OracleGuardRails,
+	MarketStatus,
 } from '../sdk/src';
 
 import {
@@ -109,6 +110,7 @@ describe('liquidate borrow for perp pnl', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
+		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,

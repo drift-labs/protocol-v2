@@ -202,6 +202,8 @@ describe('liquidity providing', () => {
 			ammInitialQuoteAssetReserve,
 			new BN(60 * 60)
 		);
+		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
+
 		await clearingHouse.updateLpCooldownTime(ZERO, new BN(0));
 		await clearingHouse.updateMaxBaseAssetAmountRatio(new BN(0), 1);
 		// await clearingHouse.updateMarketBaseAssetAmountStepSize(
@@ -216,6 +218,8 @@ describe('liquidity providing', () => {
 			stableAmmInitialQuoteAssetReserve,
 			new BN(0)
 		);
+		await clearingHouse.updatePerpMarketStatus(new BN(1), MarketStatus.ACTIVE);
+
 		await clearingHouse.updateLpCooldownTime(new BN(1), new BN(0));
 		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 

@@ -100,6 +100,7 @@ describe('post only', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
+		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
 
 		await fillerClearingHouse.updateMarketBaseSpread(new BN(0), 500);
 

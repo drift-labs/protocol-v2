@@ -29,6 +29,7 @@ import {
 	convertToNumber,
 	AMM_RESERVE_PRECISION,
 	unstakeSharesToAmount,
+	MarketStatus,
 } from '../sdk/src';
 
 import {
@@ -111,6 +112,7 @@ describe('insurance fund stake', () => {
 			undefined,
 			1000
 		);
+		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
 		await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
 		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
 

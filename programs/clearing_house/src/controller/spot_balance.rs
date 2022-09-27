@@ -283,7 +283,10 @@ pub fn update_spot_position_balance_with_limits(
     )?;
 
     validate!(
-        spot_market.status != MarketStatus::WithdrawPaused,
+        !matches!(
+            spot_market.status,
+            MarketStatus::WithdrawPaused | MarketStatus::Initialized | MarketStatus::Delisted
+        ),
         ErrorCode::DailyWithdrawLimit,
         "Spot Market withdraws are currently paused"
     )?;
@@ -428,7 +431,7 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             open_interest: 1,
-            status: MarketStatus::Initialized,
+            status: MarketStatus::Active,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -447,6 +450,8 @@ mod test {
             deposit_balance: SPOT_BALANCE_PRECISION,
             borrow_balance: 0,
             deposit_token_twap: QUOTE_PRECISION / 2,
+            status: MarketStatus::Active,
+
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -464,6 +469,8 @@ mod test {
             deposit_balance: SPOT_BALANCE_PRECISION,
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            status: MarketStatus::Active,
+
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
@@ -761,7 +768,7 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             open_interest: 1,
-            status: MarketStatus::Initialized,
+            status: MarketStatus::Active,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -783,6 +790,7 @@ mod test {
             optimal_utilization: SPOT_UTILIZATION_PRECISION / 2,
             optimal_borrow_rate: SPOT_RATE_PRECISION * 20,
             max_borrow_rate: SPOT_RATE_PRECISION * 50,
+            status: MarketStatus::Active,
             ..SpotMarket::default()
         };
 
@@ -802,6 +810,7 @@ mod test {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             revenue_settle_period: 1,
+            status: MarketStatus::Active,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);

@@ -121,6 +121,7 @@ pub mod clearing_house {
         maintenance_liability_weight: u128,
         imf_factor: u128,
         liquidation_fee: u128,
+        active_status: bool,
     ) -> Result<()> {
         let state = &mut ctx.accounts.state;
         let spot_market_pubkey = ctx.accounts.spot_market.key();
@@ -152,108 +153,56 @@ pub mod clearing_house {
 
         let (historical_oracle_data_default, historical_index_data_default) =
             if spot_market_index == 0 {
+                validate!(
+                    ctx.accounts.oracle.key == &Pubkey::default(),
+                    ErrorCode::InvalidSpotMarketInitialization,
+                    "For quote asset spot market, oracle must be default public key"
+                )?;
+
+                validate!(
+                    oracle_source == OracleSource::QuoteAsset,
+                    ErrorCode::InvalidSpotMarketInitialization,
+                    "For quote asset spot market, oracle source must be QuoteAsset"
+                )?;
+
+                validate!(
+                    ctx.accounts.spot_market_mint.decimals == 6,
+                    ErrorCode::InvalidSpotMarketInitialization,
+                    "For quote asset spot market, mint decimals must be 6"
+                )?;
+
                 (
                     HistoricalOracleData::default_quote_oracle(),
                     HistoricalIndexData::default_quote_oracle(),
                 )
             } else {
+                validate!(
+                    ctx.accounts.spot_market_mint.decimals >= 6,
+                    ErrorCode::InvalidSpotMarketInitialization,
+                    "Mint decimals must be greater than or equal to 6"
+                )?;
+
+                validate!(
+                    oracle_price_data.is_ok(),
+                    ErrorCode::InvalidSpotMarketInitialization,
+                    "Unable to read oracle price for {}",
+                    ctx.accounts.oracle.key,
+                )?;
+
                 (
                     HistoricalOracleData::default_with_current_oracle(oracle_price_data?),
                     HistoricalIndexData::default_with_current_oracle(oracle_price_data?),
                 )
             };
 
-        if spot_market_index == 0 {
-            validate!(
-                initial_asset_weight == SPOT_WEIGHT_PRECISION,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "For quote asset spot market, initial asset weight must be {}",
-                SPOT_WEIGHT_PRECISION
-            )?;
-
-            validate!(
-                maintenance_asset_weight == SPOT_WEIGHT_PRECISION,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "For quote asset spot market, maintenance asset weight must be {}",
-                SPOT_WEIGHT_PRECISION
-            )?;
-
-            validate!(
-                initial_liability_weight == SPOT_WEIGHT_PRECISION,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "For quote asset spot market, initial liability weight must be {}",
-                SPOT_WEIGHT_PRECISION
-            )?;
-
-            validate!(
-                maintenance_liability_weight == SPOT_WEIGHT_PRECISION,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "For quote asset spot market, maintenance liability weight must be {}",
-                SPOT_WEIGHT_PRECISION
-            )?;
-
-            validate!(
-                ctx.accounts.oracle.key == &Pubkey::default(),
-                ErrorCode::InvalidSpotMarketInitialization,
-                "For quote asset spot market, oracle must be default public key"
-            )?;
-
-            validate!(
-                oracle_source == OracleSource::QuoteAsset,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "For quote asset spot market, oracle source must be QuoteAsset"
-            )?;
-
-            validate!(
-                ctx.accounts.spot_market_mint.decimals == 6,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "For quote asset spot market, mint decimals must be 6"
-            )?;
-        } else {
-            validate!(
-                initial_asset_weight < SPOT_WEIGHT_PRECISION,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "Initial asset weight must be less than {}",
-                SPOT_WEIGHT_PRECISION
-            )?;
-
-            validate!(
-                initial_asset_weight <= maintenance_asset_weight
-                    && maintenance_asset_weight > 0
-                    && maintenance_asset_weight < SPOT_WEIGHT_PRECISION,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "Maintenance asset weight must be between 0 {}",
-                SPOT_WEIGHT_PRECISION
-            )?;
-
-            validate!(
-                initial_liability_weight > SPOT_WEIGHT_PRECISION,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "Initial liability weight must be greater than {}",
-                SPOT_WEIGHT_PRECISION
-            )?;
-
-            validate!(
-                initial_liability_weight <= maintenance_liability_weight
-                    && maintenance_liability_weight > SPOT_WEIGHT_PRECISION,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "Maintenance liability weight must be greater than {}",
-                SPOT_WEIGHT_PRECISION
-            )?;
-
-            validate!(
-                ctx.accounts.spot_market_mint.decimals >= 6,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "Mint decimals must be greater than or equal to 6"
-            )?;
-
-            validate!(
-                oracle_price_data.is_ok(),
-                ErrorCode::InvalidSpotMarketInitialization,
-                "Unable to read oracle price for {}",
-                ctx.accounts.oracle.key,
-            )?;
-        }
+        validate_margin_weights(
+            spot_market_index,
+            initial_asset_weight,
+            maintenance_asset_weight,
+            initial_liability_weight,
+            maintenance_liability_weight,
+            imf_factor,
+        )?;
 
         let spot_market = &mut ctx.accounts.spot_market.load_init()?;
         let clock = Clock::get()?;
@@ -265,7 +214,11 @@ pub mod clearing_house {
         **spot_market = SpotMarket {
             market_index: spot_market_index,
             pubkey: spot_market_pubkey,
-            status: MarketStatus::Initialized,
+            status: if active_status {
+                MarketStatus::Active
+            } else {
+                MarketStatus::Initialized
+            },
             asset_tier: AssetTier::Collateral,
             expiry_ts: 0,
             oracle: ctx.accounts.oracle.key(),
@@ -441,6 +394,7 @@ pub mod clearing_house {
         margin_ratio_initial: u32,
         margin_ratio_maintenance: u32,
         liquidation_fee: u128,
+        active_status: bool,
     ) -> Result<()> {
         let market_pubkey = ctx.accounts.market.to_account_info().key;
         let market = &mut ctx.accounts.market.load_init()?;
@@ -512,16 +466,19 @@ pub mod clearing_house {
         let market_index = state.number_of_markets;
         **market = PerpMarket {
             contract_type: ContractType::Perpetual,
-            contract_tier: ContractTier::Speculative,
-            status: MarketStatus::Initialized,
+            contract_tier: ContractTier::Speculative, // default
+            status: if active_status {
+                MarketStatus::Active
+            } else {
+                MarketStatus::Initialized
+            },
             settlement_price: 0,
             expiry_ts: 0,
             pubkey: *market_pubkey,
             market_index,
+            open_interest: 0,
             base_asset_amount_long: 0,
             base_asset_amount_short: 0,
-            // base_asset_amount: 0,
-            open_interest: 0,
             margin_ratio_initial, // unit is 20% (+2 decimal places)
             margin_ratio_maintenance,
             imf_factor: 0,
@@ -3015,7 +2972,7 @@ pub mod clearing_house {
 
         validate!(
             max_revenue_withdraw_per_period <= max_insurance_for_tier
-                && unrealized_max_imbalance <= max_insurance_for_tier
+                && unrealized_max_imbalance <= max_insurance_for_tier + 1
                 && quote_max_insurance <= max_insurance_for_tier,
             ErrorCode::DefaultError,
             "all maxs must be less than max_insurance for ContractTier ={}",

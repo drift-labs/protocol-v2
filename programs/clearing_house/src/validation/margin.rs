@@ -101,7 +101,7 @@ pub fn validate_margin_weights(
         )?;
 
         validate!(
-            initial_liability_weight <= maintenance_liability_weight
+            initial_liability_weight >= maintenance_liability_weight
                 && maintenance_liability_weight > SPOT_WEIGHT_PRECISION,
             ErrorCode::InvalidSpotMarketInitialization,
             "Maintenance liability weight must be greater than {}",

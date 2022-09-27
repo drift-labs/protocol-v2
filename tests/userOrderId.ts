@@ -90,6 +90,7 @@ describe('user order id', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
+		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
 
 		await clearingHouse.initializeMarket(
 			btcUsd,
@@ -98,6 +99,7 @@ describe('user order id', () => {
 			periodicity,
 			new BN(60000000) // btc-ish price level
 		);
+		await clearingHouse.updatePerpMarketStatus(new BN(1), MarketStatus.ACTIVE);
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,

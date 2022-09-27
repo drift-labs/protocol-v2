@@ -8,6 +8,7 @@ import {
 	QUOTE_PRECISION,
 	ZERO,
 	OracleGuardRails,
+	ContractTier,
 } from '../sdk';
 import { assert } from 'chai';
 
@@ -104,6 +105,7 @@ describe('liquidate perp and lp', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
+		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -283,6 +285,7 @@ describe('liquidate perp and lp', () => {
 			assert(err.message.includes('0x17de'));
 		}
 
+		await clearingHouse.updatePerpMarketContractTier(new BN(0), ContractTier.A);
 		const tx1 = await clearingHouse.updateMarketMaxImbalances(
 			new BN(marketIndex),
 			new BN(40000).mul(QUOTE_PRECISION),
