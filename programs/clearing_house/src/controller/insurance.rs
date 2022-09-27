@@ -532,7 +532,7 @@ pub fn settle_revenue_to_insurance_fund(
                 .checked_div(
                     cast_to_u64(ONE_YEAR)?
                         .checked_div(cast_to_u64(spot_market.revenue_settle_period)?)
-                        .ok_or_else(math_error!())?
+                        .ok_or_else(math_error!())?,
                 )
                 .ok_or_else(math_error!())?,
         )?;
