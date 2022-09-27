@@ -27,19 +27,10 @@ pub mod delisting_test {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION,
-        AMM_RESERVE_PRECISION_I128,
-        AMM_TO_QUOTE_PRECISION_RATIO_I128,
-        BASE_PRECISION,
-        BASE_PRECISION_I128,
-        PEG_PRECISION,
-        PRICE_PRECISION,
-        PRICE_PRECISION_I128,
-        QUOTE_PRECISION_I128,
-        SPOT_BALANCE_PRECISION,
-        //  QUOTE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
+        BASE_PRECISION, BASE_PRECISION_I128, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128,
+        PRICE_PRECISION_U64, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION,
+        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{MarketStatus, PerpMarket, PoolBalance, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
@@ -728,7 +719,7 @@ pub mod delisting_test {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -975,7 +966,7 @@ pub mod delisting_test {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -1225,7 +1216,7 @@ pub mod delisting_test {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -1459,7 +1450,7 @@ pub mod delisting_test {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -1489,7 +1480,7 @@ pub mod delisting_test {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 100 * PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1800,7 +1791,7 @@ pub mod delisting_test {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -1830,7 +1821,7 @@ pub mod delisting_test {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 100 * PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -2178,7 +2169,7 @@ pub mod delisting_test {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -2208,7 +2199,7 @@ pub mod delisting_test {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 100 * PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {

@@ -29,7 +29,7 @@ use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::auction::{calculate_auction_end_price, is_auction_complete};
-use crate::math::casting::{cast, cast_to_i128};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
 use crate::math::constants::{PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
@@ -171,7 +171,7 @@ pub fn place_order(
     let (auction_start_price, auction_end_price) = if let OrderType::Market = params.order_type {
         let auction_start_price = match params.auction_start_price {
             Some(auction_price) => auction_price,
-            None => oracle_price_data.price.unsigned_abs(),
+            None => cast_to_u64(oracle_price_data.price)?,
         };
 
         let auction_end_price = if params.price == 0 {
@@ -181,7 +181,7 @@ pub fn place_order(
         };
         (auction_start_price, auction_end_price)
     } else {
-        (0_u128, 0_u128)
+        (0_u64, 0_u64)
     };
 
     validate!(
@@ -1908,8 +1908,10 @@ pub fn trigger_order(
         "Auction duration must elapse before triggering"
     )?;
 
-    let can_trigger =
-        order_satisfies_trigger_condition(&user.orders[order_index], oracle_price.unsigned_abs());
+    let can_trigger = order_satisfies_trigger_condition(
+        &user.orders[order_index],
+        cast(oracle_price.unsigned_abs())?,
+    );
     validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
 
     {
@@ -1920,7 +1922,7 @@ pub fn trigger_order(
         user.orders[order_index].slot = slot;
         let order_type = user.orders[order_index].order_type;
         if let OrderType::TriggerMarket = order_type {
-            let auction_start_price = oracle_price_data.price.unsigned_abs();
+            let auction_start_price = cast_to_u64(oracle_price_data.price.unsigned_abs())?;
             let auction_end_price = calculate_auction_end_price(oracle_price_data, direction)?;
             user.orders[order_index].auction_start_price = auction_start_price;
             user.orders[order_index].auction_end_price = auction_end_price;
@@ -2131,7 +2133,7 @@ pub fn place_spot_order(
     let (auction_start_price, auction_end_price) = if let OrderType::Market = params.order_type {
         let auction_start_price = match params.auction_start_price {
             Some(auction_start_price) => auction_start_price,
-            None => oracle_price_data.price.unsigned_abs(),
+            None => cast_to_u64(oracle_price_data.price.unsigned_abs())?,
         };
 
         let auction_end_price = if params.price == 0 {
@@ -2141,7 +2143,7 @@ pub fn place_spot_order(
         };
         (auction_start_price, auction_end_price)
     } else {
-        (0_u128, 0_u128)
+        (0_u64, 0_u64)
     };
 
     validate!(
@@ -3432,8 +3434,10 @@ pub fn trigger_spot_order(
         "Auction duration must elapse before triggering"
     )?;
 
-    let can_trigger =
-        order_satisfies_trigger_condition(&user.orders[order_index], oracle_price.unsigned_abs());
+    let can_trigger = order_satisfies_trigger_condition(
+        &user.orders[order_index],
+        cast(oracle_price.unsigned_abs())?,
+    );
     validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
 
     {
@@ -3444,7 +3448,7 @@ pub fn trigger_spot_order(
         user.orders[order_index].slot = slot;
         let order_type = user.orders[order_index].order_type;
         if let OrderType::TriggerMarket = order_type {
-            let auction_start_price = oracle_price_data.price.unsigned_abs();
+            let auction_start_price = cast_to_u64(oracle_price_data.price.unsigned_abs())?;
             let auction_end_price =
                 calculate_auction_end_price(oracle_price_data, order_direction)?;
             user.orders[order_index].auction_start_price = auction_start_price;

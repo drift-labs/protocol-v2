@@ -1,6 +1,6 @@
 use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
-use crate::math::casting::cast;
+use crate::math::casting::{cast, cast_to_u64};
 use crate::math::constants::{BID_ASK_SPREAD_PRECISION, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
 use crate::math_error;
 use crate::state::oracle::OraclePriceData;
@@ -11,7 +11,7 @@ use std::cmp::min;
 pub fn calculate_auction_end_price(
     oracle_price: &OraclePriceData,
     direction: PositionDirection,
-) -> ClearingHouseResult<u128> {
+) -> ClearingHouseResult<u64> {
     let numerator = match direction {
         PositionDirection::Long => {
             BID_ASK_SPREAD_PRECISION + BID_ASK_SPREAD_PRECISION / 100 // 1%
@@ -19,16 +19,18 @@ pub fn calculate_auction_end_price(
         PositionDirection::Short => BID_ASK_SPREAD_PRECISION - BID_ASK_SPREAD_PRECISION / 100,
     };
 
-    oracle_price
-        .price
-        .unsigned_abs()
-        .checked_mul(numerator)
-        .ok_or_else(math_error!())?
-        .checked_div(BID_ASK_SPREAD_PRECISION)
-        .ok_or_else(math_error!())
+    cast_to_u64(
+        oracle_price
+            .price
+            .unsigned_abs()
+            .checked_mul(numerator)
+            .ok_or_else(math_error!())?
+            .checked_div(BID_ASK_SPREAD_PRECISION)
+            .ok_or_else(math_error!())?,
+    )
 }
 
-pub fn calculate_auction_price(order: &Order, slot: u64) -> ClearingHouseResult<u128> {
+pub fn calculate_auction_price(order: &Order, slot: u64) -> ClearingHouseResult<u64> {
     let slots_elapsed = slot.checked_sub(order.slot).ok_or_else(math_error!())?;
 
     let delta_numerator = min(slots_elapsed, cast(order.auction_duration)?);
@@ -74,7 +76,7 @@ pub fn calculate_auction_price(order: &Order, slot: u64) -> ClearingHouseResult<
 pub fn does_auction_satisfy_maker_order(
     maker_order: &Order,
     taker_order: &Order,
-    auction_price: u128,
+    auction_price: u64,
 ) -> bool {
     // TODO more conditions to check?
     if maker_order.direction == taker_order.direction

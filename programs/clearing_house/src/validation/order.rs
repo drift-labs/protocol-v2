@@ -210,8 +210,7 @@ fn validate_trigger_limit_order(
         }
     }
 
-    let approximate_market_value = order
-        .price
+    let approximate_market_value = (order.price as u128)
         .checked_mul(order.base_asset_amount)
         .unwrap_or(u128::MAX)
         .div(AMM_RESERVE_PRECISION)
@@ -252,8 +251,7 @@ fn validate_trigger_market_order(
         return Err(ErrorCode::InvalidOrder);
     }
 
-    let approximate_market_value = order
-        .trigger_price
+    let approximate_market_value = (order.trigger_price as u128)
         .checked_mul(order.base_asset_amount)
         .unwrap_or(u128::MAX)
         .div(AMM_RESERVE_PRECISION)

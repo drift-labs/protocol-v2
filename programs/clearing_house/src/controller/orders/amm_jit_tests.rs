@@ -33,12 +33,12 @@ pub mod amm_jit {
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
-    use crate::math::constants::CONCENTRATION_PRECISION;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, PEG_PRECISION, PRICE_PRECISION,
         QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
+    use crate::math::constants::{CONCENTRATION_PRECISION, PRICE_PRECISION_U64};
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::perp_market_map::PerpMarketMap;
@@ -128,7 +128,7 @@ pub mod amm_jit {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -155,7 +155,7 @@ pub mod amm_jit {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 100 * PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -304,7 +304,7 @@ pub mod amm_jit {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -331,7 +331,7 @@ pub mod amm_jit {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION * 2, // maker wants full = amm wants BASE_PERCISION
                 ts: 0,
-                price: 100 * PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -479,7 +479,7 @@ pub mod amm_jit {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -506,7 +506,7 @@ pub mod amm_jit {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION * 2, // maker wants full = amm wants BASE_PERCISION
                 ts: 0,
-                price: 100 * PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -649,7 +649,7 @@ pub mod amm_jit {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -676,7 +676,7 @@ pub mod amm_jit {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 100 * PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -822,7 +822,7 @@ pub mod amm_jit {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -849,7 +849,7 @@ pub mod amm_jit {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 100 * PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1022,7 +1022,7 @@ pub mod amm_jit {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
 
                 ..Order::default()
@@ -1050,7 +1050,7 @@ pub mod amm_jit {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 100 * PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1224,7 +1224,7 @@ pub mod amm_jit {
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 50, // !! amm will bid before the ask spread price
                 ..Order::default()
             }),
@@ -1251,7 +1251,7 @@ pub mod amm_jit {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 10 * PRICE_PRECISION,
+                price: 10 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1426,7 +1426,7 @@ pub mod amm_jit {
                 ts: 0,
                 slot: 0,
                 auction_end_price: 0,
-                auction_start_price: 200 * PRICE_PRECISION,
+                auction_start_price: 200 * PRICE_PRECISION_U64,
                 auction_duration: 50, // !! amm will bid before the ask spread price
                 ..Order::default()
             }),
@@ -1453,7 +1453,7 @@ pub mod amm_jit {
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION / 2,
                 ts: 0,
-                price: 200 * PRICE_PRECISION,
+                price: 200 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1656,8 +1656,8 @@ pub mod amm_jit {
             ..User::default()
         };
 
-        let auction_start_price = 95062500_u128;
-        let auction_end_price = 132154089_u128;
+        let auction_start_price = 95062500_u64;
+        let auction_end_price = 132154089_u64;
         taker.orders[0].auction_start_price = auction_start_price;
         taker.orders[0].auction_end_price = auction_end_price;
         println!("start stop {} {}", auction_start_price, auction_end_price);
@@ -1718,7 +1718,7 @@ pub mod amm_jit {
                     0,
                     mark,
                     now,
-                    Some(auction_price),
+                    Some(auction_price as u128),
                 )
                 .unwrap();
 
@@ -1988,7 +1988,7 @@ pub mod amm_jit {
                     0,
                     mark,
                     now,
-                    Some(auction_price),
+                    Some(auction_price as u128),
                 )
                 .unwrap();
 

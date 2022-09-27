@@ -306,7 +306,7 @@ pub fn order_breaches_oracle_price_limits(
     }
 }
 
-pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u128) -> bool {
+pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u64) -> bool {
     match order.trigger_condition {
         OrderTriggerCondition::Above => oracle_price > order.trigger_price,
         OrderTriggerCondition::Below => oracle_price < order.trigger_price,
@@ -582,7 +582,7 @@ mod test {
 
     mod order_breaches_oracle_price_limits {
         use crate::controller::position::PositionDirection;
-        use crate::math::constants::{MARGIN_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128};
+        use crate::math::constants::{MARGIN_PRECISION, PRICE_PRECISION_I128, PRICE_PRECISION_U64};
         use crate::math::orders::order_breaches_oracle_price_limits;
         use crate::state::market::PerpMarket;
         use crate::state::user::Order;
@@ -595,7 +595,7 @@ mod test {
             };
 
             let order = Order {
-                price: 101 * PRICE_PRECISION,
+                price: 101 * PRICE_PRECISION_U64,
                 ..Order::default()
             };
 
@@ -626,7 +626,7 @@ mod test {
             };
 
             let order = Order {
-                price: 105 * PRICE_PRECISION - 1,
+                price: 105 * PRICE_PRECISION_U64 - 1,
                 ..Order::default()
             };
 
@@ -659,7 +659,7 @@ mod test {
 
             let order = Order {
                 direction: PositionDirection::Long,
-                price: 105 * PRICE_PRECISION,
+                price: 105 * PRICE_PRECISION_U64,
                 ..Order::default()
             };
 
@@ -692,7 +692,7 @@ mod test {
 
             let order = Order {
                 direction: PositionDirection::Short,
-                price: 99 * PRICE_PRECISION,
+                price: 99 * PRICE_PRECISION_U64,
                 ..Order::default()
             };
 
@@ -725,7 +725,7 @@ mod test {
 
             let order = Order {
                 direction: PositionDirection::Short,
-                price: 95 * PRICE_PRECISION + 1,
+                price: 95 * PRICE_PRECISION_U64 + 1,
                 ..Order::default()
             };
 
@@ -758,7 +758,7 @@ mod test {
 
             let order = Order {
                 direction: PositionDirection::Short,
-                price: 95 * PRICE_PRECISION,
+                price: 95 * PRICE_PRECISION_U64,
                 ..Order::default()
             };
 

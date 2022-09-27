@@ -402,7 +402,7 @@ pub struct Order {
     pub order_id: u64,
     pub user_order_id: u8,
     pub market_index: u16,
-    pub price: u128,
+    pub price: u64,
     pub existing_position_direction: PositionDirection,
     pub base_asset_amount: u128,
     pub base_asset_amount_filled: u128,
@@ -412,12 +412,12 @@ pub struct Order {
     pub reduce_only: bool,
     pub post_only: bool,
     pub immediate_or_cancel: bool,
-    pub trigger_price: u128,
+    pub trigger_price: u64,
     pub trigger_condition: OrderTriggerCondition,
     pub triggered: bool,
-    pub oracle_price_offset: i128,
-    pub auction_start_price: u128,
-    pub auction_end_price: u128,
+    pub oracle_price_offset: i64,
+    pub auction_start_price: u64,
+    pub auction_end_price: u64,
     pub auction_duration: u8,
     pub time_in_force: u8,
 }
@@ -443,7 +443,7 @@ impl Order {
         let price = if self.has_oracle_price_offset() {
             if let Some(oracle_price) = valid_oracle_price {
                 let limit_price = oracle_price
-                    .checked_add(self.oracle_price_offset)
+                    .checked_add(self.oracle_price_offset as i128)
                     .ok_or_else(math_error!())?;
 
                 if limit_price <= 0 {
@@ -461,9 +461,9 @@ impl Order {
             OrderType::Market | OrderType::TriggerMarket
         ) {
             if !is_auction_complete(self.slot, self.auction_duration, slot)? {
-                calculate_auction_price(self, slot)?
+                calculate_auction_price(self, slot)? as u128
             } else if self.price != 0 {
-                self.price
+                self.price as u128
             } else {
                 match amm {
                     Some(amm) => match self.direction {
@@ -504,7 +504,7 @@ impl Order {
                 }
             }
         } else {
-            self.price
+            self.price as u128
         };
 
         Ok(price)
