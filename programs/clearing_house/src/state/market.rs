@@ -51,7 +51,7 @@ impl Default for ContractType {
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(packed)]
 pub struct PerpMarket {
-    pub market_index: u64,
+    pub market_index: u16,
     pub pubkey: Pubkey,
     pub status: MarketStatus,
     pub contract_type: ContractType,

@@ -64,7 +64,7 @@ describe('amm spread: market order', () => {
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
-	const marketIndex = new BN(0);
+	const marketIndex = 0;
 	let solUsd;
 
 	before(async () => {
@@ -73,8 +73,8 @@ describe('amm spread: market order', () => {
 
 		solUsd = await mockOracle(1);
 
-		const marketIndexes = [new BN(0)];
-		const spotMarketIndexes = [new BN(0)];
+		const marketIndexes = [0];
+		const spotMarketIndexes = [0];
 		const oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		clearingHouse = new Admin({
@@ -120,7 +120,7 @@ describe('amm spread: market order', () => {
 
 	beforeEach(async () => {
 		await clearingHouse.moveAmmPrice(
-			ZERO,
+			0,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve
 		);
@@ -610,7 +610,7 @@ describe('amm spread: market order', () => {
 
 	it('Long market order base w/ variable reduce/close', async () => {
 		const marketIndex2Num = 1;
-		const marketIndex2 = new BN(marketIndex2Num);
+		const marketIndex2 = marketIndex2Num;
 		const peg = 40000;
 		const btcUsd = await mockOracle(peg);
 

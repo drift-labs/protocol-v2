@@ -126,7 +126,7 @@ pub fn settle_funding_payments(
 
 #[allow(clippy::comparison_chain)]
 pub fn update_funding_rate(
-    market_index: u64,
+    market_index: u16,
     market: &mut PerpMarket,
     oracle_map: &mut OracleMap,
     now: UnixTimestamp,

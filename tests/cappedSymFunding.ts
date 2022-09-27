@@ -35,7 +35,7 @@ import { BASE_PRECISION, OracleSource } from '../sdk';
 
 async function updateFundingRateHelper(
 	clearingHouse: ClearingHouse,
-	marketIndex: BN,
+	marketIndex: number,
 	priceFeedAddress: PublicKey,
 	prices: Array<number>
 ) {
@@ -185,7 +185,7 @@ async function cappedSymFundingScenario(
 	userAccount: ClearingHouseUser,
 	clearingHouse2: ClearingHouse,
 	userAccount2: ClearingHouseUser,
-	marketIndex: BN,
+	marketIndex: number,
 	kSqrt: BN,
 	priceAction: Array<number>,
 	longShortSizes: Array<number>,
@@ -231,7 +231,7 @@ async function cappedSymFundingScenario(
 	}
 	await clearingHouse.fetchAccounts();
 
-	const oracleData = clearingHouse.getOracleDataForMarket(new BN(0));
+	const oracleData = clearingHouse.getOracleDataForMarket(0);
 	console.log(
 		'PRICE',
 		convertToNumber(
@@ -275,7 +275,7 @@ async function cappedSymFundingScenario(
 	console.log(
 		'userAccount.getTotalPositionValue():',
 		userAccount.getTotalPerpPositionValue().toString(),
-		uA.perpPositions[0].marketIndex.toNumber(),
+		uA.perpPositions[0].marketIndex,
 		':',
 		uA.perpPositions[0].baseAssetAmount.toString(),
 		'/',
@@ -287,7 +287,7 @@ async function cappedSymFundingScenario(
 	console.log(
 		'userAccount2.getTotalPositionValue():',
 		userAccount2.getTotalPerpPositionValue().toString(),
-		uA2.perpPositions[0].marketIndex.toNumber(),
+		uA2.perpPositions[0].marketIndex,
 		':',
 		uA2.perpPositions[0].baseAssetAmount.toString(),
 		'/',
@@ -463,8 +463,8 @@ describe('capped funding', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		const spotMarketIndexes = [new BN(0)];
-		const marketIndexes = Array.from({ length: 15 }, (_, i) => new BN(i));
+		const spotMarketIndexes = [0];
+		const marketIndexes = Array.from({ length: 15 }, (_, i) => i);
 		clearingHouse = new Admin({
 			connection,
 			wallet: provider.wallet,
@@ -521,7 +521,7 @@ describe('capped funding', () => {
 	});
 
 	it('capped sym funding: ($1 long, $200 short, oracle < mark)', async () => {
-		const marketIndex = new BN(rollingMarketNum);
+		const marketIndex = rollingMarketNum;
 		rollingMarketNum += 1;
 		const [
 			fundingRateLong,
@@ -578,7 +578,7 @@ describe('capped funding', () => {
 	});
 
 	it('capped sym funding: ($0 long, $200 short, oracle < mark)', async () => {
-		const marketIndex = new BN(rollingMarketNum);
+		const marketIndex = rollingMarketNum;
 		rollingMarketNum += 1;
 
 		const [
@@ -637,7 +637,7 @@ describe('capped funding', () => {
 	it('capped sym funding: ($1 long, $200 short, oracle > mark)', async () => {
 		// symmetric is taking fees
 
-		const marketIndex = new BN(rollingMarketNum);
+		const marketIndex = rollingMarketNum;
 		rollingMarketNum += 1;
 
 		const [
@@ -694,7 +694,7 @@ describe('capped funding', () => {
 		);
 	});
 	it('capped sym funding: ($200 long, $1 short, oracle > mark)', async () => {
-		const marketIndex = new BN(rollingMarketNum);
+		const marketIndex = rollingMarketNum;
 		rollingMarketNum += 1;
 
 		const [
@@ -755,7 +755,7 @@ describe('capped funding', () => {
 		);
 	});
 	it('capped sym funding: ($2000 long, $1000 short, oracle > mark), clamped to ~3.03% price spread', async () => {
-		const marketIndex = new BN(rollingMarketNum);
+		const marketIndex = rollingMarketNum;
 		rollingMarketNum += 1;
 
 		const [
@@ -854,7 +854,7 @@ describe('capped funding', () => {
 		);
 	});
 	it('capped sym funding: ($20000 long, $1000 short, oracle > mark), clamped to ~3.03% price spread, fee pool drain', async () => {
-		const marketIndex = new BN(rollingMarketNum);
+		const marketIndex = rollingMarketNum;
 		rollingMarketNum += 1;
 
 		const [
@@ -949,7 +949,7 @@ describe('capped funding', () => {
 		);
 	});
 	it('capped sym funding: ($2000 long, $1000 short, oracle > mark)', async () => {
-		const marketIndex = new BN(rollingMarketNum);
+		const marketIndex = rollingMarketNum;
 		rollingMarketNum += 1;
 
 		const [
@@ -1010,7 +1010,7 @@ describe('capped funding', () => {
 		);
 	});
 	it('capped sym funding: ($200 long, $0 short, oracle > mark)', async () => {
-		const marketIndex = new BN(rollingMarketNum);
+		const marketIndex = rollingMarketNum;
 		rollingMarketNum += 1;
 
 		const [
@@ -1072,7 +1072,7 @@ describe('capped funding', () => {
 	});
 	it('capped sym funding: ($200 long, $1 short, oracle < mark)', async () => {
 		//symmetric is taking fees
-		const marketIndex = new BN(rollingMarketNum);
+		const marketIndex = rollingMarketNum;
 		rollingMarketNum += 1;
 
 		const [

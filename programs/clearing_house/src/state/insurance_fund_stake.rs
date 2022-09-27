@@ -12,7 +12,7 @@ use anchor_lang::prelude::*;
 #[repr(packed)]
 pub struct InsuranceFundStake {
     pub authority: Pubkey,
-    pub market_index: u64,
+    pub market_index: u16,
 
     if_shares: u128,
 
@@ -27,7 +27,7 @@ pub struct InsuranceFundStake {
 }
 
 impl InsuranceFundStake {
-    pub fn new(authority: Pubkey, market_index: u64, now: i64) -> Self {
+    pub fn new(authority: Pubkey, market_index: u16, now: i64) -> Self {
         InsuranceFundStake {
             authority,
             market_index,
