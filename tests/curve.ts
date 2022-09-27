@@ -7,7 +7,7 @@ import {
 	PRICE_PRECISION,
 	PEG_PRECISION,
 	QUOTE_PRECISION,
-	calculateMarkPrice,
+	calculateReservePrice,
 	calculateTargetPriceTrade,
 	ClearingHouseUser,
 	PositionDirection,
@@ -130,7 +130,7 @@ describe('AMM Curve', () => {
 
 	const showBook = (marketIndex) => {
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		const currentMark = calculateMarkPrice(market);
+		const currentMark = calculateReservePrice(market);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
 			market,
@@ -226,14 +226,14 @@ describe('AMM Curve', () => {
 		);
 		// showBook(marketIndex);
 
-		const priceBefore = calculateMarkPrice(
+		const priceBefore = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 		await clearingHouse.repegAmmCurve(
 			new BN(150.001 * PEG_PRECISION.toNumber()),
 			marketIndex
 		);
-		const priceAfter = calculateMarkPrice(
+		const priceAfter = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 

@@ -2,7 +2,7 @@ import { BN } from '@project-serum/anchor';
 import {
 	PRICE_PRECISION,
 	PerpMarketAccount,
-	calculateMarkPrice,
+	calculateReservePrice,
 	calculateTargetPriceTrade,
 	ZERO,
 } from '../sdk/src';
@@ -21,7 +21,7 @@ export function liquidityBook(
 	incrementSize = 0.1
 ) {
 	const defaultSlippageBN = new BN(incrementSize * PRICE_PRECISION.toNumber());
-	const baseAssetPriceWithMantissa = calculateMarkPrice(market);
+	const baseAssetPriceWithMantissa = calculateReservePrice(market);
 	const bidsPrice = [];
 	const bidsCumSize = [];
 	const asksPrice = [];

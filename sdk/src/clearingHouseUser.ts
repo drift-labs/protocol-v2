@@ -29,7 +29,7 @@ import {
 	DataAndSlot,
 } from './accounts/types';
 import {
-	calculateMarkPrice,
+	calculateReservePrice,
 	calculateBaseAssetValue,
 	calculatePositionFundingPNL,
 	calculatePositionPNL,
@@ -849,7 +849,7 @@ export class ClearingHouseUser {
 
 		if (amountToClose) {
 			if (amountToClose.eq(ZERO)) {
-				return [calculateMarkPrice(market, oraclePriceData), ZERO];
+				return [calculateReservePrice(market, oraclePriceData), ZERO];
 			}
 			position = {
 				baseAssetAmount: amountToClose,
@@ -1180,7 +1180,7 @@ export class ClearingHouseUser {
 
 		let markPriceAfterTrade;
 		if (positionBaseSizeChange.eq(ZERO)) {
-			markPriceAfterTrade = calculateMarkPrice(
+			markPriceAfterTrade = calculateReservePrice(
 				this.clearingHouse.getPerpMarketAccount(perpPosition.marketIndex),
 				this.getOracleDataForMarket(perpPosition.marketIndex)
 			);

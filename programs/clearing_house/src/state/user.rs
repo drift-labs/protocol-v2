@@ -476,14 +476,14 @@ impl Order {
                 match amm {
                     Some(amm) => match self.direction {
                         PositionDirection::Long => {
-                            let ask_price = amm.ask_price(amm.mark_price()?)?;
+                            let ask_price = amm.ask_price(amm.reserve_price()?)?;
                             let delta = ask_price
                                 .checked_div(amm.max_slippage_ratio as u128)
                                 .ok_or_else(math_error!())?;
                             ask_price.checked_add(delta).ok_or_else(math_error!())?
                         }
                         PositionDirection::Short => {
-                            let bid_price = amm.bid_price(amm.mark_price()?)?;
+                            let bid_price = amm.bid_price(amm.reserve_price()?)?;
                             let delta = bid_price
                                 .checked_div(amm.max_slippage_ratio as u128)
                                 .ok_or_else(math_error!())?;

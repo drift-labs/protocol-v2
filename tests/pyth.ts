@@ -15,7 +15,7 @@ import {
 } from './testHelpers';
 
 import {
-	calculateMarkPrice,
+	calculateReservePrice,
 	PEG_PRECISION,
 	PositionDirection,
 	convertToNumber,
@@ -322,7 +322,7 @@ describe('pyth-oracle', () => {
 		console.log(
 			'PRICE',
 			convertToNumber(
-				calculateMarkPrice(clearingHouse.getPerpMarketAccount(marketIndex))
+				calculateReservePrice(clearingHouse.getPerpMarketAccount(marketIndex))
 			)
 		);
 
@@ -341,7 +341,7 @@ describe('pyth-oracle', () => {
 
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 
-		console.log('PRICE AFTER', convertToNumber(calculateMarkPrice(market)));
+		console.log('PRICE AFTER', convertToNumber(calculateReservePrice(market)));
 
 		await updateFundingRateHelper(
 			clearingHouse,

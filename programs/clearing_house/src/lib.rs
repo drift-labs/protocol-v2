@@ -449,13 +449,13 @@ pub mod clearing_house {
             return Err(ErrorCode::InvalidInitialPeg.into());
         }
 
-        let init_mark_price = amm::calculate_price(
+        let init_reserve_price = amm::calculate_price(
             amm_quote_asset_reserve,
             amm_base_asset_reserve,
             amm_peg_multiplier,
         )?;
 
-        assert_eq!(amm_peg_multiplier, init_mark_price);
+        assert_eq!(amm_peg_multiplier, init_reserve_price);
 
         let concentration_coef = MAX_CONCENTRATION_COEFFICIENT;
 
@@ -559,8 +559,8 @@ pub mod clearing_house {
                 last_funding_rate_short: 0,
                 last_funding_rate_ts: now,
                 funding_period: amm_periodicity,
-                last_mark_price_twap: init_mark_price,
-                last_mark_price_twap_5min: init_mark_price,
+                last_mark_price_twap: init_reserve_price,
+                last_mark_price_twap_5min: init_reserve_price,
                 last_mark_price_twap_ts: now,
                 sqrt_k: amm_base_asset_reserve,
                 concentration_coef,
@@ -585,7 +585,7 @@ pub mod clearing_house {
                 },
                 last_oracle_normalised_price: oracle_price,
                 last_oracle_conf_pct: 0,
-                last_oracle_mark_spread_pct: 0, // todo
+                last_oracle_reserve_price_spread_pct: 0, // todo
                 base_asset_amount_step_size: 1000,
                 max_slippage_ratio: 50,           // ~2%
                 max_base_asset_amount_ratio: 100, // moves price ~2%
@@ -593,8 +593,8 @@ pub mod clearing_house {
                 long_spread: 0,
                 short_spread: 0,
                 max_spread,
-                last_bid_price_twap: init_mark_price,
-                last_ask_price_twap: init_mark_price,
+                last_bid_price_twap: init_reserve_price,
+                last_ask_price_twap: init_reserve_price,
                 net_base_asset_amount: 0,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 0,

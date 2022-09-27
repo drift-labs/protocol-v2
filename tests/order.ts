@@ -38,7 +38,7 @@ import {
 } from './testHelpers';
 import {
 	AMM_RESERVE_PRECISION,
-	calculateMarkPrice,
+	calculateReservePrice,
 	findComputeUnitConsumption,
 	getMarketOrderParams,
 	isVariant,
@@ -348,7 +348,7 @@ describe('orders', () => {
 		const price = PRICE_PRECISION.add(PRICE_PRECISION.div(new BN(100)));
 		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 
-		console.log('markPrice:', calculateMarkPrice(market0).toString());
+		console.log('markPrice:', calculateReservePrice(market0).toString());
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
@@ -417,7 +417,7 @@ describe('orders', () => {
 		);
 
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		console.log('markPrice After:', calculateMarkPrice(market).toString());
+		console.log('markPrice After:', calculateReservePrice(market).toString());
 
 		const expectedFeeToMarket = new BN(900);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
@@ -474,7 +474,7 @@ describe('orders', () => {
 		const triggerCondition = OrderTriggerCondition.ABOVE;
 		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 
-		console.log('markPrice:', calculateMarkPrice(market0).toString());
+		console.log('markPrice:', calculateReservePrice(market0).toString());
 
 		const orderParams = getTriggerMarketOrderParams({
 			marketIndex,
@@ -557,7 +557,7 @@ describe('orders', () => {
 		);
 
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		console.log('markPrice after:', calculateMarkPrice(market).toString());
+		console.log('markPrice after:', calculateReservePrice(market).toString());
 
 		const expectedFeeToMarket = new BN(1800);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
@@ -613,7 +613,7 @@ describe('orders', () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		const limitPrice = calculateMarkPrice(market); // 0 liquidity at current mark price
+		const limitPrice = calculateReservePrice(market); // 0 liquidity at current mark price
 		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
@@ -670,14 +670,14 @@ describe('orders', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		await clearingHouse.fetchAccounts();
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		const limitPrice = calculateMarkPrice(market).sub(new BN(1)); // 0 liquidity at current mark price
+		const limitPrice = calculateReservePrice(market).sub(new BN(1)); // 0 liquidity at current mark price
 		const [newDirection, amountToPrice, _entryPrice, newMarkPrice] =
 			calculateTargetPriceTrade(market, limitPrice, new BN(1000), 'base');
 		assert(!amountToPrice.eq(ZERO));
 		assert(newDirection == direction);
 
 		console.log(
-			convertToNumber(calculateMarkPrice(market)),
+			convertToNumber(calculateReservePrice(market)),
 			'then short @',
 			convertToNumber(limitPrice),
 			newDirection,
@@ -782,8 +782,9 @@ describe('orders', () => {
 		const direction = PositionDirection.SHORT;
 
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		const limitPrice = calculateMarkPrice(market); // 0 liquidity at current mark price
+		const limitPrice = calculateReservePrice(market); // 0 liquidity at current mark price
 		const baseAssetAmount = new BN(27571723885);
+
 		//long 50 base amount at $1 with ~$10 collateral (max leverage = 5x)
 
 		const [newDirection, amountToPrice, _entryPrice, newMarkPrice] =
@@ -791,7 +792,7 @@ describe('orders', () => {
 		assert(amountToPrice.eq(ZERO)); // no liquidity now
 
 		console.log(
-			convertToNumber(calculateMarkPrice(market)),
+			convertToNumber(calculateReservePrice(market)),
 			'then short',
 			convertToNumber(baseAssetAmount, AMM_RESERVE_PRECISION),
 
@@ -866,7 +867,7 @@ describe('orders', () => {
 
 		const order1 = clearingHouseUser.getUserAccount().orders[0];
 		const newMarket1 = clearingHouse.getPerpMarketAccount(marketIndex);
-		const newMarkPrice1 = calculateMarkPrice(newMarket1); // 0 liquidity at current mark price
+		const newMarkPrice1 = calculateReservePrice(newMarket1); // 0 liquidity at current mark price
 
 		const userLeverage = clearingHouseUser.getLeverage();
 		console.log(
@@ -897,7 +898,7 @@ describe('orders', () => {
 		const direction = PositionDirection.LONG;
 
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		const limitPrice = calculateMarkPrice(market); // 0 liquidity at current mark price
+		const limitPrice = calculateReservePrice(market); // 0 liquidity at current mark price
 		const baseAssetAmount = prePosition.baseAssetAmount.abs(); //new BN(AMM_RESERVE_PRECISION.mul(new BN(50)));
 		//long 50 base amount at $1 with ~$10 collateral (max leverage = 5x)
 
@@ -906,7 +907,7 @@ describe('orders', () => {
 		assert(amountToPrice.eq(ZERO)); // no liquidity now
 
 		console.log(
-			convertToNumber(calculateMarkPrice(market)),
+			convertToNumber(calculateReservePrice(market)),
 			'then long',
 			convertToNumber(baseAssetAmount, AMM_RESERVE_PRECISION),
 
@@ -964,7 +965,7 @@ describe('orders', () => {
 
 		const orderPriceMove = clearingHouseUser.getUserAccount().orders[0];
 		const newMarketPriceMove = clearingHouse.getPerpMarketAccount(marketIndex);
-		const newMarkPricePriceMove = calculateMarkPrice(newMarketPriceMove);
+		const newMarkPricePriceMove = calculateReservePrice(newMarketPriceMove);
 
 		assert(clearingHouseUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
 		assert(
@@ -1009,7 +1010,7 @@ describe('orders', () => {
 
 		const order1 = clearingHouseUser.getUserAccount().orders[0];
 		const newMarket1 = clearingHouse.getPerpMarketAccount(marketIndex);
-		const newMarkPrice1 = calculateMarkPrice(newMarket1); // 0 liquidity at current mark price
+		const newMarkPrice1 = calculateReservePrice(newMarket1); // 0 liquidity at current mark price
 
 		const userLeverage = clearingHouseUser.getLeverage();
 		const postPosition = clearingHouseUser.getUserPosition(marketIndex);
@@ -1053,8 +1054,10 @@ describe('orders', () => {
 		const direction = PositionDirection.LONG;
 
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		const limitPrice = calculateMarkPrice(market); // 0 liquidity at current mark price
+
+		const limitPrice = calculateReservePrice(market); // 0 liquidity at current mark price
 		const baseAssetAmount = new BN(37711910000);
+
 		//long 50 base amount at $1 with ~$10 collateral (max leverage = 5x)
 
 		const [newDirection, amountToPrice, _entryPrice, newMarkPrice] =
@@ -1062,7 +1065,7 @@ describe('orders', () => {
 		assert(amountToPrice.eq(ZERO)); // no liquidity now
 
 		console.log(
-			convertToNumber(calculateMarkPrice(market)),
+			convertToNumber(calculateReservePrice(market)),
 			'then long',
 			convertToNumber(baseAssetAmount, AMM_RESERVE_PRECISION),
 
@@ -1137,7 +1140,7 @@ describe('orders', () => {
 
 		const order1 = clearingHouseUser.getUserAccount().orders[0];
 		const newMarket1 = clearingHouse.getPerpMarketAccount(marketIndex);
-		const newMarkPrice1 = calculateMarkPrice(newMarket1); // 0 liquidity at current mark price
+		const newMarkPrice1 = calculateReservePrice(newMarket1); // 0 liquidity at current mark price
 
 		const userLeverage = clearingHouseUser.getLeverage();
 
@@ -1173,7 +1176,7 @@ describe('orders', () => {
 		const direction = PositionDirection.SHORT;
 
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		// const limitPrice = calculateMarkPrice(market); // 0 liquidity at current mark price
+		// const limitPrice = calculateReservePrice(market); // 0 liquidity at current mark price
 		const baseAssetAmount = prePosition.baseAssetAmount.abs().mul(new BN(2)); //new BN(AMM_RESERVE_PRECISION.mul(new BN(50)));
 		const limitPrice = calculateTradeSlippage(
 			direction,
@@ -1187,7 +1190,7 @@ describe('orders', () => {
 			calculateTargetPriceTrade(market, limitPrice, new BN(1000), 'base');
 
 		console.log(
-			convertToNumber(calculateMarkPrice(market)),
+			convertToNumber(calculateReservePrice(market)),
 			'then long',
 			convertToNumber(baseAssetAmount, AMM_RESERVE_PRECISION),
 
@@ -1251,7 +1254,7 @@ describe('orders', () => {
 
 		const orderPriceMove = clearingHouseUser.getUserAccount().orders[0];
 		const newMarketPriceMove = clearingHouse.getPerpMarketAccount(marketIndex);
-		const newMarkPricePriceMove = calculateMarkPrice(newMarketPriceMove);
+		const newMarkPricePriceMove = calculateReservePrice(newMarketPriceMove);
 
 		const userLeveragePriceMove = clearingHouseUser.getLeverage();
 
@@ -1290,7 +1293,7 @@ describe('orders', () => {
 
 		const order1 = clearingHouseUser.getUserAccount().orders[0];
 		const newMarket1 = clearingHouse.getPerpMarketAccount(marketIndex);
-		const newMarkPrice1 = calculateMarkPrice(newMarket1); // 0 liquidity at current mark price
+		const newMarkPrice1 = calculateReservePrice(newMarket1); // 0 liquidity at current mark price
 
 		const userTC = clearingHouseUser.getTotalCollateral();
 		const userTPV = clearingHouseUser.getTotalPerpPositionValue();
@@ -1368,7 +1371,7 @@ describe('orders', () => {
 			calculateTargetPriceTrade(market, limitPrice, new BN(1000), 'base');
 
 		console.log(
-			convertToNumber(calculateMarkPrice(market)),
+			convertToNumber(calculateReservePrice(market)),
 			'then long',
 			convertToNumber(baseAssetAmount, AMM_RESERVE_PRECISION),
 
@@ -1460,7 +1463,7 @@ describe('orders', () => {
 			calculateTargetPriceTrade(market, limitPrice, new BN(1000), 'base');
 
 		console.log(
-			convertToNumber(calculateMarkPrice(market)),
+			convertToNumber(calculateReservePrice(market)),
 			'then long',
 			convertToNumber(baseAssetAmount, AMM_RESERVE_PRECISION),
 
@@ -1719,7 +1722,7 @@ describe('orders', () => {
 			marketIndex: marketIndexEth,
 			direction: PositionDirection.LONG,
 			baseAssetAmount: TWO.mul(AMM_RESERVE_PRECISION),
-			price: calculateMarkPrice(
+			price: calculateReservePrice(
 				clearingHouse.getPerpMarketAccount(marketIndexEth)
 			).add(PRICE_PRECISION.div(new BN(40))),
 			reduceOnly: true,

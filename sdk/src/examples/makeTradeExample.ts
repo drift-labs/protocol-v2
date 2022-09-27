@@ -3,7 +3,7 @@ import { Wallet } from '..';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
-	calculateMarkPrice,
+	calculateReservePrice,
 	ClearingHouse,
 	ClearingHouseUser,
 	initialize,
@@ -120,7 +120,7 @@ const main = async () => {
 		(market) => market.baseAssetSymbol === 'SOL'
 	);
 
-	const currentMarketPrice = calculateMarkPrice(
+	const currentMarketPrice = calculateReservePrice(
 		clearingHouse.getPerpMarketAccount(solMarketInfo.marketIndex),
 		undefined
 	);

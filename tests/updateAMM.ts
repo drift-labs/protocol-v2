@@ -15,7 +15,7 @@ import {
 	PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
 	QUOTE_PRECISION,
-	calculateMarkPrice,
+	calculateReservePrice,
 	OracleGuardRails,
 	calculateTradeSlippage,
 	PositionDirection,
@@ -43,7 +43,7 @@ async function feePoolInjection(fees, marketIndex, clearingHouse) {
 	const connection = anchor.AnchorProvider.local().connection;
 
 	while (market0.amm.totalFeeMinusDistributions.lt(fees)) {
-		const markPrice = calculateMarkPrice(
+		const markPrice = calculateReservePrice(
 			market0,
 			clearingHouse.getOracleDataForMarket(marketIndex)
 		);
@@ -263,7 +263,7 @@ describe('update amm', () => {
 			'/',
 			convertToNumber(ask1),
 			'after trade mark price:',
-			convertToNumber(calculateMarkPrice(market, oraclePriceData))
+			convertToNumber(calculateReservePrice(market, oraclePriceData))
 		);
 		assert(bid1.lt(ask1));
 		assert(ask1.gt(oraclePriceData.price));
@@ -369,7 +369,7 @@ describe('update amm', () => {
 			'/',
 			convertToNumber(ask1),
 			'after trade mark price:',
-			convertToNumber(calculateMarkPrice(market, oraclePriceData))
+			convertToNumber(calculateReservePrice(market, oraclePriceData))
 		);
 		assert(bid1.lt(ask1));
 		assert(ask1.gt(oraclePriceData.price));
@@ -565,7 +565,7 @@ describe('update amm', () => {
 				'/',
 				convertToNumber(ask1),
 				'after trade mark price:',
-				convertToNumber(calculateMarkPrice(market, oraclePriceData))
+				convertToNumber(calculateReservePrice(market, oraclePriceData))
 			);
 			console.log('----');
 		}
@@ -670,7 +670,7 @@ describe('update amm', () => {
 				'/',
 				convertToNumber(ask1),
 				'after trade mark price:',
-				convertToNumber(calculateMarkPrice(market, oraclePriceData))
+				convertToNumber(calculateReservePrice(market, oraclePriceData))
 			);
 			assert(bid1.lt(ask1));
 			assert(ask1.gt(oraclePriceData.price));

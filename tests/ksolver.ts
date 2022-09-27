@@ -5,7 +5,7 @@ import { BN } from '../sdk';
 import {
 	Admin,
 	PRICE_PRECISION,
-	calculateMarkPrice,
+	calculateReservePrice,
 	calculateTradeSlippage,
 	calculateTargetPriceTrade,
 	PositionDirection,
@@ -55,7 +55,7 @@ describe('AMM Curve', () => {
 	// 		return new BN(0);
 	// 	}
 	// 	const market = this.getMarketsAccount().markets[marketIndex.toNumber()];
-	// 	const oldPrice = this.calculateMarkPrice(marketIndex);
+	// 	const oldPrice = this.calculateReservePrice(marketIndex);
 	// 	const invariant = market.amm.sqrtK.mul(market.amm.sqrtK);
 
 	// 	const [newQuoteAssetAmount, newBaseAssetAmount] = this.findSwapOutput(
@@ -226,7 +226,7 @@ describe('AMM Curve', () => {
 
 	const showBook = (marketIndex) => {
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		const currentMark = calculateMarkPrice(market);
+		const currentMark = calculateReservePrice(market);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
 			market,

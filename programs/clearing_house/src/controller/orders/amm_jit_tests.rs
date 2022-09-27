@@ -1702,7 +1702,7 @@ pub mod amm_jit {
 
             let (mark, ask, bid) = {
                 let market = market_map.get_ref(&0).unwrap();
-                let mark = market.amm.mark_price().unwrap();
+                let mark = market.amm.reserve_price().unwrap();
                 let ask = market.amm.ask_price(mark).unwrap();
                 let bid = market.amm.bid_price(mark).unwrap();
                 (mark, ask, bid)
@@ -1972,7 +1972,7 @@ pub mod amm_jit {
 
             let (mark, ask, bid) = {
                 let market = market_map.get_ref(&0).unwrap();
-                let mark = market.amm.mark_price().unwrap();
+                let mark = market.amm.reserve_price().unwrap();
                 let ask = market.amm.ask_price(mark).unwrap();
                 let bid = market.amm.bid_price(mark).unwrap();
                 (mark, ask, bid)
