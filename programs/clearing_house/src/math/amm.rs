@@ -327,16 +327,6 @@ pub fn update_mark_twap(
 
     let amm_reserve_price = amm.reserve_price()?;
     let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(amm_reserve_price)?;
-
-    // validate!(
-    //     amm_bid_price <= last_oracle_price_u128 && last_oracle_price_u128 <= amm_ask_price,
-    //     ErrorCode::DefaultError,
-    //     "amm_bid_price={}, last_oracle_price_u128={}, amm_ask_price={} off",
-    //     amm_bid_price,
-    //     last_oracle_price_u128,
-    //     amm_ask_price
-    // )?;
-
     // estimation of bid/ask by looking at execution premium
 
     // trade is a long

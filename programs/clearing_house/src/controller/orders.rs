@@ -1036,9 +1036,7 @@ fn fulfill_order(
     let mut quote_asset_amount = 0_u128;
     let mut order_records: Vec<OrderActionRecord> = vec![];
     for fulfillment_method in fulfillment_methods.iter() {
-        let user_order = user.orders[user_order_index];
-
-        if user_order.status != OrderStatus::Open {
+        if user.orders[user_order_index].status != OrderStatus::Open {
             break;
         }
 
@@ -1098,9 +1096,11 @@ fn fulfill_order(
         quote_asset_amount = quote_asset_amount
             .checked_add(fill_quote_asset_amount)
             .ok_or_else(math_error!())?;
-        market
-            .amm
-            .update_volume_24h(fill_quote_asset_amount, user_order.direction, now)?;
+        market.amm.update_volume_24h(
+            fill_quote_asset_amount,
+            user.orders[user_order_index].direction,
+            now,
+        )?;
     }
 
     for order_record in order_records {
