@@ -48,7 +48,7 @@ pub mod clearing_house {
     use crate::controller::position::{add_new_position, get_position_index};
     use crate::controller::validate::validate_market_account;
     use crate::math;
-    use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
+    use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32, cast_to_u64};
     use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
     use crate::math::spot_balance::get_token_amount;
     use crate::optional_accounts::{
@@ -748,12 +748,13 @@ pub mod clearing_house {
             let amount = if (force_reduce_only || reduce_only)
                 && spot_position.balance_type == SpotBalanceType::Deposit
             {
-                let borrow_token_amount = get_token_amount(
+                let borrow_token_amount = cast_to_u64(get_token_amount(
                     spot_position.balance,
                     spot_market,
                     &spot_position.balance_type,
-                )?;
-                min(borrow_token_amount as u64, amount)
+                )?)?;
+
+                amount.min(borrow_token_amount)
             } else {
                 amount
             };

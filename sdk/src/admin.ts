@@ -10,6 +10,7 @@ import {
 	ExchangeStatus,
 	MarketStatus,
 	ContractTier,
+	AssetTier,
 } from './types';
 import { BN } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
@@ -801,13 +802,29 @@ export class Admin extends ClearingHouse {
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
-					market: await getMarketPublicKey(
+					spotMarket: await getSpotMarketPublicKey(
 						this.program.programId,
 						spotMarketIndex
 					),
 				},
 			}
 		);
+	}
+
+	public async updateSpotMarketAssetTier(
+		spotMarketIndex: number,
+		assetTier: AssetTier
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSpotMarketAssetTier(assetTier, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				spotMarket: await getSpotMarketPublicKey(
+					this.program.programId,
+					spotMarketIndex
+				),
+			},
+		});
 	}
 
 	public async updateSpotMarketStatus(
@@ -818,7 +835,7 @@ export class Admin extends ClearingHouse {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
-				market: await getMarketPublicKey(
+				spotMarket: await getSpotMarketPublicKey(
 					this.program.programId,
 					spotMarketIndex
 				),
