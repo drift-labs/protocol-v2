@@ -137,7 +137,12 @@ export function calculateMarketMarginRatio(
 			).toNumber();
 			break;
 		case 'Maintenance':
-			marginRatio = market.marginRatioMaintenance;
+			marginRatio = calculateSizePremiumLiabilityWeight(
+				size,
+				market.imfFactor,
+				new BN(market.marginRatioMaintenance),
+				MARGIN_PRECISION
+			).toNumber();
 			break;
 	}
 

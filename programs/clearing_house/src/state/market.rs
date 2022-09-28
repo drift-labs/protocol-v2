@@ -5,7 +5,7 @@ use std::cmp::max;
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
-use crate::math::casting::{cast, cast_to_i128};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
 use crate::math::constants::{AMM_RESERVE_PRECISION, SPOT_WEIGHT_PRECISION};
 use crate::math::constants::{LIQUIDATION_FEE_PRECISION, TWENTY_FOUR_HOUR};
 use crate::math::margin::{
@@ -104,20 +104,21 @@ impl PerpMarket {
         size: u128,
         margin_type: MarginRequirementType,
     ) -> ClearingHouseResult<u32> {
-        let margin_ratio = match margin_type {
-            MarginRequirementType::Initial => max(
-                self.margin_ratio_initial as u128,
-                calculate_size_premium_liability_weight(
-                    size,
-                    self.imf_factor,
-                    self.margin_ratio_initial as u128,
-                    MARGIN_PRECISION,
-                )?,
-            ),
-            MarginRequirementType::Maintenance => self.margin_ratio_maintenance as u128,
+        let default_margin_ratio = match margin_type {
+            MarginRequirementType::Initial => cast_to_u128(self.margin_ratio_initial)?,
+            MarginRequirementType::Maintenance => cast_to_u128(self.margin_ratio_maintenance)?,
         };
 
-        Ok(margin_ratio as u32)
+        let size_adj_margin_ratio = calculate_size_premium_liability_weight(
+            size,
+            self.imf_factor,
+            default_margin_ratio,
+            MARGIN_PRECISION,
+        )?;
+
+        let margin_ratio = default_margin_ratio.max(size_adj_margin_ratio);
+
+        cast_to_u32(margin_ratio)
     }
 
     pub fn get_initial_leverage_ratio(&self, margin_type: MarginRequirementType) -> u128 {
