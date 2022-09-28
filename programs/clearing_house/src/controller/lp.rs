@@ -10,7 +10,7 @@ use crate::controller::position::PositionDelta;
 use crate::controller::position::{update_position_and_market, update_quote_asset_amount};
 use crate::get_struct_values;
 use crate::math::amm::{get_update_k_result, update_k};
-use crate::math::casting::cast_to_i128;
+use crate::math::casting::{cast_to_i128, Cast};
 use crate::math::lp::calculate_settle_lp_metrics;
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 
@@ -37,8 +37,8 @@ pub fn mint_lp_shares(
             base_asset_amount,
             quote_asset_amount
         );
-        position.last_net_base_asset_amount_per_lp = net_base_asset_amount_per_lp;
-        position.last_net_quote_asset_amount_per_lp = net_quote_asset_amount_per_lp;
+        position.last_net_base_asset_amount_per_lp = net_base_asset_amount_per_lp.cast()?;
+        position.last_net_quote_asset_amount_per_lp = net_quote_asset_amount_per_lp.cast()?;
     }
 
     // add share balance
@@ -109,9 +109,12 @@ pub fn settle_lp_position(
         .ok_or_else(math_error!())?;
 
     position.last_net_base_asset_amount_per_lp =
-        market.amm.market_position_per_lp.base_asset_amount;
-    position.last_net_quote_asset_amount_per_lp =
-        market.amm.market_position_per_lp.quote_asset_amount;
+        market.amm.market_position_per_lp.base_asset_amount.cast()?;
+    position.last_net_quote_asset_amount_per_lp = market
+        .amm
+        .market_position_per_lp
+        .quote_asset_amount
+        .cast()?;
 
     crate::controller::validate::validate_market_account(market)?;
     crate::controller::validate::validate_position_account(position, market)?;
@@ -210,9 +213,12 @@ pub fn burn_lp_shares(
 
     // update last_ metrics
     position.last_net_base_asset_amount_per_lp =
-        market.amm.market_position_per_lp.base_asset_amount;
-    position.last_net_quote_asset_amount_per_lp =
-        market.amm.market_position_per_lp.quote_asset_amount;
+        market.amm.market_position_per_lp.base_asset_amount.cast()?;
+    position.last_net_quote_asset_amount_per_lp = market
+        .amm
+        .market_position_per_lp
+        .quote_asset_amount
+        .cast()?;
 
     // burn shares
     position.lp_shares = position

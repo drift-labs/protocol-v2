@@ -107,9 +107,9 @@ pub fn update_amm_position(
         _ => {}
     };
 
-    position.quote_asset_amount = new_quote_asset_amount;
+    position.quote_asset_amount = new_quote_asset_amount.cast()?;
     position.quote_entry_amount = new_quote_entry_amount.cast()?;
-    position.base_asset_amount = new_base_asset_amount;
+    position.base_asset_amount = new_base_asset_amount.cast()?;
 
     if is_per_lp_position {
         market.amm.market_position_per_lp = position;
@@ -130,12 +130,12 @@ pub fn update_position_and_market(
     // Update User
     let new_quote_asset_amount = position
         .quote_asset_amount
-        .checked_add(delta.quote_asset_amount)
+        .checked_add(delta.quote_asset_amount.cast()?)
         .ok_or_else(math_error!())?;
 
     let new_base_asset_amount = position
         .base_asset_amount
-        .checked_add(delta.base_asset_amount)
+        .checked_add(delta.base_asset_amount.cast()?)
         .ok_or_else(math_error!())?;
 
     let (new_quote_entry_amount, pnl) = match update_type {
@@ -156,7 +156,7 @@ pub fn update_position_and_market(
                         .cast::<i128>()?
                         .checked_mul(delta.base_asset_amount.abs())
                         .ok_or_else(math_error!())?
-                        .checked_div(position.base_asset_amount.abs())
+                        .checked_div(position.base_asset_amount.abs().cast()?)
                         .ok_or_else(math_error!())?
                         .cast()?,
                 )
@@ -178,7 +178,7 @@ pub fn update_position_and_market(
                 .checked_sub(
                     delta
                         .quote_asset_amount
-                        .checked_mul(position.base_asset_amount.abs())
+                        .checked_mul(position.base_asset_amount.abs().cast()?)
                         .ok_or_else(math_error!())?
                         .checked_div(delta.base_asset_amount.abs())
                         .ok_or_else(math_error!())?,
@@ -296,11 +296,11 @@ pub fn update_position_and_market(
             if new_base_asset_amount > 0 {
                 market.base_asset_amount_short = market
                     .base_asset_amount_short
-                    .checked_sub(position.base_asset_amount)
+                    .checked_sub(position.base_asset_amount.cast()?)
                     .ok_or_else(math_error!())?;
                 market.base_asset_amount_long = market
                     .base_asset_amount_long
-                    .checked_add(new_base_asset_amount)
+                    .checked_add(new_base_asset_amount.cast()?)
                     .ok_or_else(math_error!())?;
 
                 market.amm.quote_asset_amount_short = market
@@ -332,11 +332,11 @@ pub fn update_position_and_market(
             } else {
                 market.base_asset_amount_long = market
                     .base_asset_amount_long
-                    .checked_sub(position.base_asset_amount)
+                    .checked_sub(position.base_asset_amount.cast()?)
                     .ok_or_else(math_error!())?;
                 market.base_asset_amount_short = market
                     .base_asset_amount_short
-                    .checked_add(new_base_asset_amount)
+                    .checked_add(new_base_asset_amount.cast()?)
                     .ok_or_else(math_error!())?;
 
                 market.amm.quote_asset_amount_long = market
@@ -408,7 +408,7 @@ pub fn update_position_and_market(
 
     validate!(
         is_multiple_of_step_size(
-            position.base_asset_amount.unsigned_abs(),
+            position.base_asset_amount.unsigned_abs().cast()?,
             market.amm.base_asset_amount_step_size
         )?,
         ErrorCode::DefaultError,
@@ -488,7 +488,7 @@ pub fn update_lp_market_position(
         .amm
         .market_position_per_lp
         .quote_asset_amount
-        .checked_add(per_lp_fee)
+        .checked_add(per_lp_fee.cast()?)
         .ok_or_else(math_error!())?;
 
     market.amm.net_base_asset_amount = market
@@ -547,7 +547,7 @@ pub fn update_amm_and_lp_market_position(
         .amm
         .market_position
         .quote_asset_amount
-        .checked_add(amm_fee)
+        .checked_add(amm_fee.cast()?)
         .ok_or_else(math_error!())?;
 
     Ok(())
@@ -635,7 +635,7 @@ pub fn update_quote_asset_amount(
 ) -> ClearingHouseResult<()> {
     position.quote_asset_amount = position
         .quote_asset_amount
-        .checked_add(delta)
+        .checked_add(delta.cast()?)
         .ok_or_else(math_error!())?;
 
     match position.get_direction() {
@@ -718,7 +718,9 @@ mod test {
     use crate::controller::position::{
         update_amm_and_lp_market_position, update_position_and_market, PositionDelta,
     };
-    use crate::math::constants::{AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128};
+    use crate::math::constants::{
+        AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION_I64,
+    };
     use crate::state::market::{PerpMarket, AMM};
     use crate::state::user::PerpPosition;
 
@@ -744,11 +746,11 @@ mod test {
 
         assert_eq!(
             market.amm.market_position.base_asset_amount,
-            -10 * AMM_RESERVE_PRECISION_I128
+            -10 * BASE_PRECISION_I64
         );
         assert_eq!(
             market.amm.market_position.quote_asset_amount,
-            10 * AMM_RESERVE_PRECISION_I128
+            10 * BASE_PRECISION_I64
         );
         assert_eq!(market.amm.net_unsettled_lp_base_asset_amount, 0);
         assert_eq!(
@@ -779,11 +781,11 @@ mod test {
 
         assert_eq!(
             market.amm.market_position_per_lp.base_asset_amount,
-            -10 * AMM_RESERVE_PRECISION_I128 / 100
+            -10 * BASE_PRECISION_I64 / 100
         );
         assert_eq!(
             market.amm.market_position_per_lp.quote_asset_amount,
-            10 * AMM_RESERVE_PRECISION_I128 / 100
+            10 * BASE_PRECISION_I64 / 100
         );
         assert_eq!(market.amm.net_base_asset_amount, 0);
         assert_eq!(
@@ -814,20 +816,20 @@ mod test {
 
         assert_eq!(
             market.amm.market_position_per_lp.base_asset_amount,
-            -5 * AMM_RESERVE_PRECISION_I128 / 100
+            -5 * BASE_PRECISION_I64 / 100
         );
         assert_eq!(
             market.amm.market_position_per_lp.quote_asset_amount,
-            5 * AMM_RESERVE_PRECISION_I128 / 100
+            5 * BASE_PRECISION_I64 / 100
         );
 
         assert_eq!(
             market.amm.market_position.base_asset_amount,
-            -5 * AMM_RESERVE_PRECISION_I128
+            -5 * BASE_PRECISION_I64
         );
         assert_eq!(
             market.amm.market_position.quote_asset_amount,
-            5 * AMM_RESERVE_PRECISION_I128
+            5 * BASE_PRECISION_I64
         );
 
         assert_eq!(

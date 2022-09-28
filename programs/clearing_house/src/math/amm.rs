@@ -1471,7 +1471,7 @@ mod test {
     use crate::controller::lp::settle_lp_position;
     use crate::math::constants::{
         BID_ASK_SPREAD_PRECISION, K_BPS_INCREASE_MAX, MAX_CONCENTRATION_COEFFICIENT,
-        PRICE_PRECISION, QUOTE_PRECISION_I128,
+        PRICE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
     };
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::user::PerpPosition;
@@ -1542,7 +1542,7 @@ mod test {
 
         let market_position = PerpPosition {
             market_index: 0,
-            base_asset_amount: (12295081967 / 2_i128),
+            base_asset_amount: (12295081967 / 2_i64),
             quote_asset_amount: -193688524588, // $31506 entry price
             ..PerpPosition::default()
         };
@@ -1556,7 +1556,7 @@ mod test {
                 peg_multiplier: 22_100_000_000,
                 net_base_asset_amount: (12295081967_i128),
                 max_spread: 1000,
-                quote_asset_amount_long: market_position.quote_asset_amount * 2,
+                quote_asset_amount_long: market_position.quote_asset_amount as i128 * 2,
                 // assume someone else has other half same entry,
                 ..AMM::default()
             },
@@ -1625,7 +1625,7 @@ mod test {
 
         let market_position = PerpPosition {
             market_index: 0,
-            base_asset_amount: (12295081967 / 2_i128),
+            base_asset_amount: (12295081967 / 2_i64),
             quote_asset_amount: -103688524588, // $16,866.66 entry price
             ..PerpPosition::default()
         };
@@ -1639,7 +1639,7 @@ mod test {
                 peg_multiplier: 22_100_000_000,
                 net_base_asset_amount: (12295081967_i128),
                 max_spread: 1000,
-                quote_asset_amount_long: market_position.quote_asset_amount * 2,
+                quote_asset_amount_long: market_position.quote_asset_amount as i128 * 2,
                 // assume someone else has other half same entry,
                 ..AMM::default()
             },
@@ -1743,7 +1743,7 @@ mod test {
 
         let market_position = PerpPosition {
             market_index: 0,
-            base_asset_amount: -(122950819670000 / 2_i128),
+            base_asset_amount: -(122950819670000 / 2_i64),
             quote_asset_amount: 153688524588, // $25,000 entry price
             ..PerpPosition::default()
         };
@@ -1757,7 +1757,7 @@ mod test {
                 peg_multiplier: 22_100_000_000,
                 net_base_asset_amount: -(12295081967_i128),
                 max_spread: 1000,
-                quote_asset_amount_short: market_position.quote_asset_amount * 2,
+                quote_asset_amount_short: market_position.quote_asset_amount as i128 * 2,
                 // assume someone else has other half same entry,
                 ..AMM::default()
             },
@@ -2789,7 +2789,7 @@ mod test {
 
         market.amm.market_position_per_lp = PerpPosition {
             base_asset_amount: 1,
-            quote_asset_amount: -QUOTE_PRECISION_I128,
+            quote_asset_amount: -QUOTE_PRECISION_I64,
             ..PerpPosition::default()
         };
 
@@ -2799,7 +2799,7 @@ mod test {
         settle_lp_position(&mut position, &mut market).unwrap();
 
         assert_eq!(position.base_asset_amount, 0);
-        assert_eq!(position.quote_asset_amount, -QUOTE_PRECISION_I128);
+        assert_eq!(position.quote_asset_amount, -QUOTE_PRECISION_I64);
         assert_eq!(position.last_net_base_asset_amount_per_lp, 1);
         assert_eq!(
             position.last_net_quote_asset_amount_per_lp,

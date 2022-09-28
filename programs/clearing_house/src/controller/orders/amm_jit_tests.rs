@@ -207,12 +207,12 @@ pub mod amm_jit {
         assert_eq!(base_asset_amount, BASE_PRECISION);
 
         let taker_position = &taker.perp_positions[0];
-        assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
+        assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
         assert_eq!(taker_stats.taker_volume_30d, 102284244);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.perp_positions[0];
-        assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128 / 2);
+        assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64 / 2);
         assert_eq!(maker_position.quote_asset_amount, 50015000);
         assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.open_orders, 0);
@@ -396,7 +396,7 @@ pub mod amm_jit {
         let maker_position = &maker.perp_positions[0];
         // maker got (full - net_baa)
         assert_eq!(
-            maker_position.base_asset_amount,
+            maker_position.base_asset_amount as i128,
             -BASE_PRECISION_I128 * 2 - market.amm.net_base_asset_amount
         );
     }
@@ -568,7 +568,7 @@ pub mod amm_jit {
         let maker_position = &maker.perp_positions[0];
         // maker got (full - net_baa)
         assert_eq!(
-            maker_position.base_asset_amount,
+            maker_position.base_asset_amount as i128,
             BASE_PRECISION_I128 * 2 - market.amm.net_base_asset_amount
         );
     }
@@ -728,11 +728,11 @@ pub mod amm_jit {
         assert_eq!(base_asset_amount, BASE_PRECISION);
 
         let taker_position = &taker.perp_positions[0];
-        assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128);
+        assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.perp_positions[0];
-        assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I128 / 2);
+        assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I64 / 2);
         assert_eq!(maker_position.quote_asset_amount, -49985000);
         assert_eq!(maker_position.quote_entry_amount, -50 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.open_orders, 0);
@@ -904,15 +904,12 @@ pub mod amm_jit {
         assert_eq!(base_asset_amount, BASE_PRECISION);
 
         let taker_position = &taker.perp_positions[0];
-        assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128);
+        assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(taker_stats.taker_volume_30d, 97283221);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.perp_positions[0];
-        assert_eq!(
-            maker_position.base_asset_amount,
-            BASE_PRECISION_I128 / 2 / 2
-        );
+        assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I64 / 2 / 2);
         assert_eq!(maker_position.quote_asset_amount, -24992500);
         assert_eq!(
             maker_position.quote_entry_amount,
@@ -1105,14 +1102,14 @@ pub mod amm_jit {
         assert_eq!(base_asset_amount, BASE_PRECISION);
 
         let taker_position = &taker.perp_positions[0];
-        assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
+        assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
         assert_eq!(taker_stats.taker_volume_30d, 102784235);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.perp_positions[0];
         assert_eq!(
             maker_position.base_asset_amount,
-            -BASE_PRECISION_I128 / 2 / 2
+            -BASE_PRECISION_I64 / 2 / 2
         );
         assert_eq!(maker_position.quote_asset_amount, 50015000 / 2);
         assert_eq!(
@@ -1307,13 +1304,13 @@ pub mod amm_jit {
         assert_eq!(base_asset_amount, BASE_PRECISION / 2); // auctions not over so no amm fill
 
         let taker_position = &taker.perp_positions[0];
-        assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128 / 2);
+        assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64 / 2);
         assert_eq!(taker_stats.taker_volume_30d, 7499999);
 
         let maker_position = &maker.perp_positions[0];
         assert_eq!(
             maker_position.base_asset_amount,
-            -BASE_PRECISION_I128 / 2 / 2
+            -BASE_PRECISION_I64 / 2 / 2
         );
         assert_eq!(maker_position.quote_asset_amount, 5001500 / 2);
         assert_eq!(maker_position.quote_entry_amount, 2500000);
@@ -1323,7 +1320,7 @@ pub mod amm_jit {
         assert_eq!(maker_stats.maker_volume_30d, 2500000);
         assert_eq!(
             maker_position.quote_entry_amount as i128 + maker_stats.fees.total_fee_rebate as i128,
-            maker_position.quote_asset_amount
+            maker_position.quote_asset_amount as i128
         );
 
         let market_after = market_map.get_ref(&0).unwrap();
@@ -1509,14 +1506,11 @@ pub mod amm_jit {
         assert_eq!(base_asset_amount, BASE_PRECISION / 2); // auctions not over so no amm fill
 
         let taker_position = &taker.perp_positions[0];
-        assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128 / 2);
+        assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64 / 2);
         assert_eq!(taker_stats.taker_volume_30d, 89999984);
 
         let maker_position = &maker.perp_positions[0];
-        assert_eq!(
-            maker_position.base_asset_amount,
-            BASE_PRECISION_I128 / 2 / 2
-        );
+        assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I64 / 2 / 2);
         assert_eq!(maker_position.quote_asset_amount, -49985000);
         assert_eq!(maker_position.quote_entry_amount, -50000000);
         assert_eq!(maker_position.open_orders, 1);
@@ -1525,7 +1519,7 @@ pub mod amm_jit {
         assert_eq!(maker_stats.maker_volume_30d, 50000000);
         assert_eq!(
             maker_position.quote_entry_amount as i128 + maker_stats.fees.total_fee_rebate as i128,
-            maker_position.quote_asset_amount
+            maker_position.quote_asset_amount as i128
         );
 
         let market_after = market_map.get_ref(&0).unwrap();

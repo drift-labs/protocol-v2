@@ -2,7 +2,7 @@ use solana_program::msg;
 
 use crate::error::ClearingHouseResult;
 use crate::math::amm::calculate_market_open_bids_asks;
-use crate::math::casting::{cast, cast_to_i128};
+use crate::math::casting::{cast, cast_to_i128, Cast};
 use crate::math::constants::AMM_RESERVE_PRECISION_I128;
 use crate::math::helpers;
 use crate::math::orders::standardize_base_asset_amount_with_remainder_i128;
@@ -51,10 +51,11 @@ pub fn calculate_settled_lp_base_quote(
     let amm_net_base_asset_amount_per_lp = amm
         .market_position_per_lp
         .base_asset_amount
-        .checked_sub(position.last_net_base_asset_amount_per_lp)
+        .checked_sub(position.last_net_base_asset_amount_per_lp.cast()?)
         .ok_or_else(math_error!())?;
 
     let base_asset_amount = amm_net_base_asset_amount_per_lp
+        .cast::<i128>()?
         .checked_mul(n_shares_i128)
         .ok_or_else(math_error!())?
         .checked_div(AMM_RESERVE_PRECISION_I128)
@@ -63,10 +64,11 @@ pub fn calculate_settled_lp_base_quote(
     let amm_net_quote_asset_amount_per_lp = amm
         .market_position_per_lp
         .quote_asset_amount
-        .checked_sub(position.last_net_quote_asset_amount_per_lp)
+        .checked_sub(position.last_net_quote_asset_amount_per_lp.cast()?)
         .ok_or_else(math_error!())?;
 
     let quote_asset_amount = amm_net_quote_asset_amount_per_lp
+        .cast::<i128>()?
         .checked_mul(n_shares_i128)
         .ok_or_else(math_error!())?
         .checked_div(AMM_RESERVE_PRECISION_I128)

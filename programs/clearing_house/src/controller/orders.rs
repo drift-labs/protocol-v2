@@ -29,7 +29,7 @@ use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::auction::{calculate_auction_end_price, is_auction_complete};
-use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u64};
+use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u64, Cast};
 use crate::math::constants::{PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
@@ -146,7 +146,7 @@ pub fn place_order(
             calculate_base_asset_amount_for_reduce_only_order(
                 standardized_base_asset_amount,
                 params.direction,
-                market_position.base_asset_amount,
+                market_position.base_asset_amount.cast()?,
             )
         } else {
             standardized_base_asset_amount
@@ -1002,7 +1002,7 @@ fn fulfill_order(
     let risk_decreasing = is_order_risk_decreasing(
         &order_direction,
         user.orders[user_order_index].get_base_asset_amount_unfilled()?,
-        position_base_asset_amount_before,
+        position_base_asset_amount_before.cast()?,
     )?;
 
     let free_collateral =
@@ -1639,7 +1639,7 @@ pub fn fulfill_order_with_match(
         .amm
         .market_position
         .quote_asset_amount
-        .checked_add(cast_to_i128(fee_to_market)?)
+        .checked_add(fee_to_market.cast()?)
         .ok_or_else(math_error!())?;
 
     market.amm.total_fee = market

@@ -254,8 +254,8 @@ impl SpotPosition {
 #[repr(packed)]
 pub struct PerpPosition {
     pub market_index: u16,
-    pub base_asset_amount: i128,
-    pub quote_asset_amount: i128,
+    pub base_asset_amount: i64,
+    pub quote_asset_amount: i64,
     pub quote_entry_amount: i64,
     pub last_cumulative_funding_rate: i128,
     pub last_funding_rate_ts: i64,
@@ -303,11 +303,11 @@ impl PerpPosition {
     pub fn worst_case_base_asset_amount(&self) -> ClearingHouseResult<i128> {
         let base_asset_amount_all_bids_fill = self
             .base_asset_amount
-            .checked_add(self.open_bids as i128)
+            .checked_add(self.open_bids)
             .ok_or_else(math_error!())?;
         let base_asset_amount_all_asks_fill = self
             .base_asset_amount
-            .checked_add(self.open_asks as i128)
+            .checked_add(self.open_asks)
             .ok_or_else(math_error!())?;
 
         if base_asset_amount_all_bids_fill
@@ -317,9 +317,9 @@ impl PerpPosition {
                 .checked_abs()
                 .ok_or_else(math_error!())?
         {
-            Ok(base_asset_amount_all_bids_fill)
+            base_asset_amount_all_bids_fill.cast()
         } else {
-            Ok(base_asset_amount_all_asks_fill)
+            base_asset_amount_all_asks_fill.cast()
         }
     }
 
@@ -349,7 +349,7 @@ impl PerpPosition {
             .ok_or_else(math_error!())?
             .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)
             .ok_or_else(math_error!())?
-            .checked_div(self.base_asset_amount)
+            .checked_div(self.base_asset_amount.cast()?)
             .ok_or_else(math_error!())
     }
 
@@ -358,12 +358,12 @@ impl PerpPosition {
             return Ok(0);
         }
 
-        (-self.quote_asset_amount)
+        (-self.quote_asset_amount.cast::<i128>()?)
             .checked_mul(PRICE_PRECISION_I128)
             .ok_or_else(math_error!())?
             .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)
             .ok_or_else(math_error!())?
-            .checked_div(self.base_asset_amount)
+            .checked_div(self.base_asset_amount.cast()?)
             .ok_or_else(math_error!())
     }
 
@@ -387,6 +387,7 @@ impl PerpPosition {
             // realized by reducing/closing position
             let max_positive_pnl = self
                 .quote_asset_amount
+                .cast::<i128>()?
                 .checked_sub(self.quote_entry_amount.cast()?)
                 .map(|delta| delta.max(0))
                 .ok_or_else(math_error!())?

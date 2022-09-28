@@ -4,8 +4,8 @@ mod test {
     use crate::controller::amm::SwapDirection;
     use crate::math::collateral::calculate_updated_collateral;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION, SPOT_BALANCE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
+        AMM_RESERVE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I64,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
     };
     use crate::math::margin::{
         calculate_perp_position_value_and_pnl, calculate_spot_position_value, MarginRequirementType,
@@ -99,7 +99,7 @@ mod test {
 
         let market_position = PerpPosition {
             market_index: 0,
-            quote_asset_amount: -(2 * QUOTE_PRECISION as i128),
+            quote_asset_amount: -2 * QUOTE_PRECISION_I64,
             ..PerpPosition::default()
         };
 
@@ -217,7 +217,7 @@ mod test {
 
         let market_position = PerpPosition {
             market_index: 0,
-            base_asset_amount: -(12295081967 / 2_i128),
+            base_asset_amount: -(12295081967 / 2_i64),
             quote_asset_amount: 153688524588, // $25,000 entry price
             ..PerpPosition::default()
         };
@@ -493,7 +493,7 @@ mod calculate_margin_requirement_and_total_collateral {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
         PEG_PRECISION, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
@@ -868,7 +868,7 @@ mod calculate_margin_requirement_and_total_collateral {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                base_asset_amount: 100 * BASE_PRECISION_I128,
+                base_asset_amount: 100 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions,

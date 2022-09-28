@@ -1,6 +1,6 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
-use crate::math::casting::{cast, cast_to_i128};
+use crate::math::casting::{cast, cast_to_i128, Cast};
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO, FUNDING_RATE_BUFFER, ONE_HOUR, PRICE_PRECISION,
     QUOTE_TO_BASE_AMT_FUNDING_PRECISION,
@@ -187,8 +187,10 @@ pub fn calculate_funding_payment(
         return Ok(0);
     }
 
-    let funding_rate_payment =
-        _calculate_funding_payment(funding_rate_delta, market_position.base_asset_amount)?;
+    let funding_rate_payment = _calculate_funding_payment(
+        funding_rate_delta,
+        market_position.base_asset_amount.cast()?,
+    )?;
 
     Ok(funding_rate_payment)
 }

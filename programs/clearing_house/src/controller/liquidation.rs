@@ -11,7 +11,7 @@ use crate::controller::spot_position::update_spot_position_balance;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::get_then_update_id;
 use crate::math::bankruptcy::is_user_bankrupt;
-use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64, Cast};
 use crate::math::constants::{LIQUIDATION_FEE_PRECISION, SPOT_WEIGHT_PRECISION};
 use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
@@ -234,9 +234,10 @@ pub fn liquidate_perp(
         "liquidator_max_base_asset_amount cant be 0"
     )?;
 
-    let user_base_asset_amount = user.perp_positions[position_index]
+    let user_base_asset_amount: u128 = user.perp_positions[position_index]
         .base_asset_amount
-        .unsigned_abs();
+        .unsigned_abs()
+        .cast()?;
 
     let worst_case_base_asset_amount =
         user.perp_positions[position_index].worst_case_base_asset_amount()?;
@@ -856,7 +857,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             "Cant have open orders for perp position"
         )?;
 
-        let pnl = user_position.quote_asset_amount;
+        let pnl = user_position.quote_asset_amount.cast::<i128>()?;
 
         validate!(
             pnl > 0,
@@ -1272,7 +1273,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             "Cant have open orders on perp position"
         )?;
 
-        let unsettled_pnl = user_position.quote_asset_amount;
+        let unsettled_pnl = user_position.quote_asset_amount.cast::<i128>()?;
 
         validate!(
             unsettled_pnl < 0,
@@ -1555,7 +1556,8 @@ pub fn resolve_perp_bankruptcy(
     let loss = user
         .get_perp_position(market_index)
         .unwrap()
-        .quote_asset_amount;
+        .quote_asset_amount
+        .cast::<i128>()?;
 
     validate!(
         loss < 0,

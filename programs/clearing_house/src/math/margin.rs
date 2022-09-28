@@ -12,7 +12,7 @@ use crate::math_error;
 use crate::state::user::User;
 use crate::validate;
 
-use crate::math::casting::cast_to_i128;
+use crate::math::casting::{cast_to_i128, Cast};
 use crate::math::funding::calculate_funding_payment;
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
@@ -157,12 +157,12 @@ pub fn calculate_perp_position_value_and_pnl(
         // compute settled position
         let base_asset_amount = market_position
             .base_asset_amount
-            .checked_add(lp_metrics.base_asset_amount)
+            .checked_add(lp_metrics.base_asset_amount.cast()?)
             .ok_or_else(math_error!())?;
 
         let mut quote_asset_amount = market_position
             .quote_asset_amount
-            .checked_add(lp_metrics.quote_asset_amount)
+            .checked_add(lp_metrics.quote_asset_amount.cast()?)
             .ok_or_else(math_error!())?;
 
         // dust position in baa/qaa
@@ -175,7 +175,7 @@ pub fn calculate_perp_position_value_and_pnl(
             .ok_or_else(math_error!())?;
 
             quote_asset_amount = quote_asset_amount
-                .checked_sub(cast_to_i128(dust_base_asset_value)?)
+                .checked_sub(dust_base_asset_value.cast()?)
                 .ok_or_else(math_error!())?;
         }
 

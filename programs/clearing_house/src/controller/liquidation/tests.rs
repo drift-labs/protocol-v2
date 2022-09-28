@@ -101,8 +101,8 @@ pub mod liquidate_perp {
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I64,
                 quote_entry_amount: -150 * QUOTE_PRECISION_I64,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I64,
@@ -150,18 +150,18 @@ pub mod liquidate_perp {
         assert_eq!(user.perp_positions[0].base_asset_amount, 0);
         assert_eq!(
             user.perp_positions[0].quote_asset_amount,
-            -52 * QUOTE_PRECISION_I128
+            -52 * QUOTE_PRECISION_I64
         );
         assert_eq!(user.perp_positions[0].open_orders, 0);
         assert_eq!(user.perp_positions[0].open_bids, 0);
 
         assert_eq!(
             liquidator.perp_positions[0].base_asset_amount,
-            BASE_PRECISION_I128
+            BASE_PRECISION_I64
         );
         assert_eq!(
             liquidator.perp_positions[0].quote_asset_amount,
-            -99 * QUOTE_PRECISION_I128
+            -99 * QUOTE_PRECISION_I64
         );
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
@@ -241,8 +241,8 @@ pub mod liquidate_perp {
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                base_asset_amount: -BASE_PRECISION_I128,
-                quote_asset_amount: 50 * QUOTE_PRECISION_I128,
+                base_asset_amount: -BASE_PRECISION_I64,
+                quote_asset_amount: 50 * QUOTE_PRECISION_I64,
                 quote_entry_amount: 50 * QUOTE_PRECISION_I64,
                 open_orders: 1,
                 open_asks: -BASE_PRECISION_I64,
@@ -290,18 +290,18 @@ pub mod liquidate_perp {
         assert_eq!(user.perp_positions[0].base_asset_amount, 0);
         assert_eq!(
             user.perp_positions[0].quote_asset_amount,
-            -52 * QUOTE_PRECISION_I128
+            -52 * QUOTE_PRECISION_I64
         );
         assert_eq!(user.perp_positions[0].open_orders, 0);
         assert_eq!(user.perp_positions[0].open_bids, 0);
 
         assert_eq!(
             liquidator.perp_positions[0].base_asset_amount,
-            -BASE_PRECISION_I128
+            -BASE_PRECISION_I64
         );
         assert_eq!(
             liquidator.perp_positions[0].quote_asset_amount,
-            101 * QUOTE_PRECISION_I128
+            101 * QUOTE_PRECISION_I64
         );
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
@@ -381,8 +381,8 @@ pub mod liquidate_perp {
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: 100 * QUOTE_PRECISION_I128,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: 100 * QUOTE_PRECISION_I64,
                 open_orders: 1,
                 open_bids: 1000 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
@@ -430,10 +430,7 @@ pub mod liquidate_perp {
         )
         .unwrap();
 
-        assert_eq!(
-            user.perp_positions[0].base_asset_amount,
-            BASE_PRECISION_I128
-        );
+        assert_eq!(user.perp_positions[0].base_asset_amount, BASE_PRECISION_I64);
         assert_eq!(user.perp_positions[0].open_orders, 0);
         assert_eq!(user.perp_positions[0].open_bids, 0);
 
@@ -513,8 +510,8 @@ pub mod liquidate_perp {
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I64,
                 quote_entry_amount: -150 * QUOTE_PRECISION_I64,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I64,
@@ -563,7 +560,7 @@ pub mod liquidate_perp {
 
         assert_eq!(
             user.perp_positions[0].base_asset_amount,
-            BASE_PRECISION_I128 / 2
+            BASE_PRECISION_I64 / 2
         );
         assert_eq!(user.perp_positions[0].quote_asset_amount, -101000000);
         assert_eq!(user.perp_positions[0].quote_entry_amount, -75000000);
@@ -572,7 +569,7 @@ pub mod liquidate_perp {
 
         assert_eq!(
             liquidator.perp_positions[0].base_asset_amount,
-            BASE_PRECISION_I128 / 2
+            BASE_PRECISION_I64 / 2
         );
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -49500000);
 
@@ -654,8 +651,8 @@ pub mod liquidate_perp {
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                base_asset_amount: 2 * BASE_PRECISION_I128,
-                quote_asset_amount: -200 * QUOTE_PRECISION_I128,
+                base_asset_amount: 2 * BASE_PRECISION_I64,
+                quote_asset_amount: -200 * QUOTE_PRECISION_I64,
                 quote_entry_amount: -200 * QUOTE_PRECISION_I64,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I64,
@@ -732,7 +729,7 @@ pub mod liquidate_perp {
         let oracle_price = oracle_map.get_price_data(&oracle_price_key).unwrap().price;
 
         let perp_value = calculate_base_asset_value_with_oracle_price(
-            user.perp_positions[0].base_asset_amount,
+            user.perp_positions[0].base_asset_amount as i128,
             oracle_price,
         )
         .unwrap();
@@ -1229,8 +1226,8 @@ pub mod liquidate_borrow_for_perp_pnl {
 
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
-        PEG_PRECISION, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
@@ -1348,7 +1345,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                quote_asset_amount: 100 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions,
@@ -1495,7 +1492,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                quote_asset_amount: 105 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: 105 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions,
@@ -1679,7 +1676,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                quote_asset_amount: 80 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: 80 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions,
@@ -1736,8 +1733,8 @@ pub mod liquidate_perp_pnl_for_deposit {
 
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
-        PEG_PRECISION, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::OracleSource;
@@ -1850,7 +1847,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                quote_asset_amount: -100 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions,
@@ -1997,7 +1994,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                quote_asset_amount: -91 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: -91 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions,
@@ -2146,7 +2143,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions,
@@ -2204,8 +2201,8 @@ pub mod resolve_perp_bankruptcy {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
         FUNDING_RATE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
-        QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64,
+        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::OracleSource;
@@ -2293,7 +2290,7 @@ pub mod resolve_perp_bankruptcy {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 base_asset_amount: 0,
-                quote_asset_amount: -100 * QUOTE_PRECISION_I128,
+                quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
@@ -2349,8 +2346,8 @@ pub mod resolve_perp_bankruptcy {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                base_asset_amount: 5 * BASE_PRECISION_I128,
-                quote_asset_amount: -500 * QUOTE_PRECISION_I128,
+                base_asset_amount: 5 * BASE_PRECISION_I64,
+                quote_asset_amount: -500 * QUOTE_PRECISION_I64,
                 open_bids: BASE_PRECISION_I64,
                 last_cumulative_funding_rate: 1000 * FUNDING_RATE_PRECISION_I128,
                 ..PerpPosition::default()
@@ -2361,7 +2358,7 @@ pub mod resolve_perp_bankruptcy {
 
         let mut expected_affected_long_user = affected_long_user;
         expected_affected_long_user.perp_positions[0].quote_asset_amount =
-            -550 * QUOTE_PRECISION_I128; // loses $50
+            -550 * QUOTE_PRECISION_I64; // loses $50
         expected_affected_long_user.perp_positions[0].last_cumulative_funding_rate =
             1010 * FUNDING_RATE_PRECISION_I128;
 
@@ -2382,8 +2379,8 @@ pub mod resolve_perp_bankruptcy {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                base_asset_amount: -5 * BASE_PRECISION_I128,
-                quote_asset_amount: 500 * QUOTE_PRECISION_I128,
+                base_asset_amount: -5 * BASE_PRECISION_I64,
+                quote_asset_amount: 500 * QUOTE_PRECISION_I64,
                 open_bids: BASE_PRECISION_I64,
                 last_cumulative_funding_rate: -1000 * FUNDING_RATE_PRECISION_I128,
                 ..PerpPosition::default()
@@ -2394,7 +2391,7 @@ pub mod resolve_perp_bankruptcy {
 
         let mut expected_affected_short_user = affected_short_user;
         expected_affected_short_user.perp_positions[0].quote_asset_amount =
-            450 * QUOTE_PRECISION_I128; // loses $50
+            450 * QUOTE_PRECISION_I64; // loses $50
         expected_affected_short_user.perp_positions[0].last_cumulative_funding_rate =
             -1010 * FUNDING_RATE_PRECISION_I128;
 
