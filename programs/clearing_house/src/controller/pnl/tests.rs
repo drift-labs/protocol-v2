@@ -106,7 +106,7 @@ pub fn user_no_position() {
     let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
     let mut user = User {
-        perp_positions: [PerpPosition::default(); 5],
+        perp_positions: [PerpPosition::default(); 8],
         spot_positions: get_spot_positions(SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,

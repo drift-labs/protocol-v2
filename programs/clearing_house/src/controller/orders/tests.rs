@@ -2332,7 +2332,7 @@ pub mod fulfill_order {
         };
 
         // Taker has sol order and position at index 0, btc at index 1
-        let mut taker_positions = [PerpPosition::default(); 5];
+        let mut taker_positions = [PerpPosition::default(); 8];
         taker_positions[0] = PerpPosition {
             market_index: 0,
             open_orders: 1,
@@ -2381,7 +2381,7 @@ pub mod fulfill_order {
             ..Order::default()
         };
 
-        let mut maker_positions = [PerpPosition::default(); 5];
+        let mut maker_positions = [PerpPosition::default(); 8];
         maker_positions[0] = PerpPosition {
             market_index: 1,
             open_orders: 1,

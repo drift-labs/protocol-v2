@@ -849,7 +849,7 @@ pub mod liquidate_borrow {
         };
         let mut user = User {
             orders: [Order::default(); 32],
-            perp_positions: [PerpPosition::default(); 5],
+            perp_positions: [PerpPosition::default(); 8],
             spot_positions,
             ..User::default()
         };
@@ -973,7 +973,7 @@ pub mod liquidate_borrow {
         };
         let mut user = User {
             orders: [Order::default(); 32],
-            perp_positions: [PerpPosition::default(); 5],
+            perp_positions: [PerpPosition::default(); 8],
             spot_positions: spot_market,
             ..User::default()
         };
@@ -1124,7 +1124,7 @@ pub mod liquidate_borrow {
         };
         let mut user = User {
             orders: [Order::default(); 32],
-            perp_positions: [PerpPosition::default(); 5],
+            perp_positions: [PerpPosition::default(); 8],
             spot_positions,
             ..User::default()
         };
@@ -2511,7 +2511,7 @@ pub mod resolve_borrow_bankruptcy {
                 slot: 0,
                 ..Order::default()
             }),
-            perp_positions: [PerpPosition::default(); 5],
+            perp_positions: [PerpPosition::default(); 8],
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance: 100 * SPOT_BALANCE_PRECISION_U64,

@@ -32,7 +32,7 @@ pub struct User {
     pub name: [u8; 32],
     pub spot_positions: [SpotPosition; 8],
     pub next_order_id: u32,
-    pub perp_positions: [PerpPosition; 5],
+    pub perp_positions: [PerpPosition; 8],
     pub orders: [Order; 32],
     pub next_liquidation_id: u16,
     pub being_liquidated: bool,
@@ -400,7 +400,7 @@ impl PerpPosition {
     }
 }
 
-pub type UserPositions = [PerpPosition; 5];
+pub type PerpPositions = [PerpPosition; 8];
 
 #[zero_copy]
 #[repr(packed)]

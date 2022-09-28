@@ -20,7 +20,7 @@ use crate::math::position::{
 };
 use crate::math_error;
 use crate::state::market::PerpMarket;
-use crate::state::user::{User, UserPositions};
+use crate::state::user::{PerpPositions, User};
 use crate::validate;
 use crate::PerpPosition;
 
@@ -38,7 +38,7 @@ impl Default for PositionDirection {
 }
 
 pub fn add_new_position(
-    user_positions: &mut UserPositions,
+    user_positions: &mut PerpPositions,
     market_index: u16,
 ) -> ClearingHouseResult<usize> {
     let new_position_index = user_positions
@@ -57,7 +57,7 @@ pub fn add_new_position(
 }
 
 pub fn get_position_index(
-    user_positions: &UserPositions,
+    user_positions: &PerpPositions,
     market_index: u16,
 ) -> ClearingHouseResult<usize> {
     let position_index = user_positions
