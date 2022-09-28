@@ -2086,6 +2086,19 @@ pub mod clearing_house {
             &clock,
         )?;
 
+        {
+            let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.clearing_house_signer,
+                state,
+            )?;
+        }
+
         let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;
         let spot_market_vault_amount = ctx.accounts.spot_market_vault.amount;
 
@@ -2195,6 +2208,19 @@ pub mod clearing_house {
         let market_map =
             PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
 
+        {
+            let spot_market = &mut spot_market_map.get_ref_mut(&quote_spot_market_index)?;
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.clearing_house_signer,
+                state,
+            )?;
+        }
+
         let pay_from_insurance = controller::liquidation::resolve_perp_bankruptcy(
             market_index,
             user,
@@ -2268,6 +2294,20 @@ pub mod clearing_house {
             &get_writable_spot_market_set(market_index),
             remaining_accounts_iter,
         )?;
+
+        {
+            let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.clearing_house_signer,
+                state,
+            )?;
+        }
+
         let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
         let pay_from_insurance = controller::liquidation::resolve_borrow_bankruptcy(
