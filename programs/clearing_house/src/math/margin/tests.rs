@@ -4,7 +4,7 @@ mod test {
     use crate::controller::amm::SwapDirection;
     use crate::math::collateral::calculate_updated_collateral;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION,
+        AMM_RESERVE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
     };
     use crate::math::margin::{
@@ -91,7 +91,7 @@ mod test {
 
         let spot_position = SpotPosition {
             balance_type: SpotBalanceType::Deposit,
-            balance: PRICE_PRECISION,
+            balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
 
@@ -172,7 +172,7 @@ mod test {
 
         let spot_position = SpotPosition {
             balance_type: SpotBalanceType::Deposit,
-            balance: PRICE_PRECISION,
+            balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
 
@@ -494,8 +494,8 @@ mod calculate_margin_requirement_and_total_collateral {
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
-        PEG_PRECISION, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        PEG_PRECISION, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
+        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
@@ -569,7 +569,7 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 10000 * SPOT_BALANCE_PRECISION,
+            balance: 10000 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
@@ -657,7 +657,7 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 10000 * SPOT_BALANCE_PRECISION,
+            balance: 10000 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
@@ -751,7 +751,7 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: 500 * SPOT_BALANCE_PRECISION,
+            balance: 500 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -3000 * 10_i64.pow(9),
             ..SpotPosition::default()
@@ -854,13 +854,13 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100 * SPOT_BALANCE_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Borrow,
-            balance: 100 * SPOT_BALANCE_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
 

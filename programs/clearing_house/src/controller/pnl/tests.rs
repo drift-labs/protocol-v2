@@ -5,7 +5,7 @@ use crate::error::ErrorCode;
 use crate::math::casting::cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
-    QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION,
+    QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
     SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
 };
 use crate::state::market::{MarketStatus, PerpMarket, PoolBalance, AMM};
@@ -110,7 +110,7 @@ pub fn user_no_position() {
         spot_positions: get_spot_positions(SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 50 * SPOT_BALANCE_PRECISION,
+            balance: 50 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         }),
         ..User::default()
@@ -228,7 +228,7 @@ pub fn user_does_not_meet_maintenance_requirement() {
         spot_positions: get_spot_positions(SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100 * SPOT_BALANCE_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         }),
         ..User::default()
@@ -344,7 +344,7 @@ pub fn user_unsettled_negative_pnl() {
         spot_positions: get_spot_positions(SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100 * SPOT_BALANCE_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         }),
         ..User::default()
@@ -356,7 +356,7 @@ pub fn user_unsettled_negative_pnl() {
     let mut expected_user = user;
     expected_user.perp_positions[0].quote_asset_amount = 0;
     expected_user.perp_positions[0].settled_pnl = -50 * QUOTE_PRECISION_I64;
-    expected_user.spot_positions[0].balance = 50 * SPOT_BALANCE_PRECISION;
+    expected_user.spot_positions[0].balance = 50 * SPOT_BALANCE_PRECISION_U64;
     expected_user.spot_positions[0].cumulative_deposits = -50 * QUOTE_PRECISION_I64;
 
     let mut expected_market = market;
@@ -472,7 +472,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
         spot_positions: get_spot_positions(SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100 * SPOT_BALANCE_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         }),
         ..User::default()
@@ -484,7 +484,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
     let mut expected_user = user;
     expected_user.perp_positions[0].quote_asset_amount = 50 * QUOTE_PRECISION_I128;
     expected_user.perp_positions[0].settled_pnl = 50 * QUOTE_PRECISION_I64;
-    expected_user.spot_positions[0].balance = 150 * SPOT_BALANCE_PRECISION;
+    expected_user.spot_positions[0].balance = 150 * SPOT_BALANCE_PRECISION_U64;
     expected_user.spot_positions[0].cumulative_deposits = 50 * QUOTE_PRECISION_I64;
 
     let mut expected_market = market;
@@ -600,7 +600,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
         spot_positions: get_spot_positions(SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100 * SPOT_BALANCE_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         }),
         ..User::default()
@@ -612,7 +612,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
     let mut expected_user = user;
     expected_user.perp_positions[0].quote_asset_amount = 0;
     expected_user.perp_positions[0].settled_pnl = 25 * QUOTE_PRECISION_I64;
-    expected_user.spot_positions[0].balance = 125 * SPOT_BALANCE_PRECISION;
+    expected_user.spot_positions[0].balance = 125 * SPOT_BALANCE_PRECISION_U64;
     expected_user.spot_positions[0].cumulative_deposits = 25 * QUOTE_PRECISION_I64;
 
     let mut expected_market = market;
@@ -729,7 +729,7 @@ pub fn market_fee_pool_receives_portion() {
         spot_positions: get_spot_positions(SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 200 * SPOT_BALANCE_PRECISION,
+            balance: 200 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         }),
         ..User::default()
@@ -741,7 +741,7 @@ pub fn market_fee_pool_receives_portion() {
     let mut expected_user = user;
     expected_user.perp_positions[0].quote_asset_amount = 0;
     expected_user.perp_positions[0].settled_pnl = -100 * QUOTE_PRECISION_I64;
-    expected_user.spot_positions[0].balance = 100 * SPOT_BALANCE_PRECISION;
+    expected_user.spot_positions[0].balance = 100 * SPOT_BALANCE_PRECISION_U64;
     expected_user.spot_positions[0].cumulative_deposits = -100 * QUOTE_PRECISION_I64;
 
     let mut expected_market = market;
@@ -862,7 +862,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
         spot_positions: get_spot_positions(SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 200 * SPOT_BALANCE_PRECISION,
+            balance: 200 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         }),
         ..User::default()
@@ -874,7 +874,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
     let mut expected_user = user;
     expected_user.perp_positions[0].quote_asset_amount = 0;
     expected_user.perp_positions[0].settled_pnl = -100 * QUOTE_PRECISION_I64;
-    expected_user.spot_positions[0].balance = 100 * SPOT_BALANCE_PRECISION;
+    expected_user.spot_positions[0].balance = 100 * SPOT_BALANCE_PRECISION_U64;
     expected_user.spot_positions[0].cumulative_deposits = -100 * QUOTE_PRECISION_I64;
 
     let mut expected_market = market;
@@ -993,7 +993,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
         spot_positions: get_spot_positions(SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100 * SPOT_BALANCE_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         }),
         ..User::default()
@@ -1005,7 +1005,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
     let mut expected_user = user;
     expected_user.perp_positions[0].quote_asset_amount = -100 * QUOTE_PRECISION_I128;
     expected_user.perp_positions[0].settled_pnl = 50 * QUOTE_PRECISION_I64;
-    expected_user.spot_positions[0].balance = 150 * SPOT_BALANCE_PRECISION;
+    expected_user.spot_positions[0].balance = 150 * SPOT_BALANCE_PRECISION_U64;
     expected_user.spot_positions[0].cumulative_deposits = 50 * QUOTE_PRECISION_I64;
 
     let mut expected_market = market;
@@ -1123,7 +1123,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
         spot_positions: get_spot_positions(SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100 * SPOT_BALANCE_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         }),
         ..User::default()
@@ -1135,7 +1135,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
     let mut expected_user = user;
     expected_user.perp_positions[0].quote_asset_amount = -100 * QUOTE_PRECISION_I128;
     expected_user.perp_positions[0].settled_pnl = 50 * QUOTE_PRECISION_I64;
-    expected_user.spot_positions[0].balance = 150 * SPOT_BALANCE_PRECISION;
+    expected_user.spot_positions[0].balance = 150 * SPOT_BALANCE_PRECISION_U64;
     expected_user.spot_positions[0].cumulative_deposits = 50 * QUOTE_PRECISION_I64;
 
     let mut expected_market = market;
@@ -1250,7 +1250,7 @@ pub fn user_long_negative_unrealized_pnl() {
         spot_positions: get_spot_positions(SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100 * SPOT_BALANCE_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         }),
         ..User::default()
@@ -1262,7 +1262,7 @@ pub fn user_long_negative_unrealized_pnl() {
     let mut expected_user = user;
     expected_user.perp_positions[0].quote_asset_amount = -50 * QUOTE_PRECISION_I128;
     expected_user.perp_positions[0].settled_pnl = -50 * QUOTE_PRECISION_I64;
-    expected_user.spot_positions[0].balance = 50 * SPOT_BALANCE_PRECISION;
+    expected_user.spot_positions[0].balance = 50 * SPOT_BALANCE_PRECISION_U64;
     expected_user.spot_positions[0].cumulative_deposits = -50 * QUOTE_PRECISION_I64;
 
     let mut expected_market = market;
@@ -1380,7 +1380,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
         spot_positions: get_spot_positions(SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100 * SPOT_BALANCE_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         }),
         ..User::default()
@@ -1392,7 +1392,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
     let mut expected_user = user;
     expected_user.perp_positions[0].quote_asset_amount = 50 * QUOTE_PRECISION_I128;
     expected_user.perp_positions[0].settled_pnl = 50 * QUOTE_PRECISION_I64;
-    expected_user.spot_positions[0].balance = 150 * SPOT_BALANCE_PRECISION;
+    expected_user.spot_positions[0].balance = 150 * SPOT_BALANCE_PRECISION_U64;
     expected_user.spot_positions[0].cumulative_deposits = 50 * QUOTE_PRECISION_I64;
 
     let mut expected_market = market;
@@ -1510,7 +1510,7 @@ pub fn user_short_negative_unrealized_pnl() {
         spot_positions: get_spot_positions(SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100 * SPOT_BALANCE_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         }),
         ..User::default()
@@ -1522,7 +1522,7 @@ pub fn user_short_negative_unrealized_pnl() {
     let mut expected_user = user;
     expected_user.perp_positions[0].quote_asset_amount = 100 * QUOTE_PRECISION_I128;
     expected_user.perp_positions[0].settled_pnl = -50 * QUOTE_PRECISION_I64;
-    expected_user.spot_positions[0].balance = 50 * SPOT_BALANCE_PRECISION;
+    expected_user.spot_positions[0].balance = 50 * SPOT_BALANCE_PRECISION_U64;
     expected_user.spot_positions[0].cumulative_deposits = -50 * QUOTE_PRECISION_I64;
 
     let mut expected_market = market;

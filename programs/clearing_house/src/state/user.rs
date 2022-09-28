@@ -6,7 +6,7 @@ use crate::controller::position::{add_new_position, get_position_index, Position
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::calculate_rolling_sum;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
-use crate::math::casting::cast_to_i128;
+use crate::math::casting::{cast_to_i128, Cast};
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, PRICE_PRECISION_I128,
     QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY_I128,
@@ -158,7 +158,7 @@ pub struct UserFees {
 pub struct SpotPosition {
     pub market_index: u16,
     pub balance_type: SpotBalanceType,
-    pub balance: u128,
+    pub balance: u64,
     pub open_orders: u8,
     pub open_bids: i64,
     pub open_asks: i64,
@@ -171,16 +171,22 @@ impl SpotBalance for SpotPosition {
     }
 
     fn balance(&self) -> u128 {
-        self.balance
+        self.balance as u128
     }
 
     fn increase_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.balance = self.balance.checked_add(delta).ok_or_else(math_error!())?;
+        self.balance = self
+            .balance
+            .checked_add(delta.cast()?)
+            .ok_or_else(math_error!())?;
         Ok(())
     }
 
     fn decrease_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.balance = self.balance.checked_sub(delta).ok_or_else(math_error!())?;
+        self.balance = self
+            .balance
+            .checked_sub(delta.cast()?)
+            .ok_or_else(math_error!())?;
         Ok(())
     }
 
@@ -196,12 +202,12 @@ impl SpotPosition {
     }
 
     pub fn get_token_amount(&self, spot_market: &SpotMarket) -> ClearingHouseResult<u128> {
-        get_token_amount(self.balance, spot_market, &self.balance_type)
+        get_token_amount(self.balance.cast()?, spot_market, &self.balance_type)
     }
 
     pub fn get_signed_token_amount(&self, spot_market: &SpotMarket) -> ClearingHouseResult<i128> {
         get_signed_token_amount(
-            get_token_amount(self.balance, spot_market, &self.balance_type)?,
+            get_token_amount(self.balance.cast()?, spot_market, &self.balance_type)?,
             &self.balance_type,
         )
     }

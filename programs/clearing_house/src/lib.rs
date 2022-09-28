@@ -40,14 +40,13 @@ declare_id!("By7XjakxXVnQ9gMZ4VT98DenTgBCeP295A58ybzgwVPZ");
 
 #[program]
 pub mod clearing_house {
-    use std::cmp::min;
     use std::option::Option::Some;
 
     use crate::controller::lp::burn_lp_shares;
     use crate::controller::position::{add_new_position, get_position_index};
     use crate::controller::validate::validate_market_account;
     use crate::math;
-    use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
+    use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32, Cast};
     use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
     use crate::math::spot_balance::get_token_amount;
     use crate::optional_accounts::{
@@ -693,12 +692,10 @@ pub mod clearing_house {
 
         // if reduce only, have to compare ix amount to current borrow amount
         let amount = if reduce_only && spot_position.balance_type == SpotBalanceType::Borrow {
-            let borrow_token_amount = get_token_amount(
-                spot_position.balance,
-                spot_market,
-                &spot_position.balance_type,
-            )?;
-            min(borrow_token_amount as u64, amount)
+            spot_position
+                .get_token_amount(spot_market)?
+                .cast::<u64>()?
+                .min(amount)
         } else {
             amount
         };
@@ -784,12 +781,10 @@ pub mod clearing_house {
             let amount = if (force_reduce_only || reduce_only)
                 && spot_position.balance_type == SpotBalanceType::Deposit
             {
-                let borrow_token_amount = get_token_amount(
-                    spot_position.balance,
-                    spot_market,
-                    &spot_position.balance_type,
-                )?;
-                min(borrow_token_amount as u64, amount)
+                spot_position
+                    .get_token_amount(spot_market)?
+                    .cast::<u64>()?
+                    .min(amount)
             } else {
                 amount
             };

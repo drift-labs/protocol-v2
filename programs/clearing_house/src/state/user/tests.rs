@@ -577,7 +577,7 @@ mod get_claimable_pnl {
 
 mod get_worst_case_token_amounts {
     use crate::math::constants::{
-        PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION,
+        PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION,
     };
     use crate::state::oracle::{OraclePriceData, OracleSource};
@@ -659,7 +659,7 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 2 * SPOT_BALANCE_PRECISION,
+            balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_bids: 0,
             open_asks: -(10_i64.pow(9)),
@@ -694,7 +694,7 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION,
+            balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_bids: 0,
             open_asks: -2 * 10_i64.pow(9),
@@ -729,7 +729,7 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 2 * SPOT_BALANCE_PRECISION,
+            balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_bids: 0,
             open_asks: 10_i64.pow(9),
@@ -764,7 +764,7 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Borrow,
-            balance: 2 * SPOT_BALANCE_PRECISION,
+            balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_bids: 10_i64.pow(9),
             open_asks: 0,
@@ -800,7 +800,7 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Borrow,
-            balance: 2 * SPOT_BALANCE_PRECISION,
+            balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_bids: 5 * 10_i64.pow(9),
             open_asks: 0,
@@ -836,7 +836,7 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Borrow,
-            balance: 2 * SPOT_BALANCE_PRECISION,
+            balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_bids: 0,
             open_asks: -(10_i64.pow(9)),

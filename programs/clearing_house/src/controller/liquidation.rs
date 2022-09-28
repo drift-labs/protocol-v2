@@ -29,7 +29,6 @@ use crate::math::margin::{
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::orders::{get_position_delta_for_fill, standardize_base_asset_amount};
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
-use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
 use crate::state::events::{
     BorrowBankruptcyRecord, LiquidateBorrowForPerpPnlRecord, LiquidateBorrowRecord,
@@ -480,11 +479,7 @@ pub fn liquidate_borrow(
             "User did not have a deposit for the asset market index"
         )?;
 
-        let token_amount = get_token_amount(
-            spot_deposit_position.balance,
-            &asset_market,
-            &spot_deposit_position.balance_type,
-        )?;
+        let token_amount = spot_deposit_position.get_token_amount(&asset_market)?;
 
         let asset_price = asset_price_data.price;
         (
@@ -537,11 +532,7 @@ pub fn liquidate_borrow(
             "User did not have a borrow for the liability market index"
         )?;
 
-        let token_amount = get_token_amount(
-            spot_position.balance,
-            &liability_market,
-            &spot_position.balance_type,
-        )?;
+        let token_amount = spot_position.get_token_amount(&liability_market)?;
 
         let liability_price = liability_price_data.price;
 
@@ -928,11 +919,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             "User did not have a borrow for the borrow market index"
         )?;
 
-        let token_amount = get_token_amount(
-            spot_position.balance,
-            &liability_market,
-            &spot_position.balance_type,
-        )?;
+        let token_amount = spot_position.get_token_amount(&liability_market)?;
 
         (
             token_amount,
@@ -1247,11 +1234,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             "User did not have a deposit for the asset market"
         )?;
 
-        let token_amount = get_token_amount(
-            spot_position.balance,
-            &asset_market,
-            &spot_position.balance_type,
-        )?;
+        let token_amount = spot_position.get_token_amount(&asset_market)?;
 
         (
             token_amount,
@@ -1741,11 +1724,7 @@ pub fn resolve_borrow_bankruptcy(
 
         validate!(spot_position.balance > 0, ErrorCode::UserHasInvalidBorrow)?;
 
-        get_token_amount(
-            spot_position.balance,
-            spot_market_map.get_ref(&market_index)?.deref(),
-            &SpotBalanceType::Borrow,
-        )?
+        spot_position.get_token_amount(spot_market_map.get_ref(&market_index)?.deref())?
     };
 
     // todo: add market's insurance fund draw attempt here (before social loss)
