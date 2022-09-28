@@ -759,6 +759,8 @@ pub mod clearing_house {
                 amount
             };
 
+            msg!("amount: {}", amount);
+
             // prevents withdraw when limits hit
             controller::spot_balance::update_spot_position_balance_with_limits(
                 amount as u128,

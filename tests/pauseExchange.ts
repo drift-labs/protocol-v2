@@ -4,7 +4,12 @@ import { BN, QUOTE_SPOT_MARKET_INDEX } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
-import { Admin, PRICE_PRECISION, PositionDirection } from '../sdk/src';
+import {
+	Admin,
+	PRICE_PRECISION,
+	PositionDirection,
+	ExchangeStatus,
+} from '../sdk/src';
 
 import { mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 
@@ -21,14 +26,14 @@ describe('admin withdraw', () => {
 
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
-	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 9).mul(
 		mantissaSqrtScale
 	);
-	const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+	const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 9).mul(
 		mantissaSqrtScale
 	);
 
-	const usdcAmount = new BN(10 * 10 ** 6);
+	const usdcAmount = new BN(100 * 10 ** 6);
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -71,7 +76,7 @@ describe('admin withdraw', () => {
 	});
 
 	it('Pause exchange', async () => {
-		await clearingHouse.updateExchangePaused(true);
+		await clearingHouse.updateExchangeStatus(ExchangeStatus.PAUSED);
 		const state = clearingHouse.getStateAccount();
 		assert(state.exchangePaused);
 	});
