@@ -233,6 +233,8 @@ impl Default for SpotBalanceType {
 }
 
 pub trait SpotBalance {
+    fn market_index(&self) -> u16;
+
     fn balance_type(&self) -> &SpotBalanceType;
 
     fn balance(&self) -> u128;

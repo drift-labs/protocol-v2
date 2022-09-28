@@ -238,6 +238,10 @@ impl Default for PoolBalance {
 }
 
 impl SpotBalance for PoolBalance {
+    fn market_index(&self) -> u16 {
+        self.market_index
+    }
+
     fn balance_type(&self) -> &SpotBalanceType {
         &SpotBalanceType::Deposit
     }
