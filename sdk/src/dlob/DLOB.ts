@@ -302,14 +302,14 @@ export class DLOB {
 
 		const askGenerator = this.getAsks(
 			marketIndex,
-			vAsk,
+			undefined, // dont include vask
 			slot,
 			marketType,
 			oraclePriceData
 		);
 		const bidGenerator = this.getBids(
 			marketIndex,
-			vBid,
+			undefined, // dont include vbid
 			slot,
 			marketType,
 			oraclePriceData
@@ -323,6 +323,8 @@ export class DLOB {
 			const { crossingNodes, exhaustedSide } = this.findCrossingOrders(
 				nextAsk.value,
 				nextBid.value,
+				vAsk,
+				vBid,
 				oraclePriceData,
 				slot
 			);
@@ -339,15 +341,8 @@ export class DLOB {
 				break;
 			}
 
-			const takerIsMaker =
-				crossingNodes?.makerNode !== undefined &&
-				crossingNodes.node.userAccount.equals(
-					crossingNodes.makerNode.userAccount
-				);
-
-			// Verify that each side is different user
-			if (crossingNodes && !takerIsMaker) {
-				nodesToFill.push(crossingNodes);
+			for (const crossingNode of crossingNodes) {
+				nodesToFill.push(crossingNode);
 			}
 		}
 		return nodesToFill;
@@ -565,11 +560,13 @@ export class DLOB {
 	findCrossingOrders(
 		askNode: DLOBNode,
 		bidNode: DLOBNode,
+		vAsk: BN | undefined,
+		vBid: BN | undefined,
 		oraclePriceData: OraclePriceData,
 		slot: number
 	): {
-		crossingNodes?: NodeToFill;
-		exhaustedSide?: Side;
+		crossingNodes: NodeToFill[];
+		exhaustedSide: Side;
 	} {
 		const bidPrice = bidNode.getPrice(oraclePriceData, slot);
 		const askPrice = askNode.getPrice(oraclePriceData, slot);
@@ -577,54 +574,42 @@ export class DLOB {
 		const bidOrder = bidNode.order;
 		const askOrder = askNode.order;
 
-		const containsMarketOrder =
-			(askOrder && isVariant(askOrder.orderType, 'market')) ||
-			(bidOrder && isVariant(bidOrder.orderType, 'market'));
+		// when bid and ask don't cross, check against vamm
+		if (bidPrice.lt(askPrice)) {
+			if (vBid && vAsk) {
+				const crossingNodes: NodeToFill[] = [];
+				if (bidPrice.gte(vAsk) && isAuctionComplete(bidOrder, slot)) {
+					crossingNodes.push({
+						node: bidNode,
+					});
+				}
+				if (askPrice.lte(vBid) && isAuctionComplete(askOrder, slot)) {
+					crossingNodes.push({
+						node: askNode,
+					});
+				}
 
-		if (!containsMarketOrder || bidPrice.lt(askPrice)) {
-			// no market orders, and no crossing orders - return
-			if (askNode.isVammNode() && !bidNode.isVammNode()) {
 				return {
-					exhaustedSide: 'bid',
-				};
-			} else if (!askNode.isVammNode() && bidNode.isVammNode()) {
-				return {
-					exhaustedSide: 'ask',
+					crossingNodes,
+					exhaustedSide: 'both',
 				};
 			} else {
 				return {
+					crossingNodes: [],
 					exhaustedSide: 'both',
 				};
 			}
 		}
 
-		// User bid crosses the vamm ask
-		if (askNode.isVammNode()) {
-			if (!isAuctionComplete(bidOrder, slot)) {
-				return {
-					exhaustedSide: 'bid',
-				};
-			}
+		// Can't match two maker orders or if maker and taker are the same
+		const makerIsTaker = bidNode.userAccount.equals(askNode.userAccount);
+		if (makerIsTaker || (bidOrder.postOnly && askOrder.postOnly)) {
+			// don't have a principle way to pick which one to exhaust,
+			// exhaust each one 50% of the time so we can try each one against other orders
+			const exhaustedSide = Math.random() < 0.5 ? 'bid' : 'ask';
 			return {
-				crossingNodes: {
-					node: bidNode,
-				},
-				exhaustedSide: 'bid',
-			};
-		}
-
-		// User ask crosses the vamm bid
-		if (bidNode.isVammNode()) {
-			if (!isAuctionComplete(askOrder, slot)) {
-				return {
-					exhaustedSide: 'ask',
-				};
-			}
-			return {
-				crossingNodes: {
-					node: askNode,
-				},
-				exhaustedSide: 'ask',
+				crossingNodes: [],
+				exhaustedSide,
 			};
 		}
 
@@ -644,13 +629,6 @@ export class DLOB {
 			exhaustedSide = 'bid';
 		}
 
-		// Can't match two maker orders
-		if (bidOrder.postOnly && askOrder.postOnly) {
-			return {
-				exhaustedSide,
-			};
-		}
-
 		// update the orders as if they fill - so we don't try to match them on the next iteration
 		if (exhaustedSide === 'ask') {
 			bidNode.order.baseAssetAmountFilled =
@@ -668,10 +646,12 @@ export class DLOB {
 		// Bid is maker
 		if (bidOrder.postOnly) {
 			return {
-				crossingNodes: {
-					node: askNode,
-					makerNode: bidNode,
-				},
+				crossingNodes: [
+					{
+						node: askNode,
+						makerNode: bidNode,
+					},
+				],
 				exhaustedSide,
 			};
 		}
@@ -679,10 +659,12 @@ export class DLOB {
 		// Ask is maker
 		if (askOrder.postOnly) {
 			return {
-				crossingNodes: {
-					node: bidNode,
-					makerNode: askNode,
-				},
+				crossingNodes: [
+					{
+						node: bidNode,
+						makerNode: askNode,
+					},
+				],
 				exhaustedSide,
 			};
 		}
@@ -693,10 +675,12 @@ export class DLOB {
 			? [askNode, bidNode]
 			: [bidNode, askNode];
 		return {
-			crossingNodes: {
-				node: newerNode,
-				makerNode: olderNode,
-			},
+			crossingNodes: [
+				{
+					node: newerNode,
+					makerNode: olderNode,
+				},
+			],
 			exhaustedSide,
 		};
 	}
