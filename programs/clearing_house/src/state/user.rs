@@ -41,7 +41,7 @@ pub struct User {
 }
 
 impl User {
-    pub fn get_spot_position_index(&self, market_index: u64) -> ClearingHouseResult<usize> {
+    pub fn get_spot_position_index(&self, market_index: u16) -> ClearingHouseResult<usize> {
         // first spot position is always quote asset
         if market_index == 0 {
             return Ok(0);
@@ -53,13 +53,13 @@ impl User {
             .ok_or(ErrorCode::CouldNotFindSpotPosition)
     }
 
-    pub fn get_spot_position(&self, market_index: u64) -> Option<&SpotPosition> {
+    pub fn get_spot_position(&self, market_index: u16) -> Option<&SpotPosition> {
         self.get_spot_position_index(market_index)
             .ok()
             .map(|market_index| &self.spot_positions[market_index])
     }
 
-    pub fn get_spot_position_mut(&mut self, market_index: u64) -> Option<&mut SpotPosition> {
+    pub fn get_spot_position_mut(&mut self, market_index: u16) -> Option<&mut SpotPosition> {
         self.get_spot_position_index(market_index)
             .ok()
             .map(move |market_index| &mut self.spot_positions[market_index])
@@ -71,7 +71,7 @@ impl User {
 
     pub fn add_spot_position(
         &mut self,
-        market_index: u64,
+        market_index: u16,
         balance_type: SpotBalanceType,
     ) -> ClearingHouseResult<usize> {
         let new_spot_position_index = self
@@ -94,27 +94,27 @@ impl User {
 
     pub fn force_get_spot_position_mut(
         &mut self,
-        market_index: u64,
+        market_index: u16,
     ) -> ClearingHouseResult<&mut SpotPosition> {
         self.get_spot_position_index(market_index)
             .or_else(|_| self.add_spot_position(market_index, SpotBalanceType::Deposit))
             .map(move |market_index| &mut self.spot_positions[market_index])
     }
 
-    pub fn get_perp_position(&self, market_index: u64) -> ClearingHouseResult<&PerpPosition> {
+    pub fn get_perp_position(&self, market_index: u16) -> ClearingHouseResult<&PerpPosition> {
         Ok(&self.perp_positions[get_position_index(&self.perp_positions, market_index)?])
     }
 
     pub fn get_perp_position_mut(
         &mut self,
-        market_index: u64,
+        market_index: u16,
     ) -> ClearingHouseResult<&mut PerpPosition> {
         Ok(&mut self.perp_positions[get_position_index(&self.perp_positions, market_index)?])
     }
 
     pub fn force_get_perp_position_mut(
         &mut self,
-        market_index: u64,
+        market_index: u16,
     ) -> ClearingHouseResult<&mut PerpPosition> {
         let position_index = get_position_index(&self.perp_positions, market_index)
             .or_else(|_| add_new_position(&mut self.perp_positions, market_index))?;
@@ -156,7 +156,7 @@ pub struct UserFees {
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(packed)]
 pub struct SpotPosition {
-    pub market_index: u64,
+    pub market_index: u16,
     pub balance_type: SpotBalanceType,
     pub balance: u128,
     pub open_orders: u8,
@@ -241,14 +241,13 @@ impl SpotPosition {
 #[derive(Default, Debug, Eq, PartialEq)]
 #[repr(packed)]
 pub struct PerpPosition {
-    pub market_index: u64,
+    pub market_index: u16,
     pub base_asset_amount: i128,
     pub quote_asset_amount: i128,
     pub quote_entry_amount: i128,
     pub last_cumulative_funding_rate: i128,
-    pub last_cumulative_repeg_rebate: u128,
     pub last_funding_rate_ts: i64,
-    pub open_orders: u128,
+    pub open_orders: u8,
     pub open_bids: i128,
     pub open_asks: i128,
     pub settled_pnl: i64,
@@ -259,17 +258,10 @@ pub struct PerpPosition {
     pub last_net_base_asset_amount_per_lp: i128,
     pub last_net_quote_asset_amount_per_lp: i128,
     pub last_lp_add_time: i64,
-
-    // upgrade-ability
-    pub padding0: u128,
-    pub padding1: u128,
-    pub padding2: u128,
-    pub padding3: u128,
-    pub padding4: u128,
 }
 
 impl PerpPosition {
-    pub fn is_for(&self, market_index: u64) -> bool {
+    pub fn is_for(&self, market_index: u16) -> bool {
         self.market_index == market_index && !self.is_available()
     }
 
@@ -409,7 +401,7 @@ pub struct Order {
     pub slot: u64,
     pub order_id: u64,
     pub user_order_id: u8,
-    pub market_index: u64,
+    pub market_index: u16,
     pub price: u128,
     pub existing_position_direction: PositionDirection,
     pub base_asset_amount: u128,
@@ -535,7 +527,7 @@ impl Order {
         self.post_only && self.immediate_or_cancel
     }
 
-    pub fn is_open_order_for_market(&self, market_index: u64, market_type: &MarketType) -> bool {
+    pub fn is_open_order_for_market(&self, market_index: u16, market_type: &MarketType) -> bool {
         self.market_index == market_index
             && self.status == OrderStatus::Open
             && &self.market_type == market_type

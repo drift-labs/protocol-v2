@@ -208,8 +208,8 @@ export async function initializeAndSubscribeClearingHouse(
 	connection: Connection,
 	program: Program,
 	userKeyPair: Keypair,
-	marketIndexes: BN[],
-	bankIndexes: BN[],
+	marketIndexes: number[],
+	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = []
 ): Promise<ClearingHouse> {
 	const clearingHouse = new ClearingHouse({
@@ -234,8 +234,8 @@ export async function createUserWithUSDCAccount(
 	usdcMint: Keypair,
 	chProgram: Program,
 	usdcAmount: BN,
-	marketIndexes: BN[],
-	bankIndexes: BN[],
+	marketIndexes: number[],
+	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = []
 ): Promise<[ClearingHouse, PublicKey, Keypair]> {
 	const userKeyPair = await createFundedKeyPair(provider.connection);
@@ -283,8 +283,8 @@ export async function createUserWithUSDCAndWSOLAccount(
 	chProgram: Program,
 	solAmount: BN,
 	usdcAmount: BN,
-	marketIndexes: BN[],
-	bankIndexes: BN[],
+	marketIndexes: number[],
+	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = []
 ): Promise<[ClearingHouse, PublicKey, PublicKey, Keypair]> {
 	const userKeyPair = await createFundedKeyPair(provider.connection);
@@ -358,8 +358,8 @@ export async function initUserAccounts(
 	usdcMint: Keypair,
 	usdcAmount: BN,
 	provider: Provider,
-	marketIndexes: BN[],
-	bankIndexes: BN[],
+	marketIndexes: number[],
+	bankIndexes: number[],
 	oracleInfos: OracleInfo[]
 ) {
 	const user_keys = [];

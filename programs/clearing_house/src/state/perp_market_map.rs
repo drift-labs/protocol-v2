@@ -15,10 +15,10 @@ use crate::state::user::UserPositions;
 
 use solana_program::msg;
 
-pub struct PerpMarketMap<'a>(pub BTreeMap<u64, AccountLoader<'a, PerpMarket>>);
+pub struct PerpMarketMap<'a>(pub BTreeMap<u16, AccountLoader<'a, PerpMarket>>);
 
 impl<'a> PerpMarketMap<'a> {
-    pub fn get_ref(&self, market_index: &u64) -> ClearingHouseResult<Ref<PerpMarket>> {
+    pub fn get_ref(&self, market_index: &u16) -> ClearingHouseResult<Ref<PerpMarket>> {
         self.0
             .get(market_index)
             .ok_or_else(|| {
@@ -29,7 +29,7 @@ impl<'a> PerpMarketMap<'a> {
             .or(Err(ErrorCode::UnableToLoadMarketAccount))
     }
 
-    pub fn get_ref_mut(&self, market_index: &u64) -> ClearingHouseResult<RefMut<PerpMarket>> {
+    pub fn get_ref_mut(&self, market_index: &u16) -> ClearingHouseResult<RefMut<PerpMarket>> {
         self.0
             .get(market_index)
             .ok_or_else(|| {
@@ -60,7 +60,7 @@ impl<'a> PerpMarketMap<'a> {
             if account_discriminator != &market_discriminator {
                 break;
             }
-            let market_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
+            let market_index = u16::from_le_bytes(*array_ref![data, 8, 2]);
 
             let account_info = account_info_iter.next().unwrap();
 
@@ -100,7 +100,7 @@ impl<'a> PerpMarketMap<'a> {
         if account_discriminator != &market_discriminator {
             return Err(ErrorCode::CouldNotLoadMarketData);
         }
-        let market_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
+        let market_index = u16::from_le_bytes(*array_ref![data, 8, 2]);
 
         let is_writable = account_info.is_writable;
         let account_loader: AccountLoader<PerpMarket> =
@@ -139,7 +139,7 @@ impl<'a> PerpMarketMap<'a> {
             if account_discriminator != &market_discriminator {
                 return Err(ErrorCode::CouldNotLoadMarketData);
             }
-            let market_index = u64::from_le_bytes(*array_ref![data, 8, 8]);
+            let market_index = u16::from_le_bytes(*array_ref![data, 8, 2]);
 
             let is_writable = account_info.is_writable;
             let account_loader: AccountLoader<PerpMarket> =
@@ -156,15 +156,15 @@ impl<'a> PerpMarketMap<'a> {
     }
 }
 
-pub type MarketSet = BTreeSet<u64>;
+pub type MarketSet = BTreeSet<u16>;
 
-pub fn get_market_set(market_index: u64) -> MarketSet {
+pub fn get_market_set(market_index: u16) -> MarketSet {
     let mut writable_markets = MarketSet::new();
     writable_markets.insert(market_index);
     writable_markets
 }
 
-pub fn get_market_set_from_list(market_indexes: [u64; 5]) -> MarketSet {
+pub fn get_market_set_from_list(market_indexes: [u16; 5]) -> MarketSet {
     let mut writable_markets = MarketSet::new();
     for market_index in market_indexes.iter() {
         if *market_index == 100 {
@@ -185,7 +185,7 @@ pub fn get_market_set_for_user_positions(user_positions: &UserPositions) -> Mark
 
 pub fn get_market_set_for_user_positions_and_order(
     user_positions: &UserPositions,
-    market_index: u64,
+    market_index: u16,
 ) -> MarketSet {
     let mut writable_markets = MarketSet::new();
     for position in user_positions.iter() {

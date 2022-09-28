@@ -57,7 +57,7 @@ describe('oracle offset', () => {
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
-	const marketIndex = new BN(0);
+	const marketIndex = 0;
 	let solUsd;
 
 	let marketIndexes;
@@ -69,8 +69,8 @@ describe('oracle offset', () => {
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
 		solUsd = await mockOracle(1);
-		marketIndexes = [new BN(0)];
-		spotMarketIndexes = [new BN(0)];
+		marketIndexes = [0];
+		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		fillerClearingHouse = new Admin({
@@ -113,7 +113,7 @@ describe('oracle offset', () => {
 
 	beforeEach(async () => {
 		await fillerClearingHouse.moveAmmPrice(
-			ZERO,
+			0,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve
 		);

@@ -5,7 +5,7 @@ import {
 } from './types';
 import { AccountSubscriber, NotSubscribedError } from './types';
 import { SpotMarketAccount, PerpMarketAccount, StateAccount } from '../types';
-import { BN, Program } from '@project-serum/anchor';
+import { Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
@@ -25,8 +25,8 @@ export class WebSocketClearingHouseAccountSubscriber
 {
 	isSubscribed: boolean;
 	program: Program;
-	perpMarketIndexes: BN[];
-	spotMarketIndexes: BN[];
+	perpMarketIndexes: number[];
+	spotMarketIndexes: number[];
 	oracleInfos: OracleInfo[];
 	oracleClientCache = new OracleClientCache();
 
@@ -48,8 +48,8 @@ export class WebSocketClearingHouseAccountSubscriber
 
 	public constructor(
 		program: Program,
-		perpMarketIndexes: BN[],
-		spotMarketIndexes: BN[],
+		perpMarketIndexes: number[],
+		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[]
 	) {
 		this.isSubscribed = false;
@@ -115,7 +115,7 @@ export class WebSocketClearingHouseAccountSubscriber
 		return true;
 	}
 
-	async subscribeToMarketAccount(marketIndex: BN): Promise<boolean> {
+	async subscribeToMarketAccount(marketIndex: number): Promise<boolean> {
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
 			marketIndex
@@ -129,10 +129,7 @@ export class WebSocketClearingHouseAccountSubscriber
 			this.eventEmitter.emit('perpMarketAccountUpdate', data);
 			this.eventEmitter.emit('update');
 		});
-		this.perpMarketAccountSubscribers.set(
-			marketIndex.toNumber(),
-			accountSubscriber
-		);
+		this.perpMarketAccountSubscribers.set(marketIndex, accountSubscriber);
 		return true;
 	}
 
@@ -143,7 +140,7 @@ export class WebSocketClearingHouseAccountSubscriber
 		return true;
 	}
 
-	async subscribeToSpotMarketAccount(marketIndex: BN): Promise<boolean> {
+	async subscribeToSpotMarketAccount(marketIndex: number): Promise<boolean> {
 		const marketPublicKey = await getSpotMarketPublicKey(
 			this.program.programId,
 			marketIndex
@@ -157,10 +154,7 @@ export class WebSocketClearingHouseAccountSubscriber
 			this.eventEmitter.emit('spotMarketAccountUpdate', data);
 			this.eventEmitter.emit('update');
 		});
-		this.spotMarketAccountSubscribers.set(
-			marketIndex.toNumber(),
-			accountSubscriber
-		);
+		this.spotMarketAccountSubscribers.set(marketIndex, accountSubscriber);
 		return true;
 	}
 
@@ -252,15 +246,15 @@ export class WebSocketClearingHouseAccountSubscriber
 		this.isSubscribed = false;
 	}
 
-	async addSpotMarket(marketIndex: BN): Promise<boolean> {
-		if (this.spotMarketAccountSubscribers.has(marketIndex.toNumber())) {
+	async addSpotMarket(marketIndex: number): Promise<boolean> {
+		if (this.spotMarketAccountSubscribers.has(marketIndex)) {
 			return true;
 		}
 		return this.subscribeToSpotMarketAccount(marketIndex);
 	}
 
-	async addPerpMarket(marketIndex: BN): Promise<boolean> {
-		if (this.perpMarketAccountSubscribers.has(marketIndex.toNumber())) {
+	async addPerpMarket(marketIndex: number): Promise<boolean> {
+		if (this.perpMarketAccountSubscribers.has(marketIndex)) {
 			return true;
 		}
 		return this.subscribeToMarketAccount(marketIndex);
@@ -292,11 +286,10 @@ export class WebSocketClearingHouseAccountSubscriber
 	}
 
 	public getMarketAccountAndSlot(
-		marketIndex: BN
+		marketIndex: number
 	): DataAndSlot<PerpMarketAccount> | undefined {
 		this.assertIsSubscribed();
-		return this.perpMarketAccountSubscribers.get(marketIndex.toNumber())
-			.dataAndSlot;
+		return this.perpMarketAccountSubscribers.get(marketIndex).dataAndSlot;
 	}
 
 	public getMarketAccountsAndSlots(): DataAndSlot<PerpMarketAccount>[] {
@@ -306,11 +299,10 @@ export class WebSocketClearingHouseAccountSubscriber
 	}
 
 	public getSpotMarketAccountAndSlot(
-		marketIndex: BN
+		marketIndex: number
 	): DataAndSlot<SpotMarketAccount> | undefined {
 		this.assertIsSubscribed();
-		return this.spotMarketAccountSubscribers.get(marketIndex.toNumber())
-			.dataAndSlot;
+		return this.spotMarketAccountSubscribers.get(marketIndex).dataAndSlot;
 	}
 
 	public getSpotMarketAccountsAndSlots(): DataAndSlot<SpotMarketAccount>[] {

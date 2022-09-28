@@ -76,8 +76,8 @@ describe('referrer', () => {
 
 		solOracle = await mockOracle(100);
 
-		const marketIndexes = [new BN(0)];
-		const spotMarketIndexes = [new BN(0)];
+		const marketIndexes = [0];
+		const spotMarketIndexes = [0];
 		const oracleInfos = [
 			{
 				publicKey: solOracle,
@@ -165,7 +165,7 @@ describe('referrer', () => {
 			await refereeClearingHouse.initializeUserAccountAndDepositCollateral(
 				usdcAmount,
 				refereeUSDCAccount.publicKey,
-				new BN(0),
+				0,
 				0,
 				'crisp',
 				undefined,
@@ -196,7 +196,7 @@ describe('referrer', () => {
 			getMarketOrderParams({
 				baseAssetAmount: BASE_PRECISION,
 				direction: PositionDirection.LONG,
-				marketIndex: new BN(0),
+				marketIndex: 0,
 			}),
 			undefined,
 			refereeClearingHouse.getUserStats().getReferrerInfo()
@@ -225,7 +225,7 @@ describe('referrer', () => {
 			getMarketOrderParams({
 				baseAssetAmount: BASE_PRECISION,
 				direction: PositionDirection.SHORT,
-				marketIndex: new BN(0),
+				marketIndex: 0,
 			}),
 			undefined,
 			refereeClearingHouse.getUserStats().getReferrerInfo()
@@ -235,7 +235,7 @@ describe('referrer', () => {
 	it('withdraw', async () => {
 		const txSig = await refereeClearingHouse.withdraw(
 			usdcAmount.div(new BN(2)),
-			new BN(0),
+			0,
 			refereeUSDCAccount.publicKey
 		);
 

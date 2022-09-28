@@ -196,7 +196,7 @@ export function calculatePositionFundingPNL(
 export function positionIsAvailable(position: PerpPosition): boolean {
 	return (
 		position.baseAssetAmount.eq(ZERO) &&
-		position.openOrders.eq(ZERO) &&
+		position.openOrders === 0 &&
 		position.quoteAssetAmount.eq(ZERO) &&
 		position.lpShares.eq(ZERO)
 	);
@@ -253,7 +253,5 @@ export function positionCurrentDirection(
 }
 
 export function isEmptyPosition(userPosition: PerpPosition): boolean {
-	return (
-		userPosition.baseAssetAmount.eq(ZERO) && userPosition.openOrders.eq(ZERO)
-	);
+	return userPosition.baseAssetAmount.eq(ZERO) && userPosition.openOrders === 0;
 }

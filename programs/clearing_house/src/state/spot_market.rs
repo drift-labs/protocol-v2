@@ -25,7 +25,7 @@ use solana_program::msg;
 #[derive(Default, PartialEq, Eq, Debug)]
 #[repr(packed)]
 pub struct SpotMarket {
-    pub market_index: u64,
+    pub market_index: u16,
     pub pubkey: Pubkey,
     pub status: MarketStatus,
     pub expiry_ts: i64, // iff market in reduce only mode
@@ -251,7 +251,7 @@ pub struct SerumV3FulfillmentConfig {
     pub pubkey: Pubkey,
     pub fulfillment_type: SpotFulfillmentType,
     pub status: SpotFulfillmentStatus,
-    pub market_index: u64,
+    pub market_index: u16,
     pub serum_program_id: Pubkey,
     pub serum_market: Pubkey,
     pub serum_request_queue: Pubkey,

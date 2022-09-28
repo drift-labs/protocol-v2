@@ -1042,7 +1042,7 @@ fn fulfill_order(
 
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
-        let (_base_asset_amount, _quote_asset_amount) = match fulfillment_method {
+        let (fill_base_asset_amount, fill_quote_asset_amount) = match fulfillment_method {
             PerpFulfillmentMethod::AMM => fulfill_order_with_amm(
                 user,
                 user_stats,
@@ -1091,11 +1091,16 @@ fn fulfill_order(
         };
 
         base_asset_amount = base_asset_amount
-            .checked_add(_base_asset_amount)
+            .checked_add(fill_base_asset_amount)
             .ok_or_else(math_error!())?;
         quote_asset_amount = quote_asset_amount
-            .checked_add(_quote_asset_amount)
+            .checked_add(fill_quote_asset_amount)
             .ok_or_else(math_error!())?;
+        market.amm.update_volume_24h(
+            fill_quote_asset_amount,
+            user.orders[user_order_index].direction,
+            now,
+        )?;
     }
 
     for order_record in order_records {
@@ -1274,13 +1279,6 @@ pub fn fulfill_order_with_amm(
         referrer_stats,
         quote_asset_amount_surplus,
         order_post_only,
-    )?;
-
-    amm::update_amm_long_short_intensity(
-        &mut market.amm,
-        now,
-        quote_asset_amount,
-        order_direction,
     )?;
 
     let user_position_delta =
@@ -1475,13 +1473,6 @@ pub fn fulfill_order_with_match(
     let maker_base_asset_amount =
         maker.orders[maker_order_index].get_base_asset_amount_unfilled()?;
 
-    amm::update_mark_twap(
-        &mut market.amm,
-        now,
-        Some(maker_price),
-        Some(taker_direction),
-    )?;
-
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
     if !orders_cross {
@@ -1498,6 +1489,13 @@ pub fn fulfill_order_with_match(
     if base_asset_amount == 0 {
         return Ok((0_u128, 0_u128));
     }
+
+    amm::update_mark_twap(
+        &mut market.amm,
+        now,
+        Some(maker_price),
+        Some(taker_direction),
+    )?;
 
     let amm_wants_to_make = match taker_direction {
         PositionDirection::Long => market.amm.net_base_asset_amount < 0,
@@ -3004,21 +3002,21 @@ pub fn fulfill_spot_order_with_serum(
         };
     }
 
-    base_market.historical_index_data.last_index_price_twap = calculate_new_twap(
-        mid_price,
+    base_market.historical_index_data.last_index_price_twap = cast(calculate_new_twap(
+        cast(mid_price)?,
         now,
-        base_market.historical_index_data.last_index_price_twap,
+        cast(base_market.historical_index_data.last_index_price_twap)?,
         base_market.historical_index_data.last_index_price_twap_ts,
         60 * 60,
-    )?;
+    )?)?;
 
-    base_market.historical_index_data.last_index_price_twap_5min = calculate_new_twap(
-        mid_price,
+    base_market.historical_index_data.last_index_price_twap_5min = cast(calculate_new_twap(
+        cast(mid_price)?,
         now,
-        base_market.historical_index_data.last_index_price_twap_5min,
+        cast(base_market.historical_index_data.last_index_price_twap_5min)?,
         base_market.historical_index_data.last_index_price_twap_ts,
         60 * 5,
-    )?;
+    )?)?;
 
     let market_state_before = load_serum_market(
         serum_new_order_accounts.serum_market,
