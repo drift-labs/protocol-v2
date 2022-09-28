@@ -214,19 +214,19 @@ describe('User Account', () => {
 		const oraclePrice = clearingHouse.getOracleDataForMarket(
 			market.marketIndex
 		).price;
-		const markPrice = calculatePrice(
+		const reservePrice = calculatePrice(
 			market.amm.baseAssetReserve,
 			market.amm.quoteAssetReserve,
 			market.amm.pegMultiplier
 		);
 		console.log(
 			'mark vs oracle price:',
-			convertToNumber(markPrice),
+			convertToNumber(reservePrice),
 			convertToNumber(oraclePrice)
 		);
 		await setFeedPrice(
 			anchor.workspace.Pyth,
-			convertToNumber(markPrice.sub(new BN(250))),
+			convertToNumber(reservePrice.sub(new BN(250))),
 			solUsdOracle
 		);
 		await sleep(5000);
@@ -237,10 +237,10 @@ describe('User Account', () => {
 		const oraclePrice2 = clearingHouse.getOracleDataForMarket(
 			market.marketIndex
 		).price;
-		const markPrice2 = calculateReservePrice(market, oraclePrice);
+		const reservePrice2 = calculateReservePrice(market, oraclePrice);
 		console.log(
 			'mark2 vs oracle2 price:',
-			convertToNumber(markPrice2),
+			convertToNumber(reservePrice2),
 			convertToNumber(oraclePrice2)
 		);
 
@@ -292,7 +292,7 @@ describe('User Account', () => {
 		const oraclePrice = clearingHouse.getOracleDataForMarket(
 			market.marketIndex
 		).price;
-		const markPrice = calculatePrice(
+		const reservePrice = calculatePrice(
 			market.amm.baseAssetReserve,
 			market.amm.quoteAssetReserve,
 			market.amm.pegMultiplier
@@ -300,12 +300,12 @@ describe('User Account', () => {
 
 		console.log(
 			'mark vs oracle price:',
-			convertToNumber(markPrice),
+			convertToNumber(reservePrice),
 			convertToNumber(oraclePrice)
 		);
 		await setFeedPrice(
 			anchor.workspace.Pyth,
-			convertToNumber(markPrice.sub(new BN(275))),
+			convertToNumber(reservePrice.sub(new BN(275))),
 			solUsdOracle
 		);
 		await sleep(5000);
@@ -316,10 +316,10 @@ describe('User Account', () => {
 		const oraclePrice2 = clearingHouse.getOracleDataForMarket(
 			market.marketIndex
 		).price;
-		const markPrice2 = calculateReservePrice(market, oraclePrice);
+		const reservePrice2 = calculateReservePrice(market, oraclePrice);
 		console.log(
 			'mark2 vs oracle2 price:',
-			convertToNumber(markPrice2),
+			convertToNumber(reservePrice2),
 			convertToNumber(oraclePrice2)
 		);
 

@@ -338,7 +338,7 @@ describe('repeg and spread amm', () => {
 		console.log('spreads:', longSpread, shortSpread);
 		assert(shortSpread > longSpread);
 
-		const markPrice = calculatePrice(
+		const reservePrice = calculatePrice(
 			prepegAMM.baseAssetReserve,
 			prepegAMM.quoteAssetReserve,
 			prepegAMM.pegMultiplier
@@ -349,7 +349,7 @@ describe('repeg and spread amm', () => {
 		const targetMarkSpreadPct = markPrice
 			.sub(targetPrice)
 			.mul(BID_ASK_SPREAD_PRECISION)
-			.div(markPrice);
+			.div(reservePrice);
 
 		const tfMD =
 			prepegAMM.totalFeeMinusDistributions.toNumber() /
@@ -469,7 +469,7 @@ describe('repeg and spread amm', () => {
 
 		assert(bid1.eq(bid));
 		assert(ask1.eq(ask));
-		assert(mark1.eq(markPrice));
+		assert(mark1.eq(reservePrice));
 
 		assert(bid1.lt(ask1));
 		assert(ask1.gt(oraclePriceData.price));
