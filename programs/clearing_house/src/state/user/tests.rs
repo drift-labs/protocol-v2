@@ -2,8 +2,8 @@ mod get_claimable_pnl {
     use crate::math::amm::calculate_net_user_pnl;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, MAX_CONCENTRATION_COEFFICIENT,
-        PRICE_PRECISION_I128, QUOTE_PRECISION, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        PRICE_PRECISION_I128, QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
+        SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
     use crate::math::spot_balance::get_token_amount;
@@ -19,7 +19,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: BASE_PRECISION_I128,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -37,7 +37,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: BASE_PRECISION_I128,
                 quote_asset_amount: -50 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -55,7 +55,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: BASE_PRECISION_I128,
                 quote_asset_amount: -50 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -83,7 +83,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: BASE_PRECISION_I128,
                 quote_asset_amount: -50 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -101,7 +101,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: BASE_PRECISION_I128,
                 quote_asset_amount: -50 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -119,7 +119,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: BASE_PRECISION_I128,
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -137,7 +137,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: -BASE_PRECISION_I128,
                 quote_asset_amount: 100 * QUOTE_PRECISION_I128,
-                quote_entry_amount: 100 * QUOTE_PRECISION_I128,
+                quote_entry_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -155,7 +155,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: -BASE_PRECISION_I128,
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: 100 * QUOTE_PRECISION_I128,
+                quote_entry_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -173,7 +173,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: -BASE_PRECISION_I128,
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: 100 * QUOTE_PRECISION_I128,
+                quote_entry_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -191,7 +191,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: -BASE_PRECISION_I128,
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: 100 * QUOTE_PRECISION_I128,
+                quote_entry_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -241,7 +241,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: -BASE_PRECISION_I128,
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: 100 * QUOTE_PRECISION_I128,
+                quote_entry_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -251,7 +251,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: BASE_PRECISION_I128,
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -50 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -50 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -261,7 +261,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: BASE_PRECISION_I128,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -343,7 +343,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: -BASE_PRECISION_I128,
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: 100 * QUOTE_PRECISION_I128,
+                quote_entry_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -353,7 +353,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: BASE_PRECISION_I128,
                 quote_asset_amount: -149 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -150 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -150 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -363,7 +363,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: BASE_PRECISION_I128,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -490,7 +490,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: -BASE_PRECISION_I128,
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: 100 * QUOTE_PRECISION_I128,
+                quote_entry_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -500,7 +500,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: BASE_PRECISION_I128,
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -160 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -160 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -510,7 +510,7 @@ mod get_claimable_pnl {
             perp_positions: get_positions(PerpPosition {
                 base_asset_amount: BASE_PRECISION_I128,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()

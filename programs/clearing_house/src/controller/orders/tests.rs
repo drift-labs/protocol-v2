@@ -34,7 +34,7 @@ pub mod fulfill_order_with_maker_order {
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{
         BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64, PRICE_PRECISION_U64,
-        QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
+        QUOTE_PRECISION_I64, QUOTE_PRECISION_U64,
     };
     use crate::state::market::PerpMarket;
     use crate::state::user::{Order, OrderType, PerpPosition, User, UserStats};
@@ -130,7 +130,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_position.quote_asset_amount, -100050000);
         assert_eq!(
             taker_position.quote_entry_amount,
-            -100 * QUOTE_PRECISION_I128
+            -100 * QUOTE_PRECISION_I64
         );
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
@@ -143,10 +143,7 @@ pub mod fulfill_order_with_maker_order {
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
         assert_eq!(maker_position.quote_asset_amount, 100030000);
-        assert_eq!(
-            maker_position.quote_entry_amount,
-            100 * QUOTE_PRECISION_I128
-        );
+        assert_eq!(maker_position.quote_entry_amount, 100 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
@@ -251,7 +248,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_position.quote_asset_amount, -160080000);
         assert_eq!(
             taker_position.quote_entry_amount,
-            -160 * QUOTE_PRECISION_I128
+            -160 * QUOTE_PRECISION_I64
         );
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
@@ -264,10 +261,7 @@ pub mod fulfill_order_with_maker_order {
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
         assert_eq!(maker_position.quote_asset_amount, 160048000);
-        assert_eq!(
-            maker_position.quote_entry_amount,
-            160 * QUOTE_PRECISION_I128
-        );
+        assert_eq!(maker_position.quote_entry_amount, 160 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 48000);
@@ -370,10 +364,7 @@ pub mod fulfill_order_with_maker_order {
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128);
         assert_eq!(taker_position.quote_asset_amount, 179910000);
-        assert_eq!(
-            taker_position.quote_entry_amount,
-            180 * QUOTE_PRECISION_I128
-        );
+        assert_eq!(taker_position.quote_entry_amount, 180 * QUOTE_PRECISION_I64);
         assert_eq!(taker_position.open_asks, 0);
         assert_eq!(taker_position.open_orders, 0);
         assert_eq!(taker_stats.fees.total_fee_paid, 90000);
@@ -387,7 +378,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.quote_asset_amount, -179946000);
         assert_eq!(
             maker_position.quote_entry_amount,
-            -180 * QUOTE_PRECISION_I128
+            -180 * QUOTE_PRECISION_I64
         );
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_bids, 0);
@@ -491,10 +482,7 @@ pub mod fulfill_order_with_maker_order {
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128);
         assert_eq!(taker_position.quote_asset_amount, 139930000);
-        assert_eq!(
-            taker_position.quote_entry_amount,
-            140 * QUOTE_PRECISION_I128
-        );
+        assert_eq!(taker_position.quote_entry_amount, 140 * QUOTE_PRECISION_I64);
         assert_eq!(taker_position.open_asks, 0);
         assert_eq!(taker_position.open_orders, 0);
         assert_eq!(taker_stats.fees.total_fee_paid, 70000);
@@ -508,7 +496,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.quote_asset_amount, -139958000);
         assert_eq!(
             maker_position.quote_entry_amount,
-            -140 * QUOTE_PRECISION_I128
+            -140 * QUOTE_PRECISION_I64
         );
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_bids, 0);
@@ -957,17 +945,14 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_position.quote_asset_amount, -120120000);
         assert_eq!(
             taker_position.quote_entry_amount,
-            -120 * QUOTE_PRECISION_I128
+            -120 * QUOTE_PRECISION_I64
         );
         assert_eq!(taker_stats.taker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
         assert_eq!(maker_position.quote_asset_amount, 120072000);
-        assert_eq!(
-            maker_position.quote_entry_amount,
-            120 * QUOTE_PRECISION_I128
-        );
+        assert_eq!(maker_position.quote_entry_amount, 120 * QUOTE_PRECISION_I64);
         assert_eq!(maker_stats.maker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -1065,17 +1050,14 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_position.quote_asset_amount, -120120000);
         assert_eq!(
             taker_position.quote_entry_amount,
-            -120 * QUOTE_PRECISION_I128
+            -120 * QUOTE_PRECISION_I64
         );
         assert_eq!(taker_stats.taker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
         assert_eq!(maker_position.quote_asset_amount, 120072000);
-        assert_eq!(
-            maker_position.quote_entry_amount,
-            120 * QUOTE_PRECISION_I128
-        );
+        assert_eq!(maker_position.quote_entry_amount, 120 * QUOTE_PRECISION_I64);
         assert_eq!(maker_stats.maker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -1176,7 +1158,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_position.quote_asset_amount, -150075000);
         assert_eq!(
             taker_position.quote_entry_amount,
-            -150 * QUOTE_PRECISION_I128
+            -150 * QUOTE_PRECISION_I64
         );
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
@@ -1189,10 +1171,7 @@ pub mod fulfill_order_with_maker_order {
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
         assert_eq!(maker_position.quote_asset_amount, 150045000);
-        assert_eq!(
-            maker_position.quote_entry_amount,
-            150 * QUOTE_PRECISION_I128
-        );
+        assert_eq!(maker_position.quote_entry_amount, 150 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 45000);
@@ -1292,10 +1271,7 @@ pub mod fulfill_order_with_maker_order {
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128);
         assert_eq!(maker_position.quote_asset_amount, 100030000);
-        assert_eq!(
-            maker_position.quote_entry_amount,
-            100 * QUOTE_PRECISION_I128
-        );
+        assert_eq!(maker_position.quote_entry_amount, 100 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
@@ -1307,7 +1283,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_position.quote_asset_amount, -100050000);
         assert_eq!(
             taker_position.quote_entry_amount,
-            -100 * QUOTE_PRECISION_I128
+            -100 * QUOTE_PRECISION_I64
         );
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
@@ -1413,7 +1389,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.quote_asset_amount, -99970000);
         assert_eq!(
             maker_position.quote_entry_amount,
-            -100 * QUOTE_PRECISION_I128
+            -100 * QUOTE_PRECISION_I64
         );
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_bids, 0);
@@ -1424,10 +1400,7 @@ pub mod fulfill_order_with_maker_order {
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128);
         assert_eq!(taker_position.quote_asset_amount, 99950000);
-        assert_eq!(
-            taker_position.quote_entry_amount,
-            100 * QUOTE_PRECISION_I128
-        );
+        assert_eq!(taker_position.quote_entry_amount, 100 * QUOTE_PRECISION_I64);
         assert_eq!(taker_position.open_asks, 0);
         assert_eq!(taker_position.open_orders, 0);
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
@@ -1457,7 +1430,7 @@ pub mod fulfill_order {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64,
         BASE_PRECISION_U64, BID_ASK_SPREAD_PRECISION_I128, PEG_PRECISION, PRICE_PRECISION,
-        PRICE_PRECISION_I128, PRICE_PRECISION_U64, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
+        PRICE_PRECISION_I128, PRICE_PRECISION_U64, QUOTE_PRECISION_I64, QUOTE_PRECISION_U64,
         SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{PerpMarket, AMM};
@@ -1743,7 +1716,7 @@ pub mod fulfill_order {
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128 / 2);
         assert_eq!(maker_position.quote_asset_amount, 50015000);
-        assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I128);
+        assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
@@ -1899,10 +1872,7 @@ pub mod fulfill_order {
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128 / 2);
         assert_eq!(taker_position.quote_asset_amount, -50025000);
-        assert_eq!(
-            taker_position.quote_entry_amount,
-            -50 * QUOTE_PRECISION_I128
-        );
+        assert_eq!(taker_position.quote_entry_amount, -50 * QUOTE_PRECISION_I64);
         assert_eq!(taker_position.open_bids, BASE_PRECISION_I64 / 2);
         assert_eq!(taker_position.open_orders, 1);
         assert_eq!(taker_stats.fees.total_fee_paid, 25000);
@@ -1913,7 +1883,7 @@ pub mod fulfill_order {
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128 / 2);
         assert_eq!(maker_position.quote_asset_amount, 50015000);
-        assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I128);
+        assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
@@ -2445,10 +2415,7 @@ pub mod fulfill_order {
         let taker_position = &taker.perp_positions[0].clone();
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128 / 2);
         assert_eq!(taker_position.quote_asset_amount, -50025000);
-        assert_eq!(
-            taker_position.quote_entry_amount,
-            -50 * QUOTE_PRECISION_I128
-        );
+        assert_eq!(taker_position.quote_entry_amount, -50 * QUOTE_PRECISION_I64);
         assert_eq!(taker_position.open_bids, BASE_PRECISION_I64 / 2);
         assert_eq!(taker_position.open_orders, 1);
         assert_eq!(taker_stats.fees.total_fee_paid, 25000);
@@ -2468,7 +2435,7 @@ pub mod fulfill_order {
         let maker_position = &maker.perp_positions[1];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128 / 2);
         assert_eq!(maker_position.quote_asset_amount, 50015000);
-        assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I128);
+        assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 15000);

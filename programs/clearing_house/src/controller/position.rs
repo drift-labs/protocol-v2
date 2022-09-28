@@ -5,7 +5,7 @@ use solana_program::msg;
 use crate::controller;
 use crate::controller::amm::SwapDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast, cast_to_i128};
+use crate::math::casting::{cast, cast_to_i128, Cast};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, LP_FEE_SLICE_DENOMINATOR,
     LP_FEE_SLICE_NUMERATOR,
@@ -108,7 +108,7 @@ pub fn update_amm_position(
     };
 
     position.quote_asset_amount = new_quote_asset_amount;
-    position.quote_entry_amount = new_quote_entry_amount;
+    position.quote_entry_amount = new_quote_entry_amount.cast()?;
     position.base_asset_amount = new_base_asset_amount;
 
     if is_per_lp_position {
@@ -142,7 +142,7 @@ pub fn update_position_and_market(
         PositionUpdateType::Open | PositionUpdateType::Increase => {
             let new_quote_entry_amount = position
                 .quote_entry_amount
-                .checked_add(delta.quote_asset_amount)
+                .checked_add(delta.quote_asset_amount.cast()?)
                 .ok_or_else(math_error!())?;
 
             (new_quote_entry_amount, 0_i128)
@@ -153,10 +153,12 @@ pub fn update_position_and_market(
                 .checked_sub(
                     position
                         .quote_entry_amount
+                        .cast::<i128>()?
                         .checked_mul(delta.base_asset_amount.abs())
                         .ok_or_else(math_error!())?
                         .checked_div(position.base_asset_amount.abs())
-                        .ok_or_else(math_error!())?,
+                        .ok_or_else(math_error!())?
+                        .cast()?,
                 )
                 .ok_or_else(math_error!())?;
 
@@ -164,8 +166,9 @@ pub fn update_position_and_market(
                 .quote_entry_amount
                 .checked_sub(new_quote_entry_amount)
                 .ok_or_else(math_error!())?
-                .checked_add(delta.quote_asset_amount)
-                .ok_or_else(math_error!())?;
+                .checked_add(delta.quote_asset_amount.cast()?)
+                .ok_or_else(math_error!())?
+                .cast::<i128>()?;
 
             (new_quote_entry_amount, pnl)
         }
@@ -184,6 +187,7 @@ pub fn update_position_and_market(
 
             let pnl = position
                 .quote_entry_amount
+                .cast::<i128>()?
                 .checked_add(
                     delta
                         .quote_asset_amount
@@ -192,7 +196,7 @@ pub fn update_position_and_market(
                 )
                 .ok_or_else(math_error!())?;
 
-            (new_quote_entry_amount, pnl)
+            (new_quote_entry_amount.cast::<i64>()?, pnl)
         }
     };
 
@@ -261,7 +265,8 @@ pub fn update_position_and_market(
                         position
                             .quote_entry_amount
                             .checked_sub(new_quote_entry_amount)
-                            .ok_or_else(math_error!())?,
+                            .ok_or_else(math_error!())?
+                            .cast()?,
                     )
                     .ok_or_else(math_error!())?;
             } else {
@@ -281,7 +286,8 @@ pub fn update_position_and_market(
                         position
                             .quote_entry_amount
                             .checked_sub(new_quote_entry_amount)
-                            .ok_or_else(math_error!())?,
+                            .ok_or_else(math_error!())?
+                            .cast()?,
                     )
                     .ok_or_else(math_error!())?;
             }
@@ -303,25 +309,25 @@ pub fn update_position_and_market(
                     .checked_add(
                         delta
                             .quote_asset_amount
-                            .checked_sub(new_quote_entry_amount)
+                            .checked_sub(new_quote_entry_amount.cast()?)
                             .ok_or_else(math_error!())?,
                     )
                     .ok_or_else(math_error!())?;
                 market.amm.quote_entry_amount_short = market
                     .amm
                     .quote_entry_amount_short
-                    .checked_sub(position.quote_entry_amount)
+                    .checked_sub(position.quote_entry_amount.cast()?)
                     .ok_or_else(math_error!())?;
 
                 market.amm.quote_asset_amount_long = market
                     .amm
                     .quote_asset_amount_long
-                    .checked_add(new_quote_entry_amount)
+                    .checked_add(new_quote_entry_amount.cast()?)
                     .ok_or_else(math_error!())?;
                 market.amm.quote_entry_amount_long = market
                     .amm
                     .quote_entry_amount_long
-                    .checked_add(new_quote_entry_amount)
+                    .checked_add(new_quote_entry_amount.cast()?)
                     .ok_or_else(math_error!())?;
             } else {
                 market.base_asset_amount_long = market
@@ -339,24 +345,24 @@ pub fn update_position_and_market(
                     .checked_add(
                         delta
                             .quote_asset_amount
-                            .checked_sub(new_quote_entry_amount)
+                            .checked_sub(new_quote_entry_amount.cast()?)
                             .ok_or_else(math_error!())?,
                     )
                     .ok_or_else(math_error!())?;
                 market.amm.quote_entry_amount_long = market
                     .amm
                     .quote_entry_amount_long
-                    .checked_sub(position.quote_entry_amount)
+                    .checked_sub(position.quote_entry_amount.cast()?)
                     .ok_or_else(math_error!())?;
                 market.amm.quote_asset_amount_short = market
                     .amm
                     .quote_asset_amount_short
-                    .checked_add(new_quote_entry_amount)
+                    .checked_add(new_quote_entry_amount.cast()?)
                     .ok_or_else(math_error!())?;
                 market.amm.quote_entry_amount_short = market
                     .amm
                     .quote_entry_amount_short
-                    .checked_add(new_quote_entry_amount)
+                    .checked_add(new_quote_entry_amount.cast()?)
                     .ok_or_else(math_error!())?;
             }
         }

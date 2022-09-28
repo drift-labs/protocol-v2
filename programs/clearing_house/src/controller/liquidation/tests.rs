@@ -6,7 +6,7 @@ pub mod liquidate_perp {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64,
         BASE_PRECISION_U64, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, PEG_PRECISION,
-        QUOTE_PRECISION, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION_U64,
+        QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::{
@@ -103,7 +103,7 @@ pub mod liquidate_perp {
                 market_index: 0,
                 base_asset_amount: BASE_PRECISION_I128,
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -150 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -150 * QUOTE_PRECISION_I64,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
@@ -243,7 +243,7 @@ pub mod liquidate_perp {
                 market_index: 0,
                 base_asset_amount: -BASE_PRECISION_I128,
                 quote_asset_amount: 50 * QUOTE_PRECISION_I128,
-                quote_entry_amount: 50 * QUOTE_PRECISION_I128,
+                quote_entry_amount: 50 * QUOTE_PRECISION_I64,
                 open_orders: 1,
                 open_asks: -BASE_PRECISION_I64,
                 ..PerpPosition::default()
@@ -515,7 +515,7 @@ pub mod liquidate_perp {
                 market_index: 0,
                 base_asset_amount: BASE_PRECISION_I128,
                 quote_asset_amount: -150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -150 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -150 * QUOTE_PRECISION_I64,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
@@ -656,7 +656,7 @@ pub mod liquidate_perp {
                 market_index: 0,
                 base_asset_amount: 2 * BASE_PRECISION_I128,
                 quote_asset_amount: -200 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -200 * QUOTE_PRECISION_I128,
+                quote_entry_amount: -200 * QUOTE_PRECISION_I64,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()

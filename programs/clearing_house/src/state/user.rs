@@ -256,7 +256,7 @@ pub struct PerpPosition {
     pub market_index: u16,
     pub base_asset_amount: i128,
     pub quote_asset_amount: i128,
-    pub quote_entry_amount: i128,
+    pub quote_entry_amount: i64,
     pub last_cumulative_funding_rate: i128,
     pub last_funding_rate_ts: i64,
     pub open_orders: u8,
@@ -344,7 +344,7 @@ impl PerpPosition {
             return Ok(0);
         }
 
-        (-self.quote_entry_amount)
+        (-self.quote_entry_amount.cast::<i128>()?)
             .checked_mul(PRICE_PRECISION_I128)
             .ok_or_else(math_error!())?
             .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)
@@ -387,7 +387,7 @@ impl PerpPosition {
             // realized by reducing/closing position
             let max_positive_pnl = self
                 .quote_asset_amount
-                .checked_sub(self.quote_entry_amount)
+                .checked_sub(self.quote_entry_amount.cast()?)
                 .map(|delta| delta.max(0))
                 .ok_or_else(math_error!())?
                 .checked_add(pnl_pool_excess.max(0))
@@ -804,11 +804,20 @@ impl UserStats {
 
 #[cfg(test)]
 mod test {
-    use crate::state::user::User;
+    use crate::state::user::{Order, PerpPosition, SpotPosition, User};
 
     #[test]
     fn test() {
-        let size = std::mem::size_of::<User>();
-        println!("size {}", size);
+        let user_size = std::mem::size_of::<User>();
+        println!("user_size {}", user_size);
+
+        let perp_position_size = std::mem::size_of::<PerpPosition>();
+        println!("perp_position_size {}", perp_position_size);
+
+        let spot_position_size = std::mem::size_of::<SpotPosition>();
+        println!("spot_position_size {}", spot_position_size);
+
+        let order_size = std::mem::size_of::<Order>();
+        println!("order_size {}", order_size);
     }
 }
