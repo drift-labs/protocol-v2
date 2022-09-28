@@ -30,9 +30,9 @@ import { getTokenAmount } from './spotBalance';
  * Calculates market mark price
  *
  * @param market
- * @return markPrice : Precision MARK_PRICE_PRECISION
+ * @return markPrice : Precision PRICE_PRECISION
  */
-export function calculateMarkPrice(
+export function calculateReservePrice(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
@@ -48,7 +48,7 @@ export function calculateMarkPrice(
  * Calculates market bid price
  *
  * @param market
- * @return bidPrice : Precision MARK_PRICE_PRECISION
+ * @return bidPrice : Precision PRICE_PRECISION
  */
 export function calculateBidPrice(
 	market: PerpMarketAccount,
@@ -68,7 +68,7 @@ export function calculateBidPrice(
  * Calculates market ask price
  *
  * @param market
- * @return askPrice : Precision MARK_PRICE_PRECISION
+ * @return askPrice : Precision PRICE_PRECISION
  */
 export function calculateAskPrice(
 	market: PerpMarketAccount,
@@ -110,7 +110,7 @@ export function calculateMarkOracleSpread(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
-	const markPrice = calculateMarkPrice(market, oraclePriceData);
+	const markPrice = calculateReservePrice(market, oraclePriceData);
 	return calculateOracleSpread(markPrice, oraclePriceData);
 }
 

@@ -13,9 +13,10 @@ import {
 	Admin,
 	ClearingHouse,
 	findComputeUnitConsumption,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PositionDirection,
 	EventSubscriber,
+	OracleGuardRails,
 } from '../sdk/src';
 
 import {
@@ -54,7 +55,7 @@ describe('liquidate perp pnl for deposit', () => {
 	let solOracle: PublicKey;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -84,8 +85,8 @@ describe('liquidate perp pnl for deposit', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: [new BN(0)],
-			spotMarketIndexes: [new BN(0), new BN(1)],
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0, 1],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
@@ -115,20 +116,36 @@ describe('liquidate perp pnl for deposit', () => {
 			userUSDCAccount.publicKey
 		);
 
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(10),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
+				confidenceIntervalMaxSize: new BN(100000),
+				tooVolatileRatio: new BN(55), // allow 55x change
+			},
+			useForLiquidations: false,
+		};
+
+		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
+
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
 			new BN(10).mul(BASE_PRECISION),
-			new BN(0),
+			0,
 			new BN(0)
 		);
 
 		await setFeedPrice(anchor.workspace.Pyth, 0.1, solOracle);
 		await clearingHouse.moveAmmToPrice(
-			new BN(0),
-			new BN(1).mul(MARK_PRICE_PRECISION).div(new BN(10))
+			0,
+			new BN(1).mul(PRICE_PRECISION).div(new BN(10))
 		);
 
-		const txSig = await clearingHouse.closePosition(new BN(0));
+		const txSig = await clearingHouse.closePosition(0);
 		printTxLogs(connection, txSig);
 
 		const solAmount = new BN(1 * 10 ** 9);
@@ -139,8 +156,8 @@ describe('liquidate perp pnl for deposit', () => {
 				chProgram,
 				solAmount,
 				usdcAmount,
-				[new BN(0)],
-				[new BN(0), new BN(1)],
+				[0],
+				[0, 1],
 				[
 					{
 						publicKey: solOracle,
@@ -150,14 +167,14 @@ describe('liquidate perp pnl for deposit', () => {
 			);
 		await liquidatorClearingHouse.subscribe();
 
-		const spotMarketIndex = new BN(1);
+		const spotMarketIndex = 1;
 		await liquidatorClearingHouse.deposit(
 			solAmount,
 			spotMarketIndex,
 			liquidatorClearingHouseWSOLAccount
 		);
 		const solBorrow = new BN(5 * 10 ** 8);
-		await clearingHouse.withdraw(solBorrow, new BN(1), userWSOLAccount);
+		await clearingHouse.withdraw(solBorrow, 1, userWSOLAccount);
 	});
 
 	after(async () => {
@@ -172,8 +189,8 @@ describe('liquidate perp pnl for deposit', () => {
 		const txSig = await liquidatorClearingHouse.liquidatePerpPnlForDeposit(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
-			new BN(0),
-			new BN(0),
+			0,
+			0,
 			usdcAmount.mul(new BN(100))
 		);
 
@@ -203,27 +220,21 @@ describe('liquidate perp pnl for deposit', () => {
 		);
 		assert(
 			liquidationRecord.liquidatePerpPnlForDeposit.marketOraclePrice.eq(
-				new BN(50).mul(MARK_PRICE_PRECISION)
+				new BN(50).mul(PRICE_PRECISION)
 			)
 		);
-		assert(
-			liquidationRecord.liquidatePerpPnlForDeposit.perpMarketIndex.eq(ZERO)
-		);
+		assert(liquidationRecord.liquidatePerpPnlForDeposit.perpMarketIndex === 0);
 		assert(
 			liquidationRecord.liquidatePerpPnlForDeposit.pnlTransfer.eq(
-				new BN(9011207)
+				new BN(9011003)
 			)
 		);
 		assert(
 			liquidationRecord.liquidatePerpPnlForDeposit.assetPrice.eq(
-				MARK_PRICE_PRECISION
+				PRICE_PRECISION
 			)
 		);
-		assert(
-			liquidationRecord.liquidatePerpPnlForDeposit.assetMarketIndex.eq(
-				new BN(0)
-			)
-		);
+		assert(liquidationRecord.liquidatePerpPnlForDeposit.assetMarketIndex === 0);
 		assert(
 			liquidationRecord.liquidatePerpPnlForDeposit.assetTransfer.eq(
 				new BN(10000000)

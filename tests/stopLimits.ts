@@ -8,7 +8,7 @@ import { Keypair, PublicKey } from '@solana/web3.js';
 import {
 	Admin,
 	BN,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	ClearingHouse,
 	PositionDirection,
 	ClearingHouseUser,
@@ -55,7 +55,7 @@ describe('stop limit', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(100000);
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -73,7 +73,7 @@ describe('stop limit', () => {
 	let fillerClearingHouse: ClearingHouse;
 	let fillerUser: ClearingHouseUser;
 
-	const marketIndex = new BN(0);
+	const marketIndex = 0;
 	let solUsd;
 	let btcUsd;
 
@@ -85,7 +85,7 @@ describe('stop limit', () => {
 		btcUsd = await mockOracle(60000);
 
 		const marketIndexes = [marketIndex];
-		const spotMarketIndexes = [new BN(0)];
+		const spotMarketIndexes = [0];
 		const oracleInfos = [
 			{
 				publicKey: solUsd,
@@ -211,8 +211,8 @@ describe('stop limit', () => {
 	it('Fill stop limit short order', async () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const triggerPrice = MARK_PRICE_PRECISION;
-		const limitPrice = MARK_PRICE_PRECISION;
+		const triggerPrice = PRICE_PRECISION;
+		const limitPrice = PRICE_PRECISION;
 		const triggerCondition = OrderTriggerCondition.ABOVE;
 
 		await clearingHouse.placeAndTake(
@@ -259,7 +259,7 @@ describe('stop limit', () => {
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
-		assert(order.marketIndex.eq(new BN(0)));
+		assert(order.marketIndex === 0);
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
@@ -273,7 +273,7 @@ describe('stop limit', () => {
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
-		const expectedTradeQuoteAssetAmount = new BN(1000002);
+		const expectedTradeQuoteAssetAmount = new BN(1000000);
 		assert.ok(
 			orderRecord.quoteAssetAmountFilled.eq(expectedTradeQuoteAssetAmount)
 		);
@@ -297,8 +297,8 @@ describe('stop limit', () => {
 	it('Fill stop limit long order', async () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const triggerPrice = MARK_PRICE_PRECISION;
-		const limitPrice = MARK_PRICE_PRECISION;
+		const triggerPrice = PRICE_PRECISION;
+		const limitPrice = PRICE_PRECISION;
 		const triggerCondition = OrderTriggerCondition.BELOW;
 
 		await clearingHouse.placeAndTake(
@@ -344,7 +344,7 @@ describe('stop limit', () => {
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
-		assert(order.marketIndex.eq(new BN(0)));
+		assert(order.marketIndex === 0);
 		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
 		assert(enumsAreEqual(order.status, OrderStatus.INIT));
 
@@ -355,7 +355,7 @@ describe('stop limit', () => {
 		const expectedQuoteAssetAmount = new BN(0);
 		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 
-		const expectedTradeQuoteAssetAmount = new BN(999999);
+		const expectedTradeQuoteAssetAmount = new BN(1000001);
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		const expectedOrderId = new BN(4);

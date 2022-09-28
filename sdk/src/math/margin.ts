@@ -4,8 +4,7 @@ import {
 	SPOT_MARKET_IMF_PRECISION,
 	ZERO,
 	BID_ASK_SPREAD_PRECISION,
-	AMM_TO_QUOTE_PRECISION_RATIO,
-	MARK_PRICE_PRECISION,
+	AMM_RESERVE_PRECISION,
 } from '../constants/numericConstants';
 import { BN } from '@project-serum/anchor';
 import { OraclePriceData } from '../oracles/types';
@@ -22,7 +21,7 @@ export function calculateSizePremiumLiabilityWeight(
 		return liabilityWeight;
 	}
 
-	const sizeSqrt = squareRootBN(size.div(new BN(1000)).add(new BN(1))); //1e13 -> 1e10 -> 1e5
+	const sizeSqrt = squareRootBN(size.mul(new BN(10)).add(new BN(1))); //1e9 -> 1e10 -> 1e5
 
 	const denom0 = BN.max(new BN(1), SPOT_MARKET_IMF_PRECISION.div(imfFactor));
 	assert(denom0.gt(ZERO));
@@ -57,7 +56,7 @@ export function calculateSizeDiscountAssetWeight(
 		return assetWeight;
 	}
 
-	const sizeSqrt = squareRootBN(size.div(new BN(1000)).add(new BN(1))); //1e13 -> 1e10 -> 1e5
+	const sizeSqrt = squareRootBN(size.mul(new BN(10)).add(new BN(1))); //1e9 -> 1e10 -> 1e5
 	const imfNumerator = SPOT_MARKET_IMF_PRECISION.add(
 		SPOT_MARKET_IMF_PRECISION.div(new BN(10))
 	);
@@ -111,7 +110,7 @@ export function calculateBaseAssetValueWithOracle(
 	return perpPosition.baseAssetAmount
 		.abs()
 		.mul(oraclePriceData.price)
-		.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
+		.div(AMM_RESERVE_PRECISION);
 }
 
 export function calculateWorstCaseBaseAssetAmount(

@@ -18,20 +18,22 @@ use crate::math::margin::{
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
 use crate::state::market::{MarketStatus, PoolBalance};
-use crate::state::oracle::OracleSource;
+use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
 use solana_program::msg;
 
 #[account(zero_copy)]
 #[derive(Default, PartialEq, Eq, Debug)]
 #[repr(packed)]
 pub struct SpotMarket {
-    pub market_index: u64,
+    pub market_index: u16,
     pub pubkey: Pubkey,
     pub status: MarketStatus,
     pub expiry_ts: i64, // iff market in reduce only mode
 
     pub oracle: Pubkey,
     pub oracle_source: OracleSource,
+    pub historical_oracle_data: HistoricalOracleData,
+    pub historical_index_data: HistoricalIndexData,
     pub mint: Pubkey,
     pub vault: Pubkey,
     pub insurance_fund_vault: Pubkey,
@@ -249,7 +251,7 @@ pub struct SerumV3FulfillmentConfig {
     pub pubkey: Pubkey,
     pub fulfillment_type: SpotFulfillmentType,
     pub status: SpotFulfillmentStatus,
-    pub market_index: u64,
+    pub market_index: u16,
     pub serum_program_id: Pubkey,
     pub serum_market: Pubkey,
     pub serum_request_queue: Pubkey,

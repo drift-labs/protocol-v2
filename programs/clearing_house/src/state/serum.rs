@@ -1,16 +1,22 @@
-use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::validate;
+use std::cell::Ref;
+use std::ops::DerefMut;
+
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use bytemuck::from_bytes;
-use serum_dex::state::MarketState;
+use serum_dex::critbit::SlabView;
+use serum_dex::matching::OrderBookState;
+use serum_dex::state::Market;
 use solana_program::msg;
-use std::cell::{Ref, RefMut};
 
-pub fn load_market_state<'a>(
+use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math::serum::calculate_price_from_serum_limit_price;
+use crate::validate;
+
+pub fn load_serum_market<'a>(
     account_info: &'a AccountInfo,
     program_id: &'a Pubkey,
-) -> ClearingHouseResult<RefMut<'a, MarketState>> {
-    MarketState::load(account_info, program_id, false).map_err(|e| {
+) -> ClearingHouseResult<Market<'a>> {
+    Market::load(account_info, program_id, false).map_err(|e| {
         msg!("{:?}", e);
         ErrorCode::InvalidSerumMarket
     })
@@ -35,4 +41,74 @@ fn strip_dex_padding<'a>(acc: &'a AccountInfo) -> ClearingHouseResult<Ref<'a, [u
         },
     );
     Ok(unpadded_data)
+}
+
+pub fn get_best_bid_and_ask<'a>(
+    market_state_account_info: &'a AccountInfo,
+    bids_account_info: &'a AccountInfo,
+    asks_account_info: &'a AccountInfo,
+    program_id: &'a Pubkey,
+    base_decimals: u32,
+) -> ClearingHouseResult<(Option<u128>, Option<u128>)> {
+    let mut market = load_serum_market(market_state_account_info, program_id)?;
+
+    let mut bids = market.load_bids_mut(bids_account_info).map_err(|e| {
+        msg!("{:?}", e);
+        ErrorCode::InvalidSerumBids
+    })?;
+
+    let mut asks = market.load_asks_mut(asks_account_info).map_err(|e| {
+        msg!("{:?}", e);
+        ErrorCode::InvalidSerumAsks
+    })?;
+
+    let order_book_state = OrderBookState {
+        bids: bids.deref_mut(),
+        asks: asks.deref_mut(),
+        market_state: market.deref_mut(),
+    };
+
+    let best_bid = match order_book_state.bids.find_max() {
+        Some(best_bid_h) => {
+            let best_bid_ref = order_book_state
+                .bids
+                .get(best_bid_h)
+                .unwrap()
+                .as_leaf()
+                .unwrap();
+
+            let price = calculate_price_from_serum_limit_price(
+                best_bid_ref.price().get(),
+                order_book_state.market_state.pc_lot_size,
+                base_decimals,
+                order_book_state.market_state.coin_lot_size,
+            )?;
+
+            Some(price)
+        }
+        None => None,
+    };
+
+    let best_ask = match order_book_state.asks.find_min() {
+        Some(best_ask_h) => {
+            let best_ask_ref = order_book_state
+                .asks
+                .get(best_ask_h)
+                .unwrap()
+                .as_leaf()
+                .unwrap();
+
+            let price = calculate_price_from_serum_limit_price(
+                best_ask_ref.price().get(),
+                order_book_state.market_state.pc_lot_size,
+                base_decimals,
+                order_book_state.market_state.coin_lot_size,
+            )?;
+
+            Some(price)
+        }
+        None => None,
+    };
+
+    Ok((best_bid, best_ask))
 }

@@ -13,10 +13,12 @@ use crate::get_then_update_id;
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_PAYMENT_PRECISION, ONE_HOUR,
+    AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_RATE_BUFFER, ONE_HOUR, TWENTY_FOUR_HOUR,
 };
 use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
 use crate::math::helpers::on_the_hour_update;
+use crate::math::stats::calculate_new_twap;
+
 use crate::math::oracle;
 use crate::math_error;
 use crate::state::events::{FundingPaymentRecord, FundingRateRecord};
@@ -128,28 +130,28 @@ pub fn settle_funding_payments(
 
 #[allow(clippy::comparison_chain)]
 pub fn update_funding_rate(
-    market_index: u64,
+    market_index: u16,
     market: &mut PerpMarket,
     oracle_map: &mut OracleMap,
     now: UnixTimestamp,
     guard_rails: &OracleGuardRails,
     funding_paused: bool,
-    precomputed_mark_price: Option<u128>,
+    precomputed_reserve_price: Option<u128>,
 ) -> ClearingHouseResult<bool> {
     if market.status != MarketStatus::Initialized {
         return Ok(false);
     }
 
-    let mark_price = match precomputed_mark_price {
-        Some(mark_price) => mark_price,
-        None => market.amm.mark_price()?,
+    let reserve_price = match precomputed_reserve_price {
+        Some(reserve_price) => reserve_price,
+        None => market.amm.reserve_price()?,
     };
     // Pause funding if oracle is invalid or if mark/oracle spread is too divergent
     let block_funding_rate_update = oracle::block_operation(
         &market.amm,
         oracle_map.get_price_data(&market.amm.oracle)?,
         guard_rails,
-        Some(mark_price),
+        Some(reserve_price),
     )?;
 
     let time_until_next_update = on_the_hour_update(
@@ -167,23 +169,23 @@ pub fn update_funding_rate(
             &mut market.amm,
             now,
             oracle_price_data,
-            Some(mark_price),
+            Some(reserve_price),
         )?;
 
         // price relates to execution premium / direction
         let (execution_premium_price, execution_premium_direction) =
             if market.amm.long_spread > market.amm.short_spread {
                 (
-                    market.amm.ask_price(mark_price)?,
+                    market.amm.ask_price(reserve_price)?,
                     Some(PositionDirection::Long),
                 )
             } else if market.amm.long_spread < market.amm.short_spread {
                 (
-                    market.amm.bid_price(mark_price)?,
+                    market.amm.bid_price(reserve_price)?,
                     Some(PositionDirection::Short),
                 )
             } else {
-                (mark_price, None)
+                (reserve_price, None)
             };
 
         let mid_price_twap = amm::update_mark_twap(
@@ -211,7 +213,7 @@ pub fn update_funding_rate(
         let clamped_price_spread = max(-max_price_spread, min(price_spread, max_price_spread));
 
         let funding_rate = clamped_price_spread
-            .checked_mul(cast(FUNDING_PAYMENT_PRECISION)?)
+            .checked_mul(cast(FUNDING_RATE_BUFFER)?)
             .ok_or_else(math_error!())?
             .checked_div(cast(period_adjustment)?)
             .ok_or_else(math_error!())?;
@@ -239,6 +241,13 @@ pub fn update_funding_rate(
         market.amm.last_funding_rate = funding_rate;
         market.amm.last_funding_rate_long = funding_rate_long;
         market.amm.last_funding_rate_short = funding_rate_short;
+        market.amm.last_24h_avg_funding_rate = calculate_new_twap(
+            funding_rate,
+            now,
+            market.amm.last_24h_avg_funding_rate,
+            market.amm.last_funding_rate_ts,
+            TWENTY_FOUR_HOUR,
+        )?;
         market.amm.last_funding_rate_ts = now;
 
         emit!(FundingRateRecord {

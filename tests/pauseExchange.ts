@@ -4,7 +4,7 @@ import { BN, QUOTE_SPOT_MARKET_INDEX } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
-import { Admin, MARK_PRICE_PRECISION, PositionDirection } from '../sdk/src';
+import { Admin, PRICE_PRECISION, PositionDirection } from '../sdk/src';
 
 import { mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 
@@ -20,7 +20,7 @@ describe('admin withdraw', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -57,7 +57,7 @@ describe('admin withdraw', () => {
 			userUSDCAccount.publicKey
 		);
 
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const incrementalUSDCNotionalAmount = usdcAmount.mul(new BN(5));
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
@@ -78,11 +78,7 @@ describe('admin withdraw', () => {
 
 	it('Block open position', async () => {
 		try {
-			await clearingHouse.openPosition(
-				PositionDirection.LONG,
-				usdcAmount,
-				new BN(0)
-			);
+			await clearingHouse.openPosition(PositionDirection.LONG, usdcAmount, 0);
 		} catch (e) {
 			assert(e.msg, 'Exchange is paused');
 			return;
@@ -92,7 +88,7 @@ describe('admin withdraw', () => {
 
 	it('Block close position', async () => {
 		try {
-			await clearingHouse.closePosition(new BN(0));
+			await clearingHouse.closePosition(0);
 		} catch (e) {
 			assert(e.msg, 'Exchange is paused');
 			return;

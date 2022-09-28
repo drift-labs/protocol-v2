@@ -3,7 +3,7 @@ import { OraclePriceData } from '../oracles/types';
 import {
 	BID_ASK_SPREAD_PRECISION,
 	MARGIN_PRECISION,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	ONE,
 	ZERO,
 } from '../constants/numericConstants';
@@ -34,9 +34,9 @@ export function isOracleValid(
 	const isOraclePriceNonPositive = oraclePriceData.price.lte(ZERO);
 	const isOraclePriceTooVolatile =
 		oraclePriceData.price
-			.div(BN.max(ONE, amm.lastOraclePriceTwap))
+			.div(BN.max(ONE, amm.historicalOracleData.lastOraclePriceTwap))
 			.gt(oracleGuardRails.validity.tooVolatileRatio) ||
-		amm.lastOraclePriceTwap
+		amm.historicalOracleData.lastOraclePriceTwap
 			.div(BN.max(ONE, oraclePriceData.price))
 			.gt(oracleGuardRails.validity.tooVolatileRatio);
 
@@ -48,7 +48,7 @@ export function isOracleValid(
 
 	const oracleIsStale = oraclePriceData.slot
 		.sub(new BN(slot))
-		.gt(oracleGuardRails.validity.slotsBeforeStale);
+		.gt(oracleGuardRails.validity.slotsBeforeStaleForAmm);
 
 	return !(
 		!oraclePriceData.hasSufficientNumberOfDataPoints ||
@@ -65,18 +65,18 @@ export function isOracleTooDivergent(
 	oracleGuardRails: OracleGuardRails,
 	now: BN
 ): boolean {
-	const sinceLastUpdate = now.sub(amm.lastOraclePriceTwapTs);
+	const sinceLastUpdate = now.sub(
+		amm.historicalOracleData.lastOraclePriceTwapTs
+	);
 	const sinceStart = BN.max(ZERO, new BN(60 * 5).sub(sinceLastUpdate));
-	const oracleTwap5min = amm.lastOraclePriceTwap5min
+	const oracleTwap5min = amm.historicalOracleData.lastOraclePriceTwap5min
 		.mul(sinceStart)
 		.add(oraclePriceData.price)
 		.mul(sinceLastUpdate)
 		.div(sinceStart.add(sinceLastUpdate));
 
 	const oracleSpread = oracleTwap5min.sub(oraclePriceData.price);
-	const oracleSpreadPct = oracleSpread
-		.mul(MARK_PRICE_PRECISION)
-		.div(oracleTwap5min);
+	const oracleSpreadPct = oracleSpread.mul(PRICE_PRECISION).div(oracleTwap5min);
 
 	const tooDivergent = oracleSpreadPct
 		.abs()

@@ -8,6 +8,8 @@ import {
 	OracleSource,
 	ZERO,
 	calculatePrice,
+	PEG_PRECISION,
+	BASE_PRECISION,
 } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
@@ -15,8 +17,8 @@ import { Program } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 import {
 	Admin,
-	MARK_PRICE_PRECISION,
-	calculateMarkPrice,
+	PRICE_PRECISION,
+	calculateReservePrice,
 	calculateTradeSlippage,
 	PositionDirection,
 	EventSubscriber,
@@ -57,11 +59,11 @@ describe('prepeg', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
-	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
+	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 11).mul(
 		mantissaSqrtScale
 	);
-	const ammInitialBaseAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
+	const ammInitialBaseAssetAmount = new anchor.BN(5 * 10 ** 11).mul(
 		mantissaSqrtScale
 	);
 
@@ -85,8 +87,8 @@ describe('prepeg', () => {
 			mockOracles.push(thisUsd);
 		}
 
-		spotMarketIndexes = [new BN(0)];
-		marketIndexes = mockOracles.map((_, i) => new BN(i));
+		spotMarketIndexes = [0];
+		marketIndexes = mockOracles.map((_, i) => i);
 		oracleInfos = mockOracles.map((oracle) => {
 			return { publicKey: oracle, source: OracleSource.PYTH };
 		});
@@ -105,7 +107,7 @@ describe('prepeg', () => {
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.updatePerpAuctionDuration(0, 0);
+		await clearingHouse.updatePerpAuctionDuration(0);
 
 		await clearingHouse.subscribe();
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
@@ -116,16 +118,13 @@ describe('prepeg', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
-			new BN(1_000),
+			PEG_PRECISION,
 			undefined,
 			1000
 		);
-		await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
-		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
-		await clearingHouse.updateMarketBaseAssetAmountStepSize(
-			new BN(0),
-			new BN(1)
-		);
+		await clearingHouse.updateMarketBaseSpread(0, 2000);
+		await clearingHouse.updateCurveUpdateIntensity(0, 100);
+		await clearingHouse.updateMarketBaseAssetAmountStepSize(0, new BN(1));
 
 		for (let i = 1; i <= 4; i++) {
 			// init more markets
@@ -139,12 +138,9 @@ describe('prepeg', () => {
 				undefined,
 				1000
 			);
-			await clearingHouse.updateMarketBaseSpread(new BN(i), 2000);
-			await clearingHouse.updateCurveUpdateIntensity(new BN(i), 100);
-			await clearingHouse.updateMarketBaseAssetAmountStepSize(
-				new BN(i),
-				new BN(1)
-			);
+			await clearingHouse.updateMarketBaseSpread(i, 2000);
+			await clearingHouse.updateCurveUpdateIntensity(i, 100);
+			await clearingHouse.updateMarketBaseAssetAmountStepSize(i, new BN(1));
 		}
 
 		[, userAccountPublicKey] =
@@ -160,8 +156,8 @@ describe('prepeg', () => {
 	});
 
 	it('Long from 0 position', async () => {
-		const marketIndex = new BN(0);
-		const baseAssetAmount = new BN(497450500000000);
+		const marketIndex = 0;
+		const baseAssetAmount = new BN(49745050000);
 		const direction = PositionDirection.LONG;
 		const market0 = clearingHouse.getPerpMarketAccount(0);
 
@@ -235,7 +231,7 @@ describe('prepeg', () => {
 			'/',
 			convertToNumber(ask1),
 			'after trade mark price:',
-			convertToNumber(calculateMarkPrice(market, oraclePriceData))
+			convertToNumber(calculateReservePrice(market, oraclePriceData))
 		);
 
 		const position0 = clearingHouse.getUserAccount().perpPositions[0];
@@ -255,8 +251,8 @@ describe('prepeg', () => {
 
 		console.log('sqrtK:', market.amm.sqrtK.toString());
 
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(497450500000000)));
-		assert.ok(market.baseAssetAmountLong.eq(new BN(497450500000000)));
+		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(49745050000)));
+		assert.ok(market.baseAssetAmountLong.eq(new BN(49745050000)));
 		assert.ok(market.baseAssetAmountShort.eq(ZERO));
 		assert.ok(market.openInterest.eq(ONE));
 		assert.ok(market.amm.totalFee.gt(new BN(49750)));
@@ -265,9 +261,9 @@ describe('prepeg', () => {
 
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
-		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(497450500000000)));
+		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(49745050000)));
 		assert.ok(orderRecord.quoteAssetAmountFilled.gt(new BN(49750001)));
-		assert.ok(orderRecord.marketIndex.eq(marketIndex));
+		assert.ok(orderRecord.marketIndex === 0);
 
 		// console.log(orderRecord);
 		console.log(market.amm.totalExchangeFee.toNumber());
@@ -281,8 +277,8 @@ describe('prepeg', () => {
 	});
 
 	it('Long even more', async () => {
-		const marketIndex = new BN(0);
-		const baseAssetAmount = new BN(497450503674885 / 50);
+		const marketIndex = 0;
+		const baseAssetAmount = new BN(49745050367 / 50);
 		const market0 = clearingHouse.getPerpMarketAccount(0);
 
 		await setFeedPrice(anchor.workspace.Pyth, 1.0281, solUsd);
@@ -293,10 +289,10 @@ describe('prepeg', () => {
 			anchor.workspace.Pyth,
 			solUsd
 		);
-		assert(market0.amm.pegMultiplier.eq(new BN(1000)));
+		assert(market0.amm.pegMultiplier.eq(new BN(1000000)));
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 		console.log(prepegAMM.pegMultiplier.toString());
-		assert(prepegAMM.pegMultiplier.eq(new BN(1005)));
+		assert(prepegAMM.pegMultiplier.eq(new BN(1005509)));
 		const estDist = prepegAMM.totalFee.sub(
 			prepegAMM.totalFeeMinusDistributions
 		);
@@ -326,7 +322,7 @@ describe('prepeg', () => {
 		const acquiredQuote = _entryPrice
 			.mul(baseAssetAmount.abs())
 			.div(AMM_TO_QUOTE_PRECISION_RATIO)
-			.div(MARK_PRICE_PRECISION);
+			.div(PRICE_PRECISION);
 		console.log(
 			'est acquiredQuote:',
 			acquiredQuote.toNumber(),
@@ -369,11 +365,13 @@ describe('prepeg', () => {
 		);
 
 		console.log(newAmm.baseSpread, longSpread, shortSpread, newAmm.maxSpread);
+		console.log(inventoryScale);
+		console.log(effectiveLeverage);
 		assert(newAmm.maxSpread == (100000 / 2) * 0.95);
 		assert(inventoryScale == 0.000703);
-		assert(effectiveLeverage == 0.09895778092399404);
+		assert(effectiveLeverage == 0.19906507487401007);
 		assert(shortSpread == 1000);
-		assert(longSpread.toString() == '25052.95706334619');
+		assert(longSpread.toString() == '26713.552196310713');
 
 		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 
@@ -413,14 +411,14 @@ describe('prepeg', () => {
 			'/',
 			convertToNumber(ask1),
 			'after trade mark price:',
-			convertToNumber(calculateMarkPrice(market, oraclePriceData))
+			convertToNumber(calculateReservePrice(market, oraclePriceData))
 		);
 		assert(bid1.lt(ask1));
 		assert(ask1.gt(oraclePriceData.price));
 		assert(bid1.lt(oraclePriceData.price));
 
 		console.log(market.amm.pegMultiplier.toString());
-		assert(market.amm.pegMultiplier.eq(new BN(1005)));
+		assert(market.amm.pegMultiplier.eq(new BN(1005509)));
 		const actualDist = market.amm.totalFee.sub(
 			market.amm.totalFeeMinusDistributions
 		);
@@ -449,7 +447,7 @@ describe('prepeg', () => {
 		console.log(market.amm.longSpread.toString());
 		console.log(market.amm.shortSpread.toString());
 
-		assert(market.amm.longSpread.eq(new BN('25052')));
+		assert(market.amm.longSpread.eq(new BN('26712')));
 		assert(market.amm.shortSpread.eq(new BN(1000)));
 
 		const orderActionRecord =
@@ -483,7 +481,7 @@ describe('prepeg', () => {
 		assert(orderActionRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		const recordEntryPrice = orderActionRecord.quoteAssetAmountFilled
 			.mul(AMM_TO_QUOTE_PRECISION_RATIO)
-			.mul(MARK_PRICE_PRECISION)
+			.mul(PRICE_PRECISION)
 			.div(orderActionRecord.baseAssetAmountFilled.abs());
 
 		console.log(
@@ -508,14 +506,14 @@ describe('prepeg', () => {
 		// 		.abs()
 		// 		.eq(acquiredQuoteAssetAmount.add(new BN(49999074)).add(new BN(-1001)))
 		// );
-		assert(acquiredQuoteAssetAmount.eq(new BN(1025556)));
-		assert.ok(position0qea.eq(new BN(-51024630)));
-		assert.ok(position0.quoteAssetAmount.eq(new BN(-51075654)));
+		assert(acquiredQuoteAssetAmount.eq(new BN(1027809)));
+		assert.ok(position0qea.eq(new BN(-51026883)));
+		assert.ok(position0.quoteAssetAmount.eq(new BN(-51077909)));
 	});
 
 	it('Reduce long position', async () => {
-		const marketIndex = new BN(0);
-		const baseAssetAmount = new BN(248725250000000);
+		const marketIndex = 0;
+		const baseAssetAmount = new BN(24872525000);
 		const market0 = clearingHouse.getPerpMarketAccount(0);
 		const orderParams = getMarketOrderParams({
 			marketIndex,
@@ -542,7 +540,7 @@ describe('prepeg', () => {
 		const acquiredQuote = _entryPrice
 			.mul(baseAssetAmount.abs())
 			.div(AMM_TO_QUOTE_PRECISION_RATIO)
-			.div(MARK_PRICE_PRECISION);
+			.div(PRICE_PRECISION);
 		console.log('est acquiredQuote:', acquiredQuote.toNumber());
 
 		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
@@ -578,7 +576,7 @@ describe('prepeg', () => {
 			'/',
 			convertToNumber(ask1),
 			'after trade mark price:',
-			convertToNumber(calculateMarkPrice(market, oraclePriceData))
+			convertToNumber(calculateReservePrice(market, oraclePriceData))
 		);
 
 		console.log(
@@ -591,15 +589,15 @@ describe('prepeg', () => {
 
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
 		console.log(orderRecord.baseAssetAmountFilled.toNumber());
-		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(248725250000000)));
-		assert.ok(orderRecord.marketIndex.eq(new BN(0)));
+		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(24872525000)));
+		assert.ok(orderRecord.marketIndex === 0);
 	});
 
 	it('Many market balanced prepegs, long position', async () => {
 		for (let i = 1; i <= 4; i++) {
 			const thisUsd = mockOracles[i];
-			const marketIndex = new BN(i);
-			const baseAssetAmount = new BN(31.02765 * 10e13);
+			const marketIndex = i;
+			const baseAssetAmount = new BN(31.02765 * BASE_PRECISION.toNumber());
 			const market0 = clearingHouse.getPerpMarketAccount(i);
 			const orderParams = getMarketOrderParams({
 				marketIndex,
@@ -660,7 +658,7 @@ describe('prepeg', () => {
 				'/',
 				convertToNumber(ask1),
 				'after trade mark price:',
-				convertToNumber(calculateMarkPrice(market, oraclePriceData))
+				convertToNumber(calculateReservePrice(market, oraclePriceData))
 			);
 			console.log('----');
 		}
@@ -688,7 +686,7 @@ describe('prepeg', () => {
 		await setFeedPrice(anchor.workspace.Pyth, curPrice * 1.01, mockOracles[0]);
 
 		const orderParams = getMarketOrderParams({
-			marketIndex: new BN(0),
+			marketIndex: 0,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount: user.perpPositions[0].baseAssetAmount.div(new BN(2)),
 		});

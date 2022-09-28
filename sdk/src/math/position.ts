@@ -3,10 +3,9 @@ import {
 	AMM_RESERVE_PRECISION,
 	AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
 	AMM_TO_QUOTE_PRECISION_RATIO,
-	FUNDING_PAYMENT_PRECISION,
-	MARK_PRICE_PRECISION,
+	FUNDING_RATE_BUFFER_PRECISION,
+	PRICE_PRECISION,
 	ONE,
-	PRICE_TO_QUOTE_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
 import { OraclePriceData } from '../oracles/types';
@@ -119,10 +118,7 @@ export function calculatePositionPNL(
 		.add(perpPosition.quoteAssetAmount);
 
 	if (withFunding) {
-		const fundingRatePnL = calculatePositionFundingPNL(
-			market,
-			perpPosition
-		).div(PRICE_TO_QUOTE_PRECISION);
+		const fundingRatePnL = calculatePositionFundingPNL(market, perpPosition);
 
 		pnl = pnl.add(fundingRatePnL);
 	}
@@ -143,9 +139,7 @@ export function calculateClaimablePnl(
 		oraclePriceData
 	);
 
-	const fundingPnL = calculatePositionFundingPNL(market, perpPosition).div(
-		PRICE_TO_QUOTE_PRECISION
-	);
+	const fundingPnL = calculatePositionFundingPNL(market, perpPosition);
 
 	let unsettledPnl = unrealizedPnl.add(fundingPnL);
 	if (unrealizedPnl.gt(ZERO)) {
@@ -193,7 +187,7 @@ export function calculatePositionFundingPNL(
 		.sub(perpPosition.lastCumulativeFundingRate)
 		.mul(perpPosition.baseAssetAmount)
 		.div(AMM_RESERVE_PRECISION)
-		.div(FUNDING_PAYMENT_PRECISION)
+		.div(FUNDING_RATE_BUFFER_PRECISION)
 		.mul(new BN(-1));
 
 	return perPositionFundingRate;
@@ -202,7 +196,7 @@ export function calculatePositionFundingPNL(
 export function positionIsAvailable(position: PerpPosition): boolean {
 	return (
 		position.baseAssetAmount.eq(ZERO) &&
-		position.openOrders.eq(ZERO) &&
+		position.openOrders === 0 &&
 		position.quoteAssetAmount.eq(ZERO) &&
 		position.lpShares.eq(ZERO)
 	);
@@ -211,7 +205,7 @@ export function positionIsAvailable(position: PerpPosition): boolean {
 /**
  *
  * @param userPosition
- * @returns Precision: MARK_PRICE_PRECISION (10^10)
+ * @returns Precision: PRICE_PRECISION (10^10)
  */
 export function calculateEntryPrice(userPosition: PerpPosition): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
@@ -219,7 +213,7 @@ export function calculateEntryPrice(userPosition: PerpPosition): BN {
 	}
 
 	return userPosition.quoteEntryAmount
-		.mul(MARK_PRICE_PRECISION)
+		.mul(PRICE_PRECISION)
 		.mul(AMM_TO_QUOTE_PRECISION_RATIO)
 		.div(userPosition.baseAssetAmount)
 		.abs();
@@ -228,7 +222,7 @@ export function calculateEntryPrice(userPosition: PerpPosition): BN {
 /**
  *
  * @param userPosition
- * @returns Precision: MARK_PRICE_PRECISION (10^10)
+ * @returns Precision: PRICE_PRECISION (10^10)
  */
 export function calculateCostBasis(userPosition: PerpPosition): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
@@ -236,7 +230,7 @@ export function calculateCostBasis(userPosition: PerpPosition): BN {
 	}
 
 	return userPosition.quoteAssetAmount
-		.mul(MARK_PRICE_PRECISION)
+		.mul(PRICE_PRECISION)
 		.mul(AMM_TO_QUOTE_PRECISION_RATIO)
 		.div(userPosition.baseAssetAmount)
 		.abs();
@@ -259,7 +253,5 @@ export function positionCurrentDirection(
 }
 
 export function isEmptyPosition(userPosition: PerpPosition): boolean {
-	return (
-		userPosition.baseAssetAmount.eq(ZERO) && userPosition.openOrders.eq(ZERO)
-	);
+	return userPosition.baseAssetAmount.eq(ZERO) && userPosition.openOrders === 0;
 }

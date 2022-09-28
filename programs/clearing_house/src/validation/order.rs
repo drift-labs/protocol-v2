@@ -132,7 +132,7 @@ fn validate_limit_order(
         .checked_mul(order.base_asset_amount)
         .unwrap_or(u128::MAX)
         .div(AMM_RESERVE_PRECISION)
-        .div(MARK_PRICE_PRECISION / QUOTE_PRECISION);
+        .div(PRICE_PRECISION / QUOTE_PRECISION);
 
     if approximate_market_value < state.min_order_quote_asset_amount {
         msg!("Order value < $0.50 ({:?})", approximate_market_value);
@@ -215,7 +215,7 @@ fn validate_trigger_limit_order(
         .checked_mul(order.base_asset_amount)
         .unwrap_or(u128::MAX)
         .div(AMM_RESERVE_PRECISION)
-        .div(MARK_PRICE_PRECISION / QUOTE_PRECISION);
+        .div(PRICE_PRECISION / QUOTE_PRECISION);
 
     if approximate_market_value < minimum_order_value {
         msg!("Order value < $0.50 ({:?})", approximate_market_value);
@@ -257,7 +257,7 @@ fn validate_trigger_market_order(
         .checked_mul(order.base_asset_amount)
         .unwrap_or(u128::MAX)
         .div(AMM_RESERVE_PRECISION)
-        .div(MARK_PRICE_PRECISION / QUOTE_PRECISION);
+        .div(PRICE_PRECISION / QUOTE_PRECISION);
 
     // decide min trade size ($10?)
     if approximate_market_value < minimum_order_value {
@@ -370,7 +370,7 @@ fn validate_spot_limit_order(
         .checked_mul(order.base_asset_amount)
         .unwrap_or(u128::MAX)
         .div(10_u128.pow(decimals))
-        .div(MARK_PRICE_PRECISION / QUOTE_PRECISION);
+        .div(PRICE_PRECISION / QUOTE_PRECISION);
 
     if approximate_market_value < minimum_order_value {
         msg!("Order value < $0.50 ({:?})", approximate_market_value);

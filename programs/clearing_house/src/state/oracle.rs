@@ -2,12 +2,91 @@ use anchor_lang::prelude::*;
 
 use crate::error::ClearingHouseResult;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
-use crate::math::constants::{MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128};
+use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I128};
 use crate::math_error;
 use solana_program::msg;
 use std::cmp::max;
 use switchboard_v2::decimal::SwitchboardDecimal;
 use switchboard_v2::AggregatorAccountData;
+
+#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
+pub struct HistoricalOracleData {
+    // use u64?
+    pub last_oracle_price: i128,
+    pub last_oracle_conf: u128,
+    pub last_oracle_delay: i64,
+    pub last_oracle_price_twap: i128,
+    pub last_oracle_price_twap_5min: i128,
+    pub last_oracle_price_twap_ts: i64,
+}
+
+impl HistoricalOracleData {
+    pub fn default_quote_oracle() -> Self {
+        HistoricalOracleData {
+            last_oracle_price: PRICE_PRECISION_I128,
+            last_oracle_conf: 0,
+            last_oracle_delay: 0,
+            last_oracle_price_twap: PRICE_PRECISION_I128,
+            last_oracle_price_twap_5min: PRICE_PRECISION_I128,
+            ..HistoricalOracleData::default()
+        }
+    }
+
+    pub fn default_price(price: i128) -> Self {
+        HistoricalOracleData {
+            last_oracle_price: price,
+            last_oracle_conf: 0,
+            last_oracle_delay: 10,
+            last_oracle_price_twap: price,
+            last_oracle_price_twap_5min: price,
+            ..HistoricalOracleData::default()
+        }
+    }
+
+    pub fn default_with_current_oracle(oracle_price_data: OraclePriceData) -> Self {
+        HistoricalOracleData {
+            last_oracle_price: oracle_price_data.price,
+            last_oracle_conf: oracle_price_data.confidence,
+            last_oracle_delay: oracle_price_data.delay,
+            last_oracle_price_twap: oracle_price_data.price,
+            last_oracle_price_twap_5min: oracle_price_data.price,
+            ..HistoricalOracleData::default()
+        }
+    }
+}
+
+#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
+pub struct HistoricalIndexData {
+    // use u64?
+    pub last_index_bid_price: u128,
+    pub last_index_ask_price: u128,
+    pub last_index_price_twap: u128,
+    pub last_index_price_twap_5min: u128,
+    pub last_index_price_twap_ts: i64,
+}
+
+impl HistoricalIndexData {
+    pub fn default_quote_oracle() -> Self {
+        HistoricalIndexData {
+            last_index_bid_price: PRICE_PRECISION,
+            last_index_ask_price: PRICE_PRECISION,
+            last_index_price_twap: PRICE_PRECISION,
+            last_index_price_twap_5min: PRICE_PRECISION,
+            ..HistoricalIndexData::default()
+        }
+    }
+
+    pub fn default_with_current_oracle(oracle_price_data: OraclePriceData) -> Self {
+        let price = cast_to_u128(oracle_price_data.price).unwrap();
+        HistoricalIndexData {
+            last_index_bid_price: price,
+            last_index_ask_price: price,
+            last_index_price_twap: price,
+            last_index_price_twap_5min: price,
+            ..HistoricalIndexData::default()
+        }
+    }
+}
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
 pub enum OracleSource {
@@ -31,6 +110,17 @@ pub struct OraclePriceData {
     pub has_sufficient_number_of_data_points: bool,
 }
 
+impl OraclePriceData {
+    pub fn default_usd() -> Self {
+        OraclePriceData {
+            price: PRICE_PRECISION_I128,
+            confidence: 1,
+            delay: 0,
+            has_sufficient_number_of_data_points: true,
+        }
+    }
+}
+
 pub fn get_oracle_price(
     oracle_source: &OracleSource,
     price_oracle: &AccountInfo,
@@ -40,7 +130,7 @@ pub fn get_oracle_price(
         OracleSource::Pyth => get_pyth_price(price_oracle, clock_slot),
         OracleSource::Switchboard => get_switchboard_price(price_oracle, clock_slot),
         OracleSource::QuoteAsset => Ok(OraclePriceData {
-            price: MARK_PRICE_PRECISION_I128,
+            price: PRICE_PRECISION_I128,
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
@@ -65,12 +155,12 @@ pub fn get_pyth_price(
     let mut oracle_scale_mult = 1;
     let mut oracle_scale_div = 1;
 
-    if oracle_precision > MARK_PRICE_PRECISION {
+    if oracle_precision > PRICE_PRECISION {
         oracle_scale_div = oracle_precision
-            .checked_div(MARK_PRICE_PRECISION)
+            .checked_div(PRICE_PRECISION)
             .ok_or_else(math_error!())?;
     } else {
-        oracle_scale_mult = MARK_PRICE_PRECISION
+        oracle_scale_mult = PRICE_PRECISION
             .checked_div(oracle_precision)
             .ok_or_else(math_error!())?;
     }
@@ -145,15 +235,15 @@ fn convert_switchboard_decimal(
     switchboard_decimal: &SwitchboardDecimal,
 ) -> ClearingHouseResult<i128> {
     let switchboard_precision = 10_u128.pow(switchboard_decimal.scale);
-    if switchboard_precision > MARK_PRICE_PRECISION {
+    if switchboard_precision > PRICE_PRECISION {
         switchboard_decimal
             .mantissa
-            .checked_div((switchboard_precision / MARK_PRICE_PRECISION) as i128)
+            .checked_div((switchboard_precision / PRICE_PRECISION) as i128)
             .ok_or_else(math_error!())
     } else {
         switchboard_decimal
             .mantissa
-            .checked_mul((MARK_PRICE_PRECISION / switchboard_precision) as i128)
+            .checked_mul((PRICE_PRECISION / switchboard_precision) as i128)
             .ok_or_else(math_error!())
     }
 }

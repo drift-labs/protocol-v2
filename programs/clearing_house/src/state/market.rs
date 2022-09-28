@@ -1,25 +1,24 @@
 use anchor_lang::prelude::*;
 use solana_program::msg;
 use std::cmp::max;
-use switchboard_v2::decimal::SwitchboardDecimal;
-use switchboard_v2::AggregatorAccountData;
 
+use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
-use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
-use crate::math::constants::LIQUIDATION_FEE_PRECISION;
+use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::{AMM_RESERVE_PRECISION, SPOT_WEIGHT_PRECISION};
+use crate::math::constants::{LIQUIDATION_FEE_PRECISION, TWENTY_FOUR_HOUR};
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
 };
 use crate::math_error;
-use crate::state::oracle::{OraclePriceData, OracleSource};
+use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::user::PerpPosition;
 use crate::{
-    AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, MARGIN_PRECISION, MARK_PRICE_PRECISION,
-    MAX_CONCENTRATION_COEFFICIENT,
+    AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, MARGIN_PRECISION,
+    MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION,
 };
 use borsh::{BorshDeserialize, BorshSerialize};
 
@@ -53,7 +52,7 @@ impl Default for ContractType {
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(packed)]
 pub struct PerpMarket {
-    pub market_index: u64,
+    pub market_index: u16,
     pub pubkey: Pubkey,
     pub status: MarketStatus,
     pub contract_type: ContractType,
@@ -164,8 +163,10 @@ impl PerpMarket {
         };
 
         if margin_type == MarginRequirementType::Initial && self.unrealized_max_imbalance > 0 {
-            let net_unsettled_pnl =
-                amm::calculate_net_user_pnl(&self.amm, self.amm.last_oracle_price)?;
+            let net_unsettled_pnl = amm::calculate_net_user_pnl(
+                &self.amm,
+                self.amm.historical_oracle_data.last_oracle_price,
+            )?;
             if net_unsettled_pnl > cast_to_i128(self.unrealized_max_imbalance)? {
                 margin_asset_weight = margin_asset_weight
                     .checked_mul(self.unrealized_max_imbalance)
@@ -255,14 +256,12 @@ pub struct AMM {
     // oracle
     pub oracle: Pubkey,
     pub oracle_source: OracleSource,
-    pub last_oracle_price: i128,
+    pub historical_oracle_data: HistoricalOracleData,
+    pub last_oracle_valid: bool,
+    pub last_update_slot: u64,
     pub last_oracle_conf_pct: u64,
-    pub last_oracle_delay: i64,
     pub last_oracle_normalised_price: i128,
-    pub last_oracle_price_twap: i128,
-    pub last_oracle_price_twap_5min: i128,
-    pub last_oracle_price_twap_ts: i64,
-    pub last_oracle_mark_spread_pct: i128,
+    pub last_oracle_reserve_price_spread_pct: i128,
 
     pub base_asset_reserve: u128,
     pub quote_asset_reserve: u128,
@@ -290,18 +289,12 @@ pub struct AMM {
     pub last_funding_rate: i128,
     pub last_funding_rate_long: i128,
     pub last_funding_rate_short: i128,
+    pub last_24h_avg_funding_rate: i128,
     pub last_funding_rate_ts: i64,
     pub funding_period: i64,
     pub cumulative_funding_rate_long: i128,
     pub cumulative_funding_rate_short: i128,
-    pub cumulative_repeg_rebate_long: u128,
-    pub cumulative_repeg_rebate_short: u128,
     pub cumulative_social_loss: i128,
-
-    pub mark_std: u64,
-    pub last_mark_price_twap: u128,
-    pub last_mark_price_twap_5min: u128,
-    pub last_mark_price_twap_ts: i64,
 
     // trade constraints
     pub minimum_quote_asset_trade_size: u128,
@@ -320,14 +313,20 @@ pub struct AMM {
     pub bid_base_asset_reserve: u128,
     pub bid_quote_asset_reserve: u128,
 
-    pub last_bid_price_twap: u128,
-    pub last_ask_price_twap: u128,
-
+    pub volume_24h: u64,
     pub long_intensity_count: u16,
     pub long_intensity_volume: u64,
     pub short_intensity_count: u16,
     pub short_intensity_volume: u64,
     pub curve_update_intensity: u8,
+    pub last_trade_ts: i64,
+
+    pub mark_std: u64,
+    pub last_bid_price_twap: u128,
+    pub last_ask_price_twap: u128,
+    pub last_mark_price_twap: u128,
+    pub last_mark_price_twap_5min: u128,
+    pub last_mark_price_twap_ts: i64,
 
     // fee tracking
     pub total_fee: i128,
@@ -338,8 +337,6 @@ pub struct AMM {
     pub net_revenue_since_last_funding: i64,
     pub total_liquidation_fee: u128,
     pub fee_pool: PoolBalance,
-    pub last_update_slot: u64,
-    pub last_oracle_valid: bool,
 
     pub padding0: u16,
     pub padding1: u32,
@@ -362,7 +359,10 @@ impl AMM {
             terminal_quote_asset_reserve: default_reserves,
             peg_multiplier: crate::math::constants::PEG_PRECISION,
             max_spread: 1000,
-            last_oracle_price: MARK_PRICE_PRECISION as i128,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: PRICE_PRECISION as i128,
+                ..HistoricalOracleData::default()
+            },
             last_oracle_valid: true,
             ..AMM::default()
         }
@@ -371,27 +371,29 @@ impl AMM {
     pub fn default_btc_test() -> Self {
         AMM {
             base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 630153846154000,
+            quote_asset_reserve: 63015384615,
             terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
             sqrt_k: 64 * AMM_RESERVE_PRECISION,
 
-            peg_multiplier: 19_400_000,
+            peg_multiplier: 19_400_000_000,
 
             concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
             max_base_asset_reserve: 90 * AMM_RESERVE_PRECISION,
             min_base_asset_reserve: 45 * AMM_RESERVE_PRECISION,
 
             net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
-            mark_std: MARK_PRICE_PRECISION as u64,
+            mark_std: PRICE_PRECISION as u64,
 
             quote_asset_amount_long: 0,
             quote_asset_amount_short: 19_000_000_000, // short 1 BTC @ $19000
-
-            last_oracle_price_twap_ts: 1662800000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: (19_400 * PRICE_PRECISION) as i128,
+                last_oracle_price_twap: (19_400 * PRICE_PRECISION) as i128,
+                last_oracle_price_twap_ts: 1662800000_i64,
+                ..HistoricalOracleData::default()
+            },
             last_mark_price_twap_ts: 1662800000,
 
-            last_oracle_price: (19_400 * MARK_PRICE_PRECISION) as i128,
-            last_oracle_price_twap: (19_400 * MARK_PRICE_PRECISION) as i128,
             curve_update_intensity: 100,
 
             base_spread: 250,
@@ -406,7 +408,7 @@ impl AMM {
         self.amm_jit_intensity > 0
     }
 
-    pub fn mark_price(&self) -> ClearingHouseResult<u128> {
+    pub fn reserve_price(&self) -> ClearingHouseResult<u128> {
         amm::calculate_price(
             self.quote_asset_reserve,
             self.base_asset_reserve,
@@ -414,8 +416,8 @@ impl AMM {
         )
     }
 
-    pub fn bid_price(&self, mark_price: u128) -> ClearingHouseResult<u128> {
-        let bid_price = mark_price
+    pub fn bid_price(&self, reserve_price: u128) -> ClearingHouseResult<u128> {
+        let bid_price = reserve_price
             .checked_mul(
                 BID_ASK_SPREAD_PRECISION
                     .checked_sub(self.short_spread)
@@ -428,8 +430,8 @@ impl AMM {
         Ok(bid_price)
     }
 
-    pub fn ask_price(&self, mark_price: u128) -> ClearingHouseResult<u128> {
-        let ask_price = mark_price
+    pub fn ask_price(&self, reserve_price: u128) -> ClearingHouseResult<u128> {
+        let ask_price = reserve_price
             .checked_mul(
                 BID_ASK_SPREAD_PRECISION
                     .checked_add(self.long_spread)
@@ -442,120 +444,15 @@ impl AMM {
         Ok(ask_price)
     }
 
-    pub fn bid_ask_price(&self, mark_price: u128) -> ClearingHouseResult<(u128, u128)> {
-        let bid_price = self.bid_price(mark_price)?;
-        let ask_price = self.ask_price(mark_price)?;
+    pub fn bid_ask_price(&self, reserve_price: u128) -> ClearingHouseResult<(u128, u128)> {
+        let bid_price = self.bid_price(reserve_price)?;
+        let ask_price = self.ask_price(reserve_price)?;
         Ok((bid_price, ask_price))
-    }
-
-    pub fn get_oracle_price(
-        &self,
-        price_oracle: &AccountInfo,
-        clock_slot: u64,
-    ) -> ClearingHouseResult<OraclePriceData> {
-        match self.oracle_source {
-            OracleSource::Pyth => self.get_pyth_price(price_oracle, clock_slot),
-            OracleSource::Switchboard => self.get_switchboard_price(price_oracle, clock_slot),
-            OracleSource::QuoteAsset => panic!(),
-        }
     }
 
     pub fn can_lower_k(&self) -> ClearingHouseResult<bool> {
         let can_lower = self.net_base_asset_amount.unsigned_abs() < self.sqrt_k / 4;
         Ok(can_lower)
-    }
-
-    pub fn get_pyth_price(
-        &self,
-        price_oracle: &AccountInfo,
-        clock_slot: u64,
-    ) -> ClearingHouseResult<OraclePriceData> {
-        let pyth_price_data = price_oracle
-            .try_borrow_data()
-            .or(Err(ErrorCode::UnableToLoadOracle))?;
-        let price_data = pyth_client::cast::<pyth_client::Price>(&pyth_price_data);
-
-        let oracle_price = cast_to_i128(price_data.agg.price)?;
-        let oracle_conf = cast_to_u128(price_data.agg.conf)?;
-
-        let oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
-
-        let mut oracle_scale_mult = 1;
-        let mut oracle_scale_div = 1;
-
-        if oracle_precision > MARK_PRICE_PRECISION {
-            oracle_scale_div = oracle_precision
-                .checked_div(MARK_PRICE_PRECISION)
-                .ok_or_else(math_error!())?;
-        } else {
-            oracle_scale_mult = MARK_PRICE_PRECISION
-                .checked_div(oracle_precision)
-                .ok_or_else(math_error!())?;
-        }
-
-        let oracle_price_scaled = (oracle_price)
-            .checked_mul(cast(oracle_scale_mult)?)
-            .ok_or_else(math_error!())?
-            .checked_div(cast(oracle_scale_div)?)
-            .ok_or_else(math_error!())?;
-
-        let oracle_conf_scaled = (oracle_conf)
-            .checked_mul(oracle_scale_mult)
-            .ok_or_else(math_error!())?
-            .checked_div(oracle_scale_div)
-            .ok_or_else(math_error!())?;
-
-        let oracle_delay: i64 = cast_to_i64(clock_slot)?
-            .checked_sub(cast(price_data.valid_slot)?)
-            .ok_or_else(math_error!())?;
-
-        Ok(OraclePriceData {
-            price: oracle_price_scaled,
-            confidence: oracle_conf_scaled,
-            delay: oracle_delay,
-            has_sufficient_number_of_data_points: true,
-        })
-    }
-
-    pub fn get_switchboard_price(
-        &self,
-        price_oracle: &AccountInfo,
-        clock_slot: u64,
-    ) -> ClearingHouseResult<OraclePriceData> {
-        let aggregator_data =
-            AggregatorAccountData::new(price_oracle).or(Err(ErrorCode::UnableToLoadOracle))?;
-
-        let price = convert_switchboard_decimal(&aggregator_data.latest_confirmed_round.result)?;
-        let confidence =
-            convert_switchboard_decimal(&aggregator_data.latest_confirmed_round.std_deviation)?;
-
-        // std deviation should always be positive, if we get a negative make it u128::MAX so it's flagged as bad value
-        let confidence = if confidence < 0 {
-            u128::MAX
-        } else {
-            let price_10bps = price
-                .unsigned_abs()
-                .checked_div(1000)
-                .ok_or_else(math_error!())?;
-            max(confidence.unsigned_abs(), price_10bps)
-        };
-
-        let delay: i64 = cast_to_i64(clock_slot)?
-            .checked_sub(cast(
-                aggregator_data.latest_confirmed_round.round_open_slot,
-            )?)
-            .ok_or_else(math_error!())?;
-
-        let has_sufficient_number_of_data_points =
-            aggregator_data.latest_confirmed_round.num_success
-                >= aggregator_data.min_oracle_results;
-
-        Ok(OraclePriceData {
-            price,
-            confidence,
-            delay,
-            has_sufficient_number_of_data_points,
-        })
     }
 
     pub fn get_oracle_twap(&self, price_oracle: &AccountInfo) -> ClearingHouseResult<Option<i128>> {
@@ -574,17 +471,19 @@ impl AMM {
 
         let oracle_twap = cast_to_i128(price_data.twap.val)?;
 
+        assert!(oracle_twap > cast_to_i128(price_data.agg.price)? / 10);
+
         let oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
 
         let mut oracle_scale_mult = 1;
         let mut oracle_scale_div = 1;
 
-        if oracle_precision > MARK_PRICE_PRECISION {
+        if oracle_precision > PRICE_PRECISION {
             oracle_scale_div = oracle_precision
-                .checked_div(MARK_PRICE_PRECISION)
+                .checked_div(PRICE_PRECISION)
                 .ok_or_else(math_error!())?;
         } else {
-            oracle_scale_mult = MARK_PRICE_PRECISION
+            oracle_scale_mult = PRICE_PRECISION
                 .checked_div(oracle_precision)
                 .ok_or_else(math_error!())?;
         }
@@ -597,24 +496,30 @@ impl AMM {
 
         Ok(oracle_twap_scaled)
     }
-}
 
-/// Given a decimal number represented as a mantissa (the digits) plus an
-/// original_precision (10.pow(some number of decimals)), scale the
-/// mantissa/digits to make sense with a new_precision.
-fn convert_switchboard_decimal(
-    switchboard_decimal: &SwitchboardDecimal,
-) -> ClearingHouseResult<i128> {
-    let switchboard_precision = 10_u128.pow(switchboard_decimal.scale);
-    if switchboard_precision > MARK_PRICE_PRECISION {
-        switchboard_decimal
-            .mantissa
-            .checked_div((switchboard_precision / MARK_PRICE_PRECISION) as i128)
-            .ok_or_else(math_error!())
-    } else {
-        switchboard_decimal
-            .mantissa
-            .checked_mul((MARK_PRICE_PRECISION / switchboard_precision) as i128)
-            .ok_or_else(math_error!())
+    pub fn update_volume_24h(
+        &mut self,
+        quote_asset_amount: u128,
+        position_direction: PositionDirection,
+        now: i64,
+    ) -> ClearingHouseResult {
+        let since_last = cast_to_i128(max(
+            1,
+            now.checked_sub(self.last_trade_ts)
+                .ok_or_else(math_error!())?,
+        ))?;
+
+        amm::update_amm_long_short_intensity(self, now, quote_asset_amount, position_direction)?;
+
+        self.volume_24h = amm::calculate_rolling_sum(
+            self.volume_24h,
+            cast(quote_asset_amount)?,
+            since_last,
+            TWENTY_FOUR_HOUR as i128,
+        )?;
+
+        self.last_trade_ts = now;
+
+        Ok(())
     }
 }
