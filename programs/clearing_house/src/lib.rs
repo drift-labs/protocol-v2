@@ -1220,7 +1220,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn cancel_order(ctx: Context<CancelOrder>, order_id: Option<u64>) -> Result<()> {
+    pub fn cancel_order(ctx: Context<CancelOrder>, order_id: Option<u32>) -> Result<()> {
         let clock = &Clock::get()?;
         let state = &ctx.accounts.state;
 
@@ -1280,8 +1280,8 @@ pub mod clearing_house {
     )]
     pub fn fill_order<'info>(
         ctx: Context<FillOrder>,
-        order_id: Option<u64>,
-        maker_order_id: Option<u64>,
+        order_id: Option<u32>,
+        maker_order_id: Option<u32>,
     ) -> Result<()> {
         let clock = &Clock::get()?;
         let state = &ctx.accounts.state;
@@ -1355,7 +1355,7 @@ pub mod clearing_house {
     pub fn place_and_take<'info>(
         ctx: Context<PlaceAndTake>,
         params: OrderParams,
-        maker_order_id: Option<u64>,
+        maker_order_id: Option<u32>,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let state = &ctx.accounts.state;
@@ -1454,7 +1454,7 @@ pub mod clearing_house {
     pub fn place_and_make<'info>(
         ctx: Context<PlaceAndMake>,
         params: OrderParams,
-        taker_order_id: u64,
+        taker_order_id: u32,
     ) -> Result<()> {
         let clock = &Clock::get()?;
         let state = &ctx.accounts.state;
@@ -1539,7 +1539,7 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u64) -> Result<()> {
+    pub fn trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u32) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
         SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
@@ -1561,7 +1561,7 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn trigger_spot_order<'info>(ctx: Context<TriggerOrder>, order_id: u64) -> Result<()> {
+    pub fn trigger_spot_order<'info>(ctx: Context<TriggerOrder>, order_id: u32) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
         let spot_market_market =
@@ -1610,9 +1610,9 @@ pub mod clearing_house {
     )]
     pub fn fill_spot_order<'info>(
         ctx: Context<FillOrder>,
-        order_id: Option<u64>,
+        order_id: Option<u32>,
         fulfillment_type: Option<SpotFulfillmentType>,
-        maker_order_id: Option<u64>,
+        maker_order_id: Option<u32>,
     ) -> Result<()> {
         let (order_id, market_index) = {
             let user = &load!(ctx.accounts.user)?;

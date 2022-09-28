@@ -300,7 +300,7 @@ pub fn place_order(
 }
 
 pub fn cancel_order_by_order_id(
-    order_id: u64,
+    order_id: u32,
     user: &AccountLoader<User>,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
@@ -455,7 +455,7 @@ pub fn cancel_order(
 }
 
 pub fn fill_order(
-    order_id: u64,
+    order_id: u32,
     state: &State,
     user: &AccountLoader<User>,
     user_stats: &AccountLoader<UserStats>,
@@ -466,7 +466,7 @@ pub fn fill_order(
     filler_stats: &AccountLoader<UserStats>,
     maker: Option<&AccountLoader<User>>,
     maker_stats: Option<&AccountLoader<UserStats>>,
-    maker_order_id: Option<u64>,
+    maker_order_id: Option<u32>,
     referrer: Option<&AccountLoader<User>>,
     referrer_stats: Option<&AccountLoader<UserStats>>,
     clock: &Clock,
@@ -810,7 +810,7 @@ fn sanitize_maker_order<'a>(
     oracle_map: &mut OracleMap,
     maker: Option<&'a AccountLoader<User>>,
     maker_stats: Option<&'a AccountLoader<UserStats>>,
-    maker_order_id: Option<u64>,
+    maker_order_id: Option<u32>,
     taker_key: &Pubkey,
     taker_order: &Order,
     filler: &mut Option<&mut User>,
@@ -1836,7 +1836,7 @@ fn get_taker_and_maker_for_order_record(
 }
 
 pub fn trigger_order(
-    order_id: u64,
+    order_id: u32,
     state: &State,
     user: &AccountLoader<User>,
     market_map: &PerpMarketMap,
@@ -2256,7 +2256,7 @@ pub fn place_spot_order(
 }
 
 pub fn fill_spot_order(
-    order_id: u64,
+    order_id: u32,
     state: &State,
     user: &AccountLoader<User>,
     user_stats: &AccountLoader<UserStats>,
@@ -2267,7 +2267,7 @@ pub fn fill_spot_order(
     filler_stats: &AccountLoader<UserStats>,
     maker: Option<&AccountLoader<User>>,
     maker_stats: Option<&AccountLoader<UserStats>>,
-    maker_order_id: Option<u64>,
+    maker_order_id: Option<u32>,
     clock: &Clock,
     serum_fulfillment_params: Option<SerumFulfillmentParams>,
 ) -> ClearingHouseResult<u128> {
@@ -2431,7 +2431,7 @@ fn sanitize_spot_maker_order<'a>(
     oracle_map: &mut OracleMap,
     maker: Option<&'a AccountLoader<User>>,
     maker_stats: Option<&'a AccountLoader<UserStats>>,
-    maker_order_id: Option<u64>,
+    maker_order_id: Option<u32>,
     taker_key: &Pubkey,
     taker_order: &Order,
     filler: &mut Option<&mut User>,
@@ -3356,7 +3356,7 @@ pub fn fulfill_spot_order_with_serum(
 }
 
 pub fn trigger_spot_order(
-    order_id: u64,
+    order_id: u32,
     state: &State,
     user: &AccountLoader<User>,
     spot_market_map: &SpotMarketMap,

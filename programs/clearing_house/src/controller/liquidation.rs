@@ -1801,8 +1801,8 @@ pub fn cancel_all_orders(
     oracle_map: &mut OracleMap,
     now: i64,
     slot: u64,
-) -> ClearingHouseResult<Vec<u64>> {
-    let mut canceled_order_ids: Vec<u64> = vec![];
+) -> ClearingHouseResult<Vec<u32>> {
+    let mut canceled_order_ids: Vec<u32> = vec![];
     for order_index in 0..user.orders.len() {
         if user.orders[order_index].status != OrderStatus::Open {
             continue;

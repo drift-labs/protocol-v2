@@ -31,7 +31,7 @@ pub struct User {
     pub user_id: u8,
     pub name: [u8; 32],
     pub spot_positions: [SpotPosition; 8],
-    pub next_order_id: u64,
+    pub next_order_id: u32,
     pub perp_positions: [PerpPosition; 5],
     pub orders: [Order; 32],
     pub next_liquidation_id: u16,
@@ -121,20 +121,20 @@ impl User {
         Ok(&mut self.perp_positions[position_index])
     }
 
-    pub fn get_order_index(&self, order_id: u64) -> ClearingHouseResult<usize> {
+    pub fn get_order_index(&self, order_id: u32) -> ClearingHouseResult<usize> {
         self.orders
             .iter()
             .position(|order| order.order_id == order_id)
             .ok_or(ErrorCode::OrderDoesNotExist)
     }
 
-    pub fn get_order(&self, order_id: u64) -> Option<&Order> {
+    pub fn get_order(&self, order_id: u32) -> Option<&Order> {
         self.orders.iter().find(|order| order.order_id == order_id)
     }
 
-    pub fn get_last_order_id(&self) -> u64 {
+    pub fn get_last_order_id(&self) -> u32 {
         if self.next_order_id == 1 {
-            u64::MAX
+            u32::MAX
         } else {
             self.next_order_id - 1
         }
@@ -411,7 +411,7 @@ pub struct Order {
     pub market_type: MarketType,
     pub ts: i64,
     pub slot: u64,
-    pub order_id: u64,
+    pub order_id: u32,
     pub user_order_id: u8,
     pub market_index: u16,
     pub price: u64,

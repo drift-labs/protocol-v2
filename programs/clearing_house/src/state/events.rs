@@ -128,7 +128,7 @@ pub struct OrderActionRecord {
     pub spot_fulfillment_method_fee: Option<u64>,
 
     pub taker: Option<Pubkey>,
-    pub taker_order_id: Option<u64>,
+    pub taker_order_id: Option<u32>,
     pub taker_order_direction: Option<PositionDirection>,
     pub taker_order_base_asset_amount: Option<u64>,
     pub taker_order_cumulative_base_asset_amount_filled: Option<u64>,
@@ -136,7 +136,7 @@ pub struct OrderActionRecord {
     pub taker_order_fee: Option<i64>,
 
     pub maker: Option<Pubkey>,
-    pub maker_order_id: Option<u64>,
+    pub maker_order_id: Option<u32>,
     pub maker_order_direction: Option<PositionDirection>,
     pub maker_order_base_asset_amount: Option<u64>,
     pub maker_order_cumulative_base_asset_amount_filled: Option<u64>,
@@ -307,7 +307,7 @@ pub struct LiquidationRecord {
     pub total_collateral: i128,
     pub liquidation_id: u16,
     pub bankrupt: bool,
-    pub canceled_order_ids: Vec<u64>,
+    pub canceled_order_ids: Vec<u32>,
     pub liquidate_perp: LiquidatePerpRecord,
     pub liquidate_borrow: LiquidateBorrowRecord,
     pub liquidate_borrow_for_perp_pnl: LiquidateBorrowForPerpPnlRecord,
@@ -343,8 +343,8 @@ pub struct LiquidatePerpRecord {
     pub user_pnl: i128,
     pub liquidator_pnl: i128,
     pub fill_record_id: u64,
-    pub user_order_id: u64,
-    pub liquidator_order_id: u64,
+    pub user_order_id: u32,
+    pub liquidator_order_id: u32,
     pub if_fee: u64,
 }
 
