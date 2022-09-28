@@ -393,7 +393,7 @@ export function calculateMaxSpread(marginRatioInitial: number): number {
 
 export function calculateSpreadBN(
 	baseSpread: number,
-	lastOracleReserveSpreadPct: BN,
+	lastOracleReservePriceSpreadPct: BN,
 	lastOracleConfPct: BN,
 	maxSpread: number,
 	quoteAssetReserve: BN,
@@ -409,21 +409,23 @@ export function calculateSpreadBN(
 	let longSpread = baseSpread / 2;
 	let shortSpread = baseSpread / 2;
 
-	if (lastOracleReserveSpreadPct.gt(ZERO)) {
+	if (lastOracleReservePriceSpreadPct.gt(ZERO)) {
 		shortSpread = Math.max(
 			shortSpread,
-			lastOracleReserveSpreadPct.abs().toNumber() + lastOracleConfPct.toNumber()
+			lastOracleReservePriceSpreadPct.abs().toNumber() +
+				lastOracleConfPct.toNumber()
 		);
-	} else if (lastOracleReserveSpreadPct.lt(ZERO)) {
+	} else if (lastOracleReservePriceSpreadPct.lt(ZERO)) {
 		longSpread = Math.max(
 			longSpread,
-			lastOracleReserveSpreadPct.abs().toNumber() + lastOracleConfPct.toNumber()
+			lastOracleReservePriceSpreadPct.abs().toNumber() +
+				lastOracleConfPct.toNumber()
 		);
 	}
 
 	const maxTargetSpread: number = Math.max(
 		maxSpread,
-		lastOracleReserveSpreadPct.abs().toNumber()
+		lastOracleReservePriceSpreadPct.abs().toNumber()
 	);
 
 	const MAX_INVENTORY_SKEW = 5;

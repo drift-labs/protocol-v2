@@ -518,7 +518,7 @@ export type AMM = {
 	oracleSource: OracleSource;
 	historicalOracleData: HistoricalOracleData;
 
-	lastOracleReserveSpreadPct: BN;
+	lastOracleReservePriceSpreadPct: BN;
 	lastOracleConfPct: BN;
 
 	fundingPeriod: BN;
