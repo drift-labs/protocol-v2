@@ -445,7 +445,7 @@ pub struct OrderParams {
     pub market_type: MarketType,
     pub direction: PositionDirection,
     pub user_order_id: u8,
-    pub base_asset_amount: u128,
+    pub base_asset_amount: u64,
     pub price: u64,
     pub market_index: u16,
     pub reduce_only: bool,

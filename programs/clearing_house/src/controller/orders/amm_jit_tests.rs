@@ -34,9 +34,10 @@ pub mod amm_jit {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, PEG_PRECISION, PRICE_PRECISION,
-        QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64,
+        BASE_PRECISION_U64, PEG_PRECISION, PRICE_PRECISION, QUOTE_PRECISION_I128,
+        QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::math::constants::{CONCENTRATION_PRECISION, PRICE_PRECISION_U64};
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
@@ -124,7 +125,7 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -135,7 +136,7 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -153,7 +154,7 @@ pub mod amm_jit {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -161,7 +162,7 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 / 2,
+                open_asks: -BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -300,7 +301,7 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION * 2, // if amm takes half it would flip
+                base_asset_amount: BASE_PRECISION_U64 * 2, // if amm takes half it would flip
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -311,7 +312,7 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128 * 2,
+                open_bids: BASE_PRECISION_I64 * 2,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -329,7 +330,7 @@ pub mod amm_jit {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION * 2, // maker wants full = amm wants BASE_PERCISION
+                base_asset_amount: BASE_PRECISION_U64 * 2, // maker wants full = amm wants BASE_PERCISION
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -337,7 +338,7 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 * 2,
+                open_asks: -BASE_PRECISION_I64 * 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -475,7 +476,7 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION * 2, // if amm takes half it would flip
+                base_asset_amount: BASE_PRECISION_U64 * 2, // if amm takes half it would flip
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -486,7 +487,7 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 * 2,
+                open_asks: -BASE_PRECISION_I64 * 2,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -504,7 +505,7 @@ pub mod amm_jit {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION * 2, // maker wants full = amm wants BASE_PERCISION
+                base_asset_amount: BASE_PRECISION_U64 * 2, // maker wants full = amm wants BASE_PERCISION
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -512,7 +513,7 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128 * 2,
+                open_bids: BASE_PRECISION_I64 * 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -645,7 +646,7 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short, // doesnt improve balance
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -656,7 +657,7 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128,
+                open_asks: -BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -674,7 +675,7 @@ pub mod amm_jit {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -682,7 +683,7 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128 / 2,
+                open_bids: BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -818,7 +819,7 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -829,7 +830,7 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128,
+                open_asks: -BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -847,7 +848,7 @@ pub mod amm_jit {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -855,7 +856,7 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128 / 2,
+                open_bids: BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -1018,7 +1019,7 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -1030,7 +1031,7 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -1048,7 +1049,7 @@ pub mod amm_jit {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -1056,7 +1057,7 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 / 2,
+                open_asks: -BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -1220,7 +1221,7 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -1231,7 +1232,7 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -1249,7 +1250,7 @@ pub mod amm_jit {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
                 price: 10 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -1257,7 +1258,7 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 / 2,
+                open_asks: -BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -1422,7 +1423,7 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_end_price: 0,
@@ -1433,7 +1434,7 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128,
+                open_asks: -BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -1451,7 +1452,7 @@ pub mod amm_jit {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
                 price: 200 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -1459,7 +1460,7 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128 / 2,
+                open_bids: BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -1635,7 +1636,7 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: 100 * BASE_PRECISION,
+                base_asset_amount: 100 * BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_duration,
@@ -1644,7 +1645,7 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: -100 * BASE_PRECISION_I128,
+                open_bids: -100 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -1728,7 +1729,7 @@ pub mod amm_jit {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Short,
-                    base_asset_amount: baa,
+                    base_asset_amount: baa as u64,
                     ts: 0,
                     price: auction_price,
                     ..Order::default()
@@ -1736,7 +1737,7 @@ pub mod amm_jit {
                 perp_positions: get_positions(PerpPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_asks: -(baa as i128),
+                    open_asks: -(baa as i64),
                     ..PerpPosition::default()
                 }),
                 ..User::default()
@@ -1903,7 +1904,7 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: 100 * BASE_PRECISION,
+                base_asset_amount: 100 * BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_duration, // !! amm will bid before the ask spread price
@@ -1912,7 +1913,7 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -100 * BASE_PRECISION_I128,
+                open_asks: -100 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -1998,7 +1999,7 @@ pub mod amm_jit {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Long,
-                    base_asset_amount: baa,
+                    base_asset_amount: baa as u64,
                     ts: 0,
                     price: auction_price,
                     ..Order::default()
@@ -2006,7 +2007,7 @@ pub mod amm_jit {
                 perp_positions: get_positions(PerpPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: baa as i128,
+                    open_bids: baa as i64,
                     ..PerpPosition::default()
                 }),
                 ..User::default()

@@ -576,7 +576,7 @@ mod calculate_margin_requirement_and_total_collateral {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
             open_orders: 1,
-            open_bids: 500 * 10_i128.pow(9),
+            open_bids: 500 * 10_i64.pow(9),
             ..SpotPosition::default()
         };
         let user = User {
@@ -664,7 +664,7 @@ mod calculate_margin_requirement_and_total_collateral {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
             open_orders: 1,
-            open_asks: -500 * 10_i128.pow(9),
+            open_asks: -500 * 10_i64.pow(9),
             ..SpotPosition::default()
         };
         let user = User {
@@ -753,7 +753,7 @@ mod calculate_margin_requirement_and_total_collateral {
             balance_type: SpotBalanceType::Deposit,
             balance: 500 * SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -3000 * 10_i128.pow(9),
+            open_asks: -3000 * 10_i64.pow(9),
             ..SpotPosition::default()
         };
         let user = User {

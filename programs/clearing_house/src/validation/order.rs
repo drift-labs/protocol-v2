@@ -129,7 +129,7 @@ fn validate_limit_order(
 
     let limit_price = order.get_limit_price(valid_oracle_price, slot, Some(&market.amm))?;
     let approximate_market_value = limit_price
-        .checked_mul(order.base_asset_amount)
+        .checked_mul(order.base_asset_amount as u128)
         .unwrap_or(u128::MAX)
         .div(AMM_RESERVE_PRECISION)
         .div(PRICE_PRECISION / QUOTE_PRECISION);
@@ -211,7 +211,7 @@ fn validate_trigger_limit_order(
     }
 
     let approximate_market_value = (order.price as u128)
-        .checked_mul(order.base_asset_amount)
+        .checked_mul(order.base_asset_amount as u128)
         .unwrap_or(u128::MAX)
         .div(AMM_RESERVE_PRECISION)
         .div(PRICE_PRECISION / QUOTE_PRECISION);
@@ -252,7 +252,7 @@ fn validate_trigger_market_order(
     }
 
     let approximate_market_value = (order.trigger_price as u128)
-        .checked_mul(order.base_asset_amount)
+        .checked_mul(order.base_asset_amount as u128)
         .unwrap_or(u128::MAX)
         .div(AMM_RESERVE_PRECISION)
         .div(PRICE_PRECISION / QUOTE_PRECISION);
@@ -273,7 +273,7 @@ fn validate_base_asset_amount(order: &Order, step_size: u128) -> ClearingHouseRe
     }
 
     validate!(
-        is_multiple_of_step_size(order.base_asset_amount, step_size)?,
+        is_multiple_of_step_size(order.base_asset_amount as u128, step_size)?,
         ErrorCode::InvalidOrder,
         "Order base asset amount ({}) not a multiple of the step size ({})",
         order.base_asset_amount,
@@ -365,7 +365,7 @@ fn validate_spot_limit_order(
 
     let limit_price = order.get_limit_price(valid_oracle_price, slot, None)?;
     let approximate_market_value = limit_price
-        .checked_mul(order.base_asset_amount)
+        .checked_mul(order.base_asset_amount as u128)
         .unwrap_or(u128::MAX)
         .div(10_u128.pow(decimals))
         .div(PRICE_PRECISION / QUOTE_PRECISION);

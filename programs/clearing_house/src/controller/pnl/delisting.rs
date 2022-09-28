@@ -28,8 +28,8 @@ pub mod delisting_test {
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
-        BASE_PRECISION, BASE_PRECISION_I128, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128,
-        PRICE_PRECISION_U64, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION,
+        BASE_PRECISION_I64, BASE_PRECISION_U64, PEG_PRECISION, PRICE_PRECISION,
+        PRICE_PRECISION_I128, PRICE_PRECISION_U64, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{MarketStatus, PerpMarket, PoolBalance, AMM};
@@ -715,7 +715,7 @@ pub mod delisting_test {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -726,7 +726,7 @@ pub mod delisting_test {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 base_asset_amount: (AMM_RESERVE_PRECISION_I128 / 2),
                 quote_asset_amount: -(QUOTE_PRECISION_I128 * 10),
                 ..PerpPosition::default()
@@ -962,7 +962,7 @@ pub mod delisting_test {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -973,7 +973,7 @@ pub mod delisting_test {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 base_asset_amount: (AMM_RESERVE_PRECISION_I128 / 2),
                 quote_asset_amount: (QUOTE_PRECISION_I128 * 10),
                 ..PerpPosition::default()
@@ -1212,7 +1212,7 @@ pub mod delisting_test {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -1223,7 +1223,7 @@ pub mod delisting_test {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 base_asset_amount: (AMM_RESERVE_PRECISION_I128 * 2000),
                 quote_asset_amount: (QUOTE_PRECISION_I128 * 20 * 2000), //longs have -$20 cost basis,
                 ..PerpPosition::default()
@@ -1446,7 +1446,7 @@ pub mod delisting_test {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -1457,7 +1457,7 @@ pub mod delisting_test {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 base_asset_amount: (AMM_RESERVE_PRECISION_I128 * 2000),
                 quote_asset_amount: -(QUOTE_PRECISION_I128 * 20 * 2000), //longs have $20 cost basis,
                 ..PerpPosition::default()
@@ -1478,7 +1478,7 @@ pub mod delisting_test {
                 status: OrderStatus::Open,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -1486,7 +1486,7 @@ pub mod delisting_test {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 / 2,
+                open_asks: -BASE_PRECISION_I64 / 2,
                 base_asset_amount: -(AMM_RESERVE_PRECISION_I128 * 1000),
                 quote_asset_amount: (QUOTE_PRECISION_I128 * 20 * 1000), //shorts have $20 cost basis,
                 ..PerpPosition::default()
@@ -1787,7 +1787,7 @@ pub mod delisting_test {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -1798,7 +1798,7 @@ pub mod delisting_test {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 base_asset_amount: (AMM_RESERVE_PRECISION_I128 * 200),
                 quote_asset_amount: (QUOTE_PRECISION_I128 * 2000), //longs have -$1 cost basis,
                 ..PerpPosition::default()
@@ -1819,7 +1819,7 @@ pub mod delisting_test {
                 status: OrderStatus::Open,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -1827,7 +1827,7 @@ pub mod delisting_test {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 / 2,
+                open_asks: -BASE_PRECISION_I64 / 2,
                 base_asset_amount: -(AMM_RESERVE_PRECISION_I128 * 1000),
                 quote_asset_amount: (QUOTE_PRECISION_I128 * 97 * 1000), //shorts have $20 cost basis,
                 ..PerpPosition::default()
@@ -2165,7 +2165,7 @@ pub mod delisting_test {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -2176,7 +2176,7 @@ pub mod delisting_test {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 base_asset_amount: (AMM_RESERVE_PRECISION_I128 * 200),
                 quote_asset_amount: (QUOTE_PRECISION_I128 * 200), //longs have -$1 cost basis,
                 ..PerpPosition::default()
@@ -2197,7 +2197,7 @@ pub mod delisting_test {
                 status: OrderStatus::Open,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -2205,7 +2205,7 @@ pub mod delisting_test {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 / 2,
+                open_asks: -BASE_PRECISION_I64 / 2,
                 base_asset_amount: -(AMM_RESERVE_PRECISION_I128 * 1000),
                 quote_asset_amount: (QUOTE_PRECISION_I128 * 97 * 1000), //shorts have $20 cost basis,
                 ..PerpPosition::default()

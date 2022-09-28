@@ -2,7 +2,7 @@ use solana_program::msg;
 
 use crate::error::ClearingHouseResult;
 use crate::math::amm::calculate_market_open_bids_asks;
-use crate::math::casting::cast_to_i128;
+use crate::math::casting::{cast, cast_to_i128};
 use crate::math::constants::AMM_RESERVE_PRECISION_I128;
 use crate::math::helpers;
 use crate::math::orders::standardize_base_asset_amount_with_remainder_i128;
@@ -78,7 +78,7 @@ pub fn calculate_settled_lp_base_quote(
 pub fn calculate_lp_open_bids_asks(
     market_position: &PerpPosition,
     market: &PerpMarket,
-) -> ClearingHouseResult<(i128, i128)> {
+) -> ClearingHouseResult<(i64, i64)> {
     let total_lp_shares = market.amm.sqrt_k;
     let lp_shares = market_position.lp_shares;
 
@@ -86,7 +86,7 @@ pub fn calculate_lp_open_bids_asks(
     let open_asks = helpers::get_proportion_i128(max_asks, lp_shares, total_lp_shares)?;
     let open_bids = helpers::get_proportion_i128(max_bids, lp_shares, total_lp_shares)?;
 
-    Ok((open_bids, open_asks))
+    Ok((cast(open_bids)?, cast(open_asks)?))
 }
 
 #[cfg(test)]

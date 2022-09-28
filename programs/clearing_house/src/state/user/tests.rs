@@ -591,7 +591,7 @@ mod get_worst_case_token_amounts {
             balance_type: SpotBalanceType::Deposit,
             balance: 0,
             open_orders: 1,
-            open_bids: 10_i128.pow(9),
+            open_bids: 10_i64.pow(9),
             open_asks: 0,
             ..SpotPosition::default()
         };
@@ -627,7 +627,7 @@ mod get_worst_case_token_amounts {
             balance: 0,
             open_orders: 1,
             open_bids: 0,
-            open_asks: -(10_i128.pow(9)),
+            open_asks: -(10_i64.pow(9)),
             ..SpotPosition::default()
         };
 
@@ -662,7 +662,7 @@ mod get_worst_case_token_amounts {
             balance: 2 * SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_bids: 0,
-            open_asks: -(10_i128.pow(9)),
+            open_asks: -(10_i64.pow(9)),
             ..SpotPosition::default()
         };
 
@@ -697,7 +697,7 @@ mod get_worst_case_token_amounts {
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_bids: 0,
-            open_asks: -2 * 10_i128.pow(9),
+            open_asks: -2 * 10_i64.pow(9),
             ..SpotPosition::default()
         };
 
@@ -732,7 +732,7 @@ mod get_worst_case_token_amounts {
             balance: 2 * SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_bids: 0,
-            open_asks: 10_i128.pow(9),
+            open_asks: 10_i64.pow(9),
             ..SpotPosition::default()
         };
 
@@ -766,7 +766,7 @@ mod get_worst_case_token_amounts {
             balance_type: SpotBalanceType::Borrow,
             balance: 2 * SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_bids: 10_i128.pow(9),
+            open_bids: 10_i64.pow(9),
             open_asks: 0,
             ..SpotPosition::default()
         };
@@ -802,7 +802,7 @@ mod get_worst_case_token_amounts {
             balance_type: SpotBalanceType::Borrow,
             balance: 2 * SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_bids: 5 * 10_i128.pow(9),
+            open_bids: 5 * 10_i64.pow(9),
             open_asks: 0,
             ..SpotPosition::default()
         };
@@ -839,7 +839,7 @@ mod get_worst_case_token_amounts {
             balance: 2 * SPOT_BALANCE_PRECISION,
             open_orders: 1,
             open_bids: 0,
-            open_asks: -(10_i128.pow(9)),
+            open_asks: -(10_i64.pow(9)),
             ..SpotPosition::default()
         };
 

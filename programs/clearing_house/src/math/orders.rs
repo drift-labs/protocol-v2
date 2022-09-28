@@ -320,10 +320,12 @@ pub fn is_spot_order_risk_decreasing(
 ) -> ClearingHouseResult<bool> {
     let risk_decreasing = match (balance_type, order.direction) {
         (SpotBalanceType::Deposit, PositionDirection::Short) => {
-            order.base_asset_amount < token_amount.checked_mul(2).ok_or_else(math_error!())?
+            (order.base_asset_amount as u128)
+                < token_amount.checked_mul(2).ok_or_else(math_error!())?
         }
         (SpotBalanceType::Borrow, PositionDirection::Long) => {
-            order.base_asset_amount < token_amount.checked_mul(2).ok_or_else(math_error!())?
+            (order.base_asset_amount as u128)
+                < token_amount.checked_mul(2).ok_or_else(math_error!())?
         }
         (_, _) => false,
     };

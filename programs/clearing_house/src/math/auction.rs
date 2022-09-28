@@ -96,15 +96,9 @@ pub fn calculate_auction_fill_amount(
     maker_order: &Order,
     taker_order: &Order,
 ) -> ClearingHouseResult<(u128, u128)> {
-    let maker_base_asset_amount_unfilled = maker_order
-        .base_asset_amount
-        .checked_sub(maker_order.base_asset_amount_filled)
-        .ok_or_else(math_error!())?;
+    let maker_base_asset_amount_unfilled = maker_order.get_base_asset_amount_unfilled()?;
 
-    let taker_base_asset_amount_unfilled = taker_order
-        .base_asset_amount
-        .checked_sub(taker_order.base_asset_amount_filled)
-        .ok_or_else(math_error!())?;
+    let taker_base_asset_amount_unfilled = taker_order.get_base_asset_amount_unfilled()?;
 
     let base_asset_amount_to_fill = min(
         taker_base_asset_amount_unfilled,
@@ -139,19 +133,19 @@ pub fn is_auction_complete(
 mod test {
     use super::*;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_U64, PRICE_PRECISION, QUOTE_PRECISION,
     };
 
     #[test]
     fn maker_order_fills_entire_taker_order() {
         let auction_price = 10 * PRICE_PRECISION;
         let taker_order = Order {
-            base_asset_amount: 2 * BASE_PRECISION,
+            base_asset_amount: 2 * BASE_PRECISION_U64,
             ..Order::default()
         };
 
         let maker_order = Order {
-            base_asset_amount: 2 * BASE_PRECISION,
+            base_asset_amount: 2 * BASE_PRECISION_U64,
             ..Order::default()
         };
 
@@ -169,12 +163,12 @@ mod test {
     fn maker_order_fills_portion_taker_order() {
         let auction_price = 10 * PRICE_PRECISION;
         let taker_order = Order {
-            base_asset_amount: 2 * BASE_PRECISION,
+            base_asset_amount: 2 * BASE_PRECISION_U64,
             ..Order::default()
         };
 
         let maker_order = Order {
-            base_asset_amount: BASE_PRECISION,
+            base_asset_amount: BASE_PRECISION_U64,
             ..Order::default()
         };
 
@@ -192,12 +186,12 @@ mod test {
     fn portion_of_maker_order_fills_taker_order() {
         let auction_price = 10 * PRICE_PRECISION;
         let taker_order = Order {
-            base_asset_amount: BASE_PRECISION,
+            base_asset_amount: BASE_PRECISION_U64,
             ..Order::default()
         };
 
         let maker_order = Order {
-            base_asset_amount: 2 * BASE_PRECISION,
+            base_asset_amount: 2 * BASE_PRECISION_U64,
             ..Order::default()
         };
 

@@ -119,7 +119,7 @@ pub struct OrderActionRecord {
     pub filler_reward: Option<u64>,
     pub fill_record_id: Option<u64>,
 
-    pub base_asset_amount_filled: Option<u128>,
+    pub base_asset_amount_filled: Option<u64>,
     pub quote_asset_amount_filled: Option<u64>,
     pub taker_fee: Option<u64>,
     pub maker_fee: Option<i64>,
@@ -130,16 +130,16 @@ pub struct OrderActionRecord {
     pub taker: Option<Pubkey>,
     pub taker_order_id: Option<u64>,
     pub taker_order_direction: Option<PositionDirection>,
-    pub taker_order_base_asset_amount: Option<u128>,
-    pub taker_order_cumulative_base_asset_amount_filled: Option<u128>,
+    pub taker_order_base_asset_amount: Option<u64>,
+    pub taker_order_cumulative_base_asset_amount_filled: Option<u64>,
     pub taker_order_cumulative_quote_asset_amount_filled: Option<u64>,
     pub taker_order_fee: Option<i64>,
 
     pub maker: Option<Pubkey>,
     pub maker_order_id: Option<u64>,
     pub maker_order_direction: Option<PositionDirection>,
-    pub maker_order_base_asset_amount: Option<u128>,
-    pub maker_order_cumulative_base_asset_amount_filled: Option<u128>,
+    pub maker_order_base_asset_amount: Option<u64>,
+    pub maker_order_cumulative_base_asset_amount_filled: Option<u64>,
     pub maker_order_cumulative_quote_asset_amount_filled: Option<u64>,
     pub maker_order_fee: Option<i64>,
 
@@ -185,7 +185,10 @@ pub fn get_order_action_record(
             None => None,
         },
         fill_record_id,
-        base_asset_amount_filled: fill_base_asset_amount,
+        base_asset_amount_filled: match fill_base_asset_amount {
+            Some(fill_base_asset_amount) => Some(cast(fill_base_asset_amount)?),
+            None => None,
+        },
         quote_asset_amount_filled: match fill_quote_asset_amount {
             Some(fill_quote_asset_amount) => Some(cast(fill_quote_asset_amount)?),
             None => None,

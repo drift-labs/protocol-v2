@@ -33,8 +33,8 @@ pub mod fulfill_order_with_maker_order {
     use crate::controller::orders::fulfill_order_with_match;
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{
-        BASE_PRECISION, BASE_PRECISION_I128, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
-        QUOTE_PRECISION_U64,
+        BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64, PRICE_PRECISION_U64,
+        QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
     };
     use crate::state::market::PerpMarket;
     use crate::state::user::{Order, OrderType, PerpPosition, User, UserStats};
@@ -49,7 +49,7 @@ pub mod fulfill_order_with_maker_order {
                 market_index: 0,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -60,7 +60,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -72,7 +72,7 @@ pub mod fulfill_order_with_maker_order {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -80,7 +80,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128,
+                open_asks: -BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -170,7 +170,7 @@ pub mod fulfill_order_with_maker_order {
                 market_index: 0,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -181,7 +181,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -193,7 +193,7 @@ pub mod fulfill_order_with_maker_order {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 price: 160 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -201,7 +201,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128,
+                open_asks: -BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -291,7 +291,7 @@ pub mod fulfill_order_with_maker_order {
                 market_index: 0,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 200 * PRICE_PRECISION_U64,
@@ -302,7 +302,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128,
+                open_asks: -BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -314,7 +314,7 @@ pub mod fulfill_order_with_maker_order {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 price: 180 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -322,7 +322,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -412,7 +412,7 @@ pub mod fulfill_order_with_maker_order {
                 market_index: 0,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 200 * PRICE_PRECISION_U64,
@@ -423,7 +423,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128,
+                open_asks: -BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -435,7 +435,7 @@ pub mod fulfill_order_with_maker_order {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 price: 140 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -443,7 +443,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -533,7 +533,7 @@ pub mod fulfill_order_with_maker_order {
                 market_index: 0,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -544,7 +544,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: 100 * BASE_PRECISION_I128,
+                open_bids: 100 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -556,7 +556,7 @@ pub mod fulfill_order_with_maker_order {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 price: 201 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -564,7 +564,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: 100 * BASE_PRECISION_I128,
+                open_bids: 100 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -619,7 +619,7 @@ pub mod fulfill_order_with_maker_order {
                 market_index: 0,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 auction_start_price: 200 * PRICE_PRECISION_U64,
                 auction_end_price: 100 * PRICE_PRECISION_U64,
@@ -629,7 +629,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: 100 * BASE_PRECISION_I128,
+                open_bids: 100 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -641,7 +641,7 @@ pub mod fulfill_order_with_maker_order {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 price: 99 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -649,7 +649,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: 100 * BASE_PRECISION_I128,
+                open_bids: 100 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -704,7 +704,7 @@ pub mod fulfill_order_with_maker_order {
                 market_index: 0,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 200 * PRICE_PRECISION_U64,
@@ -715,7 +715,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: 100 * BASE_PRECISION_I128,
+                open_bids: 100 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -727,7 +727,7 @@ pub mod fulfill_order_with_maker_order {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 price: 200 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -735,7 +735,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: 100 * BASE_PRECISION_I128,
+                open_bids: 100 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -790,7 +790,7 @@ pub mod fulfill_order_with_maker_order {
                 market_index: 1,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 auction_start_price: 200 * PRICE_PRECISION_U64,
                 auction_end_price: 100 * PRICE_PRECISION_U64,
@@ -800,7 +800,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: 100 * BASE_PRECISION_I128,
+                open_bids: 100 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -812,7 +812,7 @@ pub mod fulfill_order_with_maker_order {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 price: 200 * PRICE_PRECISION_U64,
                 auction_duration: 5,
@@ -821,7 +821,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: 100 * BASE_PRECISION_I128,
+                open_bids: 100 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -876,7 +876,7 @@ pub mod fulfill_order_with_maker_order {
                 market_index: 0,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: 100 * BASE_PRECISION,
+                base_asset_amount: 100 * BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -887,7 +887,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: 100 * BASE_PRECISION_I128,
+                open_bids: 100 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -899,7 +899,7 @@ pub mod fulfill_order_with_maker_order {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 price: 120 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -907,7 +907,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128,
+                open_asks: -BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -984,7 +984,7 @@ pub mod fulfill_order_with_maker_order {
                 market_index: 0,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -995,7 +995,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -1007,7 +1007,7 @@ pub mod fulfill_order_with_maker_order {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: 100 * BASE_PRECISION,
+                base_asset_amount: 100 * BASE_PRECISION_U64,
                 ts: 0,
                 price: 120 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -1015,7 +1015,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: 100 * BASE_PRECISION_I128,
+                open_bids: 100 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -1092,7 +1092,7 @@ pub mod fulfill_order_with_maker_order {
                 market_index: 0,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -1103,7 +1103,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -1115,7 +1115,7 @@ pub mod fulfill_order_with_maker_order {
                 post_only: true,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 200 * PRICE_PRECISION_U64,
@@ -1126,7 +1126,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128,
+                open_asks: -BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -1217,7 +1217,7 @@ pub mod fulfill_order_with_maker_order {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 price: 100 * PRICE_PRECISION_U64,
@@ -1226,7 +1226,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128,
+                open_asks: -BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -1237,7 +1237,7 @@ pub mod fulfill_order_with_maker_order {
                 market_index: 0,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 price: 150 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -1245,7 +1245,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -1335,7 +1335,7 @@ pub mod fulfill_order_with_maker_order {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 price: 100 * PRICE_PRECISION_U64,
@@ -1344,7 +1344,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -1355,7 +1355,7 @@ pub mod fulfill_order_with_maker_order {
                 market_index: 0,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 price: 50 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -1363,7 +1363,7 @@ pub mod fulfill_order_with_maker_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128,
+                open_asks: -BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -1455,10 +1455,10 @@ pub mod fulfill_order {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, BID_ASK_SPREAD_PRECISION_I128,
-        PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128, PRICE_PRECISION_U64,
-        QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64,
+        BASE_PRECISION_U64, BID_ASK_SPREAD_PRECISION_I128, PEG_PRECISION, PRICE_PRECISION,
+        PRICE_PRECISION_I128, PRICE_PRECISION_U64, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
+        SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{PerpMarket, AMM};
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
@@ -1647,7 +1647,7 @@ pub mod fulfill_order {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -1658,7 +1658,7 @@ pub mod fulfill_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -1676,7 +1676,7 @@ pub mod fulfill_order {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -1684,7 +1684,7 @@ pub mod fulfill_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 / 2,
+                open_asks: -BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -1815,7 +1815,7 @@ pub mod fulfill_order {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -1826,7 +1826,7 @@ pub mod fulfill_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -1844,7 +1844,7 @@ pub mod fulfill_order {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -1852,7 +1852,7 @@ pub mod fulfill_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 / 2,
+                open_asks: -BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -1903,7 +1903,7 @@ pub mod fulfill_order {
             taker_position.quote_entry_amount,
             -50 * QUOTE_PRECISION_I128
         );
-        assert_eq!(taker_position.open_bids, BASE_PRECISION_I128 / 2);
+        assert_eq!(taker_position.open_bids, BASE_PRECISION_I64 / 2);
         assert_eq!(taker_position.open_orders, 1);
         assert_eq!(taker_stats.fees.total_fee_paid, 25000);
         assert_eq!(taker_stats.fees.total_referee_discount, 0);
@@ -2000,7 +2000,7 @@ pub mod fulfill_order {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -2011,7 +2011,7 @@ pub mod fulfill_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -2149,7 +2149,7 @@ pub mod fulfill_order {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: 100 * BASE_PRECISION,
+                base_asset_amount: 100 * BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -2160,7 +2160,7 @@ pub mod fulfill_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: 100 * BASE_PRECISION_I128,
+                open_bids: 100 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -2178,7 +2178,7 @@ pub mod fulfill_order {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -2186,7 +2186,7 @@ pub mod fulfill_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 / 2,
+                open_asks: -BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -2309,7 +2309,7 @@ pub mod fulfill_order {
             status: OrderStatus::Open,
             order_type: OrderType::Market,
             direction: PositionDirection::Long,
-            base_asset_amount: BASE_PRECISION,
+            base_asset_amount: BASE_PRECISION_U64,
             ts: 0,
             slot: 0,
             auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -2322,7 +2322,7 @@ pub mod fulfill_order {
             status: OrderStatus::Open,
             order_type: OrderType::Market,
             direction: PositionDirection::Long,
-            base_asset_amount: BASE_PRECISION,
+            base_asset_amount: BASE_PRECISION_U64,
             ts: 0,
             slot: 0,
             auction_start_price: 20000 * PRICE_PRECISION_U64,
@@ -2336,13 +2336,13 @@ pub mod fulfill_order {
         taker_positions[0] = PerpPosition {
             market_index: 0,
             open_orders: 1,
-            open_bids: BASE_PRECISION_I128,
+            open_bids: BASE_PRECISION_I64,
             ..PerpPosition::default()
         };
         taker_positions[1] = PerpPosition {
             market_index: 1,
             open_orders: 1,
-            open_bids: BASE_PRECISION_I128,
+            open_bids: BASE_PRECISION_I64,
             ..PerpPosition::default()
         };
 
@@ -2365,7 +2365,7 @@ pub mod fulfill_order {
             post_only: true,
             order_type: OrderType::Limit,
             direction: PositionDirection::Short,
-            base_asset_amount: BASE_PRECISION / 2,
+            base_asset_amount: BASE_PRECISION_U64 / 2,
             ts: 0,
             price: 20000 * PRICE_PRECISION_U64,
             ..Order::default()
@@ -2375,7 +2375,7 @@ pub mod fulfill_order {
             post_only: true,
             order_type: OrderType::Limit,
             direction: PositionDirection::Short,
-            base_asset_amount: BASE_PRECISION / 2,
+            base_asset_amount: BASE_PRECISION_U64 / 2,
             ts: 0,
             price: 100 * PRICE_PRECISION_U64,
             ..Order::default()
@@ -2385,13 +2385,13 @@ pub mod fulfill_order {
         maker_positions[0] = PerpPosition {
             market_index: 1,
             open_orders: 1,
-            open_asks: -BASE_PRECISION_I128 / 2,
+            open_asks: -BASE_PRECISION_I64 / 2,
             ..PerpPosition::default()
         };
         maker_positions[1] = PerpPosition {
             market_index: 0,
             open_orders: 1,
-            open_asks: -BASE_PRECISION_I128 / 2,
+            open_asks: -BASE_PRECISION_I64 / 2,
             ..PerpPosition::default()
         };
 
@@ -2449,7 +2449,7 @@ pub mod fulfill_order {
             taker_position.quote_entry_amount,
             -50 * QUOTE_PRECISION_I128
         );
-        assert_eq!(taker_position.open_bids, BASE_PRECISION_I128 / 2);
+        assert_eq!(taker_position.open_bids, BASE_PRECISION_I64 / 2);
         assert_eq!(taker_position.open_orders, 1);
         assert_eq!(taker_stats.fees.total_fee_paid, 25000);
         assert_eq!(taker_stats.fees.total_referee_discount, 0);
@@ -2457,7 +2457,7 @@ pub mod fulfill_order {
         assert_eq!(taker_stats.taker_volume_30d, 50 * QUOTE_PRECISION_U64);
 
         let taker_order = &taker.orders[0].clone();
-        assert_eq!(taker_order.base_asset_amount_filled, BASE_PRECISION / 2);
+        assert_eq!(taker_order.base_asset_amount_filled, BASE_PRECISION_U64 / 2);
         assert_eq!(taker_order.quote_asset_amount_filled, 50000000);
         assert_eq!(taker_order.fee, 25000);
 
@@ -2529,7 +2529,7 @@ pub mod fill_order {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, PEG_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64, PEG_PRECISION,
         PRICE_PRECISION_U64, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
         SPOT_WEIGHT_PRECISION,
     };
@@ -2623,7 +2623,7 @@ pub mod fill_order {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -2635,7 +2635,7 @@ pub mod fill_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -2747,7 +2747,7 @@ pub mod fill_order {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -2759,7 +2759,7 @@ pub mod fill_order {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
@@ -2837,8 +2837,8 @@ pub mod fulfill_spot_order_with_match {
     use crate::controller::orders::fulfill_spot_order_with_match;
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{
-        LAMPORTS_PER_SOL_I128, LAMPORT_PER_SOL, PRICE_PRECISION_U64, QUOTE_PRECISION,
-        SPOT_BALANCE_PRECISION,
+        LAMPORTS_PER_SOL_I64, LAMPORT_PER_SOL, LAMPORT_PER_SOL_U64, PRICE_PRECISION_U64,
+        QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION,
     };
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::user::{MarketType, Order, OrderType, SpotPosition, User, UserStats};
@@ -2858,7 +2858,7 @@ pub mod fulfill_spot_order_with_match {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             open_orders: 1,
-            open_bids: LAMPORTS_PER_SOL_I128,
+            open_bids: LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut taker = User {
@@ -2867,7 +2867,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -2885,7 +2885,7 @@ pub mod fulfill_spot_order_with_match {
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -LAMPORTS_PER_SOL_I128,
+            open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut maker = User {
@@ -2895,7 +2895,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -2985,7 +2985,7 @@ pub mod fulfill_spot_order_with_match {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             open_orders: 1,
-            open_bids: LAMPORTS_PER_SOL_I128,
+            open_bids: LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut taker = User {
@@ -2994,7 +2994,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -3012,7 +3012,7 @@ pub mod fulfill_spot_order_with_match {
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -LAMPORTS_PER_SOL_I128,
+            open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut maker = User {
@@ -3022,7 +3022,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 price: 160 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -3108,7 +3108,7 @@ pub mod fulfill_spot_order_with_match {
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -LAMPORTS_PER_SOL_I128,
+            open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut taker = User {
@@ -3117,7 +3117,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -3139,7 +3139,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             open_orders: 1,
-            open_bids: LAMPORTS_PER_SOL_I128,
+            open_bids: LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut maker = User {
@@ -3149,7 +3149,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -3235,7 +3235,7 @@ pub mod fulfill_spot_order_with_match {
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -LAMPORTS_PER_SOL_I128,
+            open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut taker = User {
@@ -3244,7 +3244,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -3266,7 +3266,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             open_orders: 1,
-            open_bids: LAMPORTS_PER_SOL_I128,
+            open_bids: LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut maker = User {
@@ -3276,7 +3276,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 price: 70 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -3366,7 +3366,7 @@ pub mod fulfill_spot_order_with_match {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             open_orders: 1,
-            open_bids: LAMPORTS_PER_SOL_I128,
+            open_bids: LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut taker = User {
@@ -3375,7 +3375,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -3393,7 +3393,7 @@ pub mod fulfill_spot_order_with_match {
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -LAMPORTS_PER_SOL_I128,
+            open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut maker = User {
@@ -3403,7 +3403,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 price: 201 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -3466,7 +3466,7 @@ pub mod fulfill_spot_order_with_match {
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -LAMPORTS_PER_SOL_I128,
+            open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut taker = User {
@@ -3475,7 +3475,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -3497,7 +3497,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             open_orders: 1,
-            open_bids: LAMPORTS_PER_SOL_I128,
+            open_bids: LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut maker = User {
@@ -3507,7 +3507,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 price: 49 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -3570,7 +3570,7 @@ pub mod fulfill_spot_order_with_match {
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -LAMPORTS_PER_SOL_I128,
+            open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut taker = User {
@@ -3579,7 +3579,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -3601,7 +3601,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             open_orders: 1,
-            open_bids: LAMPORTS_PER_SOL_I128,
+            open_bids: LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut maker = User {
@@ -3611,7 +3611,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 price: 70 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -3678,7 +3678,7 @@ pub mod fulfill_spot_order_with_match {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             open_orders: 1,
-            open_bids: LAMPORTS_PER_SOL_I128,
+            open_bids: LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut taker = User {
@@ -3687,7 +3687,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -3705,7 +3705,7 @@ pub mod fulfill_spot_order_with_match {
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -LAMPORTS_PER_SOL_I128,
+            open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut maker = User {
@@ -3715,7 +3715,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -3782,7 +3782,7 @@ pub mod fulfill_spot_order_with_match {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             open_orders: 1,
-            open_bids: 100 * LAMPORTS_PER_SOL_I128,
+            open_bids: 100 * LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut taker = User {
@@ -3791,7 +3791,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: 100 * LAMPORT_PER_SOL,
+                base_asset_amount: 100 * LAMPORT_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -3809,7 +3809,7 @@ pub mod fulfill_spot_order_with_match {
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -LAMPORTS_PER_SOL_I128,
+            open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut maker = User {
@@ -3819,7 +3819,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -3878,12 +3878,15 @@ pub mod fulfill_spot_order_with_match {
 
         let taker_base_position = taker.spot_positions[1];
         assert_eq!(taker_base_position.balance, SPOT_BALANCE_PRECISION);
-        assert_eq!(taker_base_position.open_bids, 99 * LAMPORTS_PER_SOL_I128);
+        assert_eq!(taker_base_position.open_bids, 99 * LAMPORTS_PER_SOL_I64);
         assert_eq!(taker_base_position.open_orders, 1);
 
         let taker_order = taker.orders[0];
-        assert_eq!(taker_order.base_asset_amount_filled, LAMPORT_PER_SOL);
-        assert_eq!(taker_order.quote_asset_amount_filled, 100 * QUOTE_PRECISION);
+        assert_eq!(taker_order.base_asset_amount_filled, LAMPORT_PER_SOL_U64);
+        assert_eq!(
+            taker_order.quote_asset_amount_filled,
+            100 * QUOTE_PRECISION_U64
+        );
         assert_eq!(taker_order.fee, 50000);
 
         assert_eq!(taker_stats.taker_volume_30d, 100000000);
@@ -3919,7 +3922,7 @@ pub mod fulfill_spot_order_with_match {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             open_orders: 1,
-            open_bids: LAMPORTS_PER_SOL_I128,
+            open_bids: LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut taker = User {
@@ -3928,7 +3931,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -3946,7 +3949,7 @@ pub mod fulfill_spot_order_with_match {
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -100 * LAMPORTS_PER_SOL_I128,
+            open_asks: -100 * LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut maker = User {
@@ -3956,7 +3959,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: 100 * LAMPORT_PER_SOL,
+                base_asset_amount: 100 * LAMPORT_PER_SOL_U64,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -4029,12 +4032,15 @@ pub mod fulfill_spot_order_with_match {
 
         let maker_base_position = maker.spot_positions[1];
         assert_eq!(maker_base_position.balance, 0);
-        assert_eq!(maker_base_position.open_asks, -99 * LAMPORTS_PER_SOL_I128);
+        assert_eq!(maker_base_position.open_asks, -99 * LAMPORTS_PER_SOL_I64);
         assert_eq!(maker_base_position.open_orders, 1);
 
         let maker_order = maker.orders[0];
-        assert_eq!(maker_order.base_asset_amount_filled, LAMPORT_PER_SOL);
-        assert_eq!(maker_order.quote_asset_amount_filled, 100 * QUOTE_PRECISION);
+        assert_eq!(maker_order.base_asset_amount_filled, LAMPORT_PER_SOL_U64);
+        assert_eq!(
+            maker_order.quote_asset_amount_filled,
+            100 * QUOTE_PRECISION_U64
+        );
         assert_eq!(maker_order.fee, -30000);
 
         assert_eq!(maker_stats.maker_volume_30d, 100000000);
@@ -4056,7 +4062,7 @@ pub mod fulfill_spot_order_with_match {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             open_orders: 1,
-            open_bids: LAMPORTS_PER_SOL_I128,
+            open_bids: LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut taker = User {
@@ -4065,7 +4071,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -4083,7 +4089,7 @@ pub mod fulfill_spot_order_with_match {
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -LAMPORTS_PER_SOL_I128,
+            open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut maker = User {
@@ -4093,7 +4099,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 auction_start_price: 200 * PRICE_PRECISION_U64,
                 auction_end_price: 100 * PRICE_PRECISION_U64,
@@ -4185,7 +4191,7 @@ pub mod fulfill_spot_order_with_match {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             open_orders: 1,
-            open_bids: LAMPORTS_PER_SOL_I128,
+            open_bids: LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut taker = User {
@@ -4194,7 +4200,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 price: 100 * PRICE_PRECISION_U64,
@@ -4210,7 +4216,7 @@ pub mod fulfill_spot_order_with_match {
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -LAMPORTS_PER_SOL_I128,
+            open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut maker = User {
@@ -4220,7 +4226,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -4306,7 +4312,7 @@ pub mod fulfill_spot_order_with_match {
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -LAMPORTS_PER_SOL_I128,
+            open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut taker = User {
@@ -4315,7 +4321,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 price: 100 * PRICE_PRECISION_U64,
@@ -4335,7 +4341,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             open_orders: 1,
-            open_bids: LAMPORTS_PER_SOL_I128,
+            open_bids: LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut maker = User {
@@ -4345,7 +4351,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -4434,7 +4440,7 @@ pub mod fulfill_spot_order {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        LAMPORTS_PER_SOL_I128, LAMPORT_PER_SOL, PRICE_PRECISION_U64, SPOT_BALANCE_PRECISION,
+        LAMPORTS_PER_SOL_I64, LAMPORT_PER_SOL_U64, PRICE_PRECISION_U64, SPOT_BALANCE_PRECISION,
     };
     use crate::math::margin::calculate_free_collateral;
     use crate::state::perp_market_map::PerpMarketMap;
@@ -4499,7 +4505,7 @@ pub mod fulfill_spot_order {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             open_orders: 1,
-            open_bids: LAMPORTS_PER_SOL_I128,
+            open_bids: LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut taker = User {
@@ -4510,7 +4516,7 @@ pub mod fulfill_spot_order {
                 order_type: OrderType::Market,
                 status: OrderStatus::Open,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -4537,7 +4543,7 @@ pub mod fulfill_spot_order {
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -LAMPORTS_PER_SOL_I128 / 2,
+            open_asks: -LAMPORTS_PER_SOL_I64 / 2,
             ..SpotPosition::default()
         };
         let mut maker = User {
@@ -4549,7 +4555,7 @@ pub mod fulfill_spot_order {
                 order_type: OrderType::Limit,
                 status: OrderStatus::Open,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL / 2,
+                base_asset_amount: LAMPORT_PER_SOL_U64 / 2,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -4688,13 +4694,13 @@ pub mod fulfill_spot_order {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             open_orders: 1,
-            open_bids: LAMPORTS_PER_SOL_I128,
+            open_bids: LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         taker_spot_positions[2] = SpotPosition {
             market_index: 2,
             open_orders: 1,
-            open_bids: LAMPORTS_PER_SOL_I128,
+            open_bids: LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut taker_orders = [Order::default(); 32];
@@ -4705,7 +4711,7 @@ pub mod fulfill_spot_order {
             order_type: OrderType::Market,
             status: OrderStatus::Open,
             direction: PositionDirection::Long,
-            base_asset_amount: LAMPORT_PER_SOL,
+            base_asset_amount: LAMPORT_PER_SOL_U64,
             ts: 0,
             slot: 0,
             auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -4721,7 +4727,7 @@ pub mod fulfill_spot_order {
             order_type: OrderType::Market,
             status: OrderStatus::Open,
             direction: PositionDirection::Long,
-            base_asset_amount: LAMPORT_PER_SOL,
+            base_asset_amount: LAMPORT_PER_SOL_U64,
             ts: 0,
             slot: 0,
             auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -4750,7 +4756,7 @@ pub mod fulfill_spot_order {
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -LAMPORTS_PER_SOL_I128 / 2,
+            open_asks: -LAMPORTS_PER_SOL_I64 / 2,
             ..SpotPosition::default()
         };
         maker_spot_positions[2] = SpotPosition {
@@ -4758,7 +4764,7 @@ pub mod fulfill_spot_order {
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -LAMPORTS_PER_SOL_I128,
+            open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut maker_orders = [Order::default(); 32];
@@ -4770,7 +4776,7 @@ pub mod fulfill_spot_order {
             order_type: OrderType::Limit,
             status: OrderStatus::Open,
             direction: PositionDirection::Short,
-            base_asset_amount: LAMPORT_PER_SOL,
+            base_asset_amount: LAMPORT_PER_SOL_U64,
             ts: 0,
             price: 100 * PRICE_PRECISION_U64,
             ..Order::default()
@@ -4783,7 +4789,7 @@ pub mod fulfill_spot_order {
             order_type: OrderType::Limit,
             status: OrderStatus::Open,
             direction: PositionDirection::Short,
-            base_asset_amount: LAMPORT_PER_SOL,
+            base_asset_amount: LAMPORT_PER_SOL_U64,
             ts: 0,
             price: 100 * PRICE_PRECISION_U64,
             ..Order::default()
@@ -4894,7 +4900,7 @@ pub mod fill_spot_order {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        LAMPORTS_PER_SOL_I128, LAMPORT_PER_SOL, PRICE_PRECISION_U64, SPOT_BALANCE_PRECISION,
+        LAMPORTS_PER_SOL_I64, LAMPORT_PER_SOL_U64, PRICE_PRECISION_U64, SPOT_BALANCE_PRECISION,
     };
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -4957,7 +4963,7 @@ pub mod fill_spot_order {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             open_orders: 1,
-            open_bids: LAMPORTS_PER_SOL_I128,
+            open_bids: LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut taker = User {
@@ -4968,7 +4974,7 @@ pub mod fill_spot_order {
                 order_type: OrderType::Market,
                 status: OrderStatus::Open,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -4995,7 +5001,7 @@ pub mod fill_spot_order {
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -LAMPORTS_PER_SOL_I128 / 2,
+            open_asks: -LAMPORTS_PER_SOL_I64 / 2,
             ..SpotPosition::default()
         };
         let mut maker = User {
@@ -5007,7 +5013,7 @@ pub mod fill_spot_order {
                 order_type: OrderType::Limit,
                 status: OrderStatus::Open,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL / 2,
+                base_asset_amount: LAMPORT_PER_SOL_U64 / 2,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -5115,7 +5121,7 @@ pub mod fill_spot_order {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             open_orders: 1,
-            open_bids: LAMPORTS_PER_SOL_I128,
+            open_bids: LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
         };
         let mut taker = User {
@@ -5126,7 +5132,7 @@ pub mod fill_spot_order {
                 order_type: OrderType::Market,
                 status: OrderStatus::Open,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL,
+                base_asset_amount: LAMPORT_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -5154,7 +5160,7 @@ pub mod fill_spot_order {
             balance_type: SpotBalanceType::Deposit,
             balance: SPOT_BALANCE_PRECISION,
             open_orders: 1,
-            open_asks: -LAMPORTS_PER_SOL_I128 / 2,
+            open_asks: -LAMPORTS_PER_SOL_I64 / 2,
             ..SpotPosition::default()
         };
         let mut maker = User {
@@ -5166,7 +5172,7 @@ pub mod fill_spot_order {
                 order_type: OrderType::Limit,
                 status: OrderStatus::Open,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL / 2,
+                base_asset_amount: LAMPORT_PER_SOL_U64 / 2,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()

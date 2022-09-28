@@ -1394,7 +1394,6 @@ pub mod clearing_house {
         let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
         let is_immediate_or_cancel = params.immediate_or_cancel;
-        let base_asset_amount_to_fill = params.base_asset_amount;
 
         controller::repeg::update_amm(
             params.market_index,
@@ -1417,7 +1416,7 @@ pub mod clearing_house {
         let user = &mut ctx.accounts.user;
         let order_id = load!(user)?.get_last_order_id();
 
-        let (base_asset_amount_filled, _) = controller::orders::fill_order(
+        controller::orders::fill_order(
             order_id,
             &ctx.accounts.state,
             user,
@@ -1435,7 +1434,12 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        if is_immediate_or_cancel && base_asset_amount_to_fill != base_asset_amount_filled {
+        let order_exists = load!(ctx.accounts.user)?
+            .orders
+            .iter()
+            .any(|order| order.order_id == order_id);
+
+        if is_immediate_or_cancel && order_exists {
             controller::orders::cancel_order_by_order_id(
                 order_id,
                 &ctx.accounts.user,
