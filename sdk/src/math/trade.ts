@@ -215,20 +215,20 @@ export function calculateTargetPriceTrade(
 	assert(targetPrice.gt(ZERO));
 	assert(pct.lte(MAXPCT) && pct.gt(ZERO));
 
-	const markPriceBefore = calculateReservePrice(market, oraclePriceData);
+	const reservePriceBefore = calculateReservePrice(market, oraclePriceData);
 	const bidPriceBefore = calculateBidPrice(market, oraclePriceData);
 	const askPriceBefore = calculateAskPrice(market, oraclePriceData);
 
 	let direction;
-	if (targetPrice.gt(markPriceBefore)) {
-		const priceGap = targetPrice.sub(markPriceBefore);
+	if (targetPrice.gt(reservePriceBefore)) {
+		const priceGap = targetPrice.sub(reservePriceBefore);
 		const priceGapScaled = priceGap.mul(pct).div(MAXPCT);
-		targetPrice = markPriceBefore.add(priceGapScaled);
+		targetPrice = reservePriceBefore.add(priceGapScaled);
 		direction = PositionDirection.LONG;
 	} else {
-		const priceGap = markPriceBefore.sub(targetPrice);
+		const priceGap = reservePriceBefore.sub(targetPrice);
 		const priceGapScaled = priceGap.mul(pct).div(MAXPCT);
-		targetPrice = markPriceBefore.sub(priceGapScaled);
+		targetPrice = reservePriceBefore.sub(priceGapScaled);
 		direction = PositionDirection.SHORT;
 	}
 
@@ -265,14 +265,14 @@ export function calculateTargetPriceTrade(
 		targetPrice.gt(bidPriceBefore)
 	) {
 		// no trade, market is at target
-		if (markPriceBefore.gt(targetPrice)) {
+		if (reservePriceBefore.gt(targetPrice)) {
 			direction = PositionDirection.SHORT;
 		} else {
 			direction = PositionDirection.LONG;
 		}
 		tradeSize = ZERO;
 		return [direction, tradeSize, targetPrice, targetPrice];
-	} else if (markPriceBefore.gt(targetPrice)) {
+	} else if (reservePriceBefore.gt(targetPrice)) {
 		// overestimate y2
 		baseAssetReserveAfter = squareRootBN(
 			k.div(targetPrice).mul(peg).div(PEG_PRECISION).sub(biasModifier)
@@ -291,7 +291,7 @@ export function calculateTargetPriceTrade(
 			.div(PEG_PRECISION)
 			.div(AMM_TO_QUOTE_PRECISION_RATIO);
 		baseSize = baseAssetReserveAfter.sub(baseAssetReserveBefore);
-	} else if (markPriceBefore.lt(targetPrice)) {
+	} else if (reservePriceBefore.lt(targetPrice)) {
 		// underestimate y2
 		baseAssetReserveAfter = squareRootBN(
 			k.div(targetPrice).mul(peg).div(PEG_PRECISION).add(biasModifier)
@@ -320,12 +320,12 @@ export function calculateTargetPriceTrade(
 
 	let tp1 = targetPrice;
 	let tp2 = markPriceAfter;
-	let originalDiff = targetPrice.sub(markPriceBefore);
+	let originalDiff = targetPrice.sub(reservePriceBefore);
 
 	if (direction == PositionDirection.SHORT) {
 		tp1 = markPriceAfter;
 		tp2 = targetPrice;
-		originalDiff = markPriceBefore.sub(targetPrice);
+		originalDiff = reservePriceBefore.sub(targetPrice);
 	}
 
 	const entryPrice = tradeSize

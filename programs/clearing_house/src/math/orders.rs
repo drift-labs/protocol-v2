@@ -10,7 +10,7 @@ use crate::error::ClearingHouseResult;
 use crate::math;
 use crate::math::amm::calculate_max_base_asset_amount_fillable;
 use crate::math::auction::is_auction_complete;
-use crate::math::casting::{cast, cast_to_i128};
+use crate::math::casting::Cast;
 use crate::math::constants::{MARGIN_PRECISION, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
 use crate::math::position::calculate_entry_price;
 
@@ -128,14 +128,13 @@ pub fn standardize_base_asset_amount_with_remainder_i128(
     base_asset_amount: i128,
     step_size: u128,
 ) -> ClearingHouseResult<(i128, i128)> {
-    let remainder = cast_to_i128(
-        base_asset_amount
-            .unsigned_abs()
-            .checked_rem_euclid(step_size)
-            .ok_or_else(math_error!())?,
-    )?
-    .checked_mul(base_asset_amount.signum())
-    .ok_or_else(math_error!())?;
+    let remainder = base_asset_amount
+        .unsigned_abs()
+        .checked_rem_euclid(step_size)
+        .ok_or_else(math_error!())?
+        .cast::<i128>()?
+        .checked_mul(base_asset_amount.signum())
+        .ok_or_else(math_error!())?;
 
     let standardized_base_asset_amount = base_asset_amount
         .checked_sub(remainder)
@@ -194,12 +193,12 @@ pub fn get_position_delta_for_fill(
 ) -> ClearingHouseResult<PositionDelta> {
     Ok(PositionDelta {
         quote_asset_amount: match direction {
-            PositionDirection::Long => -cast_to_i128(quote_asset_amount)?,
-            PositionDirection::Short => cast_to_i128(quote_asset_amount)?,
+            PositionDirection::Long => -quote_asset_amount.cast()?,
+            PositionDirection::Short => quote_asset_amount.cast()?,
         },
         base_asset_amount: match direction {
-            PositionDirection::Long => cast_to_i128(base_asset_amount)?,
-            PositionDirection::Short => -cast_to_i128(base_asset_amount)?,
+            PositionDirection::Long => base_asset_amount.cast()?,
+            PositionDirection::Short => -base_asset_amount.cast()?,
         },
     })
 }
@@ -234,7 +233,7 @@ pub fn should_expire_order(
     }
 
     let slots_elapsed = slot.checked_sub(order.slot).ok_or_else(math_error!())?;
-    Ok(slots_elapsed > cast(order.time_in_force)?)
+    Ok(slots_elapsed > order.time_in_force.cast()?)
 }
 
 pub fn order_breaches_oracle_price_limits(

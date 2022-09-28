@@ -106,12 +106,12 @@ export function calculateNewMarketAfterTrade(
 	return newMarket;
 }
 
-export function calculateMarkOracleSpread(
+export function calculateOracleReserveSpread(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
-	const markPrice = calculateReservePrice(market, oraclePriceData);
-	return calculateOracleSpread(markPrice, oraclePriceData);
+	const reservePrice = calculateReservePrice(market, oraclePriceData);
+	return calculateOracleSpread(reservePrice, oraclePriceData);
 }
 
 export function calculateOracleSpread(

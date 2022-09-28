@@ -166,14 +166,14 @@ describe('post only', () => {
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
-		const markPrice = calculateReservePrice(
+		const reservePrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			price: markPrice,
+			price: reservePrice,
 			userOrderId: 1,
 			postOnly: true,
 		});
@@ -252,14 +252,14 @@ describe('post only', () => {
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
-		const markPrice = calculateReservePrice(
+		const reservePrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
 		);
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: markPrice,
+			price: reservePrice,
 			userOrderId: 1,
 			postOnly: true,
 		});
