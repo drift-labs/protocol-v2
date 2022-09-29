@@ -248,14 +248,15 @@ pub fn place_order(
     let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
         <= worst_case_base_asset_amount_before.unsigned_abs();
 
-    let meets_initial_maintenance_requirement =
-        meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+    let meets_initial_maintenance_requirement = meets_place_order_margin_requirement(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        risk_decreasing,
+    )?;
 
-    if !meets_initial_maintenance_requirement && !risk_decreasing {
-        return Err(ErrorCode::InsufficientCollateral);
-    }
-
-    if force_reduce_only && !risk_decreasing {
+    if !meets_initial_maintenance_requirement || (force_reduce_only && !risk_decreasing) {
         return Err(ErrorCode::InvalidOrder);
     }
 
@@ -2292,8 +2293,20 @@ pub fn fill_spot_order(
         .position(|order| order.order_id == order_id)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
-    let (order_status, order_market_type) =
-        get_struct_values!(user.orders[order_index], status, market_type);
+    let (order_status, order_market_index, order_market_type) =
+        get_struct_values!(user.orders[order_index], status, market_index, market_type);
+
+    {
+        let spot_market = spot_market_map.get_ref(&order_market_index)?;
+        validate!(
+            matches!(
+                spot_market.status,
+                MarketStatus::Active | MarketStatus::FundingPaused | MarketStatus::ReduceOnly
+            ),
+            ErrorCode::DefaultError,
+            "Market unavailable for fills"
+        )?;
+    }
 
     validate!(
         order_market_type == MarketType::Spot,

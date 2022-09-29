@@ -563,6 +563,47 @@ fn calculate_margin_requirement_with_buffer(
         .ok_or_else(math_error!())
 }
 
+pub fn meets_place_order_margin_requirement(
+    user: &User,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    risk_decreasing: bool,
+) -> ClearingHouseResult<bool> {
+    let (
+        margin_requirement,
+        total_collateral,
+        _,
+        _,
+        num_of_liabilities,
+        includes_isolated_liability,
+    ) = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        perp_market_map,
+        MarginRequirementType::Initial,
+        spot_market_map,
+        oracle_map,
+        None,
+    )?;
+
+    let meets_initial_maintenance_requirement =
+        total_collateral >= cast_to_i128(margin_requirement)?;
+
+    if !meets_initial_maintenance_requirement && !risk_decreasing {
+        return Err(ErrorCode::InsufficientCollateral);
+    }
+
+    if num_of_liabilities > 1 {
+        validate!(
+            !includes_isolated_liability,
+            ErrorCode::DefaultError,
+            "User attempting to increase number of liabilities above 1 with a isolated tier liability"
+        )?;
+    }
+
+    Ok(true)
+}
+
 pub fn meets_initial_margin_requirement(
     user: &User,
     perp_market_map: &PerpMarketMap,
