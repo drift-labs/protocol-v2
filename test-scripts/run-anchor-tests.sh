@@ -29,6 +29,8 @@ test_files=(
    curve.ts cappedSymFunding.ts
 )
 
+test_files=(updateK.ts)
+
 for test_file in ${test_files[@]}; do
   export ANCHOR_TEST_FILE=${test_file} && anchor test --skip-build || exit 1;
 done
