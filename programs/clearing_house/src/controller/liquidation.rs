@@ -51,7 +51,7 @@ mod tests;
 
 pub fn liquidate_perp(
     market_index: u16,
-    liquidator_max_base_asset_amount: u128,
+    liquidator_max_base_asset_amount: u64,
     user: &mut User,
     user_key: &Pubkey,
     user_stats: &mut UserStats,
@@ -234,10 +234,9 @@ pub fn liquidate_perp(
         "liquidator_max_base_asset_amount cant be 0"
     )?;
 
-    let user_base_asset_amount: u128 = user.perp_positions[position_index]
+    let user_base_asset_amount = user.perp_positions[position_index]
         .base_asset_amount
-        .unsigned_abs()
-        .cast()?;
+        .unsigned_abs();
 
     let worst_case_base_asset_amount =
         user.perp_positions[position_index].worst_case_base_asset_amount()?;
@@ -297,17 +296,18 @@ pub fn liquidate_perp(
         .checked_mul(liquidation_multiplier)
         .ok_or_else(math_error!())?
         .checked_div(LIQUIDATION_FEE_PRECISION)
-        .ok_or_else(math_error!())?;
-    let if_fee = -cast_to_i128(
-        base_asset_value
-            .checked_mul(if_liquidation_fee)
-            .ok_or_else(math_error!())?
-            .checked_div(LIQUIDATION_FEE_PRECISION)
-            .ok_or_else(math_error!())?,
-    )?;
+        .ok_or_else(math_error!())?
+        .cast::<u64>()?;
 
-    user_stats.update_taker_volume_30d(cast(quote_asset_amount)?, now)?;
-    liquidator_stats.update_maker_volume_30d(cast(quote_asset_amount)?, now)?;
+    let if_fee = -base_asset_value
+        .checked_mul(if_liquidation_fee)
+        .ok_or_else(math_error!())?
+        .checked_div(LIQUIDATION_FEE_PRECISION)
+        .ok_or_else(math_error!())?
+        .cast::<i64>()?;
+
+    user_stats.update_taker_volume_30d(quote_asset_amount, now)?;
+    liquidator_stats.update_maker_volume_30d(quote_asset_amount, now)?;
 
     let user_position_delta = get_position_delta_for_fill(
         base_asset_amount,
@@ -321,32 +321,23 @@ pub fn liquidate_perp(
         user.perp_positions[position_index].get_direction(),
     )?;
 
-    let (user_pnl, liquidator_pnl) = {
+    {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
         let user_position = user.get_perp_position_mut(market_index).unwrap();
-        let mut user_pnl =
-            update_position_and_market(user_position, &mut market, &user_position_delta)?;
-
+        update_position_and_market(user_position, &mut market, &user_position_delta)?;
         update_quote_asset_amount(user_position, &mut market, if_fee)?;
-        user_pnl = user_pnl.checked_add(if_fee).ok_or_else(math_error!())?;
 
         let liquidator_position = liquidator
             .force_get_perp_position_mut(market_index)
             .unwrap();
-        let liquidator_pnl = update_position_and_market(
-            liquidator_position,
-            &mut market,
-            &liquidator_position_delta,
-        )?;
+        update_position_and_market(liquidator_position, &mut market, &liquidator_position_delta)?;
 
         market.amm.total_liquidation_fee = market
             .amm
             .total_liquidation_fee
-            .checked_add(if_fee.unsigned_abs())
+            .checked_add(if_fee.unsigned_abs().cast()?)
             .ok_or_else(math_error!())?;
-
-        (user_pnl, liquidator_pnl)
     };
 
     if base_asset_amount >= base_asset_amount_to_cover_margin_shortage {
@@ -388,8 +379,6 @@ pub fn liquidate_perp(
             base_asset_amount: user_position_delta.base_asset_amount,
             quote_asset_amount: user_position_delta.quote_asset_amount,
             lp_shares,
-            user_pnl,
-            liquidator_pnl,
             user_order_id,
             liquidator_order_id,
             fill_record_id,
@@ -1089,14 +1078,10 @@ pub fn liquidate_borrow_for_perp_pnl(
     {
         let mut market = perp_market_map.get_ref_mut(&perp_market_index)?;
         let liquidator_position = liquidator.force_get_perp_position_mut(perp_market_index)?;
-        update_quote_asset_amount(
-            liquidator_position,
-            &mut market,
-            cast_to_i128(pnl_transfer)?,
-        )?;
+        update_quote_asset_amount(liquidator_position, &mut market, pnl_transfer.cast()?)?;
 
         let user_position = user.get_perp_position_mut(perp_market_index)?;
-        update_quote_asset_amount(user_position, &mut market, -cast_to_i128(pnl_transfer)?)?;
+        update_quote_asset_amount(user_position, &mut market, -pnl_transfer.cast()?)?;
     }
 
     if liability_transfer >= liability_transfer_to_cover_margin_shortage {
@@ -1449,14 +1434,10 @@ pub fn liquidate_perp_pnl_for_deposit(
     {
         let mut perp_market = perp_market_map.get_ref_mut(&perp_market_index)?;
         let liquidator_position = liquidator.force_get_perp_position_mut(perp_market_index)?;
-        update_quote_asset_amount(
-            liquidator_position,
-            &mut perp_market,
-            -cast_to_i128(pnl_transfer)?,
-        )?;
+        update_quote_asset_amount(liquidator_position, &mut perp_market, -pnl_transfer.cast()?)?;
 
         let user_position = user.get_perp_position_mut(perp_market_index)?;
-        update_quote_asset_amount(user_position, &mut perp_market, cast_to_i128(pnl_transfer)?)?;
+        update_quote_asset_amount(user_position, &mut perp_market, pnl_transfer.cast()?)?;
     }
 
     if pnl_transfer >= pnl_transfer_to_cover_margin_shortage {

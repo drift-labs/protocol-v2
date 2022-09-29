@@ -34,10 +34,9 @@ pub mod amm_jit {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64,
-        BASE_PRECISION_U64, PEG_PRECISION, PRICE_PRECISION, QUOTE_PRECISION_I64,
-        QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
+        PEG_PRECISION, PRICE_PRECISION, QUOTE_PRECISION_I64, QUOTE_PRECISION_U64,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::constants::{CONCENTRATION_PRECISION, PRICE_PRECISION_U64};
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
@@ -204,7 +203,7 @@ pub mod amm_jit {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION);
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64);
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
@@ -622,7 +621,7 @@ pub mod amm_jit {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -725,7 +724,7 @@ pub mod amm_jit {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION);
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64);
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64);
@@ -791,7 +790,7 @@ pub mod amm_jit {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -901,7 +900,7 @@ pub mod amm_jit {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION);
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64);
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64);
@@ -1099,7 +1098,7 @@ pub mod amm_jit {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION);
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64);
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
@@ -1301,7 +1300,7 @@ pub mod amm_jit {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION / 2); // auctions not over so no amm fill
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64 / 2); // auctions not over so no amm fill
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64 / 2);
@@ -1503,7 +1502,7 @@ pub mod amm_jit {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION / 2); // auctions not over so no amm fill
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64 / 2); // auctions not over so no amm fill
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64 / 2);
@@ -1775,7 +1774,10 @@ pub mod amm_jit {
                 slot, auction_price, quote_asset_amount_surplus
             );
 
-            assert_eq!(_quote_asset_amount_surplus, quote_asset_amount_surplus);
+            assert_eq!(
+                _quote_asset_amount_surplus,
+                quote_asset_amount_surplus as i64
+            );
 
             if !has_set_prev_qas {
                 prev_qas = quote_asset_amount_surplus;
@@ -2045,7 +2047,10 @@ pub mod amm_jit {
                 slot, auction_price, quote_asset_amount_surplus
             );
 
-            assert_eq!(_quote_asset_amount_surplus, quote_asset_amount_surplus);
+            assert_eq!(
+                _quote_asset_amount_surplus,
+                quote_asset_amount_surplus as i64
+            );
 
             if !has_set_prev_qas {
                 prev_qas = quote_asset_amount_surplus;

@@ -121,14 +121,12 @@ pub fn calculate_base_asset_value_with_oracle_price(
         0
     };
 
-    let base_asset_value = base_asset_amount
+    base_asset_amount
         .unsigned_abs()
         .checked_mul(oracle_price)
         .ok_or_else(math_error!())?
         .checked_div(AMM_RESERVE_PRECISION * PRICE_TO_QUOTE_PRECISION_RATIO)
-        .ok_or_else(math_error!())?;
-
-    Ok(base_asset_value)
+        .ok_or_else(math_error!())
 }
 
 pub fn calculate_base_asset_value_and_pnl_with_oracle_price(
@@ -225,11 +223,11 @@ pub fn get_position_update_type(
 ) -> PositionUpdateType {
     if position.base_asset_amount == 0 {
         PositionUpdateType::Open
-    } else if (position.base_asset_amount.signum() as i128) == delta.base_asset_amount.signum() {
+    } else if position.base_asset_amount.signum() == delta.base_asset_amount.signum() {
         PositionUpdateType::Increase
-    } else if (position.base_asset_amount.abs() as i128) > delta.base_asset_amount.abs() {
+    } else if position.base_asset_amount.abs() > delta.base_asset_amount.abs() {
         PositionUpdateType::Reduce
-    } else if (position.base_asset_amount.abs() as i128) == delta.base_asset_amount.abs() {
+    } else if position.base_asset_amount.abs() == delta.base_asset_amount.abs() {
         PositionUpdateType::Close
     } else {
         PositionUpdateType::Flip
@@ -270,7 +268,7 @@ pub fn calculate_position_new_quote_base_pnl(
                     position
                         .quote_entry_amount
                         .cast::<i128>()?
-                        .checked_mul(delta.base_asset_amount.abs())
+                        .checked_mul(delta.base_asset_amount.abs().cast()?)
                         .ok_or_else(math_error!())?
                         .checked_div(position.base_asset_amount.abs().cast()?)
                         .ok_or_else(math_error!())?,
@@ -280,11 +278,11 @@ pub fn calculate_position_new_quote_base_pnl(
 
             let pnl = position
                 .quote_entry_amount
-                .checked_sub(new_quote_entry_amount)
+                .cast::<i128>()?
+                .checked_sub(new_quote_entry_amount.cast()?)
                 .ok_or_else(math_error!())?
                 .checked_add(delta.quote_asset_amount.cast()?)
-                .ok_or_else(math_error!())?
-                .cast::<i128>()?;
+                .ok_or_else(math_error!())?;
 
             (new_quote_entry_amount, pnl)
         }
@@ -308,11 +306,12 @@ pub fn calculate_position_new_quote_base_pnl(
                     delta
                         .quote_asset_amount
                         .checked_sub(new_quote_entry_amount)
-                        .ok_or_else(math_error!())?,
+                        .ok_or_else(math_error!())?
+                        .cast()?,
                 )
                 .ok_or_else(math_error!())?;
 
-            (new_quote_entry_amount.cast::<i64>()?, pnl)
+            (new_quote_entry_amount, pnl)
         }
     };
 

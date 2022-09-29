@@ -150,7 +150,7 @@ pub fn settle_pnl(
     update_quote_asset_amount(
         &mut user.perp_positions[position_index],
         perp_market,
-        -pnl_to_settle_with_user,
+        -pnl_to_settle_with_user.cast()?,
     )?;
 
     update_settled_pnl(
@@ -273,7 +273,7 @@ pub fn settle_expired_position(
     market.amm.net_base_asset_amount = market
         .amm
         .net_base_asset_amount
-        .checked_add(position_delta.base_asset_amount)
+        .checked_add(position_delta.base_asset_amount.cast()?)
         .ok_or_else(math_error!())?;
 
     let quote_asset_amount_after = user_position.quote_asset_amount;

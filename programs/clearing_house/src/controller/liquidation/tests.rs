@@ -4,9 +4,9 @@ pub mod liquidate_perp {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64,
-        BASE_PRECISION_U64, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, PEG_PRECISION,
-        QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
+        LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, PEG_PRECISION, QUOTE_PRECISION,
+        QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::{
@@ -131,7 +131,7 @@ pub mod liquidate_perp {
 
         liquidate_perp(
             0,
-            BASE_PRECISION,
+            BASE_PRECISION_U64,
             &mut user,
             &user_key,
             &mut user_stats,
@@ -271,7 +271,7 @@ pub mod liquidate_perp {
 
         liquidate_perp(
             0,
-            BASE_PRECISION,
+            BASE_PRECISION_U64,
             &mut user,
             &user_key,
             &mut user_stats,
@@ -414,7 +414,7 @@ pub mod liquidate_perp {
 
         liquidate_perp(
             0,
-            BASE_PRECISION,
+            BASE_PRECISION_U64,
             &mut user,
             &user_key,
             &mut user_stats,
@@ -542,7 +542,7 @@ pub mod liquidate_perp {
 
         liquidate_perp(
             0,
-            BASE_PRECISION / 2,
+            BASE_PRECISION_U64 / 2,
             &mut user,
             &user_key,
             &mut user_stats,
@@ -687,7 +687,7 @@ pub mod liquidate_perp {
         let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
         liquidate_perp(
             0,
-            10 * BASE_PRECISION,
+            10 * BASE_PRECISION_U64,
             &mut user,
             &user_key,
             &mut user_stats,

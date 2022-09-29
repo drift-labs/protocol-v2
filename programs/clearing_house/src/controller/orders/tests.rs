@@ -1428,7 +1428,7 @@ pub mod fulfill_order {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64,
         BID_ASK_SPREAD_PRECISION_I128, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128,
         PRICE_PRECISION_U64, QUOTE_PRECISION_I64, QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
@@ -1699,7 +1699,7 @@ pub mod fulfill_order {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION);
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64);
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
@@ -1867,7 +1867,7 @@ pub mod fulfill_order {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION / 2);
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64 / 2);
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64 / 2);
@@ -2025,7 +2025,7 @@ pub mod fulfill_order {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION);
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64);
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
@@ -2410,7 +2410,7 @@ pub mod fulfill_order {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION / 2);
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64 / 2);
 
         let taker_position = &taker.perp_positions[0].clone();
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64 / 2);
@@ -2804,8 +2804,8 @@ pub mod fulfill_spot_order_with_match {
     use crate::controller::orders::fulfill_spot_order_with_match;
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{
-        LAMPORTS_PER_SOL_I64, LAMPORT_PER_SOL, LAMPORT_PER_SOL_U64, PRICE_PRECISION_U64,
-        QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
+        LAMPORTS_PER_SOL_I64, LAMPORT_PER_SOL_U64, PRICE_PRECISION_U64, QUOTE_PRECISION_U64,
+        SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
     };
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::user::{MarketType, Order, OrderType, SpotPosition, User, UserStats};
@@ -3838,7 +3838,7 @@ pub mod fulfill_spot_order_with_match {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, LAMPORT_PER_SOL);
+        assert_eq!(base_asset_amount, LAMPORT_PER_SOL_U64);
 
         let taker_quote_position = taker.spot_positions[0];
         assert_eq!(taker_quote_position.balance, 950000000);
@@ -3978,7 +3978,7 @@ pub mod fulfill_spot_order_with_match {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, LAMPORT_PER_SOL);
+        assert_eq!(base_asset_amount, LAMPORT_PER_SOL_U64);
 
         let taker_quote_position = taker.spot_positions[0];
         assert_eq!(taker_quote_position.balance, 950000000);

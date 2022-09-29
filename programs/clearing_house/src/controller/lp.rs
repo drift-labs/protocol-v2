@@ -10,7 +10,7 @@ use crate::controller::position::PositionDelta;
 use crate::controller::position::{update_position_and_market, update_quote_asset_amount};
 use crate::get_struct_values;
 use crate::math::amm::{get_update_k_result, update_k};
-use crate::math::casting::{cast_to_i128, Cast};
+use crate::math::casting::Cast;
 use crate::math::lp::calculate_settle_lp_metrics;
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 
@@ -67,7 +67,7 @@ pub fn mint_lp_shares(
 pub fn settle_lp_position(
     position: &mut PerpPosition,
     market: &mut PerpMarket,
-) -> ClearingHouseResult<(PositionDelta, i128)> {
+) -> ClearingHouseResult<(PositionDelta, i64)> {
     let mut lp_metrics = calculate_settle_lp_metrics(&market.amm, position)?;
 
     position.remainder_base_asset_amount = position
@@ -81,7 +81,7 @@ pub fn settle_lp_position(
         let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
             crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
                 position.remainder_base_asset_amount.cast()?,
-                market.amm.base_asset_amount_step_size,
+                market.amm.base_asset_amount_step_size.cast()?,
             )?;
 
         lp_metrics.base_asset_amount = lp_metrics
@@ -93,8 +93,8 @@ pub fn settle_lp_position(
     }
 
     let position_delta = PositionDelta {
-        base_asset_amount: lp_metrics.base_asset_amount,
-        quote_asset_amount: lp_metrics.quote_asset_amount,
+        base_asset_amount: lp_metrics.base_asset_amount.cast()?,
+        quote_asset_amount: lp_metrics.quote_asset_amount.cast()?,
     };
 
     let pnl = update_position_and_market(position, market, &position_delta)?;
@@ -152,7 +152,7 @@ pub fn burn_lp_shares(
     market: &mut PerpMarket,
     shares_to_burn: u64,
     oracle_price: i128,
-) -> ClearingHouseResult<(PositionDelta, i128)> {
+) -> ClearingHouseResult<(PositionDelta, i64)> {
     if shares_to_burn == 0 {
         return Ok((PositionDelta::default(), 0));
     }
@@ -164,6 +164,7 @@ pub fn burn_lp_shares(
     let unsettled_remainder = market
         .amm
         .net_unsettled_lp_base_asset_amount
+        .cast::<i64>()?
         .checked_add(position.remainder_base_asset_amount.cast()?)
         .ok_or_else(math_error!())?;
 
@@ -203,11 +204,11 @@ pub fn burn_lp_shares(
         position.remainder_base_asset_amount = 0;
 
         let dust_base_asset_value =
-            calculate_base_asset_value_with_oracle_price(base_asset_amount, oracle_price)?
+            calculate_base_asset_value_with_oracle_price(base_asset_amount.cast()?, oracle_price)?
                 .checked_add(1) // round up
                 .ok_or_else(math_error!())?;
 
-        update_quote_asset_amount(position, market, -cast_to_i128(dust_base_asset_value)?)?;
+        update_quote_asset_amount(position, market, -dust_base_asset_value.cast()?)?;
     }
 
     // update last_ metrics

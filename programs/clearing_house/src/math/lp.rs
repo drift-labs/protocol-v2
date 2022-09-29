@@ -28,7 +28,7 @@ pub fn calculate_settle_lp_metrics(
     let (standardized_base_asset_amount, remainder_base_asset_amount) =
         standardize_base_asset_amount_with_remainder_i128(
             base_asset_amount,
-            amm.base_asset_amount_step_size,
+            amm.base_asset_amount_step_size.cast()?,
         )?;
 
     let lp_metrics = LPMetrics {

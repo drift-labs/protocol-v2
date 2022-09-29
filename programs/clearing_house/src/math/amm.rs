@@ -3,7 +3,7 @@ use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
 use crate::math::bn::U192;
-use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64, Cast};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
@@ -632,7 +632,7 @@ pub fn update_amm_mark_std(
 pub fn update_amm_long_short_intensity(
     amm: &mut AMM,
     now: i64,
-    quote_asset_amount: u128,
+    quote_asset_amount: u64,
     direction: PositionDirection,
 ) -> ClearingHouseResult<bool> {
     let since_last = cast_to_i128(max(
@@ -642,9 +642,9 @@ pub fn update_amm_long_short_intensity(
     ))?;
 
     let (long_quote_amount, short_quote_amount) = if direction == PositionDirection::Long {
-        (cast_to_u64(quote_asset_amount)?, 0_u64)
+        (quote_asset_amount, 0_u64)
     } else {
-        (0_u64, cast_to_u64(quote_asset_amount)?)
+        (0_u64, quote_asset_amount)
     };
 
     amm.long_intensity_count = (calculate_rolling_sum(
@@ -1325,7 +1325,7 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
     amm: &AMM,
     limit_price: u128,
     direction: PositionDirection,
-) -> ClearingHouseResult<(u128, PositionDirection)> {
+) -> ClearingHouseResult<(u64, PositionDirection)> {
     let invariant_sqrt_u192 = U192::from(amm.sqrt_k);
     let invariant = invariant_sqrt_u192
         .checked_mul(invariant_sqrt_u192)
@@ -1357,12 +1357,14 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
     if new_base_asset_reserve > base_asset_reserve_before {
         let max_trade_amount = new_base_asset_reserve
             .checked_sub(base_asset_reserve_before)
-            .ok_or_else(math_error!())?;
+            .ok_or_else(math_error!())?
+            .cast::<u64>()?;
         Ok((max_trade_amount, PositionDirection::Short))
     } else {
         let max_trade_amount = base_asset_reserve_before
             .checked_sub(new_base_asset_reserve)
-            .ok_or_else(math_error!())?;
+            .ok_or_else(math_error!())?
+            .cast::<u64>()?;
         Ok((max_trade_amount, PositionDirection::Long))
     }
 }
@@ -1370,8 +1372,9 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
 pub fn calculate_max_base_asset_amount_fillable(
     amm: &AMM,
     order_direction: &PositionDirection,
-) -> ClearingHouseResult<u128> {
-    let max_fill_size = amm.base_asset_reserve / amm.max_base_asset_amount_ratio as u128;
+) -> ClearingHouseResult<u64> {
+    let max_fill_size: u64 =
+        (amm.base_asset_reserve / amm.max_base_asset_amount_ratio as u128).cast()?;
 
     // one fill can only take up to half of side's liquidity
     let max_base_asset_amount_on_side = match order_direction {
@@ -1385,7 +1388,8 @@ pub fn calculate_max_base_asset_amount_fillable(
                 .saturating_sub(amm.base_asset_reserve)
                 / 2
         }
-    };
+    }
+    .cast::<u64>()?;
 
     standardize_base_asset_amount(
         max_fill_size.min(max_base_asset_amount_on_side),

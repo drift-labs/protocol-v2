@@ -257,7 +257,7 @@ pub mod clearing_house {
         let now = cast(clock.unix_timestamp).or(Err(ErrorCode::UnableToCastUnixTime))?;
 
         let decimals = ctx.accounts.spot_market_mint.decimals;
-        let order_step_size = 10_u128.pow(2 + (decimals - 6) as u32); // 10 for usdc/btc, 10000 for sol
+        let order_step_size = 10_u64.pow(2 + (decimals - 6) as u32); // 10 for usdc/btc, 10000 for sol
 
         **spot_market = SpotMarket {
             market_index: spot_market_index,
@@ -1151,7 +1151,7 @@ pub mod clearing_house {
             let mut market = market_map.get_ref_mut(&market_index)?;
 
             validate!(
-                n_shares.cast::<u128>()? >= market.amm.base_asset_amount_step_size,
+                n_shares >= market.amm.base_asset_amount_step_size,
                 ErrorCode::DefaultError,
                 "minting {} shares is less than step size {}",
                 n_shares,
@@ -1838,7 +1838,7 @@ pub mod clearing_house {
     pub fn liquidate_perp(
         ctx: Context<LiquidatePerp>,
         market_index: u16,
-        liquidator_max_base_asset_amount: u128,
+        liquidator_max_base_asset_amount: u64,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -3406,7 +3406,7 @@ pub mod clearing_house {
     )]
     pub fn update_market_base_asset_amount_step_size(
         ctx: Context<AdminUpdateMarket>,
-        minimum_trade_size: u128,
+        minimum_trade_size: u64,
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
         if minimum_trade_size > 0 {

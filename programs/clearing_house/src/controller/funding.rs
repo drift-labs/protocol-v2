@@ -11,7 +11,7 @@ use crate::controller::position::{
 use crate::error::ClearingHouseResult;
 use crate::get_then_update_id;
 use crate::math::amm;
-use crate::math::casting::{cast, cast_to_i128};
+use crate::math::casting::{cast, cast_to_i128, Cast};
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_RATE_BUFFER, ONE_HOUR, TWENTY_FOUR_HOUR,
 };
@@ -57,7 +57,8 @@ pub fn settle_funding_payment(
         let market_funding_payment =
             calculate_funding_payment(amm_cumulative_funding_rate, market_position)?
                 .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
-                .ok_or_else(math_error!())?;
+                .ok_or_else(math_error!())?
+                .cast::<i64>()?;
 
         emit!(FundingPaymentRecord {
             ts: now,
@@ -102,7 +103,8 @@ pub fn settle_funding_payments(
             let market_funding_payment =
                 calculate_funding_payment(amm_cumulative_funding_rate, market_position)?
                     .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
-                    .ok_or_else(math_error!())?;
+                    .ok_or_else(math_error!())?
+                    .cast::<i64>()?;
 
             emit!(FundingPaymentRecord {
                 ts: now,

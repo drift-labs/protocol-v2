@@ -522,9 +522,9 @@ impl Order {
         Ok(price)
     }
 
-    pub fn get_base_asset_amount_unfilled(&self) -> ClearingHouseResult<u128> {
-        (self.base_asset_amount as u128)
-            .checked_sub(self.base_asset_amount_filled as u128)
+    pub fn get_base_asset_amount_unfilled(&self) -> ClearingHouseResult<u64> {
+        self.base_asset_amount
+            .checked_sub(self.base_asset_amount_filled)
             .ok_or_else(math_error!())
     }
 
