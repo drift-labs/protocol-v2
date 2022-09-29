@@ -63,11 +63,7 @@ import {
 } from './accounts/types';
 import { TxSender } from './tx/types';
 import { wrapInTx } from './tx/utils';
-import {
-	ONE,
-	QUOTE_SPOT_MARKET_INDEX,
-	ZERO,
-} from './constants/numericConstants';
+import { QUOTE_SPOT_MARKET_INDEX, ZERO } from './constants/numericConstants';
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getTokenAmount } from './math/spotBalance';
 import { DEFAULT_USER_NAME, encodeName } from './userName';

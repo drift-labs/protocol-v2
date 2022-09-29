@@ -265,15 +265,18 @@ pub fn calculate_position_new_quote_base_pnl(
         PositionUpdateType::Reduce | PositionUpdateType::Close => {
             let new_quote_entry_amount = position
                 .quote_entry_amount
+                .cast::<i128>()?
                 .checked_sub(
                     position
                         .quote_entry_amount
-                        .checked_mul(delta.base_asset_amount.abs().cast()?)
+                        .cast::<i128>()?
+                        .checked_mul(delta.base_asset_amount.abs())
                         .ok_or_else(math_error!())?
                         .checked_div(position.base_asset_amount.abs().cast()?)
                         .ok_or_else(math_error!())?,
                 )
-                .ok_or_else(math_error!())?;
+                .ok_or_else(math_error!())?
+                .cast::<i64>()?;
 
             let pnl = position
                 .quote_entry_amount
