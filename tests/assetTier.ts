@@ -210,6 +210,8 @@ describe('asset tiers', () => {
 				secondUserClearingHouseUSDCAccount,
 				false
 			);
+			await printTxLogs(connection, txSig);
+
 			// assert(false);
 		} catch (err) {
 			console.error(err);
@@ -253,6 +255,7 @@ describe('asset tiers', () => {
 			secondUserClearingHouseDogeAccount,
 			false
 		);
+		await printTxLogs(connection, txSig);
 
 		await secondUserClearingHouse.fetchAccounts();
 
@@ -263,6 +266,8 @@ describe('asset tiers', () => {
 				secondUserClearingHouseUSDCAccount,
 				false
 			);
+			await printTxLogs(connection, txSig);
+
 			console.log('usdc borrow succeed (should have fail!)');
 			assert(false);
 		} catch (err) {
@@ -288,6 +293,7 @@ describe('asset tiers', () => {
 				secondUserClearingHouseUSDCAccount,
 				false
 			);
+			await printTxLogs(connection, txSig2);
 		} catch (e) {
 			console.error(e);
 			assert(false);
