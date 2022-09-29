@@ -432,8 +432,8 @@ describe('repeg and spread amm', () => {
 
 		console.log('inventoryScale:', inventoryScale);
 		console.log('effectiveLeverage:', effectiveLeverage);
-		assert(Math.min(effectiveLeverage, 5) == 5); // lol
-		assert(inventoryScale == 0.034835);
+		assert(Math.min(effectiveLeverage, 10) == 10); // lol
+		assert(Math.min(inventoryScale, 10) == 10);
 
 		try {
 			const txSig = await clearingHouse.updateAMMs([marketIndex]);

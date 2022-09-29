@@ -336,6 +336,7 @@ export function calculateInventoryScale(
 	minBaseAssetReserve: BN,
 	maxBaseAssetReserve: BN
 ): number {
+	const maxScale = BID_ASK_SPREAD_PRECISION.mul(new BN(10));
 	// inventory skew
 	const [openBids, openAsks] = calculateMarketOpenBidAsk(
 		baseAssetReserve,
@@ -348,11 +349,10 @@ export function calculateInventoryScale(
 		BN.min(openBids.abs(), openAsks.abs())
 	);
 	const inventoryScale =
-		netBaseAssetAmount
-			.mul(BID_ASK_SPREAD_PRECISION.mul(new BN(10)))
-			.div(minSideLiquidity)
-			.abs()
-			.toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
+		BN.min(
+			maxScale,
+			netBaseAssetAmount.mul(maxScale).div(minSideLiquidity).abs()
+		).toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
 
 	return inventoryScale;
 }

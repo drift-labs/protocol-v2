@@ -695,11 +695,8 @@ describe('update amm', () => {
 					)
 				);
 			} else if (i == 4) {
-				assert(
-					market.amm.pegMultiplier.eq(
-						new BN(4.04212 * PEG_PRECISION.toNumber())
-					)
-				);
+				console.log(market.amm.pegMultiplier.toString());
+				assert(market.amm.pegMultiplier.eq(new BN(4042120)));
 			}
 
 			assert(market.amm.pegMultiplier.gt(market0.amm.pegMultiplier));
