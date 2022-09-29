@@ -643,15 +643,6 @@ pub mod clearing_house {
             now,
         )?;
 
-        validate!(
-            !matches!(
-                spot_market.status,
-                MarketStatus::ReduceOnly | MarketStatus::Settlement | MarketStatus::Delisted
-            ),
-            ErrorCode::DefaultError,
-            "spot_market in reduce only mode",
-        )?;
-
         let spot_position = user.force_get_spot_position_mut(spot_market.market_index)?;
 
         // if reduce only, have to compare ix amount to current borrow amount
@@ -671,6 +662,17 @@ pub mod clearing_house {
             spot_position,
             false,
         )?;
+
+        if spot_position.balance_type == SpotBalanceType::Deposit && spot_position.balance > 0 {
+            validate!(
+                !matches!(
+                    spot_market.status,
+                    MarketStatus::ReduceOnly | MarketStatus::Settlement | MarketStatus::Delisted
+                ),
+                ErrorCode::DefaultError,
+                "spot_market in reduce only mode",
+            )?;
+        }
 
         controller::token::receive(
             &ctx.accounts.token_program,
@@ -726,20 +728,16 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
         let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
-        msg!("calc amount");
 
         let amount = {
             let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
             let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
-            msg!("update_spot_market_cumulative_interest");
 
             controller::spot_balance::update_spot_market_cumulative_interest(
                 spot_market,
                 Some(oracle_price_data),
                 now,
             )?;
-
-            msg!("spot_market.market_index:{}", spot_market.market_index);
 
             let spot_position = user.force_get_spot_position_mut(spot_market.market_index)?;
 
@@ -756,8 +754,6 @@ pub mod clearing_house {
             } else {
                 amount
             };
-
-            msg!("amount: {}", amount);
 
             // prevents withdraw when limits hit
             controller::spot_balance::update_spot_position_balance_with_limits(
