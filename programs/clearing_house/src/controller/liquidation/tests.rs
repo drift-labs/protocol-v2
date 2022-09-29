@@ -813,24 +813,24 @@ pub mod liquidate_perp {
                 status: OrderStatus::Open,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                base_asset_amount: BASE_PRECISION_I128 * 10000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128 * 10000,
-                quote_entry_amount: -150 * QUOTE_PRECISION_I128 * 10000,
+                base_asset_amount: BASE_PRECISION_I64 * 10000,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I64 * 10000,
+                quote_entry_amount: -150 * QUOTE_PRECISION_I64 * 10000,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 150 * 10000 * SPOT_BALANCE_PRECISION,
+                balance: 150 * 10000 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
 
@@ -884,7 +884,7 @@ pub mod liquidate_perp {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 50 * SPOT_BALANCE_PRECISION,
+                balance: 50 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -898,7 +898,7 @@ pub mod liquidate_perp {
 
         liquidate_perp(
             0,
-            BASE_PRECISION,
+            BASE_PRECISION_U64,
             &mut user,
             &user_key,
             &mut user_stats,
@@ -921,11 +921,11 @@ pub mod liquidate_perp {
 
         assert_eq!(
             liquidator.perp_positions[0].base_asset_amount,
-            BASE_PRECISION_I128
+            BASE_PRECISION_I64
         );
         assert_eq!(
             liquidator.perp_positions[0].quote_asset_amount,
-            -99 * QUOTE_PRECISION_I128
+            -99 * QUOTE_PRECISION_I64
         );
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
