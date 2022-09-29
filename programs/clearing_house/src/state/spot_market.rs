@@ -74,7 +74,7 @@ pub struct SpotMarket {
     pub if_liquidation_fee: u128, // percentage of liquidation transfer for total insurance
     pub withdraw_guard_threshold: u128, // no withdraw limits/guards when deposits below this threshold
 
-    pub order_step_size: u128,
+    pub order_step_size: u64,
     pub next_fill_record_id: u64,
     pub total_spot_fee: u128,
     pub spot_fee_pool: PoolBalance,

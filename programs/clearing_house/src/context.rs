@@ -445,18 +445,18 @@ pub struct OrderParams {
     pub market_type: MarketType,
     pub direction: PositionDirection,
     pub user_order_id: u8,
-    pub base_asset_amount: u128,
-    pub price: u128,
+    pub base_asset_amount: u64,
+    pub price: u64,
     pub market_index: u16,
     pub reduce_only: bool,
     pub post_only: bool,
     pub immediate_or_cancel: bool,
-    pub trigger_price: u128,
+    pub trigger_price: u64,
     pub trigger_condition: OrderTriggerCondition,
-    pub oracle_price_offset: i128,
+    pub oracle_price_offset: i64,
     pub auction_duration: Option<u8>,
     pub time_in_force: Option<u8>,
-    pub auction_start_price: Option<u128>,
+    pub auction_start_price: Option<u64>,
 }
 
 impl Default for OrderType {

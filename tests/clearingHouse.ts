@@ -175,7 +175,7 @@ describe('clearing_house', () => {
 		);
 		assert.ok(quoteSpotVault.amount.eq(usdcAmount));
 
-		assert.ok(user.perpPositions.length == 5);
+		assert.ok(user.perpPositions.length == 8);
 		assert.ok(user.perpPositions[0].baseAssetAmount.toNumber() === 0);
 		assert.ok(user.perpPositions[0].quoteEntryAmount.toNumber() === 0);
 		assert.ok(user.perpPositions[0].lastCumulativeFundingRate.toNumber() === 0);

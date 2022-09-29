@@ -4,8 +4,8 @@ use anchor_lang::{Owner, ZeroCopy};
 use bytes::BytesMut;
 use pyth::pc::Price;
 
-pub fn get_positions(position: PerpPosition) -> [PerpPosition; 5] {
-    let mut positions = [PerpPosition::default(); 5];
+pub fn get_positions(position: PerpPosition) -> [PerpPosition; 8] {
+    let mut positions = [PerpPosition::default(); 8];
     positions[0] = position;
     positions
 }

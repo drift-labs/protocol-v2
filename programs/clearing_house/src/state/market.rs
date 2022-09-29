@@ -300,7 +300,7 @@ pub struct AMM {
     pub minimum_quote_asset_trade_size: u128,
     pub max_base_asset_amount_ratio: u16,
     pub max_slippage_ratio: u16,
-    pub base_asset_amount_step_size: u128,
+    pub base_asset_amount_step_size: u64,
 
     // market making
     pub market_position: PerpPosition,
@@ -354,7 +354,7 @@ impl AMM {
             sqrt_k: default_reserves,
             concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
             base_asset_amount_step_size: 1,
-            max_base_asset_reserve: u128::MAX,
+            max_base_asset_reserve: u64::MAX as u128,
             min_base_asset_reserve: 0,
             terminal_quote_asset_reserve: default_reserves,
             peg_multiplier: crate::math::constants::PEG_PRECISION,
@@ -499,7 +499,7 @@ impl AMM {
 
     pub fn update_volume_24h(
         &mut self,
-        quote_asset_amount: u128,
+        quote_asset_amount: u64,
         position_direction: PositionDirection,
         now: i64,
     ) -> ClearingHouseResult {
@@ -513,7 +513,7 @@ impl AMM {
 
         self.volume_24h = amm::calculate_rolling_sum(
             self.volume_24h,
-            cast(quote_asset_amount)?,
+            quote_asset_amount,
             since_last,
             TWENTY_FOUR_HOUR as i128,
         )?;

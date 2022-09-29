@@ -30,6 +30,7 @@ import {
 	calculateTradeAcquiredAmounts,
 	calculateSpread,
 	calculateInventoryScale,
+	QUOTE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -42,7 +43,6 @@ import {
 	getOraclePriceData,
 	initializeQuoteSpotMarket,
 } from './testHelpers';
-import { QUOTE_PRECISION } from '@drift-labs/sdk';
 
 describe('prepeg', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -244,7 +244,6 @@ describe('prepeg', () => {
 
 		console.log(position0.quoteAssetAmount.toString());
 		console.log('quoteEntryAmount:', position0.quoteEntryAmount.toString());
-
 		assert.ok(position0.quoteEntryAmount.eq(new BN(-49999074)));
 		assert.ok(acquiredQuoteAssetAmount.eq(position0.quoteEntryAmount.abs()));
 

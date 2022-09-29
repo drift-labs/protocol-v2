@@ -1,9 +1,9 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
-use crate::math::casting::{cast, cast_to_i128};
+use crate::math::casting::{cast, cast_to_i128, Cast};
 use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO, FUNDING_RATE_BUFFER, ONE_HOUR, PRICE_PRECISION,
-    QUOTE_TO_BASE_AMT_FUNDING_PRECISION,
+    AMM_TO_QUOTE_PRECISION_RATIO, AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_RATE_BUFFER, ONE_HOUR,
+    PRICE_PRECISION, QUOTE_TO_BASE_AMT_FUNDING_PRECISION,
 };
 use crate::math::repeg::{calculate_fee_pool, get_total_fee_lower_bound};
 use crate::math_error;
@@ -178,7 +178,7 @@ fn calculate_capped_funding_rate(
 pub fn calculate_funding_payment(
     amm_cumulative_funding_rate: i128,
     market_position: &PerpPosition,
-) -> ClearingHouseResult<i128> {
+) -> ClearingHouseResult<i64> {
     let funding_rate_delta = amm_cumulative_funding_rate
         .checked_sub(market_position.last_cumulative_funding_rate)
         .ok_or_else(math_error!())?;
@@ -187,10 +187,13 @@ pub fn calculate_funding_payment(
         return Ok(0);
     }
 
-    let funding_rate_payment =
-        _calculate_funding_payment(funding_rate_delta, market_position.base_asset_amount)?;
-
-    Ok(funding_rate_payment)
+    _calculate_funding_payment(
+        funding_rate_delta,
+        market_position.base_asset_amount.cast()?,
+    )?
+    .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
+    .ok_or_else(math_error!())?
+    .cast()
 }
 
 fn _calculate_funding_payment(
