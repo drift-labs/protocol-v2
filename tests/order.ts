@@ -281,7 +281,7 @@ describe('orders', () => {
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getUserAccount().orders[0];
-		const expectedOrderId = new BN(1);
+		const expectedOrderId = 1;
 
 		assert(order.baseAssetAmount.eq(baseAssetAmount));
 		assert(order.price.eq(price));
@@ -290,7 +290,7 @@ describe('orders', () => {
 		assert(order.reduceOnly === reduceOnly);
 		assert(enumsAreEqual(order.direction, direction));
 		assert(enumsAreEqual(order.status, OrderStatus.OPEN));
-		assert(order.orderId.eq(expectedOrderId));
+		assert(order.orderId === expectedOrderId);
 		assert(order.ts.gt(ZERO));
 
 		const position = clearingHouseUser.getUserAccount().perpPositions[0];
@@ -329,9 +329,9 @@ describe('orders', () => {
 		assert(position.openAsks.eq(ZERO));
 
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
-		const expectedOrderId = new BN(1);
+		const expectedOrderId = 1;
 		assert(orderRecord.ts.gt(ZERO));
-		assert(orderRecord.takerOrderId.eq(expectedOrderId));
+		assert(orderRecord.takerOrderId === expectedOrderId);
 		assert(enumsAreEqual(orderRecord.action, OrderAction.CANCEL));
 		assert(
 			orderRecord.taker.equals(
@@ -357,7 +357,7 @@ describe('orders', () => {
 
 		await clearingHouse.placeOrder(orderParams);
 		const orderIndex = new BN(0);
-		const orderId = new BN(2);
+		const orderId = 2;
 		await clearingHouseUser.fetchAccounts();
 		assert(
 			clearingHouseUser
@@ -482,7 +482,7 @@ describe('orders', () => {
 			triggerCondition,
 		});
 		await clearingHouse.placeOrder(orderParams);
-		const orderId = new BN(3);
+		const orderId = 3;
 		const orderIndex = new BN(0);
 		await clearingHouseUser.fetchAccounts();
 		assert(clearingHouseUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
@@ -587,10 +587,10 @@ describe('orders', () => {
 			orderRecord.quoteAssetAmountFilled.eq(expectedTradeQuoteAssetAmount)
 		);
 
-		const expectedOrderId = new BN(3);
+		const expectedOrderId = 3;
 		const expectedFillRecordId = new BN(2);
 		assert(orderRecord.ts.gt(ZERO));
-		assert(orderRecord.takerOrderId.eq(expectedOrderId));
+		assert(orderRecord.takerOrderId === expectedOrderId);
 		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
 		assert(
 			orderRecord.taker.equals(
@@ -642,7 +642,7 @@ describe('orders', () => {
 
 		console.log(amountToFill);
 
-		const orderId = new BN(4);
+		const orderId = 4;
 
 		await clearingHouseUser.fetchAccounts();
 		const baseAssetAmountBefore =
@@ -715,7 +715,7 @@ describe('orders', () => {
 
 		console.log(amountToFill);
 
-		const orderId = new BN(5);
+		const orderId = 5;
 		await fillerClearingHouse.fillOrder(
 			userAccountPublicKey,
 			clearingHouseUser.getUserAccount(),
@@ -1121,7 +1121,7 @@ describe('orders', () => {
 
 		console.log(amountToFill);
 
-		assert(order.orderId.gte(new BN(7)));
+		assert(order.orderId >= 7);
 		try {
 			await fillerClearingHouse.fillOrder(
 				userAccountPublicKey,

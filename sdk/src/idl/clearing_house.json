@@ -533,7 +533,7 @@
       "args": [
         {
           "name": "sharesToBurn",
-          "type": "u128"
+          "type": "u64"
         },
         {
           "name": "marketIndex",
@@ -563,7 +563,7 @@
       "args": [
         {
           "name": "nShares",
-          "type": "u128"
+          "type": "u64"
         },
         {
           "name": "marketIndex",
@@ -3621,6 +3621,10 @@
           {
             "name": "customMarginRatio",
             "type": "u32"
+          },
+          {
+            "name": "lastLpAddTime",
+            "type": "i64"
           }
         ]
       }
@@ -3806,7 +3810,7 @@
           },
           {
             "name": "lpShares",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "userPnl",
@@ -4599,11 +4603,11 @@
           },
           {
             "name": "baseAssetAmount",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "quoteAssetAmount",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "quoteEntryAmount",
@@ -4612,10 +4616,6 @@
           {
             "name": "lastCumulativeFundingRate",
             "type": "i128"
-          },
-          {
-            "name": "lastFundingRateTs",
-            "type": "i64"
           },
           {
             "name": "openOrders",
@@ -4635,22 +4635,18 @@
           },
           {
             "name": "lpShares",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "remainderBaseAssetAmount",
-            "type": "i128"
+            "type": "i32"
           },
           {
             "name": "lastNetBaseAssetAmountPerLp",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "lastNetQuoteAssetAmountPerLp",
-            "type": "i128"
-          },
-          {
-            "name": "lastLpAddTime",
             "type": "i64"
           }
         ]
@@ -5402,17 +5398,12 @@
         },
         {
           "name": "baseAssetAmount",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "userLastCumulativeFunding",
           "type": "i128",
-          "index": false
-        },
-        {
-          "name": "userLastFundingRateTs",
-          "type": "i64",
           "index": false
         },
         {
@@ -5859,7 +5850,7 @@
         },
         {
           "name": "nShares",
-          "type": "u128",
+          "type": "u64",
           "index": false
         },
         {
@@ -6005,12 +5996,12 @@
         },
         {
           "name": "baseAssetAmount",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "quoteAssetAmountAfter",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {

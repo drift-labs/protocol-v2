@@ -134,7 +134,7 @@ export class ClearingHouseUser {
 	public getEmptyPosition(marketIndex: number): PerpPosition {
 		return {
 			baseAssetAmount: ZERO,
-			remainderBaseAssetAmount: ZERO,
+			remainderBaseAssetAmount: 0,
 			lastCumulativeFundingRate: ZERO,
 			marketIndex,
 			quoteAssetAmount: ZERO,
@@ -144,7 +144,6 @@ export class ClearingHouseUser {
 			openAsks: ZERO,
 			settledPnl: ZERO,
 			lpShares: ZERO,
-			lastFeePerLp: ZERO,
 			lastNetBaseAssetAmountPerLp: ZERO,
 			lastNetQuoteAssetAmountPerLp: ZERO,
 		};
@@ -159,9 +158,9 @@ export class ClearingHouseUser {
 	 * @param orderId
 	 * @returns Order
 	 */
-	public getOrder(orderId: BN): Order | undefined {
-		return this.getUserAccount().orders.find((order) =>
-			order.orderId.eq(orderId)
+	public getOrder(orderId: number): Order | undefined {
+		return this.getUserAccount().orders.find(
+			(order) => order.orderId === orderId
 		);
 	}
 
@@ -229,13 +228,11 @@ export class ClearingHouseUser {
 			market.amm.baseAssetAmountStepSize
 		);
 
-		position.remainderBaseAssetAmount =
-			position.remainderBaseAssetAmount.add(remainderBaa);
+		position.remainderBaseAssetAmount += remainderBaa.toNumber();
 
 		if (
-			position.remainderBaseAssetAmount
-				.abs()
-				.gte(market.amm.baseAssetAmountStepSize)
+			Math.abs(position.remainderBaseAssetAmount) >
+			market.amm.baseAssetAmountStepSize.toNumber()
 		) {
 			const [newStandardizedBaa, newRemainderBaa] = standardize(
 				position.remainderBaseAssetAmount,
@@ -243,7 +240,7 @@ export class ClearingHouseUser {
 			);
 			position.baseAssetAmount =
 				position.baseAssetAmount.add(newStandardizedBaa);
-			position.remainderBaseAssetAmount = newRemainderBaa;
+			position.remainderBaseAssetAmount = newRemainderBaa.toNumber();
 		}
 
 		let updateType;
@@ -1064,7 +1061,7 @@ export class ClearingHouseUser {
 		const proposedPerpPosition: PerpPosition = {
 			marketIndex: perpPosition.marketIndex,
 			baseAssetAmount: proposedBaseAssetAmount,
-			remainderBaseAssetAmount: ZERO,
+			remainderBaseAssetAmount: 0,
 			quoteAssetAmount: new BN(0),
 			lastCumulativeFundingRate: ZERO,
 			quoteEntryAmount: new BN(0),
@@ -1073,7 +1070,6 @@ export class ClearingHouseUser {
 			openAsks: new BN(0),
 			settledPnl: ZERO,
 			lpShares: ZERO,
-			lastFeePerLp: ZERO,
 			lastNetBaseAssetAmountPerLp: ZERO,
 			lastNetQuoteAssetAmountPerLp: ZERO,
 		};

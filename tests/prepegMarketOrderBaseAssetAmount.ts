@@ -237,6 +237,7 @@ describe('prepeg', () => {
 		const position0 = clearingHouse.getUserAccount().perpPositions[0];
 
 		console.log(position0.quoteAssetAmount.toString());
+		console.log(position0.quoteEntryAmount.toString());
 		assert.ok(position0.quoteEntryAmount.eq(new BN(-49999074)));
 		assert.ok(acquiredQuoteAssetAmount.eq(position0.quoteEntryAmount.abs()));
 
