@@ -254,8 +254,6 @@ describe('liquidate perp and lp', () => {
 		assert(
 			liquidationRecord.liquidatePerp.quoteAssetAmount.eq(new BN(1750000))
 		);
-		assert(liquidationRecord.liquidatePerp.userPnl.eq(new BN(-15767507)));
-		assert(liquidationRecord.liquidatePerp.liquidatorPnl.eq(new BN(0)));
 		assert(liquidationRecord.liquidatePerp.lpShares.eq(nLpShares));
 
 		await liquidatorClearingHouse.liquidatePerpPnlForDeposit(

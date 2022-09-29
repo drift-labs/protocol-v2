@@ -99,8 +99,8 @@ describe('BigNum Tests', () => {
 			.shift(AMM_RESERVE_PRECISION_EXP)
 			.div(BigNum.from(entryPriceNum * 10 ** 8));
 
-		expect(val4.toString()).to.equal('250000000000');
-		expect(val4.print()).to.equal('0.0250000000000');
+		expect(val4.toString()).to.equal('25000000');
+		expect(val4.print()).to.equal('0.025000000');
 		expect(val4.toNum().toFixed(3)).to.equal('0.025');
 		expect(val4.toPrecision(4)).to.equal('0.025');
 
@@ -142,8 +142,8 @@ describe('BigNum Tests', () => {
 		const baseAmountVal1 = '14.33';
 		const val1 = BigNum.fromPrint(baseAmountVal1, BASE_PRECISION_EXP);
 
-		expect(val1.toString()).to.equal('143300000000000');
-		expect(val1.print()).to.equal('14.3300000000000');
+		expect(val1.toString()).to.equal('14330000000');
+		expect(val1.print()).to.equal('14.330000000');
 
 		const baseAmountVal2 = '34.1';
 		const val2 = BigNum.fromPrint(baseAmountVal2, BASE_PRECISION_EXP);
@@ -225,7 +225,7 @@ describe('BigNum Tests', () => {
 			.shift(AMM_RESERVE_PRECISION_EXP)
 			.div(BigNum.from(entryPriceNum * 10 ** 8));
 
-		expect(val.toString()).to.equal('250000000000');
+		expect(val.toString()).to.equal('25000000');
 		expect(val.printShort()).to.equal('0.025');
 
 		const val2 = BigNum.from(10000, 4);
@@ -260,5 +260,8 @@ describe('BigNum Tests', () => {
 
 		const val9 = BigNum.from('1000000000123', 6);
 		expect(val9.prettyPrint()).to.equal('1,000,000.000123');
+
+		const val10 = BigNum.from('100000000000', 6);
+		expect(val10.prettyPrint(true)).to.equal('100,000');
 	});
 });

@@ -1,16 +1,16 @@
 use solana_program::msg;
 
 use crate::error::ClearingHouseResult;
-use crate::math::casting::{cast, cast_to_u128, cast_to_u64};
+use crate::math::casting::{cast, cast_to_u128};
 use crate::math::constants::PRICE_TO_QUOTE_PRECISION_RATIO;
 use crate::math_error;
 
 // Max amount of base to put deposit into serum
 pub fn calculate_serum_max_coin_qty(
-    base_asset_amount: u128,
+    base_asset_amount: u64,
     coin_lot_size: u64,
 ) -> ClearingHouseResult<u64> {
-    cast_to_u64(base_asset_amount)?
+    base_asset_amount
         .checked_div(coin_lot_size)
         .ok_or_else(math_error!())
 }
@@ -80,7 +80,7 @@ pub fn calculate_price_from_serum_limit_price(
 
 #[cfg(test)]
 mod test {
-    use crate::math::constants::{LAMPORT_PER_SOL, PRICE_PRECISION};
+    use crate::math::constants::{LAMPORT_PER_SOL_U64, PRICE_PRECISION};
     use crate::math::serum::{
         calculate_price_from_serum_limit_price, calculate_serum_limit_price,
         calculate_serum_max_coin_qty, calculate_serum_max_native_pc_quantity,
@@ -88,7 +88,7 @@ mod test {
 
     #[test]
     fn test_calculate_serum_max_coin_qty() {
-        let base_asset_amount = LAMPORT_PER_SOL;
+        let base_asset_amount = LAMPORT_PER_SOL_U64;
         let coin_lot_size = 100000000;
         let max_coin_qty = calculate_serum_max_coin_qty(base_asset_amount, coin_lot_size).unwrap();
         assert_eq!(max_coin_qty, 10)

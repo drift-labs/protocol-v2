@@ -578,9 +578,8 @@ describe('liquidity providing', () => {
 		assert(settledLPPosition.quoteAssetAmount.eq(position.quoteAssetAmount));
 		assert(settledLPPosition.quoteEntryAmount.eq(position.quoteEntryAmount));
 		assert(
-			settledLPPosition.remainderBaseAssetAmount.eq(
+			settledLPPosition.remainderBaseAssetAmount ===
 				position.remainderBaseAssetAmount
-			)
 		);
 
 		assert(position.baseAssetAmount.lt(ZERO));

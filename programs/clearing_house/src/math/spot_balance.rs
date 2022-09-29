@@ -238,11 +238,7 @@ pub fn get_balance_value_and_token_amount(
     spot_market: &SpotMarket,
     oracle_price_data: &OraclePriceData,
 ) -> ClearingHouseResult<(u128, u128)> {
-    let token_amount = get_token_amount(
-        spot_position.balance,
-        spot_market,
-        &spot_position.balance_type,
-    )?;
+    let token_amount = spot_position.get_token_amount(spot_market)?;
 
     let precision_decrease = 10_u128.pow(spot_market.decimals as u32);
 
