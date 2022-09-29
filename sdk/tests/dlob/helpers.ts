@@ -7,6 +7,9 @@ import {
 	ContractType,
 	OracleSource,
 	DevnetSpotMarkets,
+	BASE_PRECISION,
+	QUOTE_PRECISION,
+	AMM_TO_QUOTE_PRECISION_RATIO,
 } from '../../src';
 
 export const mockPerpPosition = {
@@ -28,8 +31,10 @@ export const mockPerpPosition = {
 
 export const mockAMM = {
 	/* these values create a bid/ask price of 12 */
-	baseAssetReserve: new BN(2800000),
-	quoteAssetReserve: new BN(3),
+	baseAssetReserve: new BN(1).mul(BASE_PRECISION),
+	quoteAssetReserve: new BN(12)
+		.mul(QUOTE_PRECISION)
+		.mul(AMM_TO_QUOTE_PRECISION_RATIO),
 	sqrtK: new BN(1),
 	pegMultiplier: new BN(1),
 	maxSlippageRatio: 1_000_000,
