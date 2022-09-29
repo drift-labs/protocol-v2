@@ -344,9 +344,9 @@ describe('repeg and spread amm', () => {
 			prepegAMM.pegMultiplier
 		);
 
-		const targetPrice = oraclePriceData?.price || markPrice;
+		const targetPrice = oraclePriceData?.price || reservePrice;
 
-		const targetMarkSpreadPct = markPrice
+		const targetMarkSpreadPct = reservePrice
 			.sub(targetPrice)
 			.mul(BID_ASK_SPREAD_PRECISION)
 			.div(reservePrice);
@@ -381,7 +381,7 @@ describe('repeg and spread amm', () => {
 			prepegAMM.terminalQuoteAssetReserve,
 			prepegAMM.pegMultiplier,
 			prepegAMM.netBaseAssetAmount,
-			markPrice,
+			reservePrice,
 			prepegAMM.totalFeeMinusDistributions,
 			prepegAMM.baseAssetReserve,
 			prepegAMM.minBaseAssetReserve,
@@ -420,7 +420,7 @@ describe('repeg and spread amm', () => {
 			prepegAMM.terminalQuoteAssetReserve,
 			prepegAMM.pegMultiplier,
 			prepegAMM.netBaseAssetAmount,
-			markPrice,
+			reservePrice,
 			prepegAMM.totalFeeMinusDistributions
 		);
 		const inventoryScale = calculateInventoryScale(

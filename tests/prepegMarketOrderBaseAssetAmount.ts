@@ -42,6 +42,7 @@ import {
 	getOraclePriceData,
 	initializeQuoteSpotMarket,
 } from './testHelpers';
+import { QUOTE_PRECISION } from '@drift-labs/sdk';
 
 describe('prepeg', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -59,15 +60,15 @@ describe('prepeg', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
-	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 11).mul(
+	const mantissaSqrtScale = new BN(100000);
+	const ammInitialQuoteAssetAmount = new anchor.BN(5 * BASE_PRECISION.toNumber()).mul(
 		mantissaSqrtScale
 	);
-	const ammInitialBaseAssetAmount = new anchor.BN(5 * 10 ** 11).mul(
+	const ammInitialBaseAssetAmount = new anchor.BN(5 * BASE_PRECISION.toNumber()).mul(
 		mantissaSqrtScale
 	);
 
-	const usdcAmount = new BN(10000 * 10 ** 6);
+	const usdcAmount = new BN(10000 * QUOTE_PRECISION.toNumber());
 
 	let marketIndexes;
 	let spotMarketIndexes;
@@ -192,6 +193,8 @@ describe('prepeg', () => {
 			oraclePriceData
 		);
 
+		console.log('acquiredQuoteAssetAmount:', acquiredQuoteAssetAmount.toString());
+
 		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 
 		console.log(
@@ -237,6 +240,8 @@ describe('prepeg', () => {
 		const position0 = clearingHouse.getUserAccount().perpPositions[0];
 
 		console.log(position0.quoteAssetAmount.toString());
+		console.log('quoteEntryAmount:', position0.quoteEntryAmount.toString());
+
 		assert.ok(position0.quoteEntryAmount.eq(new BN(-49999074)));
 		assert.ok(acquiredQuoteAssetAmount.eq(position0.quoteEntryAmount.abs()));
 
@@ -275,6 +280,8 @@ describe('prepeg', () => {
 			)
 		);
 	});
+
+	return 0;
 
 	it('Long even more', async () => {
 		const marketIndex = 0;
