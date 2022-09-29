@@ -30,6 +30,7 @@ import {
 	calculateTradeAcquiredAmounts,
 	calculateSpread,
 	calculateInventoryScale,
+	QUOTE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -42,7 +43,6 @@ import {
 	getOraclePriceData,
 	initializeQuoteSpotMarket,
 } from './testHelpers';
-import { QUOTE_PRECISION } from '@drift-labs/sdk';
 
 describe('prepeg', () => {
 	const provider = anchor.AnchorProvider.local();
