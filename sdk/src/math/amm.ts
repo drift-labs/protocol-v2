@@ -348,9 +348,10 @@ export function calculateInventoryScale(
 		BN.min(openBids.abs(), openAsks.abs())
 	);
 	const inventoryScale =
-		BN.min(netBaseAssetAmount.abs(), minSideLiquidity)
+		netBaseAssetAmount
 			.mul(BID_ASK_SPREAD_PRECISION.mul(new BN(10)))
 			.div(minSideLiquidity)
+			.abs()
 			.toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
 
 	return inventoryScale;

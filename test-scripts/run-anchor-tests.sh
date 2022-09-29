@@ -29,7 +29,7 @@ test_files=(
    curve.ts cappedSymFunding.ts
 )
 
-test_files=(prepegMarketOrderBaseAssetAmount.ts updateAMM.ts repegAndSpread.ts)
+test_files=(prepegMarketOrderBaseAssetAmount.ts) # updateAMM.ts repegAndSpread.ts)
 
 
 for test_file in ${test_files[@]}; do

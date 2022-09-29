@@ -61,12 +61,12 @@ describe('prepeg', () => {
 
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(100000);
-	const ammInitialQuoteAssetAmount = new anchor.BN(5 * BASE_PRECISION.toNumber()).mul(
-		mantissaSqrtScale
-	);
-	const ammInitialBaseAssetAmount = new anchor.BN(5 * BASE_PRECISION.toNumber()).mul(
-		mantissaSqrtScale
-	);
+	const ammInitialQuoteAssetAmount = new anchor.BN(
+		5 * BASE_PRECISION.toNumber()
+	).mul(mantissaSqrtScale);
+	const ammInitialBaseAssetAmount = new anchor.BN(
+		5 * BASE_PRECISION.toNumber()
+	).mul(mantissaSqrtScale);
 
 	const usdcAmount = new BN(10000 * QUOTE_PRECISION.toNumber());
 
@@ -123,7 +123,7 @@ describe('prepeg', () => {
 			undefined,
 			1000
 		);
-		await clearingHouse.updateMarketBaseSpread(0, 2000);
+		await clearingHouse.updateMarketBaseSpread(0, 1000);
 		await clearingHouse.updateCurveUpdateIntensity(0, 100);
 		await clearingHouse.updateMarketBaseAssetAmountStepSize(0, new BN(1));
 
@@ -193,7 +193,10 @@ describe('prepeg', () => {
 			oraclePriceData
 		);
 
-		console.log('acquiredQuoteAssetAmount:', acquiredQuoteAssetAmount.toString());
+		console.log(
+			'acquiredQuoteAssetAmount:',
+			acquiredQuoteAssetAmount.toString()
+		);
 
 		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 
@@ -280,8 +283,6 @@ describe('prepeg', () => {
 			)
 		);
 	});
-
-	return 0;
 
 	it('Long even more', async () => {
 		const marketIndex = 0;
@@ -375,10 +376,10 @@ describe('prepeg', () => {
 		console.log(inventoryScale);
 		console.log(effectiveLeverage);
 		assert(newAmm.maxSpread == (100000 / 2) * 0.95);
-		assert(inventoryScale == 0.000703);
+		assert(inventoryScale == 0.003409);
 		assert(effectiveLeverage == 0.19906507487401007);
-		assert(shortSpread == 1000);
-		assert(longSpread.toString() == '26713.552196310713');
+		assert(shortSpread == 500);
+		assert(longSpread.toString() == '26785.788286582472');
 
 		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 
@@ -454,8 +455,8 @@ describe('prepeg', () => {
 		console.log(market.amm.longSpread.toString());
 		console.log(market.amm.shortSpread.toString());
 
-		assert(market.amm.longSpread.eq(new BN('26712')));
-		assert(market.amm.shortSpread.eq(new BN(1000)));
+		assert(market.amm.longSpread.eq(new BN('26784')));
+		assert(market.amm.shortSpread.eq(new BN(500)));
 
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];

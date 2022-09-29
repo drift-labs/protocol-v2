@@ -677,7 +677,7 @@ describe('update amm', () => {
 			if (i == 0) {
 				assert(
 					market.amm.pegMultiplier.eq(
-						new BN(1.013560 * PEG_PRECISION.toNumber())
+						new BN(1.01356 * PEG_PRECISION.toNumber())
 					)
 				);
 			} else if (i == 1) {
@@ -691,13 +691,13 @@ describe('update amm', () => {
 			} else if (i == 3) {
 				assert(
 					market.amm.pegMultiplier.eq(
-						new BN(3.031590 * PEG_PRECISION.toNumber())
+						new BN(3.03159 * PEG_PRECISION.toNumber())
 					)
 				);
 			} else if (i == 4) {
 				assert(
 					market.amm.pegMultiplier.eq(
-						new BN(4.042120 * PEG_PRECISION.toNumber())
+						new BN(4.04212 * PEG_PRECISION.toNumber())
 					)
 				);
 			}
