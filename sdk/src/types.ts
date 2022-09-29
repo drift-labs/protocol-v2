@@ -234,7 +234,6 @@ export type FundingPaymentRecord = {
 	fundingPayment: BN;
 	baseAssetAmount: BN;
 	userLastCumulativeFunding: BN;
-	userLastFundingRateTs: BN;
 	ammCumulativeFundingLong: BN;
 	ammCumulativeFundingShort: BN;
 };
@@ -279,8 +278,6 @@ export type LiquidatePerpRecord = {
 	baseAssetAmount: BN;
 	quoteAssetAmount: BN;
 	lpShares: BN;
-	userPnl: BN;
-	liquidatorPnl: BN;
 	userOrderId: BN;
 	liquidatorOrderId: BN;
 	fillRecordId: BN;
@@ -360,14 +357,14 @@ export type OrderActionRecord = {
 	referrerReward: number | null;
 	quoteAssetAmountSurplus: BN | null;
 	taker: PublicKey | null;
-	takerOrderId: BN | null;
+	takerOrderId: number | null;
 	takerOrderDirection: PositionDirection | null;
 	takerOrderBaseAssetAmount: BN | null;
 	takerOrderCumulativeBaseAssetAmountFilled: BN | null;
 	takerOrderCumulativeQuoteAssetAmountFilled: BN | null;
 	takerOrderFee: BN | null;
 	maker: PublicKey | null;
-	makerOrderId: BN | null;
+	makerOrderId: number | null;
 	makerOrderDirection: PositionDirection | null;
 	makerOrderBaseAssetAmount: BN | null;
 	makerOrderCumulativeBaseAssetAmountFilled: BN | null;
@@ -566,7 +563,6 @@ export type AMM = {
 // # User Account Types
 export type PerpPosition = {
 	baseAssetAmount: BN;
-	remainderBaseAssetAmount: BN;
 	lastCumulativeFundingRate: BN;
 	marketIndex: number;
 	quoteAssetAmount: BN;
@@ -576,7 +572,7 @@ export type PerpPosition = {
 	openAsks: BN;
 	settledPnl: BN;
 	lpShares: BN;
-	lastFeePerLp: BN;
+	remainderBaseAssetAmount: number;
 	lastNetBaseAssetAmountPerLp: BN;
 	lastNetQuoteAssetAmountPerLp: BN;
 };
@@ -613,7 +609,7 @@ export type UserAccount = {
 	beingLiquidated: boolean;
 	bankrupt: boolean;
 	nextLiquidationId: number;
-	nextOrderId: BN;
+	nextOrderId: number;
 	customMarginRatio: number;
 };
 
@@ -633,7 +629,7 @@ export type Order = {
 	marketType: MarketType;
 	ts: BN;
 	slot: BN;
-	orderId: BN;
+	orderId: number;
 	userOrderId: number;
 	marketIndex: number;
 	price: BN;

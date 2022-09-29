@@ -40,14 +40,13 @@ declare_id!("By7XjakxXVnQ9gMZ4VT98DenTgBCeP295A58ybzgwVPZ");
 
 #[program]
 pub mod clearing_house {
-    use std::cmp::min;
     use std::option::Option::Some;
 
     use crate::controller::lp::burn_lp_shares;
-    use crate::controller::position::{add_new_position, get_position_index};
+    use crate::controller::position::get_position_index;
     use crate::controller::validate::validate_market_account;
     use crate::math;
-    use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
+    use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32, Cast};
     use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
     use crate::math::spot_balance::get_token_amount;
     use crate::optional_accounts::{
@@ -258,7 +257,7 @@ pub mod clearing_house {
         let now = cast(clock.unix_timestamp).or(Err(ErrorCode::UnableToCastUnixTime))?;
 
         let decimals = ctx.accounts.spot_market_mint.decimals;
-        let order_step_size = 10_u128.pow(2 + (decimals - 6) as u32); // 10 for usdc/btc, 10000 for sol
+        let order_step_size = 10_u64.pow(2 + (decimals - 6) as u32); // 10 for usdc/btc, 10000 for sol
 
         **spot_market = SpotMarket {
             market_index: spot_market_index,
@@ -696,12 +695,10 @@ pub mod clearing_house {
 
         // if reduce only, have to compare ix amount to current borrow amount
         let amount = if reduce_only && spot_position.balance_type == SpotBalanceType::Borrow {
-            let borrow_token_amount = get_token_amount(
-                spot_position.balance,
-                spot_market,
-                &spot_position.balance_type,
-            )?;
-            min(borrow_token_amount as u64, amount)
+            spot_position
+                .get_token_amount(spot_market)?
+                .cast::<u64>()?
+                .min(amount)
         } else {
             amount
         };
@@ -787,12 +784,10 @@ pub mod clearing_house {
             let amount = if (force_reduce_only || reduce_only)
                 && spot_position.balance_type == SpotBalanceType::Deposit
             {
-                let borrow_token_amount = get_token_amount(
-                    spot_position.balance,
-                    spot_market,
-                    &spot_position.balance_type,
-                )?;
-                min(borrow_token_amount as u64, amount)
+                spot_position
+                    .get_token_amount(spot_market)?
+                    .cast::<u64>()?
+                    .min(amount)
             } else {
                 amount
             };
@@ -1034,7 +1029,7 @@ pub mod clearing_house {
     )]
     pub fn remove_liquidity<'info>(
         ctx: Context<AddRemoveLiquidity>,
-        shares_to_burn: u128,
+        shares_to_burn: u64,
         market_index: u16,
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
@@ -1060,12 +1055,13 @@ pub mod clearing_house {
         }
 
         // standardize n shares to burn
-        let shares_to_burn = {
+        let shares_to_burn: u64 = {
             let market = market_map.get_ref(&market_index)?;
             crate::math::orders::standardize_base_asset_amount(
-                shares_to_burn,
+                shares_to_burn.cast()?,
                 market.amm.base_asset_amount_step_size,
             )?
+            .cast()?
         };
 
         if shares_to_burn == 0 {
@@ -1073,21 +1069,22 @@ pub mod clearing_house {
         }
 
         let mut market = market_map.get_ref_mut(&market_index)?;
+
+        let time_since_last_add_liquidity = now
+            .checked_sub(user.last_lp_add_time)
+            .ok_or_else(math_error!())?;
+
+        validate!(
+            time_since_last_add_liquidity >= market.amm.lp_cooldown_time,
+            ErrorCode::TryingToRemoveLiquidityTooFast
+        )?;
+
         let position_index = get_position_index(&user.perp_positions, market_index)?;
         let position = &mut user.perp_positions[position_index];
 
         validate!(
             position.lp_shares >= shares_to_burn,
             ErrorCode::InsufficientLPTokens
-        )?;
-
-        let time_since_last_add_liquidity = now
-            .checked_sub(position.last_lp_add_time)
-            .ok_or_else(math_error!())?;
-
-        validate!(
-            time_since_last_add_liquidity >= market.amm.lp_cooldown_time,
-            ErrorCode::TryingToRemoveLiquidityTooFast
         )?;
 
         let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
@@ -1113,7 +1110,7 @@ pub mod clearing_house {
     )]
     pub fn add_liquidity<'info>(
         ctx: Context<AddRemoveLiquidity>,
-        n_shares: u128,
+        n_shares: u64,
         market_index: u16,
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
@@ -1144,9 +1141,6 @@ pub mod clearing_house {
             )?;
         }
 
-        let position_index = get_position_index(&user.perp_positions, market_index)
-            .or_else(|_| add_new_position(&mut user.perp_positions, market_index))?;
-
         validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
         math::liquidation::validate_user_not_being_liquidated(
             user,
@@ -1155,8 +1149,6 @@ pub mod clearing_house {
             &mut oracle_map,
             state.liquidation_margin_buffer_ratio,
         )?;
-
-        let position = &mut user.perp_positions[position_index];
 
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
@@ -1171,11 +1163,18 @@ pub mod clearing_house {
 
             // standardize n shares to mint
             let n_shares = crate::math::orders::standardize_base_asset_amount(
-                n_shares,
+                n_shares.cast()?,
                 market.amm.base_asset_amount_step_size,
+            )?
+            .cast::<u64>()?;
+
+            controller::lp::mint_lp_shares(
+                user.force_get_perp_position_mut(market_index)?,
+                &mut market,
+                n_shares,
             )?;
 
-            controller::lp::mint_lp_shares(position, &mut market, n_shares, now)?;
+            user.last_lp_add_time = now;
         }
 
         // check margin requirements
@@ -1228,7 +1227,7 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn cancel_order(ctx: Context<CancelOrder>, order_id: Option<u64>) -> Result<()> {
+    pub fn cancel_order(ctx: Context<CancelOrder>, order_id: Option<u32>) -> Result<()> {
         let clock = &Clock::get()?;
         let state = &ctx.accounts.state;
 
@@ -1288,8 +1287,8 @@ pub mod clearing_house {
     )]
     pub fn fill_order<'info>(
         ctx: Context<FillOrder>,
-        order_id: Option<u64>,
-        maker_order_id: Option<u64>,
+        order_id: Option<u32>,
+        maker_order_id: Option<u32>,
     ) -> Result<()> {
         let clock = &Clock::get()?;
         let state = &ctx.accounts.state;
@@ -1363,7 +1362,7 @@ pub mod clearing_house {
     pub fn place_and_take<'info>(
         ctx: Context<PlaceAndTake>,
         params: OrderParams,
-        maker_order_id: Option<u64>,
+        maker_order_id: Option<u32>,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let state = &ctx.accounts.state;
@@ -1397,7 +1396,6 @@ pub mod clearing_house {
         let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
         let is_immediate_or_cancel = params.immediate_or_cancel;
-        let base_asset_amount_to_fill = params.base_asset_amount;
 
         controller::repeg::update_amm(
             params.market_index,
@@ -1420,7 +1418,7 @@ pub mod clearing_house {
         let user = &mut ctx.accounts.user;
         let order_id = load!(user)?.get_last_order_id();
 
-        let (base_asset_amount_filled, _) = controller::orders::fill_order(
+        controller::orders::fill_order(
             order_id,
             &ctx.accounts.state,
             user,
@@ -1438,7 +1436,12 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        if is_immediate_or_cancel && base_asset_amount_to_fill != base_asset_amount_filled {
+        let order_exists = load!(ctx.accounts.user)?
+            .orders
+            .iter()
+            .any(|order| order.order_id == order_id);
+
+        if is_immediate_or_cancel && order_exists {
             controller::orders::cancel_order_by_order_id(
                 order_id,
                 &ctx.accounts.user,
@@ -1458,7 +1461,7 @@ pub mod clearing_house {
     pub fn place_and_make<'info>(
         ctx: Context<PlaceAndMake>,
         params: OrderParams,
-        taker_order_id: u64,
+        taker_order_id: u32,
     ) -> Result<()> {
         let clock = &Clock::get()?;
         let state = &ctx.accounts.state;
@@ -1543,7 +1546,7 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u64) -> Result<()> {
+    pub fn trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u32) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
         SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
@@ -1565,7 +1568,7 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn trigger_spot_order<'info>(ctx: Context<TriggerOrder>, order_id: u64) -> Result<()> {
+    pub fn trigger_spot_order<'info>(ctx: Context<TriggerOrder>, order_id: u32) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
         let spot_market_market =
@@ -1614,9 +1617,9 @@ pub mod clearing_house {
     )]
     pub fn fill_spot_order<'info>(
         ctx: Context<FillOrder>,
-        order_id: Option<u64>,
+        order_id: Option<u32>,
         fulfillment_type: Option<SpotFulfillmentType>,
-        maker_order_id: Option<u64>,
+        maker_order_id: Option<u32>,
     ) -> Result<()> {
         let (order_id, market_index) = {
             let user = &load!(ctx.accounts.user)?;
@@ -1838,7 +1841,7 @@ pub mod clearing_house {
     pub fn liquidate_perp(
         ctx: Context<LiquidatePerp>,
         market_index: u16,
-        liquidator_max_base_asset_amount: u128,
+        liquidator_max_base_asset_amount: u64,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -2898,6 +2901,8 @@ pub mod clearing_house {
         let quote_asset_reserve_before = market.amm.quote_asset_reserve;
         let sqrt_k_before = market.amm.sqrt_k;
 
+        let k_increasing = sqrt_k > market.amm.sqrt_k;
+
         let new_sqrt_k_u192 = bn::U192::from(sqrt_k);
 
         let update_k_result = get_update_k_result(market, new_sqrt_k_u192, true)?;
@@ -2905,6 +2910,20 @@ pub mod clearing_house {
         let adjustment_cost = math::amm::adjust_k_cost(market, &update_k_result)?;
 
         math::amm::update_k(market, &update_k_result);
+
+        if k_increasing {
+            validate!(
+                adjustment_cost >= 0,
+                ErrorCode::InvalidUpdateK,
+                "adjustment_cost negative when k increased",
+            )?;
+        } else {
+            validate!(
+                adjustment_cost <= 0,
+                ErrorCode::InvalidUpdateK,
+                "adjustment_cost positive when k decreased",
+            )?;
+        }
 
         if adjustment_cost > 0 {
             let max_cost = market
@@ -2922,13 +2941,13 @@ pub mod clearing_house {
         market.amm.total_fee_minus_distributions = market
             .amm
             .total_fee_minus_distributions
-            .checked_add(adjustment_cost)
+            .checked_sub(adjustment_cost)
             .ok_or_else(math_error!())?;
 
         market.amm.net_revenue_since_last_funding = market
             .amm
             .net_revenue_since_last_funding
-            .checked_add(adjustment_cost as i64)
+            .checked_sub(adjustment_cost as i64)
             .ok_or_else(math_error!())?;
 
         let amm = &market.amm;
@@ -3446,7 +3465,7 @@ pub mod clearing_house {
     )]
     pub fn update_market_base_asset_amount_step_size(
         ctx: Context<AdminUpdateMarket>,
-        minimum_trade_size: u128,
+        minimum_trade_size: u64,
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
         if minimum_trade_size > 0 {

@@ -4,7 +4,7 @@ use num_integer::Roots;
 use solana_program::msg;
 
 use crate::error::ClearingHouseResult;
-use crate::math::casting::cast_to_u128;
+use crate::math::casting::{cast_to_u128, Cast};
 use crate::math::constants::{
     FIFTY_MILLION_QUOTE, FIVE_MILLION_QUOTE, ONE_HUNDRED_MILLION_QUOTE, ONE_HUNDRED_THOUSAND_QUOTE,
     ONE_MILLION_QUOTE, ONE_THOUSAND_QUOTE, TEN_BPS, TEN_MILLION_QUOTE, TEN_THOUSAND_QUOTE,
@@ -15,37 +15,35 @@ use crate::math_error;
 use crate::state::state::{FeeStructure, FeeTier, OrderFillerRewardStructure};
 use crate::state::user::{MarketType, UserStats};
 
-use super::casting::cast_to_i128;
-
 pub struct FillFees {
-    pub user_fee: u128,
-    pub maker_rebate: u128,
-    pub fee_to_market: i128,
-    pub fee_to_market_for_lp: i128,
-    pub filler_reward: u128,
-    pub referrer_reward: u128,
-    pub referee_discount: u128,
+    pub user_fee: u64,
+    pub maker_rebate: u64,
+    pub fee_to_market: i64,
+    pub fee_to_market_for_lp: i64,
+    pub filler_reward: u64,
+    pub referrer_reward: u64,
+    pub referee_discount: u64,
 }
 
 pub fn calculate_fee_for_fulfillment_with_amm(
     user_stats: &UserStats,
-    quote_asset_amount: u128,
+    quote_asset_amount: u64,
     fee_structure: &FeeStructure,
     order_ts: i64,
     now: i64,
     reward_filler: bool,
     reward_referrer: bool,
     referrer_stats: &Option<&mut UserStats>,
-    quote_asset_amount_surplus: i128,
+    quote_asset_amount_surplus: i64,
     is_post_only: bool,
 ) -> ClearingHouseResult<FillFees> {
     let fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Perp)?;
 
     // if there was a quote_asset_amount_surplus, the order was a maker order and fee_to_market comes from surplus
     if is_post_only {
-        let fee = cast_to_u128(quote_asset_amount_surplus)?;
-        let filler_reward: u128 = if !reward_filler {
-            0
+        let fee = quote_asset_amount_surplus.cast::<u64>()?;
+        let filler_reward = if !reward_filler {
+            0_u64
         } else {
             calculate_filler_reward(
                 quote_asset_amount,
@@ -55,9 +53,11 @@ pub fn calculate_fee_for_fulfillment_with_amm(
                 &fee_structure.filler_reward_structure,
             )?
         };
-        let fee_to_market =
-            cast_to_i128(fee.checked_sub(filler_reward).ok_or_else(math_error!())?)?;
-        let user_fee = 0_u128;
+        let fee_to_market = fee
+            .checked_sub(filler_reward)
+            .ok_or_else(math_error!())?
+            .cast::<i64>()?;
+        let user_fee = 0_u64;
 
         Ok(FillFees {
             user_fee,
@@ -69,11 +69,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             referee_discount: 0,
         })
     } else {
-        let fee = quote_asset_amount
-            .checked_mul(fee_tier.fee_numerator as u128)
-            .ok_or_else(math_error!())?
-            .checked_div(fee_tier.fee_denominator as u128)
-            .ok_or_else(math_error!())?;
+        let fee = calculate_taker_fee(quote_asset_amount, fee_tier)?;
 
         let (fee, referee_discount, referrer_reward) = if reward_referrer {
             calculate_referee_fee_and_referrer_reward(
@@ -86,8 +82,8 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             (fee, 0, 0)
         };
 
-        let filler_reward: u128 = if !reward_filler {
-            0
+        let filler_reward = if !reward_filler {
+            0_u64
         } else {
             calculate_filler_reward(
                 fee,
@@ -98,14 +94,14 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             )?
         };
 
-        let fee_to_market = cast_to_i128(
-            fee.checked_sub(filler_reward)
-                .ok_or_else(math_error!())?
-                .checked_sub(referrer_reward)
-                .ok_or_else(math_error!())?,
-        )?
-        .checked_add(quote_asset_amount_surplus)
-        .ok_or_else(math_error!())?;
+        let fee_to_market = fee
+            .checked_sub(filler_reward)
+            .ok_or_else(math_error!())?
+            .checked_sub(referrer_reward)
+            .ok_or_else(math_error!())?
+            .cast::<i64>()?
+            .checked_add(quote_asset_amount_surplus)
+            .ok_or_else(math_error!())?;
 
         let fee_to_market_for_lp = fee_to_market
             .checked_sub(quote_asset_amount_surplus)
@@ -123,23 +119,45 @@ pub fn calculate_fee_for_fulfillment_with_amm(
     }
 }
 
+fn calculate_taker_fee(quote_asset_amount: u64, fee_tier: &FeeTier) -> ClearingHouseResult<u64> {
+    quote_asset_amount
+        .cast::<u128>()?
+        .checked_mul(fee_tier.fee_numerator as u128)
+        .ok_or_else(math_error!())?
+        .checked_div(fee_tier.fee_denominator as u128)
+        .ok_or_else(math_error!())?
+        .cast()
+}
+
+fn calculate_maker_rebate(quote_asset_amount: u64, fee_tier: &FeeTier) -> ClearingHouseResult<u64> {
+    quote_asset_amount
+        .cast::<u128>()?
+        .checked_mul(fee_tier.maker_rebate_numerator as u128)
+        .ok_or_else(math_error!())?
+        .checked_div(fee_tier.maker_rebate_denominator as u128)
+        .ok_or_else(math_error!())?
+        .cast()
+}
+
 fn calculate_referee_fee_and_referrer_reward(
-    fee: u128,
+    fee: u64,
     fee_tier: &FeeTier,
     referrer_reward_epoch_upper_bound: u64,
     referrer_stats: &Option<&mut UserStats>,
-) -> ClearingHouseResult<(u128, u128, u128)> {
+) -> ClearingHouseResult<(u64, u64, u64)> {
     let referee_discount = get_proportion_u128(
-        fee,
+        fee as u128,
         fee_tier.referee_fee_numerator as u128,
         fee_tier.referee_fee_denominator as u128,
-    )?;
+    )?
+    .cast::<u64>()?;
 
     let max_referrer_reward_from_fee = get_proportion_u128(
-        fee,
+        fee as u128,
         fee_tier.referrer_reward_numerator as u128,
         fee_tier.referrer_reward_denominator as u128,
-    )?;
+    )?
+    .cast::<u64>()?;
 
     let referee_fee = fee
         .checked_sub(referee_discount)
@@ -147,10 +165,8 @@ fn calculate_referee_fee_and_referrer_reward(
 
     let referrer_reward = match referrer_stats {
         Some(referrer_stats) => {
-            let max_referrer_reward_in_epoch = cast_to_u128(
-                referrer_reward_epoch_upper_bound
-                    .saturating_sub(referrer_stats.current_epoch_referrer_reward),
-            )?;
+            let max_referrer_reward_in_epoch = referrer_reward_epoch_upper_bound
+                .saturating_sub(referrer_stats.current_epoch_referrer_reward);
             max_referrer_reward_from_fee.min(max_referrer_reward_in_epoch)
         }
         None => max_referrer_reward_from_fee,
@@ -159,19 +175,19 @@ fn calculate_referee_fee_and_referrer_reward(
 }
 
 fn calculate_filler_reward(
-    fee: u128,
+    fee: u64,
     order_ts: i64,
     now: i64,
     multiplier: u128,
     filler_reward_structure: &OrderFillerRewardStructure,
-) -> ClearingHouseResult<u128> {
+) -> ClearingHouseResult<u64> {
     // incentivize keepers to prioritize filling older orders (rather than just largest orders)
     // for sufficiently small-sized order, reward based on fraction of fee paid
 
     let size_filler_reward = fee
-        .checked_mul(filler_reward_structure.reward_numerator as u128)
+        .checked_mul(filler_reward_structure.reward_numerator as u64)
         .ok_or_else(math_error!())?
-        .checked_div(filler_reward_structure.reward_denominator as u128)
+        .checked_div(filler_reward_structure.reward_denominator as u64)
         .ok_or_else(math_error!())?;
 
     let multiplier_precision = cast_to_u128(TEN_BPS)?;
@@ -198,7 +214,8 @@ fn calculate_filler_reward(
         .checked_mul(min_time_filler_reward)
         .ok_or_else(math_error!())?
         .checked_div(100) // 1e2 = sqrt(sqrt(1e8))
-        .ok_or_else(math_error!())?;
+        .ok_or_else(math_error!())?
+        .cast::<u64>()?;
 
     // lesser of size-based and time-based reward
     let fee = min(size_filler_reward, time_filler_reward);
@@ -209,7 +226,7 @@ fn calculate_filler_reward(
 pub fn calculate_fee_for_fulfillment_with_match(
     taker_stats: &UserStats,
     maker_stats: &UserStats,
-    quote_asset_amount: u128,
+    quote_asset_amount: u64,
     fee_structure: &FeeStructure,
     order_ts: i64,
     now: i64,
@@ -221,11 +238,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     let taker_fee_tier = determine_user_fee_tier(taker_stats, fee_structure, market_type)?;
     let maker_fee_tier = determine_user_fee_tier(maker_stats, fee_structure, market_type)?;
 
-    let taker_fee = quote_asset_amount
-        .checked_mul(taker_fee_tier.fee_numerator as u128)
-        .ok_or_else(math_error!())?
-        .checked_div(taker_fee_tier.fee_denominator as u128)
-        .ok_or_else(math_error!())?;
+    let taker_fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier)?;
 
     let (taker_fee, referee_discount, referrer_reward) = if reward_referrer {
         calculate_referee_fee_and_referrer_reward(
@@ -238,14 +251,10 @@ pub fn calculate_fee_for_fulfillment_with_match(
         (taker_fee, 0, 0)
     };
 
-    let maker_rebate = quote_asset_amount
-        .checked_mul(maker_fee_tier.maker_rebate_numerator as u128)
-        .ok_or_else(math_error!())?
-        .checked_div(maker_fee_tier.maker_rebate_denominator as u128)
-        .ok_or_else(math_error!())?;
+    let maker_rebate = calculate_maker_rebate(quote_asset_amount, maker_fee_tier)?;
 
-    let filler_reward: u128 = if filler_multiplier == 0 {
-        0
+    let filler_reward = if filler_multiplier == 0 {
+        0_u64
     } else {
         calculate_filler_reward(
             taker_fee,
@@ -257,15 +266,14 @@ pub fn calculate_fee_for_fulfillment_with_match(
     };
 
     // must be non-negative
-    let fee_to_market = cast_to_i128(
-        taker_fee
-            .checked_sub(filler_reward)
-            .ok_or_else(math_error!())?
-            .checked_sub(referrer_reward)
-            .ok_or_else(math_error!())?
-            .checked_sub(maker_rebate)
-            .ok_or_else(math_error!())?,
-    )?;
+    let fee_to_market = taker_fee
+        .checked_sub(filler_reward)
+        .ok_or_else(math_error!())?
+        .checked_sub(referrer_reward)
+        .ok_or_else(math_error!())?
+        .checked_sub(maker_rebate)
+        .ok_or_else(math_error!())?
+        .cast::<i64>()?;
 
     Ok(FillFees {
         user_fee: taker_fee,
@@ -279,30 +287,26 @@ pub fn calculate_fee_for_fulfillment_with_match(
 }
 
 pub struct SerumFillFees {
-    pub user_fee: u128,
-    pub fee_to_market: u128,
-    pub fee_pool_delta: i128,
-    pub filler_reward: u128,
+    pub user_fee: u64,
+    pub fee_to_market: u64,
+    pub fee_pool_delta: i64,
+    pub filler_reward: u64,
 }
 
 pub fn calculate_fee_for_fulfillment_with_serum(
     user_stats: &UserStats,
-    quote_asset_amount: u128,
+    quote_asset_amount: u64,
     fee_structure: &FeeStructure,
     order_ts: i64,
     now: i64,
     reward_filler: bool,
-    serum_fee: u128,
-    serum_referrer_rebate: u128,
-    fee_pool_amount: u128,
+    serum_fee: u64,
+    serum_referrer_rebate: u64,
+    fee_pool_amount: u64,
 ) -> ClearingHouseResult<SerumFillFees> {
     let taker_fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Spot)?;
 
-    let fee = quote_asset_amount
-        .checked_mul(taker_fee_tier.fee_numerator as u128)
-        .ok_or_else(math_error!())?
-        .checked_div(taker_fee_tier.fee_denominator as u128)
-        .ok_or_else(math_error!())?;
+    let fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier)?;
 
     let serum_fee_plus_referrer_rebate = serum_fee
         .checked_add(serum_referrer_rebate)
@@ -341,8 +345,9 @@ pub fn calculate_fee_for_fulfillment_with_serum(
         .checked_sub(filler_reward)
         .ok_or_else(math_error!())?;
 
-    let fee_pool_delta = cast_to_i128(fee_to_market)?
-        .checked_sub(cast_to_i128(serum_referrer_rebate)?)
+    let fee_pool_delta = fee_to_market
+        .cast::<i64>()?
+        .checked_sub(serum_referrer_rebate.cast()?)
         .ok_or_else(math_error!())?;
 
     Ok(SerumFillFees {
@@ -411,14 +416,14 @@ fn determine_spot_fee_tier<'a>(
 mod test {
 
     mod calculate_fee_for_taker_and_maker {
-        use crate::math::constants::QUOTE_PRECISION;
+        use crate::math::constants::QUOTE_PRECISION_U64;
         use crate::math::fees::{calculate_fee_for_fulfillment_with_match, FillFees};
         use crate::state::state::FeeStructure;
         use crate::state::user::{MarketType, UserStats};
 
         #[test]
         fn no_filler() {
-            let quote_asset_amount = 100 * QUOTE_PRECISION;
+            let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
             let taker_stats = UserStats::default();
             let maker_stats = UserStats::default();
 
@@ -454,7 +459,7 @@ mod test {
 
         #[test]
         fn filler_size_reward() {
-            let quote_asset_amount = 100 * QUOTE_PRECISION;
+            let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
 
             let taker_stats = UserStats::default();
             let maker_stats = UserStats::default();
@@ -496,7 +501,7 @@ mod test {
 
         #[test]
         fn time_reward_no_time_passed() {
-            let quote_asset_amount = 100 * QUOTE_PRECISION;
+            let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
 
             let taker_stats = UserStats::default();
             let maker_stats = UserStats::default();
@@ -537,7 +542,7 @@ mod test {
 
         #[test]
         fn time_reward_time_passed() {
-            let quote_asset_amount = 100 * QUOTE_PRECISION;
+            let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
 
             let taker_stats = UserStats::default();
             let maker_stats = UserStats::default();
@@ -578,7 +583,7 @@ mod test {
 
         #[test]
         fn referrer() {
-            let quote_asset_amount = 100 * QUOTE_PRECISION;
+            let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
 
             let taker_stats = UserStats::default();
             let maker_stats = UserStats::default();
@@ -617,14 +622,14 @@ mod test {
     }
 
     mod calculate_fee_for_order_fulfill_against_amm {
-        use crate::math::constants::QUOTE_PRECISION;
+        use crate::math::constants::QUOTE_PRECISION_U64;
         use crate::math::fees::{calculate_fee_for_fulfillment_with_amm, FillFees};
         use crate::state::state::FeeStructure;
         use crate::state::user::UserStats;
 
         #[test]
         fn referrer() {
-            let quote_asset_amount = 100 * QUOTE_PRECISION;
+            let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
 
             let taker_stats = UserStats::default();
             let fee_structure = FeeStructure::test_default();
@@ -659,20 +664,20 @@ mod test {
     }
 
     mod calculate_fee_for_fulfillment_with_serum {
-        use crate::math::constants::QUOTE_PRECISION;
+        use crate::math::constants::QUOTE_PRECISION_U64;
         use crate::math::fees::{calculate_fee_for_fulfillment_with_serum, SerumFillFees};
         use crate::state::state::FeeStructure;
         use crate::state::user::UserStats;
 
         #[test]
         fn no_filler() {
-            let quote_asset_amount = 100 * QUOTE_PRECISION;
+            let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
 
-            let serum_fee = 32000_u128; // 3.2 bps
+            let serum_fee = 32000_u64; // 3.2 bps
 
-            let serum_referrer_rebate = 8000_u128; // .8 bps
+            let serum_referrer_rebate = 8000_u64; // .8 bps
 
-            let fee_pool_token_amount = 0_u128;
+            let fee_pool_token_amount = 0_u64;
 
             let taker_stats = UserStats::default();
             let fee_structure = FeeStructure::test_default();
@@ -703,13 +708,13 @@ mod test {
 
         #[test]
         fn filler_reward_from_excess_user_fee() {
-            let quote_asset_amount = 100 * QUOTE_PRECISION;
+            let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
 
-            let serum_fee = 32000_u128; // 3.2 bps
+            let serum_fee = 32000_u64; // 3.2 bps
 
-            let serum_referrer_rebate = 8000_u128; // .8 bps
+            let serum_referrer_rebate = 8000_u64; // .8 bps
 
-            let fee_pool_token_amount = 0_u128;
+            let fee_pool_token_amount = 0_u64;
 
             let taker_stats = UserStats::default();
             let fee_structure = FeeStructure::test_default();
@@ -740,13 +745,13 @@ mod test {
 
         #[test]
         fn filler_reward_from_fee_pool() {
-            let quote_asset_amount = 100 * QUOTE_PRECISION;
+            let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
 
-            let serum_fee = 32000_u128; // 3.2 bps
+            let serum_fee = 32000_u64; // 3.2 bps
 
-            let serum_referrer_rebate = 8000_u128; // .8 bps
+            let serum_referrer_rebate = 8000_u64; // .8 bps
 
-            let fee_pool_token_amount = 10000_u128;
+            let fee_pool_token_amount = 10000_u64;
 
             let user_stats = UserStats::default();
             let mut fee_structure = FeeStructure::test_default();
@@ -778,13 +783,13 @@ mod test {
 
         #[test]
         fn filler_reward_from_smaller_fee_pool() {
-            let quote_asset_amount = 100 * QUOTE_PRECISION;
+            let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
 
-            let serum_fee = 32000_u128; // 3.2 bps
+            let serum_fee = 32000_u64; // 3.2 bps
 
-            let serum_referrer_rebate = 8000_u128; // .8 bps
+            let serum_referrer_rebate = 8000_u64; // .8 bps
 
-            let fee_pool_token_amount = 2000_u128;
+            let fee_pool_token_amount = 2000_u64;
 
             let user_stats = UserStats::default();
             let mut fee_structure = FeeStructure::test_default();

@@ -533,7 +533,7 @@
       "args": [
         {
           "name": "sharesToBurn",
-          "type": "u128"
+          "type": "u64"
         },
         {
           "name": "marketIndex",
@@ -563,7 +563,7 @@
       "args": [
         {
           "name": "nShares",
-          "type": "u128"
+          "type": "u64"
         },
         {
           "name": "marketIndex",
@@ -622,7 +622,7 @@
         {
           "name": "orderId",
           "type": {
-            "option": "u64"
+            "option": "u32"
           }
         }
       ]
@@ -691,13 +691,13 @@
         {
           "name": "orderId",
           "type": {
-            "option": "u64"
+            "option": "u32"
           }
         },
         {
           "name": "makerOrderId",
           "type": {
-            "option": "u64"
+            "option": "u32"
           }
         }
       ]
@@ -736,7 +736,7 @@
         {
           "name": "makerOrderId",
           "type": {
-            "option": "u64"
+            "option": "u32"
           }
         }
       ]
@@ -784,7 +784,7 @@
         },
         {
           "name": "takerOrderId",
-          "type": "u64"
+          "type": "u32"
         }
       ]
     },
@@ -815,7 +815,7 @@
       "args": [
         {
           "name": "orderId",
-          "type": "u64"
+          "type": "u32"
         }
       ]
     },
@@ -846,7 +846,7 @@
       "args": [
         {
           "name": "orderId",
-          "type": "u64"
+          "type": "u32"
         }
       ]
     },
@@ -916,7 +916,7 @@
         {
           "name": "orderId",
           "type": {
-            "option": "u64"
+            "option": "u32"
           }
         },
         {
@@ -930,7 +930,7 @@
         {
           "name": "makerOrderId",
           "type": {
-            "option": "u64"
+            "option": "u32"
           }
         }
       ]
@@ -1075,7 +1075,7 @@
         },
         {
           "name": "liquidatorMaxBaseAssetAmount",
-          "type": "u128"
+          "type": "u64"
         }
       ]
     },
@@ -2408,7 +2408,7 @@
       "args": [
         {
           "name": "minimumTradeSize",
-          "type": "u128"
+          "type": "u64"
         }
       ]
     },
@@ -3362,7 +3362,7 @@
           },
           {
             "name": "orderStepSize",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "nextFillRecordId",
@@ -3582,7 +3582,7 @@
           },
           {
             "name": "nextOrderId",
-            "type": "u64"
+            "type": "u32"
           },
           {
             "name": "perpPositions",
@@ -3591,7 +3591,7 @@
                 {
                   "defined": "PerpPosition"
                 },
-                5
+                8
               ]
             }
           },
@@ -3621,6 +3621,10 @@
           {
             "name": "customMarginRatio",
             "type": "u32"
+          },
+          {
+            "name": "lastLpAddTime",
+            "type": "i64"
           }
         ]
       }
@@ -3726,11 +3730,11 @@
           },
           {
             "name": "baseAssetAmount",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "price",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "marketIndex",
@@ -3750,7 +3754,7 @@
           },
           {
             "name": "triggerPrice",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "triggerCondition",
@@ -3760,7 +3764,7 @@
           },
           {
             "name": "oraclePriceOffset",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "auctionDuration",
@@ -3777,7 +3781,7 @@
           {
             "name": "auctionStartPrice",
             "type": {
-              "option": "u128"
+              "option": "u64"
             }
           }
         ]
@@ -3798,23 +3802,15 @@
           },
           {
             "name": "baseAssetAmount",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "quoteAssetAmount",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "lpShares",
-            "type": "u128"
-          },
-          {
-            "name": "userPnl",
-            "type": "i128"
-          },
-          {
-            "name": "liquidatorPnl",
-            "type": "i128"
+            "type": "u64"
           },
           {
             "name": "fillRecordId",
@@ -3822,11 +3818,11 @@
           },
           {
             "name": "userOrderId",
-            "type": "u64"
+            "type": "u32"
           },
           {
             "name": "liquidatorOrderId",
-            "type": "u64"
+            "type": "u32"
           },
           {
             "name": "ifFee",
@@ -4164,7 +4160,7 @@
           },
           {
             "name": "baseAssetAmountStepSize",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "marketPosition",
@@ -4461,7 +4457,7 @@
           },
           {
             "name": "flatFillerFee",
-            "type": "u128"
+            "type": "u64"
           }
         ]
       }
@@ -4571,7 +4567,7 @@
           },
           {
             "name": "balance",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "openOrders",
@@ -4579,11 +4575,11 @@
           },
           {
             "name": "openBids",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "openAsks",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "cumulativeDeposits",
@@ -4603,23 +4599,19 @@
           },
           {
             "name": "baseAssetAmount",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "quoteAssetAmount",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "quoteEntryAmount",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "lastCumulativeFundingRate",
             "type": "i128"
-          },
-          {
-            "name": "lastFundingRateTs",
-            "type": "i64"
           },
           {
             "name": "openOrders",
@@ -4627,11 +4619,11 @@
           },
           {
             "name": "openBids",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "openAsks",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "settledPnl",
@@ -4639,22 +4631,18 @@
           },
           {
             "name": "lpShares",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "remainderBaseAssetAmount",
-            "type": "i128"
+            "type": "i32"
           },
           {
             "name": "lastNetBaseAssetAmountPerLp",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "lastNetQuoteAssetAmountPerLp",
-            "type": "i128"
-          },
-          {
-            "name": "lastLpAddTime",
             "type": "i64"
           }
         ]
@@ -4693,7 +4681,7 @@
           },
           {
             "name": "orderId",
-            "type": "u64"
+            "type": "u32"
           },
           {
             "name": "userOrderId",
@@ -4705,7 +4693,7 @@
           },
           {
             "name": "price",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "existingPositionDirection",
@@ -4715,19 +4703,19 @@
           },
           {
             "name": "baseAssetAmount",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "baseAssetAmountFilled",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "quoteAssetAmountFilled",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "fee",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "direction",
@@ -4749,7 +4737,7 @@
           },
           {
             "name": "triggerPrice",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "triggerCondition",
@@ -4763,15 +4751,15 @@
           },
           {
             "name": "oraclePriceOffset",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "auctionStartPrice",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "auctionEndPrice",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "auctionDuration",
@@ -5401,22 +5389,17 @@
         },
         {
           "name": "fundingPayment",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "baseAssetAmount",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "userLastCumulativeFunding",
           "type": "i128",
-          "index": false
-        },
-        {
-          "name": "userLastFundingRateTs",
-          "type": "i64",
           "index": false
         },
         {
@@ -5686,7 +5669,7 @@
         {
           "name": "baseAssetAmountFilled",
           "type": {
-            "option": "u128"
+            "option": "u64"
           },
           "index": false
         },
@@ -5742,7 +5725,7 @@
         {
           "name": "takerOrderId",
           "type": {
-            "option": "u64"
+            "option": "u32"
           },
           "index": false
         },
@@ -5758,14 +5741,14 @@
         {
           "name": "takerOrderBaseAssetAmount",
           "type": {
-            "option": "u128"
+            "option": "u64"
           },
           "index": false
         },
         {
           "name": "takerOrderCumulativeBaseAssetAmountFilled",
           "type": {
-            "option": "u128"
+            "option": "u64"
           },
           "index": false
         },
@@ -5793,7 +5776,7 @@
         {
           "name": "makerOrderId",
           "type": {
-            "option": "u64"
+            "option": "u32"
           },
           "index": false
         },
@@ -5809,14 +5792,14 @@
         {
           "name": "makerOrderBaseAssetAmount",
           "type": {
-            "option": "u128"
+            "option": "u64"
           },
           "index": false
         },
         {
           "name": "makerOrderCumulativeBaseAssetAmountFilled",
           "type": {
-            "option": "u128"
+            "option": "u64"
           },
           "index": false
         },
@@ -5863,7 +5846,7 @@
         },
         {
           "name": "nShares",
-          "type": "u128",
+          "type": "u64",
           "index": false
         },
         {
@@ -5873,17 +5856,17 @@
         },
         {
           "name": "deltaBaseAssetAmount",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "deltaQuoteAssetAmount",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "pnl",
-          "type": "i128",
+          "type": "i64",
           "index": false
         }
       ]
@@ -5936,7 +5919,7 @@
         {
           "name": "canceledOrderIds",
           "type": {
-            "vec": "u64"
+            "vec": "u32"
           },
           "index": false
         },
@@ -6009,17 +5992,17 @@
         },
         {
           "name": "baseAssetAmount",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "quoteAssetAmountAfter",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "quoteEntryAmount",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {

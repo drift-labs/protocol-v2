@@ -207,6 +207,7 @@ describe('referrer', () => {
 		const eventRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		// assert(eventRecord.referrer.equals(provider.wallet.publicKey));
 		assert(eventRecord.takerFee.eq(new BN(95000)));
+		assert(eventRecord.referrerReward === 15000);
 
 		await referrerClearingHouse.fetchAccounts();
 		const referrerStats = referrerClearingHouse.getUserStats().getAccount();
