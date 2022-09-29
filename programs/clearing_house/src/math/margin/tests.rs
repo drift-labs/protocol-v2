@@ -78,6 +78,11 @@ mod test {
             .get_liability_weight(size, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(lib_weight, 41522);
+
+        let maint_lib_weight = spot_market
+            .get_liability_weight(size, &MarginRequirementType::Maintenance)
+            .unwrap();
+        assert_eq!(maint_lib_weight, 31622);
     }
 
     #[test]
@@ -259,8 +264,8 @@ mod test {
         )
         .unwrap();
 
-        // assert_eq!(upnl, 17409836065);
-        // assert!(upnl < position_unrealized_pnl); // margin system discounts
+        assert_eq!(upnl, 17580307388);
+        assert!(upnl < position_unrealized_pnl); // margin system discounts
 
         assert!(pmr > 0);
         assert_eq!(pmr, 13867100408);
