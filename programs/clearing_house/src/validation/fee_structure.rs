@@ -1,5 +1,5 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::constants::{FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR, QUOTE_PRECISION};
+use crate::math::constants::{FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR, QUOTE_PRECISION_U64};
 use crate::state::state::{FeeStructure, FeeTier};
 use crate::validate;
 use solana_program::msg;
@@ -25,7 +25,7 @@ pub fn validate_fee_structure(fee_structure: &FeeStructure) -> ClearingHouseResu
     )?;
 
     validate!(
-        fee_structure.flat_filler_fee <= QUOTE_PRECISION,
+        fee_structure.flat_filler_fee <= QUOTE_PRECISION_U64,
         ErrorCode::InvalidFeeStructure,
         "invalid flat filler fee {}",
         fee_structure.flat_filler_fee

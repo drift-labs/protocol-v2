@@ -29,7 +29,7 @@ use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::auction::{calculate_auction_end_price, is_auction_complete};
-use crate::math::casting::{cast, cast_to_i128};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u64, Cast};
 use crate::math::constants::{PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
@@ -171,7 +171,7 @@ pub fn place_order(
     let (auction_start_price, auction_end_price) = if let OrderType::Market = params.order_type {
         let auction_start_price = match params.auction_start_price {
             Some(auction_price) => auction_price,
-            None => oracle_price_data.price.unsigned_abs(),
+            None => cast_to_u64(oracle_price_data.price)?,
         };
 
         let auction_end_price = if params.price == 0 {
@@ -181,7 +181,7 @@ pub fn place_order(
         };
         (auction_start_price, auction_end_price)
     } else {
-        (0_u128, 0_u128)
+        (0_u64, 0_u64)
     };
 
     validate!(
@@ -296,7 +296,7 @@ pub fn place_order(
 }
 
 pub fn cancel_order_by_order_id(
-    order_id: u64,
+    order_id: u32,
     user: &AccountLoader<User>,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
@@ -370,7 +370,7 @@ pub fn cancel_order(
     _slot: u64,
     explanation: OrderActionExplanation,
     filler_key: Option<&Pubkey>,
-    filler_reward: u128,
+    filler_reward: u64,
     skip_log: bool,
 ) -> ClearingHouseResult {
     let (order_status, order_market_index, order_direction, order_market_type) = get_struct_values!(
@@ -430,7 +430,7 @@ pub fn cancel_order(
         position::decrease_open_bids_and_asks(
             &mut user.perp_positions[position_index],
             &order_direction,
-            base_asset_amount_unfilled,
+            cast(base_asset_amount_unfilled)?,
         )?;
         user.perp_positions[position_index].open_orders -= 1;
         user.orders[order_index] = Order::default();
@@ -451,7 +451,7 @@ pub fn cancel_order(
 }
 
 pub fn fill_order(
-    order_id: u64,
+    order_id: u32,
     state: &State,
     user: &AccountLoader<User>,
     user_stats: &AccountLoader<UserStats>,
@@ -462,11 +462,11 @@ pub fn fill_order(
     filler_stats: &AccountLoader<UserStats>,
     maker: Option<&AccountLoader<User>>,
     maker_stats: Option<&AccountLoader<UserStats>>,
-    maker_order_id: Option<u64>,
+    maker_order_id: Option<u32>,
     referrer: Option<&AccountLoader<User>>,
     referrer_stats: Option<&AccountLoader<UserStats>>,
     clock: &Clock,
-) -> ClearingHouseResult<(u128, bool)> {
+) -> ClearingHouseResult<(u64, bool)> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
 
@@ -819,12 +819,12 @@ fn sanitize_maker_order<'a>(
     oracle_map: &mut OracleMap,
     maker: Option<&'a AccountLoader<User>>,
     maker_stats: Option<&'a AccountLoader<UserStats>>,
-    maker_order_id: Option<u64>,
+    maker_order_id: Option<u32>,
     taker_key: &Pubkey,
     taker_order: &Order,
     filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
-    filler_reward: u128,
+    filler_reward: u64,
     oracle_price: i128,
     now: i64,
     slot: u64,
@@ -1002,7 +1002,7 @@ fn fulfill_order(
     now: i64,
     slot: u64,
     market_is_reduce_only: bool,
-) -> ClearingHouseResult<(u128, bool, bool)> {
+) -> ClearingHouseResult<(u64, bool, bool)> {
     let market_index = user.orders[user_order_index].market_index;
 
     let position_index = get_position_index(&user.perp_positions, market_index)?;
@@ -1011,7 +1011,7 @@ fn fulfill_order(
     let risk_decreasing = is_order_risk_decreasing(
         &order_direction,
         user.orders[user_order_index].get_base_asset_amount_unfilled()?,
-        position_base_asset_amount_before,
+        position_base_asset_amount_before.cast()?,
     )?;
 
     let free_collateral =
@@ -1045,8 +1045,8 @@ fn fulfill_order(
         return Ok((0, false, false));
     }
 
-    let mut base_asset_amount = 0_u128;
-    let mut quote_asset_amount = 0_u128;
+    let mut base_asset_amount = 0_u64;
+    let mut quote_asset_amount = 0_u64;
     let mut order_records: Vec<OrderActionRecord> = vec![];
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
@@ -1208,10 +1208,10 @@ pub fn fulfill_order_with_amm(
     referrer_stats: &mut Option<&mut UserStats>,
     fee_structure: &FeeStructure,
     order_records: &mut Vec<OrderActionRecord>,
-    override_base_asset_amount: Option<u128>,
+    override_base_asset_amount: Option<u64>,
     override_fill_price: Option<u128>, // todo probs dont need this since its the user_limit_price / current auction time
     split_with_lps: bool,
-) -> ClearingHouseResult<(u128, u128)> {
+) -> ClearingHouseResult<(u64, u64)> {
     // Determine the base asset amount the market can fill
     let (base_asset_amount, fill_price) = match override_base_asset_amount {
         Some(override_base_asset_amount) => (override_base_asset_amount, override_fill_price),
@@ -1300,7 +1300,7 @@ pub fn fulfill_order_with_amm(
     update_amm_and_lp_market_position(
         market,
         &user_position_delta,
-        fee_to_market_for_lp,
+        fee_to_market_for_lp.cast()?,
         split_with_lps,
     )?;
 
@@ -1322,36 +1322,38 @@ pub fn fulfill_order_with_amm(
     market.amm.total_fee = market
         .amm
         .total_fee
-        .checked_add(fee_to_market)
+        .checked_add(fee_to_market.cast()?)
         .ok_or_else(math_error!())?;
     market.amm.total_exchange_fee = market
         .amm
         .total_exchange_fee
-        .checked_add(user_fee)
+        .checked_add(user_fee.cast()?)
         .ok_or_else(math_error!())?;
-    market.amm.total_mm_fee = cast_to_i128(market.amm.total_mm_fee)?
-        .checked_add(quote_asset_amount_surplus)
+    market.amm.total_mm_fee = market
+        .amm
+        .total_mm_fee
+        .checked_add(quote_asset_amount_surplus.cast()?)
         .ok_or_else(math_error!())?;
     market.amm.total_fee_minus_distributions = market
         .amm
         .total_fee_minus_distributions
-        .checked_add(fee_to_market as i128)
+        .checked_add(fee_to_market.cast()?)
         .ok_or_else(math_error!())?;
     market.amm.net_revenue_since_last_funding = market
         .amm
         .net_revenue_since_last_funding
-        .checked_add(fee_to_market as i64)
+        .checked_add(fee_to_market)
         .ok_or_else(math_error!())?;
 
     // Increment the user's total fee variables
-    user_stats.increment_total_fees(cast(user_fee)?)?;
-    user_stats.increment_total_referee_discount(cast(referee_discount)?)?;
+    user_stats.increment_total_fees(user_fee)?;
+    user_stats.increment_total_referee_discount(referee_discount)?;
 
     if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
         if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index) {
             if referrer_reward > 0 {
-                update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
-                referrer_stats.increment_total_referrer_reward(cast(referrer_reward)?, now)?;
+                update_quote_asset_amount(referrer_position, market, referrer_reward.cast()?)?;
+                referrer_stats.increment_total_referrer_reward(referrer_reward, now)?;
             }
         }
     }
@@ -1361,13 +1363,13 @@ pub fn fulfill_order_with_amm(
     controller::position::update_quote_asset_amount(
         &mut user.perp_positions[position_index],
         market,
-        -cast(user_fee)?,
+        -user_fee.cast()?,
     )?;
 
     if order_post_only {
-        user_stats.update_maker_volume_30d(cast(quote_asset_amount)?, now)?;
+        user_stats.update_maker_volume_30d(quote_asset_amount, now)?;
     } else {
-        user_stats.update_taker_volume_30d(cast(quote_asset_amount)?, now)?;
+        user_stats.update_taker_volume_30d(quote_asset_amount, now)?;
     }
 
     if let Some(filler) = filler.as_mut() {
@@ -1377,18 +1379,17 @@ pub fn fulfill_order_with_amm(
         controller::position::update_quote_asset_amount(
             &mut filler.perp_positions[position_index],
             market,
-            cast(filler_reward)?,
+            filler_reward.cast()?,
         )?;
 
         filler_stats
             .as_mut()
             .unwrap()
-            .update_filler_volume(cast(quote_asset_amount)?, now)?;
+            .update_filler_volume(quote_asset_amount, now)?;
     }
 
     update_order_after_fill(
         &mut user.orders[order_index],
-        market.amm.base_asset_amount_step_size,
         base_asset_amount,
         quote_asset_amount,
         cast(user_fee)?,
@@ -1459,12 +1460,12 @@ pub fn fulfill_order_with_match(
     fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
     order_records: &mut Vec<OrderActionRecord>,
-) -> ClearingHouseResult<(u128, u128)> {
+) -> ClearingHouseResult<(u64, u64)> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
         &taker.orders[taker_order_index],
     ) {
-        return Ok((0_u128, 0_u128));
+        return Ok((0_u64, 0_u64));
     }
 
     let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
@@ -1489,7 +1490,7 @@ pub fn fulfill_order_with_match(
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
     if !orders_cross {
-        return Ok((0_u128, 0_u128));
+        return Ok((0_u64, 0_u64));
     }
 
     let (base_asset_amount, _) = calculate_fill_for_matched_orders(
@@ -1500,7 +1501,7 @@ pub fn fulfill_order_with_match(
     )?;
 
     if base_asset_amount == 0 {
-        return Ok((0_u128, 0_u128));
+        return Ok((0_u64, 0_u64));
     }
 
     amm::update_mark_twap(
@@ -1515,7 +1516,7 @@ pub fn fulfill_order_with_match(
         PositionDirection::Short => market.amm.net_base_asset_amount > 0,
     };
 
-    let mut total_quote_asset_amount = 0_u128;
+    let mut total_quote_asset_amount = 0_u64;
     let base_asset_amount_left_to_fill = if amm_wants_to_make && market.amm.amm_jit_is_active() {
         let jit_base_asset_amount =
             crate::math::amm_jit::calculate_jit_base_asset_amount(market, base_asset_amount)?;
@@ -1588,7 +1589,7 @@ pub fn fulfill_order_with_match(
         &maker_position_delta,
     )?;
 
-    maker_stats.update_maker_volume_30d(cast(quote_asset_amount)?, now)?;
+    maker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
 
     let taker_position_index = get_position_index(
         &taker.perp_positions,
@@ -1607,7 +1608,7 @@ pub fn fulfill_order_with_match(
         &taker_position_delta,
     )?;
 
-    taker_stats.update_taker_volume_30d(cast(quote_asset_amount)?, now)?;
+    taker_stats.update_taker_volume_30d(quote_asset_amount, now)?;
 
     let reward_referrer = referrer.is_some()
         && referrer_stats.is_some()
@@ -1649,41 +1650,41 @@ pub fn fulfill_order_with_match(
         .amm
         .market_position
         .quote_asset_amount
-        .checked_add(cast_to_i128(fee_to_market)?)
+        .checked_add(fee_to_market)
         .ok_or_else(math_error!())?;
 
     market.amm.total_fee = market
         .amm
         .total_fee
-        .checked_add(cast_to_i128(fee_to_market)?)
+        .checked_add(fee_to_market.cast()?)
         .ok_or_else(math_error!())?;
     market.amm.total_fee_minus_distributions = market
         .amm
         .total_fee_minus_distributions
-        .checked_add(fee_to_market as i128)
+        .checked_add(fee_to_market.cast()?)
         .ok_or_else(math_error!())?;
     market.amm.net_revenue_since_last_funding = market
         .amm
         .net_revenue_since_last_funding
-        .checked_add(fee_to_market as i64)
+        .checked_add(fee_to_market)
         .ok_or_else(math_error!())?;
 
     controller::position::update_quote_asset_amount(
         &mut taker.perp_positions[taker_position_index],
         market,
-        -cast(taker_fee)?,
+        -taker_fee.cast()?,
     )?;
 
-    taker_stats.increment_total_fees(cast(taker_fee)?)?;
-    taker_stats.increment_total_referee_discount(cast(referee_discount)?)?;
+    taker_stats.increment_total_fees(taker_fee)?;
+    taker_stats.increment_total_referee_discount(referee_discount)?;
 
     controller::position::update_quote_asset_amount(
         &mut maker.perp_positions[maker_position_index],
         market,
-        cast(maker_rebate)?,
+        maker_rebate.cast()?,
     )?;
 
-    maker_stats.increment_total_rebate(cast(maker_rebate)?)?;
+    maker_stats.increment_total_rebate(maker_rebate)?;
 
     if let Some(filler) = filler {
         let filler_position_index = get_position_index(&filler.perp_positions, market.market_index)
@@ -1692,30 +1693,29 @@ pub fn fulfill_order_with_match(
         controller::position::update_quote_asset_amount(
             &mut filler.perp_positions[filler_position_index],
             market,
-            cast(filler_reward)?,
+            filler_reward.cast()?,
         )?;
 
         filler_stats
             .as_mut()
             .unwrap()
-            .update_filler_volume(cast(quote_asset_amount)?, now)?;
+            .update_filler_volume(quote_asset_amount, now)?;
     }
 
     if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
         if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index) {
             if referrer_reward > 0 {
-                update_quote_asset_amount(referrer_position, market, cast(referrer_reward)?)?;
-                referrer_stats.increment_total_referrer_reward(cast(referrer_reward)?, now)?;
+                update_quote_asset_amount(referrer_position, market, referrer_reward.cast()?)?;
+                referrer_stats.increment_total_referrer_reward(referrer_reward, now)?;
             }
         }
     }
 
     update_order_after_fill(
         &mut taker.orders[taker_order_index],
-        market.amm.base_asset_amount_step_size,
         base_asset_amount_left_to_fill,
         quote_asset_amount,
-        cast(taker_fee)?,
+        taker_fee.cast()?,
     )?;
 
     decrease_open_bids_and_asks(
@@ -1726,10 +1726,9 @@ pub fn fulfill_order_with_match(
 
     update_order_after_fill(
         &mut maker.orders[maker_order_index],
-        market.amm.base_asset_amount_step_size,
         base_asset_amount_left_to_fill,
         quote_asset_amount,
-        -cast(maker_rebate)?,
+        -maker_rebate.cast()?,
     )?;
 
     decrease_open_bids_and_asks(
@@ -1748,7 +1747,7 @@ pub fn fulfill_order_with_match(
         Some(fill_record_id),
         Some(filler_reward),
         Some(base_asset_amount_left_to_fill),
-        Some(cast(quote_asset_amount)?),
+        Some(quote_asset_amount),
         Some(taker_fee),
         Some(maker_rebate),
         Some(referrer_reward),
@@ -1779,10 +1778,9 @@ pub fn fulfill_order_with_match(
 
 pub fn update_order_after_fill(
     order: &mut Order,
-    minimum_base_asset_trade_size: u128,
-    base_asset_amount: u128,
-    quote_asset_amount: u128,
-    fee: i128,
+    base_asset_amount: u64,
+    quote_asset_amount: u64,
+    fee: i64,
 ) -> ClearingHouseResult {
     order.base_asset_amount_filled = order
         .base_asset_amount_filled
@@ -1793,16 +1791,6 @@ pub fn update_order_after_fill(
         .quote_asset_amount_filled
         .checked_add(quote_asset_amount)
         .ok_or_else(math_error!())?;
-
-    // redundant test to make sure no min trade size remaining
-    let base_asset_amount_to_fill = order
-        .base_asset_amount
-        .checked_sub(order.base_asset_amount_filled)
-        .ok_or_else(math_error!())?;
-
-    if base_asset_amount_to_fill > 0 && base_asset_amount_to_fill < minimum_base_asset_trade_size {
-        return Err(ErrorCode::OrderAmountTooSmall);
-    }
 
     order.fee = order.fee.checked_add(fee).ok_or_else(math_error!())?;
 
@@ -1856,7 +1844,7 @@ fn get_taker_and_maker_for_order_record(
 }
 
 pub fn trigger_order(
-    order_id: u64,
+    order_id: u32,
     state: &State,
     user: &AccountLoader<User>,
     market_map: &PerpMarketMap,
@@ -1921,8 +1909,10 @@ pub fn trigger_order(
         "Auction duration must elapse before triggering"
     )?;
 
-    let can_trigger =
-        order_satisfies_trigger_condition(&user.orders[order_index], oracle_price.unsigned_abs());
+    let can_trigger = order_satisfies_trigger_condition(
+        &user.orders[order_index],
+        cast(oracle_price.unsigned_abs())?,
+    );
     validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
 
     {
@@ -1933,7 +1923,7 @@ pub fn trigger_order(
         user.orders[order_index].slot = slot;
         let order_type = user.orders[order_index].order_type;
         if let OrderType::TriggerMarket = order_type {
-            let auction_start_price = oracle_price_data.price.unsigned_abs();
+            let auction_start_price = cast_to_u64(oracle_price_data.price.unsigned_abs())?;
             let auction_end_price = calculate_auction_end_price(oracle_price_data, direction)?;
             user.orders[order_index].auction_start_price = auction_start_price;
             user.orders[order_index].auction_end_price = auction_end_price;
@@ -1987,21 +1977,21 @@ pub fn pay_keeper_flat_reward_for_perps(
     user: &mut User,
     filler: Option<&mut User>,
     market: &mut PerpMarket,
-    filler_reward: u128,
-) -> ClearingHouseResult<u128> {
+    filler_reward: u64,
+) -> ClearingHouseResult<u64> {
     let filler_reward = if let Some(filler) = filler {
         let user_position = user.get_perp_position_mut(market.market_index)?;
         controller::position::update_quote_asset_amount(
             user_position,
             market,
-            -cast(filler_reward)?,
+            -filler_reward.cast()?,
         )?;
 
         let filler_position = filler.force_get_perp_position_mut(market.market_index)?;
         controller::position::update_quote_asset_amount(
             filler_position,
             market,
-            cast(filler_reward)?,
+            filler_reward.cast()?,
         )?;
 
         filler_reward
@@ -2016,11 +2006,11 @@ pub fn pay_keeper_flat_reward_for_spot(
     user: &mut User,
     filler: Option<&mut User>,
     quote_market: &mut SpotMarket,
-    filler_reward: u128,
-) -> ClearingHouseResult<u128> {
+    filler_reward: u64,
+) -> ClearingHouseResult<u64> {
     let filler_reward = if let Some(filler) = filler {
         update_spot_position_balance(
-            filler_reward,
+            filler_reward as u128,
             &SpotBalanceType::Deposit,
             quote_market,
             filler.get_quote_spot_position_mut(),
@@ -2028,7 +2018,7 @@ pub fn pay_keeper_flat_reward_for_spot(
         )?;
 
         update_spot_position_balance(
-            filler_reward,
+            filler_reward as u128,
             &SpotBalanceType::Borrow,
             quote_market,
             user.get_quote_spot_position_mut(),
@@ -2097,8 +2087,9 @@ pub fn place_spot_order(
     let (worst_case_token_amount_before, _) = user.spot_positions[spot_position_index]
         .get_worst_case_token_amounts(spot_market, &oracle_price_data, None)?;
 
-    let signed_token_amount =
-        user.spot_positions[spot_position_index].get_signed_token_amount(spot_market)?;
+    let signed_token_amount = user.spot_positions[spot_position_index]
+        .get_signed_token_amount(spot_market)?
+        .cast::<i64>()?;
 
     // Increment open orders for existing position
     let (existing_position_direction, order_base_asset_amount) = {
@@ -2138,13 +2129,13 @@ pub fn place_spot_order(
         } else {
             PositionDirection::Short
         };
-        (existing_position_direction, base_asset_amount)
+        (existing_position_direction, cast_to_u64(base_asset_amount)?)
     };
 
     let (auction_start_price, auction_end_price) = if let OrderType::Market = params.order_type {
         let auction_start_price = match params.auction_start_price {
             Some(auction_start_price) => auction_start_price,
-            None => oracle_price_data.price.unsigned_abs(),
+            None => cast_to_u64(oracle_price_data.price.unsigned_abs())?,
         };
 
         let auction_end_price = if params.price == 0 {
@@ -2154,7 +2145,7 @@ pub fn place_spot_order(
         };
         (auction_start_price, auction_end_price)
     } else {
-        (0_u128, 0_u128)
+        (0_u64, 0_u64)
     };
 
     validate!(
@@ -2272,7 +2263,7 @@ pub fn place_spot_order(
 }
 
 pub fn fill_spot_order(
-    order_id: u64,
+    order_id: u32,
     state: &State,
     user: &AccountLoader<User>,
     user_stats: &AccountLoader<UserStats>,
@@ -2283,10 +2274,10 @@ pub fn fill_spot_order(
     filler_stats: &AccountLoader<UserStats>,
     maker: Option<&AccountLoader<User>>,
     maker_stats: Option<&AccountLoader<UserStats>>,
-    maker_order_id: Option<u64>,
+    maker_order_id: Option<u32>,
     clock: &Clock,
     serum_fulfillment_params: Option<SerumFulfillmentParams>,
-) -> ClearingHouseResult<u128> {
+) -> ClearingHouseResult<u64> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
 
@@ -2447,12 +2438,12 @@ fn sanitize_spot_maker_order<'a>(
     oracle_map: &mut OracleMap,
     maker: Option<&'a AccountLoader<User>>,
     maker_stats: Option<&'a AccountLoader<UserStats>>,
-    maker_order_id: Option<u64>,
+    maker_order_id: Option<u32>,
     taker_key: &Pubkey,
     taker_order: &Order,
     filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
-    filler_reward: u128,
+    filler_reward: u64,
     now: i64,
     slot: u64,
 ) -> ClearingHouseResult<(
@@ -2580,7 +2571,7 @@ fn fulfill_spot_order(
     slot: u64,
     fee_structure: &FeeStructure,
     mut serum_fulfillment_params: Option<SerumFulfillmentParams>,
-) -> ClearingHouseResult<(u128, bool)> {
+) -> ClearingHouseResult<(u64, bool)> {
     let free_collateral =
         calculate_free_collateral(user, perp_market_map, spot_market_map, oracle_map)?;
 
@@ -2636,7 +2627,7 @@ fn fulfill_spot_order(
     let mut base_market = spot_market_map.get_ref_mut(&base_market)?;
 
     let mut order_records: Vec<OrderActionRecord> = vec![];
-    let mut base_asset_amount = 0_u128;
+    let mut base_asset_amount = 0_u64;
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
             break;
@@ -2735,12 +2726,12 @@ pub fn fulfill_spot_order_with_match(
     oracle_map: &mut OracleMap,
     fee_structure: &FeeStructure,
     order_records: &mut Vec<OrderActionRecord>,
-) -> ClearingHouseResult<u128> {
+) -> ClearingHouseResult<u64> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
         &taker.orders[taker_order_index],
     ) {
-        return Ok(0_u128);
+        return Ok(0_u64);
     }
 
     let market_index = taker.orders[taker_order_index].market_index;
@@ -2762,7 +2753,7 @@ pub fn fulfill_spot_order_with_match(
     let orders_cross = do_orders_cross(maker_direction, maker_price, taker_price);
 
     if !orders_cross {
-        return Ok(0_u128);
+        return Ok(0_u64);
     }
 
     let (base_asset_amount, quote_asset_amount) = calculate_fill_for_matched_orders(
@@ -2773,7 +2764,7 @@ pub fn fulfill_spot_order_with_match(
     )?;
 
     if base_asset_amount == 0 {
-        return Ok(0_u128);
+        return Ok(0_u64);
     }
 
     let filler_multiplier = if filler.is_some() {
@@ -2803,7 +2794,7 @@ pub fn fulfill_spot_order_with_match(
 
     // Update taker state
     update_spot_position_balance(
-        base_asset_amount,
+        base_asset_amount.cast()?,
         &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Base),
         base_market,
         &mut taker.spot_positions[taker_spot_position_index],
@@ -2820,7 +2811,7 @@ pub fn fulfill_spot_order_with_match(
     };
 
     update_spot_position_balance(
-        taker_quote_asset_amount_delta,
+        taker_quote_asset_amount_delta.cast()?,
         &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Quote),
         quote_market,
         taker.get_quote_spot_position_mut(),
@@ -2829,10 +2820,9 @@ pub fn fulfill_spot_order_with_match(
 
     update_order_after_fill(
         &mut taker.orders[taker_order_index],
-        base_market.order_step_size,
         base_asset_amount,
         quote_asset_amount,
-        cast_to_i128(taker_fee)?,
+        taker_fee.cast()?,
     )?;
 
     let taker_order_direction = taker.orders[taker_order_index].direction;
@@ -2842,13 +2832,13 @@ pub fn fulfill_spot_order_with_match(
         base_asset_amount,
     )?;
 
-    taker_stats.update_taker_volume_30d(cast(quote_asset_amount)?, now)?;
+    taker_stats.update_taker_volume_30d(quote_asset_amount, now)?;
 
-    taker_stats.increment_total_fees(cast(taker_fee)?)?;
+    taker_stats.increment_total_fees(taker_fee)?;
 
     // Update maker state
     update_spot_position_balance(
-        base_asset_amount,
+        base_asset_amount.cast()?,
         &maker.orders[maker_order_index].get_spot_position_update_direction(AssetType::Base),
         base_market,
         &mut maker.spot_positions[maker_spot_position_index],
@@ -2865,7 +2855,7 @@ pub fn fulfill_spot_order_with_match(
     };
 
     update_spot_position_balance(
-        maker_quote_asset_amount_delta,
+        maker_quote_asset_amount_delta.cast()?,
         &maker.orders[maker_order_index].get_spot_position_update_direction(AssetType::Quote),
         quote_market,
         maker.get_quote_spot_position_mut(),
@@ -2874,10 +2864,9 @@ pub fn fulfill_spot_order_with_match(
 
     update_order_after_fill(
         &mut maker.orders[maker_order_index],
-        base_market.order_step_size,
         base_asset_amount,
         quote_asset_amount,
-        -cast_to_i128(maker_rebate)?,
+        -maker_rebate.cast()?,
     )?;
 
     let maker_order_direction = maker.orders[maker_order_index].direction;
@@ -2887,15 +2876,15 @@ pub fn fulfill_spot_order_with_match(
         base_asset_amount,
     )?;
 
-    maker_stats.update_maker_volume_30d(cast(quote_asset_amount)?, now)?;
+    maker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
 
-    maker_stats.increment_total_rebate(cast(maker_rebate)?)?;
+    maker_stats.increment_total_rebate(maker_rebate)?;
 
     // Update filler state
     if let (Some(filler), Some(filler_stats)) = (filler, filler_stats) {
         if filler_reward > 0 {
             update_spot_position_balance(
-                filler_reward,
+                filler_reward.cast()?,
                 &SpotBalanceType::Deposit,
                 quote_market,
                 filler.get_quote_spot_position_mut(),
@@ -2903,7 +2892,7 @@ pub fn fulfill_spot_order_with_match(
             )?;
         }
 
-        filler_stats.update_filler_volume(cast(quote_asset_amount)?, now)?;
+        filler_stats.update_filler_volume(quote_asset_amount, now)?;
     }
 
     // Update base market
@@ -2974,7 +2963,7 @@ pub fn fulfill_spot_order_with_serum(
     fee_structure: &FeeStructure,
     order_records: &mut Vec<OrderActionRecord>,
     serum_fulfillment_params: &mut Option<SerumFulfillmentParams>,
-) -> ClearingHouseResult<u128> {
+) -> ClearingHouseResult<u64> {
     let serum_new_order_accounts = match serum_fulfillment_params {
         Some(serum_new_order_accounts) => serum_new_order_accounts,
         None => return Ok(0),
@@ -3170,14 +3159,14 @@ pub fn fulfill_spot_order_with_serum(
             SpotBalanceType::Deposit,
             base_after
                 .checked_sub(base_before)
-                .ok_or_else(math_error!())? as u128,
+                .ok_or_else(math_error!())?,
         )
     } else {
         (
             SpotBalanceType::Borrow,
             base_before
                 .checked_sub(base_after)
-                .ok_or_else(math_error!())? as u128,
+                .ok_or_else(math_error!())?,
         )
     };
 
@@ -3207,7 +3196,7 @@ pub fn fulfill_spot_order_with_serum(
                 .checked_add(serum_fee)
                 .ok_or_else(math_error!())?
                 .checked_add(serum_referrer_rebate)
-                .ok_or_else(math_error!())? as u128,
+                .ok_or_else(math_error!())?,
         )
     } else {
         let quote_asset_amount_delta = quote_before
@@ -3222,7 +3211,7 @@ pub fn fulfill_spot_order_with_serum(
                 .checked_sub(serum_fee)
                 .ok_or_else(math_error!())?
                 .checked_sub(serum_referrer_rebate)
-                .ok_or_else(math_error!())? as u128,
+                .ok_or_else(math_error!())?,
         )
     };
 
@@ -3244,9 +3233,9 @@ pub fn fulfill_spot_order_with_serum(
         taker_order_ts,
         now,
         filler.is_some(),
-        serum_fee as u128,
-        serum_referrer_rebate as u128,
-        fee_pool_amount,
+        serum_fee,
+        serum_referrer_rebate,
+        fee_pool_amount.cast()?,
     )?;
 
     let quote_spot_position_delta = match quote_update_direction {
@@ -3266,7 +3255,7 @@ pub fn fulfill_spot_order_with_serum(
     )?;
 
     update_spot_position_balance(
-        base_asset_amount_filled,
+        base_asset_amount_filled.cast()?,
         &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Base),
         base_market,
         taker.force_get_spot_position_mut(base_market.market_index)?,
@@ -3281,7 +3270,7 @@ pub fn fulfill_spot_order_with_serum(
     )?;
 
     update_spot_position_balance(
-        quote_spot_position_delta,
+        quote_spot_position_delta.cast()?,
         &taker.orders[taker_order_index].get_spot_position_update_direction(AssetType::Quote),
         quote_market,
         taker.get_quote_spot_position_mut(),
@@ -3294,10 +3283,9 @@ pub fn fulfill_spot_order_with_serum(
 
     update_order_after_fill(
         &mut taker.orders[taker_order_index],
-        base_market.order_step_size,
         base_asset_amount_filled,
         quote_asset_amount_filled,
-        taker_fee as i128,
+        taker_fee.cast()?,
     )?;
 
     let taker_order_direction = taker.orders[taker_order_index].direction;
@@ -3310,7 +3298,7 @@ pub fn fulfill_spot_order_with_serum(
     if let (Some(filler), Some(filler_stats)) = (filler, filler_stats) {
         if filler_reward > 0 {
             update_spot_position_balance(
-                filler_reward,
+                filler_reward.cast()?,
                 &SpotBalanceType::Deposit,
                 quote_market,
                 filler.get_quote_spot_position_mut(),
@@ -3323,7 +3311,7 @@ pub fn fulfill_spot_order_with_serum(
 
     if fee_pool_delta != 0 {
         update_spot_balances(
-            fee_pool_delta.unsigned_abs(),
+            fee_pool_delta.unsigned_abs().cast()?,
             if fee_to_market > 0 {
                 &SpotBalanceType::Deposit
             } else {
@@ -3337,7 +3325,7 @@ pub fn fulfill_spot_order_with_serum(
 
     base_market.total_spot_fee = base_market
         .total_spot_fee
-        .checked_add(fee_to_market)
+        .checked_add(fee_to_market.cast()?)
         .ok_or_else(math_error!())?;
 
     let fill_record_id = get_then_update_id!(base_market, next_fill_record_id);
@@ -3351,7 +3339,7 @@ pub fn fulfill_spot_order_with_serum(
         Some(filler_reward),
         Some(base_asset_amount_filled),
         Some(cast(quote_asset_amount_filled)?),
-        Some(taker_fee as u128),
+        Some(taker_fee),
         Some(0),
         None,
         Some(0),
@@ -3375,7 +3363,7 @@ pub fn fulfill_spot_order_with_serum(
 }
 
 pub fn trigger_spot_order(
-    order_id: u64,
+    order_id: u32,
     state: &State,
     user: &AccountLoader<User>,
     spot_market_map: &SpotMarketMap,
@@ -3445,8 +3433,10 @@ pub fn trigger_spot_order(
         "Auction duration must elapse before triggering"
     )?;
 
-    let can_trigger =
-        order_satisfies_trigger_condition(&user.orders[order_index], oracle_price.unsigned_abs());
+    let can_trigger = order_satisfies_trigger_condition(
+        &user.orders[order_index],
+        cast(oracle_price.unsigned_abs())?,
+    );
     validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
 
     {
@@ -3457,7 +3447,7 @@ pub fn trigger_spot_order(
         user.orders[order_index].slot = slot;
         let order_type = user.orders[order_index].order_type;
         if let OrderType::TriggerMarket = order_type {
-            let auction_start_price = oracle_price_data.price.unsigned_abs();
+            let auction_start_price = cast_to_u64(oracle_price_data.price.unsigned_abs())?;
             let auction_end_price =
                 calculate_auction_end_price(oracle_price_data, order_direction)?;
             user.orders[order_index].auction_start_price = auction_start_price;
@@ -3465,7 +3455,7 @@ pub fn trigger_spot_order(
         }
 
         let user_position = user.force_get_spot_position_mut(market_index)?;
-        increase_spot_open_bids_and_asks(user_position, &direction, base_asset_amount)?;
+        increase_spot_open_bids_and_asks(user_position, &direction, cast(base_asset_amount)?)?;
     }
 
     let is_filler_taker = user_key == filler_key;

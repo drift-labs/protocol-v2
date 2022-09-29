@@ -6,7 +6,7 @@ use crate::controller::position::{add_new_position, get_position_index, Position
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::calculate_rolling_sum;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
-use crate::math::casting::cast_to_i128;
+use crate::math::casting::{cast_to_i128, Cast};
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, PRICE_PRECISION_I128,
     QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY_I128,
@@ -31,13 +31,14 @@ pub struct User {
     pub user_id: u8,
     pub name: [u8; 32],
     pub spot_positions: [SpotPosition; 8],
-    pub next_order_id: u64,
-    pub perp_positions: [PerpPosition; 5],
+    pub next_order_id: u32,
+    pub perp_positions: [PerpPosition; 8],
     pub orders: [Order; 32],
     pub next_liquidation_id: u16,
     pub being_liquidated: bool,
     pub bankrupt: bool,
     pub custom_margin_ratio: u32,
+    pub last_lp_add_time: i64,
 }
 
 impl User {
@@ -121,20 +122,20 @@ impl User {
         Ok(&mut self.perp_positions[position_index])
     }
 
-    pub fn get_order_index(&self, order_id: u64) -> ClearingHouseResult<usize> {
+    pub fn get_order_index(&self, order_id: u32) -> ClearingHouseResult<usize> {
         self.orders
             .iter()
             .position(|order| order.order_id == order_id)
             .ok_or(ErrorCode::OrderDoesNotExist)
     }
 
-    pub fn get_order(&self, order_id: u64) -> Option<&Order> {
+    pub fn get_order(&self, order_id: u32) -> Option<&Order> {
         self.orders.iter().find(|order| order.order_id == order_id)
     }
 
-    pub fn get_last_order_id(&self) -> u64 {
+    pub fn get_last_order_id(&self) -> u32 {
         if self.next_order_id == 1 {
-            u64::MAX
+            u32::MAX
         } else {
             self.next_order_id - 1
         }
@@ -158,10 +159,10 @@ pub struct UserFees {
 pub struct SpotPosition {
     pub market_index: u16,
     pub balance_type: SpotBalanceType,
-    pub balance: u128,
+    pub balance: u64,
     pub open_orders: u8,
-    pub open_bids: i128,
-    pub open_asks: i128,
+    pub open_bids: i64,
+    pub open_asks: i64,
     pub cumulative_deposits: i64,
 }
 
@@ -171,16 +172,22 @@ impl SpotBalance for SpotPosition {
     }
 
     fn balance(&self) -> u128 {
-        self.balance
+        self.balance as u128
     }
 
     fn increase_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.balance = self.balance.checked_add(delta).ok_or_else(math_error!())?;
+        self.balance = self
+            .balance
+            .checked_add(delta.cast()?)
+            .ok_or_else(math_error!())?;
         Ok(())
     }
 
     fn decrease_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.balance = self.balance.checked_sub(delta).ok_or_else(math_error!())?;
+        self.balance = self
+            .balance
+            .checked_sub(delta.cast()?)
+            .ok_or_else(math_error!())?;
         Ok(())
     }
 
@@ -196,12 +203,12 @@ impl SpotPosition {
     }
 
     pub fn get_token_amount(&self, spot_market: &SpotMarket) -> ClearingHouseResult<u128> {
-        get_token_amount(self.balance, spot_market, &self.balance_type)
+        get_token_amount(self.balance.cast()?, spot_market, &self.balance_type)
     }
 
     pub fn get_signed_token_amount(&self, spot_market: &SpotMarket) -> ClearingHouseResult<i128> {
         get_signed_token_amount(
-            get_token_amount(self.balance, spot_market, &self.balance_type)?,
+            get_token_amount(self.balance.cast()?, spot_market, &self.balance_type)?,
             &self.balance_type,
         )
     }
@@ -218,20 +225,26 @@ impl SpotPosition {
         };
 
         let token_amount_all_bids_fill = token_amount
-            .checked_add(self.open_bids)
+            .checked_add(self.open_bids as i128)
             .ok_or_else(math_error!())?;
 
         let token_amount_all_asks_fill = token_amount
-            .checked_add(self.open_asks)
+            .checked_add(self.open_asks as i128)
             .ok_or_else(math_error!())?;
 
         if token_amount_all_bids_fill.abs() > token_amount_all_asks_fill.abs() {
-            let worst_case_quote_token_amount =
-                get_token_value(-self.open_bids, spot_market.decimals, oracle_price_data)?;
+            let worst_case_quote_token_amount = get_token_value(
+                -self.open_bids as i128,
+                spot_market.decimals,
+                oracle_price_data,
+            )?;
             Ok((token_amount_all_bids_fill, worst_case_quote_token_amount))
         } else {
-            let worst_case_quote_token_amount =
-                get_token_value(-self.open_asks, spot_market.decimals, oracle_price_data)?;
+            let worst_case_quote_token_amount = get_token_value(
+                -self.open_asks as i128,
+                spot_market.decimals,
+                oracle_price_data,
+            )?;
             Ok((token_amount_all_asks_fill, worst_case_quote_token_amount))
         }
     }
@@ -242,22 +255,20 @@ impl SpotPosition {
 #[repr(packed)]
 pub struct PerpPosition {
     pub market_index: u16,
-    pub base_asset_amount: i128,
-    pub quote_asset_amount: i128,
-    pub quote_entry_amount: i128,
+    pub base_asset_amount: i64,
+    pub quote_asset_amount: i64,
+    pub quote_entry_amount: i64,
     pub last_cumulative_funding_rate: i128,
-    pub last_funding_rate_ts: i64,
     pub open_orders: u8,
-    pub open_bids: i128,
-    pub open_asks: i128,
+    pub open_bids: i64,
+    pub open_asks: i64,
     pub settled_pnl: i64,
 
     // lp stuff
-    pub lp_shares: u128,
-    pub remainder_base_asset_amount: i128,
-    pub last_net_base_asset_amount_per_lp: i128,
-    pub last_net_quote_asset_amount_per_lp: i128,
-    pub last_lp_add_time: i64,
+    pub lp_shares: u64,
+    pub remainder_base_asset_amount: i32,
+    pub last_net_base_asset_amount_per_lp: i64,
+    pub last_net_quote_asset_amount_per_lp: i64,
 }
 
 impl PerpPosition {
@@ -305,9 +316,9 @@ impl PerpPosition {
                 .checked_abs()
                 .ok_or_else(math_error!())?
         {
-            Ok(base_asset_amount_all_bids_fill)
+            base_asset_amount_all_bids_fill.cast()
         } else {
-            Ok(base_asset_amount_all_asks_fill)
+            base_asset_amount_all_asks_fill.cast()
         }
     }
 
@@ -332,12 +343,12 @@ impl PerpPosition {
             return Ok(0);
         }
 
-        (-self.quote_entry_amount)
+        (-self.quote_entry_amount.cast::<i128>()?)
             .checked_mul(PRICE_PRECISION_I128)
             .ok_or_else(math_error!())?
             .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)
             .ok_or_else(math_error!())?
-            .checked_div(self.base_asset_amount)
+            .checked_div(self.base_asset_amount.cast()?)
             .ok_or_else(math_error!())
     }
 
@@ -346,12 +357,12 @@ impl PerpPosition {
             return Ok(0);
         }
 
-        (-self.quote_asset_amount)
+        (-self.quote_asset_amount.cast::<i128>()?)
             .checked_mul(PRICE_PRECISION_I128)
             .ok_or_else(math_error!())?
             .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)
             .ok_or_else(math_error!())?
-            .checked_div(self.base_asset_amount)
+            .checked_div(self.base_asset_amount.cast()?)
             .ok_or_else(math_error!())
     }
 
@@ -375,7 +386,8 @@ impl PerpPosition {
             // realized by reducing/closing position
             let max_positive_pnl = self
                 .quote_asset_amount
-                .checked_sub(self.quote_entry_amount)
+                .cast::<i128>()?
+                .checked_sub(self.quote_entry_amount.cast()?)
                 .map(|delta| delta.max(0))
                 .ok_or_else(math_error!())?
                 .checked_add(pnl_pool_excess.max(0))
@@ -388,7 +400,7 @@ impl PerpPosition {
     }
 }
 
-pub type UserPositions = [PerpPosition; 5];
+pub type PerpPositions = [PerpPosition; 8];
 
 #[zero_copy]
 #[repr(packed)]
@@ -399,25 +411,25 @@ pub struct Order {
     pub market_type: MarketType,
     pub ts: i64,
     pub slot: u64,
-    pub order_id: u64,
+    pub order_id: u32,
     pub user_order_id: u8,
     pub market_index: u16,
-    pub price: u128,
+    pub price: u64,
     pub existing_position_direction: PositionDirection,
-    pub base_asset_amount: u128,
-    pub base_asset_amount_filled: u128,
-    pub quote_asset_amount_filled: u128,
-    pub fee: i128,
+    pub base_asset_amount: u64,
+    pub base_asset_amount_filled: u64,
+    pub quote_asset_amount_filled: u64,
+    pub fee: i64,
     pub direction: PositionDirection,
     pub reduce_only: bool,
     pub post_only: bool,
     pub immediate_or_cancel: bool,
-    pub trigger_price: u128,
+    pub trigger_price: u64,
     pub trigger_condition: OrderTriggerCondition,
     pub triggered: bool,
-    pub oracle_price_offset: i128,
-    pub auction_start_price: u128,
-    pub auction_end_price: u128,
+    pub oracle_price_offset: i64,
+    pub auction_start_price: u64,
+    pub auction_end_price: u64,
     pub auction_duration: u8,
     pub time_in_force: u8,
 }
@@ -443,7 +455,7 @@ impl Order {
         let price = if self.has_oracle_price_offset() {
             if let Some(oracle_price) = valid_oracle_price {
                 let limit_price = oracle_price
-                    .checked_add(self.oracle_price_offset)
+                    .checked_add(self.oracle_price_offset as i128)
                     .ok_or_else(math_error!())?;
 
                 if limit_price <= 0 {
@@ -461,9 +473,9 @@ impl Order {
             OrderType::Market | OrderType::TriggerMarket
         ) {
             if !is_auction_complete(self.slot, self.auction_duration, slot)? {
-                calculate_auction_price(self, slot)?
+                calculate_auction_price(self, slot)? as u128
             } else if self.price != 0 {
-                self.price
+                self.price as u128
             } else {
                 match amm {
                     Some(amm) => match self.direction {
@@ -504,13 +516,13 @@ impl Order {
                 }
             }
         } else {
-            self.price
+            self.price as u128
         };
 
         Ok(price)
     }
 
-    pub fn get_base_asset_amount_unfilled(&self) -> ClearingHouseResult<u128> {
+    pub fn get_base_asset_amount_unfilled(&self) -> ClearingHouseResult<u64> {
         self.base_asset_amount
             .checked_sub(self.base_asset_amount_filled)
             .ok_or_else(math_error!())
@@ -787,5 +799,25 @@ impl UserStats {
         self.taker_volume_30d
             .checked_add(self.maker_volume_30d)
             .ok_or_else(math_error!())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::state::user::{Order, PerpPosition, SpotPosition, User};
+
+    #[test]
+    fn test() {
+        let user_size = std::mem::size_of::<User>();
+        println!("user_size {}", user_size);
+
+        let perp_position_size = std::mem::size_of::<PerpPosition>();
+        println!("perp_position_size {}", perp_position_size);
+
+        let spot_position_size = std::mem::size_of::<SpotPosition>();
+        println!("spot_position_size {}", spot_position_size);
+
+        let order_size = std::mem::size_of::<Order>();
+        println!("order_size {}", order_size);
     }
 }

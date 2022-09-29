@@ -1,11 +1,16 @@
 use solana_program::native_token::LAMPORTS_PER_SOL;
 pub const LAMPORTS_PER_SOL_I128: i128 = LAMPORTS_PER_SOL as i128;
+pub const LAMPORTS_PER_SOL_I64: i64 = LAMPORTS_PER_SOL as i64;
 
 // PRECISIONS
 pub const AMM_RESERVE_PRECISION: u128 = 1_000_000_000; //expo = -9;
 pub const BASE_PRECISION: u128 = AMM_RESERVE_PRECISION; //expo = -9;
+pub const BASE_PRECISION_U64: u64 = AMM_RESERVE_PRECISION as u64; //expo = -9;
+pub const BASE_PRECISION_I64: i64 = AMM_RESERVE_PRECISION_I128 as i64; //expo = -9;
 pub const PRICE_PRECISION: u128 = 1_000_000; //expo = -6;
 pub const PRICE_PRECISION_I128: i128 = PRICE_PRECISION as i128;
+pub const PRICE_PRECISION_U64: u64 = 1_000_000; //expo = -6;
+pub const PRICE_PRECISION_I64: i64 = 1_000_000; //expo = -6;
 pub const PEG_PRECISION: u128 = 1_000_000; //expo = -6
 pub const PEG_PRECISION_I128: i128 = PEG_PRECISION as i128; //expo = -6
 pub const QUOTE_PRECISION: u128 = 1_000_000; // expo = -6
@@ -20,6 +25,7 @@ pub const BID_ASK_SPREAD_PRECISION_I128: i128 = (BID_ASK_SPREAD_PRECISION) as i1
 pub const TEN_BPS: i128 = BID_ASK_SPREAD_PRECISION_I128 / 1000;
 pub const LAMPORT_PER_SOL: u128 = LAMPORTS_PER_SOL as u128; // expo 9
 pub const LAMPORT_PER_SOL_I128: i128 = LAMPORTS_PER_SOL as i128;
+pub const LAMPORT_PER_SOL_U64: u64 = LAMPORTS_PER_SOL as u64; // expo 9
 pub const PERP_DECIMALS: u32 = 9;
 pub const CONCENTRATION_PRECISION: u128 = 1_000_000; // expo 6
 pub const IF_FACTOR_PRECISION: u128 = 1_000_000; // expo 6
@@ -27,6 +33,7 @@ pub const IF_FACTOR_PRECISION: u128 = 1_000_000; // expo 6
 pub const AMM_RESERVE_PRECISION_I128: i128 = (AMM_RESERVE_PRECISION) as i128;
 pub const BASE_PRECISION_I128: i128 = AMM_RESERVE_PRECISION_I128;
 pub const SPOT_BALANCE_PRECISION: u128 = 1_000_000_000; // expo = -9
+pub const SPOT_BALANCE_PRECISION_U64: u64 = 1_000_000_000; // expo = -9
 pub const SPOT_CUMULATIVE_INTEREST_PRECISION: u128 = 10_000_000_000; // expo = -10
 pub const SPOT_UTILIZATION_PRECISION: u128 = 1_000_000; // expo = -6
 pub const SPOT_RATE_PRECISION: u128 = 1_000_000; // expo = -6

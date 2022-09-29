@@ -1,6 +1,6 @@
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::cast_to_i128;
+use crate::math::casting::{cast_to_i128, Cast};
 use crate::math::orders::is_multiple_of_step_size;
 use crate::math_error;
 use crate::state::market::{PerpMarket, AMM};
@@ -214,7 +214,7 @@ pub fn validate_position_account(
 
     validate!(
         is_multiple_of_step_size(
-            position.base_asset_amount.unsigned_abs(),
+            position.base_asset_amount.unsigned_abs().cast()?,
             market.amm.base_asset_amount_step_size
         )?,
         ErrorCode::DefaultError,

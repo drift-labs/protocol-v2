@@ -1,9 +1,9 @@
 mod get_claimable_pnl {
     use crate::math::amm::calculate_net_user_pnl;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, MAX_CONCENTRATION_COEFFICIENT,
-        PRICE_PRECISION_I128, QUOTE_PRECISION, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I64, MAX_CONCENTRATION_COEFFICIENT,
+        PRICE_PRECISION_I128, QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
+        SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
     use crate::math::spot_balance::get_token_amount;
@@ -17,9 +17,9 @@ mod get_claimable_pnl {
     fn long_negative_unrealized_pnl() {
         let user = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: -100 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: -100 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -35,9 +35,9 @@ mod get_claimable_pnl {
     fn long_positive_unrealized_pnl_more_than_max_pnl_to_settle() {
         let user = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: -50 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: -50 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -53,9 +53,9 @@ mod get_claimable_pnl {
     fn long_positive_unrealized_pnl_more_than_max_pnl_and_pool_excess_to_settle() {
         let user = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: -50 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: -50 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -81,9 +81,9 @@ mod get_claimable_pnl {
     fn long_positive_unrealized_pnl_less_than_max_pnl_to_settle() {
         let user = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: -50 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: -50 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -99,9 +99,9 @@ mod get_claimable_pnl {
     fn long_positive_unrealized_pnl_less_than_max_pnl_and_pool_excess_to_settle() {
         let user = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: -50 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: -50 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -117,9 +117,9 @@ mod get_claimable_pnl {
     fn long_no_negative_pnl_if_already_settled_to_oracle() {
         let user = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -135,9 +135,9 @@ mod get_claimable_pnl {
     fn short_negative_unrealized_pnl() {
         let user = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: -BASE_PRECISION_I128,
-                quote_asset_amount: 100 * QUOTE_PRECISION_I128,
-                quote_entry_amount: 100 * QUOTE_PRECISION_I128,
+                base_asset_amount: -BASE_PRECISION_I64,
+                quote_asset_amount: 100 * QUOTE_PRECISION_I64,
+                quote_entry_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -153,9 +153,9 @@ mod get_claimable_pnl {
     fn short_positive_unrealized_pnl_more_than_max_pnl_to_settle() {
         let user = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: -BASE_PRECISION_I128,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: 100 * QUOTE_PRECISION_I128,
+                base_asset_amount: -BASE_PRECISION_I64,
+                quote_asset_amount: 150 * QUOTE_PRECISION_I64,
+                quote_entry_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -171,9 +171,9 @@ mod get_claimable_pnl {
     fn short_positive_unrealized_pnl_less_than_max_pnl_to_settle() {
         let user = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: -BASE_PRECISION_I128,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: 100 * QUOTE_PRECISION_I128,
+                base_asset_amount: -BASE_PRECISION_I64,
+                quote_asset_amount: 150 * QUOTE_PRECISION_I64,
+                quote_entry_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -189,9 +189,9 @@ mod get_claimable_pnl {
     fn short_no_negative_pnl_if_already_settled_to_oracle() {
         let user = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: -BASE_PRECISION_I128,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: 100 * QUOTE_PRECISION_I128,
+                base_asset_amount: -BASE_PRECISION_I64,
+                quote_asset_amount: 150 * QUOTE_PRECISION_I64,
+                quote_entry_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -239,9 +239,9 @@ mod get_claimable_pnl {
 
         let user1 = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: -BASE_PRECISION_I128,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: 100 * QUOTE_PRECISION_I128,
+                base_asset_amount: -BASE_PRECISION_I64,
+                quote_asset_amount: 150 * QUOTE_PRECISION_I64,
+                quote_entry_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -249,9 +249,9 @@ mod get_claimable_pnl {
 
         let user2 = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -50 * QUOTE_PRECISION_I128,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -50 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -259,9 +259,9 @@ mod get_claimable_pnl {
 
         let user3 = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: -100 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: -100 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -341,9 +341,9 @@ mod get_claimable_pnl {
 
         let user1 = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: -BASE_PRECISION_I128,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: 100 * QUOTE_PRECISION_I128,
+                base_asset_amount: -BASE_PRECISION_I64,
+                quote_asset_amount: 150 * QUOTE_PRECISION_I64,
+                quote_entry_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -351,9 +351,9 @@ mod get_claimable_pnl {
 
         let user2 = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: -149 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -150 * QUOTE_PRECISION_I128,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: -149 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -150 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -361,9 +361,9 @@ mod get_claimable_pnl {
 
         let user3 = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: -100 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: -100 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -488,9 +488,9 @@ mod get_claimable_pnl {
 
         let user1 = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: -BASE_PRECISION_I128,
-                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: 100 * QUOTE_PRECISION_I128,
+                base_asset_amount: -BASE_PRECISION_I64,
+                quote_asset_amount: 150 * QUOTE_PRECISION_I64,
+                quote_entry_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -498,9 +498,9 @@ mod get_claimable_pnl {
 
         let user2 = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -160 * QUOTE_PRECISION_I128,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -160 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -508,9 +508,9 @@ mod get_claimable_pnl {
 
         let user3 = User {
             perp_positions: get_positions(PerpPosition {
-                base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: -100 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -100 * QUOTE_PRECISION_I128,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: -100 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -577,7 +577,7 @@ mod get_claimable_pnl {
 
 mod get_worst_case_token_amounts {
     use crate::math::constants::{
-        PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION,
+        PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION,
     };
     use crate::state::oracle::{OraclePriceData, OracleSource};
@@ -591,7 +591,7 @@ mod get_worst_case_token_amounts {
             balance_type: SpotBalanceType::Deposit,
             balance: 0,
             open_orders: 1,
-            open_bids: 10_i128.pow(9),
+            open_bids: 10_i64.pow(9),
             open_asks: 0,
             ..SpotPosition::default()
         };
@@ -627,7 +627,7 @@ mod get_worst_case_token_amounts {
             balance: 0,
             open_orders: 1,
             open_bids: 0,
-            open_asks: -(10_i128.pow(9)),
+            open_asks: -(10_i64.pow(9)),
             ..SpotPosition::default()
         };
 
@@ -659,10 +659,10 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 2 * SPOT_BALANCE_PRECISION,
+            balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_bids: 0,
-            open_asks: -(10_i128.pow(9)),
+            open_asks: -(10_i64.pow(9)),
             ..SpotPosition::default()
         };
 
@@ -694,10 +694,10 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION,
+            balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_bids: 0,
-            open_asks: -2 * 10_i128.pow(9),
+            open_asks: -2 * 10_i64.pow(9),
             ..SpotPosition::default()
         };
 
@@ -729,10 +729,10 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 2 * SPOT_BALANCE_PRECISION,
+            balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_bids: 0,
-            open_asks: 10_i128.pow(9),
+            open_asks: 10_i64.pow(9),
             ..SpotPosition::default()
         };
 
@@ -764,9 +764,9 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Borrow,
-            balance: 2 * SPOT_BALANCE_PRECISION,
+            balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
-            open_bids: 10_i128.pow(9),
+            open_bids: 10_i64.pow(9),
             open_asks: 0,
             ..SpotPosition::default()
         };
@@ -800,9 +800,9 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Borrow,
-            balance: 2 * SPOT_BALANCE_PRECISION,
+            balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
-            open_bids: 5 * 10_i128.pow(9),
+            open_bids: 5 * 10_i64.pow(9),
             open_asks: 0,
             ..SpotPosition::default()
         };
@@ -836,10 +836,10 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Borrow,
-            balance: 2 * SPOT_BALANCE_PRECISION,
+            balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_bids: 0,
-            open_asks: -(10_i128.pow(9)),
+            open_asks: -(10_i64.pow(9)),
             ..SpotPosition::default()
         };
 

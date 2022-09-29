@@ -5,7 +5,7 @@ use crate::math::amm::{
     calculate_quote_asset_amount_swapped, calculate_spread_reserves, get_spread_reserves,
     get_update_k_result,
 };
-use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128};
+use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128, Cast};
 use crate::math::constants::{
     CONCENTRATION_PRECISION, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT,
     PRICE_TO_PEG_PRECISION_RATIO,
@@ -77,11 +77,11 @@ fn calculate_quote_asset_amount_surplus(
 
 pub fn swap_base_asset(
     amm: &mut AMM,
-    base_asset_swap_amount: u128,
+    base_asset_swap_amount: u64,
     direction: SwapDirection,
     now: i64,
     precomputed_reserve_price: Option<u128>,
-) -> ClearingHouseResult<(u128, i128)> {
+) -> ClearingHouseResult<(u64, i64)> {
     let position_direction = match direction {
         SwapDirection::Add => PositionDirection::Short,
         SwapDirection::Remove => PositionDirection::Long,
@@ -114,15 +114,15 @@ pub fn swap_base_asset(
 
     Ok((
         quote_asset_amount,
-        cast_to_i128(quote_asset_amount_surplus)?,
+        quote_asset_amount_surplus.cast::<i64>()?,
     ))
 }
 
 pub fn calculate_base_swap_output_with_spread(
     amm: &AMM,
-    base_asset_swap_amount: u128,
+    base_asset_swap_amount: u64,
     direction: SwapDirection,
-) -> ClearingHouseResult<(u128, u128, u128, u128)> {
+) -> ClearingHouseResult<(u128, u128, u64, u64)> {
     // first do the swap with spread reserves to figure out how much base asset is acquired
     let (base_asset_reserve_with_spread, quote_asset_reserve_with_spread) = get_spread_reserves(
         amm,
@@ -133,7 +133,7 @@ pub fn calculate_base_swap_output_with_spread(
     )?;
 
     let (new_quote_asset_reserve_with_spread, _) = amm::calculate_swap_output(
-        base_asset_swap_amount,
+        base_asset_swap_amount.cast()?,
         base_asset_reserve_with_spread,
         direction,
         amm.sqrt_k,
@@ -147,7 +147,7 @@ pub fn calculate_base_swap_output_with_spread(
     )?;
 
     let (new_quote_asset_reserve, new_base_asset_reserve) = amm::calculate_swap_output(
-        base_asset_swap_amount,
+        base_asset_swap_amount.cast()?,
         amm.base_asset_reserve,
         direction,
         amm.sqrt_k,
@@ -170,8 +170,8 @@ pub fn calculate_base_swap_output_with_spread(
     Ok((
         new_base_asset_reserve,
         new_quote_asset_reserve,
-        quote_asset_amount,
-        quote_asset_amount_surplus,
+        quote_asset_amount.cast::<u64>()?,
+        quote_asset_amount_surplus.cast::<u64>()?,
     ))
 }
 

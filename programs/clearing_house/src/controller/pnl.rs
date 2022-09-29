@@ -9,9 +9,9 @@ use crate::controller::spot_balance::update_spot_market_cumulative_interest;
 use crate::controller::spot_position::update_spot_position_balance;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::calculate_net_user_pnl;
-use crate::math::casting::cast;
 use crate::math::casting::cast_to_i128;
 use crate::math::casting::cast_to_i64;
+use crate::math::casting::{cast, Cast};
 use crate::math::margin::meets_maintenance_margin_requirement;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_settlement_price;
 use crate::math::spot_balance::get_token_amount;
@@ -150,7 +150,7 @@ pub fn settle_pnl(
     update_quote_asset_amount(
         &mut user.perp_positions[position_index],
         perp_market,
-        -pnl_to_settle_with_user,
+        -pnl_to_settle_with_user.cast()?,
     )?;
 
     update_settled_pnl(
@@ -264,8 +264,8 @@ pub fn settle_expired_position(
     let quote_entry_amount = user_position.quote_entry_amount;
 
     let position_delta = PositionDelta {
-        quote_asset_amount: -user_position.quote_asset_amount,
-        base_asset_amount: -user_position.base_asset_amount,
+        quote_asset_amount: -user_position.quote_asset_amount.cast()?,
+        base_asset_amount: -user_position.base_asset_amount.cast()?,
     };
 
     let _user_pnl = update_position_and_market(user_position, market, &position_delta)?;
@@ -273,7 +273,7 @@ pub fn settle_expired_position(
     market.amm.net_base_asset_amount = market
         .amm
         .net_base_asset_amount
-        .checked_add(position_delta.base_asset_amount)
+        .checked_add(position_delta.base_asset_amount.cast()?)
         .ok_or_else(math_error!())?;
 
     let quote_asset_amount_after = user_position.quote_asset_amount;
