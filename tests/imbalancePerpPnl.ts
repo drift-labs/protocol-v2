@@ -420,7 +420,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const [bid0, ask0] = examineSpread(market00, oraclePriceData00);
 		console.log(bid0.toString(), ask0.toString());
 		assert(bid0.eq(new BN(42494730)));
-		assert(ask0.eq(new BN(42526525)));
+		assert(ask0.eq(new BN(42553141)));
 
 		// sol rallys big
 		// await clearingHouse.moveAmmToPrice(

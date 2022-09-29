@@ -250,6 +250,12 @@ describe('delist market, liquidation of expired position', () => {
 
 		await clearingHouseLoser.fetchAccounts();
 		await clearingHouseLoserUser.fetchAccounts();
+		const userPos = clearingHouseLoser.getUserAccount().perpPositions[0];
+		console.log(userPos.baseAssetAmount.toString());
+		console.log(userPos.quoteAssetAmount.toString());
+		assert(userPos.baseAssetAmount.eq(new BN(205).mul(BASE_PRECISION)));
+		-8721212699
+		assert(userPos.quoteAssetAmount.eq(new BN(-8721212699)));
 
 		const clearingHouseLoserUserLeverage = convertToNumber(
 			clearingHouseLoserUser.getLeverage(),

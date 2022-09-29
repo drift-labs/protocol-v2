@@ -7,7 +7,7 @@ use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
-    CONCENTRATION_PRECISION, K_BPS_DECREASE_MAX, K_BPS_UPDATE_SCALE,
+    CONCENTRATION_PRECISION, DEFAULT_LARGE_BID_ASK_FACTOR, K_BPS_DECREASE_MAX, K_BPS_UPDATE_SCALE,
     MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION, PRICE_PRECISION,
     PRICE_PRECISION_I128, PRICE_TO_PEG_PRECISION_RATIO, PRICE_TO_QUOTE_PRECISION_RATIO,
     QUOTE_PRECISION,
@@ -212,7 +212,7 @@ pub fn calculate_spread(
 
     // inventory scale
     let inventory_scale = net_base_asset_amount
-        .checked_mul(BID_ASK_SPREAD_PRECISION_I128 * 10)
+        .checked_mul(cast_to_i128(DEFAULT_LARGE_BID_ASK_FACTOR)?)
         .ok_or_else(math_error!())?
         .checked_div(min_side_liquidity.max(1))
         .ok_or_else(math_error!())?
@@ -274,12 +274,12 @@ pub fn calculate_spread(
 
     if total_fee_minus_distributions <= 0 {
         long_spread = long_spread
-            .checked_mul(MAX_BID_ASK_INVENTORY_SKEW_FACTOR)
+            .checked_mul(DEFAULT_LARGE_BID_ASK_FACTOR)
             .ok_or_else(math_error!())?
             .checked_div(BID_ASK_SPREAD_PRECISION)
             .ok_or_else(math_error!())?;
         short_spread = short_spread
-            .checked_mul(MAX_BID_ASK_INVENTORY_SKEW_FACTOR)
+            .checked_mul(DEFAULT_LARGE_BID_ASK_FACTOR)
             .ok_or_else(math_error!())?
             .checked_div(BID_ASK_SPREAD_PRECISION)
             .ok_or_else(math_error!())?;
