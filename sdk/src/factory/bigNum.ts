@@ -290,6 +290,8 @@ export class BigNum {
 			? this.toTradePrecision()
 			: this.print();
 
+		if (!printVal.includes(BigNum.delim)) return printVal;
+
 		return printVal.replace(/0+$/g, '').replace(/\.$/, '').replace(/,$/, '');
 	}
 
