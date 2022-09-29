@@ -2,6 +2,7 @@
 pub enum PerpFulfillmentMethod {
     AMM,
     Match,
+    AMMToPrice, // fill up to price for amm
 }
 
 #[derive(Debug)]

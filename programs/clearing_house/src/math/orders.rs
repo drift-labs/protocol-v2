@@ -1,6 +1,8 @@
 use std::cmp::min;
 use std::ops::Div;
 
+use crate::validate;
+use crate::ErrorCode;
 use solana_program::msg;
 
 use crate::controller::amm::SwapDirection;
@@ -25,12 +27,29 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     market: &PerpMarket,
     valid_oracle_price: Option<i128>,
     slot: u64,
+    override_limit_price: Option<u128>,
 ) -> ClearingHouseResult<u128> {
     if order.must_be_triggered() && !order.triggered {
         return Ok(0);
     }
 
-    let limit_price = order.get_limit_price(valid_oracle_price, slot, Some(&market.amm))?;
+    let limit_price = if let Some(override_limit_price) = override_limit_price {
+        let order_limit_price =
+            order.get_limit_price(valid_oracle_price, slot, Some(&market.amm))?;
+
+        validate!(
+            (order_limit_price >= override_limit_price
+                && order.direction == PositionDirection::Long)
+                || (order_limit_price <= override_limit_price
+                    && order.direction == PositionDirection::Short),
+            ErrorCode::DefaultError,
+            "override_limit_price not better than order's limit price"
+        )?;
+
+        override_limit_price
+    } else {
+        order.get_limit_price(valid_oracle_price, slot, Some(&market.amm))?
+    };
 
     let base_asset_amount =
         calculate_base_asset_amount_to_fill_up_to_limit_price(order, market, limit_price)?;

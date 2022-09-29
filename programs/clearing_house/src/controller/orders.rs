@@ -1021,12 +1021,23 @@ fn fulfill_order(
         return Ok((0, false, true));
     }
 
-    let fulfillment_methods = determine_perp_fulfillment_methods(
-        &user.orders[user_order_index],
-        maker.is_some(),
-        valid_oracle_price.is_some(),
-        slot,
-    )?;
+    let (fulfillment_methods, potential_maker_price) = {
+        let market = perp_market_map.get_ref(&market_index)?;
+
+        determine_perp_fulfillment_methods(
+            &user.orders[user_order_index],
+            if maker.is_some() {
+                let maker_inter = maker.as_deref_mut().unwrap();
+                Some(&(maker_inter.orders[maker_order_index.unwrap()]))
+            } else {
+                None
+            },
+            &market.amm,
+            reserve_price_before,
+            valid_oracle_price,
+            slot,
+        )?
+    };
 
     if fulfillment_methods.is_empty() {
         return Ok((0, false, false));
@@ -1087,6 +1098,28 @@ fn fulfill_order(
                 fee_structure,
                 oracle_map,
                 &mut order_records,
+            )?,
+            PerpFulfillmentMethod::AMMToPrice => fulfill_order_with_amm(
+                user,
+                user_stats,
+                user_order_index,
+                market.deref_mut(),
+                oracle_map,
+                reserve_price_before,
+                now,
+                slot,
+                valid_oracle_price,
+                user_key,
+                filler_key,
+                filler,
+                filler_stats,
+                referrer,
+                referrer_stats,
+                fee_structure,
+                &mut order_records,
+                None,
+                Some(potential_maker_price),
+                true,
             )?,
         };
 
@@ -1219,6 +1252,7 @@ pub fn fulfill_order_with_amm(
                     market,
                     valid_oracle_price,
                     slot,
+                    override_fill_price,
                 )?,
                 fill_price,
             )

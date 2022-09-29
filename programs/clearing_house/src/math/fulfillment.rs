@@ -1,25 +1,49 @@
+use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
 use crate::math::auction::is_auction_complete;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
+use crate::state::market::AMM;
 use crate::state::user::Order;
 
 pub fn determine_perp_fulfillment_methods(
     taker_order: &Order,
-    maker_available: bool,
-    amm_available: bool,
+    maker_order: Option<&Order>,
+    amm: &AMM,
+    amm_reserve_price: u128,
+    valid_oracle_price: Option<i128>,
     slot: u64,
-) -> ClearingHouseResult<Vec<PerpFulfillmentMethod>> {
+) -> ClearingHouseResult<(Vec<PerpFulfillmentMethod>, u128)> {
     let mut fulfillment_methods = vec![];
 
-    if maker_available {
-        fulfillment_methods.push(PerpFulfillmentMethod::Match)
+    let is_amm_available = valid_oracle_price.is_some()
+        && is_auction_complete(taker_order.slot, taker_order.auction_duration, slot)?;
+
+    let mut maker_price = 0;
+    if let Some(maker_order) = maker_order {
+        if is_amm_available {
+            maker_price = maker_order.get_limit_price(valid_oracle_price, slot, Some(amm))?;
+
+            let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(amm_reserve_price)?;
+
+            if (taker_order.direction == PositionDirection::Long && maker_price <= amm_ask_price)
+                || (taker_order.direction == PositionDirection::Short
+                    && maker_price >= amm_bid_price)
+            {
+                fulfillment_methods.push(PerpFulfillmentMethod::Match);
+                fulfillment_methods.push(PerpFulfillmentMethod::AMM);
+            } else {
+                fulfillment_methods.push(PerpFulfillmentMethod::AMMToPrice);
+                fulfillment_methods.push(PerpFulfillmentMethod::Match);
+                fulfillment_methods.push(PerpFulfillmentMethod::AMM);
+            }
+        } else {
+            fulfillment_methods.push(PerpFulfillmentMethod::Match);
+        }
+    } else if is_amm_available {
+        fulfillment_methods.push(PerpFulfillmentMethod::AMM);
     }
 
-    if amm_available && is_auction_complete(taker_order.slot, taker_order.auction_duration, slot)? {
-        fulfillment_methods.push(PerpFulfillmentMethod::AMM)
-    }
-
-    Ok(fulfillment_methods)
+    Ok((fulfillment_methods, maker_price))
 }
 
 pub fn determine_spot_fulfillment_methods(
