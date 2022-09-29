@@ -11,10 +11,8 @@ use crate::controller::position::{
 use crate::error::ClearingHouseResult;
 use crate::get_then_update_id;
 use crate::math::amm;
-use crate::math::casting::{cast, cast_to_i128, Cast};
-use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_RATE_BUFFER, ONE_HOUR, TWENTY_FOUR_HOUR,
-};
+use crate::math::casting::{cast, cast_to_i128};
+use crate::math::constants::{FUNDING_RATE_BUFFER, ONE_HOUR, TWENTY_FOUR_HOUR};
 use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
 use crate::math::helpers::on_the_hour_update;
 use crate::math::stats::calculate_new_twap;

@@ -1,8 +1,6 @@
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
-use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, MARGIN_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION,
-};
+use crate::math::constants::{MARGIN_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION};
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
     calculate_base_asset_value_with_oracle_price,
