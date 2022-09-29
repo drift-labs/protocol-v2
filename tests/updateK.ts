@@ -46,10 +46,10 @@ describe('update k', () => {
 
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
-	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 9).mul(
 		mantissaSqrtScale
 	);
-	const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+	const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 9).mul(
 		mantissaSqrtScale
 	);
 	const usdcAmount = new BN(1e9 * 10 ** 6);
@@ -293,7 +293,14 @@ describe('update k', () => {
 				convertToNumber(userAccount.getTotalCollateral(), QUOTE_PRECISION)
 			);
 
-			// assert(amm.totalFeeMinusDistributions.lt(ammOld.totalFeeMinusDistributions));
+			assert(
+				ammKChange.totalFeeMinusDistributions.eq(
+					ammOld.totalFeeMinusDistributions
+				)
+			); // equal since no k change
+			assert(
+				amm.totalFeeMinusDistributions.gte(ammOld.totalFeeMinusDistributions)
+			); // greater/equal since user closed
 		}
 	});
 	it('lower k (2%) position imbalance (AMM PROFIT)', async () => {
@@ -312,10 +319,10 @@ describe('update k', () => {
 		console.log('taking position');
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
-			BASE_PRECISION.div(new BN(initialSOLPrice)),
+			BASE_PRECISION.div(new BN(initialSOLPrice)).mul(new BN(1000)),
 			marketIndex
 		);
-		console.log('$1 position taken');
+		console.log('$1000 position taken');
 		await clearingHouse.fetchAccounts();
 		const marketOld = await clearingHouse.getPerpMarketAccount(0);
 		assert(!marketOld.amm.netBaseAssetAmount.eq(ZERO));
@@ -334,7 +341,7 @@ describe('update k', () => {
 			.div(PRICE_PRECISION);
 		const smallTradeSlipOld = calculateTradeSlippage(
 			PositionDirection.LONG,
-			QUOTE_PRECISION,
+			QUOTE_PRECISION.mul(new BN(1000)),
 			marketOld
 		)[0];
 
@@ -355,19 +362,19 @@ describe('update k', () => {
 
 		const smallTradeSlip = calculateTradeSlippage(
 			PositionDirection.LONG,
-			QUOTE_PRECISION,
+			QUOTE_PRECISION.mul(new BN(1000)),
 			marketKChange
 		)[0];
 		console.log(
-			'$1 slippage (',
+			'$1000 slippage (',
 			convertToNumber(smallTradeSlipOld),
 			'->',
 			convertToNumber(smallTradeSlip),
 			')'
 		);
-		assert(smallTradeSlipOld.gte(smallTradeSlip));
+		assert(smallTradeSlipOld.lt(smallTradeSlip));
 
-		console.log('$1 position closing');
+		console.log('$1000 position closing');
 
 		await clearingHouse.closePosition(marketIndex);
 		console.log('$1 position closed');
@@ -406,7 +413,9 @@ describe('update k', () => {
 			convertToNumber(userAccount.getTotalCollateral(), QUOTE_PRECISION)
 		);
 
-		// assert(amm.totalFeeMinusDistributions.lt(ammOld.totalFeeMinusDistributions));
+		assert(
+			amm.totalFeeMinusDistributions.gt(ammOld.totalFeeMinusDistributions)
+		);
 	});
 	it('increase k position imbalance (AMM LOSS)', async () => {
 		const marketIndex = 0;

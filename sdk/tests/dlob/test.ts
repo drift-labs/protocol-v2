@@ -21,7 +21,7 @@ function insertOrderToDLOB(
 	orderType: OrderType,
 	marketType: MarketType,
 	orderId: BN,
-	marketIndex: BN,
+	marketIndex: number,
 	price: BN,
 	baseAssetAmount: BN,
 	direction: PositionDirection,
@@ -70,7 +70,7 @@ function insertTriggerOrderToDLOB(
 	orderType: OrderType,
 	marketType: MarketType,
 	orderId: BN,
-	marketIndex: BN,
+	marketIndex: number,
 	price: BN,
 	baseAssetAmount: BN,
 	direction: PositionDirection,
@@ -192,7 +192,7 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		const slot = 12;
 		const oracle = {
@@ -328,8 +328,8 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex0 = new BN(0);
-		const marketIndex1 = new BN(1);
+		const marketIndex0 = 0;
+		const marketIndex1 = 1;
 
 		const slot = 12;
 		const oracle = {
@@ -471,7 +471,7 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		const slot = 12;
 		const oracle = {
@@ -607,7 +607,7 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(11);
 		const vBid = new BN(10);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const oracle = {
 			price: vBid.add(vAsk).div(new BN(2)),
 			slot: new BN(12),
@@ -704,7 +704,7 @@ describe('DLOB Perp Tests', () => {
 			hasSufficientNumberOfDataPoints: true,
 		};
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		insertOrderToDLOB(
 			dlob,
 			Keypair.generate().publicKey,
@@ -841,7 +841,7 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		// insert some limit buys above vamm bid, below ask
 		insertOrderToDLOB(
@@ -965,7 +965,7 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		// insert some limit sells below vAMM ask, above bid
 		insertOrderToDLOB(
@@ -1076,7 +1076,7 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		const slot = 12;
 		const oracle = {
@@ -1248,7 +1248,7 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		const slot = 20;
 		const oracle = {
@@ -1472,7 +1472,7 @@ describe('DLOB Perp Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		const slot = 20;
 		const timeInForce = 30;
@@ -1554,7 +1554,7 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(115);
 		const vBid = new BN(100);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		const slot = 12;
 		const oracle = {
@@ -1677,8 +1677,8 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex0 = new BN(0);
-		const marketIndex1 = new BN(1);
+		const marketIndex0 = 0;
+		const marketIndex1 = 1;
 
 		const slot = 12;
 		const oracle = {
@@ -1810,7 +1810,7 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		const slot = 12;
 		const oracle = {
@@ -1934,7 +1934,7 @@ describe('DLOB Spot Tests', () => {
 			hasSufficientNumberOfDataPoints: true,
 		};
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		// 3 mkt buys
 		for (let i = 0; i < 3; i++) {
@@ -2020,7 +2020,7 @@ describe('DLOB Spot Tests', () => {
 			hasSufficientNumberOfDataPoints: true,
 		};
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		insertOrderToDLOB(
 			dlob,
 			Keypair.generate().publicKey,
@@ -2156,7 +2156,7 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		// insert some limit buys above vamm bid, below ask
 		insertOrderToDLOB(
@@ -2280,7 +2280,7 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		// insert some limit sells below vAMM ask, above bid
 		insertOrderToDLOB(
@@ -2391,7 +2391,7 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		const slot = 12;
 		const oracle = {
@@ -2563,7 +2563,7 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		const slot = 20;
 		const oracle = {
@@ -2787,7 +2787,7 @@ describe('DLOB Spot Tests', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
 		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		const slot = 20;
 		const timeInForce = 30;

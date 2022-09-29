@@ -336,6 +336,7 @@ export function calculateInventoryScale(
 	minBaseAssetReserve: BN,
 	maxBaseAssetReserve: BN
 ): number {
+	const maxScale = BID_ASK_SPREAD_PRECISION.mul(new BN(10));
 	// inventory skew
 	const [openBids, openAsks] = calculateMarketOpenBidAsk(
 		baseAssetReserve,
@@ -348,10 +349,10 @@ export function calculateInventoryScale(
 		BN.min(openBids.abs(), openAsks.abs())
 	);
 	const inventoryScale =
-		BN.min(netBaseAssetAmount.abs(), minSideLiquidity)
-			.mul(BID_ASK_SPREAD_PRECISION.mul(new BN(10)))
-			.div(minSideLiquidity)
-			.toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
+		BN.min(
+			maxScale,
+			netBaseAssetAmount.mul(maxScale).div(minSideLiquidity).abs()
+		).toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
 
 	return inventoryScale;
 }
@@ -428,7 +429,7 @@ export function calculateSpreadBN(
 		lastOracleReservePriceSpreadPct.abs().toNumber()
 	);
 
-	const MAX_INVENTORY_SKEW = 5;
+	const MAX_BID_ASK_INVENTORY_SKEW_FACTOR = 10;
 
 	const inventoryScale = calculateInventoryScale(
 		netBaseAssetAmount,
@@ -436,7 +437,10 @@ export function calculateSpreadBN(
 		minBaseAssetReserve,
 		maxBaseAssetReserve
 	);
-	const inventorySpreadScale = Math.min(MAX_INVENTORY_SKEW, 1 + inventoryScale);
+	const inventorySpreadScale = Math.min(
+		MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
+		1 + inventoryScale
+	);
 
 	if (netBaseAssetAmount.gt(ZERO)) {
 		longSpread *= inventorySpreadScale;
@@ -455,15 +459,18 @@ export function calculateSpreadBN(
 	);
 
 	if (totalFeeMinusDistributions.gt(ZERO)) {
-		const spreadScale = Math.min(MAX_INVENTORY_SKEW, 1 + effectiveLeverage);
+		const spreadScale = Math.min(
+			MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
+			1 + effectiveLeverage
+		);
 		if (netBaseAssetAmount.gt(ZERO)) {
 			longSpread *= spreadScale;
 		} else {
 			shortSpread *= spreadScale;
 		}
 	} else {
-		longSpread *= MAX_INVENTORY_SKEW;
-		shortSpread *= MAX_INVENTORY_SKEW;
+		longSpread *= MAX_BID_ASK_INVENTORY_SKEW_FACTOR;
+		shortSpread *= MAX_BID_ASK_INVENTORY_SKEW_FACTOR;
 	}
 
 	const totalSpread = longSpread + shortSpread;
