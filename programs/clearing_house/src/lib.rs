@@ -2855,6 +2855,8 @@ pub mod clearing_house {
         let quote_asset_reserve_before = market.amm.quote_asset_reserve;
         let sqrt_k_before = market.amm.sqrt_k;
 
+        let k_increasing = sqrt_k > market.amm.sqrt_k;
+
         let new_sqrt_k_u192 = bn::U192::from(sqrt_k);
 
         let update_k_result = get_update_k_result(market, new_sqrt_k_u192, true)?;
@@ -2862,6 +2864,20 @@ pub mod clearing_house {
         let adjustment_cost = math::amm::adjust_k_cost(market, &update_k_result)?;
 
         math::amm::update_k(market, &update_k_result);
+
+        if k_increasing {
+            validate!(
+                adjustment_cost >= 0,
+                ErrorCode::InvalidUpdateK,
+                "adjustment_cost negative when k increased",
+            )?;
+        } else {
+            validate!(
+                adjustment_cost <= 0,
+                ErrorCode::InvalidUpdateK,
+                "adjustment_cost positive when k decreased",
+            )?;
+        }
 
         if adjustment_cost > 0 {
             let max_cost = market
@@ -2879,13 +2895,13 @@ pub mod clearing_house {
         market.amm.total_fee_minus_distributions = market
             .amm
             .total_fee_minus_distributions
-            .checked_add(adjustment_cost)
+            .checked_sub(adjustment_cost)
             .ok_or_else(math_error!())?;
 
         market.amm.net_revenue_since_last_funding = market
             .amm
             .net_revenue_since_last_funding
-            .checked_add(adjustment_cost as i64)
+            .checked_sub(adjustment_cost as i64)
             .ok_or_else(math_error!())?;
 
         let amm = &market.amm;
