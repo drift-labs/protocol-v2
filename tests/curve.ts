@@ -1,12 +1,13 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
-import { BASE_PRECISION, BN } from '../sdk';
 import {
 	Admin,
 	PRICE_PRECISION,
 	PEG_PRECISION,
 	QUOTE_PRECISION,
+	BASE_PRECISION,
+	BN,
 	calculateReservePrice,
 	calculateTargetPriceTrade,
 	ClearingHouseUser,
