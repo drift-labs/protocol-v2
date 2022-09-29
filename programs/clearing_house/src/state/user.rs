@@ -259,7 +259,6 @@ pub struct PerpPosition {
     pub quote_asset_amount: i64,
     pub quote_entry_amount: i64,
     pub last_cumulative_funding_rate: i128,
-    pub last_funding_rate_ts: i64,
     pub open_orders: u8,
     pub open_bids: i64,
     pub open_asks: i64,

@@ -66,14 +66,12 @@ pub fn settle_funding_payment(
             market_index: market_position.market_index,
             funding_payment: market_funding_payment, //10e13
             user_last_cumulative_funding: market_position.last_cumulative_funding_rate, //10e14
-            user_last_funding_rate_ts: market_position.last_funding_rate_ts,
             amm_cumulative_funding_long: amm.cumulative_funding_rate_long, //10e14
             amm_cumulative_funding_short: amm.cumulative_funding_rate_short, //10e14
-            base_asset_amount: market_position.base_asset_amount,          //10e13
+            base_asset_amount: market_position.base_asset_amount, //10e13
         });
 
         market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate;
-        market_position.last_funding_rate_ts = amm.last_funding_rate_ts;
         update_quote_asset_amount(market_position, market, market_funding_payment)?;
     }
 
@@ -113,14 +111,12 @@ pub fn settle_funding_payments(
                 market_index: market_position.market_index,
                 funding_payment: market_funding_payment, //10e13
                 user_last_cumulative_funding: market_position.last_cumulative_funding_rate, //10e14
-                user_last_funding_rate_ts: market_position.last_funding_rate_ts,
                 amm_cumulative_funding_long: amm.cumulative_funding_rate_long, //10e14
                 amm_cumulative_funding_short: amm.cumulative_funding_rate_short, //10e14
-                base_asset_amount: market_position.base_asset_amount,          //10e13
+                base_asset_amount: market_position.base_asset_amount, //10e13
             });
 
             market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate;
-            market_position.last_funding_rate_ts = amm.last_funding_rate_ts;
             update_quote_asset_amount(market_position, market, market_funding_payment)?;
         }
     }

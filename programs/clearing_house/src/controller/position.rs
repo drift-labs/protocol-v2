@@ -95,7 +95,6 @@ pub fn update_amm_position(
     match update_type {
         PositionUpdateType::Close => {
             position.last_cumulative_funding_rate = 0;
-            position.last_funding_rate_ts = 0;
         }
         PositionUpdateType::Open | PositionUpdateType::Flip => {
             if new_base_asset_amount > 0 {
@@ -394,7 +393,6 @@ pub fn update_position_and_market(
     // Update user position
     if let PositionUpdateType::Close = update_type {
         position.last_cumulative_funding_rate = 0;
-        position.last_funding_rate_ts = 0;
     } else if matches!(
         update_type,
         PositionUpdateType::Open | PositionUpdateType::Flip
@@ -1388,7 +1386,6 @@ mod test {
             quote_asset_amount: -10,
             quote_entry_amount: -10,
             last_cumulative_funding_rate: 1,
-            last_funding_rate_ts: 1,
             ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
@@ -1416,7 +1413,6 @@ mod test {
         assert_eq!(existing_position.quote_entry_amount, 0);
         assert_eq!(pnl, 5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
-        assert_eq!(existing_position.last_funding_rate_ts, 0);
 
         assert_eq!(market.open_interest, 1);
         assert_eq!(market.base_asset_amount_long, 1);
@@ -1436,7 +1432,6 @@ mod test {
             quote_asset_amount: -10,
             quote_entry_amount: -10,
             last_cumulative_funding_rate: 1,
-            last_funding_rate_ts: 1,
             ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
@@ -1464,7 +1459,6 @@ mod test {
         assert_eq!(existing_position.quote_entry_amount, 0);
         assert_eq!(pnl, -5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
-        assert_eq!(existing_position.last_funding_rate_ts, 0);
 
         assert_eq!(market.open_interest, 1);
         assert_eq!(market.base_asset_amount_long, 1);
@@ -1483,7 +1477,6 @@ mod test {
             quote_asset_amount: 10,
             quote_entry_amount: 10,
             last_cumulative_funding_rate: 1,
-            last_funding_rate_ts: 1,
             ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
@@ -1510,7 +1503,6 @@ mod test {
         assert_eq!(existing_position.quote_entry_amount, 0);
         assert_eq!(pnl, 5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
-        assert_eq!(existing_position.last_funding_rate_ts, 0);
 
         assert_eq!(market.open_interest, 1);
         assert_eq!(market.base_asset_amount_long, 0);
@@ -1528,7 +1520,6 @@ mod test {
             quote_asset_amount: 10,
             quote_entry_amount: 10,
             last_cumulative_funding_rate: 1,
-            last_funding_rate_ts: 1,
             ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
@@ -1555,7 +1546,6 @@ mod test {
         assert_eq!(existing_position.quote_entry_amount, 0);
         assert_eq!(pnl, -5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
-        assert_eq!(existing_position.last_funding_rate_ts, 0);
 
         assert_eq!(market.open_interest, 1);
         assert_eq!(market.base_asset_amount_long, 0);
@@ -1573,7 +1563,6 @@ mod test {
             quote_asset_amount: -10,
             quote_entry_amount: -8,
             last_cumulative_funding_rate: 1,
-            last_funding_rate_ts: 1,
             ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
@@ -1602,7 +1591,6 @@ mod test {
         assert_eq!(existing_position.quote_entry_amount, 0);
         assert_eq!(pnl, -3);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
-        assert_eq!(existing_position.last_funding_rate_ts, 0);
 
         assert_eq!(market.open_interest, 1);
         assert_eq!(market.base_asset_amount_long, 1);
@@ -1621,7 +1609,6 @@ mod test {
             quote_asset_amount: 10,
             quote_entry_amount: 15,
             last_cumulative_funding_rate: 1,
-            last_funding_rate_ts: 1,
             ..PerpPosition::default()
         };
         let position_delta = PositionDelta {
@@ -1649,7 +1636,6 @@ mod test {
         assert_eq!(existing_position.quote_entry_amount, 0);
         assert_eq!(pnl, 0);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
-        assert_eq!(existing_position.last_funding_rate_ts, 0);
 
         assert_eq!(market.open_interest, 1);
         assert_eq!(market.base_asset_amount_long, 0);
