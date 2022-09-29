@@ -2767,8 +2767,6 @@ pub mod delisting_test {
                 market.amm.cumulative_funding_rate_long,
                 &longer.perp_positions[0],
             )
-            .unwrap()
-            .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
             .unwrap();
             assert_eq!(longer_funding_payment, -3449991000);
 

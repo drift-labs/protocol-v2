@@ -1075,7 +1075,7 @@
         },
         {
           "name": "liquidatorMaxBaseAssetAmount",
-          "type": "u128"
+          "type": "u64"
         }
       ]
     },
@@ -2408,7 +2408,7 @@
       "args": [
         {
           "name": "minimumTradeSize",
-          "type": "u128"
+          "type": "u64"
         }
       ]
     },
@@ -3362,7 +3362,7 @@
           },
           {
             "name": "orderStepSize",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "nextFillRecordId",
@@ -3802,23 +3802,15 @@
           },
           {
             "name": "baseAssetAmount",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "quoteAssetAmount",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "lpShares",
             "type": "u64"
-          },
-          {
-            "name": "userPnl",
-            "type": "i128"
-          },
-          {
-            "name": "liquidatorPnl",
-            "type": "i128"
           },
           {
             "name": "fillRecordId",
@@ -4164,7 +4156,7 @@
           },
           {
             "name": "baseAssetAmountStepSize",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "marketPosition",
@@ -4461,7 +4453,7 @@
           },
           {
             "name": "flatFillerFee",
-            "type": "u128"
+            "type": "u64"
           }
         ]
       }
@@ -5393,7 +5385,7 @@
         },
         {
           "name": "fundingPayment",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
@@ -5860,17 +5852,17 @@
         },
         {
           "name": "deltaBaseAssetAmount",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "deltaQuoteAssetAmount",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "pnl",
-          "type": "i128",
+          "type": "i64",
           "index": false
         }
       ]

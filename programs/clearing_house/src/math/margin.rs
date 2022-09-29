@@ -146,9 +146,7 @@ pub fn calculate_perp_position_value_and_pnl(
             market.amm.cumulative_funding_rate_short
         },
         market_position,
-    )?
-    .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
-    .ok_or_else(math_error!())?;
+    )?;
 
     let market_position = if market_position.is_lp() {
         // compute lp metrics
@@ -212,8 +210,8 @@ pub fn calculate_perp_position_value_and_pnl(
     let (_, unrealized_pnl) =
         calculate_base_asset_value_and_pnl_with_oracle_price(&market_position, valuation_price)?;
 
-    let total_unrealized_pnl = unrealized_funding
-        .checked_add(unrealized_pnl)
+    let total_unrealized_pnl = unrealized_pnl
+        .checked_add(unrealized_funding.cast()?)
         .ok_or_else(math_error!())?;
 
     let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount()?;
