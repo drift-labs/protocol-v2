@@ -2,7 +2,7 @@ use solana_program::msg;
 
 use crate::controller::spot_position::update_spot_position_balance;
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{IF_FACTOR_PRECISION, ONE_HOUR, TWENTY_FOUR_HOUR};
 use crate::math::spot_balance::{
     calculate_accumulated_interest, calculate_utilization, check_withdraw_limits,
@@ -39,11 +39,14 @@ pub fn update_spot_market_twap_stats(
         spot_market,
         &SpotBalanceType::Deposit,
     )?;
+    msg!("deposit_token_amount:{}", deposit_token_amount);
+
     let borrow_token_amount = get_token_amount(
         spot_market.borrow_balance,
         spot_market,
         &SpotBalanceType::Borrow,
     )?;
+    msg!("borrow_token_amount:{}", borrow_token_amount);
 
     spot_market.deposit_token_twap = cast(calculate_weighted_average(
         cast(deposit_token_amount)?,
@@ -51,6 +54,10 @@ pub fn update_spot_market_twap_stats(
         since_last,
         from_start,
     )?)?;
+    msg!(
+        "spot_market.deposit_token_twap:{}",
+        spot_market.deposit_token_twap
+    );
 
     spot_market.borrow_token_twap = cast(calculate_weighted_average(
         cast(borrow_token_amount)?,
@@ -58,15 +65,31 @@ pub fn update_spot_market_twap_stats(
         since_last,
         from_start,
     )?)?;
+    msg!(
+        "spot_market.borrow_token_twap:{}",
+        spot_market.borrow_token_twap
+    );
 
     let utilization = calculate_utilization(deposit_token_amount, borrow_token_amount)?;
+    msg!("utilization:{}", utilization);
+    msg!(
+        "spot_market.utilization_twap 1:{}",
+        spot_market.utilization_twap
+    );
 
-    spot_market.utilization_twap = cast(calculate_weighted_average(
-        cast(utilization)?,
-        cast(spot_market.utilization_twap)?,
+    let inter = calculate_weighted_average(
+        cast_to_i128(utilization)?,
+        cast_to_i128(spot_market.utilization_twap)?,
         since_last,
         from_start,
-    )?)?;
+    )?;
+    msg!("spot_market.utilization_twap inter:{}", inter);
+
+    spot_market.utilization_twap = cast_to_u128(inter)?;
+    msg!(
+        "spot_market.utilization_twap 2 :{}",
+        spot_market.utilization_twap
+    );
 
     if let Some(oracle_price_data) = oracle_price_data {
         let capped_oracle_update_price = oracle_price_data.price;
@@ -88,6 +111,10 @@ pub fn update_spot_market_twap_stats(
             spot_market.historical_oracle_data.last_oracle_price_twap_ts,
             (60 * 5) as i64,
         )?;
+        msg!(
+            "spot_market.oracle_price_twap_5min:{}",
+            oracle_price_twap_5min
+        );
 
         spot_market.historical_oracle_data.last_oracle_price_twap = oracle_price_twap;
         spot_market
@@ -99,6 +126,7 @@ pub fn update_spot_market_twap_stats(
         spot_market.historical_oracle_data.last_oracle_delay = oracle_price_data.delay;
         spot_market.historical_oracle_data.last_oracle_price_twap_ts = now;
     }
+    msg!("now:{}", now);
 
     spot_market.last_twap_ts = cast_to_u64(now)?;
 
@@ -118,6 +146,12 @@ pub fn update_spot_market_cumulative_interest(
         deposit_interest,
         borrow_interest,
     } = calculate_accumulated_interest(spot_market, now)?;
+
+    msg!(
+        "deposit_interest:{}, borrow_interest:{}",
+        deposit_interest,
+        borrow_interest
+    );
 
     if deposit_interest > 0 && borrow_interest > 1 {
         // borrowers -> lenders IF fee here

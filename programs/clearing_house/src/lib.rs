@@ -729,16 +729,20 @@ pub mod clearing_house {
             remaining_accounts_iter,
         )?;
         let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+        msg!("calc amount");
 
         let amount = {
             let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
             let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+            msg!("update_spot_market_cumulative_interest");
 
             controller::spot_balance::update_spot_market_cumulative_interest(
                 spot_market,
                 Some(oracle_price_data),
                 now,
             )?;
+
+            msg!("spot_market.market_index:{}", spot_market.market_index);
 
             let spot_position = user.force_get_spot_position_mut(spot_market.market_index)?;
 

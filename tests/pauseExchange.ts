@@ -9,9 +9,16 @@ import {
 	PRICE_PRECISION,
 	PositionDirection,
 	ExchangeStatus,
+	OracleSource,
+	isVariant,
 } from '../sdk/src';
 
-import { mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
+import {
+	mockOracle,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	initializeQuoteSpotMarket,
+} from './testHelpers';
 
 describe('admin withdraw', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -39,23 +46,39 @@ describe('admin withdraw', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
+		const solOracle = await mockOracle(30);
+		const periodicity = new BN(60 * 60); // 1 HOUR
+
 		clearingHouse = new Admin({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeUserId: 0,
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0, 1],
+			oracleInfos: [
+				{
+					publicKey: solOracle,
+					source: OracleSource.PYTH,
+				},
+			],
+			userStats: true,
 		});
+
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
 
-		const solUsd = anchor.web3.Keypair.generate();
-		const periodicity = new BN(60 * 60); // 1 HOUR
-
 		await clearingHouse.initializeMarket(
-			solUsd.publicKey,
+			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
+
+		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -78,14 +101,14 @@ describe('admin withdraw', () => {
 	it('Pause exchange', async () => {
 		await clearingHouse.updateExchangeStatus(ExchangeStatus.PAUSED);
 		const state = clearingHouse.getStateAccount();
-		assert(state.exchangePaused);
+		assert(isVariant(state.exchangeStatus, 'paused'));
 	});
 
 	it('Block open position', async () => {
 		try {
 			await clearingHouse.openPosition(PositionDirection.LONG, usdcAmount, 0);
 		} catch (e) {
-			assert(e.msg, 'Exchange is paused');
+			assert(e.message.includes('0x1788')); //Error Number: 6024. Error Message: Exchange is paused.
 			return;
 		}
 		console.assert(false);
@@ -95,7 +118,9 @@ describe('admin withdraw', () => {
 		try {
 			await clearingHouse.closePosition(0);
 		} catch (e) {
-			assert(e.msg, 'Exchange is paused');
+			console.log(e.msg);
+
+			assert(e.message.includes('0x1788'));
 			return;
 		}
 		console.assert(false);
@@ -109,7 +134,8 @@ describe('admin withdraw', () => {
 				userUSDCAccount.publicKey
 			);
 		} catch (e) {
-			assert(e.msg, 'Exchange is paused');
+			console.log(e.message);
+			assert(e.message.includes('0x1788'));
 			return;
 		}
 		console.assert(false);

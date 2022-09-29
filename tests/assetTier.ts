@@ -197,6 +197,8 @@ describe('asset tiers', () => {
 		assert(isVariant(quoteMarket.assetTier, 'collateral'));
 
 		await clearingHouse.updateSpotMarketAssetTier(0, AssetTier.PROTECTED);
+		await clearingHouse.fetchAccounts();
+
 		const quoteMarketAfter = clearingHouse.getSpotMarketAccount(0);
 		assert(isVariant(quoteMarketAfter.assetTier, 'protected'));
 		console.log('updateSpotMarketAssetTier for USDC to PROTECTED');

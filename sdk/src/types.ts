@@ -406,24 +406,20 @@ export type OrderActionRecord = {
 
 export type StateAccount = {
 	admin: PublicKey;
-	fundingPaused: boolean;
-	exchangePaused: boolean;
-	adminControlsPrices: boolean;
-	totalFee: BN;
-	totalFeeWithdrawn: BN;
+	exchangeStatus: ExchangeStatus;
 	whitelistMint: PublicKey;
 	discountMint: PublicKey;
 	oracleGuardRails: OracleGuardRails;
-	maxDeposit: BN;
 	numberOfMarkets: number;
 	numberOfSpotMarkets: number;
 	minOrderQuoteAssetAmount: BN;
-	signer: PublicKey;
-	signerNonce: number;
-	defaultMarketOrderTimeInForce: number;
 	minPerpAuctionDuration: number;
+	defaultMarketOrderTimeInForce: number;
 	defaultSpotAuctionDuration: number;
 	liquidationMarginBufferRatio: number;
+	settlementDuration: number;
+	signer: PublicKey;
+	signerNonce: number;
 	srmVault: PublicKey;
 	perpFeeStructure: FeeStructure;
 	spotFeeStructure: FeeStructure;
