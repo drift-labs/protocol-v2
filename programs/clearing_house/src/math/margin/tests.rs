@@ -375,7 +375,7 @@ mod test {
         };
 
         let position = PerpPosition {
-            lp_shares: market.amm.user_lp_shares,
+            lp_shares: market.amm.user_lp_shares as u64,
             ..PerpPosition::default()
         };
 
@@ -442,7 +442,7 @@ mod test {
         };
 
         let position = PerpPosition {
-            lp_shares: market.amm.user_lp_shares,
+            lp_shares: market.amm.user_lp_shares as u64,
             ..PerpPosition::default()
         };
 

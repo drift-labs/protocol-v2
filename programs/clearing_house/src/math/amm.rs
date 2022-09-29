@@ -1470,8 +1470,8 @@ mod test {
     use crate::controller::lp::mint_lp_shares;
     use crate::controller::lp::settle_lp_position;
     use crate::math::constants::{
-        BID_ASK_SPREAD_PRECISION, K_BPS_INCREASE_MAX, MAX_CONCENTRATION_COEFFICIENT,
-        PRICE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
+        BASE_PRECISION_U64, BID_ASK_SPREAD_PRECISION, K_BPS_INCREASE_MAX,
+        MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
     };
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::user::PerpPosition;
@@ -2785,7 +2785,7 @@ mod test {
             ..PerpPosition::default()
         };
 
-        mint_lp_shares(&mut position, &mut market, AMM_RESERVE_PRECISION, 0).unwrap();
+        mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
 
         market.amm.market_position_per_lp = PerpPosition {
             base_asset_amount: 1,
@@ -2803,7 +2803,7 @@ mod test {
         assert_eq!(position.last_net_base_asset_amount_per_lp, 1);
         assert_eq!(
             position.last_net_quote_asset_amount_per_lp,
-            -QUOTE_PRECISION_I128
+            -QUOTE_PRECISION_I64
         );
 
         // increase k by 1%
@@ -2826,8 +2826,8 @@ mod test {
         assert_eq!(cost, 49400); //0.05
 
         // lp whale adds
-        let lp_whale_amount = 1000 * AMM_RESERVE_PRECISION;
-        mint_lp_shares(&mut position, &mut market, lp_whale_amount, 0).unwrap();
+        let lp_whale_amount = 1000 * BASE_PRECISION_U64;
+        mint_lp_shares(&mut position, &mut market, lp_whale_amount).unwrap();
 
         // ensure same cost
         let update_k_up =
@@ -2867,7 +2867,7 @@ mod test {
         assert_eq!(cost, -1407000); //0.05
 
         // lp owns 50% of vAMM, same k
-        position.lp_shares = 50 * AMM_RESERVE_PRECISION;
+        position.lp_shares = 50 * BASE_PRECISION_U64;
         market.amm.user_lp_shares = 50 * AMM_RESERVE_PRECISION;
         // cost to increase k is always positive when imbalanced
         let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
@@ -2878,14 +2878,14 @@ mod test {
         assert_eq!(cost, 187800); //0.19
 
         // lp owns 99% of vAMM, same k
-        position.lp_shares = 99 * AMM_RESERVE_PRECISION;
+        position.lp_shares = 99 * BASE_PRECISION_U64;
         market.amm.user_lp_shares = 99 * AMM_RESERVE_PRECISION;
         let cost2 = adjust_k_cost(&mut market, &update_k_up).unwrap();
         assert!(cost2 > cost);
         assert_eq!(cost2, 76804900); //216.45
 
         // lp owns 100% of vAMM, same k
-        position.lp_shares = 100 * AMM_RESERVE_PRECISION;
+        position.lp_shares = 100 * BASE_PRECISION_U64;
         market.amm.user_lp_shares = 100 * AMM_RESERVE_PRECISION;
         let cost3 = adjust_k_cost(&mut market, &update_k_up).unwrap();
         assert!(cost3 > cost);

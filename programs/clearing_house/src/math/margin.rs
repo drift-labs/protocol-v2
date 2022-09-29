@@ -168,7 +168,7 @@ pub fn calculate_perp_position_value_and_pnl(
         // dust position in baa/qaa
         if lp_metrics.remainder_base_asset_amount != 0 {
             let dust_base_asset_value = calculate_base_asset_value_with_oracle_price(
-                lp_metrics.remainder_base_asset_amount,
+                lp_metrics.remainder_base_asset_amount.cast()?,
                 oracle_price_data.price,
             )?
             .checked_add(1)

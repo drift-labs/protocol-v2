@@ -38,6 +38,7 @@ pub struct User {
     pub being_liquidated: bool,
     pub bankrupt: bool,
     pub custom_margin_ratio: u32,
+    pub last_lp_add_time: i64,
 }
 
 impl User {
@@ -265,11 +266,10 @@ pub struct PerpPosition {
     pub settled_pnl: i64,
 
     // lp stuff
-    pub lp_shares: u128,
-    pub remainder_base_asset_amount: i128,
-    pub last_net_base_asset_amount_per_lp: i128,
-    pub last_net_quote_asset_amount_per_lp: i128,
-    pub last_lp_add_time: i64,
+    pub lp_shares: u64,
+    pub remainder_base_asset_amount: i32,
+    pub last_net_base_asset_amount_per_lp: i64,
+    pub last_net_quote_asset_amount_per_lp: i64,
 }
 
 impl PerpPosition {

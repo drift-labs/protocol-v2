@@ -19,13 +19,9 @@ use anchor_lang::prelude::{msg, Pubkey};
 pub fn mint_lp_shares(
     position: &mut PerpPosition,
     market: &mut PerpMarket,
-    n_shares: u128,
-    now: i64,
+    n_shares: u64,
 ) -> ClearingHouseResult<()> {
     let amm = market.amm;
-
-    // update add liquidity time
-    position.last_lp_add_time = now;
 
     let (sqrt_k,) = get_struct_values!(amm, sqrt_k);
 
@@ -48,7 +44,9 @@ pub fn mint_lp_shares(
         .ok_or_else(math_error!())?;
 
     // update market state
-    let new_sqrt_k = sqrt_k.checked_add(n_shares).ok_or_else(math_error!())?;
+    let new_sqrt_k = sqrt_k
+        .checked_add(n_shares.cast()?)
+        .ok_or_else(math_error!())?;
     let new_sqrt_k_u192 = U192::from(new_sqrt_k);
 
     let update_k_result = get_update_k_result(market, new_sqrt_k_u192, true)?;
@@ -57,7 +55,7 @@ pub fn mint_lp_shares(
     market.amm.user_lp_shares = market
         .amm
         .user_lp_shares
-        .checked_add(n_shares)
+        .checked_add(n_shares.cast()?)
         .ok_or_else(math_error!())?;
 
     crate::controller::validate::validate_market_account(market)?;
@@ -77,11 +75,12 @@ pub fn settle_lp_position(
         .checked_add(lp_metrics.remainder_base_asset_amount)
         .ok_or_else(math_error!())?;
 
-    if position.remainder_base_asset_amount.unsigned_abs() >= market.amm.base_asset_amount_step_size
+    if position.remainder_base_asset_amount.unsigned_abs()
+        >= market.amm.base_asset_amount_step_size.cast()?
     {
         let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
             crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
-                position.remainder_base_asset_amount,
+                position.remainder_base_asset_amount.cast()?,
                 market.amm.base_asset_amount_step_size,
             )?;
 
@@ -90,7 +89,7 @@ pub fn settle_lp_position(
             .checked_add(standardized_remainder_base_asset_amount)
             .ok_or_else(math_error!())?;
 
-        position.remainder_base_asset_amount = remainder_base_asset_amount;
+        position.remainder_base_asset_amount = remainder_base_asset_amount.cast()?;
     }
 
     let position_delta = PositionDelta {
@@ -151,7 +150,7 @@ pub fn settle_lp(
 pub fn burn_lp_shares(
     position: &mut PerpPosition,
     market: &mut PerpMarket,
-    shares_to_burn: u128,
+    shares_to_burn: u64,
     oracle_price: i128,
 ) -> ClearingHouseResult<(PositionDelta, i128)> {
     if shares_to_burn == 0 {
@@ -165,10 +164,10 @@ pub fn burn_lp_shares(
     let unsettled_remainder = market
         .amm
         .net_unsettled_lp_base_asset_amount
-        .checked_add(position.remainder_base_asset_amount)
+        .checked_add(position.remainder_base_asset_amount.cast()?)
         .ok_or_else(math_error!())?;
 
-    if shares_to_burn == market.amm.user_lp_shares && unsettled_remainder != 0 {
+    if shares_to_burn == market.amm.user_lp_shares.cast()? && unsettled_remainder != 0 {
         crate::validate!(
             unsettled_remainder.unsigned_abs() <= market.amm.base_asset_amount_step_size,
             ErrorCode::DefaultError,
@@ -180,25 +179,25 @@ pub fn burn_lp_shares(
         // sub bc lps take the opposite side of the user
         position.remainder_base_asset_amount = position
             .remainder_base_asset_amount
-            .checked_sub(unsettled_remainder)
+            .checked_sub(unsettled_remainder.cast()?)
             .ok_or_else(math_error!())?;
     }
 
     // update stats
     if position.remainder_base_asset_amount != 0 {
-        let base_asset_amount = position.remainder_base_asset_amount;
+        let base_asset_amount = position.remainder_base_asset_amount.cast::<i128>()?;
 
         // user closes the dust
         market.amm.net_base_asset_amount = market
             .amm
             .net_base_asset_amount
-            .checked_sub(base_asset_amount)
+            .checked_sub(base_asset_amount.cast()?)
             .ok_or_else(math_error!())?;
 
         market.amm.net_unsettled_lp_base_asset_amount = market
             .amm
             .net_unsettled_lp_base_asset_amount
-            .checked_add(base_asset_amount)
+            .checked_add(base_asset_amount.cast()?)
             .ok_or_else(math_error!())?;
 
         position.remainder_base_asset_amount = 0;
@@ -229,14 +228,14 @@ pub fn burn_lp_shares(
     market.amm.user_lp_shares = market
         .amm
         .user_lp_shares
-        .checked_sub(shares_to_burn)
+        .checked_sub(shares_to_burn.cast()?)
         .ok_or_else(math_error!())?;
 
     // update market state
     let new_sqrt_k = market
         .amm
         .sqrt_k
-        .checked_sub(shares_to_burn)
+        .checked_sub(shares_to_burn.cast()?)
         .ok_or_else(math_error!())?;
     let new_sqrt_k_u192 = U192::from(new_sqrt_k);
 
@@ -252,7 +251,7 @@ pub fn burn_lp_shares(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::math::constants::AMM_RESERVE_PRECISION;
+    use crate::math::constants::{AMM_RESERVE_PRECISION, BASE_PRECISION_U64};
     use crate::state::market::AMM;
     use crate::state::user::PerpPosition;
 
@@ -263,7 +262,6 @@ mod test {
         };
 
         let amm = AMM {
-            user_lp_shares: position.lp_shares,
             base_asset_amount_step_size: 1,
             ..AMM::default_test()
         };
@@ -273,7 +271,7 @@ mod test {
         };
         let og_market = market;
 
-        mint_lp_shares(&mut position, &mut market, AMM_RESERVE_PRECISION, 0).unwrap();
+        mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
 
         market.amm.market_position_per_lp = PerpPosition {
             base_asset_amount: 10,
@@ -321,7 +319,7 @@ mod test {
             ..PerpMarket::default_test()
         };
 
-        mint_lp_shares(&mut position, &mut market, 100 * AMM_RESERVE_PRECISION, 0).unwrap();
+        mint_lp_shares(&mut position, &mut market, 100 * BASE_PRECISION_U64).unwrap();
 
         market.amm.market_position_per_lp = PerpPosition {
             base_asset_amount: -10,
@@ -353,7 +351,7 @@ mod test {
             ..PerpMarket::default_test()
         };
 
-        mint_lp_shares(&mut position, &mut market, AMM_RESERVE_PRECISION, 0).unwrap();
+        mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
 
         market.amm.market_position_per_lp = PerpPosition {
             base_asset_amount: -10,
@@ -381,7 +379,7 @@ mod test {
     #[test]
     fn test_partial_long_settle() {
         let mut position = PerpPosition {
-            lp_shares: AMM_RESERVE_PRECISION,
+            lp_shares: BASE_PRECISION_U64,
             ..PerpPosition::default()
         };
 

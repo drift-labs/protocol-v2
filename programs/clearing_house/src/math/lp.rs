@@ -15,7 +15,7 @@ use crate::state::user::PerpPosition;
 pub struct LPMetrics {
     pub base_asset_amount: i128,
     pub quote_asset_amount: i128,
-    pub remainder_base_asset_amount: i128,
+    pub remainder_base_asset_amount: i32,
 }
 
 pub fn calculate_settle_lp_metrics(
@@ -34,7 +34,7 @@ pub fn calculate_settle_lp_metrics(
     let lp_metrics = LPMetrics {
         base_asset_amount: standardized_base_asset_amount,
         quote_asset_amount,
-        remainder_base_asset_amount,
+        remainder_base_asset_amount: remainder_base_asset_amount.cast()?,
     };
 
     Ok(lp_metrics)
@@ -85,8 +85,8 @@ pub fn calculate_lp_open_bids_asks(
     let lp_shares = market_position.lp_shares;
 
     let (max_bids, max_asks) = calculate_market_open_bids_asks(&market.amm)?;
-    let open_asks = helpers::get_proportion_i128(max_asks, lp_shares, total_lp_shares)?;
-    let open_bids = helpers::get_proportion_i128(max_bids, lp_shares, total_lp_shares)?;
+    let open_asks = helpers::get_proportion_i128(max_asks, lp_shares.cast()?, total_lp_shares)?;
+    let open_bids = helpers::get_proportion_i128(max_bids, lp_shares.cast()?, total_lp_shares)?;
 
     Ok((cast(open_bids)?, cast(open_asks)?))
 }
@@ -246,11 +246,12 @@ mod test {
 
     mod calculate_settled_lp_base_quote {
         use super::*;
+        use crate::math::constants::BASE_PRECISION_U64;
 
         #[test]
         fn test_long_settle() {
             let position = PerpPosition {
-                lp_shares: 100 * AMM_RESERVE_PRECISION,
+                lp_shares: 100 * BASE_PRECISION_U64,
                 ..PerpPosition::default()
             };
 
@@ -272,7 +273,7 @@ mod test {
         #[test]
         fn test_short_settle() {
             let position = PerpPosition {
-                lp_shares: 100 * AMM_RESERVE_PRECISION,
+                lp_shares: 100 * BASE_PRECISION_U64,
                 ..PerpPosition::default()
             };
 
@@ -294,11 +295,12 @@ mod test {
 
     mod calculate_settle_lp_metrics {
         use super::*;
+        use crate::math::constants::BASE_PRECISION_U64;
 
         #[test]
         fn test_long_settle() {
             let position = PerpPosition {
-                lp_shares: 100 * AMM_RESERVE_PRECISION,
+                lp_shares: 100 * BASE_PRECISION_U64,
                 ..PerpPosition::default()
             };
 
@@ -322,7 +324,7 @@ mod test {
         #[test]
         fn test_all_remainder() {
             let position = PerpPosition {
-                lp_shares: 100 * AMM_RESERVE_PRECISION,
+                lp_shares: 100 * BASE_PRECISION_U64,
                 ..PerpPosition::default()
             };
 
@@ -346,7 +348,7 @@ mod test {
         #[test]
         fn test_portion_remainder() {
             let position = PerpPosition {
-                lp_shares: AMM_RESERVE_PRECISION,
+                lp_shares: BASE_PRECISION_U64,
                 ..PerpPosition::default()
             };
 

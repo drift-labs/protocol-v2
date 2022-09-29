@@ -43,7 +43,7 @@ pub mod clearing_house {
     use std::option::Option::Some;
 
     use crate::controller::lp::burn_lp_shares;
-    use crate::controller::position::{add_new_position, get_position_index};
+    use crate::controller::position::get_position_index;
     use crate::controller::validate::validate_market_account;
     use crate::math;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32, Cast};
@@ -1026,7 +1026,7 @@ pub mod clearing_house {
     )]
     pub fn remove_liquidity<'info>(
         ctx: Context<AddRemoveLiquidity>,
-        shares_to_burn: u128,
+        shares_to_burn: u64,
         market_index: u16,
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
@@ -1052,12 +1052,13 @@ pub mod clearing_house {
         }
 
         // standardize n shares to burn
-        let shares_to_burn = {
+        let shares_to_burn: u64 = {
             let market = market_map.get_ref(&market_index)?;
             crate::math::orders::standardize_base_asset_amount(
-                shares_to_burn,
+                shares_to_burn.cast()?,
                 market.amm.base_asset_amount_step_size,
             )?
+            .cast()?
         };
 
         if shares_to_burn == 0 {
@@ -1065,21 +1066,22 @@ pub mod clearing_house {
         }
 
         let mut market = market_map.get_ref_mut(&market_index)?;
+
+        let time_since_last_add_liquidity = now
+            .checked_sub(user.last_lp_add_time)
+            .ok_or_else(math_error!())?;
+
+        validate!(
+            time_since_last_add_liquidity >= market.amm.lp_cooldown_time,
+            ErrorCode::TryingToRemoveLiquidityTooFast
+        )?;
+
         let position_index = get_position_index(&user.perp_positions, market_index)?;
         let position = &mut user.perp_positions[position_index];
 
         validate!(
             position.lp_shares >= shares_to_burn,
             ErrorCode::InsufficientLPTokens
-        )?;
-
-        let time_since_last_add_liquidity = now
-            .checked_sub(position.last_lp_add_time)
-            .ok_or_else(math_error!())?;
-
-        validate!(
-            time_since_last_add_liquidity >= market.amm.lp_cooldown_time,
-            ErrorCode::TryingToRemoveLiquidityTooFast
         )?;
 
         let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
@@ -1105,7 +1107,7 @@ pub mod clearing_house {
     )]
     pub fn add_liquidity<'info>(
         ctx: Context<AddRemoveLiquidity>,
-        n_shares: u128,
+        n_shares: u64,
         market_index: u16,
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
@@ -1136,9 +1138,6 @@ pub mod clearing_house {
             )?;
         }
 
-        let position_index = get_position_index(&user.perp_positions, market_index)
-            .or_else(|_| add_new_position(&mut user.perp_positions, market_index))?;
-
         validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
         math::liquidation::validate_user_not_being_liquidated(
             user,
@@ -1148,13 +1147,11 @@ pub mod clearing_house {
             state.liquidation_margin_buffer_ratio,
         )?;
 
-        let position = &mut user.perp_positions[position_index];
-
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
 
             validate!(
-                n_shares >= market.amm.base_asset_amount_step_size,
+                n_shares.cast::<u128>()? >= market.amm.base_asset_amount_step_size,
                 ErrorCode::DefaultError,
                 "minting {} shares is less than step size {}",
                 n_shares,
@@ -1163,11 +1160,18 @@ pub mod clearing_house {
 
             // standardize n shares to mint
             let n_shares = crate::math::orders::standardize_base_asset_amount(
-                n_shares,
+                n_shares.cast()?,
                 market.amm.base_asset_amount_step_size,
+            )?
+            .cast::<u64>()?;
+
+            controller::lp::mint_lp_shares(
+                user.force_get_perp_position_mut(market_index)?,
+                &mut market,
+                n_shares,
             )?;
 
-            controller::lp::mint_lp_shares(position, &mut market, n_shares, now)?;
+            user.last_lp_add_time = now;
         }
 
         // check margin requirements
