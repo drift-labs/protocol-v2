@@ -8,16 +8,16 @@ fi
 test_files=(
   # imbalancePerpPnl.ts
   #  delistMarket.ts 
-   delistMarketLiq.ts
-   triggerSpotOrder.ts
-   serumTest.ts
-   liquidityProvider.ts
-   insuranceFundStake.ts
-   liquidateBorrow.ts
-   liquidateBorrowSocialLoss.ts
-   referrer.ts
-   liquidatePerpPnlForDeposit.ts liquidateBorrowForPerpPnl.ts
-   liquidatePerp.ts
+  #  delistMarketLiq.ts
+  #  triggerSpotOrder.ts
+  #  serumTest.ts
+  #  liquidityProvider.ts
+  #  insuranceFundStake.ts
+  #  liquidateBorrow.ts
+  #  liquidateBorrowSocialLoss.ts
+  #  referrer.ts
+  #  liquidatePerpPnlForDeposit.ts liquidateBorrowForPerpPnl.ts
+  #  liquidatePerp.ts
    order.ts spotDepositWithdraw.ts prepegMarketOrderBaseAssetAmount.ts
    updateAMM.ts repegAndSpread.ts
    clearingHouse.ts

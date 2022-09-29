@@ -111,10 +111,6 @@ describe('referrer', () => {
 			periodicity,
 			new BN(100).mul(PEG_PRECISION)
 		);
-		await referrerClearingHouse.updatePerpMarketStatus(
-			new BN(0),
-			MarketStatus.ACTIVE
-		);
 
 		await initializeQuoteSpotMarket(referrerClearingHouse, usdcMint.publicKey);
 
@@ -209,10 +205,7 @@ describe('referrer', () => {
 		await eventSubscriber.awaitTx(txSig);
 
 		const eventRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
-		// assert(eventRecord.referrer.equals(provider.wallet.publicKey));
 		assert(eventRecord.takerFee.eq(new BN(95000)));
-		assert(eventRecord.referrerReward.eq(new BN(15000)));
-		assert(eventRecord.refereeDiscount.eq(new BN(5000)));
 
 		await referrerClearingHouse.fetchAccounts();
 		const referrerStats = referrerClearingHouse.getUserStats().getAccount();

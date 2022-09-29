@@ -9,14 +9,6 @@ import {
 	ZERO,
 	OracleGuardRails,
 	ContractTier,
-} from '../sdk';
-import { assert } from 'chai';
-
-import { Program } from '@project-serum/anchor';
-
-import { Keypair } from '@solana/web3.js';
-
-import {
 	Admin,
 	ClearingHouse,
 	EventSubscriber,
@@ -25,6 +17,11 @@ import {
 	PositionDirection,
 	Wallet,
 } from '../sdk/src';
+import { assert } from 'chai';
+
+import { Program } from '@project-serum/anchor';
+
+import { Keypair } from '@solana/web3.js';
 
 import {
 	mockOracle,
@@ -105,7 +102,6 @@ describe('liquidate perp and lp', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
-		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
