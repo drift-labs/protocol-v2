@@ -28,6 +28,15 @@ import {
 	InsuranceFundRecord,
 	OracleGuardRails,
 	MarketStatus,
+	AMM_RESERVE_PRECISION,
+	BID_ASK_SPREAD_PRECISION,
+	calculateBidAskPrice,
+	ContractTier,
+	isVariant,
+	MARGIN_PRECISION,
+	PerpMarketAccount,
+	OraclePriceData,
+	SPOT_MARKET_BALANCE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -41,17 +50,7 @@ import {
 	printTxLogs,
 	sleep,
 } from './testHelpers';
-import {
-	AMM_RESERVE_PRECISION,
-	BID_ASK_SPREAD_PRECISION,
-	calculateBidAskPrice,
-	ContractTier,
-	isVariant,
-	MARGIN_PRECISION,
-	MarketAccount,
-	OraclePriceData,
-	SPOT_MARKET_BALANCE_PRECISION,
-} from '../sdk';
+
 import { Keypair } from '@solana/web3.js';
 
 async function depositToFeePoolFromIF(
@@ -71,7 +70,7 @@ async function depositToFeePoolFromIF(
 }
 
 function examineSpread(
-	market: MarketAccount,
+	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ) {
 	const [bid, ask] = calculateBidAskPrice(market.amm, oraclePriceData);
@@ -427,7 +426,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const [bid0, ask0] = examineSpread(market00, oraclePriceData00);
 		console.log(bid0.toString(), ask0.toString());
 		assert(bid0.eq(new BN(42494730)));
-		assert(ask0.eq(new BN(42526525)));
+		assert(ask0.eq(new BN(42553141)));
 
 		// sol rallys big
 		// await clearingHouse.moveAmmToPrice(
