@@ -938,8 +938,7 @@ mod calculate_margin_requirement_and_total_collateral {
             )
             .unwrap();
 
-        // affects maintenance margin requirement
-        // assert_eq!(maintenance_margin_requirement, 11500000000); // 100 * 100 * .05 + 100 * $100 * 1.1
-        assert_eq!(maintenance_margin_requirement, 12500000000);
+        // doesnt affect maintenance margin requirement
+        assert_eq!(maintenance_margin_requirement, 11500000000); // 100 * 100 * .05 + 100 * $100 * 1.1
     }
 }

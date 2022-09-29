@@ -1160,8 +1160,8 @@ pub mod liquidate_borrow {
         )
         .unwrap();
 
-        // assert_eq!(user.spot_positions[0].balance, 45558159000);
-        // assert_eq!(user.spot_positions[1].balance, 406768999);
+        assert_eq!(user.spot_positions[0].balance, 45558159000);
+        assert_eq!(user.spot_positions[1].balance, 406768999);
 
         let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _) =
             calculate_margin_requirement_and_total_collateral(

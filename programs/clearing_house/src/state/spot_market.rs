@@ -135,7 +135,7 @@ impl SpotMarket {
         let size_based_liability_weight = calculate_size_premium_liability_weight(
             size_in_amm_reserve_precision,
             self.imf_factor,
-            self.initial_liability_weight,
+            default_liability_weight,
             SPOT_WEIGHT_PRECISION,
         )?;
 
