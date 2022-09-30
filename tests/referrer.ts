@@ -180,9 +180,6 @@ describe('referrer', () => {
 		const newUserRecord = eventSubscriber.getEventsArray('NewUserRecord')[0];
 		assert(newUserRecord.referrer.equals(provider.wallet.publicKey));
 
-		const depositRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
-		assert(depositRecord.referrer.equals(provider.wallet.publicKey));
-
 		await refereeClearingHouse.fetchAccounts();
 		const refereeStats = refereeClearingHouse.getUserStats().getAccount();
 		assert(refereeStats.referrer.equals(provider.wallet.publicKey));
@@ -207,8 +204,7 @@ describe('referrer', () => {
 		const eventRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		// assert(eventRecord.referrer.equals(provider.wallet.publicKey));
 		assert(eventRecord.takerFee.eq(new BN(95000)));
-		assert(eventRecord.referrerReward.eq(new BN(15000)));
-		assert(eventRecord.refereeDiscount.eq(new BN(5000)));
+		assert(eventRecord.referrerReward === 15000);
 
 		await referrerClearingHouse.fetchAccounts();
 		const referrerStats = referrerClearingHouse.getUserStats().getAccount();

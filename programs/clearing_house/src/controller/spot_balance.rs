@@ -350,7 +350,7 @@ mod test {
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
-        QUOTE_PRECISION, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION,
+        QUOTE_PRECISION, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION,
         SPOT_WEIGHT_PRECISION,
     };
@@ -456,12 +456,12 @@ mod test {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION,
+            balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
-            perp_positions: [PerpPosition::default(); 5],
+            perp_positions: [PerpPosition::default(); 8],
             spot_positions,
             ..User::default()
         };
@@ -572,7 +572,7 @@ mod test {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 1,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 50 * SPOT_BALANCE_PRECISION,
+                balance: 50 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -617,7 +617,7 @@ mod test {
 
         assert_eq!(
             get_token_amount(
-                user.spot_positions[1].balance,
+                user.spot_positions[1].balance as u128,
                 &sol_spot_market,
                 &SpotBalanceType::Borrow
             )
@@ -794,12 +794,12 @@ mod test {
         spot_positions[0] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION,
+            balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
-            perp_positions: [PerpPosition::default(); 5],
+            perp_positions: [PerpPosition::default(); 8],
             spot_positions,
             ..User::default()
         };
@@ -1129,12 +1129,12 @@ mod test {
         spot_positions[0] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION,
+            balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
-            perp_positions: [PerpPosition::default(); 5],
+            perp_positions: [PerpPosition::default(); 8],
             spot_positions,
             ..User::default()
         };

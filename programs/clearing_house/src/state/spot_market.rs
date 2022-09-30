@@ -74,7 +74,7 @@ pub struct SpotMarket {
     pub if_liquidation_fee: u128, // percentage of liquidation transfer for total insurance
     pub withdraw_guard_threshold: u128, // no withdraw limits/guards when deposits below this threshold
 
-    pub order_step_size: u128,
+    pub order_step_size: u64,
     pub next_fill_record_id: u64,
     pub total_spot_fee: u128,
     pub spot_fee_pool: PoolBalance,
@@ -127,15 +127,19 @@ impl SpotMarket {
             (size * AMM_RESERVE_PRECISION) / size_precision
         };
 
-        let liability_weight = match margin_requirement_type {
-            MarginRequirementType::Initial => calculate_size_premium_liability_weight(
-                size_in_amm_reserve_precision,
-                self.imf_factor,
-                self.initial_liability_weight,
-                SPOT_WEIGHT_PRECISION,
-            )?,
+        let default_liability_weight = match margin_requirement_type {
+            MarginRequirementType::Initial => self.initial_liability_weight,
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
         };
+
+        let size_based_liability_weight = calculate_size_premium_liability_weight(
+            size_in_amm_reserve_precision,
+            self.imf_factor,
+            default_liability_weight,
+            SPOT_WEIGHT_PRECISION,
+        )?;
+
+        let liability_weight = size_based_liability_weight.max(default_liability_weight);
 
         Ok(liability_weight)
     }

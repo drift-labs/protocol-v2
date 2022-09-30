@@ -1,8 +1,6 @@
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
-use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, MARGIN_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION,
-};
+use crate::math::constants::{MARGIN_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION};
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
     calculate_base_asset_value_with_oracle_price,
@@ -12,14 +10,12 @@ use crate::math_error;
 use crate::state::user::User;
 use crate::validate;
 
-use crate::math::casting::cast_to_i128;
+use crate::math::casting::{cast_to_i128, Cast};
 use crate::math::funding::calculate_funding_payment;
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
-use crate::math::spot_balance::{
-    get_balance_value_and_token_amount, get_token_amount, get_token_value,
-};
+use crate::math::spot_balance::{get_balance_value_and_token_amount, get_token_value};
 
 use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
@@ -148,9 +144,7 @@ pub fn calculate_perp_position_value_and_pnl(
             market.amm.cumulative_funding_rate_short
         },
         market_position,
-    )?
-    .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
-    .ok_or_else(math_error!())?;
+    )?;
 
     let market_position = if market_position.is_lp() {
         // compute lp metrics
@@ -159,25 +153,25 @@ pub fn calculate_perp_position_value_and_pnl(
         // compute settled position
         let base_asset_amount = market_position
             .base_asset_amount
-            .checked_add(lp_metrics.base_asset_amount)
+            .checked_add(lp_metrics.base_asset_amount.cast()?)
             .ok_or_else(math_error!())?;
 
         let mut quote_asset_amount = market_position
             .quote_asset_amount
-            .checked_add(lp_metrics.quote_asset_amount)
+            .checked_add(lp_metrics.quote_asset_amount.cast()?)
             .ok_or_else(math_error!())?;
 
         // dust position in baa/qaa
         if lp_metrics.remainder_base_asset_amount != 0 {
             let dust_base_asset_value = calculate_base_asset_value_with_oracle_price(
-                lp_metrics.remainder_base_asset_amount,
+                lp_metrics.remainder_base_asset_amount.cast()?,
                 oracle_price_data.price,
             )?
             .checked_add(1)
             .ok_or_else(math_error!())?;
 
             quote_asset_amount = quote_asset_amount
-                .checked_sub(cast_to_i128(dust_base_asset_value)?)
+                .checked_sub(dust_base_asset_value.cast()?)
                 .ok_or_else(math_error!())?;
         }
 
@@ -214,8 +208,8 @@ pub fn calculate_perp_position_value_and_pnl(
     let (_, unrealized_pnl) =
         calculate_base_asset_value_and_pnl_with_oracle_price(&market_position, valuation_price)?;
 
-    let total_unrealized_pnl = unrealized_funding
-        .checked_add(unrealized_pnl)
+    let total_unrealized_pnl = unrealized_pnl
+        .checked_add(unrealized_funding.cast()?)
         .ok_or_else(math_error!())?;
 
     let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount()?;
@@ -285,11 +279,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
 
         if spot_market.market_index == 0 {
-            let token_amount = get_token_amount(
-                spot_position.balance,
-                &spot_market,
-                &spot_position.balance_type,
-            )?;
+            let token_amount = spot_position.get_token_amount(&spot_market)?;
 
             match spot_position.balance_type {
                 SpotBalanceType::Deposit => {

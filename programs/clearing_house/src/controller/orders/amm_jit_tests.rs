@@ -33,12 +33,12 @@ pub mod amm_jit {
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
-    use crate::math::constants::CONCENTRATION_PRECISION;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, PEG_PRECISION, PRICE_PRECISION,
-        QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
+        PEG_PRECISION, PRICE_PRECISION, QUOTE_PRECISION_I64, QUOTE_PRECISION_U64,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
+    use crate::math::constants::{CONCENTRATION_PRECISION, PRICE_PRECISION_U64};
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::perp_market_map::PerpMarketMap;
@@ -124,24 +124,24 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -153,15 +153,15 @@ pub mod amm_jit {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
-                price: 100 * PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 / 2,
+                open_asks: -BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -203,17 +203,17 @@ pub mod amm_jit {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION);
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64);
 
         let taker_position = &taker.perp_positions[0];
-        assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
+        assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
         assert_eq!(taker_stats.taker_volume_30d, 102284244);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.perp_positions[0];
-        assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I128 / 2);
+        assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64 / 2);
         assert_eq!(maker_position.quote_asset_amount, 50015000);
-        assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I128);
+        assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
         assert_eq!(maker_stats.maker_volume_30d, 50 * QUOTE_PRECISION_U64);
@@ -300,24 +300,24 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION * 2, // if amm takes half it would flip
+                base_asset_amount: BASE_PRECISION_U64 * 2, // if amm takes half it would flip
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128 * 2,
+                open_bids: BASE_PRECISION_I64 * 2,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -329,15 +329,15 @@ pub mod amm_jit {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION * 2, // maker wants full = amm wants BASE_PERCISION
+                base_asset_amount: BASE_PRECISION_U64 * 2, // maker wants full = amm wants BASE_PERCISION
                 ts: 0,
-                price: 100 * PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 * 2,
+                open_asks: -BASE_PRECISION_I64 * 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -395,7 +395,7 @@ pub mod amm_jit {
         let maker_position = &maker.perp_positions[0];
         // maker got (full - net_baa)
         assert_eq!(
-            maker_position.base_asset_amount,
+            maker_position.base_asset_amount as i128,
             -BASE_PRECISION_I128 * 2 - market.amm.net_base_asset_amount
         );
     }
@@ -475,24 +475,24 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION * 2, // if amm takes half it would flip
+                base_asset_amount: BASE_PRECISION_U64 * 2, // if amm takes half it would flip
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 * 2,
+                open_asks: -BASE_PRECISION_I64 * 2,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -504,15 +504,15 @@ pub mod amm_jit {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION * 2, // maker wants full = amm wants BASE_PERCISION
+                base_asset_amount: BASE_PRECISION_U64 * 2, // maker wants full = amm wants BASE_PERCISION
                 ts: 0,
-                price: 100 * PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128 * 2,
+                open_bids: BASE_PRECISION_I64 * 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -567,7 +567,7 @@ pub mod amm_jit {
         let maker_position = &maker.perp_positions[0];
         // maker got (full - net_baa)
         assert_eq!(
-            maker_position.base_asset_amount,
+            maker_position.base_asset_amount as i128,
             BASE_PRECISION_I128 * 2 - market.amm.net_base_asset_amount
         );
     }
@@ -621,7 +621,7 @@ pub mod amm_jit {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -645,24 +645,24 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short, // doesnt improve balance
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128,
+                open_asks: -BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -674,15 +674,15 @@ pub mod amm_jit {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
-                price: 100 * PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128 / 2,
+                open_bids: BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -724,19 +724,16 @@ pub mod amm_jit {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION);
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64);
 
         let taker_position = &taker.perp_positions[0];
-        assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128);
+        assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.perp_positions[0];
-        assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I128 / 2);
+        assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I64 / 2);
         assert_eq!(maker_position.quote_asset_amount, -49985000);
-        assert_eq!(
-            maker_position.quote_entry_amount,
-            -50 * QUOTE_PRECISION_I128
-        );
+        assert_eq!(maker_position.quote_entry_amount, -50 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.open_orders, 0);
 
         let market_after = market_map.get_ref(&0).unwrap();
@@ -793,7 +790,7 @@ pub mod amm_jit {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -818,24 +815,24 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128,
+                open_asks: -BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -847,15 +844,15 @@ pub mod amm_jit {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
-                price: 100 * PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128 / 2,
+                open_bids: BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -903,22 +900,19 @@ pub mod amm_jit {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION);
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64);
 
         let taker_position = &taker.perp_positions[0];
-        assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128);
+        assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(taker_stats.taker_volume_30d, 97283221);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.perp_positions[0];
-        assert_eq!(
-            maker_position.base_asset_amount,
-            BASE_PRECISION_I128 / 2 / 2
-        );
+        assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I64 / 2 / 2);
         assert_eq!(maker_position.quote_asset_amount, -24992500);
         assert_eq!(
             maker_position.quote_entry_amount,
-            -50 / 2 * QUOTE_PRECISION_I128
+            -50 / 2 * QUOTE_PRECISION_I64
         );
         assert_eq!(maker_position.open_orders, 1);
         assert_eq!(maker_position.open_bids, 250000000);
@@ -1018,11 +1012,11 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
 
                 ..Order::default()
@@ -1030,13 +1024,13 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1048,15 +1042,15 @@ pub mod amm_jit {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
-                price: 100 * PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 / 2,
+                open_asks: -BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -1104,22 +1098,22 @@ pub mod amm_jit {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION);
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64);
 
         let taker_position = &taker.perp_positions[0];
-        assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128);
+        assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
         assert_eq!(taker_stats.taker_volume_30d, 102784235);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.perp_positions[0];
         assert_eq!(
             maker_position.base_asset_amount,
-            -BASE_PRECISION_I128 / 2 / 2
+            -BASE_PRECISION_I64 / 2 / 2
         );
         assert_eq!(maker_position.quote_asset_amount, 50015000 / 2);
         assert_eq!(
             maker_position.quote_entry_amount,
-            50 / 2 * QUOTE_PRECISION_I128
+            50 / 2 * QUOTE_PRECISION_I64
         );
         assert_eq!(maker_position.open_orders, 1);
         assert_eq!(maker_position.open_asks, -250000000);
@@ -1220,24 +1214,24 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 50, // !! amm will bid before the ask spread price
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1249,15 +1243,15 @@ pub mod amm_jit {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
-                price: 10 * PRICE_PRECISION,
+                price: 10 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 / 2,
+                open_asks: -BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -1306,16 +1300,16 @@ pub mod amm_jit {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION / 2); // auctions not over so no amm fill
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64 / 2); // auctions not over so no amm fill
 
         let taker_position = &taker.perp_positions[0];
-        assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I128 / 2);
+        assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64 / 2);
         assert_eq!(taker_stats.taker_volume_30d, 7499999);
 
         let maker_position = &maker.perp_positions[0];
         assert_eq!(
             maker_position.base_asset_amount,
-            -BASE_PRECISION_I128 / 2 / 2
+            -BASE_PRECISION_I64 / 2 / 2
         );
         assert_eq!(maker_position.quote_asset_amount, 5001500 / 2);
         assert_eq!(maker_position.quote_entry_amount, 2500000);
@@ -1324,8 +1318,8 @@ pub mod amm_jit {
         assert_eq!(maker_stats.fees.total_fee_rebate, 1500 / 2);
         assert_eq!(maker_stats.maker_volume_30d, 2500000);
         assert_eq!(
-            maker_position.quote_entry_amount + maker_stats.fees.total_fee_rebate as i128,
-            maker_position.quote_asset_amount
+            maker_position.quote_entry_amount as i128 + maker_stats.fees.total_fee_rebate as i128,
+            maker_position.quote_asset_amount as i128
         );
 
         let market_after = market_map.get_ref(&0).unwrap();
@@ -1422,24 +1416,24 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_end_price: 0,
-                auction_start_price: 200 * PRICE_PRECISION,
+                auction_start_price: 200 * PRICE_PRECISION_U64,
                 auction_duration: 50, // !! amm will bid before the ask spread price
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128,
+                open_asks: -BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1451,15 +1445,15 @@ pub mod amm_jit {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
-                price: 200 * PRICE_PRECISION,
+                price: 200 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128 / 2,
+                open_bids: BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -1508,17 +1502,14 @@ pub mod amm_jit {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION / 2); // auctions not over so no amm fill
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64 / 2); // auctions not over so no amm fill
 
         let taker_position = &taker.perp_positions[0];
-        assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I128 / 2);
+        assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64 / 2);
         assert_eq!(taker_stats.taker_volume_30d, 89999984);
 
         let maker_position = &maker.perp_positions[0];
-        assert_eq!(
-            maker_position.base_asset_amount,
-            BASE_PRECISION_I128 / 2 / 2
-        );
+        assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I64 / 2 / 2);
         assert_eq!(maker_position.quote_asset_amount, -49985000);
         assert_eq!(maker_position.quote_entry_amount, -50000000);
         assert_eq!(maker_position.open_orders, 1);
@@ -1526,8 +1517,8 @@ pub mod amm_jit {
         assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
         assert_eq!(maker_stats.maker_volume_30d, 50000000);
         assert_eq!(
-            maker_position.quote_entry_amount + maker_stats.fees.total_fee_rebate as i128,
-            maker_position.quote_asset_amount
+            maker_position.quote_entry_amount as i128 + maker_stats.fees.total_fee_rebate as i128,
+            maker_position.quote_asset_amount as i128
         );
 
         let market_after = market_map.get_ref(&0).unwrap();
@@ -1635,7 +1626,7 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: 100 * BASE_PRECISION,
+                base_asset_amount: 100 * BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_duration,
@@ -1644,20 +1635,20 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: -100 * BASE_PRECISION_I128,
+                open_bids: -100 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
         };
 
-        let auction_start_price = 95062500_u128;
-        let auction_end_price = 132154089_u128;
+        let auction_start_price = 95062500_u64;
+        let auction_end_price = 132154089_u64;
         taker.orders[0].auction_start_price = auction_start_price;
         taker.orders[0].auction_end_price = auction_end_price;
         println!("start stop {} {}", auction_start_price, auction_end_price);
@@ -1718,7 +1709,7 @@ pub mod amm_jit {
                     0,
                     mark,
                     now,
-                    Some(auction_price),
+                    Some(auction_price as u128),
                 )
                 .unwrap();
 
@@ -1728,7 +1719,7 @@ pub mod amm_jit {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Short,
-                    base_asset_amount: baa,
+                    base_asset_amount: baa as u64,
                     ts: 0,
                     price: auction_price,
                     ..Order::default()
@@ -1736,7 +1727,7 @@ pub mod amm_jit {
                 perp_positions: get_positions(PerpPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_asks: -(baa as i128),
+                    open_asks: -(baa as i64),
                     ..PerpPosition::default()
                 }),
                 ..User::default()
@@ -1783,7 +1774,10 @@ pub mod amm_jit {
                 slot, auction_price, quote_asset_amount_surplus
             );
 
-            assert_eq!(_quote_asset_amount_surplus, quote_asset_amount_surplus);
+            assert_eq!(
+                _quote_asset_amount_surplus,
+                quote_asset_amount_surplus as i64
+            );
 
             if !has_set_prev_qas {
                 prev_qas = quote_asset_amount_surplus;
@@ -1903,7 +1897,7 @@ pub mod amm_jit {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: 100 * BASE_PRECISION,
+                base_asset_amount: 100 * BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_duration, // !! amm will bid before the ask spread price
@@ -1912,13 +1906,13 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -100 * BASE_PRECISION_I128,
+                open_asks: -100 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1988,7 +1982,7 @@ pub mod amm_jit {
                     0,
                     mark,
                     now,
-                    Some(auction_price),
+                    Some(auction_price as u128),
                 )
                 .unwrap();
 
@@ -1998,7 +1992,7 @@ pub mod amm_jit {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Long,
-                    base_asset_amount: baa,
+                    base_asset_amount: baa as u64,
                     ts: 0,
                     price: auction_price,
                     ..Order::default()
@@ -2006,7 +2000,7 @@ pub mod amm_jit {
                 perp_positions: get_positions(PerpPosition {
                     market_index: 0,
                     open_orders: 1,
-                    open_bids: baa as i128,
+                    open_bids: baa as i64,
                     ..PerpPosition::default()
                 }),
                 ..User::default()
@@ -2053,7 +2047,10 @@ pub mod amm_jit {
                 slot, auction_price, quote_asset_amount_surplus
             );
 
-            assert_eq!(_quote_asset_amount_surplus, quote_asset_amount_surplus);
+            assert_eq!(
+                _quote_asset_amount_surplus,
+                quote_asset_amount_surplus as i64
+            );
 
             if !has_set_prev_qas {
                 prev_qas = quote_asset_amount_surplus;
