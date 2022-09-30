@@ -820,37 +820,6 @@
       ]
     },
     {
-      "name": "triggerSpotOrder",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "filler",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "orderId",
-          "type": "u32"
-        }
-      ]
-    },
-    {
       "name": "placeSpotOrder",
       "accounts": [
         {
@@ -5391,11 +5360,6 @@
         {
           "name": "oraclePrice",
           "type": "i128",
-          "index": false
-        },
-        {
-          "name": "referrer",
-          "type": "publicKey",
           "index": false
         },
         {

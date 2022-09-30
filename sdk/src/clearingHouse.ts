@@ -23,6 +23,7 @@ import {
 	ReferrerInfo,
 	MarketType,
 	SerumV3FulfillmentConfigAccount,
+	isVariant,
 } from './types';
 import * as anchor from '@project-serum/anchor';
 import clearingHouseIDL from './idl/clearing_house.json';
@@ -2098,9 +2099,6 @@ export class ClearingHouse {
 	): Promise<TransactionInstruction> {
 		const fillerPublicKey = await this.getUserAccountPublicKey();
 
-		const marketIndex = order.marketIndex;
-		const marketAccount = this.getPerpMarketAccount(marketIndex);
-
 		const oracleAccountMap = new Map<string, AccountMeta>();
 		const spotMarketAccountMap = new Map<number, AccountMeta>();
 		const perpMarketAccountMap = new Map<number, AccountMeta>();
@@ -2145,16 +2143,41 @@ export class ClearingHouse {
 			}
 		}
 
-		perpMarketAccountMap.set(marketIndex, {
-			pubkey: marketAccount.pubkey,
-			isWritable: true,
-			isSigner: false,
-		});
-		oracleAccountMap.set(marketAccount.amm.oracle.toString(), {
-			pubkey: marketAccount.amm.oracle,
-			isWritable: false,
-			isSigner: false,
-		});
+		if (isVariant(order.marketType, 'perp')) {
+			const marketIndex = order.marketIndex;
+			const perpMarketAccount = this.getPerpMarketAccount(marketIndex);
+
+			perpMarketAccountMap.set(marketIndex, {
+				pubkey: perpMarketAccount.pubkey,
+				isWritable: true,
+				isSigner: false,
+			});
+			oracleAccountMap.set(perpMarketAccount.amm.oracle.toString(), {
+				pubkey: perpMarketAccount.amm.oracle,
+				isWritable: false,
+				isSigner: false,
+			});
+		} else {
+			const marketIndex = order.marketIndex;
+			const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
+
+			const quoteSpotMarket = this.getQuoteSpotMarketAccount();
+			spotMarketAccountMap.set(quoteSpotMarket.marketIndex, {
+				pubkey: quoteSpotMarket.pubkey,
+				isWritable: true,
+				isSigner: false,
+			});
+			spotMarketAccountMap.set(marketIndex, {
+				pubkey: spotMarketAccount.pubkey,
+				isWritable: false,
+				isSigner: false,
+			});
+			oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
+				pubkey: spotMarketAccount.oracle,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
 
 		const remainingAccounts = [
 			...oracleAccountMap.values(),
@@ -2164,110 +2187,6 @@ export class ClearingHouse {
 
 		const orderId = order.orderId;
 		return await this.program.instruction.triggerOrder(orderId, {
-			accounts: {
-				state: await this.getStatePublicKey(),
-				filler: fillerPublicKey,
-				user: userAccountPublicKey,
-				authority: this.wallet.publicKey,
-			},
-			remainingAccounts,
-		});
-	}
-
-	public async triggerSpotOrder(
-		userAccountPublicKey: PublicKey,
-		user: UserAccount,
-		order: Order
-	): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(
-			wrapInTx(
-				await this.getTriggerSpotOrderIx(userAccountPublicKey, user, order)
-			),
-			[],
-			this.opts
-		);
-		return txSig;
-	}
-
-	public async getTriggerSpotOrderIx(
-		userAccountPublicKey: PublicKey,
-		userAccount: UserAccount,
-		order: Order
-	): Promise<TransactionInstruction> {
-		const fillerPublicKey = await this.getUserAccountPublicKey();
-
-		const marketIndex = order.marketIndex;
-		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
-
-		const oracleAccountMap = new Map<string, AccountMeta>();
-		const spotMarketAccountMap = new Map<number, AccountMeta>();
-		const perpMarketAccountMap = new Map<number, AccountMeta>();
-
-		for (const spotPosition of userAccount.spotPositions) {
-			if (!isSpotPositionAvailable(spotPosition)) {
-				const spotMarketAccount = this.getSpotMarketAccount(
-					spotPosition.marketIndex
-				);
-				spotMarketAccountMap.set(spotPosition.marketIndex, {
-					pubkey: spotMarketAccount.pubkey,
-					isSigner: false,
-					isWritable: false,
-				});
-
-				if (!spotMarketAccount.oracle.equals(PublicKey.default)) {
-					oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
-						pubkey: spotMarketAccount.oracle,
-						isSigner: false,
-						isWritable: false,
-					});
-				}
-			}
-		}
-
-		for (const position of userAccount.perpPositions) {
-			if (
-				!positionIsAvailable(position) &&
-				position.marketIndex !== order.marketIndex
-			) {
-				const market = this.getPerpMarketAccount(position.marketIndex);
-				perpMarketAccountMap.set(position.marketIndex, {
-					pubkey: market.pubkey,
-					isWritable: false,
-					isSigner: false,
-				});
-				oracleAccountMap.set(market.amm.oracle.toString(), {
-					pubkey: market.amm.oracle,
-					isWritable: false,
-					isSigner: false,
-				});
-			}
-		}
-
-		const quoteSpotMarket = this.getQuoteSpotMarketAccount();
-		spotMarketAccountMap.set(quoteSpotMarket.marketIndex, {
-			pubkey: quoteSpotMarket.pubkey,
-			isWritable: true,
-			isSigner: false,
-		});
-		spotMarketAccountMap.set(marketIndex, {
-			pubkey: spotMarketAccount.pubkey,
-			isWritable: false,
-			isSigner: false,
-		});
-		oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
-			pubkey: spotMarketAccount.oracle,
-			isWritable: false,
-			isSigner: false,
-		});
-
-		const remainingAccounts = [
-			...oracleAccountMap.values(),
-			...spotMarketAccountMap.values(),
-			...perpMarketAccountMap.values(),
-		];
-
-		const orderId = order.orderId;
-		return await this.program.instruction.triggerSpotOrder(orderId, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				filler: fillerPublicKey,
