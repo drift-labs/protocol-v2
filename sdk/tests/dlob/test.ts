@@ -1719,22 +1719,22 @@ describe('DLOB Perp Tests', () => {
 		}
 		expect(nodesToFillAfter.length).to.equal(3);
 
-		// taker should fill completely with best maker
+		// taker should fill first order completely with best maker (1/1)
 		expect(nodesToFillAfter[0].node.order?.orderId.toNumber()).to.equal(4);
 		expect(nodesToFillAfter[0].makerNode?.order?.orderId.toNumber()).to.equal(
 			1
 		);
 
-		// taker should fill partial with second best maker
+		// taker should fill partially with second best maker (1/2)
 		expect(nodesToFillAfter[1].node.order?.orderId.toNumber()).to.equal(5);
 		expect(nodesToFillAfter[1].makerNode?.order?.orderId.toNumber()).to.equal(
 			2
 		);
 
-		// taker should fill completely with second best maker
-		expect(nodesToFillAfter[1].node.order?.orderId.toNumber()).to.equal(5);
-		expect(nodesToFillAfter[1].makerNode?.order?.orderId.toNumber()).to.equal(
-			2
+		// taker should fill completely with third best maker (2/2)
+		expect(nodesToFillAfter[2].node.order?.orderId.toNumber()).to.equal(5);
+		expect(nodesToFillAfter[2].makerNode?.order?.orderId.toNumber()).to.equal(
+			3
 		);
 	});
 
