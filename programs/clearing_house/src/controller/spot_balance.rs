@@ -157,6 +157,9 @@ pub fn update_spot_market_cumulative_interest(
                 cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
                 borrow_balance: spot_market.borrow_balance,
                 cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+                optimal_utilization: spot_market.optimal_utilization,
+                optimal_borrow_rate: spot_market.optimal_borrow_rate,
+                max_borrow_rate: spot_market.max_borrow_rate,
             });
         }
     }

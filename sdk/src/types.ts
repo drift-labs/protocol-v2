@@ -155,8 +155,24 @@ export type DepositRecord = {
 	marketIndex: number;
 	amount: BN;
 	oraclePrice: BN;
+	marketDepositBalance: BN;
+	marketWithdrawBalance: BN;
+	marketCumulativeDepositInterest: BN;
+	marketCumulativeBorrowInterest: BN;
 	from?: PublicKey;
 	to?: PublicKey;
+};
+
+export type SpotInterestRecord = {
+	ts: BN;
+	marketIndex: number;
+	depositBalance: BN;
+	cumulativeDepositInterest: BN;
+	borrowBalance: BN;
+	cumulativeBorrowInterest: BN;
+	optimalUtilization: number;
+	optimalBorrowRate: number;
+	maxBorrowRate: number;
 };
 
 export type CurveRecord = {
@@ -467,9 +483,9 @@ export type SpotMarketAccount = {
 	ifLiquidationFee: BN;
 
 	decimals: number;
-	optimalUtilization: BN;
-	optimalBorrowRate: BN;
-	maxBorrowRate: BN;
+	optimalUtilization: number;
+	optimalBorrowRate: number;
+	maxBorrowRate: number;
 	cumulativeDepositInterest: BN;
 	cumulativeBorrowInterest: BN;
 	depositBalance: BN;

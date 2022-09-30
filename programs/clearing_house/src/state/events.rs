@@ -27,6 +27,10 @@ pub struct DepositRecord {
     pub amount: u64,
     pub market_index: u16,
     pub oracle_price: i128,
+    pub market_deposit_balance: u128,
+    pub market_withdraw_balance: u128,
+    pub market_cumulative_deposit_interest: u128,
+    pub market_cumulative_borrow_interest: u128,
     pub from: Option<Pubkey>,
     pub to: Option<Pubkey>,
 }
@@ -34,11 +38,14 @@ pub struct DepositRecord {
 #[event]
 pub struct SpotInterestRecord {
     pub ts: i64,
-    pub market_index: u64,
+    pub market_index: u16,
     pub deposit_balance: u128,
     pub cumulative_deposit_interest: u128,
     pub borrow_balance: u128,
     pub cumulative_borrow_interest: u128,
+    pub optimal_utilization: u32,
+    pub optimal_borrow_rate: u32,
+    pub max_borrow_rate: u32,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
