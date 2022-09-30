@@ -155,7 +155,6 @@ export type DepositRecord = {
 	marketIndex: number;
 	amount: BN;
 	oraclePrice: BN;
-	referrer: PublicKey;
 	from?: PublicKey;
 	to?: PublicKey;
 };
@@ -664,10 +663,10 @@ export type OrderParams = {
 	reduceOnly: boolean;
 	postOnly: boolean;
 	immediateOrCancel: boolean;
-	triggerPrice: BN;
+	triggerPrice: BN | null;
 	triggerCondition: OrderTriggerCondition;
 	positionLimit: BN;
-	oraclePriceOffset: BN;
+	oraclePriceOffset: BN | null;
 	auctionDuration: number | null;
 	timeInForce: number | null;
 	auctionStartPrice: BN | null;
@@ -695,10 +694,10 @@ export const DefaultOrderParams = {
 	reduceOnly: false,
 	postOnly: false,
 	immediateOrCancel: false,
-	triggerPrice: ZERO,
+	triggerPrice: null,
 	triggerCondition: OrderTriggerCondition.ABOVE,
 	positionLimit: ZERO,
-	oraclePriceOffset: ZERO,
+	oraclePriceOffset: null,
 	auctionDuration: null,
 	timeInForce: null,
 	auctionStartPrice: null,

@@ -127,15 +127,19 @@ impl SpotMarket {
             (size * AMM_RESERVE_PRECISION) / size_precision
         };
 
-        let liability_weight = match margin_requirement_type {
-            MarginRequirementType::Initial => calculate_size_premium_liability_weight(
-                size_in_amm_reserve_precision,
-                self.imf_factor,
-                self.initial_liability_weight,
-                SPOT_WEIGHT_PRECISION,
-            )?,
+        let default_liability_weight = match margin_requirement_type {
+            MarginRequirementType::Initial => self.initial_liability_weight,
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
         };
+
+        let size_based_liability_weight = calculate_size_premium_liability_weight(
+            size_in_amm_reserve_precision,
+            self.imf_factor,
+            default_liability_weight,
+            SPOT_WEIGHT_PRECISION,
+        )?;
+
+        let liability_weight = size_based_liability_weight.max(default_liability_weight);
 
         Ok(liability_weight)
     }

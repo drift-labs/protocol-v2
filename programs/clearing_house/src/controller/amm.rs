@@ -1069,13 +1069,13 @@ mod test {
 
                 fee_pool: PoolBalance {
                     balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
-                    market_index: QUOTE_SPOT_MARKET_INDEX as u16,
+                    ..PoolBalance::default()
                 },
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
                 balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
-                market_index: QUOTE_SPOT_MARKET_INDEX as u16,
+                ..PoolBalance::default()
             },
             ..PerpMarket::default()
         };
@@ -1146,13 +1146,13 @@ mod test {
 
                 fee_pool: PoolBalance {
                     balance: 50 * SPOT_BALANCE_PRECISION,
-                    market_index: QUOTE_SPOT_MARKET_INDEX as u16,
+                    ..PoolBalance::default()
                 },
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
                 balance: 50 * SPOT_BALANCE_PRECISION,
-                market_index: QUOTE_SPOT_MARKET_INDEX as u16,
+                ..PoolBalance::default()
             },
             ..PerpMarket::default()
         };
@@ -1164,7 +1164,7 @@ mod test {
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             revenue_pool: PoolBalance {
                 balance: 100 * SPOT_BALANCE_PRECISION,
-                market_index: QUOTE_SPOT_MARKET_INDEX as u16,
+                ..PoolBalance::default()
             },
             decimals: 6,
             ..SpotMarket::default()

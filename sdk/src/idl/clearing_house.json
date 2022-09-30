@@ -1098,7 +1098,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         }
@@ -1137,7 +1147,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         }
@@ -1176,7 +1196,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         }
@@ -1260,7 +1290,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         },
@@ -1315,7 +1355,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         },
@@ -3769,7 +3819,9 @@
           },
           {
             "name": "triggerPrice",
-            "type": "u64"
+            "type": {
+              "option": "u64"
+            }
           },
           {
             "name": "triggerCondition",
@@ -3779,7 +3831,9 @@
           },
           {
             "name": "oraclePriceOffset",
-            "type": "i64"
+            "type": {
+              "option": "i64"
+            }
           },
           {
             "name": "auctionDuration",
@@ -4002,10 +4056,6 @@
           {
             "name": "balance",
             "type": "u128"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u16"
           }
         ]
       }
@@ -5356,11 +5406,6 @@
         {
           "name": "oraclePrice",
           "type": "i128",
-          "index": false
-        },
-        {
-          "name": "referrer",
-          "type": "publicKey",
           "index": false
         },
         {

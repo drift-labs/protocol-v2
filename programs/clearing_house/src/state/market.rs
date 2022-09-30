@@ -5,7 +5,7 @@ use std::cmp::max;
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
-use crate::math::casting::{cast, cast_to_i128};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, QUOTE_SPOT_MARKET_INDEX,
     SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
@@ -106,20 +106,21 @@ impl PerpMarket {
         size: u128,
         margin_type: MarginRequirementType,
     ) -> ClearingHouseResult<u32> {
-        let margin_ratio = match margin_type {
-            MarginRequirementType::Initial => max(
-                self.margin_ratio_initial as u128,
-                calculate_size_premium_liability_weight(
-                    size,
-                    self.imf_factor,
-                    self.margin_ratio_initial as u128,
-                    MARGIN_PRECISION,
-                )?,
-            ),
-            MarginRequirementType::Maintenance => self.margin_ratio_maintenance as u128,
+        let default_margin_ratio = match margin_type {
+            MarginRequirementType::Initial => cast_to_u128(self.margin_ratio_initial)?,
+            MarginRequirementType::Maintenance => cast_to_u128(self.margin_ratio_maintenance)?,
         };
 
-        Ok(margin_ratio as u32)
+        let size_adj_margin_ratio = calculate_size_premium_liability_weight(
+            size,
+            self.imf_factor,
+            default_margin_ratio,
+            MARGIN_PRECISION,
+        )?;
+
+        let margin_ratio = default_margin_ratio.max(size_adj_margin_ratio);
+
+        cast_to_u32(margin_ratio)
     }
 
     pub fn get_initial_leverage_ratio(&self, margin_type: MarginRequirementType) -> u128 {
@@ -225,21 +226,28 @@ impl PerpMarket {
 #[derive(Eq, PartialEq, Debug)]
 pub struct PoolBalance {
     pub balance: u128,
-    pub market_index: u16,
+    // pub market_index: u16,
+    // pub padding0: u64,
+    // pub padding1: u32,
+    // pub padding2: u16,
 }
 
 impl Default for PoolBalance {
     fn default() -> Self {
         PoolBalance {
             balance: 0,
-            market_index: QUOTE_SPOT_MARKET_INDEX as u16,
+            // market_index: QUOTE_SPOT_MARKET_INDEX,
+            // padding0: 0,
+            // padding1: 0,
+            // padding2: 0,
         }
     }
 }
 
 impl SpotBalance for PoolBalance {
     fn market_index(&self) -> u16 {
-        self.market_index
+        // self.market_index
+        QUOTE_SPOT_MARKET_INDEX
     }
 
     fn balance_type(&self) -> &SpotBalanceType {

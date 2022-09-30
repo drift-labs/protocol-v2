@@ -3,8 +3,7 @@ mod get_claimable_pnl {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I64, MAX_CONCENTRATION_COEFFICIENT,
         PRICE_PRECISION_I128, QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
-        QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
     use crate::math::spot_balance::get_token_amount;
@@ -234,7 +233,7 @@ mod get_claimable_pnl {
             },
             pnl_pool: PoolBalance {
                 balance: 10 * SPOT_BALANCE_PRECISION,
-                market_index: QUOTE_SPOT_MARKET_INDEX as u16,
+                ..PoolBalance::default()
             },
             ..PerpMarket::default()
         };
@@ -337,7 +336,7 @@ mod get_claimable_pnl {
             },
             pnl_pool: PoolBalance {
                 balance: 60 * SPOT_BALANCE_PRECISION,
-                market_index: QUOTE_SPOT_MARKET_INDEX as u16,
+                ..PoolBalance::default()
             },
             ..PerpMarket::default()
         };
@@ -485,7 +484,7 @@ mod get_claimable_pnl {
             },
             pnl_pool: PoolBalance {
                 balance: 1000 * SPOT_BALANCE_PRECISION,
-                market_index: QUOTE_SPOT_MARKET_INDEX as u16,
+                ..PoolBalance::default()
             },
             ..PerpMarket::default()
         };

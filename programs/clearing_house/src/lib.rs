@@ -273,7 +273,7 @@ pub mod clearing_house {
             insurance_fund_vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             revenue_pool: PoolBalance {
                 balance: 0,
-                market_index: spot_market_index as u16,
+                // market_index: spot_market_index,
             }, // in base asset
             total_if_factor: 0,
             user_if_factor: 0,
@@ -649,7 +649,6 @@ pub mod clearing_house {
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
-        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
         let state = &ctx.accounts.state;
         let clock = Clock::get()?;
@@ -727,7 +726,6 @@ pub mod clearing_house {
             amount,
             oracle_price,
             market_index,
-            referrer: user_stats.referrer,
             from: None,
             to: None,
         };
@@ -747,7 +745,6 @@ pub mod clearing_house {
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
-        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let state = &ctx.accounts.state;
@@ -828,7 +825,6 @@ pub mod clearing_house {
             oracle_price,
             amount,
             market_index,
-            referrer: user_stats.referrer,
             from: None,
             to: None,
         };
@@ -855,7 +851,6 @@ pub mod clearing_house {
 
         let to_user = &mut load_mut!(ctx.accounts.to_user)?;
         let from_user = &mut load_mut!(ctx.accounts.from_user)?;
-        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
         validate!(
             !to_user.bankrupt,
@@ -930,7 +925,6 @@ pub mod clearing_house {
             amount,
             oracle_price,
             market_index,
-            referrer: user_stats.referrer,
             from: None,
             to: Some(to_user_key),
         };
@@ -957,7 +951,6 @@ pub mod clearing_house {
             amount,
             oracle_price,
             market_index,
-            referrer: user_stats.referrer,
             from: Some(from_user_key),
             to: None,
         };
@@ -3647,7 +3640,7 @@ pub mod clearing_house {
         let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
         let state = &ctx.accounts.state;
-        
+
         validate!(
             insurance_fund_stake.market_index == market_index,
             ErrorCode::DefaultError,
