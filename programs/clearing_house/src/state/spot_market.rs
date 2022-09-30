@@ -55,6 +55,7 @@ pub struct SpotMarket {
     pub max_borrow_rate: u128,
     pub deposit_balance: u128,
     pub borrow_balance: u128,
+    pub max_token_deposits: u128,
 
     pub deposit_token_twap: u128, // 24 hour twap
     pub borrow_token_twap: u128,  // 24 hour twap

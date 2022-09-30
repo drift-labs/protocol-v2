@@ -27,6 +27,7 @@ test_files=(
    updateK.ts
    adminWithdraw.ts
    curve.ts cappedSymFunding.ts
+   maxDeposit.ts
 )
 
 for test_file in ${test_files[@]}; do
