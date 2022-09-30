@@ -124,6 +124,8 @@ fn calculate_taker_fee(quote_asset_amount: u64, fee_tier: &FeeTier) -> ClearingH
         .cast::<u128>()?
         .checked_mul(fee_tier.fee_numerator as u128)
         .ok_or_else(math_error!())?
+        .checked_add((fee_tier.fee_denominator / 2) as u128)
+        .ok_or_else(math_error!())?
         .checked_div(fee_tier.fee_denominator as u128)
         .ok_or_else(math_error!())?
         .cast()
@@ -266,6 +268,13 @@ pub fn calculate_fee_for_fulfillment_with_match(
     };
 
     // must be non-negative
+    msg!(
+        "fees: {} {} {} {}",
+        taker_fee,
+        filler_reward,
+        referrer_reward,
+        maker_rebate
+    );
     let fee_to_market = taker_fee
         .checked_sub(filler_reward)
         .ok_or_else(math_error!())?

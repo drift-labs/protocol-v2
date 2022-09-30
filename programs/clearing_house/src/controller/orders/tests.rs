@@ -1581,7 +1581,7 @@ pub mod fulfill_order {
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 1000,
                 oracle: oracle_price_key,
-                base_spread: 100,
+                base_spread: 100, // 1 basis point
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i128,
                     last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
@@ -1651,7 +1651,7 @@ pub mod fulfill_order {
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
-                price: 100 * PRICE_PRECISION_U64,
+                price: 100_010_000 * PRICE_PRECISION_U64 / 1_000_000, // .01 worse than amm
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1703,37 +1703,40 @@ pub mod fulfill_order {
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
-        assert_eq!(taker_position.quote_asset_amount, -100301382);
-        assert_eq!(taker_position.quote_entry_amount, -100251257);
+        assert_eq!(taker_position.quote_asset_amount, -100301396);
+        assert_eq!(taker_position.quote_entry_amount, -100251270);
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker_stats.fees.total_fee_paid, 50125);
+        assert_eq!(taker_stats.fees.total_fee_paid, 50126);
         assert_eq!(taker_stats.fees.total_referee_discount, 0);
         assert_eq!(taker_stats.fees.total_token_discount, 0);
-        assert_eq!(taker_stats.taker_volume_30d, 100251237);
+        assert_eq!(taker_stats.taker_volume_30d, 100251249);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64 / 2);
-        assert_eq!(maker_position.quote_asset_amount, 50015000);
-        assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I64);
+        assert_eq!(maker_position.quote_entry_amount, 50_005_000);
+        assert_eq!(maker_position.quote_asset_amount, 50_020_001); // 50_005_000 + 50_005_000 * .0003
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
-        assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
-        assert_eq!(maker_stats.maker_volume_30d, 50 * QUOTE_PRECISION_U64);
+        assert_eq!(maker_stats.fees.total_fee_rebate, 15001);
+        assert_eq!(maker_stats.maker_volume_30d, 50_005_000);
         assert_eq!(maker.orders[0], Order::default());
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.net_base_asset_amount, 500000000);
         assert_eq!(market_after.base_asset_amount_long, 1000000000);
         assert_eq!(market_after.base_asset_amount_short, -500000000);
-        assert_eq!(market_after.amm.quote_asset_amount_long, -100296370);
-        assert_eq!(market_after.amm.quote_asset_amount_short, 50015000);
-        assert_eq!(market_after.amm.total_fee, 30113);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 30113);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, 30113);
+        assert_eq!(market_after.amm.quote_asset_amount_long, -100296384);
+        assert_eq!(market_after.amm.quote_asset_amount_short, 50020001);
+        assert_eq!(market_after.amm.total_fee, 35100);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 35100);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, 35100);
 
-        assert_eq!(filler_stats.filler_volume_30d, 100251237);
+        let reserve_price = market_after.amm.reserve_price().unwrap();
+        assert_eq!(reserve_price, 101_007_550);
+
+        assert_eq!(filler_stats.filler_volume_30d, 100_251_249);
         assert_eq!(filler.perp_positions[0].quote_asset_amount, 5012);
     }
 
@@ -2029,11 +2032,11 @@ pub mod fulfill_order {
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
-        assert_eq!(taker_position.quote_asset_amount, -104133673);
+        assert_eq!(taker_position.quote_asset_amount, -104133674);
         assert_eq!(taker_position.quote_entry_amount, -104081633);
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker_stats.fees.total_fee_paid, 52040);
+        assert_eq!(taker_stats.fees.total_fee_paid, 52041);
         assert_eq!(taker_stats.fees.total_referee_discount, 0);
         assert_eq!(taker_stats.fees.total_token_discount, 0);
         assert_eq!(taker_stats.taker_volume_30d, 104081633);
@@ -2043,11 +2046,11 @@ pub mod fulfill_order {
         assert_eq!(market_after.amm.net_base_asset_amount, 1000000000);
         assert_eq!(market_after.base_asset_amount_long, 1000000000);
         assert_eq!(market_after.base_asset_amount_short, 0);
-        assert_eq!(market_after.amm.quote_asset_amount_long, -104133673);
+        assert_eq!(market_after.amm.quote_asset_amount_long, -104133674);
         assert_eq!(market_after.amm.quote_asset_amount_short, 0);
-        assert_eq!(market_after.amm.total_fee, 3123571);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 3123571);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, 3123571);
+        assert_eq!(market_after.amm.total_fee, 3123572);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 3123572);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, 3123572);
     }
 
     #[test]

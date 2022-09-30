@@ -927,11 +927,11 @@ pub mod amm_jit {
         assert!(quote_asset_amount_surplus > 0);
         assert_eq!(quote_asset_amount_surplus, 677570);
 
-        assert_eq!(market_after.amm.total_fee, 713847);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 713847);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, 713847);
+        assert_eq!(market_after.amm.total_fee, 713848);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 713848);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, 713848);
         assert_eq!(market_after.amm.total_mm_fee, 677570);
-        assert_eq!(market_after.amm.total_exchange_fee, 36141);
+        assert_eq!(market_after.amm.total_exchange_fee, 36142);
         assert_eq!(market_after.amm.total_fee_withdrawn, 0);
 
         assert_eq!(filler_stats.filler_volume_30d, 97283221);
