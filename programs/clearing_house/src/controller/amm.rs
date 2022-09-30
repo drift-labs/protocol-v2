@@ -24,7 +24,10 @@ use solana_program::msg;
 use std::cmp::{max, min};
 
 use crate::controller::repeg::apply_cost_to_market;
-use crate::controller::spot_balance::{update_revenue_pool_balances, update_spot_balances};
+use crate::controller::spot_balance::{
+    transfer_revenue_pool_to_spot_balance, transfer_spot_balance_to_revenue_pool,
+    transfer_spot_balances, update_spot_balances,
+};
 use crate::controller::spot_position::update_spot_position_balance;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 
@@ -422,20 +425,11 @@ pub fn update_pool_balances(
             .ok_or_else(math_error!())?;
 
         if pnl_pool_addition < 0 {
-            update_spot_balances(
+            transfer_spot_balances(
                 pnl_pool_addition.unsigned_abs(),
-                &SpotBalanceType::Borrow,
                 spot_market,
                 &mut market.amm.fee_pool,
-                false,
-            )?;
-
-            update_spot_balances(
-                pnl_pool_addition.unsigned_abs(),
-                &SpotBalanceType::Deposit,
-                spot_market,
                 &mut market.pnl_pool,
-                false,
             )?;
         }
 
@@ -468,20 +462,11 @@ pub fn update_pool_balances(
                 .min(pnl_pool_token_amount);
 
             if pnl_pool_removal > 0 {
-                update_spot_balances(
+                transfer_spot_balances(
                     pnl_pool_removal,
-                    &SpotBalanceType::Borrow,
                     spot_market,
                     &mut market.pnl_pool,
-                    false,
-                )?;
-
-                update_spot_balances(
-                    pnl_pool_removal,
-                    &SpotBalanceType::Deposit,
-                    spot_market,
                     &mut market.amm.fee_pool,
-                    false,
                 )?;
             }
         }
@@ -524,18 +509,10 @@ pub fn update_pool_balances(
                     .min(spot_market_revenue_pool_amount)
                     .min(max_revenue_withdraw_allowed);
 
-                update_revenue_pool_balances(
+                transfer_revenue_pool_to_spot_balance(
                     revenue_pool_transfer,
-                    &SpotBalanceType::Borrow,
-                    spot_market,
-                )?;
-
-                update_spot_balances(
-                    revenue_pool_transfer,
-                    &SpotBalanceType::Deposit,
                     spot_market,
                     &mut market.amm.fee_pool,
-                    false,
                 )?;
 
                 market.amm.total_fee_minus_distributions = market
@@ -558,26 +535,19 @@ pub fn update_pool_balances(
                 .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
                 .ok_or_else(math_error!())?
                 .max(0)
-                .min(cast_to_i128(amm_fee_pool_token_amount_after)?);
+                .min(cast_to_i128(amm_fee_pool_token_amount_after)?)
+                .unsigned_abs();
 
-            update_spot_balances(
-                revenue_pool_transfer.unsigned_abs(),
-                &SpotBalanceType::Borrow,
+            transfer_spot_balance_to_revenue_pool(
+                revenue_pool_transfer,
                 spot_market,
                 &mut market.amm.fee_pool,
-                false,
-            )?;
-
-            update_revenue_pool_balances(
-                revenue_pool_transfer.unsigned_abs(),
-                &SpotBalanceType::Deposit,
-                spot_market,
             )?;
 
             market.amm.total_fee_withdrawn = market
                 .amm
                 .total_fee_withdrawn
-                .checked_add(revenue_pool_transfer.unsigned_abs())
+                .checked_add(revenue_pool_transfer)
                 .ok_or_else(math_error!())?;
         }
     }
