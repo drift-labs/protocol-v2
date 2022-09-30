@@ -239,7 +239,7 @@ export class DLOB {
 			type = 'trigger';
 		} else if (isOneOfVariant(order.orderType, ['market', 'triggerMarket'])) {
 			type = 'market';
-		} else if (order.oraclePriceOffset.gt(ZERO)) {
+		} else if (!order.oraclePriceOffset.eq(ZERO)) {
 			type = 'floatingLimit';
 		} else {
 			type = 'limit';
