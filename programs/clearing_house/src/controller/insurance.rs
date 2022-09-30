@@ -525,6 +525,8 @@ pub fn attempt_settle_revenue_to_insurance_fund<'info>(
         )?;
 
         if token_amount > 0 {
+            msg!("Spot market_index={} sending {} to insurance_fund_vault", spot_market.market_index, token_amount);
+
             send_from_program_vault(
                 token_program,
                 spot_market_vault,
@@ -590,7 +592,7 @@ pub fn settle_revenue_to_insurance_fund(
                 .checked_div(
                     cast_to_u64(ONE_YEAR)?
                         .checked_div(cast_to_u64(spot_market.revenue_settle_period)?)
-                        .ok_or_else(math_error!())?,
+                        .ok_or_else(math_error!())?.max(1),
                 )
                 .ok_or_else(math_error!())?,
         )?;

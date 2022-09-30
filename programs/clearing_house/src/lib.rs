@@ -3642,10 +3642,12 @@ pub mod clearing_house {
         }
 
         let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
         let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
         let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-
+        let state = &ctx.accounts.state;
+        
         validate!(
             insurance_fund_stake.market_index == market_index,
             ErrorCode::DefaultError,
@@ -3658,6 +3660,18 @@ pub mod clearing_house {
             ErrorCode::DefaultError,
             "withdraw request in progress"
         )?;
+
+        {
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.clearing_house_signer,
+                state,
+            )?;
+        }
 
         controller::insurance::add_insurance_fund_stake(
             amount,

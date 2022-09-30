@@ -2723,6 +2723,11 @@
       "name": "addInsuranceFundStake",
       "accounts": [
         {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "spotMarket",
           "isMut": false,
           "isSigner": false
@@ -2743,8 +2748,18 @@
           "isSigner": true
         },
         {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "insuranceFundVault",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
