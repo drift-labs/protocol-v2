@@ -2028,6 +2028,9 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        withdraw_not_paused(&ctx.accounts.state)
+    )]
     pub fn resolve_perp_pnl_deficit(
         ctx: Context<ResolvePerpPnlDeficit>,
         spot_market_index: u16,
@@ -3766,6 +3769,9 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        withdraw_not_paused(&ctx.accounts.state)
+    )]
     pub fn remove_insurance_fund_stake(
         ctx: Context<RemoveInsuranceFundStake>,
         market_index: u16,
