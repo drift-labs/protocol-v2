@@ -223,30 +223,13 @@ impl PerpMarket {
 }
 
 #[zero_copy]
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Default, Eq, PartialEq, Debug)]
 pub struct PoolBalance {
     pub balance: u128,
-    // pub market_index: u16,
-    // pub padding0: u64,
-    // pub padding1: u32,
-    // pub padding2: u16,
-}
-
-impl Default for PoolBalance {
-    fn default() -> Self {
-        PoolBalance {
-            balance: 0,
-            // market_index: QUOTE_SPOT_MARKET_INDEX,
-            // padding0: 0,
-            // padding1: 0,
-            // padding2: 0,
-        }
-    }
 }
 
 impl SpotBalance for PoolBalance {
     fn market_index(&self) -> u16 {
-        // self.market_index
         QUOTE_SPOT_MARKET_INDEX
     }
 
