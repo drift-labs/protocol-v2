@@ -365,8 +365,8 @@ mod test {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
         QUOTE_PRECISION, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_RATE_PRECISION_U32, SPOT_UTILIZATION_PRECISION,
+        SPOT_UTILIZATION_PRECISION_U32, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
@@ -593,8 +593,8 @@ mod test {
         };
         sol_spot_market.deposit_balance = 50 * SPOT_BALANCE_PRECISION;
 
-        sol_spot_market.optimal_borrow_rate = SPOT_RATE_PRECISION / 5; //20% APR
-        sol_spot_market.max_borrow_rate = SPOT_RATE_PRECISION; //100% APR
+        sol_spot_market.optimal_borrow_rate = SPOT_RATE_PRECISION_U32 / 5; //20% APR
+        sol_spot_market.max_borrow_rate = SPOT_RATE_PRECISION_U32; //100% APR
 
         update_spot_position_balance_with_limits(
             QUOTE_PRECISION * 50,
@@ -774,9 +774,9 @@ mod test {
             borrow_balance: 0,
             deposit_token_twap: QUOTE_PRECISION / 2,
 
-            optimal_utilization: SPOT_UTILIZATION_PRECISION / 2,
-            optimal_borrow_rate: SPOT_RATE_PRECISION * 20,
-            max_borrow_rate: SPOT_RATE_PRECISION * 50,
+            optimal_utilization: SPOT_UTILIZATION_PRECISION_U32 / 2,
+            optimal_borrow_rate: SPOT_RATE_PRECISION_U32 * 20,
+            max_borrow_rate: SPOT_RATE_PRECISION_U32 * 50,
             ..SpotMarket::default()
         };
 
@@ -1110,9 +1110,9 @@ mod test {
             borrow_balance: 0,
             deposit_token_twap: QUOTE_PRECISION / 2,
 
-            optimal_utilization: SPOT_UTILIZATION_PRECISION / 2,
-            optimal_borrow_rate: SPOT_RATE_PRECISION * 20,
-            max_borrow_rate: SPOT_RATE_PRECISION * 50,
+            optimal_utilization: SPOT_UTILIZATION_PRECISION_U32 / 2,
+            optimal_borrow_rate: SPOT_RATE_PRECISION_U32 * 20,
+            max_borrow_rate: SPOT_RATE_PRECISION_U32 * 50,
             ..SpotMarket::default()
         };
 

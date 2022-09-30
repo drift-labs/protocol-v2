@@ -38,6 +38,7 @@ pub const SPOT_CUMULATIVE_INTEREST_PRECISION: u128 = 10_000_000_000; // expo = -
 pub const SPOT_UTILIZATION_PRECISION: u128 = 1_000_000; // expo = -6
 pub const SPOT_UTILIZATION_PRECISION_U32: u32 = 1_000_000; // expo = -6
 pub const SPOT_RATE_PRECISION: u128 = 1_000_000; // expo = -6
+pub const SPOT_RATE_PRECISION_U32: u32 = 1_000_000; // expo = -6
 pub const LIQUIDATION_FEE_PRECISION: u128 = 1_000_000; // expo = -6
 pub const SPOT_WEIGHT_PRECISION: u128 = MARGIN_PRECISION; // expo = -4
 pub const SPOT_IMF_PRECISION: u128 = 1_000_000; // expo = -6
