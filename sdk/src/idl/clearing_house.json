@@ -3804,7 +3804,9 @@
           },
           {
             "name": "triggerPrice",
-            "type": "u64"
+            "type": {
+              "option": "u64"
+            }
           },
           {
             "name": "triggerCondition",
@@ -3814,7 +3816,9 @@
           },
           {
             "name": "oraclePriceOffset",
-            "type": "i64"
+            "type": {
+              "option": "i64"
+            }
           },
           {
             "name": "auctionDuration",
