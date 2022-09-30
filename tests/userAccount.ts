@@ -17,11 +17,10 @@ import {
 	OracleSource,
 	calculateWorstCaseBaseAssetAmount,
 	calculateMarketMarginRatio,
-	AMM_TO_QUOTE_PRECISION_RATIO,
-	MARK_PRICE_PRECISION,
-	calculateMarkPrice,
+	calculateReservePrice,
 	convertToNumber,
 	calculatePrice,
+	AMM_RESERVE_PRECISION,
 } from '../sdk';
 import { assert } from 'chai';
 import {
@@ -38,18 +37,18 @@ describe('User Account', () => {
 
 	let clearingHouse;
 
-	const ammInitialQuoteAssetAmount = new anchor.BN(2 * 10 ** 12).mul(
-		new BN(10 ** 6)
+	const ammInitialQuoteAssetAmount = new anchor.BN(2 * 10 ** 9).mul(
+		new BN(10 ** 5)
 	);
-	const ammInitialBaseAssetAmount = new anchor.BN(2 * 10 ** 12).mul(
-		new BN(10 ** 6)
+	const ammInitialBaseAssetAmount = new anchor.BN(2 * 10 ** 9).mul(
+		new BN(10 ** 5)
 	);
 
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
 
 	let solUsdOracle;
-	const marketIndex = new BN(0);
+	const marketIndex = 0;
 	const initialSOLPrice = 50;
 
 	const usdcAmount = new BN(20 * 10 ** 6);
@@ -74,8 +73,8 @@ describe('User Account', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: [new BN(0)],
-			spotMarketIndexes: [new BN(0)],
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0],
 			oracleInfos: [{ publicKey: solUsdOracle, source: OracleSource.PYTH }],
 		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
@@ -125,7 +124,7 @@ describe('User Account', () => {
 			expectedTotalCollateral.toNumber()
 		);
 
-		const pnl = userAccount.getUnrealizedPNL();
+		const pnl = userAccount.getUnrealizedPNL(false);
 		console.log('pnl', pnl.toNumber(), expectedPNL.toNumber());
 		const freeCollateral = userAccount.getFreeCollateral();
 		console.log(
@@ -142,7 +141,7 @@ describe('User Account', () => {
 			expectedMarginRatio.toNumber()
 		);
 
-		const buyingPower = userAccount.getBuyingPower(new BN(0));
+		const buyingPower = userAccount.getBuyingPower(0);
 		console.log(
 			'buyingPower',
 			buyingPower.toNumber(),
@@ -214,19 +213,19 @@ describe('User Account', () => {
 		const oraclePrice = clearingHouse.getOracleDataForMarket(
 			market.marketIndex
 		).price;
-		const markPrice = calculatePrice(
+		const reservePrice = calculatePrice(
 			market.amm.baseAssetReserve,
 			market.amm.quoteAssetReserve,
 			market.amm.pegMultiplier
 		);
 		console.log(
 			'mark vs oracle price:',
-			convertToNumber(markPrice),
+			convertToNumber(reservePrice),
 			convertToNumber(oraclePrice)
 		);
 		await setFeedPrice(
 			anchor.workspace.Pyth,
-			convertToNumber(markPrice.sub(new BN(250 * 10 ** 4))),
+			convertToNumber(reservePrice.sub(new BN(250))),
 			solUsdOracle
 		);
 		await sleep(5000);
@@ -237,10 +236,10 @@ describe('User Account', () => {
 		const oraclePrice2 = clearingHouse.getOracleDataForMarket(
 			market.marketIndex
 		).price;
-		const markPrice2 = calculateMarkPrice(market, oraclePrice);
+		const reservePrice2 = calculateReservePrice(market, oraclePrice);
 		console.log(
 			'mark2 vs oracle2 price:',
-			convertToNumber(markPrice2),
+			convertToNumber(reservePrice2),
 			convertToNumber(oraclePrice2)
 		);
 
@@ -250,7 +249,7 @@ describe('User Account', () => {
 		const worstCaseAssetValue = worstCaseBaseAssetAmount
 			.abs()
 			.mul(oraclePrice)
-			.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
+			.div(AMM_RESERVE_PRECISION);
 
 		console.log('worstCaseAssetValue:', worstCaseAssetValue.toNumber());
 
@@ -292,7 +291,7 @@ describe('User Account', () => {
 		const oraclePrice = clearingHouse.getOracleDataForMarket(
 			market.marketIndex
 		).price;
-		const markPrice = calculatePrice(
+		const reservePrice = calculatePrice(
 			market.amm.baseAssetReserve,
 			market.amm.quoteAssetReserve,
 			market.amm.pegMultiplier
@@ -300,12 +299,12 @@ describe('User Account', () => {
 
 		console.log(
 			'mark vs oracle price:',
-			convertToNumber(markPrice),
+			convertToNumber(reservePrice),
 			convertToNumber(oraclePrice)
 		);
 		await setFeedPrice(
 			anchor.workspace.Pyth,
-			convertToNumber(markPrice.sub(new BN(275 * 10 ** 4))),
+			convertToNumber(reservePrice.sub(new BN(275))),
 			solUsdOracle
 		);
 		await sleep(5000);
@@ -316,10 +315,10 @@ describe('User Account', () => {
 		const oraclePrice2 = clearingHouse.getOracleDataForMarket(
 			market.marketIndex
 		).price;
-		const markPrice2 = calculateMarkPrice(market, oraclePrice);
+		const reservePrice2 = calculateReservePrice(market, oraclePrice);
 		console.log(
 			'mark2 vs oracle2 price:',
-			convertToNumber(markPrice2),
+			convertToNumber(reservePrice2),
 			convertToNumber(oraclePrice2)
 		);
 

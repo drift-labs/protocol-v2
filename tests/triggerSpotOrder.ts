@@ -8,7 +8,7 @@ import { Keypair } from '@solana/web3.js';
 import {
 	Admin,
 	BN,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	ClearingHouse,
 	PositionDirection,
 	ClearingHouseUser,
@@ -25,7 +25,7 @@ import {
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { BASE_PRECISION, OracleSource, ZERO } from '../sdk';
+import { BASE_PRECISION, OracleSource } from '../sdk';
 
 describe('trigger orders', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -40,7 +40,7 @@ describe('trigger orders', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -61,8 +61,8 @@ describe('trigger orders', () => {
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
 		solUsd = await mockOracle(1);
-		marketIndexes = [new BN(0)];
-		spotMarketIndexes = [new BN(0), new BN(1)];
+		marketIndexes = [0];
+		spotMarketIndexes = [0, 1];
 		oracleInfos = [
 			{
 				publicKey: solUsd,
@@ -111,7 +111,7 @@ describe('trigger orders', () => {
 
 	beforeEach(async () => {
 		await fillerClearingHouse.moveAmmPrice(
-			ZERO,
+			0,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve
 		);
@@ -156,14 +156,14 @@ describe('trigger orders', () => {
 		});
 		await clearingHouseUser.subscribe();
 
-		const marketIndex = new BN(1);
+		const marketIndex = 1;
 		const baseAssetAmount = BASE_PRECISION;
 
 		const stopOrderParams = getTriggerMarketOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			triggerPrice: MARK_PRICE_PRECISION.div(new BN(2)),
+			triggerPrice: PRICE_PRECISION.div(new BN(2)),
 			triggerCondition: OrderTriggerCondition.BELOW,
 			userOrderId: 1,
 		});
@@ -230,14 +230,14 @@ describe('trigger orders', () => {
 		});
 		await clearingHouseUser.subscribe();
 
-		const marketIndex = new BN(1);
+		const marketIndex = 1;
 		const baseAssetAmount = BASE_PRECISION;
 
 		const stopOrderParams = getTriggerMarketOrderParams({
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			triggerPrice: MARK_PRICE_PRECISION.mul(new BN(2)),
+			triggerPrice: PRICE_PRECISION.mul(new BN(2)),
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			userOrderId: 1,
 		});

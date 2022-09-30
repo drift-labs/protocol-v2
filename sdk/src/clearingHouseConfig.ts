@@ -1,6 +1,5 @@
 import { ConfirmOptions, Connection, PublicKey } from '@solana/web3.js';
 import { IWallet } from './types';
-import { BN } from '@project-serum/anchor';
 import { OracleInfo } from './oracles/types';
 import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { DriftEnv } from './config';
@@ -14,11 +13,12 @@ export type ClearingHouseConfig = {
 	txSenderConfig?: TxSenderConfig;
 	userIds?: number[];
 	activeUserId?: number;
-	perpMarketIndexes?: BN[];
-	spotMarketIndexes?: BN[];
+	perpMarketIndexes?: number[];
+	spotMarketIndexes?: number[];
 	oracleInfos?: OracleInfo[];
 	env?: DriftEnv;
 	userStats?: boolean;
+	authority?: PublicKey; // explicitly pass an authority if signer is delegate
 };
 
 type ClearingHouseSubscriptionConfig =

@@ -13,7 +13,7 @@ import {
 	OracleSource,
 	ZERO,
 	EventSubscriber,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	getTokenAmount,
 	SpotBalanceType,
 	isVariant,
@@ -29,7 +29,6 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { ONE } from '../sdk';
 
 describe('liquidate borrow', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -76,7 +75,7 @@ describe('liquidate borrow', () => {
 			},
 			activeUserId: 0,
 			perpMarketIndexes: [],
-			spotMarketIndexes: [new BN(0), new BN(1)],
+			spotMarketIndexes: [0, 1],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
@@ -105,7 +104,7 @@ describe('liquidate borrow', () => {
 				solAmount,
 				usdcAmount,
 				[],
-				[new BN(0), new BN(1)],
+				[0, 1],
 				[
 					{
 						publicKey: solOracle,
@@ -114,14 +113,14 @@ describe('liquidate borrow', () => {
 				]
 			);
 
-		const marketIndex = new BN(1);
+		const marketIndex = 1;
 		await liquidatorClearingHouse.deposit(
 			solAmount,
 			marketIndex,
 			liquidatorClearingHouseWSOLAccount
 		);
 		const solBorrow = new BN(5 * 10 ** 8);
-		await clearingHouse.withdraw(solBorrow, new BN(1), userWSOLAccount);
+		await clearingHouse.withdraw(solBorrow, 1, userWSOLAccount);
 	});
 
 	after(async () => {
@@ -138,8 +137,8 @@ describe('liquidate borrow', () => {
 		const txSig = await liquidatorClearingHouse.liquidateBorrow(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
-			new BN(0),
-			new BN(1),
+			0,
+			1,
 			new BN(6 * 10 ** 8)
 		);
 
@@ -182,10 +181,8 @@ describe('liquidate borrow', () => {
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(liquidationRecord.liquidationId === 1);
 		assert(isVariant(liquidationRecord.liquidationType, 'liquidateBorrow'));
-		assert(
-			liquidationRecord.liquidateBorrow.assetPrice.eq(MARK_PRICE_PRECISION)
-		);
-		assert(liquidationRecord.liquidateBorrow.assetMarketIndex.eq(ZERO));
+		assert(liquidationRecord.liquidateBorrow.assetPrice.eq(PRICE_PRECISION));
+		assert(liquidationRecord.liquidateBorrow.assetMarketIndex === 0);
 		console.log(
 			'asset transfer',
 			liquidationRecord.liquidateBorrow.assetTransfer.toString()
@@ -194,27 +191,25 @@ describe('liquidate borrow', () => {
 		// todo, why?
 		console.log(liquidationRecord.liquidateBorrow.assetTransfer.toString());
 		assert(
-			liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(58828575)) ||
-				liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(58827950))
+			liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(58826626)) ||
+				liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(58826001))
 		);
 		assert(
 			liquidationRecord.liquidateBorrow.liabilityPrice.eq(
-				new BN(190).mul(MARK_PRICE_PRECISION)
+				new BN(190).mul(PRICE_PRECISION)
 			)
 		);
-		assert(
-			liquidationRecord.liquidateBorrow.liabilityMarketIndex.eq(new BN(1))
-		);
+		assert(liquidationRecord.liquidateBorrow.liabilityMarketIndex === 1);
 		console.log(
 			'liability transfer',
 			liquidationRecord.liquidateBorrow.liabilityTransfer.toString()
 		);
 		assert(
 			liquidationRecord.liquidateBorrow.liabilityTransfer.eq(
-				new BN(309620791)
+				new BN(309613825)
 			) ||
 				liquidationRecord.liquidateBorrow.liabilityTransfer.eq(
-					new BN(309624080)
+					new BN(309610535)
 				)
 		);
 
@@ -301,6 +296,6 @@ describe('liquidate borrow', () => {
 			'->',
 			netBalanceAfter.toString()
 		);
-		assert(netBalanceBefore.sub(netBalanceAfter).lte(ONE));
+		assert(netBalanceBefore.sub(netBalanceAfter).lte(new BN(1000)));
 	});
 });

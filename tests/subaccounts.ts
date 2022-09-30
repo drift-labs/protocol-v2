@@ -13,6 +13,7 @@ import {
 } from '../sdk/src';
 
 import {
+	createFundedKeyPair,
 	initializeQuoteSpotMarket,
 	mockUSDCMint,
 	mockUserUSDCAccount,
@@ -40,8 +41,8 @@ describe('subaccounts', () => {
 		usdcMint = await mockUSDCMint(provider);
 		usdcAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		const marketIndexes = [new BN(0)];
-		const spotMarketIndexes = [new BN(0)];
+		const marketIndexes = [0];
+		const spotMarketIndexes = [0];
 
 		clearingHouse = new Admin({
 			connection,
@@ -163,5 +164,20 @@ describe('subaccounts', () => {
 		assert(
 			clearingHouse.getUserAccount().customMarginRatio === customMarginRatio
 		);
+	});
+
+	it('Update delegate', async () => {
+		const delegateKeyPair = await createFundedKeyPair(connection);
+		await clearingHouse.updateUserDelegate(delegateKeyPair.publicKey);
+
+		await clearingHouse.fetchAccounts();
+		assert(
+			clearingHouse.getUserAccount().delegate.equals(delegateKeyPair.publicKey)
+		);
+
+		const delegateUserAccount = (
+			await clearingHouse.getUserAccountsForDelegate(delegateKeyPair.publicKey)
+		)[0];
+		assert(delegateUserAccount.delegate.equals(delegateKeyPair.publicKey));
 	});
 });

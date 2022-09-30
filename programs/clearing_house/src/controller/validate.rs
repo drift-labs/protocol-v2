@@ -1,8 +1,9 @@
+use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::cast_to_i128;
+use crate::math::casting::{cast_to_i128, Cast};
 use crate::math::orders::is_multiple_of_step_size;
 use crate::math_error;
-use crate::state::market::PerpMarket;
+use crate::state::market::{PerpMarket, AMM};
 use crate::state::user::PerpPosition;
 use crate::validate;
 use solana_program::msg;
@@ -23,20 +24,6 @@ pub fn validate_market_account(market: &PerpMarket) -> ClearingHouseResult {
         market.base_asset_amount_short,
         market.amm.net_base_asset_amount,
         market.amm.net_unsettled_lp_base_asset_amount,
-    )?;
-
-    validate!(
-        market.amm.base_asset_reserve >= market.amm.min_base_asset_reserve,
-        ErrorCode::DefaultError,
-        "Market baa below min_base_asset_reserve: {} < {}",
-        market.amm.base_asset_reserve,
-        market.amm.min_base_asset_reserve,
-    )?;
-
-    validate!(
-        market.amm.base_asset_reserve <= market.amm.max_base_asset_reserve,
-        ErrorCode::DefaultError,
-        "Market baa above max_base_asset_reserve"
     )?;
 
     validate!(
@@ -134,14 +121,21 @@ pub fn validate_market_account(market: &PerpMarket) -> ClearingHouseResult {
 
     validate!(
         market.amm.long_spread + market.amm.short_spread
-            <= (market.amm.max_spread as u128)
-                .max(market.amm.last_oracle_mark_spread_pct.unsigned_abs()),
+            <= (market.amm.max_spread as u128).max(
+                market
+                    .amm
+                    .last_oracle_reserve_price_spread_pct
+                    .unsigned_abs()
+            ),
         ErrorCode::DefaultError,
         "long_spread + short_spread > max_spread: {} + {} < {}.max({})",
         market.amm.long_spread,
         market.amm.short_spread,
         market.amm.max_spread,
-        market.amm.last_oracle_mark_spread_pct.unsigned_abs()
+        market
+            .amm
+            .last_oracle_reserve_price_spread_pct
+            .unsigned_abs()
     )?;
 
     if market.amm.net_base_asset_amount > 0 {
@@ -182,6 +176,32 @@ pub fn validate_market_account(market: &PerpMarket) -> ClearingHouseResult {
     Ok(())
 }
 
+#[allow(clippy::comparison_chain)]
+pub fn validate_amm_account_for_fill(
+    amm: &AMM,
+    direction: PositionDirection,
+) -> ClearingHouseResult {
+    if direction == PositionDirection::Long {
+        validate!(
+            amm.base_asset_reserve >= amm.min_base_asset_reserve,
+            ErrorCode::DefaultError,
+            "Market baa below min_base_asset_reserve: {} < {}",
+            amm.base_asset_reserve,
+            amm.min_base_asset_reserve,
+        )?;
+    }
+
+    if direction == PositionDirection::Short {
+        validate!(
+            amm.base_asset_reserve <= amm.max_base_asset_reserve,
+            ErrorCode::DefaultError,
+            "Market baa above max_base_asset_reserve"
+        )?;
+    }
+
+    Ok(())
+}
+
 pub fn validate_position_account(
     position: &PerpPosition,
     market: &PerpMarket,
@@ -194,7 +214,7 @@ pub fn validate_position_account(
 
     validate!(
         is_multiple_of_step_size(
-            position.base_asset_amount.unsigned_abs(),
+            position.base_asset_amount.unsigned_abs().cast()?,
             market.amm.base_asset_amount_step_size
         )?,
         ErrorCode::DefaultError,

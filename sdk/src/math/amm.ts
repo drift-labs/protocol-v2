@@ -1,7 +1,7 @@
 import { BN } from '@project-serum/anchor';
 import {
 	AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PEG_PRECISION,
 	ZERO,
 	BID_ASK_SPREAD_PRECISION,
@@ -47,7 +47,7 @@ export function calculateOptimalPegAndBudget(
 	amm: AMM,
 	oraclePriceData: OraclePriceData
 ): [BN, BN, BN, boolean] {
-	const markPriceBefore = calculatePrice(
+	const reservePriceBefore = calculatePrice(
 		amm.baseAssetReserve,
 		amm.quoteAssetReserve,
 		amm.pegMultiplier
@@ -70,15 +70,15 @@ export function calculateOptimalPegAndBudget(
 		let newTargetPrice: BN;
 		let newOptimalPeg: BN;
 		let newBudget: BN;
-		const targetPriceGap = markPriceBefore.sub(targetPrice);
+		const targetPriceGap = reservePriceBefore.sub(targetPrice);
 
 		if (targetPriceGap.abs().gt(maxPriceSpread)) {
 			const markAdj = targetPriceGap.abs().sub(maxPriceSpread);
 
 			if (targetPriceGap.lt(new BN(0))) {
-				newTargetPrice = markPriceBefore.add(markAdj);
+				newTargetPrice = reservePriceBefore.add(markAdj);
 			} else {
-				newTargetPrice = markPriceBefore.sub(markAdj);
+				newTargetPrice = reservePriceBefore.sub(markAdj);
 			}
 
 			newOptimalPeg = calculatePegFromTargetPrice(
@@ -242,7 +242,7 @@ export function calculateBidAskPrice(
  * @param baseAssetReserves
  * @param quoteAssetReserves
  * @param pegMultiplier
- * @returns price : Precision MARK_PRICE_PRECISION
+ * @returns price : Precision PRICE_PRECISION
  */
 export function calculatePrice(
 	baseAssetReserves: BN,
@@ -254,7 +254,7 @@ export function calculatePrice(
 	}
 
 	return quoteAssetReserves
-		.mul(MARK_PRICE_PRECISION)
+		.mul(PRICE_PRECISION)
 		.mul(pegMultiplier)
 		.div(PEG_PRECISION)
 		.div(baseAssetReserves);
@@ -336,6 +336,7 @@ export function calculateInventoryScale(
 	minBaseAssetReserve: BN,
 	maxBaseAssetReserve: BN
 ): number {
+	const maxScale = BID_ASK_SPREAD_PRECISION.mul(new BN(10));
 	// inventory skew
 	const [openBids, openAsks] = calculateMarketOpenBidAsk(
 		baseAssetReserve,
@@ -343,12 +344,15 @@ export function calculateInventoryScale(
 		maxBaseAssetReserve
 	);
 
-	const totalLiquidity = BN.max(openBids.abs().add(openAsks.abs()), new BN(1));
+	const minSideLiquidity = BN.max(
+		new BN(1),
+		BN.min(openBids.abs(), openAsks.abs())
+	);
 	const inventoryScale =
-		BN.min(netBaseAssetAmount.abs(), totalLiquidity)
-			.mul(BID_ASK_SPREAD_PRECISION.mul(new BN(5)))
-			.div(totalLiquidity)
-			.toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
+		BN.min(
+			maxScale,
+			netBaseAssetAmount.mul(maxScale).div(minSideLiquidity).abs()
+		).toNumber() / BID_ASK_SPREAD_PRECISION.toNumber();
 
 	return inventoryScale;
 }
@@ -359,7 +363,7 @@ export function calculateEffectiveLeverage(
 	terminalQuoteAssetReserve: BN,
 	pegMultiplier: BN,
 	netBaseAssetAmount: BN,
-	markPrice: BN,
+	reservePrice: BN,
 	totalFeeMinusDistributions: BN
 ): number {
 	// inventory skew
@@ -369,8 +373,8 @@ export function calculateEffectiveLeverage(
 		.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO);
 
 	const localBaseAssetValue = netBaseAssetAmount
-		.mul(markPrice)
-		.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(MARK_PRICE_PRECISION));
+		.mul(reservePrice)
+		.div(AMM_TO_QUOTE_PRECISION_RATIO.mul(PRICE_PRECISION));
 
 	const effectiveLeverage =
 		localBaseAssetValue.sub(netBaseAssetValue).toNumber() /
@@ -390,14 +394,14 @@ export function calculateMaxSpread(marginRatioInitial: number): number {
 
 export function calculateSpreadBN(
 	baseSpread: number,
-	lastOracleMarkSpreadPct: BN,
+	lastOracleReservePriceSpreadPct: BN,
 	lastOracleConfPct: BN,
 	maxSpread: number,
 	quoteAssetReserve: BN,
 	terminalQuoteAssetReserve: BN,
 	pegMultiplier: BN,
 	netBaseAssetAmount: BN,
-	markPrice: BN,
+	reservePrice: BN,
 	totalFeeMinusDistributions: BN,
 	baseAssetReserve: BN,
 	minBaseAssetReserve: BN,
@@ -406,24 +410,26 @@ export function calculateSpreadBN(
 	let longSpread = baseSpread / 2;
 	let shortSpread = baseSpread / 2;
 
-	if (lastOracleMarkSpreadPct.gt(ZERO)) {
+	if (lastOracleReservePriceSpreadPct.gt(ZERO)) {
 		shortSpread = Math.max(
 			shortSpread,
-			lastOracleMarkSpreadPct.abs().toNumber() + lastOracleConfPct.toNumber()
+			lastOracleReservePriceSpreadPct.abs().toNumber() +
+				lastOracleConfPct.toNumber()
 		);
-	} else if (lastOracleMarkSpreadPct.lt(ZERO)) {
+	} else if (lastOracleReservePriceSpreadPct.lt(ZERO)) {
 		longSpread = Math.max(
 			longSpread,
-			lastOracleMarkSpreadPct.abs().toNumber() + lastOracleConfPct.toNumber()
+			lastOracleReservePriceSpreadPct.abs().toNumber() +
+				lastOracleConfPct.toNumber()
 		);
 	}
 
 	const maxTargetSpread: number = Math.max(
 		maxSpread,
-		lastOracleMarkSpreadPct.abs().toNumber()
+		lastOracleReservePriceSpreadPct.abs().toNumber()
 	);
 
-	const MAX_INVENTORY_SKEW = 5;
+	const MAX_BID_ASK_INVENTORY_SKEW_FACTOR = 10;
 
 	const inventoryScale = calculateInventoryScale(
 		netBaseAssetAmount,
@@ -431,7 +437,10 @@ export function calculateSpreadBN(
 		minBaseAssetReserve,
 		maxBaseAssetReserve
 	);
-	const inventorySpreadScale = Math.min(MAX_INVENTORY_SKEW, 1 + inventoryScale);
+	const inventorySpreadScale = Math.min(
+		MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
+		1 + inventoryScale
+	);
 
 	if (netBaseAssetAmount.gt(ZERO)) {
 		longSpread *= inventorySpreadScale;
@@ -445,20 +454,23 @@ export function calculateSpreadBN(
 		terminalQuoteAssetReserve,
 		pegMultiplier,
 		netBaseAssetAmount,
-		markPrice,
+		reservePrice,
 		totalFeeMinusDistributions
 	);
 
 	if (totalFeeMinusDistributions.gt(ZERO)) {
-		const spreadScale = Math.min(MAX_INVENTORY_SKEW, 1 + effectiveLeverage);
+		const spreadScale = Math.min(
+			MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
+			1 + effectiveLeverage
+		);
 		if (netBaseAssetAmount.gt(ZERO)) {
 			longSpread *= spreadScale;
 		} else {
 			shortSpread *= spreadScale;
 		}
 	} else {
-		longSpread *= MAX_INVENTORY_SKEW;
-		shortSpread *= MAX_INVENTORY_SKEW;
+		longSpread *= MAX_BID_ASK_INVENTORY_SKEW_FACTOR;
+		shortSpread *= MAX_BID_ASK_INVENTORY_SKEW_FACTOR;
 	}
 
 	const totalSpread = longSpread + shortSpread;
@@ -484,23 +496,23 @@ export function calculateSpread(
 		return amm.baseSpread / 2;
 	}
 
-	const markPrice = calculatePrice(
+	const reservePrice = calculatePrice(
 		amm.baseAssetReserve,
 		amm.quoteAssetReserve,
 		amm.pegMultiplier
 	);
 
-	const targetPrice = oraclePriceData?.price || markPrice;
+	const targetPrice = oraclePriceData?.price || reservePrice;
 	const confInterval = oraclePriceData.confidence || ZERO;
 
-	const targetMarkSpreadPct = markPrice
+	const targetMarkSpreadPct = reservePrice
 		.sub(targetPrice)
 		.mul(BID_ASK_SPREAD_PRECISION)
-		.div(markPrice);
+		.div(reservePrice);
 
 	const confIntervalPct = confInterval
 		.mul(BID_ASK_SPREAD_PRECISION)
-		.div(markPrice);
+		.div(reservePrice);
 
 	const [longSpread, shortSpread] = calculateSpreadBN(
 		amm.baseSpread,
@@ -511,7 +523,7 @@ export function calculateSpread(
 		amm.terminalQuoteAssetReserve,
 		amm.pegMultiplier,
 		amm.netBaseAssetAmount,
-		markPrice,
+		reservePrice,
 		amm.totalFeeMinusDistributions,
 		amm.baseAssetReserve,
 		amm.minBaseAssetReserve,
@@ -614,7 +626,7 @@ export function getSwapDirection(
  * Helper function calculating terminal price of amm
  *
  * @param market
- * @returns cost : Precision MARK_PRICE_PRECISION
+ * @returns cost : Precision PRICE_PRECISION
  */
 export function calculateTerminalPrice(market: PerpMarketAccount) {
 	const directionToClose = market.amm.netBaseAssetAmount.gt(ZERO)
@@ -630,7 +642,7 @@ export function calculateTerminalPrice(market: PerpMarketAccount) {
 		);
 
 	const terminalPrice = newQuoteAssetReserve
-		.mul(MARK_PRICE_PRECISION)
+		.mul(PRICE_PRECISION)
 		.mul(market.amm.pegMultiplier)
 		.div(PEG_PRECISION)
 		.div(newBaseAssetReserve);
@@ -647,7 +659,7 @@ export function calculateMaxBaseAssetAmountToTrade(
 	const invariant = amm.sqrtK.mul(amm.sqrtK);
 
 	const newBaseAssetReserveSquared = invariant
-		.mul(MARK_PRICE_PRECISION)
+		.mul(PRICE_PRECISION)
 		.mul(amm.pegMultiplier)
 		.div(limit_price)
 		.div(PEG_PRECISION);

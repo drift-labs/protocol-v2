@@ -18,20 +18,22 @@ use crate::math::margin::{
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
 use crate::state::market::{MarketStatus, PoolBalance};
-use crate::state::oracle::OracleSource;
+use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
 use solana_program::msg;
 
 #[account(zero_copy)]
 #[derive(Default, PartialEq, Eq, Debug)]
 #[repr(packed)]
 pub struct SpotMarket {
-    pub market_index: u64,
+    pub market_index: u16,
     pub pubkey: Pubkey,
     pub status: MarketStatus,
     pub expiry_ts: i64, // iff market in reduce only mode
 
     pub oracle: Pubkey,
     pub oracle_source: OracleSource,
+    pub historical_oracle_data: HistoricalOracleData,
+    pub historical_index_data: HistoricalIndexData,
     pub mint: Pubkey,
     pub vault: Pubkey,
     pub insurance_fund_vault: Pubkey,
@@ -72,7 +74,7 @@ pub struct SpotMarket {
     pub if_liquidation_fee: u128, // percentage of liquidation transfer for total insurance
     pub withdraw_guard_threshold: u128, // no withdraw limits/guards when deposits below this threshold
 
-    pub order_step_size: u128,
+    pub order_step_size: u64,
     pub next_fill_record_id: u64,
     pub total_spot_fee: u128,
     pub spot_fee_pool: PoolBalance,
@@ -125,15 +127,19 @@ impl SpotMarket {
             (size * AMM_RESERVE_PRECISION) / size_precision
         };
 
-        let liability_weight = match margin_requirement_type {
-            MarginRequirementType::Initial => calculate_size_premium_liability_weight(
-                size_in_amm_reserve_precision,
-                self.imf_factor,
-                self.initial_liability_weight,
-                SPOT_WEIGHT_PRECISION,
-            )?,
+        let default_liability_weight = match margin_requirement_type {
+            MarginRequirementType::Initial => self.initial_liability_weight,
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
         };
+
+        let size_based_liability_weight = calculate_size_premium_liability_weight(
+            size_in_amm_reserve_precision,
+            self.imf_factor,
+            default_liability_weight,
+            SPOT_WEIGHT_PRECISION,
+        )?;
+
+        let liability_weight = size_based_liability_weight.max(default_liability_weight);
 
         Ok(liability_weight)
     }
@@ -249,7 +255,7 @@ pub struct SerumV3FulfillmentConfig {
     pub pubkey: Pubkey,
     pub fulfillment_type: SpotFulfillmentType,
     pub status: SpotFulfillmentStatus,
-    pub market_index: u64,
+    pub market_index: u16,
     pub serum_program_id: Pubkey,
     pub serum_market: Pubkey,
     pub serum_request_queue: Pubkey,

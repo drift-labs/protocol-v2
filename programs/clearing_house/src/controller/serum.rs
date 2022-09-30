@@ -1,7 +1,7 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::signer::get_signer_seeds;
 use anchor_lang::accounts::account::Account;
-use anchor_lang::prelude::{AccountInfo, Program, Rent, Sysvar};
+use anchor_lang::prelude::{AccountInfo, Program, Pubkey, Rent, Sysvar};
 use anchor_lang::ToAccountInfo;
 use anchor_spl::token::{Token, TokenAccount};
 use serum_dex::instruction::NewOrderInstructionV3;
@@ -60,6 +60,7 @@ pub struct SerumFulfillmentParams<'a, 'b> {
     pub token_program: Program<'b, Token>,
     pub base_market_vault: Box<Account<'b, TokenAccount>>,
     pub quote_market_vault: Box<Account<'b, TokenAccount>>,
+    pub srm_vault: &'a AccountInfo<'b>,
     pub serum_signer: &'a AccountInfo<'b>,
     pub signer_nonce: u8,
 }
@@ -76,12 +77,13 @@ pub fn invoke_new_order<'a>(
     clearing_house_signer: &AccountInfo<'a>,
     serum_base_vault: &AccountInfo<'a>,
     serum_quote_vault: &AccountInfo<'a>,
+    srm_vault: &AccountInfo<'a>,
     token_program: &AccountInfo<'a>,
     order: NewOrderInstructionV3,
     nonce: u8,
 ) -> ClearingHouseResult {
     let data = serum_dex::instruction::MarketInstruction::NewOrderV3(order).pack();
-    let instruction = Instruction {
+    let mut instruction = Instruction {
         program_id: *serum_program.key,
         data,
         accounts: vec![
@@ -100,30 +102,70 @@ pub fn invoke_new_order<'a>(
         ],
     };
 
-    let account_infos = [
-        serum_program.clone(), // Have to add account of the program id
-        serum_market.clone(),
-        serum_open_markets.clone(),
-        serum_request_queue.clone(),
-        serum_event_queue.clone(),
-        serum_bids.clone(),
-        serum_asks.clone(),
-        clearing_house_vault.clone(),
-        clearing_house_signer.clone(),
-        serum_base_vault.clone(),
-        serum_quote_vault.clone(),
-        token_program.clone(),
-        clearing_house_signer.clone(),
-    ];
+    if srm_vault.key != &Pubkey::default() {
+        instruction
+            .accounts
+            .push(AccountMeta::new_readonly(*srm_vault.key, false));
 
-    let signer_seeds = get_signer_seeds(&nonce);
-    let signers_seeds = &[&signer_seeds[..]];
+        let account_infos = [
+            serum_program.clone(), // Have to add account of the program id
+            serum_market.clone(),
+            serum_open_markets.clone(),
+            serum_request_queue.clone(),
+            serum_event_queue.clone(),
+            serum_bids.clone(),
+            serum_asks.clone(),
+            clearing_house_vault.clone(),
+            clearing_house_signer.clone(),
+            serum_base_vault.clone(),
+            serum_quote_vault.clone(),
+            token_program.clone(),
+            clearing_house_signer.clone(),
+            srm_vault.clone(),
+        ];
 
-    solana_program::program::invoke_signed_unchecked(&instruction, &account_infos, signers_seeds)
+        let signer_seeds = get_signer_seeds(&nonce);
+        let signers_seeds = &[&signer_seeds[..]];
+
+        solana_program::program::invoke_signed_unchecked(
+            &instruction,
+            &account_infos,
+            signers_seeds,
+        )
         .map_err(|e| {
             msg!("{:?}", e);
             ErrorCode::FailedSerumCPI
         })
+    } else {
+        let account_infos = [
+            serum_program.clone(), // Have to add account of the program id
+            serum_market.clone(),
+            serum_open_markets.clone(),
+            serum_request_queue.clone(),
+            serum_event_queue.clone(),
+            serum_bids.clone(),
+            serum_asks.clone(),
+            clearing_house_vault.clone(),
+            clearing_house_signer.clone(),
+            serum_base_vault.clone(),
+            serum_quote_vault.clone(),
+            token_program.clone(),
+            clearing_house_signer.clone(),
+        ];
+
+        let signer_seeds = get_signer_seeds(&nonce);
+        let signers_seeds = &[&signer_seeds[..]];
+
+        solana_program::program::invoke_signed_unchecked(
+            &instruction,
+            &account_infos,
+            signers_seeds,
+        )
+        .map_err(|e| {
+            msg!("{:?}", e);
+            ErrorCode::FailedSerumCPI
+        })
+    }
 }
 
 pub fn invoke_settle_funds<'a>(

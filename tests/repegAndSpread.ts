@@ -14,22 +14,19 @@ import {
 	getLimitOrderParams,
 	ClearingHouse,
 	OraclePriceData,
+	OracleGuardRails,
+	BASE_PRECISION,
 } from '../sdk';
-import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import {
-	Keypair,
-	sendAndConfirmTransaction,
-	Transaction,
-} from '@solana/web3.js';
+import { Keypair } from '@solana/web3.js';
 import { Program } from '@project-serum/anchor';
 
 import {
 	Admin,
 	ClearingHouseUser,
-	// MARK_PRICE_PRECISION,
+	// PRICE_PRECISION,
 	AMM_RESERVE_PRECISION,
 	QUOTE_PRECISION,
-	// calculateMarkPrice,
+	// calculateReservePrice,
 	PositionDirection,
 	EventSubscriber,
 	convertToNumber,
@@ -58,37 +55,13 @@ async function depositToFeePoolFromIF(
 	userUSDCAccount: Keypair
 ) {
 	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
-	const state = await clearingHouse.getStateAccount();
-	const tokenIx = Token.createTransferInstruction(
-		TOKEN_PROGRAM_ID,
-		userUSDCAccount.publicKey,
-		state.insuranceVault,
-		clearingHouse.provider.wallet.publicKey,
-		// usdcMint.publicKey,
-		[],
-		ifAmount.toNumber()
-	);
-
-	console.log('start depositToFeePoolFromIF:', '$', amount);
-
-	await sendAndConfirmTransaction(
-		clearingHouse.provider.connection,
-		new Transaction().add(tokenIx),
-		// @ts-ignore
-		[clearingHouse.provider.wallet.payer],
-		{
-			skipPreflight: false,
-			commitment: 'recent',
-			preflightCommitment: 'recent',
-		}
-	);
-	console.log('complete sendAndConfirmTransaction:');
 
 	// // send $50 to market from IF
 	try {
-		const txSig00 = await clearingHouse.withdrawFromInsuranceVaultToMarket(
-			new BN(0),
-			ifAmount
+		const txSig00 = await clearingHouse.depositIntoMarketFeePool(
+			0,
+			ifAmount,
+			userUSDCAccount.publicKey
 		);
 		console.log('complete withdrawFromInsuranceVaultToMarket:', '$', amount);
 
@@ -100,7 +73,7 @@ async function depositToFeePoolFromIF(
 
 async function iterClosePosition(
 	clearingHouse: ClearingHouse,
-	marketIndex: BN,
+	marketIndex: number,
 	oraclePriceData: OraclePriceData
 ) {
 	let userPosition = clearingHouse.getUser().getUserPosition(marketIndex);
@@ -168,7 +141,7 @@ describe('repeg and spread amm', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	// const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	// const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetAmount = new anchor.BN(94).mul(
 		AMM_RESERVE_PRECISION
 	);
@@ -192,7 +165,7 @@ describe('repeg and spread amm', () => {
 			provider
 		);
 
-		btcUsd = await mockOracle(21966);
+		btcUsd = await mockOracle(21966.86);
 		mockOracles.push(btcUsd);
 		for (let i = 1; i <= 4; i++) {
 			// init more oracles
@@ -200,8 +173,8 @@ describe('repeg and spread amm', () => {
 			mockOracles.push(thisUsd);
 		}
 
-		spotMarketIndexes = [new BN(0)];
-		marketIndexes = mockOracles.map((_, i) => new BN(i));
+		spotMarketIndexes = [0];
+		marketIndexes = mockOracles.map((_, i) => i);
 		oracleInfos = mockOracles.map((oracle) => {
 			return { publicKey: oracle, source: OracleSource.PYTH };
 		});
@@ -220,7 +193,7 @@ describe('repeg and spread amm', () => {
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.updatePerpAuctionDuration(0, 0);
+		await clearingHouse.updatePerpAuctionDuration(0);
 		await clearingHouse.subscribe();
 
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
@@ -232,30 +205,30 @@ describe('repeg and spread amm', () => {
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
 			periodicity,
-			new BN(21_966_868),
+			new BN(21966.868 * PEG_PRECISION.toNumber()),
 			undefined,
 			500,
 			250
 		);
-		await clearingHouse.updateMarketBaseSpread(new BN(0), 250);
-		await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
+		await clearingHouse.updateMarketBaseSpread(0, 250);
+		await clearingHouse.updateCurveUpdateIntensity(0, 100);
 
-		for (let i = 1; i <= 4; i++) {
-			// init more markets
-			const thisUsd = mockOracles[i];
-			await clearingHouse.initializeMarket(
-				thisUsd,
-				ammInitialBaseAssetAmount,
-				ammInitialQuoteAssetAmount,
-				periodicity,
-				new BN(1_000 * i),
-				undefined,
-				1000,
-				201
-			);
-			await clearingHouse.updateMarketBaseSpread(new BN(i), 2000);
-			await clearingHouse.updateCurveUpdateIntensity(new BN(i), 100);
-		}
+		// for (let i = 1; i <= 4; i++) {
+		// 	// init more markets
+		// 	const thisUsd = mockOracles[i];
+		// 	await clearingHouse.initializeMarket(
+		// 		thisUsd,
+		// 		ammInitialBaseAssetAmount,
+		// 		ammInitialQuoteAssetAmount,
+		// 		periodicity,
+		// 		new BN(1_000 * i),
+		// 		undefined,
+		// 		1000,
+		// 		201
+		// 	);
+		// 	await clearingHouse.updateMarketBaseSpread(new BN(i), 2000);
+		// 	await clearingHouse.updateCurveUpdateIntensity(new BN(i), 100);
+		// }
 
 		const [, _userAccountPublicKey] =
 			await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -270,7 +243,31 @@ describe('repeg and spread amm', () => {
 	});
 
 	it('BTC market massive spread', async () => {
-		const marketIndex = new BN(0);
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(1),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
+				confidenceIntervalMaxSize: new BN(100000),
+				tooVolatileRatio: new BN(2),
+			},
+			useForLiquidations: false,
+		};
+
+		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
+
+		await clearingHouse.fetchAccounts();
+		const state = clearingHouse.getStateAccount();
+
+		assert(
+			JSON.stringify(oracleGuardRails) ===
+				JSON.stringify(state.oracleGuardRails)
+		);
+
+		const marketIndex = 0;
 		const baseAssetAmount = new BN(0.19316 * AMM_RESERVE_PRECISION.toNumber());
 		const orderParams = getMarketOrderParams({
 			marketIndex,
@@ -341,18 +338,18 @@ describe('repeg and spread amm', () => {
 		console.log('spreads:', longSpread, shortSpread);
 		assert(shortSpread > longSpread);
 
-		const markPrice = calculatePrice(
+		const reservePrice = calculatePrice(
 			prepegAMM.baseAssetReserve,
 			prepegAMM.quoteAssetReserve,
 			prepegAMM.pegMultiplier
 		);
 
-		const targetPrice = oraclePriceData?.price || markPrice;
+		const targetPrice = oraclePriceData?.price || reservePrice;
 
-		const targetMarkSpreadPct = markPrice
+		const targetMarkSpreadPct = reservePrice
 			.sub(targetPrice)
 			.mul(BID_ASK_SPREAD_PRECISION)
-			.div(markPrice);
+			.div(reservePrice);
 
 		const tfMD =
 			prepegAMM.totalFeeMinusDistributions.toNumber() /
@@ -384,7 +381,7 @@ describe('repeg and spread amm', () => {
 			prepegAMM.terminalQuoteAssetReserve,
 			prepegAMM.pegMultiplier,
 			prepegAMM.netBaseAssetAmount,
-			markPrice,
+			reservePrice,
 			prepegAMM.totalFeeMinusDistributions,
 			prepegAMM.baseAssetReserve,
 			prepegAMM.minBaseAssetReserve,
@@ -423,7 +420,7 @@ describe('repeg and spread amm', () => {
 			prepegAMM.terminalQuoteAssetReserve,
 			prepegAMM.pegMultiplier,
 			prepegAMM.netBaseAssetAmount,
-			markPrice,
+			reservePrice,
 			prepegAMM.totalFeeMinusDistributions
 		);
 		const inventoryScale = calculateInventoryScale(
@@ -435,8 +432,8 @@ describe('repeg and spread amm', () => {
 
 		console.log('inventoryScale:', inventoryScale);
 		console.log('effectiveLeverage:', effectiveLeverage);
-		assert(Math.min(effectiveLeverage, 5) == 5); // lol
-		assert(inventoryScale == 0.034835);
+		assert(Math.min(effectiveLeverage, 10) == 10); // lol
+		assert(Math.min(inventoryScale, 10) == 10);
 
 		try {
 			const txSig = await clearingHouse.updateAMMs([marketIndex]);
@@ -472,7 +469,7 @@ describe('repeg and spread amm', () => {
 
 		assert(bid1.eq(bid));
 		assert(ask1.eq(ask));
-		assert(mark1.eq(markPrice));
+		assert(mark1.eq(reservePrice));
 
 		assert(bid1.lt(ask1));
 		assert(ask1.gt(oraclePriceData.price));
@@ -507,7 +504,9 @@ describe('repeg and spread amm', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].baseAssetAmount.toString() == '-1931600000000'
+				.perpPositions[0].baseAssetAmount.eq(
+					new BN(-0.19316 * BASE_PRECISION.toNumber())
+				)
 		);
 		// assert(
 		// 	clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==
@@ -728,7 +727,7 @@ describe('repeg and spread amm', () => {
 			}
 
 			const orderParams = getMarketOrderParams({
-				marketIndex: new BN(0),
+				marketIndex: 0,
 				direction: tradeDirection,
 				baseAssetAmount: new BN(tradeSize),
 			});
@@ -790,11 +789,11 @@ describe('repeg and spread amm', () => {
 			);
 			if (!pos.baseAssetAmount.eq(ZERO)) {
 				// await clearingHouses[i].closePosition(new BN(0));
-				await iterClosePosition(clearingHouses[i], new BN(0), oraclePriceData1);
+				await iterClosePosition(clearingHouses[i], 0, oraclePriceData1);
 				await clearingHouses[i].settlePNL(
 					await clearingHouses[i].getUserAccountPublicKey(),
 					clearingHouses[i].getUserAccount(),
-					new BN(0)
+					0
 				);
 			}
 

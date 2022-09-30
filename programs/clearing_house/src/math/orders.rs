@@ -10,8 +10,8 @@ use crate::error::ClearingHouseResult;
 use crate::math;
 use crate::math::amm::calculate_max_base_asset_amount_fillable;
 use crate::math::auction::is_auction_complete;
-use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::{MARGIN_PRECISION, MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
+use crate::math::casting::Cast;
+use crate::math::constants::{MARGIN_PRECISION, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
 use crate::math::position::calculate_entry_price;
 
 use crate::math_error;
@@ -25,7 +25,7 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     market: &PerpMarket,
     valid_oracle_price: Option<i128>,
     slot: u64,
-) -> ClearingHouseResult<u128> {
+) -> ClearingHouseResult<u64> {
     if order.must_be_triggered() && !order.triggered {
         return Ok(0);
     }
@@ -44,7 +44,7 @@ pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
     order: &Order,
     market: &PerpMarket,
     limit_price: u128,
-) -> ClearingHouseResult<u128> {
+) -> ClearingHouseResult<u64> {
     let base_asset_amount_unfilled = order.get_base_asset_amount_unfilled()?;
 
     let (max_trade_base_asset_amount, max_trade_direction) =
@@ -89,14 +89,15 @@ pub fn limit_price_satisfied(
 }
 
 pub fn calculate_quote_asset_amount_for_maker_order(
-    base_asset_amount: u128,
+    base_asset_amount: u64,
     fill_price: u128,
     swap_direction: SwapDirection,
-) -> ClearingHouseResult<u128> {
-    let mut quote_asset_amount = base_asset_amount
-        .checked_mul(fill_price)
+) -> ClearingHouseResult<u64> {
+    let mut quote_asset_amount = fill_price
+        .checked_mul(base_asset_amount.cast()?)
         .ok_or_else(math_error!())?
-        .div(MARK_PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO);
+        .div(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
+        .cast::<u64>()?;
 
     // when a user goes long base asset, make the base asset slightly more expensive
     // by adding one unit of quote asset
@@ -110,10 +111,10 @@ pub fn calculate_quote_asset_amount_for_maker_order(
 }
 
 pub fn calculate_base_asset_amount_for_reduce_only_order(
-    proposed_base_asset_amount: u128,
+    proposed_base_asset_amount: u64,
     order_direction: PositionDirection,
-    existing_position: i128,
-) -> u128 {
+    existing_position: i64,
+) -> u64 {
     if (order_direction == PositionDirection::Long && existing_position >= 0)
         || (order_direction == PositionDirection::Short && existing_position <= 0)
     {
@@ -128,14 +129,13 @@ pub fn standardize_base_asset_amount_with_remainder_i128(
     base_asset_amount: i128,
     step_size: u128,
 ) -> ClearingHouseResult<(i128, i128)> {
-    let remainder = cast_to_i128(
-        base_asset_amount
-            .unsigned_abs()
-            .checked_rem_euclid(step_size)
-            .ok_or_else(math_error!())?,
-    )?
-    .checked_mul(base_asset_amount.signum())
-    .ok_or_else(math_error!())?;
+    let remainder = base_asset_amount
+        .unsigned_abs()
+        .checked_rem_euclid(step_size)
+        .ok_or_else(math_error!())?
+        .cast::<i128>()?
+        .checked_mul(base_asset_amount.signum())
+        .ok_or_else(math_error!())?;
 
     let standardized_base_asset_amount = base_asset_amount
         .checked_sub(remainder)
@@ -145,9 +145,9 @@ pub fn standardize_base_asset_amount_with_remainder_i128(
 }
 
 pub fn standardize_base_asset_amount(
-    base_asset_amount: u128,
-    step_size: u128,
-) -> ClearingHouseResult<u128> {
+    base_asset_amount: u64,
+    step_size: u64,
+) -> ClearingHouseResult<u64> {
     let remainder = base_asset_amount
         .checked_rem_euclid(step_size)
         .ok_or_else(math_error!())?;
@@ -177,8 +177,8 @@ pub fn standardize_base_asset_amount_ceil(
 }
 
 pub fn is_multiple_of_step_size(
-    base_asset_amount: u128,
-    step_size: u128,
+    base_asset_amount: u64,
+    step_size: u64,
 ) -> ClearingHouseResult<bool> {
     let remainder = base_asset_amount
         .checked_rem_euclid(step_size)
@@ -188,18 +188,18 @@ pub fn is_multiple_of_step_size(
 }
 
 pub fn get_position_delta_for_fill(
-    base_asset_amount: u128,
-    quote_asset_amount: u128,
+    base_asset_amount: u64,
+    quote_asset_amount: u64,
     direction: PositionDirection,
 ) -> ClearingHouseResult<PositionDelta> {
     Ok(PositionDelta {
         quote_asset_amount: match direction {
-            PositionDirection::Long => -cast_to_i128(quote_asset_amount)?,
-            PositionDirection::Short => cast_to_i128(quote_asset_amount)?,
+            PositionDirection::Long => -quote_asset_amount.cast()?,
+            PositionDirection::Short => quote_asset_amount.cast()?,
         },
         base_asset_amount: match direction {
-            PositionDirection::Long => cast_to_i128(base_asset_amount)?,
-            PositionDirection::Short => -cast_to_i128(base_asset_amount)?,
+            PositionDirection::Long => base_asset_amount.cast()?,
+            PositionDirection::Short => -base_asset_amount.cast()?,
         },
     })
 }
@@ -234,7 +234,7 @@ pub fn should_expire_order(
     }
 
     let slots_elapsed = slot.checked_sub(order.slot).ok_or_else(math_error!())?;
-    Ok(slots_elapsed > cast(order.time_in_force)?)
+    Ok(slots_elapsed > order.time_in_force.cast()?)
 }
 
 pub fn order_breaches_oracle_price_limits(
@@ -306,7 +306,7 @@ pub fn order_breaches_oracle_price_limits(
     }
 }
 
-pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u128) -> bool {
+pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u64) -> bool {
     match order.trigger_condition {
         OrderTriggerCondition::Above => oracle_price > order.trigger_price,
         OrderTriggerCondition::Below => oracle_price < order.trigger_price,
@@ -320,10 +320,12 @@ pub fn is_spot_order_risk_decreasing(
 ) -> ClearingHouseResult<bool> {
     let risk_decreasing = match (balance_type, order.direction) {
         (SpotBalanceType::Deposit, PositionDirection::Short) => {
-            order.base_asset_amount < token_amount.checked_mul(2).ok_or_else(math_error!())?
+            (order.base_asset_amount as u128)
+                < token_amount.checked_mul(2).ok_or_else(math_error!())?
         }
         (SpotBalanceType::Borrow, PositionDirection::Long) => {
-            order.base_asset_amount < token_amount.checked_mul(2).ok_or_else(math_error!())?
+            (order.base_asset_amount as u128)
+                < token_amount.checked_mul(2).ok_or_else(math_error!())?
         }
         (_, _) => false,
     };
@@ -333,8 +335,8 @@ pub fn is_spot_order_risk_decreasing(
 
 pub fn is_order_risk_decreasing(
     order_direction: &PositionDirection,
-    order_base_asset_amount: u128,
-    position_base_asset_amount: i128,
+    order_base_asset_amount: u64,
+    position_base_asset_amount: i64,
 ) -> ClearingHouseResult<bool> {
     Ok(match order_direction {
         // User is short and order is long
@@ -442,8 +444,8 @@ mod test {
 
         #[test]
         fn remainder_less_than_half_minimum_size() {
-            let base_asset_amount: u128 = 200001;
-            let minimum_size: u128 = 100000;
+            let base_asset_amount: u64 = 200001;
+            let minimum_size: u64 = 100000;
 
             let result = standardize_base_asset_amount(base_asset_amount, minimum_size).unwrap();
 
@@ -452,8 +454,8 @@ mod test {
 
         #[test]
         fn remainder_more_than_half_minimum_size() {
-            let base_asset_amount: u128 = 250001;
-            let minimum_size: u128 = 100000;
+            let base_asset_amount: u64 = 250001;
+            let minimum_size: u64 = 100000;
 
             let result = standardize_base_asset_amount(base_asset_amount, minimum_size).unwrap();
 
@@ -462,8 +464,8 @@ mod test {
 
         #[test]
         fn zero() {
-            let base_asset_amount: u128 = 0;
-            let minimum_size: u128 = 100000;
+            let base_asset_amount: u64 = 0;
+            let minimum_size: u64 = 100000;
 
             let result = standardize_base_asset_amount(base_asset_amount, minimum_size).unwrap();
 
@@ -473,13 +475,13 @@ mod test {
 
     mod is_order_risk_increase {
         use crate::controller::position::PositionDirection;
-        use crate::math::constants::{BASE_PRECISION, BASE_PRECISION_I128};
+        use crate::math::constants::{BASE_PRECISION_I64, BASE_PRECISION_U64};
         use crate::math::orders::is_order_risk_decreasing;
 
         #[test]
         fn no_position() {
             let order_direction = PositionDirection::Long;
-            let order_base_asset_amount = BASE_PRECISION;
+            let order_base_asset_amount = BASE_PRECISION_U64;
             let existing_position = 0;
 
             let risk_decreasing = is_order_risk_decreasing(
@@ -506,8 +508,8 @@ mod test {
         fn bid() {
             // user long and bid
             let order_direction = PositionDirection::Long;
-            let order_base_asset_amount = BASE_PRECISION;
-            let existing_position = BASE_PRECISION_I128;
+            let order_base_asset_amount = BASE_PRECISION_U64;
+            let existing_position = BASE_PRECISION_I64;
             let risk_decreasing = is_order_risk_decreasing(
                 &order_direction,
                 order_base_asset_amount,
@@ -518,7 +520,7 @@ mod test {
             assert!(!risk_decreasing);
 
             // user short and bid < 2 * position
-            let existing_position = -BASE_PRECISION_I128;
+            let existing_position = -BASE_PRECISION_I64;
             let risk_decreasing = is_order_risk_decreasing(
                 &order_direction,
                 order_base_asset_amount,
@@ -529,7 +531,7 @@ mod test {
             assert!(risk_decreasing);
 
             // user short and bid = 2 * position
-            let existing_position = -BASE_PRECISION_I128 / 2;
+            let existing_position = -BASE_PRECISION_I64 / 2;
             let risk_decreasing = is_order_risk_decreasing(
                 &order_direction,
                 order_base_asset_amount,
@@ -544,8 +546,8 @@ mod test {
         fn ask() {
             // user short and ask
             let order_direction = PositionDirection::Short;
-            let order_base_asset_amount = BASE_PRECISION;
-            let existing_position = -BASE_PRECISION_I128;
+            let order_base_asset_amount = BASE_PRECISION_U64;
+            let existing_position = -BASE_PRECISION_I64;
 
             let risk_decreasing = is_order_risk_decreasing(
                 &order_direction,
@@ -557,7 +559,7 @@ mod test {
             assert!(!risk_decreasing);
 
             // user long and ask < 2 * position
-            let existing_position = BASE_PRECISION_I128;
+            let existing_position = BASE_PRECISION_I64;
             let risk_decreasing = is_order_risk_decreasing(
                 &order_direction,
                 order_base_asset_amount,
@@ -568,7 +570,7 @@ mod test {
             assert!(risk_decreasing);
 
             // user long and ask = 2 * position
-            let existing_position = BASE_PRECISION_I128 / 2;
+            let existing_position = BASE_PRECISION_I64 / 2;
             let risk_decreasing = is_order_risk_decreasing(
                 &order_direction,
                 order_base_asset_amount,
@@ -582,9 +584,7 @@ mod test {
 
     mod order_breaches_oracle_price_limits {
         use crate::controller::position::PositionDirection;
-        use crate::math::constants::{
-            MARGIN_PRECISION, MARK_PRICE_PRECISION, MARK_PRICE_PRECISION_I128,
-        };
+        use crate::math::constants::{MARGIN_PRECISION, PRICE_PRECISION_I128, PRICE_PRECISION_U64};
         use crate::math::orders::order_breaches_oracle_price_limits;
         use crate::state::market::PerpMarket;
         use crate::state::user::Order;
@@ -597,11 +597,11 @@ mod test {
             };
 
             let order = Order {
-                price: 101 * MARK_PRICE_PRECISION,
+                price: 101 * PRICE_PRECISION_U64,
                 ..Order::default()
             };
 
-            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+            let oracle_price = 100 * PRICE_PRECISION_I128;
 
             let slot = 0;
 
@@ -628,11 +628,11 @@ mod test {
             };
 
             let order = Order {
-                price: 105 * MARK_PRICE_PRECISION - 1,
+                price: 105 * PRICE_PRECISION_U64 - 1,
                 ..Order::default()
             };
 
-            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+            let oracle_price = 100 * PRICE_PRECISION_I128;
 
             let slot = 0;
 
@@ -661,11 +661,11 @@ mod test {
 
             let order = Order {
                 direction: PositionDirection::Long,
-                price: 105 * MARK_PRICE_PRECISION,
+                price: 105 * PRICE_PRECISION_U64,
                 ..Order::default()
             };
 
-            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+            let oracle_price = 100 * PRICE_PRECISION_I128;
 
             let slot = 0;
 
@@ -694,11 +694,11 @@ mod test {
 
             let order = Order {
                 direction: PositionDirection::Short,
-                price: 99 * MARK_PRICE_PRECISION,
+                price: 99 * PRICE_PRECISION_U64,
                 ..Order::default()
             };
 
-            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+            let oracle_price = 100 * PRICE_PRECISION_I128;
 
             let slot = 0;
 
@@ -727,11 +727,11 @@ mod test {
 
             let order = Order {
                 direction: PositionDirection::Short,
-                price: 95 * MARK_PRICE_PRECISION + 1,
+                price: 95 * PRICE_PRECISION_U64 + 1,
                 ..Order::default()
             };
 
-            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+            let oracle_price = 100 * PRICE_PRECISION_I128;
 
             let slot = 0;
 
@@ -760,11 +760,11 @@ mod test {
 
             let order = Order {
                 direction: PositionDirection::Short,
-                price: 95 * MARK_PRICE_PRECISION,
+                price: 95 * PRICE_PRECISION_U64,
                 ..Order::default()
             };
 
-            let oracle_price = 100 * MARK_PRICE_PRECISION_I128;
+            let oracle_price = 100 * PRICE_PRECISION_I128;
 
             let slot = 0;
 

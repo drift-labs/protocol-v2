@@ -23,7 +23,7 @@ import {
 	Admin,
 	SPOT_MARKET_RATE_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	QUOTE_PRECISION,
 	ClearingHouse,
 	ClearingHouseUser,
@@ -208,8 +208,8 @@ export async function initializeAndSubscribeClearingHouse(
 	connection: Connection,
 	program: Program,
 	userKeyPair: Keypair,
-	marketIndexes: BN[],
-	bankIndexes: BN[],
+	marketIndexes: number[],
+	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = []
 ): Promise<ClearingHouse> {
 	const clearingHouse = new ClearingHouse({
@@ -234,8 +234,8 @@ export async function createUserWithUSDCAccount(
 	usdcMint: Keypair,
 	chProgram: Program,
 	usdcAmount: BN,
-	marketIndexes: BN[],
-	bankIndexes: BN[],
+	marketIndexes: number[],
+	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = []
 ): Promise<[ClearingHouse, PublicKey, Keypair]> {
 	const userKeyPair = await createFundedKeyPair(provider.connection);
@@ -283,8 +283,8 @@ export async function createUserWithUSDCAndWSOLAccount(
 	chProgram: Program,
 	solAmount: BN,
 	usdcAmount: BN,
-	marketIndexes: BN[],
-	bankIndexes: BN[],
+	marketIndexes: number[],
+	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = []
 ): Promise<[ClearingHouse, PublicKey, PublicKey, Keypair]> {
 	const userKeyPair = await createFundedKeyPair(provider.connection);
@@ -358,8 +358,8 @@ export async function initUserAccounts(
 	usdcMint: Keypair,
 	usdcAmount: BN,
 	provider: Provider,
-	marketIndexes: BN[],
-	bankIndexes: BN[],
+	marketIndexes: number[],
+	bankIndexes: number[],
 	oracleInfos: OracleInfo[]
 ) {
 	const user_keys = [];
@@ -517,9 +517,9 @@ export const getOraclePriceData = async (
 	);
 	const interData = parsePriceData(info.data);
 	const oraclePriceData: OraclePriceData = {
-		price: new BN(interData.price * MARK_PRICE_PRECISION.toNumber()),
+		price: new BN(interData.price * PRICE_PRECISION.toNumber()),
 		slot: new BN(interData.currentSlot.toString()),
-		confidence: new BN(interData.confidence * MARK_PRICE_PRECISION.toNumber()),
+		confidence: new BN(interData.confidence * PRICE_PRECISION.toNumber()),
 		hasSufficientNumberOfDataPoints: true,
 	};
 

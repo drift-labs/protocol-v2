@@ -9,28 +9,35 @@ use solana_program::msg;
 use crate::math::casting::{cast_to_u128, cast_to_u32, cast_to_u64};
 use crate::math_error;
 
-pub fn staked_amount_to_shares(
+pub fn vault_amount_to_if_shares(
     amount: u64,
     total_if_shares: u128,
     insurance_fund_vault_balance: u64,
 ) -> ClearingHouseResult<u128> {
     // relative to the entire pool + total amount minted
     let n_shares = if insurance_fund_vault_balance > 0 {
-        // assumes total_if_shares != 0 for nice result for user
+        // assumes total_if_shares != 0 (in most cases) for nice result for user
+
         get_proportion_u128(
             cast_to_u128(amount)?,
             total_if_shares,
             cast_to_u128(insurance_fund_vault_balance)?,
         )?
     } else {
-        // assumes total_if_shares == 0 for nice result for user
+        // must be case that total_if_shares == 0 for nice result for user
+        validate!(
+            total_if_shares == 0,
+            ErrorCode::DefaultError,
+            "assumes total_if_shares == 0",
+        )?;
+
         cast_to_u128(amount)?
     };
 
     Ok(n_shares)
 }
 
-pub fn unstaked_shares_to_amount(
+pub fn if_shares_to_vault_amount(
     n_shares: u128,
     total_if_shares: u128,
     insurance_fund_vault_balance: u64,
@@ -44,16 +51,11 @@ pub fn unstaked_shares_to_amount(
     )?;
 
     let amount = if total_if_shares > 0 {
-        // subtract one on withdraws to avoid rounding in favor for user
-        // either takes off one OR makes user proportional withdraw exact
-        cast_to_u64(
-            get_proportion_u128(
-                n_shares,
-                insurance_fund_vault_balance as u128,
-                total_if_shares as u128,
-            )?
-            .saturating_sub(1),
-        )?
+        cast_to_u64(get_proportion_u128(
+            insurance_fund_vault_balance as u128,
+            n_shares,
+            total_if_shares as u128,
+        )?)?
     } else {
         0
     };
@@ -107,21 +109,21 @@ pub fn calculate_if_shares_lost(
 ) -> ClearingHouseResult<u128> {
     let n_shares = insurance_fund_stake.last_withdraw_request_shares;
 
-    let amount = unstaked_shares_to_amount(
+    let amount = if_shares_to_vault_amount(
         n_shares,
         spot_market.total_if_shares,
         insurance_fund_vault_balance,
     )?;
 
     let if_shares_lost = if amount > insurance_fund_stake.last_withdraw_request_value {
-        let new_n_shares = staked_amount_to_shares(
+        let new_n_shares = vault_amount_to_if_shares(
             insurance_fund_stake.last_withdraw_request_value,
             spot_market.total_if_shares - n_shares,
             insurance_fund_vault_balance - insurance_fund_stake.last_withdraw_request_value,
         )?;
 
         validate!(
-            new_n_shares < n_shares,
+            new_n_shares <= n_shares,
             ErrorCode::DefaultError,
             "Issue calculating delta if_shares after canceling request {} < {}",
             new_n_shares,
@@ -142,6 +144,7 @@ pub fn calculate_if_shares_lost(
 mod test {
     use super::*;
     use crate::math::constants::{QUOTE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION};
+    use anchor_lang::prelude::Pubkey;
 
     #[test]
     pub fn log_test() {
@@ -261,13 +264,6 @@ mod test {
 
     #[test]
     pub fn if_shares_lost_test() {
-        let mut if_stake = InsuranceFundStake {
-            if_shares: 100 * QUOTE_PRECISION,
-            last_withdraw_request_shares: 100 * QUOTE_PRECISION,
-            last_withdraw_request_value: ((100 * QUOTE_PRECISION) - 1) as u64, // round in
-
-            ..InsuranceFundStake::default()
-        };
         let _amount = QUOTE_PRECISION as u64; // $1
         let mut spot_market = SpotMarket {
             deposit_balance: 0,
@@ -278,28 +274,35 @@ mod test {
             ..SpotMarket::default()
         };
 
+        let mut if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
+        if_stake
+            .update_if_shares(100 * QUOTE_PRECISION, &spot_market)
+            .unwrap();
+        if_stake.last_withdraw_request_shares = 100 * QUOTE_PRECISION;
+        if_stake.last_withdraw_request_value = ((100 * QUOTE_PRECISION) - 1) as u64;
+
         let if_balance = (1000 * QUOTE_PRECISION) as u64;
 
         // unchanged balance
         let lost_shares = calculate_if_shares_lost(&if_stake, &spot_market, if_balance).unwrap();
-        assert_eq!(lost_shares, 0);
+        assert_eq!(lost_shares, 2);
 
         let if_balance = if_balance + (100 * QUOTE_PRECISION) as u64;
         spot_market.total_if_shares += 100 * QUOTE_PRECISION;
         spot_market.user_if_shares += 100 * QUOTE_PRECISION;
         let lost_shares = calculate_if_shares_lost(&if_stake, &spot_market, if_balance).unwrap();
-        assert_eq!(lost_shares, 0); // giving up $5 of gains
+        assert_eq!(lost_shares, 2); // giving up $5 of gains
 
         let if_balance = if_balance - (100 * QUOTE_PRECISION) as u64;
         spot_market.total_if_shares -= 100 * QUOTE_PRECISION;
         spot_market.user_if_shares -= 100 * QUOTE_PRECISION;
         let lost_shares = calculate_if_shares_lost(&if_stake, &spot_market, if_balance).unwrap();
-        assert_eq!(lost_shares, 0); // giving up $5 of gains
+        assert_eq!(lost_shares, 2); // giving up $5 of gains
 
         // take back gain
         let if_balance = (1100 * QUOTE_PRECISION) as u64;
         let lost_shares = calculate_if_shares_lost(&if_stake, &spot_market, if_balance).unwrap();
-        assert_eq!(lost_shares, 10_000_000); // giving up $10 of gains
+        assert_eq!(lost_shares, 10_000_001); // giving up $10 of gains
 
         // doesnt matter if theres a loss
         if_stake.last_withdraw_request_value = (200 * QUOTE_PRECISION) as u64;
@@ -311,7 +314,7 @@ mod test {
         let if_balance = (2100 * QUOTE_PRECISION) as u64;
         spot_market.total_if_shares *= 2;
         let lost_shares = calculate_if_shares_lost(&if_stake, &spot_market, if_balance).unwrap();
-        assert_eq!(lost_shares, 5_000_000); // giving up $5 of gains
+        assert_eq!(lost_shares, 5_000_001); // giving up $5 of gains
 
         let if_balance = (2100 * QUOTE_PRECISION * 10) as u64;
 

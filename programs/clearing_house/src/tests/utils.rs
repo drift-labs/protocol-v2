@@ -4,8 +4,8 @@ use anchor_lang::{Owner, ZeroCopy};
 use bytes::BytesMut;
 use pyth::pc::Price;
 
-pub fn get_positions(position: PerpPosition) -> [PerpPosition; 5] {
-    let mut positions = [PerpPosition::default(); 5];
+pub fn get_positions(position: PerpPosition) -> [PerpPosition; 8] {
+    let mut positions = [PerpPosition::default(); 8];
     positions[0] = position;
     positions
 }
@@ -85,6 +85,6 @@ pub fn get_pyth_price(price: i64, expo: i32) -> Price {
     let price = price * 10_i64.pow(expo as u32);
     pyth_price.agg.price = price;
     pyth_price.twap = price;
-    pyth_price.expo = 10;
+    pyth_price.expo = expo;
     pyth_price
 }

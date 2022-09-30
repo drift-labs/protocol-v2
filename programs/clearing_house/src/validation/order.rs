@@ -40,7 +40,7 @@ pub fn validate_order(
     Ok(())
 }
 
-fn validate_market_order(order: &Order, step_size: u128) -> ClearingHouseResult {
+fn validate_market_order(order: &Order, step_size: u64) -> ClearingHouseResult {
     validate_base_asset_amount(order, step_size)?;
 
     match order.direction {
@@ -129,10 +129,10 @@ fn validate_limit_order(
 
     let limit_price = order.get_limit_price(valid_oracle_price, slot, Some(&market.amm))?;
     let approximate_market_value = limit_price
-        .checked_mul(order.base_asset_amount)
+        .checked_mul(order.base_asset_amount as u128)
         .unwrap_or(u128::MAX)
         .div(AMM_RESERVE_PRECISION)
-        .div(MARK_PRICE_PRECISION / QUOTE_PRECISION);
+        .div(PRICE_PRECISION / QUOTE_PRECISION);
 
     if approximate_market_value < state.min_order_quote_asset_amount {
         msg!("Order value < $0.50 ({:?})", approximate_market_value);
@@ -170,7 +170,7 @@ fn validate_post_only_order(
 
 fn validate_trigger_limit_order(
     order: &Order,
-    step_size: u128,
+    step_size: u64,
     minimum_order_value: u128,
 ) -> ClearingHouseResult {
     validate_base_asset_amount(order, step_size)?;
@@ -210,12 +210,11 @@ fn validate_trigger_limit_order(
         }
     }
 
-    let approximate_market_value = order
-        .price
-        .checked_mul(order.base_asset_amount)
+    let approximate_market_value = (order.price as u128)
+        .checked_mul(order.base_asset_amount as u128)
         .unwrap_or(u128::MAX)
         .div(AMM_RESERVE_PRECISION)
-        .div(MARK_PRICE_PRECISION / QUOTE_PRECISION);
+        .div(PRICE_PRECISION / QUOTE_PRECISION);
 
     if approximate_market_value < minimum_order_value {
         msg!("Order value < $0.50 ({:?})", approximate_market_value);
@@ -227,7 +226,7 @@ fn validate_trigger_limit_order(
 
 fn validate_trigger_market_order(
     order: &Order,
-    step_size: u128,
+    step_size: u64,
     minimum_order_value: u128,
 ) -> ClearingHouseResult {
     validate_base_asset_amount(order, step_size)?;
@@ -252,12 +251,11 @@ fn validate_trigger_market_order(
         return Err(ErrorCode::InvalidOrder);
     }
 
-    let approximate_market_value = order
-        .trigger_price
-        .checked_mul(order.base_asset_amount)
+    let approximate_market_value = (order.trigger_price as u128)
+        .checked_mul(order.base_asset_amount as u128)
         .unwrap_or(u128::MAX)
         .div(AMM_RESERVE_PRECISION)
-        .div(MARK_PRICE_PRECISION / QUOTE_PRECISION);
+        .div(PRICE_PRECISION / QUOTE_PRECISION);
 
     // decide min trade size ($10?)
     if approximate_market_value < minimum_order_value {
@@ -268,7 +266,7 @@ fn validate_trigger_market_order(
     Ok(())
 }
 
-fn validate_base_asset_amount(order: &Order, step_size: u128) -> ClearingHouseResult {
+fn validate_base_asset_amount(order: &Order, step_size: u64) -> ClearingHouseResult {
     if order.base_asset_amount == 0 {
         msg!("Order base_asset_amount cant be 0");
         return Err(ErrorCode::InvalidOrder);
@@ -289,7 +287,7 @@ pub fn validate_spot_order(
     order: &Order,
     valid_oracle_price: Option<i128>,
     slot: u64,
-    step_size: u128,
+    step_size: u64,
     margin_ratio_initial: u128,
     margin_ratio_maintenance: u128,
     minimum_order_value: u128,
@@ -322,7 +320,7 @@ fn validate_spot_limit_order(
     order: &Order,
     valid_oracle_price: Option<i128>,
     slot: u64,
-    step_size: u128,
+    step_size: u64,
     margin_ratio_initial: u128,
     margin_ratio_maintenance: u128,
     minimum_order_value: u128,
@@ -367,10 +365,10 @@ fn validate_spot_limit_order(
 
     let limit_price = order.get_limit_price(valid_oracle_price, slot, None)?;
     let approximate_market_value = limit_price
-        .checked_mul(order.base_asset_amount)
+        .checked_mul(order.base_asset_amount as u128)
         .unwrap_or(u128::MAX)
         .div(10_u128.pow(decimals))
-        .div(MARK_PRICE_PRECISION / QUOTE_PRECISION);
+        .div(PRICE_PRECISION / QUOTE_PRECISION);
 
     if approximate_market_value < minimum_order_value {
         msg!("Order value < $0.50 ({:?})", approximate_market_value);
