@@ -1098,7 +1098,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         }
@@ -1137,7 +1147,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         }
@@ -1176,7 +1196,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         }
@@ -1260,7 +1290,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         },
@@ -1315,7 +1355,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         },

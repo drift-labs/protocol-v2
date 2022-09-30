@@ -571,8 +571,18 @@ pub struct LiquidateBorrow<'info> {
         constraint = can_sign_for_user(&liquidator, &authority)?
     )]
     pub liquidator: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
+    )]
+    pub liquidator_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
 }
 
 #[derive(Accounts)]
@@ -584,8 +594,18 @@ pub struct LiquidateBorrowForPerpPnl<'info> {
         constraint = can_sign_for_user(&liquidator, &authority)?
     )]
     pub liquidator: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
+    )]
+    pub liquidator_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
 }
 
 #[derive(Accounts)]
@@ -597,8 +617,18 @@ pub struct LiquidatePerpPnlForDeposit<'info> {
         constraint = can_sign_for_user(&liquidator, &authority)?
     )]
     pub liquidator: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
+    )]
+    pub liquidator_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
 }
 
 #[derive(Accounts)]
@@ -611,8 +641,18 @@ pub struct ResolveBankruptcy<'info> {
         constraint = can_sign_for_user(&liquidator, &authority)?
     )]
     pub liquidator: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
+    )]
+    pub liquidator_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
     #[account(
         mut,
         seeds = [b"spot_market_vault".as_ref(), spot_market_index.to_le_bytes().as_ref()],

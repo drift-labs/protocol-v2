@@ -2753,7 +2753,13 @@ export class ClearingHouse {
 		liabilityMarketIndex: number,
 		maxLiabilityTransfer: BN
 	): Promise<TransactionInstruction> {
+		const userStatsPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			userAccount.authority
+		);
+
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
+		const liquidatorStatsPublicKey = await this.getUserStatsAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			counterPartyUserAccount: userAccount,
@@ -2769,7 +2775,9 @@ export class ClearingHouse {
 					state: await this.getStatePublicKey(),
 					authority: this.wallet.publicKey,
 					user: userAccountPublicKey,
+					userStats: userStatsPublicKey,
 					liquidator: liquidatorPublicKey,
+					liquidatorStats: liquidatorStatsPublicKey,
 				},
 				remainingAccounts: remainingAccounts,
 			}
@@ -2807,7 +2815,13 @@ export class ClearingHouse {
 		liabilityMarketIndex: number,
 		maxLiabilityTransfer: BN
 	): Promise<TransactionInstruction> {
+		const userStatsPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			userAccount.authority
+		);
+
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
+		const liquidatorStatsPublicKey = await this.getUserStatsAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			counterPartyUserAccount: userAccount,
@@ -2824,7 +2838,9 @@ export class ClearingHouse {
 					state: await this.getStatePublicKey(),
 					authority: this.wallet.publicKey,
 					user: userAccountPublicKey,
+					userStats: userStatsPublicKey,
 					liquidator: liquidatorPublicKey,
+					liquidatorStats: liquidatorStatsPublicKey,
 				},
 				remainingAccounts: remainingAccounts,
 			}
@@ -2862,7 +2878,13 @@ export class ClearingHouse {
 		assetMarketIndex: number,
 		maxPnlTransfer: BN
 	): Promise<TransactionInstruction> {
+		const userStatsPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			userAccount.authority
+		);
+
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
+		const liquidatorStatsPublicKey = await this.getUserStatsAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			counterPartyUserAccount: userAccount,
@@ -2879,7 +2901,9 @@ export class ClearingHouse {
 					state: await this.getStatePublicKey(),
 					authority: this.wallet.publicKey,
 					user: userAccountPublicKey,
+					userStats: userStatsPublicKey,
 					liquidator: liquidatorPublicKey,
+					liquidatorStats: liquidatorStatsPublicKey,
 				},
 				remainingAccounts: remainingAccounts,
 			}
@@ -2910,7 +2934,13 @@ export class ClearingHouse {
 		userAccount: UserAccount,
 		marketIndex: number
 	): Promise<TransactionInstruction> {
+		const userStatsPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			userAccount.authority
+		);
+
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
+		const liquidatorStatsPublicKey = await this.getUserStatsAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			writablePerpMarketIndex: marketIndex,
@@ -2928,7 +2958,9 @@ export class ClearingHouse {
 					state: await this.getStatePublicKey(),
 					authority: this.wallet.publicKey,
 					user: userAccountPublicKey,
+					userStats: userStatsPublicKey,
 					liquidator: liquidatorPublicKey,
+					liquidatorStats: liquidatorStatsPublicKey,
 					spotMarketVault: spotMarket.vault,
 					insuranceFundVault: spotMarket.insuranceFundVault,
 					clearingHouseSigner: this.getSignerPublicKey(),
@@ -2963,7 +2995,13 @@ export class ClearingHouse {
 		userAccount: UserAccount,
 		marketIndex: number
 	): Promise<TransactionInstruction> {
+		const userStatsPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			userAccount.authority
+		);
+
 		const liquidatorPublicKey = await this.getUserAccountPublicKey();
+		const liquidatorStatsPublicKey = await this.getUserStatsAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccountsWithCounterparty({
 			writableSpotMarketIndexes: [marketIndex],
@@ -2977,6 +3015,8 @@ export class ClearingHouse {
 				state: await this.getStatePublicKey(),
 				authority: this.wallet.publicKey,
 				user: userAccountPublicKey,
+				userStats: userStatsPublicKey,
+				liquidatorStats: liquidatorStatsPublicKey,
 				liquidator: liquidatorPublicKey,
 				spotMarketVault: spotMarket.vault,
 				insuranceFundVault: spotMarket.insuranceFundVault,
