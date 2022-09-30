@@ -5394,11 +5394,6 @@
           "index": false
         },
         {
-          "name": "referrer",
-          "type": "publicKey",
-          "index": false
-        },
-        {
           "name": "from",
           "type": {
             "option": "publicKey"

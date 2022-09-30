@@ -12,7 +12,7 @@ use crate::math::orders::{
 };
 use crate::state::market::PerpMarket;
 use crate::state::state::State;
-use crate::state::user::{Order, OrderTriggerCondition, OrderType};
+use crate::state::user::{Order, OrderType};
 use crate::validate;
 
 pub fn validate_order(
@@ -193,21 +193,6 @@ fn validate_trigger_limit_order(
     if order.has_oracle_price_offset() {
         msg!("Trigger limit can not have oracle offset");
         return Err(ErrorCode::InvalidOrder);
-    }
-
-    match order.trigger_condition {
-        OrderTriggerCondition::Above => {
-            if order.direction == PositionDirection::Long && order.price < order.trigger_price {
-                msg!("If trigger condition is above and direction is long, limit price must be above trigger price");
-                return Err(ErrorCode::InvalidOrder);
-            }
-        }
-        OrderTriggerCondition::Below => {
-            if order.direction == PositionDirection::Short && order.price > order.trigger_price {
-                msg!("If trigger condition is below and direction is short, limit price must be below trigger price");
-                return Err(ErrorCode::InvalidOrder);
-            }
-        }
     }
 
     let approximate_market_value = (order.price as u128)

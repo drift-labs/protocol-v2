@@ -1539,14 +1539,15 @@ pub mod clearing_house {
     pub fn trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u32) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
-        SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-        let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+        let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
+        let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
         controller::orders::trigger_order(
             order_id,
             &ctx.accounts.state,
             &ctx.accounts.user,
-            &market_map,
+            &spot_market_map,
+            &perp_market_map,
             &mut oracle_map,
             &ctx.accounts.filler,
             &Clock::get()?,
@@ -1563,13 +1564,14 @@ pub mod clearing_house {
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
         let spot_market_market =
             SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-        PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+        let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
         controller::orders::trigger_spot_order(
             order_id,
             &ctx.accounts.state,
             &ctx.accounts.user,
             &spot_market_market,
+            &perp_market_map,
             &mut oracle_map,
             &ctx.accounts.filler,
             &Clock::get()?,
