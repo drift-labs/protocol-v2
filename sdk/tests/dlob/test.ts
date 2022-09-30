@@ -2085,6 +2085,377 @@ describe('DLOB Perp Tests', () => {
 			undefined
 		);
 	});
+
+	it('Test skips vAMM and fills market sell order with floating limit buys during auction', () => {
+		const vAsk = new BN(15).mul(PRICE_PRECISION);
+		const vBid = new BN(8).mul(PRICE_PRECISION);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const marketIndex = 0;
+
+		const slot = 12;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)), // 11.5
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		// insert some floating limit buy below vAMM bid
+		insertOrderToDLOB(
+			dlob,
+			Keypair.generate().publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			new BN(2), // orderId
+			marketIndex,
+			new BN(0).mul(PRICE_PRECISION), // price, ignored since it's a floating limit
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(slot),
+			30,
+			new BN(-4).mul(PRICE_PRECISION) // second best bid, but worse than vBid (8): 7.5
+		);
+		insertOrderToDLOB(
+			dlob,
+			Keypair.generate().publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			new BN(3), // orderId
+			marketIndex,
+			new BN(0).mul(PRICE_PRECISION), // price; ignored since it's a floating limit
+			new BN(1).mul(BASE_PRECISION), // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(slot),
+			30,
+			new BN(-1).mul(PRICE_PRECISION) // best price: 10.5
+		);
+		insertOrderToDLOB(
+			dlob,
+			Keypair.generate().publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			new BN(1), // orderId
+			marketIndex,
+			new BN(0).mul(PRICE_PRECISION), // price; ignored since it's a floating limit
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(slot),
+			30,
+			new BN(-5).mul(PRICE_PRECISION) // third best bid, worse than vBid (8): 6.5
+		);
+
+		// should have no crossing orders
+		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+			marketIndex,
+			vBid,
+			vAsk,
+			slot,
+			MarketType.PERP,
+			oracle
+		);
+		expect(nodesToFillBefore.length).to.equal(0);
+
+		// place two market sell orders to eat the best bid
+		insertOrderToDLOB(
+			dlob,
+			Keypair.generate().publicKey,
+			OrderType.MARKET,
+			MarketType.PERP,
+			new BN(4), // orderId
+			marketIndex,
+			new BN(5).mul(PRICE_PRECISION), // price
+			new BN(1).mul(BASE_PRECISION), // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			Keypair.generate().publicKey,
+			OrderType.MARKET,
+			MarketType.PERP,
+			new BN(5), // orderId
+			marketIndex,
+			new BN(4).mul(PRICE_PRECISION), // price
+			new BN(2).mul(BASE_PRECISION), // quantity
+			PositionDirection.SHORT,
+			vBid,
+			vAsk
+		);
+
+		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+			marketIndex,
+			vBid,
+			vAsk,
+			slot, // auction in progress
+			MarketType.PERP,
+			oracle
+		);
+		const mktNodes = dlob.findMarketNodesToFill(
+			marketIndex,
+			slot,
+			MarketType.PERP
+		);
+		console.log(`market nodes: ${mktNodes.length}`);
+
+		const askNodes = dlob.getAsks(
+			marketIndex,
+			vAsk,
+			slot,
+			MarketType.PERP,
+			oracle
+		);
+		let aa = 0;
+		console.log(`Oracle price: ${oracle.price.toNumber()}`);
+		console.log(`asks:`);
+		for (const a of askNodes) {
+			printOrderNode(a, oracle, slot);
+			aa++;
+		}
+		expect(aa).to.equal(3);
+
+		const bidNodes = dlob.getBids(
+			marketIndex,
+			vBid,
+			slot,
+			MarketType.PERP,
+			oracle
+		);
+		let bb = 0;
+		console.log(`bids:`);
+		for (const b of bidNodes) {
+			printOrderNode(b, oracle, slot);
+			bb++;
+		}
+		expect(bb).to.equal(4);
+
+		console.log(`bids nodes: ${bb}`);
+		for (const n of nodesToFillAfter) {
+			console.log(
+				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmountFilled.toString()}/${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNode?.order?.orderId.toString()}: price: ${n.makerNode
+					?.getPrice(oracle, slot)
+					.toString()}, BAA: ${n.makerNode?.order?.baseAssetAmountFilled.toString()}/${n.makerNode?.order?.baseAssetAmount.toString()}`
+			);
+		}
+		expect(nodesToFillAfter.length).to.equal(3);
+
+		// taker should fill first order completely with best maker (1/1)
+		expect(
+			nodesToFillAfter[0].node.order?.orderId.toNumber(),
+			'wrong taker orderId'
+		).to.equal(4);
+		expect(
+			nodesToFillAfter[0].makerNode?.order?.orderId.toNumber(),
+			'wrong maker orderId'
+		).to.equal(3);
+
+		// taker should fill partially with second best maker (1/2)
+		expect(
+			nodesToFillAfter[1].node.order?.orderId.toNumber(),
+			'wrong maker orderId'
+		).to.equal(5);
+		expect(
+			nodesToFillAfter[1].makerNode?.order?.orderId.toNumber(),
+			'wrong maker orderId'
+		).to.equal(2);
+
+		// taker should fill completely with third best maker (2/2)
+		expect(
+			nodesToFillAfter[2].node.order?.orderId.toNumber(),
+			'wrong taker orderId'
+		).to.equal(5);
+		expect(
+			nodesToFillAfter[2].makerNode?.order?.orderId.toNumber(),
+			'wrong maker orderId'
+		).to.equal(1);
+	});
+
+	it('Test fills market sell order with better priced vAMM after auction', () => {
+		const vAsk = new BN(15).mul(PRICE_PRECISION);
+		const vBid = new BN(8).mul(PRICE_PRECISION);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const marketIndex = 0;
+
+		const slot = 12;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)), // 11.5
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		// insert some floating limit buy below vAMM bid
+		insertOrderToDLOB(
+			dlob,
+			Keypair.generate().publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			new BN(2), // orderId
+			marketIndex,
+			new BN(0).mul(PRICE_PRECISION), // price, ignored since it's a floating limit
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(slot),
+			30,
+			new BN(-4).mul(PRICE_PRECISION) // second best bid, but worse than vBid (8): 7.5
+		);
+		insertOrderToDLOB(
+			dlob,
+			Keypair.generate().publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			new BN(3), // orderId
+			marketIndex,
+			new BN(0).mul(PRICE_PRECISION), // price; ignored since it's a floating limit
+			new BN(1).mul(BASE_PRECISION), // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(slot),
+			30,
+			new BN(-1).mul(PRICE_PRECISION) // best price: 10.5
+		);
+		insertOrderToDLOB(
+			dlob,
+			Keypair.generate().publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			new BN(1), // orderId
+			marketIndex,
+			new BN(0).mul(PRICE_PRECISION), // price; ignored since it's a floating limit
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(slot),
+			30,
+			new BN(-5).mul(PRICE_PRECISION) // third best bid, worse than vBid (8): 6.5
+		);
+
+		// auction ends
+		const afterAuctionSlot = 10 * slot;
+
+		// should have no crossing orders
+		const nodesToFillBefore = dlob.findCrossingNodesToFill(
+			marketIndex,
+			vBid,
+			vAsk,
+			afterAuctionSlot,
+			MarketType.PERP,
+			oracle
+		);
+		expect(nodesToFillBefore.length).to.equal(0);
+
+		// place two market sell orders to eat the best bid
+		insertOrderToDLOB(
+			dlob,
+			Keypair.generate().publicKey,
+			OrderType.MARKET,
+			MarketType.PERP,
+			new BN(4), // orderId
+			marketIndex,
+			new BN(5).mul(PRICE_PRECISION), // price
+			new BN(1).mul(BASE_PRECISION), // quantity, should consume best bid floating limit
+			PositionDirection.SHORT,
+			vBid,
+			vAsk,
+			new BN(slot)
+		);
+		insertOrderToDLOB(
+			dlob,
+			Keypair.generate().publicKey,
+			OrderType.MARKET,
+			MarketType.PERP,
+			new BN(5), // orderId
+			marketIndex,
+			// new BN(8).mul(PRICE_PRECISION), // price, this price will fill with vamm
+			new BN(4).mul(PRICE_PRECISION), // price, this SHOULD fill with vamm
+			new BN(2).mul(BASE_PRECISION), // quantity, should be filled with next best bid (vAMM)
+			PositionDirection.SHORT,
+			vBid,
+			vAsk,
+			new BN(slot)
+		);
+
+		const nodesToFillAfter = dlob.findCrossingNodesToFill(
+			marketIndex,
+			vBid,
+			vAsk,
+			afterAuctionSlot,
+			MarketType.PERP,
+			oracle
+		);
+
+		const askNodes = dlob.getAsks(
+			marketIndex,
+			vAsk,
+			afterAuctionSlot,
+			MarketType.PERP,
+			oracle
+		);
+		let aa = 0;
+		console.log(`Oracle price: ${oracle.price.toNumber()}`);
+		console.log(`asks:`);
+		for (const a of askNodes) {
+			printOrderNode(a, oracle, afterAuctionSlot);
+			aa++;
+		}
+		expect(aa).to.equal(3);
+
+		const bidNodes = dlob.getBids(
+			marketIndex,
+			vBid,
+			afterAuctionSlot,
+			MarketType.PERP,
+			oracle
+		);
+		let bb = 0;
+		console.log(`bids:`);
+		for (const b of bidNodes) {
+			printOrderNode(b, oracle, afterAuctionSlot);
+			bb++;
+		}
+		expect(bb).to.equal(4);
+
+		console.log(`bids nodes: ${bb}`);
+		for (const n of nodesToFillAfter) {
+			console.log(
+				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmountFilled.toString()}/${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNode?.order?.orderId.toString()}: price: ${n.makerNode
+					?.getPrice(oracle, slot)
+					.toString()}, BAA: ${n.makerNode?.order?.baseAssetAmountFilled.toString()}/${n.makerNode?.order?.baseAssetAmount.toString()}`
+			);
+		}
+
+		// taker should fill first order completely with best maker (1/1)
+		expect(
+			nodesToFillAfter[0].node.order?.orderId.toNumber(),
+			'wrong taker orderId'
+		).to.equal(4);
+		expect(
+			nodesToFillAfter[0].makerNode?.order?.orderId.toNumber(),
+			'wrong maker orderId'
+		).to.equal(3);
+
+		// taker should fill second order completely with vamm
+		expect(
+			nodesToFillAfter[1].node.order?.orderId.toNumber(),
+			'wrong taker orderId'
+		).to.equal(5);
+		expect(
+			nodesToFillAfter[1].makerNode?.order?.orderId.toNumber(),
+			'wrong maker orderId'
+		).to.equal(undefined);
+
+		expect(nodesToFillAfter.length).to.equal(2);
+	});
 });
 
 describe('DLOB Spot Tests', () => {
