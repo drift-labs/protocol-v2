@@ -5414,14 +5414,7 @@
           "index": false
         },
         {
-          "name": "from",
-          "type": {
-            "option": "publicKey"
-          },
-          "index": false
-        },
-        {
-          "name": "to",
+          "name": "transferUser",
           "type": {
             "option": "publicKey"
           },

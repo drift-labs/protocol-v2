@@ -31,8 +31,7 @@ pub struct DepositRecord {
     pub market_withdraw_balance: u128,
     pub market_cumulative_deposit_interest: u128,
     pub market_cumulative_borrow_interest: u128,
-    pub from: Option<Pubkey>,
-    pub to: Option<Pubkey>,
+    pub transfer_user: Option<Pubkey>,
 }
 
 #[event]

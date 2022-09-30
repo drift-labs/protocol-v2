@@ -159,8 +159,7 @@ export type DepositRecord = {
 	marketWithdrawBalance: BN;
 	marketCumulativeDepositInterest: BN;
 	marketCumulativeBorrowInterest: BN;
-	from?: PublicKey;
-	to?: PublicKey;
+	transferUser?: PublicKey;
 };
 
 export type SpotInterestRecord = {

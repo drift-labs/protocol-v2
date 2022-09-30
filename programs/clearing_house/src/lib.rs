@@ -727,8 +727,7 @@ pub mod clearing_house {
             market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
             market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
             market_index,
-            from: None,
-            to: None,
+            transfer_user: None,
         };
         emit!(deposit_record);
 
@@ -830,8 +829,7 @@ pub mod clearing_house {
             market_withdraw_balance: spot_market.borrow_balance,
             market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
             market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
-            from: None,
-            to: None,
+            transfer_user: None,
         };
         emit!(deposit_record);
 
@@ -937,8 +935,7 @@ pub mod clearing_house {
                 market_withdraw_balance: spot_market.borrow_balance,
                 market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
                 market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
-                from: None,
-                to: Some(to_user_key),
+                transfer_user: Some(to_user_key),
             };
             emit!(deposit_record);
         }
@@ -967,8 +964,7 @@ pub mod clearing_house {
                 market_withdraw_balance: spot_market.borrow_balance,
                 market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
                 market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
-                from: Some(from_user_key),
-                to: None,
+                transfer_user: Some(from_user_key),
             };
             emit!(deposit_record);
         }
