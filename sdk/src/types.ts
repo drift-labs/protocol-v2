@@ -155,7 +155,6 @@ export type DepositRecord = {
 	marketIndex: number;
 	amount: BN;
 	oraclePrice: BN;
-	referrer: PublicKey;
 	from?: PublicKey;
 	to?: PublicKey;
 };

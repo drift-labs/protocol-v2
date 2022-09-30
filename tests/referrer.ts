@@ -180,9 +180,6 @@ describe('referrer', () => {
 		const newUserRecord = eventSubscriber.getEventsArray('NewUserRecord')[0];
 		assert(newUserRecord.referrer.equals(provider.wallet.publicKey));
 
-		const depositRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
-		assert(depositRecord.referrer.equals(provider.wallet.publicKey));
-
 		await refereeClearingHouse.fetchAccounts();
 		const refereeStats = refereeClearingHouse.getUserStats().getAccount();
 		assert(refereeStats.referrer.equals(provider.wallet.publicKey));

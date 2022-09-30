@@ -27,7 +27,6 @@ pub struct DepositRecord {
     pub amount: u64,
     pub market_index: u16,
     pub oracle_price: i128,
-    pub referrer: Pubkey,
     pub from: Option<Pubkey>,
     pub to: Option<Pubkey>,
 }
