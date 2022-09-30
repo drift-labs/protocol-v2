@@ -2694,6 +2694,11 @@ pub mod clearing_house {
             user_stats.referrer = referrer;
         }
 
+        let state = &mut ctx.accounts.state;
+        if user_stats.number_of_users == 1 {
+            checked_increment!(state.number_of_authorities, 1);
+        }
+
         emit!(NewUserRecord {
             ts: Clock::get()?.unix_timestamp,
             user_authority: ctx.accounts.authority.key(),
@@ -2723,9 +2728,6 @@ pub mod clearing_house {
             last_filler_volume_30d_ts: clock.unix_timestamp,
             ..UserStats::default()
         };
-
-        let state = &mut ctx.accounts.state;
-        checked_increment!(state.number_of_authorities, 1);
 
         Ok(())
     }
