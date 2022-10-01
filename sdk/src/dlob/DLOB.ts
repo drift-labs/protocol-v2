@@ -272,14 +272,24 @@ export class DLOB {
 		oraclePriceData: OraclePriceData
 	): NodeToFill[] {
 		// Find all the crossing nodes
-		const crossingNodesToFill: Array<NodeToFill> = this.findCrossingNodesToFill(
+		let crossingNodesToFill: Array<NodeToFill> = this.findCrossingNodesToFill(
 			marketIndex,
-			vBid,
-			vAsk,
 			slot,
 			marketType,
 			oraclePriceData
 		);
+
+		const vAMMCrossingNodesToFill: Array<NodeToFill> =
+			this.findvAMMCrossingNodesToFill(
+				marketIndex,
+				vBid,
+				vAsk,
+				slot,
+				marketType,
+				oraclePriceData
+			);
+		console.log(`AAAAA: ${vAMMCrossingNodesToFill.length}`);
+		crossingNodesToFill = crossingNodesToFill.concat(vAMMCrossingNodesToFill);
 
 		// get expired market nodes
 		const marketNodesToFill = this.findMarketNodesToFill(
@@ -292,8 +302,6 @@ export class DLOB {
 
 	public findCrossingNodesToFill(
 		marketIndex: number,
-		vBid: BN | undefined,
-		vAsk: BN | undefined,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
@@ -323,8 +331,6 @@ export class DLOB {
 			const { crossingNodes, exhaustedSide } = this.findCrossingOrders(
 				nextAsk.value,
 				nextBid.value,
-				vAsk,
-				vBid,
 				oraclePriceData,
 				slot
 			);
@@ -345,6 +351,71 @@ export class DLOB {
 				nodesToFill.push(crossingNode);
 			}
 		}
+		return nodesToFill;
+	}
+
+	public findvAMMCrossingNodesToFill(
+		marketIndex: number,
+		vBid: BN,
+		vAsk: BN,
+		slot: number,
+		marketType: MarketType,
+		oraclePriceData: OraclePriceData
+	): NodeToFill[] {
+		// TODO: check all bids against the vAMM, and check all asks against the vAMM
+		// return all bids and asks that cross against the vAMM
+		// might be able to put this check in same generator loop as used in findCrossingNodesToFill
+		// const askVammNode = getVammNodeGenerator(vAsk);
+		// const bidVammNode = getVammNodeGenerator(vBid);
+
+		const nodesToFill = new Array<NodeToFill>();
+
+		const askGenerator = this.getAsks(
+			marketIndex,
+			undefined, // dont include vask
+			slot,
+			marketType,
+			oraclePriceData
+		);
+		const bidGenerator = this.getBids(
+			marketIndex,
+			undefined, // dont include vbid
+			slot,
+			marketType,
+			oraclePriceData
+		);
+
+		let nextAsk = askGenerator.next();
+		let nextBid = bidGenerator.next();
+
+		// check for bids that cross the vAsk
+		while (!nextBid.done) {
+			const bidNode = nextBid.value;
+			const bidPrice = bidNode.getPrice(oraclePriceData, slot);
+
+			if (bidPrice.gte(vAsk) && isAuctionComplete(bidNode.order, slot)) {
+				nodesToFill.push({
+					node: bidNode,
+				});
+			}
+
+			nextBid = bidGenerator.next();
+		}
+
+		// check for bids that cross the vAsk
+		while (!nextAsk.done) {
+			const askNode = nextAsk.value;
+			const askPrice = askNode.getPrice(oraclePriceData, slot);
+
+			if (askPrice.lte(vBid) && isAuctionComplete(askNode.order, slot)) {
+				nodesToFill.push({
+					node: askNode,
+				});
+			}
+
+			nextAsk = askGenerator.next();
+		}
+
 		return nodesToFill;
 	}
 
@@ -445,7 +516,7 @@ export class DLOB {
 			nodeLists.market.ask.getGenerator(),
 		];
 
-		if (marketTypeStr === 'perp') {
+		if (marketTypeStr === 'perp' && vAsk) {
 			generatorList.push(getVammNodeGenerator(vAsk));
 		}
 
@@ -511,7 +582,7 @@ export class DLOB {
 			nodeLists.floatingLimit.bid.getGenerator(),
 			nodeLists.market.bid.getGenerator(),
 		];
-		if (marketTypeStr === 'perp') {
+		if (marketTypeStr === 'perp' && vBid) {
 			generatorList.push(getVammNodeGenerator(vBid));
 		}
 		const bidGenerators = generatorList.map((generator) => {
@@ -560,20 +631,19 @@ export class DLOB {
 	findCrossingOrders(
 		askNode: DLOBNode,
 		bidNode: DLOBNode,
-		vAsk: BN | undefined,
-		vBid: BN | undefined,
 		oraclePriceData: OraclePriceData,
 		slot: number
 	): {
 		crossingNodes: NodeToFill[];
 		exhaustedSide: Side;
 	} {
-		const bidPrice = bidNode.getPrice(oraclePriceData, slot);
-		const askPrice = askNode.getPrice(oraclePriceData, slot);
+		// const bidPrice = bidNode.getPrice(oraclePriceData, slot);
+		// const askPrice = askNode.getPrice(oraclePriceData, slot);
 
 		const bidOrder = bidNode.order;
 		const askOrder = askNode.order;
 
+		/*
 		// when bid and ask don't cross, check against vamm
 		if (bidPrice.lt(askPrice)) {
 			if (vBid && vAsk) {
@@ -600,6 +670,7 @@ export class DLOB {
 				};
 			}
 		}
+		*/
 
 		// Can't match two maker orders or if maker and taker are the same
 		const makerIsTaker = bidNode.userAccount.equals(askNode.userAccount);
