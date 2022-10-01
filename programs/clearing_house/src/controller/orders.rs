@@ -510,15 +510,24 @@ pub fn fill_order(
         "Order must be triggered first"
     )?;
 
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+    if user.bankrupt {
+        msg!("user is bankrupt");
+        return Ok((0, false));
+    }
 
-    validate_user_not_being_liquidated(
+    match validate_user_not_being_liquidated(
         user,
         perp_market_map,
         spot_market_map,
         oracle_map,
         state.liquidation_margin_buffer_ratio,
-    )?;
+    ) {
+        Ok(_) => {}
+        Err(_) => {
+            msg!("user is being liquidated");
+            return Ok((0, false));
+        }
+    }
 
     let reserve_price_before: u128;
     let oracle_reserve_price_spread_pct_before: i128;
@@ -2300,15 +2309,24 @@ pub fn fill_spot_order(
         "Order must be triggered first"
     )?;
 
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+    if user.bankrupt {
+        msg!("User is bankrupt");
+        return Ok(0);
+    }
 
-    validate_user_not_being_liquidated(
+    match validate_user_not_being_liquidated(
         user,
         perp_market_map,
         spot_market_map,
         oracle_map,
         state.liquidation_margin_buffer_ratio,
-    )?;
+    ) {
+        Ok(_) => {}
+        Err(_) => {
+            msg!("User is being liquidated");
+            return Ok(0);
+        }
+    }
 
     // TODO SPOT do we need before and after oracle guardrail checks?
 
