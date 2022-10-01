@@ -107,6 +107,17 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             .checked_sub(quote_asset_amount_surplus)
             .ok_or_else(math_error!())?;
 
+        msg!("quote_asset_amount_surplus: {}", quote_asset_amount_surplus);
+
+        // must be non-negative
+        msg!(
+            "amm fees: {} {} {} {}",
+            fee,
+            filler_reward,
+            referrer_reward,
+            fee_to_market
+        );
+
         Ok(FillFees {
             user_fee: fee,
             maker_rebate: 0,

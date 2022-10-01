@@ -55,6 +55,12 @@ fn calculate_quote_asset_amount_surplus(
     let mut actual_quote_asset_amount =
         reserve_to_asset_amount(quote_asset_reserve_change, peg_multiplier)?;
 
+    msg!(
+        "actual_quote_asset_amount={}, initial_quote_asset_amount={}",
+        actual_quote_asset_amount,
+        initial_quote_asset_amount
+    );
+
     // Compensate for +1 quote asset amount added when removing base asset
     if round_down {
         actual_quote_asset_amount = actual_quote_asset_amount
@@ -102,6 +108,14 @@ pub fn swap_base_asset(
         Some(position_direction),
     )?;
 
+    msg!("amm price before: {}", amm.reserve_price()?);
+    msg!(
+        "amm spread info: {} {} {}",
+        amm.base_spread,
+        amm.long_spread,
+        amm.short_spread
+    );
+
     let (
         new_base_asset_reserve,
         new_quote_asset_reserve,
@@ -111,6 +125,9 @@ pub fn swap_base_asset(
 
     amm.base_asset_reserve = new_base_asset_reserve;
     amm.quote_asset_reserve = new_quote_asset_reserve;
+
+    msg!("quote_asset_amount_surplus: {}", quote_asset_amount_surplus);
+    msg!("amm price after: {}", amm.reserve_price()?);
 
     Ok((
         quote_asset_amount,
@@ -131,6 +148,12 @@ pub fn calculate_base_swap_output_with_spread(
             SwapDirection::Remove => PositionDirection::Long,
         },
     )?;
+
+    msg!(
+        "base_asset_reserve_with_spread={}, not={}",
+        base_asset_reserve_with_spread,
+        amm.base_asset_reserve
+    );
 
     let (new_quote_asset_reserve_with_spread, _) = amm::calculate_swap_output(
         base_asset_swap_amount.cast()?,
@@ -204,6 +227,20 @@ fn calculate_base_swap_output_without_spread(
     ))
 }
 
+pub fn update_spread_reserves(amm: &mut AMM) -> ClearingHouseResult {
+    let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        calculate_spread_reserves(amm, PositionDirection::Long)?;
+    let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        calculate_spread_reserves(amm, PositionDirection::Short)?;
+
+    amm.ask_base_asset_reserve = new_ask_base_asset_reserve.min(amm.base_asset_reserve);
+    amm.bid_base_asset_reserve = new_bid_base_asset_reserve.max(amm.base_asset_reserve);
+    amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve.max(amm.quote_asset_reserve);
+    amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve.min(amm.quote_asset_reserve);
+
+    Ok(())
+}
+
 pub fn update_spreads(amm: &mut AMM, reserve_price: u128) -> ClearingHouseResult<(u128, u128)> {
     let (long_spread, short_spread) = if amm.curve_update_intensity > 0 {
         amm::calculate_spread(
@@ -229,15 +266,7 @@ pub fn update_spreads(amm: &mut AMM, reserve_price: u128) -> ClearingHouseResult
     amm.long_spread = long_spread;
     amm.short_spread = short_spread;
 
-    let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-        calculate_spread_reserves(amm, PositionDirection::Long)?;
-    let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-        calculate_spread_reserves(amm, PositionDirection::Short)?;
-
-    amm.ask_base_asset_reserve = new_ask_base_asset_reserve.min(amm.base_asset_reserve);
-    amm.bid_base_asset_reserve = new_bid_base_asset_reserve.max(amm.base_asset_reserve);
-    amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve.max(amm.quote_asset_reserve);
-    amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve.min(amm.quote_asset_reserve);
+    update_spread_reserves(amm)?;
 
     Ok((long_spread, short_spread))
 }

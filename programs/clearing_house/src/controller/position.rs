@@ -601,6 +601,8 @@ pub fn update_position_with_base_asset_amount(
         .checked_add(position_delta.base_asset_amount.cast()?)
         .ok_or_else(math_error!())?;
 
+    controller::amm::update_spread_reserves(&mut market.amm)?;
+
     Ok((quote_asset_amount, quote_asset_amount_surplus, pnl))
 }
 
