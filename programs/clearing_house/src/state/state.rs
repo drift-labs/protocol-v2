@@ -15,6 +15,7 @@ pub struct State {
     pub whitelist_mint: Pubkey,
     pub discount_mint: Pubkey,
     pub oracle_guard_rails: OracleGuardRails,
+    pub number_of_authorities: u64,
     pub number_of_markets: u16,
     pub number_of_spot_markets: u16,
     pub min_order_quote_asset_amount: u128, // minimum est. quote_asset_amount for place_order to succeed

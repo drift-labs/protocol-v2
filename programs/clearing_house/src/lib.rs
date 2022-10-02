@@ -91,6 +91,7 @@ pub mod clearing_house {
             whitelist_mint: Pubkey::default(),
             discount_mint: Pubkey::default(),
             oracle_guard_rails: OracleGuardRails::default(),
+            number_of_authorities: 0,
             number_of_markets: 0,
             number_of_spot_markets: 0,
             min_order_quote_asset_amount: 500_000, // 50 cents
@@ -2718,6 +2719,9 @@ pub mod clearing_house {
             last_filler_volume_30d_ts: clock.unix_timestamp,
             ..UserStats::default()
         };
+
+        let state = &mut ctx.accounts.state;
+        checked_increment!(state.number_of_authorities, 1);
 
         Ok(())
     }

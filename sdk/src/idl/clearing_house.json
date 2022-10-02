@@ -1651,7 +1651,7 @@
         },
         {
           "name": "state",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -3502,6 +3502,10 @@
             "type": {
               "defined": "OracleGuardRails"
             }
+          },
+          {
+            "name": "numberOfAuthorities",
+            "type": "u64"
           },
           {
             "name": "numberOfMarkets",
