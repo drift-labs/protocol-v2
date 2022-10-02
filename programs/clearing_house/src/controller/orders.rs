@@ -843,8 +843,14 @@ fn sanitize_maker_order<'a>(
     let maker_key = maker.key();
     let mut maker = load_mut!(maker)?;
     let maker_stats = load_mut!(maker_stats)?;
-    let maker_order_index =
-        maker.get_order_index(maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?)?;
+    let maker_order_id = maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?;
+    let maker_order_index = match maker.get_order_index(maker_order_id) {
+        Ok(order_index) => order_index,
+        Err(_) => {
+            msg!("Maker has no order id {}", maker_order_id);
+            return Ok((None, None, None, None));
+        }
+    };
 
     {
         let maker_order = &maker.orders[maker_order_index];
@@ -2491,8 +2497,14 @@ fn sanitize_spot_maker_order<'a>(
     let maker_key = maker.key();
     let mut maker = load_mut!(maker)?;
     let maker_stats = load_mut!(maker_stats)?;
-    let maker_order_index =
-        maker.get_order_index(maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?)?;
+    let maker_order_id = maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?;
+    let maker_order_index = match maker.get_order_index(maker_order_id) {
+        Ok(order_index) => order_index,
+        Err(_) => {
+            msg!("Maker has no order id {}", maker_order_id);
+            return Ok((None, None, None, None));
+        }
+    };
 
     {
         let maker_order = &maker.orders[maker_order_index];
