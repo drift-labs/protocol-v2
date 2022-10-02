@@ -254,7 +254,7 @@ pub fn update_spot_balances(
 }
 
 pub fn transfer_spot_balances(
-    token_amount: u128,
+    token_amount: i128,
     spot_market: &mut SpotMarket,
     from_spot_balance: &mut dyn SpotBalance,
     to_spot_balance: &mut dyn SpotBalance,
@@ -270,16 +270,24 @@ pub fn transfer_spot_balances(
     }
 
     update_spot_balances(
-        token_amount,
-        &SpotBalanceType::Borrow,
+        token_amount.unsigned_abs(),
+        if token_amount < 0 {
+            &SpotBalanceType::Deposit
+        } else {
+            &SpotBalanceType::Borrow
+        },
         spot_market,
         from_spot_balance,
         false,
     )?;
 
     update_spot_balances(
-        token_amount,
-        &SpotBalanceType::Deposit,
+        token_amount.unsigned_abs(),
+        if token_amount < 0 {
+            &SpotBalanceType::Borrow
+        } else {
+            &SpotBalanceType::Deposit
+        },
         spot_market,
         to_spot_balance,
         false,

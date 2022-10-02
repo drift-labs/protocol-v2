@@ -28,7 +28,6 @@ use crate::controller::spot_balance::{
     transfer_revenue_pool_to_spot_balance, transfer_spot_balance_to_revenue_pool,
     transfer_spot_balances, update_spot_balances,
 };
-use crate::controller::spot_position::update_spot_position_balance;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -426,7 +425,7 @@ pub fn update_pool_balances(
 
         if pnl_pool_addition < 0 {
             transfer_spot_balances(
-                pnl_pool_addition.unsigned_abs(),
+                pnl_pool_addition.abs(),
                 spot_market,
                 &mut market.amm.fee_pool,
                 &mut market.pnl_pool,
@@ -463,7 +462,7 @@ pub fn update_pool_balances(
 
             if pnl_pool_removal > 0 {
                 transfer_spot_balances(
-                    pnl_pool_removal,
+                    cast_to_i128(pnl_pool_removal)?,
                     spot_market,
                     &mut market.pnl_pool,
                     &mut market.amm.fee_pool,
@@ -640,29 +639,13 @@ pub fn update_pnl_pool_and_user_balance(
         return Ok(0);
     }
 
-    update_spot_balances(
-        pnl_to_settle_with_user.unsigned_abs(),
-        if pnl_to_settle_with_user < 0 {
-            &SpotBalanceType::Deposit
-        } else {
-            &SpotBalanceType::Borrow
-        },
+    let user_spot_position = user.get_quote_spot_position_mut();
+
+    transfer_spot_balances(
+        pnl_to_settle_with_user,
         bank,
         &mut market.pnl_pool,
-        false,
-    )?;
-
-    let user_spot_position = user.get_quote_spot_position_mut();
-    update_spot_position_balance(
-        pnl_to_settle_with_user.unsigned_abs(),
-        if pnl_to_settle_with_user > 0 {
-            &SpotBalanceType::Deposit
-        } else {
-            &SpotBalanceType::Borrow
-        },
-        bank,
         user_spot_position,
-        false,
     )?;
 
     Ok(pnl_to_settle_with_user)
