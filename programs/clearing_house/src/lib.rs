@@ -1880,8 +1880,8 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn liquidate_borrow(
-        ctx: Context<LiquidateBorrow>,
+    pub fn liquidate_spot(
+        ctx: Context<LiquidateSpot>,
         asset_market_index: u16,
         liability_market_index: u16,
         liquidator_max_liability_transfer: u128,
@@ -1914,7 +1914,7 @@ pub mod clearing_house {
         let spot_market_map = SpotMarketMap::load(&writable_spot_markets, remaining_accounts_iter)?;
         let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
-        controller::liquidation::liquidate_borrow(
+        controller::liquidation::liquidate_spot(
             asset_market_index,
             liability_market_index,
             liquidator_max_liability_transfer,
@@ -2228,7 +2228,7 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn resolve_borrow_bankruptcy(
+    pub fn resolve_spot_bankruptcy(
         ctx: Context<ResolveBankruptcy>,
         market_index: u16,
     ) -> Result<()> {
@@ -2259,7 +2259,7 @@ pub mod clearing_house {
         )?;
         let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
-        let pay_from_insurance = controller::liquidation::resolve_borrow_bankruptcy(
+        let pay_from_insurance = controller::liquidation::resolve_spot_bankruptcy(
             market_index,
             user,
             &user_key,

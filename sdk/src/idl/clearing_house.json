@@ -1049,7 +1049,7 @@
       ]
     },
     {
-      "name": "liquidateBorrow",
+      "name": "liquidateSpot",
       "accounts": [
         {
           "name": "state",
@@ -1306,7 +1306,7 @@
       ]
     },
     {
-      "name": "resolveBorrowBankruptcy",
+      "name": "resolveSpotBankruptcy",
       "accounts": [
         {
           "name": "state",
@@ -3855,7 +3855,7 @@
       }
     },
     {
-      "name": "LiquidateBorrowRecord",
+      "name": "LiquidateSpotRecord",
       "type": {
         "kind": "struct",
         "fields": [
@@ -3979,7 +3979,7 @@
       }
     },
     {
-      "name": "BorrowBankruptcyRecord",
+      "name": "SpotBankruptcyRecord",
       "type": {
         "kind": "struct",
         "fields": [
@@ -5054,7 +5054,7 @@
             "name": "LiquidatePerp"
           },
           {
-            "name": "LiquidateBorrow"
+            "name": "LiquidateSpot"
           },
           {
             "name": "LiquidateBorrowForPerpPnl"
@@ -5066,7 +5066,7 @@
             "name": "PerpBankruptcy"
           },
           {
-            "name": "BorrowBankruptcy"
+            "name": "SpotBankruptcy"
           }
         ]
       }
@@ -5945,9 +5945,9 @@
           "index": false
         },
         {
-          "name": "liquidateBorrow",
+          "name": "liquidateSpot",
           "type": {
-            "defined": "LiquidateBorrowRecord"
+            "defined": "LiquidateSpotRecord"
           },
           "index": false
         },
@@ -5973,9 +5973,9 @@
           "index": false
         },
         {
-          "name": "borrowBankruptcy",
+          "name": "spotBankruptcy",
           "type": {
-            "defined": "BorrowBankruptcyRecord"
+            "defined": "SpotBankruptcyRecord"
           },
           "index": false
         }

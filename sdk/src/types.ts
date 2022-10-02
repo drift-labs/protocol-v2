@@ -247,11 +247,11 @@ export type LiquidationRecord = {
 	liquidationId: number;
 	canceledOrderIds: BN[];
 	liquidatePerp: LiquidatePerpRecord;
-	liquidateBorrow: LiquidateBorrowRecord;
+	liquidateSpot: LiquidateSpotRecord;
 	liquidateBorrowForPerpPnl: LiquidateBorrowForPerpPnlRecord;
 	liquidatePerpPnlForDeposit: LiquidatePerpPnlForDepositRecord;
 	perpBankruptcy: PerpBankruptcyRecord;
-	borrowBankruptcy: BorrowBankruptcyRecord;
+	spotBankruptcy: SpotBankruptcyRecord;
 };
 
 export class LiquidationType {
@@ -283,7 +283,7 @@ export type LiquidatePerpRecord = {
 	ifFee: BN;
 };
 
-export type LiquidateBorrowRecord = {
+export type LiquidateSpotRecord = {
 	assetMarketIndex: number;
 	assetPrice: BN;
 	assetTransfer: BN;
@@ -317,7 +317,7 @@ export type PerpBankruptcyRecord = {
 	cumulativeFundingRateDelta: BN;
 };
 
-export type BorrowBankruptcyRecord = {
+export type SpotBankruptcyRecord = {
 	marketIndex: number;
 	borrowAmount: BN;
 	cumulativeDepositInterestDelta: BN;

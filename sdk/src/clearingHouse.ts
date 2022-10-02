@@ -2370,7 +2370,7 @@ export class ClearingHouse {
 		);
 	}
 
-	public async liquidateBorrow(
+	public async liquidateSpot(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		assetMarketIndex: number,
@@ -2379,7 +2379,7 @@ export class ClearingHouse {
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
 			wrapInTx(
-				await this.getLiquidateBorrowIx(
+				await this.getLiquidateSpotIx(
 					userAccountPublicKey,
 					userAccount,
 					assetMarketIndex,
@@ -2393,7 +2393,7 @@ export class ClearingHouse {
 		return txSig;
 	}
 
-	public async getLiquidateBorrowIx(
+	public async getLiquidateSpotIx(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		assetMarketIndex: number,
@@ -2414,7 +2414,7 @@ export class ClearingHouse {
 			writableSpotMarketIndexes: [liabilityMarketIndex, assetMarketIndex],
 		});
 
-		return await this.program.instruction.liquidateBorrow(
+		return await this.program.instruction.liquidateSpot(
 			assetMarketIndex,
 			liabilityMarketIndex,
 			maxLiabilityTransfer,
@@ -2619,14 +2619,14 @@ export class ClearingHouse {
 		);
 	}
 
-	public async resolveBorrowBankruptcy(
+	public async resolveSpotBankruptcy(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		marketIndex: number
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
 			wrapInTx(
-				await this.getResolveBorrowBankruptcyIx(
+				await this.getResolveSpotBankruptcyIx(
 					userAccountPublicKey,
 					userAccount,
 					marketIndex
@@ -2638,7 +2638,7 @@ export class ClearingHouse {
 		return txSig;
 	}
 
-	public async getResolveBorrowBankruptcyIx(
+	public async getResolveSpotBankruptcyIx(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		marketIndex: number
@@ -2658,7 +2658,7 @@ export class ClearingHouse {
 
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 
-		return await this.program.instruction.resolveBorrowBankruptcy(marketIndex, {
+		return await this.program.instruction.resolveSpotBankruptcy(marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				authority: this.wallet.publicKey,

@@ -12,8 +12,8 @@ test_files=(
    serumTest.ts
    liquidityProvider.ts
    insuranceFundStake.ts
-   liquidateBorrow.ts
-   liquidateBorrowSocialLoss.ts
+   liquidateSpot.ts
+   liquidateSpotSocialLoss.ts
    referrer.ts
    liquidatePerpPnlForDeposit.ts liquidateBorrowForPerpPnl.ts
    liquidatePerp.ts

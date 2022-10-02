@@ -563,7 +563,7 @@ pub struct LiquidatePerp<'info> {
 }
 
 #[derive(Accounts)]
-pub struct LiquidateBorrow<'info> {
+pub struct LiquidateSpot<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     #[account(

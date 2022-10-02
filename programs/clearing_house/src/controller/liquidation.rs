@@ -31,9 +31,9 @@ use crate::math::orders::{get_position_delta_for_fill, standardize_base_asset_am
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math_error;
 use crate::state::events::{
-    BorrowBankruptcyRecord, LiquidateBorrowForPerpPnlRecord, LiquidateBorrowRecord,
-    LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord, LiquidationRecord, LiquidationType,
-    OrderActionExplanation, PerpBankruptcyRecord,
+    LiquidateBorrowForPerpPnlRecord, LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord,
+    LiquidateSpotRecord, LiquidationRecord, LiquidationType, OrderActionExplanation,
+    PerpBankruptcyRecord, SpotBankruptcyRecord,
 };
 use crate::state::market::MarketStatus;
 use crate::state::oracle_map::OracleMap;
@@ -390,7 +390,7 @@ pub fn liquidate_perp(
     Ok(())
 }
 
-pub fn liquidate_borrow(
+pub fn liquidate_spot(
     asset_market_index: u16,
     liability_market_index: u16,
     liquidator_max_liability_transfer: u128,
@@ -586,14 +586,14 @@ pub fn liquidate_borrow(
                 emit!(LiquidationRecord {
                     ts: now,
                     liquidation_id,
-                    liquidation_type: LiquidationType::LiquidatePerp,
+                    liquidation_type: LiquidationType::LiquidateSpot,
                     user: *user_key,
                     liquidator: *liquidator_key,
                     margin_requirement,
                     total_collateral,
                     bankrupt: user.bankrupt,
                     canceled_order_ids,
-                    liquidate_borrow: LiquidateBorrowRecord {
+                    liquidate_spot: LiquidateSpotRecord {
                         asset_market_index,
                         asset_price,
                         asset_transfer: 0,
@@ -739,13 +739,13 @@ pub fn liquidate_borrow(
     emit!(LiquidationRecord {
         ts: now,
         liquidation_id,
-        liquidation_type: LiquidationType::LiquidateBorrow,
+        liquidation_type: LiquidationType::LiquidateSpot,
         user: *user_key,
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,
         bankrupt: user.bankrupt,
-        liquidate_borrow: LiquidateBorrowRecord {
+        liquidate_spot: LiquidateSpotRecord {
             asset_market_index,
             asset_price,
             asset_transfer,
@@ -973,7 +973,7 @@ pub fn liquidate_borrow_for_perp_pnl(
                 emit!(LiquidationRecord {
                     ts: now,
                     liquidation_id,
-                    liquidation_type: LiquidationType::LiquidatePerp,
+                    liquidation_type: LiquidationType::LiquidateBorrowForPerpPnl,
                     user: *user_key,
                     liquidator: *liquidator_key,
                     margin_requirement,
@@ -1332,7 +1332,7 @@ pub fn liquidate_perp_pnl_for_deposit(
                 emit!(LiquidationRecord {
                     ts: now,
                     liquidation_id,
-                    liquidation_type: LiquidationType::LiquidatePerp,
+                    liquidation_type: LiquidationType::LiquidatePerpPnlForDeposit,
                     user: *user_key,
                     liquidator: *liquidator_key,
                     margin_requirement,
@@ -1649,7 +1649,7 @@ pub fn resolve_perp_bankruptcy(
     cast_to_u64(if_payment)
 }
 
-pub fn resolve_borrow_bankruptcy(
+pub fn resolve_spot_bankruptcy(
     market_index: u16,
     user: &mut User,
     user_key: &Pubkey,
@@ -1757,13 +1757,13 @@ pub fn resolve_borrow_bankruptcy(
     emit!(LiquidationRecord {
         ts: now,
         liquidation_id,
-        liquidation_type: LiquidationType::BorrowBankruptcy,
+        liquidation_type: LiquidationType::SpotBankruptcy,
         user: *user_key,
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,
         bankrupt: true,
-        borrow_bankruptcy: BorrowBankruptcyRecord {
+        spot_bankruptcy: SpotBankruptcyRecord {
             market_index,
             borrow_amount,
             if_payment,

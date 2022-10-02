@@ -287,21 +287,21 @@ pub struct LiquidationRecord {
     pub bankrupt: bool,
     pub canceled_order_ids: Vec<u32>,
     pub liquidate_perp: LiquidatePerpRecord,
-    pub liquidate_borrow: LiquidateBorrowRecord,
+    pub liquidate_spot: LiquidateSpotRecord,
     pub liquidate_borrow_for_perp_pnl: LiquidateBorrowForPerpPnlRecord,
     pub liquidate_perp_pnl_for_deposit: LiquidatePerpPnlForDepositRecord,
     pub perp_bankruptcy: PerpBankruptcyRecord,
-    pub borrow_bankruptcy: BorrowBankruptcyRecord,
+    pub spot_bankruptcy: SpotBankruptcyRecord,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum LiquidationType {
     LiquidatePerp,
-    LiquidateBorrow,
+    LiquidateSpot,
     LiquidateBorrowForPerpPnl,
     LiquidatePerpPnlForDeposit,
     PerpBankruptcy,
-    BorrowBankruptcy,
+    SpotBankruptcy,
 }
 
 impl Default for LiquidationType {
@@ -325,7 +325,7 @@ pub struct LiquidatePerpRecord {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
-pub struct LiquidateBorrowRecord {
+pub struct LiquidateSpotRecord {
     pub asset_market_index: u16,
     pub asset_price: i128,
     pub asset_transfer: u128,
@@ -364,7 +364,7 @@ pub struct PerpBankruptcyRecord {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
-pub struct BorrowBankruptcyRecord {
+pub struct SpotBankruptcyRecord {
     pub market_index: u16,
     pub borrow_amount: u128,
     pub if_payment: u128,
