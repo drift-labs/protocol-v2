@@ -27,9 +27,6 @@ fn get_user_keys() -> (Pubkey, Pubkey, Pubkey) {
 
 #[cfg(test)]
 pub mod amm_jit {
-    use std::str::FromStr;
-
-    // use crate::controller::amm::update_spread_reserves;
     use crate::controller::orders::fulfill_order;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
@@ -47,6 +44,7 @@ pub mod amm_jit {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::tests::utils::*;
+    use std::str::FromStr;
 
     use super::*;
 

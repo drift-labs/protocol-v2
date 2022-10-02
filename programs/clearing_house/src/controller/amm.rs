@@ -55,12 +55,6 @@ fn calculate_quote_asset_amount_surplus(
     let mut actual_quote_asset_amount =
         reserve_to_asset_amount(quote_asset_reserve_change, peg_multiplier)?;
 
-    msg!(
-        "actual_quote_asset_amount={}, initial_quote_asset_amount={}",
-        actual_quote_asset_amount,
-        initial_quote_asset_amount
-    );
-
     // Compensate for +1 quote asset amount added when removing base asset
     if round_down {
         actual_quote_asset_amount = actual_quote_asset_amount
@@ -108,14 +102,6 @@ pub fn swap_base_asset(
         Some(position_direction),
     )?;
 
-    msg!("amm price before: {}", amm.reserve_price()?);
-    msg!(
-        "amm spread info: {} {} {}",
-        amm.base_spread,
-        amm.long_spread,
-        amm.short_spread
-    );
-
     let (
         new_base_asset_reserve,
         new_quote_asset_reserve,
@@ -125,9 +111,6 @@ pub fn swap_base_asset(
 
     amm.base_asset_reserve = new_base_asset_reserve;
     amm.quote_asset_reserve = new_quote_asset_reserve;
-
-    msg!("quote_asset_amount_surplus: {}", quote_asset_amount_surplus);
-    msg!("amm price after: {}", amm.reserve_price()?);
 
     Ok((
         quote_asset_amount,

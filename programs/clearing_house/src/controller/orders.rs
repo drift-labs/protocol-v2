@@ -1046,7 +1046,6 @@ fn fulfill_order(
     let mut base_asset_amount = 0_u64;
     let mut quote_asset_amount = 0_u64;
     let mut order_records: Vec<OrderActionRecord> = vec![];
-    msg!("num of fulfillment_methods:{}", fulfillment_methods.len());
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
             break;
