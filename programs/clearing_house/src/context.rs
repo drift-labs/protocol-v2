@@ -319,6 +319,7 @@ pub struct TransferDeposit<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateSpotMarketCumulativeInterest<'info> {
+    pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub spot_market: AccountLoader<'info, SpotMarket>,
 }

@@ -62,14 +62,12 @@ pub fn update_spot_market_twap_stats(
 
     let utilization = calculate_utilization(deposit_token_amount, borrow_token_amount)?;
 
-    let inter = calculate_weighted_average(
+    spot_market.utilization_twap = cast_to_u128(calculate_weighted_average(
         cast_to_i128(utilization)?,
         cast_to_i128(spot_market.utilization_twap)?,
         since_last,
         from_start,
-    )?;
-
-    spot_market.utilization_twap = cast_to_u128(inter)?;
+    )?)?;
 
     if let Some(oracle_price_data) = oracle_price_data {
         let capped_oracle_update_price = oracle_price_data.price;

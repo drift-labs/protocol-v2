@@ -248,7 +248,7 @@ pub fn place_order(
     let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
         <= worst_case_base_asset_amount_before.unsigned_abs();
 
-    let meets_initial_maintenance_requirement = meets_place_order_margin_requirement(
+    let meets_initial_margin_requirement = meets_place_order_margin_requirement(
         user,
         perp_market_map,
         spot_market_map,
@@ -256,7 +256,7 @@ pub fn place_order(
         risk_decreasing,
     )?;
 
-    if !meets_initial_maintenance_requirement || (force_reduce_only && !risk_decreasing) {
+    if !meets_initial_margin_requirement || (force_reduce_only && !risk_decreasing) {
         return Err(ErrorCode::InvalidOrder);
     }
 
@@ -500,7 +500,10 @@ pub fn fill_order(
     validate!(
         matches!(
             market.status,
-            MarketStatus::Active | MarketStatus::FundingPaused | MarketStatus::ReduceOnly
+            MarketStatus::Active
+                | MarketStatus::FundingPaused
+                | MarketStatus::ReduceOnly
+                | MarketStatus::WithdrawPaused
         ),
         ErrorCode::DefaultError,
         "Market unavailable for fills"
@@ -2220,11 +2223,16 @@ pub fn place_spot_order(
     let risk_decreasing = worst_case_token_amount_after.unsigned_abs()
         <= worst_case_token_amount_before.unsigned_abs();
 
-    let meets_initial_maintenance_requirement =
-        meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+    let meets_initial_margin_requirement = meets_place_order_margin_requirement(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        risk_decreasing,
+    )?;
 
-    if !meets_initial_maintenance_requirement && !risk_decreasing {
-        return Err(ErrorCode::InsufficientCollateral);
+    if !meets_initial_margin_requirement || (force_reduce_only && !risk_decreasing) {
+        return Err(ErrorCode::InvalidOrder);
     }
 
     let (taker, taker_order, maker, maker_order) =
@@ -2301,7 +2309,10 @@ pub fn fill_spot_order(
         validate!(
             matches!(
                 spot_market.status,
-                MarketStatus::Active | MarketStatus::FundingPaused | MarketStatus::ReduceOnly
+                MarketStatus::Active
+                    | MarketStatus::FundingPaused
+                    | MarketStatus::ReduceOnly
+                    | MarketStatus::WithdrawPaused
             ),
             ErrorCode::DefaultError,
             "Market unavailable for fills"

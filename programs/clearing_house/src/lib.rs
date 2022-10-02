@@ -645,8 +645,12 @@ pub mod clearing_house {
 
         let spot_position = user.force_get_spot_position_mut(spot_market.market_index)?;
 
+        let force_reduce_only = spot_market.is_reduce_only()?;
+
         // if reduce only, have to compare ix amount to current borrow amount
-        let amount = if reduce_only && spot_position.balance_type == SpotBalanceType::Borrow {
+        let amount = if (force_reduce_only || reduce_only)
+            && spot_position.balance_type == SpotBalanceType::Borrow
+        {
             spot_position
                 .get_token_amount(spot_market)?
                 .cast::<u64>()?
@@ -804,6 +808,9 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        withdraw_not_paused(&ctx.accounts.state)
+    )]
     pub fn transfer_deposit(
         ctx: Context<TransferDeposit>,
         market_index: u16,
@@ -934,6 +941,9 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        funding_not_paused(&ctx.accounts.state)
+    )]
     pub fn update_spot_market_cumulative_interest(
         ctx: Context<UpdateSpotMarketCumulativeInterest>,
     ) -> Result<()> {
@@ -1105,7 +1115,9 @@ pub mod clearing_house {
             validate!(
                 !matches!(
                     market.status,
-                    |MarketStatus::ReduceOnly| MarketStatus::Settlement | MarketStatus::Delisted
+                    |MarketStatus::Initialized| MarketStatus::ReduceOnly
+                        | MarketStatus::Settlement
+                        | MarketStatus::Delisted
                 ),
                 ErrorCode::DefaultError,
                 "Market Status doesn't allow for new LP liquidity"
@@ -1167,6 +1179,9 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
     pub fn place_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
         let clock = &Clock::get()?;
         let state = &ctx.accounts.state;
@@ -1198,6 +1213,9 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
     pub fn cancel_order(ctx: Context<CancelOrder>, order_id: Option<u32>) -> Result<()> {
         let clock = &Clock::get()?;
         let state = &ctx.accounts.state;
@@ -1228,6 +1246,9 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
     pub fn cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: u8) -> Result<()> {
         let clock = &Clock::get()?;
         let state = &ctx.accounts.state;
