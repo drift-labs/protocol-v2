@@ -3226,6 +3226,14 @@ pub fn fulfill_spot_order_with_serum(
         &SpotBalanceType::Deposit,
     )?;
 
+    if fee_pool_amount > SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD * 2 {
+        transfer_spot_balance_to_revenue_pool(
+            fee_pool_amount - SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+            quote_market,
+            &mut base_market.spot_fee_pool,
+        )?;
+    }
+
     let SerumFillFees {
         user_fee: taker_fee,
         fee_to_market,

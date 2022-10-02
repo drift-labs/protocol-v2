@@ -54,7 +54,7 @@ pub mod clearing_house {
     };
     use crate::state::events::{CurveRecord, DepositRecord};
     use crate::state::events::{DepositDirection, NewUserRecord};
-    use crate::state::market::{PerpMarket, PoolBalance};
+    use crate::state::market::{BasePoolBalance, PerpMarket, PoolBalance};
     use crate::state::oracle::{get_pyth_price, get_switchboard_price, OraclePriceData};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::{
@@ -271,7 +271,10 @@ pub mod clearing_house {
             mint: ctx.accounts.spot_market_mint.key(),
             vault: *ctx.accounts.spot_market_vault.to_account_info().key,
             insurance_fund_vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
-            revenue_pool: PoolBalance { balance: 0 }, // in base asset
+            revenue_pool: BasePoolBalance {
+                balance: 0,
+                market_index: spot_market_index,
+            }, // in base asset
             total_if_factor: 0,
             user_if_factor: 0,
             total_if_shares: 0,

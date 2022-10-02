@@ -741,7 +741,7 @@ mod test {
         AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION, QUOTE_PRECISION,
         SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
     };
-    use crate::state::market::PoolBalance;
+    use crate::state::market::{BasePoolBalance, PoolBalance};
 
     #[test]
     fn concentration_coef_tests() {
@@ -1053,7 +1053,7 @@ mod test {
             deposit_balance: 100 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            revenue_pool: PoolBalance::default(),
+            revenue_pool: BasePoolBalance::default(),
             ..SpotMarket::default()
         };
 
@@ -1128,7 +1128,8 @@ mod test {
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            revenue_pool: PoolBalance {
+            revenue_pool: BasePoolBalance {
+                market_index: 0,
                 balance: 100 * SPOT_BALANCE_PRECISION,
             },
             decimals: 6,

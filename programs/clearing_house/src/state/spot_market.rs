@@ -17,7 +17,7 @@ use crate::math::margin::{
 };
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
-use crate::state::market::{MarketStatus, PoolBalance};
+use crate::state::market::{BasePoolBalance, MarketStatus, PoolBalance};
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
 use solana_program::msg;
 
@@ -37,7 +37,7 @@ pub struct SpotMarket {
     pub mint: Pubkey,
     pub vault: Pubkey,
     pub insurance_fund_vault: Pubkey,
-    pub revenue_pool: PoolBalance, // in base asset
+    pub revenue_pool: BasePoolBalance, // in base asset
 
     pub total_if_factor: u32, // percentage of interest for total insurance
     pub user_if_factor: u32,  // percentage of interest for user staked insurance

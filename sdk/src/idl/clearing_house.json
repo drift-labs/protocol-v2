@@ -3306,7 +3306,7 @@
           {
             "name": "revenuePool",
             "type": {
-              "defined": "PoolBalance"
+              "defined": "BasePoolBalance"
             }
           },
           {
@@ -4043,6 +4043,22 @@
           },
           {
             "name": "cumulativeDepositInterestDelta",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BasePoolBalance",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "balance",
             "type": "u128"
           }
         ]

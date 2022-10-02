@@ -224,6 +224,43 @@ impl PerpMarket {
 
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug)]
+#[repr(packed)]
+pub struct BasePoolBalance {
+    pub market_index: u16,
+    pub balance: u128,
+}
+
+impl SpotBalance for BasePoolBalance {
+    fn market_index(&self) -> u16 {
+        self.market_index
+    }
+
+    fn balance_type(&self) -> &SpotBalanceType {
+        &SpotBalanceType::Deposit
+    }
+
+    fn balance(&self) -> u128 {
+        self.balance
+    }
+
+    fn increase_balance(&mut self, delta: u128) -> ClearingHouseResult {
+        self.balance = self.balance.checked_add(delta).ok_or_else(math_error!())?;
+        Ok(())
+    }
+
+    fn decrease_balance(&mut self, delta: u128) -> ClearingHouseResult {
+        self.balance = self.balance.checked_sub(delta).ok_or_else(math_error!())?;
+        Ok(())
+    }
+
+    fn update_balance_type(&mut self, _balance_type: SpotBalanceType) -> ClearingHouseResult {
+        Err(ErrorCode::CantUpdatePoolBalanceType)
+    }
+}
+
+#[zero_copy]
+#[derive(Default, Eq, PartialEq, Debug)]
+#[repr(packed)]
 pub struct PoolBalance {
     pub balance: u128,
 }
