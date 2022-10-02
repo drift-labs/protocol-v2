@@ -236,8 +236,5 @@ describe('referrer', () => {
 		);
 
 		await eventSubscriber.awaitTx(txSig);
-
-		const withdrawRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
-		assert(withdrawRecord.referrer.equals(provider.wallet.publicKey));
 	});
 });

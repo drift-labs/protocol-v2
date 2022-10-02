@@ -204,7 +204,7 @@ pub mod amm_jit {
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
-        assert_eq!(taker_stats.taker_volume_30d, 102284244);
+        assert_eq!(taker_stats.taker_volume_30d, 102284245);
         assert_eq!(taker.orders[0], Order::default());
         assert_eq!(base_asset_amount, BASE_PRECISION_U64);
 
@@ -218,8 +218,8 @@ pub mod amm_jit {
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.net_base_asset_amount, 1000000000);
-        assert_eq!(market_after.amm.total_fee, 2064035);
-        assert_eq!(filler_stats.filler_volume_30d, 102284244);
+        assert_eq!(market_after.amm.total_fee, 2064036);
+        assert_eq!(filler_stats.filler_volume_30d, 102284245);
     }
 
     #[test]

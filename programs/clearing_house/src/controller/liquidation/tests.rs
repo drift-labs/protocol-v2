@@ -933,8 +933,8 @@ pub mod liquidate_perp {
     }
 }
 
-pub mod liquidate_borrow {
-    use crate::controller::liquidation::liquidate_borrow;
+pub mod liquidate_spot {
+    use crate::controller::liquidation::liquidate_spot;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
@@ -1051,7 +1051,7 @@ pub mod liquidate_borrow {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
-        liquidate_borrow(
+        liquidate_spot(
             0,
             1,
             10_u128.pow(6),
@@ -1176,7 +1176,7 @@ pub mod liquidate_borrow {
         let liquidator_key = Pubkey::default();
 
         // oracle twap too volatile to liq rn
-        assert!(liquidate_borrow(
+        assert!(liquidate_spot(
             0,
             1,
             10_u128.pow(6) / 10,
@@ -1201,7 +1201,7 @@ pub mod liquidate_borrow {
             (sol_oracle_price.agg.price * 6744 / 10000) as i128;
         drop(market1);
 
-        liquidate_borrow(
+        liquidate_spot(
             0,
             1,
             10_u128.pow(6) / 10,
@@ -1328,7 +1328,7 @@ pub mod liquidate_borrow {
 
         let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
 
-        liquidate_borrow(
+        liquidate_spot(
             0,
             1,
             10_u128.pow(6),
@@ -2597,8 +2597,8 @@ pub mod resolve_perp_bankruptcy {
     }
 }
 
-pub mod resolve_borrow_bankruptcy {
-    use crate::controller::liquidation::resolve_borrow_bankruptcy;
+pub mod resolve_spot_bankruptcy {
+    use crate::controller::liquidation::resolve_spot_bankruptcy;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
@@ -2623,7 +2623,7 @@ pub mod resolve_borrow_bankruptcy {
     use std::str::FromStr;
 
     #[test]
-    pub fn successful_resolve_borrow_bankruptcy() {
+    pub fn successful_resolve_spot_bankruptcy() {
         let now = 0_i64;
         let slot = 0_u64;
 
@@ -2732,7 +2732,7 @@ pub mod resolve_borrow_bankruptcy {
         expected_spot_market.cumulative_deposit_interest =
             9 * SPOT_CUMULATIVE_INTEREST_PRECISION / 10;
 
-        resolve_borrow_bankruptcy(
+        resolve_spot_bankruptcy(
             0,
             &mut user,
             &user_key,

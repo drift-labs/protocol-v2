@@ -916,7 +916,7 @@ describe('insurance fund stake', () => {
 		assert(beforeLiquiteeUSDCBorrow.gt(new BN('500000033001')));
 		assert(beforeLiquiteeSOLDeposit.gt(new BN('10000000997')));
 
-		const txSig = await clearingHouse.liquidateBorrow(
+		const txSig = await clearingHouse.liquidateSpot(
 			await secondUserClearingHouse.getUserAccountPublicKey(),
 			secondUserClearingHouse.getUserAccount(),
 			1,

@@ -91,6 +91,7 @@ pub mod clearing_house {
             whitelist_mint: Pubkey::default(),
             discount_mint: Pubkey::default(),
             oracle_guard_rails: OracleGuardRails::default(),
+            number_of_authorities: 0,
             number_of_markets: 0,
             number_of_spot_markets: 0,
             min_order_quote_asset_amount: 500_000, // 50 cents
@@ -1539,41 +1540,37 @@ pub mod clearing_house {
     pub fn trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u32) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
-        SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-        let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+        let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
+        let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
-        controller::orders::trigger_order(
-            order_id,
-            &ctx.accounts.state,
-            &ctx.accounts.user,
-            &market_map,
-            &mut oracle_map,
-            &ctx.accounts.filler,
-            &Clock::get()?,
-        )?;
+        let market_type = match load!(ctx.accounts.user)?.get_order(order_id) {
+            Some(order) => order.market_type,
+            None => {
+                msg!("order_id not found {}", order_id);
+                return Ok(());
+            }
+        };
 
-        Ok(())
-    }
-
-    #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
-    )]
-    pub fn trigger_spot_order<'info>(ctx: Context<TriggerOrder>, order_id: u32) -> Result<()> {
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
-        let spot_market_market =
-            SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-        PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
-
-        controller::orders::trigger_spot_order(
-            order_id,
-            &ctx.accounts.state,
-            &ctx.accounts.user,
-            &spot_market_market,
-            &mut oracle_map,
-            &ctx.accounts.filler,
-            &Clock::get()?,
-        )?;
+        match market_type {
+            MarketType::Perp => controller::orders::trigger_order(
+                order_id,
+                &ctx.accounts.state,
+                &ctx.accounts.user,
+                &perp_market_map,
+                &mut oracle_map,
+                &ctx.accounts.filler,
+                &Clock::get()?,
+            )?,
+            MarketType::Spot => controller::orders::trigger_spot_order(
+                order_id,
+                &ctx.accounts.state,
+                &ctx.accounts.user,
+                &spot_market_map,
+                &mut oracle_map,
+                &ctx.accounts.filler,
+                &Clock::get()?,
+            )?,
+        }
 
         Ok(())
     }
@@ -1884,8 +1881,8 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn liquidate_borrow(
-        ctx: Context<LiquidateBorrow>,
+    pub fn liquidate_spot(
+        ctx: Context<LiquidateSpot>,
         asset_market_index: u16,
         liability_market_index: u16,
         liquidator_max_liability_transfer: u128,
@@ -1918,7 +1915,7 @@ pub mod clearing_house {
         let spot_market_map = SpotMarketMap::load(&writable_spot_markets, remaining_accounts_iter)?;
         let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
-        controller::liquidation::liquidate_borrow(
+        controller::liquidation::liquidate_spot(
             asset_market_index,
             liability_market_index,
             liquidator_max_liability_transfer,
@@ -2232,7 +2229,7 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn resolve_borrow_bankruptcy(
+    pub fn resolve_spot_bankruptcy(
         ctx: Context<ResolveBankruptcy>,
         market_index: u16,
     ) -> Result<()> {
@@ -2263,7 +2260,7 @@ pub mod clearing_house {
         )?;
         let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
-        let pay_from_insurance = controller::liquidation::resolve_borrow_bankruptcy(
+        let pay_from_insurance = controller::liquidation::resolve_spot_bankruptcy(
             market_index,
             user,
             &user_key,
@@ -2722,6 +2719,9 @@ pub mod clearing_house {
             last_filler_volume_30d_ts: clock.unix_timestamp,
             ..UserStats::default()
         };
+
+        let state = &mut ctx.accounts.state;
+        checked_increment!(state.number_of_authorities, 1);
 
         Ok(())
     }
