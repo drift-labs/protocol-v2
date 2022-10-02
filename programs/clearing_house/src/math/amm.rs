@@ -740,7 +740,7 @@ pub fn calculate_quote_asset_amount_swapped(
     swap_direction: SwapDirection,
     peg_multiplier: u128,
 ) -> ClearingHouseResult<u128> {
-    let quote_asset_reserve_change = match swap_direction {
+    let mut quote_asset_reserve_change = match swap_direction {
         SwapDirection::Add => quote_asset_reserve_before
             .checked_sub(quote_asset_reserve_after)
             .ok_or_else(math_error!())?,
@@ -749,6 +749,14 @@ pub fn calculate_quote_asset_amount_swapped(
             .checked_sub(quote_asset_reserve_before)
             .ok_or_else(math_error!())?,
     };
+
+    // when a user goes long base asset, make the base asset slightly more expensive
+    // by adding one unit of quote asset
+    if swap_direction == SwapDirection::Remove {
+        quote_asset_reserve_change = quote_asset_reserve_change
+            .checked_add(1)
+            .ok_or_else(math_error!())?;
+    }
 
     let mut quote_asset_amount =
         reserve_to_asset_amount(quote_asset_reserve_change, peg_multiplier)?;

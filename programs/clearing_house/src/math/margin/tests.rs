@@ -245,7 +245,7 @@ mod test {
         let position_unrealized_pnl =
             calculate_position_pnl(&market_position, &market.amm, false).unwrap();
 
-        assert_eq!(position_unrealized_pnl, 22699050927);
+        assert_eq!(position_unrealized_pnl, 22699050905);
 
         // sqrt of oracle price = 149
         market.unrealized_imf_factor = market.imf_factor;
