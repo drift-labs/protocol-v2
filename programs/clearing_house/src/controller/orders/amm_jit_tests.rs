@@ -164,6 +164,12 @@ pub mod amm_jit {
                 open_asks: -BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
             ..User::default()
         };
 
@@ -340,6 +346,12 @@ pub mod amm_jit {
                 open_asks: -BASE_PRECISION_I64 * 2,
                 ..PerpPosition::default()
             }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
             ..User::default()
         };
 
@@ -515,6 +527,12 @@ pub mod amm_jit {
                 open_bids: BASE_PRECISION_I64 * 2,
                 ..PerpPosition::default()
             }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
             ..User::default()
         };
 
@@ -685,6 +703,12 @@ pub mod amm_jit {
                 open_bids: BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
             ..User::default()
         };
 
@@ -854,6 +878,12 @@ pub mod amm_jit {
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
             }),
             ..User::default()
         };
@@ -1052,6 +1082,12 @@ pub mod amm_jit {
                 open_orders: 1,
                 open_asks: -BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
             }),
             ..User::default()
         };
@@ -1254,6 +1290,12 @@ pub mod amm_jit {
                 open_asks: -BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
             ..User::default()
         };
 
@@ -1455,6 +1497,12 @@ pub mod amm_jit {
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
             }),
             ..User::default()
         };
@@ -1730,6 +1778,12 @@ pub mod amm_jit {
                     open_asks: -(baa as i64),
                     ..PerpPosition::default()
                 }),
+                spot_positions: get_spot_positions(SpotPosition {
+                    market_index: 0,
+                    balance_type: SpotBalanceType::Deposit,
+                    balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                    ..SpotPosition::default()
+                }),
                 ..User::default()
             };
 
@@ -2002,6 +2056,12 @@ pub mod amm_jit {
                     open_orders: 1,
                     open_bids: baa as i64,
                     ..PerpPosition::default()
+                }),
+                spot_positions: get_spot_positions(SpotPosition {
+                    market_index: 0,
+                    balance_type: SpotBalanceType::Deposit,
+                    balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                    ..SpotPosition::default()
                 }),
                 ..User::default()
             };
