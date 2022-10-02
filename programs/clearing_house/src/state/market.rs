@@ -27,6 +27,7 @@ pub enum MarketStatus {
     Initialized,    // warm up period for initialization, fills are paused
     Active,         // all operations allowed
     FundingPaused,  // perp: pause funding rate updates | spot: pause interest updates
+    AmmPaused,      // amm fills are prevented/blocked
     FillPaused,     // fills are blocked
     WithdrawPaused, // perp: pause settling positive pnl | spot: pause withdrawing asset
     ReduceOnly,     // fills only able to reduce liability

@@ -1696,6 +1696,7 @@ pub mod fulfill_order {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -1864,6 +1865,7 @@ pub mod fulfill_order {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -2022,6 +2024,7 @@ pub mod fulfill_order {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -2191,6 +2194,7 @@ pub mod fulfill_order {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -2407,6 +2411,7 @@ pub mod fulfill_order {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 

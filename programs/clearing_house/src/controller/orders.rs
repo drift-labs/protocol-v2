@@ -538,9 +538,12 @@ pub fn fill_order(
     let is_oracle_valid: bool;
     let oracle_price: i128;
     let market_is_reduce_only: bool;
+    let mut amm_is_available = state.exchange_status != ExchangeStatus::AmmPaused;
+
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         market_is_reduce_only = market.is_reduce_only()?;
+        amm_is_available &= market.status != MarketStatus::AmmPaused;
         controller::validate::validate_market_account(market)?;
         validate!(
             market.is_active(now)?,
@@ -566,12 +569,11 @@ pub fn fill_order(
         oracle_price = oracle_price_data.price;
     }
 
-    let valid_oracle_price =
-        if is_oracle_valid && state.exchange_status != ExchangeStatus::AmmPaused {
-            Some(oracle_price)
-        } else {
-            None
-        };
+    let valid_oracle_price = if is_oracle_valid {
+        Some(oracle_price)
+    } else {
+        None
+    };
 
     let is_filler_taker = user_key == filler_key;
     let is_filler_maker = maker.map_or(false, |maker| maker.key() == filler_key);
@@ -691,6 +693,7 @@ pub fn fill_order(
         now,
         slot,
         market_is_reduce_only,
+        amm_is_available,
     )?;
 
     if should_cancel_order_after_fulfill(user, order_index, slot)? {
@@ -1006,6 +1009,7 @@ fn fulfill_order(
     now: i64,
     slot: u64,
     market_is_reduce_only: bool,
+    amm_is_available: bool,
 ) -> ClearingHouseResult<(u64, bool, bool)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -1041,7 +1045,7 @@ fn fulfill_order(
     let fulfillment_methods = determine_perp_fulfillment_methods(
         &user.orders[user_order_index],
         maker.is_some(),
-        valid_oracle_price.is_some(),
+        amm_is_available,
         slot,
     )?;
 
