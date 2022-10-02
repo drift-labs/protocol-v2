@@ -17,6 +17,7 @@ import {
 	initializeQuoteSpotMarket,
 	mockUSDCMint,
 	mockUserUSDCAccount,
+	printTxLogs,
 } from './testHelpers';
 import { decodeName } from '../sdk/src/userName';
 import { assert } from 'chai';
@@ -179,5 +180,22 @@ describe('subaccounts', () => {
 			await clearingHouse.getUserAccountsForDelegate(delegateKeyPair.publicKey)
 		)[0];
 		assert(delegateUserAccount.delegate.equals(delegateKeyPair.publicKey));
+	});
+
+	it('delete user', async () => {
+		await clearingHouse.switchActiveUser(1);
+
+		let deleteFailed = false;
+		try {
+			const txSig = await clearingHouse.deleteUser(0);
+			await printTxLogs(connection, txSig);
+		} catch (e) {
+			assert(e.toString().includes('UserCantBeDeleted'));
+			deleteFailed = true;
+		}
+
+		assert(deleteFailed);
+
+		await clearingHouse.deleteUser(1);
 	});
 });

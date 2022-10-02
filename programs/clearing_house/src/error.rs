@@ -267,6 +267,8 @@ pub enum ErrorCode {
     InvalidFeeStructure,
     #[msg("Insufficient IF shares")]
     InsufficientIFShares,
+    #[msg("User Cant Be Deleted")]
+    UserCantBeDeleted,
 }
 
 #[macro_export]
