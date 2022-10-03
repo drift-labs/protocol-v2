@@ -333,6 +333,15 @@ pub fn is_spot_order_risk_decreasing(
     Ok(risk_decreasing)
 }
 
+pub fn is_spot_order_risk_increasing(
+    order: &Order,
+    balance_type: &SpotBalanceType,
+    token_amount: u128,
+) -> ClearingHouseResult<bool> {
+    is_spot_order_risk_decreasing(order, balance_type, token_amount)
+        .map(|risk_decreasing| !risk_decreasing)
+}
+
 pub fn is_order_risk_decreasing(
     order_direction: &PositionDirection,
     order_base_asset_amount: u64,
@@ -357,6 +366,19 @@ pub fn is_order_risk_decreasing(
         }
         _ => false,
     })
+}
+
+pub fn is_order_risk_increasing(
+    order_direction: &PositionDirection,
+    order_base_asset_amount: u64,
+    position_base_asset_amount: i64,
+) -> ClearingHouseResult<bool> {
+    is_order_risk_decreasing(
+        order_direction,
+        order_base_asset_amount,
+        position_base_asset_amount,
+    )
+    .map(|risk_decreasing| !risk_decreasing)
 }
 
 #[cfg(test)]

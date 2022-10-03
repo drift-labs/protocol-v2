@@ -1660,6 +1660,12 @@ pub mod fulfill_order {
                 open_asks: -BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
             ..User::default()
         };
 
@@ -1696,6 +1702,7 @@ pub mod fulfill_order {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -1828,6 +1835,12 @@ pub mod fulfill_order {
                 open_asks: -BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
             ..User::default()
         };
 
@@ -1864,6 +1877,7 @@ pub mod fulfill_order {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -2022,6 +2036,7 @@ pub mod fulfill_order {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -2191,6 +2206,7 @@ pub mod fulfill_order {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -2368,6 +2384,12 @@ pub mod fulfill_order {
         let mut maker = User {
             orders: maker_orders,
             perp_positions: maker_positions,
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 10_000 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
             ..User::default()
         };
 
@@ -2407,6 +2429,7 @@ pub mod fulfill_order {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -2566,6 +2589,7 @@ pub mod fill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default()
         };
+        market.status = MarketStatus::Active;
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2691,6 +2715,9 @@ pub mod fill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default()
         };
+
+        market.status = MarketStatus::Active;
+
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 

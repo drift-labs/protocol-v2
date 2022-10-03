@@ -24,8 +24,10 @@ use solana_program::msg;
 use std::cmp::{max, min};
 
 use crate::controller::repeg::apply_cost_to_market;
-use crate::controller::spot_balance::{update_revenue_pool_balances, update_spot_balances};
-use crate::controller::spot_position::update_spot_position_balance;
+use crate::controller::spot_balance::{
+    transfer_revenue_pool_to_spot_balance, transfer_spot_balance_to_revenue_pool,
+    transfer_spot_balances, update_spot_balances,
+};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -422,20 +424,11 @@ pub fn update_pool_balances(
             .ok_or_else(math_error!())?;
 
         if pnl_pool_addition < 0 {
-            update_spot_balances(
-                pnl_pool_addition.unsigned_abs(),
-                &SpotBalanceType::Borrow,
+            transfer_spot_balances(
+                pnl_pool_addition.abs(),
                 spot_market,
                 &mut market.amm.fee_pool,
-                false,
-            )?;
-
-            update_spot_balances(
-                pnl_pool_addition.unsigned_abs(),
-                &SpotBalanceType::Deposit,
-                spot_market,
                 &mut market.pnl_pool,
-                false,
             )?;
         }
 
@@ -468,20 +461,11 @@ pub fn update_pool_balances(
                 .min(pnl_pool_token_amount);
 
             if pnl_pool_removal > 0 {
-                update_spot_balances(
-                    pnl_pool_removal,
-                    &SpotBalanceType::Borrow,
+                transfer_spot_balances(
+                    cast_to_i128(pnl_pool_removal)?,
                     spot_market,
                     &mut market.pnl_pool,
-                    false,
-                )?;
-
-                update_spot_balances(
-                    pnl_pool_removal,
-                    &SpotBalanceType::Deposit,
-                    spot_market,
                     &mut market.amm.fee_pool,
-                    false,
                 )?;
             }
         }
@@ -524,18 +508,10 @@ pub fn update_pool_balances(
                     .min(spot_market_revenue_pool_amount)
                     .min(max_revenue_withdraw_allowed);
 
-                update_revenue_pool_balances(
+                transfer_revenue_pool_to_spot_balance(
                     revenue_pool_transfer,
-                    &SpotBalanceType::Borrow,
-                    spot_market,
-                )?;
-
-                update_spot_balances(
-                    revenue_pool_transfer,
-                    &SpotBalanceType::Deposit,
                     spot_market,
                     &mut market.amm.fee_pool,
-                    false,
                 )?;
 
                 market.amm.total_fee_minus_distributions = market
@@ -558,26 +534,19 @@ pub fn update_pool_balances(
                 .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
                 .ok_or_else(math_error!())?
                 .max(0)
-                .min(cast_to_i128(amm_fee_pool_token_amount_after)?);
+                .min(cast_to_i128(amm_fee_pool_token_amount_after)?)
+                .unsigned_abs();
 
-            update_spot_balances(
-                revenue_pool_transfer.unsigned_abs(),
-                &SpotBalanceType::Borrow,
+            transfer_spot_balance_to_revenue_pool(
+                revenue_pool_transfer,
                 spot_market,
                 &mut market.amm.fee_pool,
-                false,
-            )?;
-
-            update_revenue_pool_balances(
-                revenue_pool_transfer.unsigned_abs(),
-                &SpotBalanceType::Deposit,
-                spot_market,
             )?;
 
             market.amm.total_fee_withdrawn = market
                 .amm
                 .total_fee_withdrawn
-                .checked_add(revenue_pool_transfer.unsigned_abs())
+                .checked_add(revenue_pool_transfer)
                 .ok_or_else(math_error!())?;
         }
     }
@@ -670,29 +639,13 @@ pub fn update_pnl_pool_and_user_balance(
         return Ok(0);
     }
 
-    update_spot_balances(
-        pnl_to_settle_with_user.unsigned_abs(),
-        if pnl_to_settle_with_user < 0 {
-            &SpotBalanceType::Deposit
-        } else {
-            &SpotBalanceType::Borrow
-        },
+    let user_spot_position = user.get_quote_spot_position_mut();
+
+    transfer_spot_balances(
+        pnl_to_settle_with_user,
         bank,
         &mut market.pnl_pool,
-        false,
-    )?;
-
-    let user_spot_position = user.get_quote_spot_position_mut();
-    update_spot_position_balance(
-        pnl_to_settle_with_user.unsigned_abs(),
-        if pnl_to_settle_with_user > 0 {
-            &SpotBalanceType::Deposit
-        } else {
-            &SpotBalanceType::Borrow
-        },
-        bank,
         user_spot_position,
-        false,
     )?;
 
     Ok(pnl_to_settle_with_user)
@@ -769,7 +722,7 @@ mod test {
     use crate::controller::insurance::settle_revenue_to_insurance_fund;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION, QUOTE_PRECISION,
-        SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
     };
     use crate::state::market::PoolBalance;
 
@@ -1069,11 +1022,13 @@ mod test {
 
                 fee_pool: PoolBalance {
                     balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
+                    market_index: QUOTE_SPOT_MARKET_INDEX,
                 },
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
                 balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
+                market_index: QUOTE_SPOT_MARKET_INDEX,
             },
             ..PerpMarket::default()
         };
@@ -1083,7 +1038,7 @@ mod test {
             deposit_balance: 100 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            revenue_pool: PoolBalance { balance: 0 },
+            revenue_pool: PoolBalance::default(),
             ..SpotMarket::default()
         };
 
@@ -1144,11 +1099,13 @@ mod test {
 
                 fee_pool: PoolBalance {
                     balance: 50 * SPOT_BALANCE_PRECISION,
+                    market_index: QUOTE_SPOT_MARKET_INDEX,
                 },
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
                 balance: 50 * SPOT_BALANCE_PRECISION,
+                market_index: QUOTE_SPOT_MARKET_INDEX,
             },
             ..PerpMarket::default()
         };
@@ -1159,6 +1116,7 @@ mod test {
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             revenue_pool: PoolBalance {
+                market_index: 0,
                 balance: 100 * SPOT_BALANCE_PRECISION,
             },
             decimals: 6,

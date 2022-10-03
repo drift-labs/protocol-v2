@@ -88,6 +88,7 @@ describe('user delegate', () => {
 			ammInitialQuoteAssetAmount,
 			periodicity
 		);
+		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
 
 		const userId = 0;
 		const name = 'CRISP';

@@ -7,7 +7,9 @@ use crate::controller::position::{
 use crate::controller::spot_balance::{
     update_revenue_pool_balances, update_spot_market_cumulative_interest,
 };
-use crate::controller::spot_position::update_spot_position_balance;
+use crate::controller::spot_position::{
+    transfer_spot_position_deposit, update_spot_position_balance,
+};
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::get_then_update_id;
 use crate::math::bankruptcy::is_user_bankrupt;
@@ -701,23 +703,13 @@ pub fn liquidate_spot(
 
     {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
-
-        update_spot_position_balance(
-            asset_transfer,
-            &SpotBalanceType::Borrow,
+        transfer_spot_position_deposit(
+            cast_to_i128(asset_transfer)?,
             &mut asset_market,
             user.get_spot_position_mut(asset_market_index).unwrap(),
-            false,
-        )?;
-
-        update_spot_position_balance(
-            asset_transfer,
-            &SpotBalanceType::Deposit,
-            &mut asset_market,
             liquidator
                 .get_spot_position_mut(asset_market_index)
                 .unwrap(),
-            false,
         )?;
     }
 
@@ -1055,23 +1047,13 @@ pub fn liquidate_borrow_for_perp_pnl(
 
     {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
-
-        update_spot_position_balance(
-            liability_transfer,
-            &SpotBalanceType::Deposit,
+        transfer_spot_position_deposit(
+            -cast_to_i128(liability_transfer)?,
             &mut liability_market,
             user.get_spot_position_mut(liability_market_index).unwrap(),
-            false,
-        )?;
-
-        update_spot_position_balance(
-            liability_transfer,
-            &SpotBalanceType::Borrow,
-            &mut liability_market,
             liquidator
                 .get_spot_position_mut(liability_market_index)
                 .unwrap(),
-            false,
         )?;
     }
 

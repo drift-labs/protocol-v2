@@ -446,6 +446,21 @@ export class ClearingHouse {
 			});
 		}
 
+		const state = this.getStateAccount();
+		if (!state.whitelistMint.equals(PublicKey.default)) {
+			const associatedTokenPublicKey = await Token.getAssociatedTokenAddress(
+				ASSOCIATED_TOKEN_PROGRAM_ID,
+				TOKEN_PROGRAM_ID,
+				state.whitelistMint,
+				this.wallet.publicKey
+			);
+			remainingAccounts.push({
+				pubkey: associatedTokenPublicKey,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
+
 		const nameBuffer = encodeName(name);
 		const initializeUserAccountIx =
 			await this.program.instruction.initializeUser(userId, nameBuffer, {
@@ -1314,6 +1329,7 @@ export class ClearingHouse {
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 		return await this.program.instruction.updateSpotMarketCumulativeInterest({
 			accounts: {
+				state: await this.getStatePublicKey(),
 				spotMarket: spotMarket.pubkey,
 			},
 		});
@@ -1744,8 +1760,12 @@ export class ClearingHouse {
 					(order) => order.orderId === userAccount.nextOrderId - 1
 			  ).marketIndex;
 
+		const userAccounts = [userAccount];
+		if (makerInfo !== undefined) {
+			userAccounts.push(makerInfo.makerUserAccount);
+		}
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [userAccount],
+			userAccounts,
 			writablePerpMarketIndexes: [marketIndex],
 		});
 
@@ -1872,8 +1892,12 @@ export class ClearingHouse {
 					(order) => order.orderId === userAccount.nextOrderId - 1
 			  ).marketIndex;
 
+		const userAccounts = [userAccount];
+		if (makerInfo !== undefined) {
+			userAccounts.push(makerInfo.makerUserAccount);
+		}
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [userAccount],
+			userAccounts,
 			writableSpotMarketIndexes: [marketIndex, QUOTE_SPOT_MARKET_INDEX],
 		});
 
@@ -2085,8 +2109,12 @@ export class ClearingHouse {
 		const userStatsPublicKey = await this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
+		const userAccounts = [this.getUserAccount()];
+		if (makerInfo !== undefined) {
+			userAccounts.push(makerInfo.makerUserAccount);
+		}
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts,
 			useMarketLastSlotCache: true,
 			writablePerpMarketIndexes: [orderParams.marketIndex],
 		});
@@ -2841,7 +2869,9 @@ export class ClearingHouse {
 				insuranceFundStake: ifStakeAccountPublicKey,
 				userStats: this.getUserStatsAccountPublicKey(),
 				authority: this.wallet.publicKey,
+				spotMarketVault: spotMarket.vault,
 				insuranceFundVault: spotMarket.insuranceFundVault,
+				clearingHouseSigner: this.getSignerPublicKey(),
 				userTokenAccount: collateralAccountPublicKey,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},

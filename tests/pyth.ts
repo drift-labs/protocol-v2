@@ -269,6 +269,7 @@ describe('pyth-oracle', () => {
 			periodicity,
 			new BN(39.99 * PEG_PRECISION.toNumber())
 		);
+		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
 
 		await updateFundingRateHelper(
 			clearingHouse,
@@ -289,6 +290,10 @@ describe('pyth-oracle', () => {
 			ammInitialQuoteAssetAmount,
 			periodicity,
 			new BN(41.7 * PEG_PRECISION.toNumber())
+		);
+		await clearingHouse.updatePerpMarketStatus(
+			marketIndex,
+			MarketStatus.ACTIVE
 		);
 
 		// await clearingHouse.moveAmmToPrice(

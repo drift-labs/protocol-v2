@@ -3,8 +3,23 @@ import { BN, ZERO } from '.';
 
 // # Utility Types / Enums / Constants
 
+export class ExchangeStatus {
+	static readonly ACTIVE = { active: {} };
+	static readonly FUNDINGPAUSED = { fundingpaused: {} };
+	static readonly AMMPAUSED = { ammpaused: {} };
+	static readonly FILLPAUSED = { fillpaused: {} };
+	static readonly LIQPAUSED = { liqpaused: {} };
+	static readonly WITHDRAWPAUSED = { withdrawpaused: {} };
+	static readonly PAUSED = { paused: {} };
+}
+
 export class MarketStatus {
 	static readonly INITIALIZED = { initialized: {} };
+	static readonly ACTIVE = { active: {} };
+	static readonly FUNDINGPAUSED = { fundingpaused: {} };
+	static readonly AMMPAUSED = { ammpaused: {} };
+	static readonly FILLPAUSED = { fillpaused: {} };
+	static readonly WITHDRAWPAUSED = { withdrawpaused: {} };
 	static readonly REDUCEONLY = { reduceonly: {} };
 	static readonly SETTLEMENT = { settlement: {} };
 	static readonly DELISTED = { delisted: {} };
@@ -13,6 +28,21 @@ export class MarketStatus {
 export class ContractType {
 	static readonly PERPETUAL = { perpetual: {} };
 	static readonly FUTURE = { future: {} };
+}
+
+export class ContractTier {
+	static readonly A = { a: {} };
+	static readonly B = { b: {} };
+	static readonly C = { c: {} };
+	static readonly Speculative = { speculative: {} };
+}
+
+export class AssetTier {
+	static readonly COLLATERAL = { collateral: {} };
+	static readonly PROTECTED = { protected: {} };
+	static readonly CROSS = { cross: {} };
+	static readonly ISOLATED = { isolated: {} };
+	static readonly UNLISTED = { unlisted: {} };
 }
 
 export class SwapDirection {
@@ -183,8 +213,8 @@ export declare type InsuranceFundRecord = {
 	ts: BN;
 	bankIndex: BN;
 	marketIndex: number;
-	userIfFactor: BN;
-	totalIfFactor: BN;
+	userIfFactor: number;
+	totalIfFactor: number;
 	vaultAmountBefore: BN;
 	insuranceVaultAmountBefore: BN;
 	amount: BN;
@@ -374,24 +404,20 @@ export type OrderActionRecord = {
 
 export type StateAccount = {
 	admin: PublicKey;
-	fundingPaused: boolean;
-	exchangePaused: boolean;
-	adminControlsPrices: boolean;
-	totalFee: BN;
-	totalFeeWithdrawn: BN;
+	exchangeStatus: ExchangeStatus;
 	whitelistMint: PublicKey;
 	discountMint: PublicKey;
 	oracleGuardRails: OracleGuardRails;
-	maxDeposit: BN;
 	numberOfMarkets: number;
 	numberOfSpotMarkets: number;
 	minOrderQuoteAssetAmount: BN;
-	signer: PublicKey;
-	signerNonce: number;
-	defaultMarketOrderTimeInForce: number;
 	minPerpAuctionDuration: number;
+	defaultMarketOrderTimeInForce: number;
 	defaultSpotAuctionDuration: number;
 	liquidationMarginBufferRatio: number;
+	settlementDuration: number;
+	signer: PublicKey;
+	signerNonce: number;
 	srmVault: PublicKey;
 	perpFeeStructure: FeeStructure;
 	spotFeeStructure: FeeStructure;
@@ -445,6 +471,9 @@ export type HistoricalIndexData = {
 };
 
 export type SpotMarketAccount = {
+	status: MarketStatus;
+	assetTier: AssetTier;
+
 	marketIndex: number;
 	pubkey: PublicKey;
 	mint: PublicKey;
@@ -462,8 +491,8 @@ export type SpotMarketAccount = {
 	totalIfShares: BN;
 	userIfShares: BN;
 
-	userIfFactor: BN;
-	totalIfFactor: BN;
+	userIfFactor: number;
+	totalIfFactor: number;
 	ifLiquidationFee: BN;
 
 	decimals: number;
@@ -474,6 +503,8 @@ export type SpotMarketAccount = {
 	cumulativeBorrowInterest: BN;
 	depositBalance: BN;
 	borrowBalance: BN;
+	maxTokenDeposits: BN;
+
 	lastInterestTs: BN;
 	lastTwapTs: BN;
 	initialAssetWeight: BN;
@@ -490,14 +521,13 @@ export type SpotMarketAccount = {
 
 	orderStepSize: BN;
 	nextFillRecordId: BN;
-	spotFeePool: {
-		balance: BN;
-	};
+	spotFeePool: PoolBalance;
 	totalSpotFee: BN;
 };
 
 export type PoolBalance = {
 	balance: BN;
+	marketIndex: number;
 };
 
 export type AMM = {
@@ -707,6 +737,7 @@ export const DefaultOrderParams = {
 export type MakerInfo = {
 	maker: PublicKey;
 	makerStats: PublicKey;
+	makerUserAccount: UserAccount;
 	order: Order;
 };
 
