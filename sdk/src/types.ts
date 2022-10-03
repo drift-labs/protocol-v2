@@ -16,6 +16,7 @@ export class MarketStatus {
 	static readonly INITIALIZED = { initialized: {} };
 	static readonly ACTIVE = { active: {} };
 	static readonly FUNDINGPAUSED = { fundingpaused: {} };
+	static readonly AMMPAUSED = { ammpaused: {} };
 	static readonly FILLPAUSED = { fillpaused: {} };
 	static readonly WITHDRAWPAUSED = { withdrawpaused: {} };
 	static readonly REDUCEONLY = { reduceonly: {} };

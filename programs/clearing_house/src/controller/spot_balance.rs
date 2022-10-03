@@ -377,7 +377,7 @@ pub fn update_spot_position_balance_with_limits(
             spot_market.status,
             MarketStatus::WithdrawPaused | MarketStatus::Initialized | MarketStatus::Delisted
         ),
-        ErrorCode::DailyWithdrawLimit,
+        ErrorCode::MarketActionPaused,
         "Spot Market {} withdraws are currently paused",
         spot_market.market_index
     )?;
@@ -385,7 +385,7 @@ pub fn update_spot_position_balance_with_limits(
     validate!(
         !(spot_market.asset_tier == AssetTier::Protected
             && spot_position.balance_type() == &SpotBalanceType::Borrow),
-        ErrorCode::DefaultError,
+        ErrorCode::AssetTierViolation,
         "Spot Market {} has Protected status and cannot be borrowed",
         spot_market.market_index
     )?;
