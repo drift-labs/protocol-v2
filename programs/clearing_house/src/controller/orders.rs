@@ -31,7 +31,7 @@ use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::auction::{calculate_auction_end_price, is_auction_complete};
-use crate::math::casting::{cast, cast_to_i128, cast_to_u64, Cast};
+use crate::math::casting::{cast, cast_to_u64, Cast};
 use crate::math::constants::{
     PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX, SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
 };
@@ -884,8 +884,14 @@ fn sanitize_maker_order<'a>(
     let maker_key = maker.key();
     let mut maker = load_mut!(maker)?;
     let maker_stats = load_mut!(maker_stats)?;
-    let maker_order_index =
-        maker.get_order_index(maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?)?;
+    let maker_order_id = maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?;
+    let maker_order_index = match maker.get_order_index(maker_order_id) {
+        Ok(order_index) => order_index,
+        Err(_) => {
+            msg!("Maker has no order id {}", maker_order_id);
+            return Ok((None, None, None, None));
+        }
+    };
 
     {
         let maker_order = &maker.orders[maker_order_index];
@@ -1158,7 +1164,7 @@ fn fulfill_order(
         emit!(order_record)
     }
 
-    let (margin_requirement, total_collateral, _, _) =
+    let (taker_margin_requirement, taker_total_collateral, _, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -1167,13 +1173,34 @@ fn fulfill_order(
             oracle_map,
             None,
         )?;
-    if total_collateral < cast_to_i128(margin_requirement)? {
+    if taker_total_collateral < taker_margin_requirement.cast()? {
         msg!(
             "taker breached maintenance requirements (margin requirement {}) (total_collateral {})",
-            margin_requirement,
-            total_collateral
+            taker_margin_requirement,
+            taker_total_collateral
         );
         return Err(ErrorCode::InsufficientCollateral);
+    }
+
+    if let Some(maker) = maker {
+        let (maker_margin_requirement, maker_total_collateral, _, _) =
+            calculate_margin_requirement_and_total_collateral(
+                maker,
+                perp_market_map,
+                MarginRequirementType::Maintenance,
+                spot_market_map,
+                oracle_map,
+                None,
+            )?;
+
+        if maker_total_collateral < maker_margin_requirement.cast()? {
+            msg!(
+            "maker breached maintenance requirements (margin requirement {}) (total_collateral {})",
+            maker_margin_requirement,
+            maker_total_collateral
+        );
+            return Err(ErrorCode::InsufficientCollateral);
+        }
     }
 
     let position_base_asset_amount_after = user.perp_positions[position_index].base_asset_amount;
@@ -2570,8 +2597,14 @@ fn sanitize_spot_maker_order<'a>(
     let maker_key = maker.key();
     let mut maker = load_mut!(maker)?;
     let maker_stats = load_mut!(maker_stats)?;
-    let maker_order_index =
-        maker.get_order_index(maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?)?;
+    let maker_order_id = maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?;
+    let maker_order_index = match maker.get_order_index(maker_order_id) {
+        Ok(order_index) => order_index,
+        Err(_) => {
+            msg!("Maker has no order id {}", maker_order_id);
+            return Ok((None, None, None, None));
+        }
+    };
 
     {
         let maker_order = &maker.orders[maker_order_index];
@@ -2790,7 +2823,7 @@ fn fulfill_spot_order(
         emit!(order_record)
     }
 
-    let (margin_requirement, total_collateral, _, _) =
+    let (taker_margin_requirement, taker_total_collateral, _, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -2800,13 +2833,34 @@ fn fulfill_spot_order(
             None,
         )?;
 
-    if total_collateral < cast_to_i128(margin_requirement)? {
+    if taker_total_collateral < taker_margin_requirement.cast()? {
         msg!(
             "taker breached maintenance requirements (margin requirement {}) (total_collateral {})",
-            margin_requirement,
-            total_collateral
+            taker_margin_requirement,
+            taker_total_collateral
         );
         return Err(ErrorCode::InsufficientCollateral);
+    }
+
+    if let Some(maker) = maker {
+        let (maker_margin_requirement, maker_total_collateral, _, _) =
+            calculate_margin_requirement_and_total_collateral(
+                maker,
+                perp_market_map,
+                MarginRequirementType::Maintenance,
+                spot_market_map,
+                oracle_map,
+                None,
+            )?;
+
+        if maker_total_collateral < maker_margin_requirement.cast()? {
+            msg!(
+            "maker breached maintenance requirements (margin requirement {}) (total_collateral {})",
+            maker_margin_requirement,
+            maker_total_collateral
+        );
+            return Err(ErrorCode::InsufficientCollateral);
+        }
     }
 
     Ok((base_asset_amount, base_asset_amount != 0))

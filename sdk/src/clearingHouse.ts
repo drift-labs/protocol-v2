@@ -1738,8 +1738,12 @@ export class ClearingHouse {
 					(order) => order.orderId === userAccount.nextOrderId - 1
 			  ).marketIndex;
 
+		const userAccounts = [userAccount];
+		if (makerInfo !== undefined) {
+			userAccounts.push(makerInfo.makerUserAccount);
+		}
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [userAccount],
+			userAccounts,
 			writablePerpMarketIndexes: [marketIndex],
 		});
 
@@ -1866,8 +1870,12 @@ export class ClearingHouse {
 					(order) => order.orderId === userAccount.nextOrderId - 1
 			  ).marketIndex;
 
+		const userAccounts = [userAccount];
+		if (makerInfo !== undefined) {
+			userAccounts.push(makerInfo.makerUserAccount);
+		}
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [userAccount],
+			userAccounts,
 			writableSpotMarketIndexes: [marketIndex, QUOTE_SPOT_MARKET_INDEX],
 		});
 
@@ -2079,8 +2087,12 @@ export class ClearingHouse {
 		const userStatsPublicKey = await this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
+		const userAccounts = [this.getUserAccount()];
+		if (makerInfo !== undefined) {
+			userAccounts.push(makerInfo.makerUserAccount);
+		}
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts,
 			useMarketLastSlotCache: true,
 			writablePerpMarketIndexes: [orderParams.marketIndex],
 		});

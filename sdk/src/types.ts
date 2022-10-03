@@ -737,6 +737,7 @@ export const DefaultOrderParams = {
 export type MakerInfo = {
 	maker: PublicKey;
 	makerStats: PublicKey;
+	makerUserAccount: UserAccount;
 	order: Order;
 };
 
