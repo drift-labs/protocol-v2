@@ -82,7 +82,7 @@ pub enum ErrorCode {
     #[msg("Liquidations Blocked By Oracle")]
     LiquidationsBlockedByOracle,
     #[msg("Can not deposit more than max deposit")]
-    UserMaxDeposit,
+    MaxDeposit,
     #[msg("Can not delete user that still has collateral")]
     CantDeleteUserWithCollateral,
     #[msg("AMM funding out of bounds pnl")]

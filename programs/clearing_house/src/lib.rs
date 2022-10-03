@@ -290,6 +290,7 @@ pub mod clearing_house {
             max_borrow_rate,
             deposit_balance: 0,
             borrow_balance: 0,
+            max_token_deposits: 0,
             deposit_token_twap: 0,
             borrow_token_twap: 0,
             utilization_twap: 0, // todo: use for dynamic interest / additional guards
@@ -731,6 +732,21 @@ pub mod clearing_house {
             to: None,
         };
         emit!(deposit_record);
+
+        let deposits_token_amount = get_token_amount(
+            spot_market.deposit_balance,
+            spot_market,
+            &SpotBalanceType::Deposit,
+        )?;
+
+        validate!(
+            spot_market.max_token_deposits == 0
+                || deposits_token_amount <= spot_market.max_token_deposits,
+            ErrorCode::MaxDeposit,
+            "max deposits: {} new deposits {}",
+            spot_market.max_token_deposits,
+            deposits_token_amount
+        )?;
 
         Ok(())
     }
@@ -3231,6 +3247,15 @@ pub mod clearing_house {
             revenue_settle_period
         );
         spot_market.revenue_settle_period = revenue_settle_period;
+        Ok(())
+    }
+
+    pub fn update_spot_market_max_token_deposits(
+        ctx: Context<AdminUpdateSpotMarket>,
+        max_token_deposits: u128,
+    ) -> Result<()> {
+        let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+        spot_market.max_token_deposits = max_token_deposits;
         Ok(())
     }
 

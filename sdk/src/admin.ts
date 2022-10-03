@@ -650,6 +650,25 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
+	public async updateSpotMarketMaxTokenDeposits(
+		marketIndex: number,
+		maxTokenDeposits: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSpotMarketMaxTokenDeposits(
+			maxTokenDeposits,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						marketIndex
+					),
+				},
+			}
+		);
+	}
+
 	public async updateInsuranceWithdrawEscrowPeriod(
 		marketIndex: number,
 		insuranceWithdrawEscrowPeriod: BN

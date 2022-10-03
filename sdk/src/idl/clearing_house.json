@@ -2067,6 +2067,32 @@
       ]
     },
     {
+      "name": "updateSpotMarketMaxTokenDeposits",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxTokenDeposits",
+          "type": "u128"
+        }
+      ]
+    },
+    {
       "name": "updateMarketImfFactor",
       "accounts": [
         {
@@ -3332,6 +3358,10 @@
           },
           {
             "name": "borrowBalance",
+            "type": "u128"
+          },
+          {
+            "name": "maxTokenDeposits",
             "type": "u128"
           },
           {
@@ -6365,7 +6395,7 @@
     },
     {
       "code": 6038,
-      "name": "UserMaxDeposit",
+      "name": "MaxDeposit",
       "msg": "Can not deposit more than max deposit"
     },
     {

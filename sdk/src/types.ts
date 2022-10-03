@@ -474,6 +474,8 @@ export type SpotMarketAccount = {
 	cumulativeBorrowInterest: BN;
 	depositBalance: BN;
 	borrowBalance: BN;
+	maxTokenDeposits: BN;
+
 	lastInterestTs: BN;
 	lastTwapTs: BN;
 	initialAssetWeight: BN;
