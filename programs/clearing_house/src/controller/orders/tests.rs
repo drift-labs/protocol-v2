@@ -1702,6 +1702,7 @@ pub mod fulfill_order {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -1876,6 +1877,7 @@ pub mod fulfill_order {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -2034,6 +2036,7 @@ pub mod fulfill_order {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -2203,6 +2206,7 @@ pub mod fulfill_order {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -2425,6 +2429,7 @@ pub mod fulfill_order {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -2584,6 +2589,7 @@ pub mod fill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default()
         };
+        market.status = MarketStatus::Active;
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2709,6 +2715,9 @@ pub mod fill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default()
         };
+
+        market.status = MarketStatus::Active;
+
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 

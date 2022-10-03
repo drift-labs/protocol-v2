@@ -802,7 +802,8 @@ export async function initializeQuoteSpotMarket(
 
 export async function initializeSolSpotMarket(
 	admin: Admin,
-	solOracle: PublicKey
+	solOracle: PublicKey,
+	solMint = NATIVE_MINT
 ): Promise<string> {
 	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(new BN(2)); // 50% utilization
 	const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)); // 2000% APR
@@ -822,12 +823,12 @@ export async function initializeSolSpotMarket(
 	const marketIndex = admin.getStateAccount().numberOfSpotMarkets;
 
 	const txSig = await admin.initializeSpotMarket(
-		NATIVE_MINT,
+		solMint,
 		optimalUtilization,
 		optimalRate,
 		maxRate,
 		solOracle,
-		OracleSource.QUOTE_ASSET,
+		OracleSource.PYTH,
 		initialAssetWeight,
 		maintenanceAssetWeight,
 		initialLiabilityWeight,
