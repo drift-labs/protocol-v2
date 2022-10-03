@@ -301,6 +301,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         .checked_add(weighted_token_value)
                         .ok_or_else(math_error!())?;
 
+                    num_of_liabilities += 1;
+
                     if let Some(margin_buffer_ratio) = margin_buffer_ratio {
                         margin_requirement_plus_buffer = margin_requirement_plus_buffer
                             .checked_add(calculate_margin_requirement_with_buffer(
