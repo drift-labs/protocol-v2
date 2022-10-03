@@ -253,6 +253,97 @@ pub fn update_spot_balances(
     Ok(())
 }
 
+pub fn transfer_spot_balances(
+    token_amount: i128,
+    spot_market: &mut SpotMarket,
+    from_spot_balance: &mut dyn SpotBalance,
+    to_spot_balance: &mut dyn SpotBalance,
+) -> ClearingHouseResult {
+    validate!(
+        from_spot_balance.market_index() == to_spot_balance.market_index(),
+        ErrorCode::DefaultError,
+        "transfer market indexes arent equal",
+    )?;
+
+    if token_amount == 0 {
+        return Ok(());
+    }
+
+    update_spot_balances(
+        token_amount.unsigned_abs(),
+        if token_amount < 0 {
+            &SpotBalanceType::Deposit
+        } else {
+            &SpotBalanceType::Borrow
+        },
+        spot_market,
+        from_spot_balance,
+        false,
+    )?;
+
+    update_spot_balances(
+        token_amount.unsigned_abs(),
+        if token_amount < 0 {
+            &SpotBalanceType::Borrow
+        } else {
+            &SpotBalanceType::Deposit
+        },
+        spot_market,
+        to_spot_balance,
+        false,
+    )?;
+
+    Ok(())
+}
+
+pub fn transfer_revenue_pool_to_spot_balance(
+    token_amount: u128,
+    spot_market: &mut SpotMarket,
+    to_spot_balance: &mut dyn SpotBalance,
+) -> ClearingHouseResult {
+    validate!(
+        to_spot_balance.market_index() == spot_market.market_index,
+        ErrorCode::DefaultError,
+        "transfer market indexes arent equal",
+    )?;
+
+    update_revenue_pool_balances(token_amount, &SpotBalanceType::Borrow, spot_market)?;
+
+    update_spot_balances(
+        token_amount,
+        &SpotBalanceType::Deposit,
+        spot_market,
+        to_spot_balance,
+        false,
+    )?;
+
+    Ok(())
+}
+
+pub fn transfer_spot_balance_to_revenue_pool(
+    token_amount: u128,
+    spot_market: &mut SpotMarket,
+    from_spot_balance: &mut dyn SpotBalance,
+) -> ClearingHouseResult {
+    validate!(
+        from_spot_balance.market_index() == spot_market.market_index,
+        ErrorCode::DefaultError,
+        "transfer market indexes arent equal",
+    )?;
+
+    update_spot_balances(
+        token_amount,
+        &SpotBalanceType::Borrow,
+        spot_market,
+        from_spot_balance,
+        false,
+    )?;
+
+    update_revenue_pool_balances(token_amount, &SpotBalanceType::Deposit, spot_market)?;
+
+    Ok(())
+}
+
 pub fn update_spot_position_balance_with_limits(
     token_amount: u128,
     update_direction: &SpotBalanceType,

@@ -37,7 +37,7 @@ pub struct SpotMarket {
     pub mint: Pubkey,
     pub vault: Pubkey,
     pub insurance_fund_vault: Pubkey,
-    pub revenue_pool: PoolBalance,
+    pub revenue_pool: PoolBalance, // in base asset
 
     pub total_if_factor: u32, // percentage of interest for total insurance
     pub user_if_factor: u32,  // percentage of interest for user staked insurance
@@ -55,6 +55,7 @@ pub struct SpotMarket {
     pub max_borrow_rate: u128,
     pub deposit_balance: u128,
     pub borrow_balance: u128,
+    pub max_token_deposits: u128,
 
     pub deposit_token_twap: u128, // 24 hour twap
     pub borrow_token_twap: u128,  // 24 hour twap
@@ -77,7 +78,7 @@ pub struct SpotMarket {
     pub order_step_size: u64,
     pub next_fill_record_id: u64,
     pub total_spot_fee: u128,
-    pub spot_fee_pool: PoolBalance,
+    pub spot_fee_pool: PoolBalance, // in quote asset
 }
 
 impl SpotMarket {
@@ -237,6 +238,8 @@ impl Default for SpotBalanceType {
 }
 
 pub trait SpotBalance {
+    fn market_index(&self) -> u16;
+
     fn balance_type(&self) -> &SpotBalanceType;
 
     fn balance(&self) -> u128;

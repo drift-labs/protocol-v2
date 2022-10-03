@@ -343,11 +343,6 @@ fn validate_spot_limit_order(
         return Err(ErrorCode::InvalidOrder);
     }
 
-    if order.post_only && !order.is_jit_maker() {
-        msg!("Spot limit order can only be post only if jit maker");
-        return Err(ErrorCode::InvalidOrder);
-    }
-
     if order.post_only {
         let order_breaches_oracle_price_limits = order_breaches_oracle_price_limits(
             order,

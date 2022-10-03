@@ -321,6 +321,10 @@ export class BigNum {
 		return `${leftSide}${BigNum.delim}${filledRightSide}`;
 	}
 
+	private getZeroes(count: number) {
+		return new Array(count).fill('0').join('');
+	}
+
 	/**
 	 * Pretty print to the specified number of significant figures
 	 * @param fixedPrecision
@@ -330,6 +334,19 @@ export class BigNum {
 		const printString = this.print();
 
 		let precisionPrintString = printString.slice(0, fixedPrecision + 1);
+
+		const thisString = this.toString();
+
+		if (
+			!printString.includes(BigNum.delim) &&
+			thisString.length < fixedPrecision
+		) {
+			const precisionMismatch = fixedPrecision - thisString.length;
+			return BigNum.from(
+				thisString + this.getZeroes(precisionMismatch),
+				precisionMismatch
+			).toPrecision(fixedPrecision, trailingZeroes);
+		}
 
 		if (
 			!precisionPrintString.includes(BigNum.delim) ||
@@ -438,6 +455,10 @@ export class BigNum {
 
 		if (!leftSide) {
 			return this.shift(new BN(precision)).toPrecision(precision, true);
+		}
+
+		if (leftSide.length <= precision) {
+			return this.toPrecision(precision);
 		}
 
 		if (leftSide.length <= 3) {

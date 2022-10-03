@@ -153,6 +153,13 @@ describe('insurance fund stake', () => {
 
 	it('user if stake', async () => {
 		const marketIndex = 0;
+		const spotMarketBefore = clearingHouse.getSpotMarketAccount(marketIndex);
+		// console.log(spotMarketBefore);
+		console.log(
+			'spotMarketBefore.totalIfShares:',
+			spotMarketBefore.totalIfShares.toString()
+		);
+
 		try {
 			const txSig = await clearingHouse.addInsuranceFundStake(
 				marketIndex,
@@ -169,6 +176,12 @@ describe('insurance fund stake', () => {
 		}
 
 		const spotMarket0 = clearingHouse.getSpotMarketAccount(marketIndex);
+		console.log(
+			'spotMarket0.totalIfShares:',
+			spotMarket0.totalIfShares.toString()
+		);
+		// console.log(spotMarket0);
+
 		assert(spotMarket0.revenuePool.balance.eq(ZERO));
 		assert(spotMarket0.totalIfShares.gt(ZERO));
 		assert(spotMarket0.totalIfShares.eq(usdcAmount));
@@ -916,7 +929,7 @@ describe('insurance fund stake', () => {
 		assert(beforeLiquiteeUSDCBorrow.gt(new BN('500000033001')));
 		assert(beforeLiquiteeSOLDeposit.gt(new BN('10000000997')));
 
-		const txSig = await clearingHouse.liquidateBorrow(
+		const txSig = await clearingHouse.liquidateSpot(
 			await secondUserClearingHouse.getUserAccountPublicKey(),
 			secondUserClearingHouse.getUserAccount(),
 			1,

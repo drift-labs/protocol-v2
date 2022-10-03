@@ -12,8 +12,8 @@ test_files=(
    serumTest.ts
    liquidityProvider.ts
    insuranceFundStake.ts
-   liquidateBorrow.ts
-   liquidateBorrowSocialLoss.ts
+   liquidateSpot.ts
+   liquidateSpotSocialLoss.ts
    referrer.ts
    liquidatePerpPnlForDeposit.ts liquidateBorrowForPerpPnl.ts
    liquidatePerp.ts
@@ -27,6 +27,7 @@ test_files=(
    updateK.ts
    adminWithdraw.ts
    curve.ts cappedSymFunding.ts whitelist.ts
+   maxDeposit.ts
 )
 
 for test_file in ${test_files[@]}; do

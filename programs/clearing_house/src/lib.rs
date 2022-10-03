@@ -93,6 +93,7 @@ pub mod clearing_house {
             whitelist_mint: Pubkey::default(),
             discount_mint: Pubkey::default(),
             oracle_guard_rails: OracleGuardRails::default(),
+            number_of_authorities: 0,
             number_of_markets: 0,
             number_of_spot_markets: 0,
             min_order_quote_asset_amount: 500_000, // 50 cents
@@ -273,7 +274,10 @@ pub mod clearing_house {
             mint: ctx.accounts.spot_market_mint.key(),
             vault: *ctx.accounts.spot_market_vault.to_account_info().key,
             insurance_fund_vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
-            revenue_pool: PoolBalance { balance: 0 },
+            revenue_pool: PoolBalance {
+                balance: 0,
+                market_index: spot_market_index,
+            }, // in base asset
             total_if_factor: 0,
             user_if_factor: 0,
             total_if_shares: 0,
@@ -288,6 +292,7 @@ pub mod clearing_house {
             max_borrow_rate,
             deposit_balance: 0,
             borrow_balance: 0,
+            max_token_deposits: 0,
             deposit_token_twap: 0,
             borrow_token_twap: 0,
             utilization_twap: 0, // todo: use for dynamic interest / additional guards
@@ -305,7 +310,7 @@ pub mod clearing_house {
             withdraw_guard_threshold: 0,
             order_step_size,
             next_fill_record_id: 1,
-            spot_fee_pool: PoolBalance::default(),
+            spot_fee_pool: PoolBalance::default(), // in quote asset
             total_spot_fee: 0,
         };
 
@@ -525,7 +530,7 @@ pub mod clearing_house {
             next_fill_record_id: 1,
             next_funding_rate_record_id: 1,
             next_curve_record_id: 1,
-            pnl_pool: PoolBalance { balance: 0 },
+            pnl_pool: PoolBalance::default(),
             revenue_withdraw_since_last_settle: 0,
             max_revenue_withdraw_per_period: 0,
             last_revenue_withdraw_ts: now,
@@ -610,7 +615,7 @@ pub mod clearing_house {
                 short_intensity_volume: 0,
                 last_trade_ts: now,
                 curve_update_intensity: 0,
-                fee_pool: PoolBalance { balance: 0 },
+                fee_pool: PoolBalance::default(),
                 market_position_per_lp: PerpPosition {
                     market_index,
                     ..PerpPosition::default()
@@ -648,7 +653,6 @@ pub mod clearing_house {
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
-        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
         let state = &ctx.accounts.state;
         let clock = Clock::get()?;
@@ -726,11 +730,25 @@ pub mod clearing_house {
             amount,
             oracle_price,
             market_index,
-            referrer: user_stats.referrer,
             from: None,
             to: None,
         };
         emit!(deposit_record);
+
+        let deposits_token_amount = get_token_amount(
+            spot_market.deposit_balance,
+            spot_market,
+            &SpotBalanceType::Deposit,
+        )?;
+
+        validate!(
+            spot_market.max_token_deposits == 0
+                || deposits_token_amount <= spot_market.max_token_deposits,
+            ErrorCode::MaxDeposit,
+            "max deposits: {} new deposits {}",
+            spot_market.max_token_deposits,
+            deposits_token_amount
+        )?;
 
         Ok(())
     }
@@ -746,7 +764,6 @@ pub mod clearing_house {
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
-        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let state = &ctx.accounts.state;
@@ -827,7 +844,6 @@ pub mod clearing_house {
             oracle_price,
             amount,
             market_index,
-            referrer: user_stats.referrer,
             from: None,
             to: None,
         };
@@ -854,7 +870,6 @@ pub mod clearing_house {
 
         let to_user = &mut load_mut!(ctx.accounts.to_user)?;
         let from_user = &mut load_mut!(ctx.accounts.from_user)?;
-        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
         validate!(
             !to_user.bankrupt,
@@ -929,7 +944,6 @@ pub mod clearing_house {
             amount,
             oracle_price,
             market_index,
-            referrer: user_stats.referrer,
             from: None,
             to: Some(to_user_key),
         };
@@ -956,7 +970,6 @@ pub mod clearing_house {
             amount,
             oracle_price,
             market_index,
-            referrer: user_stats.referrer,
             from: Some(from_user_key),
             to: None,
         };
@@ -1548,41 +1561,37 @@ pub mod clearing_house {
     pub fn trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u32) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
         let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
-        SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-        let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+        let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
+        let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
-        controller::orders::trigger_order(
-            order_id,
-            &ctx.accounts.state,
-            &ctx.accounts.user,
-            &market_map,
-            &mut oracle_map,
-            &ctx.accounts.filler,
-            &Clock::get()?,
-        )?;
+        let market_type = match load!(ctx.accounts.user)?.get_order(order_id) {
+            Some(order) => order.market_type,
+            None => {
+                msg!("order_id not found {}", order_id);
+                return Ok(());
+            }
+        };
 
-        Ok(())
-    }
-
-    #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
-    )]
-    pub fn trigger_spot_order<'info>(ctx: Context<TriggerOrder>, order_id: u32) -> Result<()> {
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
-        let spot_market_market =
-            SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-        PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
-
-        controller::orders::trigger_spot_order(
-            order_id,
-            &ctx.accounts.state,
-            &ctx.accounts.user,
-            &spot_market_market,
-            &mut oracle_map,
-            &ctx.accounts.filler,
-            &Clock::get()?,
-        )?;
+        match market_type {
+            MarketType::Perp => controller::orders::trigger_order(
+                order_id,
+                &ctx.accounts.state,
+                &ctx.accounts.user,
+                &perp_market_map,
+                &mut oracle_map,
+                &ctx.accounts.filler,
+                &Clock::get()?,
+            )?,
+            MarketType::Spot => controller::orders::trigger_spot_order(
+                order_id,
+                &ctx.accounts.state,
+                &ctx.accounts.user,
+                &spot_market_map,
+                &mut oracle_map,
+                &ctx.accounts.filler,
+                &Clock::get()?,
+            )?,
+        }
 
         Ok(())
     }
@@ -1893,8 +1902,8 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn liquidate_borrow(
-        ctx: Context<LiquidateBorrow>,
+    pub fn liquidate_spot(
+        ctx: Context<LiquidateSpot>,
         asset_market_index: u16,
         liability_market_index: u16,
         liquidator_max_liability_transfer: u128,
@@ -1927,7 +1936,7 @@ pub mod clearing_house {
         let spot_market_map = SpotMarketMap::load(&writable_spot_markets, remaining_accounts_iter)?;
         let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
-        controller::liquidation::liquidate_borrow(
+        controller::liquidation::liquidate_spot(
             asset_market_index,
             liability_market_index,
             liquidator_max_liability_transfer,
@@ -2088,6 +2097,19 @@ pub mod clearing_house {
             &clock,
         )?;
 
+        {
+            let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.clearing_house_signer,
+                state,
+            )?;
+        }
+
         let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;
         let spot_market_vault_amount = ctx.accounts.spot_market_vault.amount;
 
@@ -2197,6 +2219,19 @@ pub mod clearing_house {
         let market_map =
             PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
 
+        {
+            let spot_market = &mut spot_market_map.get_ref_mut(&quote_spot_market_index)?;
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.clearing_house_signer,
+                state,
+            )?;
+        }
+
         let pay_from_insurance = controller::liquidation::resolve_perp_bankruptcy(
             market_index,
             user,
@@ -2241,7 +2276,7 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn resolve_borrow_bankruptcy(
+    pub fn resolve_spot_bankruptcy(
         ctx: Context<ResolveBankruptcy>,
         market_index: u16,
     ) -> Result<()> {
@@ -2270,9 +2305,23 @@ pub mod clearing_house {
             &get_writable_spot_market_set(market_index),
             remaining_accounts_iter,
         )?;
+
+        {
+            let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.clearing_house_signer,
+                state,
+            )?;
+        }
+
         let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
-        let pay_from_insurance = controller::liquidation::resolve_borrow_bankruptcy(
+        let pay_from_insurance = controller::liquidation::resolve_spot_bankruptcy(
             market_index,
             user,
             &user_key,
@@ -2742,6 +2791,9 @@ pub mod clearing_house {
             ..UserStats::default()
         };
 
+        let state = &mut ctx.accounts.state;
+        checked_increment!(state.number_of_authorities, 1);
+
         Ok(())
     }
 
@@ -3210,6 +3262,15 @@ pub mod clearing_house {
         Ok(())
     }
 
+    pub fn update_spot_market_max_token_deposits(
+        ctx: Context<AdminUpdateSpotMarket>,
+        max_token_deposits: u128,
+    ) -> Result<()> {
+        let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+        spot_market.max_token_deposits = max_token_deposits;
+        Ok(())
+    }
+
     #[access_control(
         market_initialized(&ctx.accounts.market)
     )]
@@ -3596,8 +3657,6 @@ pub mod clearing_house {
             token_amount as u64,
         )?;
 
-        // todo: settle remaining revenue pool to a revenue vault
-
         spot_market.last_revenue_settle_ts = now;
 
         Ok(())
@@ -3613,9 +3672,11 @@ pub mod clearing_house {
         }
 
         let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
         let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
         let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+        let state = &ctx.accounts.state;
 
         validate!(
             insurance_fund_stake.market_index == market_index,
@@ -3629,6 +3690,18 @@ pub mod clearing_house {
             ErrorCode::DefaultError,
             "withdraw request in progress"
         )?;
+
+        {
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.clearing_house_signer,
+                state,
+            )?;
+        }
 
         controller::insurance::add_insurance_fund_stake(
             amount,

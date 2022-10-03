@@ -175,7 +175,7 @@ describe('trigger orders', () => {
 		const newOraclePrice = 0.49;
 		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 
-		await fillerClearingHouse.triggerSpotOrder(
+		await fillerClearingHouse.triggerOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
@@ -249,7 +249,7 @@ describe('trigger orders', () => {
 		const newOraclePrice = 2.01;
 		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 
-		await fillerClearingHouse.triggerSpotOrder(
+		await fillerClearingHouse.triggerOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
