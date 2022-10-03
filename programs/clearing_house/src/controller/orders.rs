@@ -18,7 +18,9 @@ use crate::controller::position::{
     PositionDirection,
 };
 use crate::controller::serum::{invoke_new_order, invoke_settle_funds, SerumFulfillmentParams};
-use crate::controller::spot_balance::update_spot_balances;
+use crate::controller::spot_balance::{
+    transfer_spot_balance_to_revenue_pool, update_spot_balances,
+};
 use crate::controller::spot_position::{
     decrease_spot_open_bids_and_asks, increase_spot_open_bids_and_asks,
     update_spot_position_balance,
@@ -30,7 +32,9 @@ use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::auction::{calculate_auction_end_price, is_auction_complete};
 use crate::math::casting::{cast, cast_to_i128, cast_to_u64, Cast};
-use crate::math::constants::{PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX};
+use crate::math::constants::{
+    PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX, SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+};
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
@@ -2914,6 +2918,20 @@ pub fn fulfill_spot_order_with_match(
         false,
     )?;
 
+    let fee_pool_amount = get_token_amount(
+        base_market.spot_fee_pool.balance,
+        quote_market,
+        &SpotBalanceType::Deposit,
+    )?;
+
+    if fee_pool_amount > SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD * 2 {
+        transfer_spot_balance_to_revenue_pool(
+            fee_pool_amount - SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+            quote_market,
+            &mut base_market.spot_fee_pool,
+        )?;
+    }
+
     let fill_record_id = get_then_update_id!(base_market, next_fill_record_id);
     let order_action_record = get_order_action_record(
         now,
@@ -3222,9 +3240,17 @@ pub fn fulfill_spot_order_with_serum(
 
     let fee_pool_amount = get_token_amount(
         base_market.spot_fee_pool.balance,
-        base_market,
+        quote_market,
         &SpotBalanceType::Deposit,
     )?;
+
+    if fee_pool_amount > SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD * 2 {
+        transfer_spot_balance_to_revenue_pool(
+            fee_pool_amount - SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+            quote_market,
+            &mut base_market.spot_fee_pool,
+        )?;
+    }
 
     let SerumFillFees {
         user_fee: taker_fee,

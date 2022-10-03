@@ -848,6 +848,7 @@ pub struct SettleRevenueToInsuranceFund<'info> {
 #[derive(Accounts)]
 #[instruction(market_index: u16)]
 pub struct AddInsuranceFundStake<'info> {
+    pub state: Box<Account<'info, State>>,
     #[account(
         seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
         bump
@@ -866,10 +867,22 @@ pub struct AddInsuranceFundStake<'info> {
     pub authority: Signer<'info>,
     #[account(
         mut,
+        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
         seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        constraint = state.signer.eq(&clearing_house_signer.key())
+    )]
+    /// CHECK: forced clearing_house_signer
+    pub clearing_house_signer: AccountInfo<'info>,
     #[account(
         mut,
         token::mint = insurance_fund_vault.mint,

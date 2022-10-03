@@ -6,8 +6,9 @@ use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
-use crate::math::constants::{AMM_RESERVE_PRECISION, SPOT_WEIGHT_PRECISION};
-use crate::math::constants::{LIQUIDATION_FEE_PRECISION, TWENTY_FOUR_HOUR};
+use crate::math::constants::{
+    AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+};
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
@@ -222,11 +223,17 @@ impl PerpMarket {
 
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug)]
+#[repr(packed)]
 pub struct PoolBalance {
+    pub market_index: u16,
     pub balance: u128,
 }
 
 impl SpotBalance for PoolBalance {
+    fn market_index(&self) -> u16 {
+        self.market_index
+    }
+
     fn balance_type(&self) -> &SpotBalanceType {
         &SpotBalanceType::Deposit
     }

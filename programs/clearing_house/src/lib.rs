@@ -272,7 +272,10 @@ pub mod clearing_house {
             mint: ctx.accounts.spot_market_mint.key(),
             vault: *ctx.accounts.spot_market_vault.to_account_info().key,
             insurance_fund_vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
-            revenue_pool: PoolBalance { balance: 0 },
+            revenue_pool: PoolBalance {
+                balance: 0,
+                market_index: spot_market_index,
+            }, // in base asset
             total_if_factor: 0,
             user_if_factor: 0,
             total_if_shares: 0,
@@ -304,7 +307,7 @@ pub mod clearing_house {
             withdraw_guard_threshold: 0,
             order_step_size,
             next_fill_record_id: 1,
-            spot_fee_pool: PoolBalance::default(),
+            spot_fee_pool: PoolBalance::default(), // in quote asset
             total_spot_fee: 0,
         };
 
@@ -524,7 +527,7 @@ pub mod clearing_house {
             next_fill_record_id: 1,
             next_funding_rate_record_id: 1,
             next_curve_record_id: 1,
-            pnl_pool: PoolBalance { balance: 0 },
+            pnl_pool: PoolBalance::default(),
             revenue_withdraw_since_last_settle: 0,
             max_revenue_withdraw_per_period: 0,
             last_revenue_withdraw_ts: now,
@@ -609,7 +612,7 @@ pub mod clearing_house {
                 short_intensity_volume: 0,
                 last_trade_ts: now,
                 curve_update_intensity: 0,
-                fee_pool: PoolBalance { balance: 0 },
+                fee_pool: PoolBalance::default(),
                 market_position_per_lp: PerpPosition {
                     market_index,
                     ..PerpPosition::default()
@@ -2076,6 +2079,19 @@ pub mod clearing_house {
             &clock,
         )?;
 
+        {
+            let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.clearing_house_signer,
+                state,
+            )?;
+        }
+
         let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;
         let spot_market_vault_amount = ctx.accounts.spot_market_vault.amount;
 
@@ -2185,6 +2201,19 @@ pub mod clearing_house {
         let market_map =
             PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
 
+        {
+            let spot_market = &mut spot_market_map.get_ref_mut(&quote_spot_market_index)?;
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.clearing_house_signer,
+                state,
+            )?;
+        }
+
         let pay_from_insurance = controller::liquidation::resolve_perp_bankruptcy(
             market_index,
             user,
@@ -2258,6 +2287,20 @@ pub mod clearing_house {
             &get_writable_spot_market_set(market_index),
             remaining_accounts_iter,
         )?;
+
+        {
+            let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.clearing_house_signer,
+                state,
+            )?;
+        }
+
         let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
         let pay_from_insurance = controller::liquidation::resolve_spot_bankruptcy(
@@ -3577,8 +3620,6 @@ pub mod clearing_house {
             token_amount as u64,
         )?;
 
-        // todo: settle remaining revenue pool to a revenue vault
-
         spot_market.last_revenue_settle_ts = now;
 
         Ok(())
@@ -3594,9 +3635,11 @@ pub mod clearing_house {
         }
 
         let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
         let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
         let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+        let state = &ctx.accounts.state;
 
         validate!(
             insurance_fund_stake.market_index == market_index,
@@ -3610,6 +3653,18 @@ pub mod clearing_house {
             ErrorCode::DefaultError,
             "withdraw request in progress"
         )?;
+
+        {
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.clearing_house_signer,
+                state,
+            )?;
+        }
 
         controller::insurance::add_insurance_fund_stake(
             amount,

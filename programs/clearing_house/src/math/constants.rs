@@ -129,3 +129,6 @@ pub const PEG_BPS_DECREASE_MAX: u128 = 1000; // 10 bps decrease
 pub const PEG_BPS_INCREASE_MAX: u128 = 1000; // 10 bps increase
 
 pub const QUOTE_SPOT_MARKET_INDEX: u16 = 0;
+
+// fee pool thresholds
+pub const SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD: u128 = 250 * QUOTE_PRECISION; // 250 usdc

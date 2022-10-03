@@ -183,8 +183,8 @@ export declare type InsuranceFundRecord = {
 	ts: BN;
 	bankIndex: BN;
 	marketIndex: number;
-	userIfFactor: BN;
-	totalIfFactor: BN;
+	userIfFactor: number;
+	totalIfFactor: number;
 	vaultAmountBefore: BN;
 	insuranceVaultAmountBefore: BN;
 	amount: BN;
@@ -462,8 +462,8 @@ export type SpotMarketAccount = {
 	totalIfShares: BN;
 	userIfShares: BN;
 
-	userIfFactor: BN;
-	totalIfFactor: BN;
+	userIfFactor: number;
+	totalIfFactor: number;
 	ifLiquidationFee: BN;
 
 	decimals: number;
@@ -490,14 +490,13 @@ export type SpotMarketAccount = {
 
 	orderStepSize: BN;
 	nextFillRecordId: BN;
-	spotFeePool: {
-		balance: BN;
-	};
+	spotFeePool: PoolBalance;
 	totalSpotFee: BN;
 };
 
 export type PoolBalance = {
 	balance: BN;
+	marketIndex: number;
 };
 
 export type AMM = {
