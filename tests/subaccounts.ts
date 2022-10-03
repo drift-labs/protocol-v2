@@ -133,8 +133,7 @@ describe('subaccounts', () => {
 		);
 		const withdrawRecord = depositRecords[1];
 		assert(isVariant(withdrawRecord.direction, 'withdraw'));
-		assert(withdrawRecord.to.equals(toUser));
-		assert(withdrawRecord.from === null);
+		assert(withdrawRecord.transferUser.equals(toUser));
 
 		const fromUser = await getUserAccountPublicKey(
 			chProgram.programId,
@@ -143,8 +142,7 @@ describe('subaccounts', () => {
 		);
 		const depositRecord = depositRecords[0];
 		assert(isVariant(depositRecord.direction, 'deposit'));
-		assert(depositRecord.to === null);
-		assert(depositRecord.from.equals(fromUser));
+		assert(depositRecord.transferUser.equals(fromUser));
 	});
 
 	it('Update user name', async () => {

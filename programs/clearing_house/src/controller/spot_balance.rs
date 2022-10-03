@@ -1,3 +1,4 @@
+use anchor_lang::prelude::*;
 use solana_program::msg;
 
 use crate::controller::spot_position::update_spot_position_balance;
@@ -10,6 +11,7 @@ use crate::math::spot_balance::{
 };
 use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
 use crate::math_error;
+use crate::state::events::SpotInterestRecord;
 use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType, SpotMarket};
@@ -152,6 +154,18 @@ pub fn update_spot_market_cumulative_interest(
             )?;
 
             update_revenue_pool_balances(token_amount, &SpotBalanceType::Deposit, spot_market)?;
+
+            emit!(SpotInterestRecord {
+                ts: now,
+                market_index: spot_market.market_index,
+                deposit_balance: spot_market.deposit_balance,
+                cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
+                borrow_balance: spot_market.borrow_balance,
+                cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+                optimal_utilization: spot_market.optimal_utilization,
+                optimal_borrow_rate: spot_market.optimal_borrow_rate,
+                max_borrow_rate: spot_market.max_borrow_rate,
+            });
         }
     }
 
@@ -471,8 +485,8 @@ mod test {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
         QUOTE_PRECISION, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_RATE_PRECISION_U32, SPOT_UTILIZATION_PRECISION,
+        SPOT_UTILIZATION_PRECISION_U32, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
@@ -703,8 +717,8 @@ mod test {
         };
         sol_spot_market.deposit_balance = 50 * SPOT_BALANCE_PRECISION;
 
-        sol_spot_market.optimal_borrow_rate = SPOT_RATE_PRECISION / 5; //20% APR
-        sol_spot_market.max_borrow_rate = SPOT_RATE_PRECISION; //100% APR
+        sol_spot_market.optimal_borrow_rate = SPOT_RATE_PRECISION_U32 / 5; //20% APR
+        sol_spot_market.max_borrow_rate = SPOT_RATE_PRECISION_U32; //100% APR
 
         update_spot_position_balance_with_limits(
             QUOTE_PRECISION * 50,
@@ -884,10 +898,11 @@ mod test {
             borrow_balance: 0,
             deposit_token_twap: QUOTE_PRECISION / 2,
 
-            optimal_utilization: SPOT_UTILIZATION_PRECISION / 2,
-            optimal_borrow_rate: SPOT_RATE_PRECISION * 20,
-            max_borrow_rate: SPOT_RATE_PRECISION * 50,
+            optimal_utilization: SPOT_UTILIZATION_PRECISION_U32 / 2,
+            optimal_borrow_rate: SPOT_RATE_PRECISION_U32 * 20,
+            max_borrow_rate: SPOT_RATE_PRECISION_U32 * 50,
             status: MarketStatus::Active,
+
             ..SpotMarket::default()
         };
 
@@ -1222,9 +1237,9 @@ mod test {
             borrow_balance: 0,
             deposit_token_twap: QUOTE_PRECISION / 2,
 
-            optimal_utilization: SPOT_UTILIZATION_PRECISION / 2,
-            optimal_borrow_rate: SPOT_RATE_PRECISION * 20,
-            max_borrow_rate: SPOT_RATE_PRECISION * 50,
+            optimal_utilization: SPOT_UTILIZATION_PRECISION_U32 / 2,
+            optimal_borrow_rate: SPOT_RATE_PRECISION_U32 * 20,
+            max_borrow_rate: SPOT_RATE_PRECISION_U32 * 50,
             ..SpotMarket::default()
         };
 

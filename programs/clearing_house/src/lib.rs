@@ -114,9 +114,9 @@ pub mod clearing_house {
 
     pub fn initialize_spot_market(
         ctx: Context<InitializeSpotMarket>,
-        optimal_utilization: u128,
-        optimal_borrow_rate: u128,
-        max_borrow_rate: u128,
+        optimal_utilization: u32,
+        optimal_borrow_rate: u32,
+        max_borrow_rate: u32,
         oracle_source: OracleSource,
         initial_asset_weight: u128,
         maintenance_asset_weight: u128,
@@ -140,7 +140,7 @@ pub mod clearing_house {
         }
 
         validate!(
-            optimal_utilization <= SPOT_UTILIZATION_PRECISION,
+            optimal_utilization <= SPOT_UTILIZATION_PRECISION_U32,
             ErrorCode::InvalidSpotMarketInitialization,
             "For spot market, optimal_utilization must be < {}",
             SPOT_UTILIZATION_PRECISION
@@ -704,9 +704,12 @@ pub mod clearing_house {
             direction: DepositDirection::DEPOSIT,
             amount,
             oracle_price,
+            market_deposit_balance: spot_market.deposit_balance,
+            market_withdraw_balance: spot_market.borrow_balance,
+            market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
+            market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
             market_index,
-            from: None,
-            to: None,
+            transfer_user: None,
         };
         emit!(deposit_record);
 
@@ -819,8 +822,11 @@ pub mod clearing_house {
             oracle_price,
             amount,
             market_index,
-            from: None,
-            to: None,
+            market_deposit_balance: spot_market.deposit_balance,
+            market_withdraw_balance: spot_market.borrow_balance,
+            market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
+            market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+            transfer_user: None,
         };
         emit!(deposit_record);
 
@@ -919,18 +925,25 @@ pub mod clearing_house {
             oracle_map.get_price_data(&spot_market.oracle)?.price
         };
 
-        let deposit_record = DepositRecord {
-            ts: clock.unix_timestamp,
-            user_authority: *authority_key,
-            user: from_user_key,
-            direction: DepositDirection::WITHDRAW,
-            amount,
-            oracle_price,
-            market_index,
-            from: None,
-            to: Some(to_user_key),
-        };
-        emit!(deposit_record);
+        {
+            let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+
+            let deposit_record = DepositRecord {
+                ts: clock.unix_timestamp,
+                user_authority: *authority_key,
+                user: from_user_key,
+                direction: DepositDirection::WITHDRAW,
+                amount,
+                oracle_price,
+                market_index,
+                market_deposit_balance: spot_market.deposit_balance,
+                market_withdraw_balance: spot_market.borrow_balance,
+                market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
+                market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+                transfer_user: Some(to_user_key),
+            };
+            emit!(deposit_record);
+        }
 
         {
             let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
@@ -943,20 +956,23 @@ pub mod clearing_house {
                 to_spot_position,
                 false,
             )?;
-        }
 
-        let deposit_record = DepositRecord {
-            ts: clock.unix_timestamp,
-            user_authority: *authority_key,
-            user: to_user_key,
-            direction: DepositDirection::DEPOSIT,
-            amount,
-            oracle_price,
-            market_index,
-            from: Some(from_user_key),
-            to: None,
-        };
-        emit!(deposit_record);
+            let deposit_record = DepositRecord {
+                ts: clock.unix_timestamp,
+                user_authority: *authority_key,
+                user: to_user_key,
+                direction: DepositDirection::DEPOSIT,
+                amount,
+                oracle_price,
+                market_index,
+                market_deposit_balance: spot_market.deposit_balance,
+                market_withdraw_balance: spot_market.borrow_balance,
+                market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
+                market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+                transfer_user: Some(from_user_key),
+            };
+            emit!(deposit_record);
+        }
 
         Ok(())
     }

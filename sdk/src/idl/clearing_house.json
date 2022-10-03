@@ -105,15 +105,15 @@
       "args": [
         {
           "name": "optimalUtilization",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "optimalBorrowRate",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "maxBorrowRate",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "oracleSource",
@@ -3543,15 +3543,15 @@
           },
           {
             "name": "optimalUtilization",
-            "type": "u128"
+            "type": "u32"
           },
           {
             "name": "optimalBorrowRate",
-            "type": "u128"
+            "type": "u32"
           },
           {
             "name": "maxBorrowRate",
-            "type": "u128"
+            "type": "u32"
           },
           {
             "name": "depositBalance",
@@ -5698,17 +5698,80 @@
           "index": false
         },
         {
-          "name": "from",
+          "name": "marketDepositBalance",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "marketWithdrawBalance",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "marketCumulativeDepositInterest",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "marketCumulativeBorrowInterest",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "transferUser",
           "type": {
             "option": "publicKey"
           },
           "index": false
+        }
+      ]
+    },
+    {
+      "name": "SpotInterestRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
         },
         {
-          "name": "to",
-          "type": {
-            "option": "publicKey"
-          },
+          "name": "marketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "depositBalance",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "cumulativeDepositInterest",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "borrowBalance",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "cumulativeBorrowInterest",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "optimalUtilization",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "optimalBorrowRate",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "maxBorrowRate",
+          "type": "u32",
           "index": false
         }
       ]

@@ -70,9 +70,9 @@ export class Admin extends ClearingHouse {
 
 	public async initializeSpotMarket(
 		mint: PublicKey,
-		optimalUtilization: BN,
-		optimalRate: BN,
-		maxRate: BN,
+		optimalUtilization: number,
+		optimalRate: number,
+		maxRate: number,
 		oracle: PublicKey,
 		oracleSource: OracleSource,
 		initialAssetWeight: BN,

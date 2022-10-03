@@ -51,9 +51,9 @@ pub struct SpotMarket {
     pub revenue_settle_period: i64,
 
     pub decimals: u8,
-    pub optimal_utilization: u128,
-    pub optimal_borrow_rate: u128,
-    pub max_borrow_rate: u128,
+    pub optimal_utilization: u32,
+    pub optimal_borrow_rate: u32,
+    pub max_borrow_rate: u32,
     pub deposit_balance: u128,
     pub borrow_balance: u128,
     pub max_token_deposits: u128,

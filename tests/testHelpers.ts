@@ -771,9 +771,11 @@ export async function initializeQuoteSpotMarket(
 	admin: Admin,
 	usdcMint: PublicKey
 ): Promise<void> {
-	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(new BN(2)); // 50% utilization
-	const optimalRate = SPOT_MARKET_RATE_PRECISION;
-	const maxRate = SPOT_MARKET_RATE_PRECISION;
+	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
+		new BN(2)
+	).toNumber(); // 50% utilization
+	const optimalRate = SPOT_MARKET_RATE_PRECISION.toNumber();
+	const maxRate = SPOT_MARKET_RATE_PRECISION.toNumber();
 	const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION;
 	const maintenanceAssetWeight = SPOT_MARKET_WEIGHT_PRECISION;
 	const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION;
@@ -805,9 +807,11 @@ export async function initializeSolSpotMarket(
 	solOracle: PublicKey,
 	solMint = NATIVE_MINT
 ): Promise<string> {
-	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(new BN(2)); // 50% utilization
-	const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)); // 2000% APR
-	const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(50)); // 5000% APR
+	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
+		new BN(2)
+	).toNumber(); // 50% utilization
+	const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)).toNumber(); // 2000% APR
+	const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(50)).toNumber(); // 5000% APR
 	const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(new BN(8)).div(
 		new BN(10)
 	);

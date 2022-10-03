@@ -1,7 +1,7 @@
 use solana_program::msg;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u64, Cast};
 use crate::math::constants::{ONE_YEAR, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION};
 use crate::math_error;
 use crate::state::oracle::OraclePriceData;
@@ -147,26 +147,28 @@ pub fn calculate_accumulated_interest(
         });
     }
 
-    let borrow_rate = if utilization > spot_market.optimal_utilization {
+    let borrow_rate = if utilization > spot_market.optimal_utilization.cast()? {
         let surplus_utilization = utilization
-            .checked_sub(spot_market.optimal_utilization)
+            .checked_sub(spot_market.optimal_utilization.cast()?)
             .ok_or_else(math_error!())?;
 
         let borrow_rate_slope = spot_market
             .max_borrow_rate
-            .checked_sub(spot_market.optimal_borrow_rate)
+            .cast::<u128>()?
+            .checked_sub(spot_market.optimal_borrow_rate.cast()?)
             .ok_or_else(math_error!())?
             .checked_mul(SPOT_UTILIZATION_PRECISION)
             .ok_or_else(math_error!())?
             .checked_div(
                 SPOT_UTILIZATION_PRECISION
-                    .checked_sub(spot_market.optimal_utilization)
+                    .checked_sub(spot_market.optimal_utilization.cast()?)
                     .ok_or_else(math_error!())?,
             )
             .ok_or_else(math_error!())?;
 
         spot_market
             .optimal_borrow_rate
+            .cast::<u128>()?
             .checked_add(
                 surplus_utilization
                     .checked_mul(borrow_rate_slope)
@@ -178,9 +180,10 @@ pub fn calculate_accumulated_interest(
     } else {
         let borrow_rate_slope = spot_market
             .optimal_borrow_rate
+            .cast::<u128>()?
             .checked_mul(SPOT_UTILIZATION_PRECISION)
             .ok_or_else(math_error!())?
-            .checked_div(spot_market.optimal_utilization)
+            .checked_div(spot_market.optimal_utilization.cast()?)
             .ok_or_else(math_error!())?;
 
         utilization
