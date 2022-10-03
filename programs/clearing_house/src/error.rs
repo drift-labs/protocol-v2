@@ -271,6 +271,8 @@ pub enum ErrorCode {
     MarketActionPaused,
     #[msg("Action violates the asset tier rules")]
     AssetTierViolation,
+    #[msg("User Cant Be Deleted")]
+    UserCantBeDeleted,
 }
 
 #[macro_export]

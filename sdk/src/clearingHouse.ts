@@ -551,6 +551,28 @@ export class ClearingHouse {
 		);
 	}
 
+	public async deleteUser(userId = 0): Promise<TransactionSignature> {
+		const userAccountPublicKey = getUserAccountPublicKeySync(
+			this.program.programId,
+			this.wallet.publicKey,
+			userId
+		);
+
+		const txSig = await this.program.rpc.deleteUser({
+			accounts: {
+				user: userAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
+
+		await this.users.get(userId)?.unsubscribe();
+		this.users.delete(userId);
+
+		return txSig;
+	}
+
 	public getUser(userId?: number): ClearingHouseUser {
 		userId = userId ?? this.activeUserId;
 		if (!this.users.has(userId)) {

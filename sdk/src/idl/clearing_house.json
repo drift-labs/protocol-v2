@@ -833,6 +833,37 @@
       ]
     },
     {
+      "name": "triggerSpotOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderId",
+          "type": "u32"
+        }
+      ]
+    },
+    {
       "name": "placeSpotOrder",
       "accounts": [
         {
@@ -1769,6 +1800,32 @@
           "type": "publicKey"
         }
       ]
+    },
+    {
+      "name": "deleteUser",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": []
     },
     {
       "name": "settleFundingPayment",
@@ -7092,6 +7149,11 @@
       "code": 6132,
       "name": "AssetTierViolation",
       "msg": "Action violates the asset tier rules"
+    },
+    {
+      "code": 6133,
+      "name": "UserCantBeDeleted",
+      "msg": "User Cant Be Deleted"
     }
   ]
 }

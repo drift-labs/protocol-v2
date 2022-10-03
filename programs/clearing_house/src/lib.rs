@@ -78,6 +78,7 @@ pub mod clearing_house {
     use crate::state::serum::{load_open_orders, load_serum_market};
     use crate::state::state::FeeStructure;
     use crate::validation::fee_structure::validate_fee_structure;
+    use crate::validation::user::validate_user_deletion;
     use crate::validation::whitelist::validate_whitelist_token;
     use bytemuck::cast_slice;
     use std::mem::size_of;
@@ -2828,6 +2829,17 @@ pub mod clearing_house {
     ) -> Result<()> {
         let mut user = load_mut!(ctx.accounts.user)?;
         user.delegate = delegate;
+        Ok(())
+    }
+
+    pub fn delete_user(ctx: Context<DeleteUser>) -> Result<()> {
+        let user = &load!(ctx.accounts.user)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+        validate_user_deletion(user, user_stats)?;
+
+        checked_decrement!(user_stats.number_of_users, 1);
+
         Ok(())
     }
 
