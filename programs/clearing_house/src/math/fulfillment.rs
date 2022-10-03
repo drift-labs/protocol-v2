@@ -12,16 +12,15 @@ pub fn determine_perp_fulfillment_methods(
     amm_reserve_price: u128,
     valid_oracle_price: Option<i128>,
     slot: u64,
-) -> ClearingHouseResult<(Vec<PerpFulfillmentMethod>, u128)> {
+) -> ClearingHouseResult<Vec<PerpFulfillmentMethod>> {
     let mut fulfillment_methods = vec![];
 
     let is_amm_available = valid_oracle_price.is_some()
         && is_auction_complete(taker_order.slot, taker_order.auction_duration, slot)?;
 
-    let mut maker_price = 0;
     if let Some(maker_order) = maker_order {
         if is_amm_available {
-            maker_price = maker_order.get_limit_price(valid_oracle_price, slot, Some(amm))?;
+            let maker_price = maker_order.get_limit_price(valid_oracle_price, slot, Some(amm))?;
 
             let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(amm_reserve_price)?;
 
@@ -30,20 +29,20 @@ pub fn determine_perp_fulfillment_methods(
                     && maker_price >= amm_bid_price)
             {
                 fulfillment_methods.push(PerpFulfillmentMethod::Match);
-                fulfillment_methods.push(PerpFulfillmentMethod::AMM);
+                fulfillment_methods.push(PerpFulfillmentMethod::AMM(None));
             } else {
-                fulfillment_methods.push(PerpFulfillmentMethod::AMMToPrice);
+                fulfillment_methods.push(PerpFulfillmentMethod::AMM(Some(maker_price)));
                 fulfillment_methods.push(PerpFulfillmentMethod::Match);
-                fulfillment_methods.push(PerpFulfillmentMethod::AMM);
+                fulfillment_methods.push(PerpFulfillmentMethod::AMM(None));
             }
         } else {
             fulfillment_methods.push(PerpFulfillmentMethod::Match);
         }
     } else if is_amm_available {
-        fulfillment_methods.push(PerpFulfillmentMethod::AMM);
+        fulfillment_methods.push(PerpFulfillmentMethod::AMM(None));
     }
 
-    Ok((fulfillment_methods, maker_price))
+    Ok(fulfillment_methods)
 }
 
 pub fn determine_spot_fulfillment_methods(

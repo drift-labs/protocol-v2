@@ -1030,7 +1030,7 @@ fn fulfill_order(
         return Ok((0, false, true));
     }
 
-    let (fulfillment_methods, potential_maker_price) = {
+    let fulfillment_methods = {
         let market = perp_market_map.get_ref(&market_index)?;
 
         determine_perp_fulfillment_methods(
@@ -1062,7 +1062,7 @@ fn fulfill_order(
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
         let (fill_base_asset_amount, fill_quote_asset_amount) = match fulfillment_method {
-            PerpFulfillmentMethod::AMM => fulfill_order_with_amm(
+            PerpFulfillmentMethod::AMM(maker_price) => fulfill_order_with_amm(
                 user,
                 user_stats,
                 user_order_index,
@@ -1081,7 +1081,7 @@ fn fulfill_order(
                 fee_structure,
                 &mut order_records,
                 None,
-                None,
+                *maker_price,
                 true,
             )?,
             PerpFulfillmentMethod::Match => fulfill_order_with_match(
@@ -1106,28 +1106,6 @@ fn fulfill_order(
                 fee_structure,
                 oracle_map,
                 &mut order_records,
-            )?,
-            PerpFulfillmentMethod::AMMToPrice => fulfill_order_with_amm(
-                user,
-                user_stats,
-                user_order_index,
-                market.deref_mut(),
-                oracle_map,
-                reserve_price_before,
-                now,
-                slot,
-                valid_oracle_price,
-                user_key,
-                filler_key,
-                filler,
-                filler_stats,
-                referrer,
-                referrer_stats,
-                fee_structure,
-                &mut order_records,
-                None,
-                Some(potential_maker_price),
-                true,
             )?,
         };
 

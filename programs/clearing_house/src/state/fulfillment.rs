@@ -1,8 +1,7 @@
 #[derive(Debug, PartialEq, Eq)]
 pub enum PerpFulfillmentMethod {
-    AMM,
+    AMM(Option<u128>),
     Match,
-    AMMToPrice, // fill up to price for amm
 }
 
 #[derive(Debug)]
