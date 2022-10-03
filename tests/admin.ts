@@ -1,10 +1,15 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
-import { BN } from '../sdk';
 import { assert } from 'chai';
 
-import { Admin, OracleGuardRails } from '../sdk/src';
-import { OracleSource } from '../sdk';
+import {
+	Admin,
+	ExchangeStatus,
+	OracleGuardRails,
+	OracleSource,
+	isVariant,
+	BN,
+} from '../sdk/src';
 
 import {
 	mockOracle,
@@ -202,20 +207,46 @@ describe('admin', () => {
 		assert(market.amm.baseAssetAmountStepSize.eq(stepSize));
 	});
 
-	it('Pause funding', async () => {
-		await clearingHouse.updateFundingPaused(true);
+	it('Pause liq', async () => {
+		await clearingHouse.updateExchangeStatus(ExchangeStatus.LIQPAUSED);
 		await clearingHouse.fetchAccounts();
 		const state = clearingHouse.getStateAccount();
-		assert(state.fundingPaused);
+		assert(isVariant(state.exchangeStatus, 'fundingpaused'));
+
+		console.log('paused liq!');
+		// unpause
+		await clearingHouse.updateExchangeStatus(ExchangeStatus.ACTIVE);
+		await clearingHouse.fetchAccounts();
+		assert(isVariant(state.exchangeStatus, 'active'));
+		console.log('unpaused liq!');
 	});
 
-	it('Disable admin controls prices', async () => {
-		let state = clearingHouse.getStateAccount();
-		assert(state.adminControlsPrices);
-		await clearingHouse.disableAdminControlsPrices();
+	it('Pause amm', async () => {
+		await clearingHouse.updateExchangeStatus(ExchangeStatus.AMMPAUSED);
 		await clearingHouse.fetchAccounts();
-		state = clearingHouse.getStateAccount();
-		assert(!state.adminControlsPrices);
+		const state = clearingHouse.getStateAccount();
+		assert(isVariant(state.exchangeStatus, 'fundingpaused'));
+
+		console.log('paused amm!');
+		// unpause
+		await clearingHouse.updateExchangeStatus(ExchangeStatus.ACTIVE);
+		await clearingHouse.fetchAccounts();
+		assert(isVariant(state.exchangeStatus, 'active'));
+		console.log('unpaused amm!');
+	});
+
+	it('Pause funding', async () => {
+		await clearingHouse.updateExchangeStatus(ExchangeStatus.FUNDINGPAUSED);
+		await clearingHouse.fetchAccounts();
+		const state = clearingHouse.getStateAccount();
+		assert(isVariant(state.exchangeStatus, 'fundingpaused'));
+
+		console.log('paused funding!');
+		// unpause
+		await clearingHouse.updateExchangeStatus(ExchangeStatus.ACTIVE);
+		await clearingHouse.fetchAccounts();
+		assert(isVariant(state.exchangeStatus, 'active'));
+		console.log('unpaused funding!');
 	});
 
 	it('Update admin', async () => {

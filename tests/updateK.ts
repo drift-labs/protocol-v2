@@ -20,6 +20,7 @@ import {
 	squareRootBN,
 	calculateBudgetedKBN,
 	QUOTE_SPOT_MARKET_INDEX,
+	MarketStatus,
 } from '../sdk/src';
 
 import {
@@ -91,7 +92,7 @@ describe('update k', () => {
 			periodicity,
 			new BN(initialSOLPrice * PEG_PRECISION.toNumber())
 		);
-		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
+		await clearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
 		await clearingHouse.initializeUserAccount();
 		userAccount = new ClearingHouseUser({
