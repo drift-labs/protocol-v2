@@ -11,11 +11,13 @@ pub fn determine_perp_fulfillment_methods(
     amm: &AMM,
     amm_reserve_price: u128,
     valid_oracle_price: Option<i128>,
+    amm_is_available: bool,
     slot: u64,
 ) -> ClearingHouseResult<Vec<PerpFulfillmentMethod>> {
     let mut fulfillment_methods = vec![];
 
-    let is_amm_available = valid_oracle_price.is_some()
+    let is_amm_available = amm_is_available
+        && valid_oracle_price.is_some()
         && is_auction_complete(taker_order.slot, taker_order.auction_duration, slot)?;
 
     if let Some(maker_order) = maker_order {

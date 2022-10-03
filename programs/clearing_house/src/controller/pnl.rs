@@ -90,7 +90,7 @@ pub fn settle_pnl(
     }
 
     validate!(
-        perp_market.status == MarketStatus::Initialized,
+        perp_market.status == MarketStatus::Active,
         ErrorCode::DefaultError,
         "Cannot settle pnl under current market status"
     )?;

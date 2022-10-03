@@ -36,7 +36,9 @@ pub const SPOT_BALANCE_PRECISION: u128 = 1_000_000_000; // expo = -9
 pub const SPOT_BALANCE_PRECISION_U64: u64 = 1_000_000_000; // expo = -9
 pub const SPOT_CUMULATIVE_INTEREST_PRECISION: u128 = 10_000_000_000; // expo = -10
 pub const SPOT_UTILIZATION_PRECISION: u128 = 1_000_000; // expo = -6
+pub const SPOT_UTILIZATION_PRECISION_U32: u32 = 1_000_000; // expo = -6
 pub const SPOT_RATE_PRECISION: u128 = 1_000_000; // expo = -6
+pub const SPOT_RATE_PRECISION_U32: u32 = 1_000_000; // expo = -6
 pub const LIQUIDATION_FEE_PRECISION: u128 = 1_000_000; // expo = -6
 pub const SPOT_WEIGHT_PRECISION: u128 = MARGIN_PRECISION; // expo = -4
 pub const SPOT_IMF_PRECISION: u128 = 1_000_000; // expo = -6
@@ -129,3 +131,12 @@ pub const PEG_BPS_DECREASE_MAX: u128 = 1000; // 10 bps decrease
 pub const PEG_BPS_INCREASE_MAX: u128 = 1000; // 10 bps increase
 
 pub const QUOTE_SPOT_MARKET_INDEX: u16 = 0;
+
+// INSURANCE TIERS
+pub const INSURANCE_A_MAX: u128 = 100_000_000 * QUOTE_PRECISION;
+pub const INSURANCE_B_MAX: u128 = 10_000 * QUOTE_PRECISION;
+pub const INSURANCE_C_MAX: u128 = 1_000 * QUOTE_PRECISION;
+pub const INSURANCE_SPECULATIVE_MAX: u128 = 0;
+
+// fee pool thresholds
+pub const SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD: u128 = 250 * QUOTE_PRECISION; // 250 usdc

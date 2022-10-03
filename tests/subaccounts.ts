@@ -17,6 +17,7 @@ import {
 	initializeQuoteSpotMarket,
 	mockUSDCMint,
 	mockUserUSDCAccount,
+	printTxLogs,
 } from './testHelpers';
 import { decodeName } from '../sdk/src/userName';
 import { assert } from 'chai';
@@ -132,8 +133,7 @@ describe('subaccounts', () => {
 		);
 		const withdrawRecord = depositRecords[1];
 		assert(isVariant(withdrawRecord.direction, 'withdraw'));
-		assert(withdrawRecord.to.equals(toUser));
-		assert(withdrawRecord.from === null);
+		assert(withdrawRecord.transferUser.equals(toUser));
 
 		const fromUser = await getUserAccountPublicKey(
 			chProgram.programId,
@@ -142,8 +142,7 @@ describe('subaccounts', () => {
 		);
 		const depositRecord = depositRecords[0];
 		assert(isVariant(depositRecord.direction, 'deposit'));
-		assert(depositRecord.to === null);
-		assert(depositRecord.from.equals(fromUser));
+		assert(depositRecord.transferUser.equals(fromUser));
 	});
 
 	it('Update user name', async () => {
@@ -179,5 +178,22 @@ describe('subaccounts', () => {
 			await clearingHouse.getUserAccountsForDelegate(delegateKeyPair.publicKey)
 		)[0];
 		assert(delegateUserAccount.delegate.equals(delegateKeyPair.publicKey));
+	});
+
+	it('delete user', async () => {
+		await clearingHouse.switchActiveUser(1);
+
+		let deleteFailed = false;
+		try {
+			const txSig = await clearingHouse.deleteUser(0);
+			await printTxLogs(connection, txSig);
+		} catch (e) {
+			assert(e.toString().includes('UserCantBeDeleted'));
+			deleteFailed = true;
+		}
+
+		assert(deleteFailed);
+
+		await clearingHouse.deleteUser(1);
 	});
 });
