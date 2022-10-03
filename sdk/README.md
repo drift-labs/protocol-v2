@@ -90,7 +90,7 @@ import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
 	calculateReservePrice,
 	ClearingHouse,
-	ClearingHouseUser,
+	DriftUser,
 	initialize,
 	Markets,
 	PositionDirection,
@@ -153,7 +153,7 @@ const main = async () => {
 	await clearingHouse.subscribe();
 
 	// Set up Clearing House user client
-	const user = ClearingHouseUser.from(clearingHouse, wallet.publicKey);
+	const user = DriftUser.from(clearingHouse, wallet.publicKey);
 
 	//// Check if clearing house account exists for the current wallet
 	const userAccountExists = await user.exists();

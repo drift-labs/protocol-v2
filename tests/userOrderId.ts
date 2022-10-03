@@ -4,11 +4,11 @@ import { assert } from 'chai';
 import { Program } from '@project-serum/anchor';
 
 import {
-	Admin,
+	AdminClient,
 	BN,
 	PRICE_PRECISION,
 	PositionDirection,
-	ClearingHouseUser,
+	DriftUser,
 	getLimitOrderParams,
 } from '../sdk/src';
 
@@ -25,10 +25,10 @@ describe('user order id', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const driftProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
-	let clearingHouseUser: ClearingHouseUser;
+	let driftClient: AdminClient;
+	let driftUser: DriftUser;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -65,10 +65,10 @@ describe('user order id', () => {
 			{ publicKey: btcUsd, source: OracleSource.PYTH },
 		];
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
-			programID: chProgram.programId,
+			programID: driftProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
@@ -77,21 +77,21 @@ describe('user order id', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updatePerpAuctionDuration(new BN(0));
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await driftClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await clearingHouse.initializeMarket(
+		await driftClient.initializeMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
 
-		await clearingHouse.initializeMarket(
+		await driftClient.initializeMarket(
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),
@@ -99,16 +99,16 @@ describe('user order id', () => {
 			new BN(60000000) // btc-ish price level
 		);
 
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		clearingHouseUser = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		driftUser = new DriftUser({
+			driftClient: driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
-		await clearingHouseUser.subscribe();
+		await driftUser.subscribe();
 
 		discountMint = await Token.createMint(
 			connection,
@@ -120,7 +120,7 @@ describe('user order id', () => {
 			TOKEN_PROGRAM_ID
 		);
 
-		await clearingHouse.updateDiscountMint(discountMint.publicKey);
+		await driftClient.updateDiscountMint(discountMint.publicKey);
 
 		discountTokenAccount = await discountMint.getOrCreateAssociatedAccountInfo(
 			provider.wallet.publicKey
@@ -136,8 +136,8 @@ describe('user order id', () => {
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
-		await clearingHouseUser.unsubscribe();
+		await driftClient.unsubscribe();
+		await driftUser.unsubscribe();
 	});
 
 	it('place order', async () => {
@@ -155,11 +155,11 @@ describe('user order id', () => {
 			reduceOnly,
 			userOrderId,
 		});
-		await clearingHouse.placeOrder(orderParams);
+		await driftClient.placeOrder(orderParams);
 
-		await clearingHouse.fetchAccounts();
-		await clearingHouseUser.fetchAccounts();
-		const order = clearingHouseUser.getUserAccount().orders[0];
+		await driftClient.fetchAccounts();
+		await driftUser.fetchAccounts();
+		const order = driftUser.getUserAccount().orders[0];
 
 		assert(order.userOrderId === userOrderId);
 	});
@@ -181,7 +181,7 @@ describe('user order id', () => {
 		});
 
 		try {
-			await clearingHouse.placeOrder(orderParams);
+			await driftClient.placeOrder(orderParams);
 		} catch (_) {
 			//
 			return;
@@ -190,11 +190,11 @@ describe('user order id', () => {
 	});
 
 	it('cancel ', async () => {
-		await clearingHouse.cancelOrderByUserId(1);
+		await driftClient.cancelOrderByUserId(1);
 
-		await clearingHouse.fetchAccounts();
-		await clearingHouseUser.fetchAccounts();
-		const order = clearingHouseUser.getUserAccount().orders[0];
+		await driftClient.fetchAccounts();
+		await driftUser.fetchAccounts();
+		const order = driftUser.getUserAccount().orders[0];
 
 		assert(order.userOrderId === 0);
 	});

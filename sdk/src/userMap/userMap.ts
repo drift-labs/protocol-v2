@@ -1,40 +1,40 @@
 import {
-	ClearingHouseUser,
-	ClearingHouse,
+	DriftUser,
+	DriftClient,
 	UserAccount,
 	bulkPollingUserSubscribe,
 	OrderRecord,
-	ClearingHouseUserAccountSubscriptionConfig,
+	DriftUserAccountSubscriptionConfig,
 } from '..';
 import { ProgramAccount } from '@project-serum/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 
 export class UserMap {
-	private userMap = new Map<string, ClearingHouseUser>();
-	private clearingHouse: ClearingHouse;
-	private accountSubscription: ClearingHouseUserAccountSubscriptionConfig;
+	private userMap = new Map<string, DriftUser>();
+	private driftClient: DriftClient;
+	private accountSubscription: DriftUserAccountSubscriptionConfig;
 
 	constructor(
-		clearingHouse: ClearingHouse,
-		accountSubscription: ClearingHouseUserAccountSubscriptionConfig
+		driftClient: DriftClient,
+		accountSubscription: DriftUserAccountSubscriptionConfig
 	) {
-		this.clearingHouse = clearingHouse;
+		this.driftClient = driftClient;
 		this.accountSubscription = accountSubscription;
 	}
 
 	public async fetchAllUsers() {
-		const userArray: ClearingHouseUser[] = [];
+		const userArray: DriftUser[] = [];
 
 		const programUserAccounts =
-			(await this.clearingHouse.program.account.user.all()) as ProgramAccount<UserAccount>[];
+			(await this.driftClient.program.account.user.all()) as ProgramAccount<UserAccount>[];
 		for (const programUserAccount of programUserAccounts) {
 			if (this.userMap.has(programUserAccount.publicKey.toString())) {
 				continue;
 			}
 
-			const user = new ClearingHouseUser({
-				clearingHouse: this.clearingHouse,
+			const user = new DriftUser({
+				driftClient: this.driftClient,
 				userAccountPublicKey: programUserAccount.publicKey,
 				accountSubscription: this.accountSubscription,
 			});
@@ -54,8 +54,8 @@ export class UserMap {
 	}
 
 	public async addPubkey(userAccountPublicKey: PublicKey) {
-		const user = new ClearingHouseUser({
-			clearingHouse: this.clearingHouse,
+		const user = new DriftUser({
+			driftClient: this.driftClient,
 			userAccountPublicKey,
 			accountSubscription: this.accountSubscription,
 		});
@@ -72,16 +72,16 @@ export class UserMap {
 	 * @param key userAccountPublicKey to get ClearngHouseUserFor
 	 * @returns user ClearingHouseUser | undefined
 	 */
-	public get(key: string): ClearingHouseUser | undefined {
+	public get(key: string): DriftUser | undefined {
 		return this.userMap.get(key);
 	}
 
 	/**
 	 * gets the ClearingHouseUser for a particular userAccountPublicKey, if no ClearingHouseUser exists, new one is created
 	 * @param key userAccountPublicKey to get ClearngHouseUserFor
-	 * @returns  ClearingHouseUser
+	 * @returns  DriftUser
 	 */
-	public async mustGet(key: string): Promise<ClearingHouseUser> {
+	public async mustGet(key: string): Promise<DriftUser> {
 		if (!this.has(key)) {
 			await this.addPubkey(new PublicKey(key));
 		}
@@ -94,7 +94,7 @@ export class UserMap {
 		await this.addPubkey(record.user);
 	}
 
-	public values(): IterableIterator<ClearingHouseUser> {
+	public values(): IterableIterator<DriftUser> {
 		return this.userMap.values();
 	}
 }

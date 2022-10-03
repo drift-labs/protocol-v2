@@ -4,7 +4,7 @@ import {
 	BN,
 	calculateAskPrice,
 	calculateBidPrice,
-	ClearingHouse,
+	DriftClient,
 	convertToNumber,
 	isAuctionComplete,
 	isOrderExpired,
@@ -138,11 +138,11 @@ export class DLOB {
 	/**
 	 * initializes a new DLOB instance
 	 *
-	 * @param clearingHouse The ClearingHouse instance to use for price data
+	 * @param driftClient The DriftClient instance to use for price data
 	 * @returns a promise that resolves when the DLOB is initialized
 	 */
 	public async init(
-		clearingHouse: ClearingHouse,
+		driftClient: DriftClient,
 		userMap?: UserMap
 	): Promise<boolean> {
 		if (this.initialized) {
@@ -159,7 +159,7 @@ export class DLOB {
 				}
 			}
 		} else {
-			const programAccounts = await clearingHouse.program.account.user.all();
+			const programAccounts = await driftClient.program.account.user.all();
 			for (const programAccount of programAccounts) {
 				// @ts-ignore
 				const userAccount: UserAccount = programAccount.account;
@@ -768,16 +768,16 @@ export class DLOB {
 
 	public printTopOfOrderLists(
 		sdkConfig: any,
-		clearingHouse: ClearingHouse,
+		driftClient: DriftClient,
 		slotSubscriber: SlotSubscriber,
 		marketIndex: number,
 		marketType: MarketType
 	) {
 		if (isVariant(marketType, 'perp')) {
-			const market = clearingHouse.getPerpMarketAccount(marketIndex);
+			const market = driftClient.getPerpMarketAccount(marketIndex);
 
 			const slot = slotSubscriber.getSlot();
-			const oraclePriceData = clearingHouse.getOracleDataForMarket(marketIndex);
+			const oraclePriceData = driftClient.getOracleDataForMarket(marketIndex);
 			const vAsk = calculateAskPrice(market, oraclePriceData);
 			const vBid = calculateBidPrice(market, oraclePriceData);
 
@@ -822,7 +822,7 @@ export class DLOB {
 			);
 		} else if (isVariant(marketType, 'spot')) {
 			const slot = slotSubscriber.getSlot();
-			const oraclePriceData = clearingHouse.getOracleDataForMarket(marketIndex);
+			const oraclePriceData = driftClient.getOracleDataForMarket(marketIndex);
 
 			const bestAsk = this.getBestAsk(
 				marketIndex,

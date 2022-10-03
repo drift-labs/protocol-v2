@@ -7,12 +7,12 @@ import { Keypair } from '@solana/web3.js';
 import { assert } from 'chai';
 
 import {
-	Admin,
+	AdminClient,
 	BN,
 	PRICE_PRECISION,
-	ClearingHouse,
+	DriftClient,
 	PositionDirection,
-	ClearingHouseUser,
+	DriftUser,
 	Wallet,
 	getLimitOrderParams,
 } from '../sdk/src';
@@ -38,10 +38,10 @@ describe('oracle offset', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const driftProgram = anchor.workspace.Drift as Program;
 
-	let fillerClearingHouse: Admin;
-	let fillerClearingHouseUser: ClearingHouseUser;
+	let fillerDriftClient: AdminClient;
+	let fillerDriftUser: DriftUser;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -73,10 +73,10 @@ describe('oracle offset', () => {
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
-		fillerClearingHouse = new Admin({
+		fillerDriftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
-			programID: chProgram.programId,
+			programID: driftProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
@@ -85,34 +85,34 @@ describe('oracle offset', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
-		await fillerClearingHouse.initialize(usdcMint.publicKey, true);
-		await fillerClearingHouse.subscribe();
-		await initializeQuoteSpotMarket(fillerClearingHouse, usdcMint.publicKey);
-		await fillerClearingHouse.updatePerpAuctionDuration(new BN(0));
+		await fillerDriftClient.initialize(usdcMint.publicKey, true);
+		await fillerDriftClient.subscribe();
+		await initializeQuoteSpotMarket(fillerDriftClient, usdcMint.publicKey);
+		await fillerDriftClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await fillerClearingHouse.initializeMarket(
+		await fillerDriftClient.initializeMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
 
-		await fillerClearingHouse.initializeUserAccountAndDepositCollateral(
+		await fillerDriftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
-		fillerClearingHouseUser = new ClearingHouseUser({
-			clearingHouse: fillerClearingHouse,
-			userAccountPublicKey: await fillerClearingHouse.getUserAccountPublicKey(),
+		fillerDriftUser = new DriftUser({
+			driftClient: fillerDriftClient,
+			userAccountPublicKey: await fillerDriftClient.getUserAccountPublicKey(),
 		});
-		await fillerClearingHouseUser.subscribe();
+		await fillerDriftUser.subscribe();
 	});
 
 	beforeEach(async () => {
-		await fillerClearingHouse.moveAmmPrice(
+		await fillerDriftClient.moveAmmPrice(
 			0,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve
@@ -121,8 +121,8 @@ describe('oracle offset', () => {
 	});
 
 	after(async () => {
-		await fillerClearingHouse.unsubscribe();
-		await fillerClearingHouseUser.unsubscribe();
+		await fillerDriftClient.unsubscribe();
+		await fillerDriftUser.unsubscribe();
 	});
 
 	it('long taker', async () => {
@@ -135,10 +135,10 @@ describe('oracle offset', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = new ClearingHouse({
+		const driftClient = new DriftClient({
 			connection,
 			wallet,
-			programID: chProgram.programId,
+			programID: driftProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
@@ -147,16 +147,16 @@ describe('oracle offset', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
-		await clearingHouse.subscribe();
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.subscribe();
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		const driftUser = new DriftUser({
+			driftClient: driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
-		await clearingHouseUser.subscribe();
+		await driftUser.subscribe();
 
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
@@ -173,30 +173,30 @@ describe('oracle offset', () => {
 			userOrderId: 1,
 			oraclePriceOffset: priceOffset,
 		});
-		await clearingHouse.placeOrder(orderParams);
+		await driftClient.placeOrder(orderParams);
 
-		await fillerClearingHouse.moveAmmPrice(
+		await fillerDriftClient.moveAmmPrice(
 			marketIndex,
 			ammInitialBaseAssetReserve.mul(new BN(11)).div(new BN(10)),
 			ammInitialQuoteAssetReserve
 		);
 
-		await clearingHouseUser.fetchAccounts();
-		const order = clearingHouseUser.getOrderByUserOrderId(1);
+		await driftUser.fetchAccounts();
+		const order = driftUser.getOrderByUserOrderId(1);
 
-		await fillerClearingHouse.fillOrder(
-			await clearingHouseUser.getUserAccountPublicKey(),
-			clearingHouse.getUserAccount(),
+		await fillerDriftClient.fillOrder(
+			await driftUser.getUserAccountPublicKey(),
+			driftClient.getUserAccount(),
 			order
 		);
 
-		await clearingHouseUser.fetchAccounts();
-		const position = clearingHouseUser.getUserPosition(marketIndex);
+		await driftUser.fetchAccounts();
+		const position = driftUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
 		assert(entryPrice.eq(new BN(909093)));
 
-		await clearingHouse.unsubscribe();
-		await clearingHouseUser.unsubscribe();
+		await driftClient.unsubscribe();
+		await driftUser.unsubscribe();
 	});
 
 	it('long maker', async () => {
@@ -209,10 +209,10 @@ describe('oracle offset', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = new ClearingHouse({
+		const driftClient = new DriftClient({
 			connection,
 			wallet,
-			programID: chProgram.programId,
+			programID: driftProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
@@ -221,16 +221,16 @@ describe('oracle offset', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
-		await clearingHouse.subscribe();
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.subscribe();
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		const driftUser = new DriftUser({
+			driftClient: driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
-		await clearingHouseUser.subscribe();
+		await driftUser.subscribe();
 
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
@@ -247,31 +247,31 @@ describe('oracle offset', () => {
 			oraclePriceOffset: priceOffset,
 		});
 
-		await clearingHouse.placeOrder(orderParams);
+		await driftClient.placeOrder(orderParams);
 
-		await fillerClearingHouse.moveAmmPrice(
+		await fillerDriftClient.moveAmmPrice(
 			marketIndex,
 			ammInitialBaseAssetReserve.mul(new BN(11)).div(new BN(10)),
 			ammInitialQuoteAssetReserve
 		);
 
-		await clearingHouseUser.fetchAccounts();
-		const order = clearingHouseUser.getOrderByUserOrderId(1);
+		await driftUser.fetchAccounts();
+		const order = driftUser.getOrderByUserOrderId(1);
 
-		await fillerClearingHouse.fillOrder(
-			await clearingHouseUser.getUserAccountPublicKey(),
-			clearingHouseUser.getUserAccount(),
+		await fillerDriftClient.fillOrder(
+			await driftUser.getUserAccountPublicKey(),
+			driftUser.getUserAccount(),
 			order
 		);
 
-		await clearingHouseUser.fetchAccounts();
-		const position = clearingHouseUser.getUserPosition(marketIndex);
+		await driftUser.fetchAccounts();
+		const position = driftUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
 		const expectedEntryPrice = new BN(950001);
 		assert(entryPrice.eq(expectedEntryPrice));
 
-		await clearingHouse.unsubscribe();
-		await clearingHouseUser.unsubscribe();
+		await driftClient.unsubscribe();
+		await driftUser.unsubscribe();
 	});
 
 	it('short taker', async () => {
@@ -284,10 +284,10 @@ describe('oracle offset', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = new ClearingHouse({
+		const driftClient = new DriftClient({
 			connection,
 			wallet,
-			programID: chProgram.programId,
+			programID: driftProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
@@ -296,16 +296,16 @@ describe('oracle offset', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
-		await clearingHouse.subscribe();
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.subscribe();
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		const driftUser = new DriftUser({
+			driftClient: driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
-		await clearingHouseUser.subscribe();
+		await driftUser.subscribe();
 
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
@@ -320,30 +320,30 @@ describe('oracle offset', () => {
 			userOrderId: 1,
 			oraclePriceOffset: priceOffset,
 		});
-		await clearingHouse.placeOrder(orderParams);
+		await driftClient.placeOrder(orderParams);
 
-		await fillerClearingHouse.moveAmmPrice(
+		await fillerDriftClient.moveAmmPrice(
 			marketIndex,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve.mul(new BN(11)).div(new BN(10))
 		);
 
-		await clearingHouseUser.fetchAccounts();
-		const order = clearingHouseUser.getOrderByUserOrderId(1);
+		await driftUser.fetchAccounts();
+		const order = driftUser.getOrderByUserOrderId(1);
 
-		await fillerClearingHouse.fillOrder(
-			await clearingHouseUser.getUserAccountPublicKey(),
-			clearingHouseUser.getUserAccount(),
+		await fillerDriftClient.fillOrder(
+			await driftUser.getUserAccountPublicKey(),
+			driftUser.getUserAccount(),
 			order
 		);
 
-		await clearingHouseUser.fetchAccounts();
-		const position = clearingHouseUser.getUserPosition(marketIndex);
+		await driftUser.fetchAccounts();
+		const position = driftUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
 		assert(entryPrice.eq(new BN(1099997)));
 
-		await clearingHouse.unsubscribe();
-		await clearingHouseUser.unsubscribe();
+		await driftClient.unsubscribe();
+		await driftUser.unsubscribe();
 	});
 
 	it('short maker', async () => {
@@ -356,10 +356,10 @@ describe('oracle offset', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = new ClearingHouse({
+		const driftClient = new DriftClient({
 			connection,
 			wallet,
-			programID: chProgram.programId,
+			programID: driftProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
@@ -368,16 +368,16 @@ describe('oracle offset', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
-		await clearingHouse.subscribe();
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.subscribe();
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		const driftUser = new DriftUser({
+			driftClient: driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
-		await clearingHouseUser.subscribe();
+		await driftUser.subscribe();
 
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
@@ -393,32 +393,32 @@ describe('oracle offset', () => {
 			postOnly: true,
 			oraclePriceOffset: priceOffset,
 		});
-		await clearingHouse.placeOrder(orderParams);
+		await driftClient.placeOrder(orderParams);
 
-		await fillerClearingHouse.moveAmmPrice(
+		await fillerDriftClient.moveAmmPrice(
 			marketIndex,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve.mul(new BN(11)).div(new BN(10))
 		);
 
-		await clearingHouseUser.fetchAccounts();
-		const order = clearingHouseUser.getOrderByUserOrderId(1);
+		await driftUser.fetchAccounts();
+		const order = driftUser.getOrderByUserOrderId(1);
 
-		await fillerClearingHouse.fillOrder(
-			await clearingHouseUser.getUserAccountPublicKey(),
-			clearingHouseUser.getUserAccount(),
+		await fillerDriftClient.fillOrder(
+			await driftUser.getUserAccountPublicKey(),
+			driftUser.getUserAccount(),
 			order
 		);
 
-		await clearingHouseUser.fetchAccounts();
-		const position = clearingHouseUser.getUserPosition(marketIndex);
+		await driftUser.fetchAccounts();
+		const position = driftUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
 		const expectedEntryPrice = PRICE_PRECISION.add(priceOffset);
 		console.log(entryPrice.toString());
 		assert(entryPrice.eq(expectedEntryPrice));
 
-		await clearingHouse.unsubscribe();
-		await clearingHouseUser.unsubscribe();
+		await driftClient.unsubscribe();
+		await driftUser.unsubscribe();
 	});
 
 	it('cancel by order id', async () => {
@@ -431,10 +431,10 @@ describe('oracle offset', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = new ClearingHouse({
+		const driftClient = new DriftClient({
 			connection,
 			wallet,
-			programID: chProgram.programId,
+			programID: driftProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
@@ -443,16 +443,16 @@ describe('oracle offset', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
-		await clearingHouse.subscribe();
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.subscribe();
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		const driftUser = new DriftUser({
+			driftClient: driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
-		await clearingHouseUser.subscribe();
+		await driftUser.subscribe();
 
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
@@ -467,14 +467,14 @@ describe('oracle offset', () => {
 			postOnly: true,
 			oraclePriceOffset: priceOffset,
 		});
-		await clearingHouse.placeOrder(orderParams);
+		await driftClient.placeOrder(orderParams);
 
-		await clearingHouseUser.fetchAccounts();
-		const orderId = clearingHouseUser.getUserAccount().orders[0].orderId;
-		await clearingHouse.cancelOrder(orderId);
+		await driftUser.fetchAccounts();
+		const orderId = driftUser.getUserAccount().orders[0].orderId;
+		await driftClient.cancelOrder(orderId);
 
-		await clearingHouse.unsubscribe();
-		await clearingHouseUser.unsubscribe();
+		await driftClient.unsubscribe();
+		await driftUser.unsubscribe();
 	});
 
 	it('cancel by user order id', async () => {
@@ -487,10 +487,10 @@ describe('oracle offset', () => {
 			provider,
 			keypair.publicKey
 		);
-		const clearingHouse = new ClearingHouse({
+		const driftClient = new DriftClient({
 			connection,
 			wallet,
-			programID: chProgram.programId,
+			programID: driftProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
@@ -499,16 +499,16 @@ describe('oracle offset', () => {
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
 		});
-		await clearingHouse.subscribe();
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.subscribe();
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
-		const clearingHouseUser = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		const driftUser = new DriftUser({
+			driftClient: driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
-		await clearingHouseUser.subscribe();
+		await driftUser.subscribe();
 
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
@@ -524,12 +524,12 @@ describe('oracle offset', () => {
 			userOrderId: 1,
 			oraclePriceOffset: priceOffset,
 		});
-		await clearingHouse.placeOrder(orderParams);
+		await driftClient.placeOrder(orderParams);
 
-		await clearingHouseUser.fetchAccounts();
-		await clearingHouse.cancelOrderByUserId(1);
+		await driftUser.fetchAccounts();
+		await driftClient.cancelOrderByUserId(1);
 
-		await clearingHouse.unsubscribe();
-		await clearingHouseUser.unsubscribe();
+		await driftClient.unsubscribe();
+		await driftUser.unsubscribe();
 	});
 });
