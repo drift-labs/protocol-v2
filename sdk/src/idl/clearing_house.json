@@ -5465,6 +5465,9 @@
             "name": "FillPaused"
           },
           {
+            "name": "LiqPaused"
+          },
+          {
             "name": "WithdrawPaused"
           },
           {
@@ -7079,6 +7082,16 @@
       "code": 6130,
       "name": "InsufficientIFShares",
       "msg": "Insufficient IF shares"
+    },
+    {
+      "code": 6131,
+      "name": "MarketActionPaused",
+      "msg": "the Market has paused this action"
+    },
+    {
+      "code": 6132,
+      "name": "AssetTierViolation",
+      "msg": "Action violates the asset tier rules"
     }
   ]
 }

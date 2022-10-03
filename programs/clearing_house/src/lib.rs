@@ -1789,8 +1789,10 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[allow(unused_must_use)]
     #[access_control(
-        withdraw_not_paused(&ctx.accounts.state)
+        withdraw_not_paused(&ctx.accounts.state) &&
+        amm_not_paused(&ctx.accounts.state)
     )]
     pub fn settle_expired_position(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
         let clock = Clock::get()?;
@@ -3678,6 +3680,9 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        withdraw_not_paused(&ctx.accounts.state)
+    )]
     pub fn settle_revenue_to_insurance_fund(
         ctx: Context<SettleRevenueToInsuranceFund>,
         _market_index: u16,
