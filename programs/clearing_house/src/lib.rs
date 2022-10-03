@@ -675,11 +675,15 @@ pub mod clearing_house {
 
         if spot_position.balance_type == SpotBalanceType::Deposit && spot_position.balance > 0 {
             validate!(
-                !matches!(
+                matches!(
                     spot_market.status,
-                    MarketStatus::ReduceOnly | MarketStatus::Settlement | MarketStatus::Delisted
+                    MarketStatus::Active
+                        | MarketStatus::FundingPaused
+                        | MarketStatus::AmmPaused
+                        | MarketStatus::FillPaused
+                        | MarketStatus::WithdrawPaused
                 ),
-                ErrorCode::DefaultError,
+                ErrorCode::MarketActionPaused,
                 "spot_market in reduce only mode",
             )?;
         }
@@ -1128,11 +1132,12 @@ pub mod clearing_house {
             controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
 
             validate!(
-                !matches!(
+                matches!(
                     market.status,
-                    |MarketStatus::Initialized| MarketStatus::ReduceOnly
-                        | MarketStatus::Settlement
-                        | MarketStatus::Delisted
+                    MarketStatus::Active
+                        | MarketStatus::FundingPaused
+                        | MarketStatus::FillPaused
+                        | MarketStatus::WithdrawPaused
                 ),
                 ErrorCode::DefaultError,
                 "Market Status doesn't allow for new LP liquidity"

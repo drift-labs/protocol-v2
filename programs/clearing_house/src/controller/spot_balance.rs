@@ -373,9 +373,14 @@ pub fn update_spot_position_balance_with_limits(
     )?;
 
     validate!(
-        !matches!(
+        matches!(
             spot_market.status,
-            MarketStatus::WithdrawPaused | MarketStatus::Initialized | MarketStatus::Delisted
+            MarketStatus::Active
+                | MarketStatus::AmmPaused
+                | MarketStatus::FundingPaused
+                | MarketStatus::FillPaused
+                | MarketStatus::ReduceOnly
+                | MarketStatus::Settlement
         ),
         ErrorCode::MarketActionPaused,
         "Spot Market {} withdraws are currently paused",
