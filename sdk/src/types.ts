@@ -3,8 +3,23 @@ import { BN, ZERO } from '.';
 
 // # Utility Types / Enums / Constants
 
+export class ExchangeStatus {
+	static readonly ACTIVE = { active: {} };
+	static readonly FUNDINGPAUSED = { fundingpaused: {} };
+	static readonly AMMPAUSED = { ammpaused: {} };
+	static readonly FILLPAUSED = { fillpaused: {} };
+	static readonly LIQPAUSED = { liqpaused: {} };
+	static readonly WITHDRAWPAUSED = { withdrawpaused: {} };
+	static readonly PAUSED = { paused: {} };
+}
+
 export class MarketStatus {
 	static readonly INITIALIZED = { initialized: {} };
+	static readonly ACTIVE = { active: {} };
+	static readonly FUNDINGPAUSED = { fundingpaused: {} };
+	static readonly AMMPAUSED = { ammpaused: {} };
+	static readonly FILLPAUSED = { fillpaused: {} };
+	static readonly WITHDRAWPAUSED = { withdrawpaused: {} };
 	static readonly REDUCEONLY = { reduceonly: {} };
 	static readonly SETTLEMENT = { settlement: {} };
 	static readonly DELISTED = { delisted: {} };
@@ -13,6 +28,21 @@ export class MarketStatus {
 export class ContractType {
 	static readonly PERPETUAL = { perpetual: {} };
 	static readonly FUTURE = { future: {} };
+}
+
+export class ContractTier {
+	static readonly A = { a: {} };
+	static readonly B = { b: {} };
+	static readonly C = { c: {} };
+	static readonly Speculative = { speculative: {} };
+}
+
+export class AssetTier {
+	static readonly COLLATERAL = { collateral: {} };
+	static readonly PROTECTED = { protected: {} };
+	static readonly CROSS = { cross: {} };
+	static readonly ISOLATED = { isolated: {} };
+	static readonly UNLISTED = { unlisted: {} };
 }
 
 export class SwapDirection {
@@ -374,24 +404,20 @@ export type OrderActionRecord = {
 
 export type StateAccount = {
 	admin: PublicKey;
-	fundingPaused: boolean;
-	exchangePaused: boolean;
-	adminControlsPrices: boolean;
-	totalFee: BN;
-	totalFeeWithdrawn: BN;
+	exchangeStatus: ExchangeStatus;
 	whitelistMint: PublicKey;
 	discountMint: PublicKey;
 	oracleGuardRails: OracleGuardRails;
-	maxDeposit: BN;
 	numberOfMarkets: number;
 	numberOfSpotMarkets: number;
 	minOrderQuoteAssetAmount: BN;
-	signer: PublicKey;
-	signerNonce: number;
-	defaultMarketOrderTimeInForce: number;
 	minPerpAuctionDuration: number;
+	defaultMarketOrderTimeInForce: number;
 	defaultSpotAuctionDuration: number;
 	liquidationMarginBufferRatio: number;
+	settlementDuration: number;
+	signer: PublicKey;
+	signerNonce: number;
 	srmVault: PublicKey;
 	perpFeeStructure: FeeStructure;
 	spotFeeStructure: FeeStructure;
@@ -445,6 +471,9 @@ export type HistoricalIndexData = {
 };
 
 export type SpotMarketAccount = {
+	status: MarketStatus;
+	assetTier: AssetTier;
+
 	marketIndex: number;
 	pubkey: PublicKey;
 	mint: PublicKey;

@@ -28,6 +28,7 @@ pub struct SpotMarket {
     pub market_index: u16,
     pub pubkey: Pubkey,
     pub status: MarketStatus,
+    pub asset_tier: AssetTier,
     pub expiry_ts: i64, // iff market in reduce only mode
 
     pub oracle: Pubkey,
@@ -198,6 +199,7 @@ impl SpotMarket {
             initial_asset_weight: 8000,
             maintenance_asset_weight: 9000,
             decimals: 9,
+            status: MarketStatus::Active,
             ..SpotMarket::default()
         }
     }
@@ -211,6 +213,7 @@ impl SpotMarket {
             maintenance_liability_weight: 10000,
             initial_asset_weight: 10000,
             maintenance_asset_weight: 10000,
+            status: MarketStatus::Active,
             ..SpotMarket::default()
         }
     }
@@ -280,5 +283,20 @@ pub enum SpotFulfillmentStatus {
 impl Default for SpotFulfillmentStatus {
     fn default() -> Self {
         SpotFulfillmentStatus::Enabled
+    }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum AssetTier {
+    Collateral, // full priviledge
+    Protected,  // collateral, but no borrow
+    Cross,      // not collateral, allow multi-borrow
+    Isolated,   // not collateral, only single borrow
+    Unlisted,   // no priviledge
+}
+
+impl Default for AssetTier {
+    fn default() -> Self {
+        AssetTier::Unlisted
     }
 }

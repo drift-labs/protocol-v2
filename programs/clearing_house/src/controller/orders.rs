@@ -58,7 +58,7 @@ use crate::print_error;
 use crate::state::events::{get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::market::PerpMarket;
+use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -252,14 +252,15 @@ pub fn place_order(
     let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
         <= worst_case_base_asset_amount_before.unsigned_abs();
 
-    let meets_initial_maintenance_requirement =
-        meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+    let meets_initial_margin_requirement = meets_place_order_margin_requirement(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        risk_decreasing,
+    )?;
 
-    if !meets_initial_maintenance_requirement && !risk_decreasing {
-        return Err(ErrorCode::InsufficientCollateral);
-    }
-
-    if force_reduce_only && !risk_decreasing {
+    if !meets_initial_margin_requirement || (force_reduce_only && !risk_decreasing) {
         return Err(ErrorCode::InvalidOrder);
     }
 
@@ -508,6 +509,18 @@ pub fn fill_order(
     controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
     controller::lp::settle_lp(user, &user_key, &mut market, now)?;
 
+    validate!(
+        matches!(
+            market.status,
+            MarketStatus::Active
+                | MarketStatus::FundingPaused
+                | MarketStatus::ReduceOnly
+                | MarketStatus::WithdrawPaused
+        ),
+        ErrorCode::DefaultError,
+        "Market unavailable for fills"
+    )?;
+
     drop(market);
 
     validate!(
@@ -546,9 +559,12 @@ pub fn fill_order(
     let is_oracle_valid: bool;
     let oracle_price: i128;
     let market_is_reduce_only: bool;
+    let mut amm_is_available = state.exchange_status != ExchangeStatus::AmmPaused;
+
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         market_is_reduce_only = market.is_reduce_only()?;
+        amm_is_available &= market.status != MarketStatus::AmmPaused;
         controller::validate::validate_market_account(market)?;
         validate!(
             market.is_active(now)?,
@@ -698,6 +714,7 @@ pub fn fill_order(
         now,
         slot,
         market_is_reduce_only,
+        amm_is_available,
     )?;
 
     if should_cancel_order_after_fulfill(user, order_index, slot)? {
@@ -746,13 +763,16 @@ pub fn fill_order(
     // Try to update the funding rate at the end of every trade
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
+        let funding_paused = matches!(state.exchange_status, ExchangeStatus::FundingPaused)
+            || matches!(market.status, MarketStatus::FundingPaused);
+
         controller::funding::update_funding_rate(
             market_index,
             market,
             oracle_map,
             now,
             &state.oracle_guard_rails,
-            state.funding_paused,
+            funding_paused,
             Some(reserve_price_before),
         )?;
     }
@@ -1010,6 +1030,7 @@ fn fulfill_order(
     now: i64,
     slot: u64,
     market_is_reduce_only: bool,
+    amm_is_available: bool,
 ) -> ClearingHouseResult<(u64, bool, bool)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -1045,7 +1066,7 @@ fn fulfill_order(
     let fulfillment_methods = determine_perp_fulfillment_methods(
         &user.orders[user_order_index],
         maker.is_some(),
-        valid_oracle_price.is_some(),
+        amm_is_available,
         slot,
     )?;
 
@@ -2227,11 +2248,16 @@ pub fn place_spot_order(
     let risk_decreasing = worst_case_token_amount_after.unsigned_abs()
         <= worst_case_token_amount_before.unsigned_abs();
 
-    let meets_initial_maintenance_requirement =
-        meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+    let meets_initial_margin_requirement = meets_place_order_margin_requirement(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        risk_decreasing,
+    )?;
 
-    if !meets_initial_maintenance_requirement && !risk_decreasing {
-        return Err(ErrorCode::InsufficientCollateral);
+    if !meets_initial_margin_requirement || (force_reduce_only && !risk_decreasing) {
+        return Err(ErrorCode::InvalidOrder);
     }
 
     let (taker, taker_order, maker, maker_order) =
@@ -2300,8 +2326,23 @@ pub fn fill_spot_order(
         .position(|order| order.order_id == order_id)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
-    let (order_status, order_market_type) =
-        get_struct_values!(user.orders[order_index], status, market_type);
+    let (order_status, order_market_index, order_market_type) =
+        get_struct_values!(user.orders[order_index], status, market_index, market_type);
+
+    {
+        let spot_market = spot_market_map.get_ref(&order_market_index)?;
+        validate!(
+            matches!(
+                spot_market.status,
+                MarketStatus::Active
+                    | MarketStatus::FundingPaused
+                    | MarketStatus::ReduceOnly
+                    | MarketStatus::WithdrawPaused
+            ),
+            ErrorCode::DefaultError,
+            "Market unavailable for fills"
+        )?;
+    }
 
     validate!(
         order_market_type == MarketType::Spot,

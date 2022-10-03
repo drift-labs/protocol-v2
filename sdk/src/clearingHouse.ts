@@ -1307,6 +1307,7 @@ export class ClearingHouse {
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 		return await this.program.instruction.updateSpotMarketCumulativeInterest({
 			accounts: {
+				state: await this.getStatePublicKey(),
 				spotMarket: spotMarket.pubkey,
 			},
 		});

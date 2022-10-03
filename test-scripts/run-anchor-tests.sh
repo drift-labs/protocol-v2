@@ -7,7 +7,8 @@ fi
 
 test_files=(
   imbalancePerpPnl.ts
-   delistMarket.ts delistMarketLiq.ts
+   delistMarket.ts 
+   delistMarketLiq.ts
    triggerSpotOrder.ts
    serumTest.ts
    liquidityProvider.ts
@@ -24,9 +25,9 @@ test_files=(
    marketOrder.ts triggerOrders.ts stopLimits.ts userOrderId.ts postOnly.ts
    roundInFavorBaseAsset.ts marketOrderBaseAssetAmount.ts oracleOffsetOrders.ts
    userDelegate.ts subaccounts.ts pyth.ts userAccount.ts admin.ts
-   updateK.ts
-   adminWithdraw.ts
-   curve.ts cappedSymFunding.ts whitelist.ts
+   assetTier.ts
+   pauseExchange.ts adminWithdraw.ts whitelist.ts
+   updateK.ts curve.ts cappedSymFunding.ts
    maxDeposit.ts
 )
 

@@ -3,7 +3,15 @@ import {
 	SYSVAR_RENT_PUBKEY,
 	TransactionSignature,
 } from '@solana/web3.js';
-import { FeeStructure, OracleGuardRails, OracleSource } from './types';
+import {
+	FeeStructure,
+	OracleGuardRails,
+	OracleSource,
+	ExchangeStatus,
+	MarketStatus,
+	ContractTier,
+	AssetTier,
+} from './types';
 import { BN } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
 import {
@@ -25,7 +33,7 @@ import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 export class Admin extends ClearingHouse {
 	public async initialize(
 		usdcMint: PublicKey,
-		adminControlsPrices: boolean
+		_adminControlsPrices: boolean
 	): Promise<[TransactionSignature]> {
 		const stateAccountRPCResponse = await this.connection.getParsedAccountInfo(
 			await this.getStatePublicKey()
@@ -39,20 +47,17 @@ export class Admin extends ClearingHouse {
 				this.program.programId
 			);
 
-		const initializeTx = await this.program.transaction.initialize(
-			adminControlsPrices,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: clearingHouseStatePublicKey,
-					quoteAssetMint: usdcMint,
-					rent: SYSVAR_RENT_PUBKEY,
-					clearingHouseSigner: this.getSignerPublicKey(),
-					systemProgram: anchor.web3.SystemProgram.programId,
-					tokenProgram: TOKEN_PROGRAM_ID,
-				},
-			}
-		);
+		const initializeTx = await this.program.transaction.initialize({
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: clearingHouseStatePublicKey,
+				quoteAssetMint: usdcMint,
+				rent: SYSVAR_RENT_PUBKEY,
+				clearingHouseSigner: this.getSignerPublicKey(),
+				systemProgram: anchor.web3.SystemProgram.programId,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+		});
 
 		const { txSig: initializeTxSig } = await this.txSender.send(
 			initializeTx,
@@ -75,7 +80,8 @@ export class Admin extends ClearingHouse {
 		initialLiabilityWeight: BN,
 		maintenanceLiabilityWeight: BN,
 		imfFactor = new BN(0),
-		liquidationFee = ZERO
+		liquidationFee = ZERO,
+		activeStatus = true
 	): Promise<TransactionSignature> {
 		const spotMarketIndex = this.getStateAccount().numberOfSpotMarkets;
 		const spotMarket = await getSpotMarketPublicKey(
@@ -104,6 +110,7 @@ export class Admin extends ClearingHouse {
 			maintenanceLiabilityWeight,
 			imfFactor,
 			liquidationFee,
+			activeStatus,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
@@ -176,7 +183,8 @@ export class Admin extends ClearingHouse {
 		oracleSource: OracleSource = OracleSource.PYTH,
 		marginRatioInitial = 2000,
 		marginRatioMaintenance = 500,
-		liquidationFee = ZERO
+		liquidationFee = ZERO,
+		activeStatus = true
 	): Promise<TransactionSignature> {
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
@@ -192,6 +200,7 @@ export class Admin extends ClearingHouse {
 			marginRatioInitial,
 			marginRatioMaintenance,
 			liquidationFee,
+			activeStatus,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -794,29 +803,101 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
-	public async updateFundingPaused(
-		fundingPaused: boolean
+	public async updateSpotMarketMarginWeights(
+		spotMarketIndex: number,
+		initialAssetWeight: BN,
+		maintenanceAssetWeight: BN,
+		initialLiabilityWeight: BN,
+		maintenanceLiabilityWeight: BN,
+		imfFactor = new BN(0)
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateFundingPaused(fundingPaused, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-			},
-		});
+		return await this.program.rpc.updateSpotMarketMarginWeights(
+			initialAssetWeight,
+			maintenanceAssetWeight,
+			initialLiabilityWeight,
+			maintenanceLiabilityWeight,
+			imfFactor,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
 	}
-	public async updateExchangePaused(
-		exchangePaused: boolean
+
+	public async updateSpotMarketAssetTier(
+		spotMarketIndex: number,
+		assetTier: AssetTier
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateExchangePaused(exchangePaused, {
+		return await this.program.rpc.updateSpotMarketAssetTier(assetTier, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
+				spotMarket: await getSpotMarketPublicKey(
+					this.program.programId,
+					spotMarketIndex
+				),
 			},
 		});
 	}
 
-	public async disableAdminControlsPrices(): Promise<TransactionSignature> {
-		return await this.program.rpc.disableAdminControlsPrices({
+	public async updateSpotMarketStatus(
+		spotMarketIndex: number,
+		marketStatus: MarketStatus
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSpotMarketStatus(marketStatus, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				spotMarket: await getSpotMarketPublicKey(
+					this.program.programId,
+					spotMarketIndex
+				),
+			},
+		});
+	}
+
+	public async updatePerpMarketStatus(
+		perpMarketIndex: number,
+		marketStatus: MarketStatus
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketStatus(marketStatus, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				market: await getMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
+	}
+
+	public async updatePerpMarketContractTier(
+		perpMarketIndex: number,
+		contractTier: ContractTier
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketContractTier(contractTier, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				market: await getMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
+	}
+
+	public async updateExchangeStatus(
+		exchangeStatus: ExchangeStatus
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateExchangeStatus(exchangeStatus, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
