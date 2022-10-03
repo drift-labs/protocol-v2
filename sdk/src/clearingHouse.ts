@@ -446,6 +446,21 @@ export class ClearingHouse {
 			});
 		}
 
+		const state = this.getStateAccount();
+		if (!state.whitelistMint.equals(PublicKey.default)) {
+			const associatedTokenPublicKey = await Token.getAssociatedTokenAddress(
+				ASSOCIATED_TOKEN_PROGRAM_ID,
+				TOKEN_PROGRAM_ID,
+				state.whitelistMint,
+				this.wallet.publicKey
+			);
+			remainingAccounts.push({
+				pubkey: associatedTokenPublicKey,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
+
 		const nameBuffer = encodeName(name);
 		const initializeUserAccountIx =
 			await this.program.instruction.initializeUser(userId, nameBuffer, {

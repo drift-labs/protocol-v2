@@ -51,6 +51,7 @@ pub mod clearing_house {
     use crate::math::spot_balance::get_token_amount;
     use crate::optional_accounts::{
         get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
+        get_whitelist_token,
     };
     use crate::state::events::{CurveRecord, DepositRecord};
     use crate::state::events::{DepositDirection, NewUserRecord};
@@ -76,6 +77,7 @@ pub mod clearing_house {
     use crate::state::serum::{load_open_orders, load_serum_market};
     use crate::state::state::FeeStructure;
     use crate::validation::fee_structure::validate_fee_structure;
+    use crate::validation::whitelist::validate_whitelist_token;
     use bytemuck::cast_slice;
     use std::mem::size_of;
 
@@ -2716,6 +2718,8 @@ pub mod clearing_house {
             ..User::default()
         };
 
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
         let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
         user_stats.number_of_users = user_stats
             .number_of_users
@@ -2724,7 +2728,6 @@ pub mod clearing_house {
 
         // Only try to add referrer if it is the first user
         if user_stats.number_of_users == 1 {
-            let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
             let (referrer, referrer_stats) =
                 get_referrer_and_referrer_stats(remaining_accounts_iter)?;
             let referrer =
@@ -2747,6 +2750,15 @@ pub mod clearing_house {
                 };
 
             user_stats.referrer = referrer;
+        }
+
+        let whitelist_mint = &ctx.accounts.state.whitelist_mint;
+        if !whitelist_mint.eq(&Pubkey::default()) {
+            validate_whitelist_token(
+                get_whitelist_token(remaining_accounts_iter)?,
+                whitelist_mint,
+                &ctx.accounts.authority.key(),
+            )?;
         }
 
         emit!(NewUserRecord {

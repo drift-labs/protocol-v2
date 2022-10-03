@@ -26,7 +26,7 @@ test_files=(
    userDelegate.ts subaccounts.ts pyth.ts userAccount.ts admin.ts
    updateK.ts
    adminWithdraw.ts
-   curve.ts cappedSymFunding.ts
+   curve.ts cappedSymFunding.ts whitelist.ts
    maxDeposit.ts
 )
 
