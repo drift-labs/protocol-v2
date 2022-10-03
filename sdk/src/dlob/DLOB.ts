@@ -657,35 +657,6 @@ export class DLOB {
 		const bidOrder = bidNode.order;
 		const askOrder = askNode.order;
 
-		/*
-		// when bid and ask don't cross, check against vamm
-		if (bidPrice.lt(askPrice)) {
-			if (vBid && vAsk) {
-				const crossingNodes: NodeToFill[] = [];
-				if (bidPrice.gte(vAsk) && isAuctionComplete(bidOrder, slot)) {
-					crossingNodes.push({
-						node: bidNode,
-					});
-				}
-				if (askPrice.lte(vBid) && isAuctionComplete(askOrder, slot)) {
-					crossingNodes.push({
-						node: askNode,
-					});
-				}
-
-				return {
-					crossingNodes,
-					exhaustedSide: 'both',
-				};
-			} else {
-				return {
-					crossingNodes: [],
-					exhaustedSide: 'both',
-				};
-			}
-		}
-		*/
-
 		// Can't match two maker orders or if maker and taker are the same
 		const makerIsTaker = bidNode.userAccount.equals(askNode.userAccount);
 		const ordersDontCross = bidPrice.lt(askPrice);
