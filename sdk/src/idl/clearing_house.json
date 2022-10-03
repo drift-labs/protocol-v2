@@ -3306,7 +3306,7 @@
           {
             "name": "revenuePool",
             "type": {
-              "defined": "BasePoolBalance"
+              "defined": "PoolBalance"
             }
           },
           {
@@ -4049,7 +4049,7 @@
       }
     },
     {
-      "name": "BasePoolBalance",
+      "name": "PoolBalance",
       "type": {
         "kind": "struct",
         "fields": [
@@ -4057,18 +4057,6 @@
             "name": "marketIndex",
             "type": "u16"
           },
-          {
-            "name": "balance",
-            "type": "u128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "PoolBalance",
-      "type": {
-        "kind": "struct",
-        "fields": [
           {
             "name": "balance",
             "type": "u128"

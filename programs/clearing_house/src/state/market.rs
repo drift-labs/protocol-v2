@@ -7,8 +7,7 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, QUOTE_SPOT_MARKET_INDEX,
-    SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+    AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
@@ -225,49 +224,14 @@ impl PerpMarket {
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(packed)]
-pub struct BasePoolBalance {
-    pub market_index: u16,
-    pub balance: u128,
-}
-
-impl SpotBalance for BasePoolBalance {
-    fn market_index(&self) -> u16 {
-        self.market_index
-    }
-
-    fn balance_type(&self) -> &SpotBalanceType {
-        &SpotBalanceType::Deposit
-    }
-
-    fn balance(&self) -> u128 {
-        self.balance
-    }
-
-    fn increase_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.balance = self.balance.checked_add(delta).ok_or_else(math_error!())?;
-        Ok(())
-    }
-
-    fn decrease_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.balance = self.balance.checked_sub(delta).ok_or_else(math_error!())?;
-        Ok(())
-    }
-
-    fn update_balance_type(&mut self, _balance_type: SpotBalanceType) -> ClearingHouseResult {
-        Err(ErrorCode::CantUpdatePoolBalanceType)
-    }
-}
-
-#[zero_copy]
-#[derive(Default, Eq, PartialEq, Debug)]
-#[repr(packed)]
 pub struct PoolBalance {
+    pub market_index: u16,
     pub balance: u128,
 }
 
 impl SpotBalance for PoolBalance {
     fn market_index(&self) -> u16 {
-        QUOTE_SPOT_MARKET_INDEX
+        self.market_index
     }
 
     fn balance_type(&self) -> &SpotBalanceType {

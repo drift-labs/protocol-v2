@@ -457,7 +457,7 @@ export type SpotMarketAccount = {
 
 	insuranceFundVault: PublicKey;
 	insuranceWithdrawEscrowPeriod: BN;
-	revenuePool: BasePoolBalance;
+	revenuePool: PoolBalance;
 
 	totalIfShares: BN;
 	userIfShares: BN;
@@ -495,11 +495,6 @@ export type SpotMarketAccount = {
 };
 
 export type PoolBalance = {
-	balance: BN;
-	// marketIndex: number;
-};
-
-export type BasePoolBalance = {
 	balance: BN;
 	marketIndex: number;
 };

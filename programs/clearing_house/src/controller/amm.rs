@@ -722,9 +722,9 @@ mod test {
     use crate::controller::insurance::settle_revenue_to_insurance_fund;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION, QUOTE_PRECISION,
-        SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
     };
-    use crate::state::market::{BasePoolBalance, PoolBalance};
+    use crate::state::market::PoolBalance;
 
     #[test]
     fn concentration_coef_tests() {
@@ -1022,11 +1022,13 @@ mod test {
 
                 fee_pool: PoolBalance {
                     balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
+                    market_index: QUOTE_SPOT_MARKET_INDEX,
                 },
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
                 balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
+                market_index: QUOTE_SPOT_MARKET_INDEX,
             },
             ..PerpMarket::default()
         };
@@ -1036,7 +1038,7 @@ mod test {
             deposit_balance: 100 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            revenue_pool: BasePoolBalance::default(),
+            revenue_pool: PoolBalance::default(),
             ..SpotMarket::default()
         };
 
@@ -1097,11 +1099,13 @@ mod test {
 
                 fee_pool: PoolBalance {
                     balance: 50 * SPOT_BALANCE_PRECISION,
+                    market_index: QUOTE_SPOT_MARKET_INDEX,
                 },
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
                 balance: 50 * SPOT_BALANCE_PRECISION,
+                market_index: QUOTE_SPOT_MARKET_INDEX,
             },
             ..PerpMarket::default()
         };
@@ -1111,7 +1115,7 @@ mod test {
             deposit_balance: 200 * SPOT_BALANCE_PRECISION,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            revenue_pool: BasePoolBalance {
+            revenue_pool: PoolBalance {
                 market_index: 0,
                 balance: 100 * SPOT_BALANCE_PRECISION,
             },
