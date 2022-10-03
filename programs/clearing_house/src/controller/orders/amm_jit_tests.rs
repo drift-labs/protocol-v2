@@ -164,6 +164,12 @@ pub mod amm_jit {
                 open_asks: -BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
             ..User::default()
         };
 
@@ -200,6 +206,7 @@ pub mod amm_jit {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -207,7 +214,7 @@ pub mod amm_jit {
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
-        assert_eq!(taker_stats.taker_volume_30d, 102284244);
+        assert_eq!(taker_stats.taker_volume_30d, 102284245);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.perp_positions[0];
@@ -220,8 +227,8 @@ pub mod amm_jit {
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.net_base_asset_amount, 1000000000);
-        assert_eq!(market_after.amm.total_fee, 2064035);
-        assert_eq!(filler_stats.filler_volume_30d, 102284244);
+        assert_eq!(market_after.amm.total_fee, 2064036);
+        assert_eq!(filler_stats.filler_volume_30d, 102284245);
     }
 
     #[test]
@@ -340,6 +347,12 @@ pub mod amm_jit {
                 open_asks: -BASE_PRECISION_I64 * 2,
                 ..PerpPosition::default()
             }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
             ..User::default()
         };
 
@@ -382,6 +395,7 @@ pub mod amm_jit {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -515,6 +529,12 @@ pub mod amm_jit {
                 open_bids: BASE_PRECISION_I64 * 2,
                 ..PerpPosition::default()
             }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
             ..User::default()
         };
 
@@ -557,6 +577,7 @@ pub mod amm_jit {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -685,6 +706,12 @@ pub mod amm_jit {
                 open_bids: BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
             ..User::default()
         };
 
@@ -721,6 +748,7 @@ pub mod amm_jit {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -855,6 +883,12 @@ pub mod amm_jit {
                 open_bids: BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
             ..User::default()
         };
 
@@ -897,6 +931,7 @@ pub mod amm_jit {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -1053,6 +1088,12 @@ pub mod amm_jit {
                 open_asks: -BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
             ..User::default()
         };
 
@@ -1095,6 +1136,7 @@ pub mod amm_jit {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -1102,7 +1144,7 @@ pub mod amm_jit {
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
-        assert_eq!(taker_stats.taker_volume_30d, 102784235);
+        assert_eq!(taker_stats.taker_volume_30d, 102784236);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.perp_positions[0];
@@ -1127,16 +1169,16 @@ pub mod amm_jit {
         let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
 
         assert!(quote_asset_amount_surplus > 0);
-        assert_eq!(quote_asset_amount_surplus, 697891);
+        assert_eq!(quote_asset_amount_surplus, 697892);
 
-        assert_eq!(market_after.amm.total_fee, 736644);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 736644);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, 736644);
-        assert_eq!(market_after.amm.total_mm_fee, 697891);
+        assert_eq!(market_after.amm.total_fee, 736645);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 736645);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, 736645);
+        assert_eq!(market_after.amm.total_mm_fee, 697892);
         assert_eq!(market_after.amm.total_exchange_fee, 38892);
         assert_eq!(market_after.amm.total_fee_withdrawn, 0);
 
-        assert_eq!(filler_stats.filler_volume_30d, 102784235);
+        assert_eq!(filler_stats.filler_volume_30d, 102784236);
     }
 
     #[test]
@@ -1254,6 +1296,12 @@ pub mod amm_jit {
                 open_asks: -BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
             ..User::default()
         };
 
@@ -1297,6 +1345,7 @@ pub mod amm_jit {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -1456,6 +1505,12 @@ pub mod amm_jit {
                 open_bids: BASE_PRECISION_I64 / 2,
                 ..PerpPosition::default()
             }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
             ..User::default()
         };
 
@@ -1499,6 +1554,7 @@ pub mod amm_jit {
             now,
             slot,
             false,
+            true,
         )
         .unwrap();
 
@@ -1730,6 +1786,12 @@ pub mod amm_jit {
                     open_asks: -(baa as i64),
                     ..PerpPosition::default()
                 }),
+                spot_positions: get_spot_positions(SpotPosition {
+                    market_index: 0,
+                    balance_type: SpotBalanceType::Deposit,
+                    balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                    ..SpotPosition::default()
+                }),
                 ..User::default()
             };
 
@@ -1757,6 +1819,7 @@ pub mod amm_jit {
                 now,
                 slot,
                 false,
+                true,
             )
             .unwrap();
 
@@ -2003,6 +2066,12 @@ pub mod amm_jit {
                     open_bids: baa as i64,
                     ..PerpPosition::default()
                 }),
+                spot_positions: get_spot_positions(SpotPosition {
+                    market_index: 0,
+                    balance_type: SpotBalanceType::Deposit,
+                    balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                    ..SpotPosition::default()
+                }),
                 ..User::default()
             };
 
@@ -2030,6 +2099,7 @@ pub mod amm_jit {
                 now,
                 slot,
                 false,
+                true,
             )
             .unwrap();
 

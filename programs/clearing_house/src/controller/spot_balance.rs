@@ -3,7 +3,7 @@ use solana_program::msg;
 
 use crate::controller::spot_position::update_spot_position_balance;
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math::constants::{IF_FACTOR_PRECISION, ONE_HOUR, TWENTY_FOUR_HOUR};
 use crate::math::spot_balance::{
     calculate_accumulated_interest, calculate_utilization, check_withdraw_limits,
@@ -12,9 +12,9 @@ use crate::math::spot_balance::{
 use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
 use crate::math_error;
 use crate::state::events::SpotInterestRecord;
-use crate::state::market::PerpMarket;
+use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
-use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
+use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::user::SpotPosition;
 use crate::validate;
 use std::cmp::max;
@@ -41,6 +41,7 @@ pub fn update_spot_market_twap_stats(
         spot_market,
         &SpotBalanceType::Deposit,
     )?;
+
     let borrow_token_amount = get_token_amount(
         spot_market.borrow_balance,
         spot_market,
@@ -63,9 +64,9 @@ pub fn update_spot_market_twap_stats(
 
     let utilization = calculate_utilization(deposit_token_amount, borrow_token_amount)?;
 
-    spot_market.utilization_twap = cast(calculate_weighted_average(
-        cast(utilization)?,
-        cast(spot_market.utilization_twap)?,
+    spot_market.utilization_twap = cast_to_u128(calculate_weighted_average(
+        cast_to_i128(utilization)?,
+        cast_to_i128(spot_market.utilization_twap)?,
         since_last,
         from_start,
     )?)?;
@@ -112,6 +113,10 @@ pub fn update_spot_market_cumulative_interest(
     oracle_price_data: Option<&OraclePriceData>,
     now: i64,
 ) -> ClearingHouseResult {
+    if spot_market.status == MarketStatus::FundingPaused {
+        return Ok(());
+    }
+
     let InterestAccumulated {
         deposit_interest,
         borrow_interest,
@@ -267,6 +272,97 @@ pub fn update_spot_balances(
     Ok(())
 }
 
+pub fn transfer_spot_balances(
+    token_amount: i128,
+    spot_market: &mut SpotMarket,
+    from_spot_balance: &mut dyn SpotBalance,
+    to_spot_balance: &mut dyn SpotBalance,
+) -> ClearingHouseResult {
+    validate!(
+        from_spot_balance.market_index() == to_spot_balance.market_index(),
+        ErrorCode::DefaultError,
+        "transfer market indexes arent equal",
+    )?;
+
+    if token_amount == 0 {
+        return Ok(());
+    }
+
+    update_spot_balances(
+        token_amount.unsigned_abs(),
+        if token_amount < 0 {
+            &SpotBalanceType::Deposit
+        } else {
+            &SpotBalanceType::Borrow
+        },
+        spot_market,
+        from_spot_balance,
+        false,
+    )?;
+
+    update_spot_balances(
+        token_amount.unsigned_abs(),
+        if token_amount < 0 {
+            &SpotBalanceType::Borrow
+        } else {
+            &SpotBalanceType::Deposit
+        },
+        spot_market,
+        to_spot_balance,
+        false,
+    )?;
+
+    Ok(())
+}
+
+pub fn transfer_revenue_pool_to_spot_balance(
+    token_amount: u128,
+    spot_market: &mut SpotMarket,
+    to_spot_balance: &mut dyn SpotBalance,
+) -> ClearingHouseResult {
+    validate!(
+        to_spot_balance.market_index() == spot_market.market_index,
+        ErrorCode::DefaultError,
+        "transfer market indexes arent equal",
+    )?;
+
+    update_revenue_pool_balances(token_amount, &SpotBalanceType::Borrow, spot_market)?;
+
+    update_spot_balances(
+        token_amount,
+        &SpotBalanceType::Deposit,
+        spot_market,
+        to_spot_balance,
+        false,
+    )?;
+
+    Ok(())
+}
+
+pub fn transfer_spot_balance_to_revenue_pool(
+    token_amount: u128,
+    spot_market: &mut SpotMarket,
+    from_spot_balance: &mut dyn SpotBalance,
+) -> ClearingHouseResult {
+    validate!(
+        from_spot_balance.market_index() == spot_market.market_index,
+        ErrorCode::DefaultError,
+        "transfer market indexes arent equal",
+    )?;
+
+    update_spot_balances(
+        token_amount,
+        &SpotBalanceType::Borrow,
+        spot_market,
+        from_spot_balance,
+        false,
+    )?;
+
+    update_revenue_pool_balances(token_amount, &SpotBalanceType::Deposit, spot_market)?;
+
+    Ok(())
+}
+
 pub fn update_spot_position_balance_with_limits(
     token_amount: u128,
     update_direction: &SpotBalanceType,
@@ -286,7 +382,31 @@ pub fn update_spot_position_balance_with_limits(
     validate!(
         valid_withdraw,
         ErrorCode::DailyWithdrawLimit,
-        "Spot Market has hit daily withdraw limit"
+        "Spot Market {} has hit daily withdraw limit",
+        spot_market.market_index
+    )?;
+
+    validate!(
+        matches!(
+            spot_market.status,
+            MarketStatus::Active
+                | MarketStatus::AmmPaused
+                | MarketStatus::FundingPaused
+                | MarketStatus::FillPaused
+                | MarketStatus::ReduceOnly
+                | MarketStatus::Settlement
+        ),
+        ErrorCode::MarketActionPaused,
+        "Spot Market {} withdraws are currently paused",
+        spot_market.market_index
+    )?;
+
+    validate!(
+        !(spot_market.asset_tier == AssetTier::Protected
+            && spot_position.balance_type() == &SpotBalanceType::Borrow),
+        ErrorCode::AssetTierViolation,
+        "Spot Market {} has Protected status and cannot be borrowed",
+        spot_market.market_index
     )?;
 
     Ok(())
@@ -422,7 +542,7 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             open_interest: 1,
-            status: MarketStatus::Initialized,
+            status: MarketStatus::Active,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -441,6 +561,8 @@ mod test {
             deposit_balance: SPOT_BALANCE_PRECISION,
             borrow_balance: 0,
             deposit_token_twap: QUOTE_PRECISION / 2,
+            status: MarketStatus::Active,
+
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -458,6 +580,8 @@ mod test {
             deposit_balance: SPOT_BALANCE_PRECISION,
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            status: MarketStatus::Active,
+
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
@@ -755,7 +879,7 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             open_interest: 1,
-            status: MarketStatus::Initialized,
+            status: MarketStatus::Active,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
         };
@@ -777,6 +901,8 @@ mod test {
             optimal_utilization: SPOT_UTILIZATION_PRECISION_U32 / 2,
             optimal_borrow_rate: SPOT_RATE_PRECISION_U32 * 20,
             max_borrow_rate: SPOT_RATE_PRECISION_U32 * 50,
+            status: MarketStatus::Active,
+
             ..SpotMarket::default()
         };
 
@@ -796,6 +922,7 @@ mod test {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             revenue_settle_period: 1,
+            status: MarketStatus::Active,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);

@@ -202,7 +202,6 @@ describe('referrer', () => {
 		await eventSubscriber.awaitTx(txSig);
 
 		const eventRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
-		// assert(eventRecord.referrer.equals(provider.wallet.publicKey));
 		assert(eventRecord.takerFee.eq(new BN(95000)));
 		assert(eventRecord.referrerReward === 15000);
 
@@ -236,8 +235,5 @@ describe('referrer', () => {
 		);
 
 		await eventSubscriber.awaitTx(txSig);
-
-		const withdrawRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
-		assert(withdrawRecord.referrer.equals(provider.wallet.publicKey));
 	});
 });

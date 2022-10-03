@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use anchor_spl::token::{Token, TokenAccount};
 
 use crate::controller::spot_balance::{
     update_revenue_pool_balances, update_spot_balances, update_spot_market_cumulative_interest,
@@ -15,6 +16,7 @@ use crate::math::constants::{
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_NUMERATOR,
 };
 use crate::math::helpers::get_proportion_u128;
+use crate::math::helpers::on_the_hour_update;
 use crate::math::insurance::{
     calculate_if_shares_lost, calculate_rebase_info, if_shares_to_vault_amount,
     vault_amount_to_if_shares,
@@ -25,7 +27,10 @@ use crate::state::events::{InsuranceFundRecord, InsuranceFundStakeRecord, StakeA
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::market::PerpMarket;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+use crate::state::state::State;
 use crate::state::user::UserStats;
+
+use crate::controller::token::send_from_program_vault;
 use crate::{emit, validate};
 use solana_program::msg;
 
@@ -486,6 +491,65 @@ pub fn admin_remove_insurance_fund_stake(
     Ok(withdraw_amount)
 }
 
+pub fn attempt_settle_revenue_to_insurance_fund<'info>(
+    spot_market_vault: &Account<'info, TokenAccount>,
+    insurance_fund_vault: &Account<'info, TokenAccount>,
+    spot_market: &mut SpotMarket,
+    now: i64,
+    token_program: &Program<'info, Token>,
+    clearing_house_signer: &AccountInfo<'info>,
+    state: &State,
+) -> Result<()> {
+    let valid_revenue_settle_time = if spot_market.revenue_settle_period > 0 {
+        let time_until_next_update = on_the_hour_update(
+            now,
+            spot_market.last_revenue_settle_ts,
+            spot_market.revenue_settle_period,
+        )?;
+
+        time_until_next_update == 0
+    } else {
+        false
+    };
+
+    let _token_amount = if valid_revenue_settle_time {
+        // uses proportion of revenue pool allocated to insurance fund
+        let spot_market_vault_amount = spot_market_vault.amount;
+        let insurance_fund_vault_amount = insurance_fund_vault.amount;
+
+        let token_amount = settle_revenue_to_insurance_fund(
+            spot_market_vault_amount,
+            insurance_fund_vault_amount,
+            spot_market,
+            now,
+        )?;
+
+        if token_amount > 0 {
+            msg!(
+                "Spot market_index={} sending {} to insurance_fund_vault",
+                spot_market.market_index,
+                token_amount
+            );
+
+            send_from_program_vault(
+                token_program,
+                spot_market_vault,
+                insurance_fund_vault,
+                clearing_house_signer,
+                state.signer_nonce,
+                cast_to_u64(token_amount)?,
+            )?;
+        }
+
+        spot_market.last_revenue_settle_ts = now;
+        token_amount
+    } else {
+        0
+    };
+
+    Ok(())
+}
+
 pub fn settle_revenue_to_insurance_fund(
     spot_market_vault_amount: u64,
     insurance_vault_amount: u64,
@@ -529,9 +593,12 @@ pub fn settle_revenue_to_insurance_fund(
                 .ok_or_else(math_error!())?
                 .checked_div(MAX_APR_PER_REVENUE_SETTLE_PRECISION)
                 .ok_or_else(math_error!())?
-                .checked_div(cast_to_u64(ONE_YEAR)?)
-                .ok_or_else(math_error!())?
-                .checked_div(cast_to_u64(spot_market.revenue_settle_period)?)
+                .checked_div(
+                    cast_to_u64(ONE_YEAR)?
+                        .checked_div(cast_to_u64(spot_market.revenue_settle_period)?)
+                        .ok_or_else(math_error!())?
+                        .max(1),
+                )
                 .ok_or_else(math_error!())?,
         )?;
         token_amount = token_amount.min(capped_apr_amount);

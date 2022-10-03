@@ -26,13 +26,17 @@ pub fn calculate_weighted_average(
         0
     };
 
-    prev_twap_99
+    let twap = prev_twap_99
         .checked_add(latest_price_01)
         .ok_or_else(math_error!())?
         .checked_div(denominator)
-        .ok_or_else(math_error!())?
-        .checked_add(bias)
-        .ok_or_else(math_error!())
+        .ok_or_else(math_error!())?;
+
+    if twap == 0 && bias < 0 {
+        return Ok(twap);
+    }
+
+    twap.checked_add(bias).ok_or_else(math_error!())
 }
 
 pub fn calculate_new_twap(

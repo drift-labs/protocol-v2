@@ -41,12 +41,7 @@
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "adminControlsPrices",
-          "type": "bool"
-        }
-      ]
+      "args": []
     },
     {
       "name": "initializeSpotMarket",
@@ -149,6 +144,10 @@
         {
           "name": "liquidationFee",
           "type": "u128"
+        },
+        {
+          "name": "activeStatus",
+          "type": "bool"
         }
       ]
     },
@@ -307,6 +306,10 @@
         {
           "name": "liquidationFee",
           "type": "u128"
+        },
+        {
+          "name": "activeStatus",
+          "type": "bool"
         }
       ]
     },
@@ -467,6 +470,11 @@
       "name": "updateSpotMarketCumulativeInterest",
       "accounts": [
         {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "spotMarket",
           "isMut": true,
           "isSigner": false
@@ -477,6 +485,11 @@
     {
       "name": "updateSpotMarketExpiry",
       "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
         {
           "name": "spotMarket",
           "isMut": true,
@@ -1080,7 +1093,7 @@
       ]
     },
     {
-      "name": "liquidateBorrow",
+      "name": "liquidateSpot",
       "accounts": [
         {
           "name": "state",
@@ -1337,7 +1350,7 @@
       ]
     },
     {
-      "name": "resolveBorrowBankruptcy",
+      "name": "resolveSpotBankruptcy",
       "accounts": [
         {
           "name": "state",
@@ -1682,7 +1695,7 @@
         },
         {
           "name": "state",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -1787,6 +1800,32 @@
           "type": "publicKey"
         }
       ]
+    },
+    {
+      "name": "deleteUser",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": []
     },
     {
       "name": "settleFundingPayment",
@@ -2094,6 +2133,186 @@
         {
           "name": "revenueSettlePeriod",
           "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketStatus",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": "MarketStatus"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketAssetTier",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "assetTier",
+          "type": {
+            "defined": "AssetTier"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketMarginWeights",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "initialAssetWeight",
+          "type": "u128"
+        },
+        {
+          "name": "maintenanceAssetWeight",
+          "type": "u128"
+        },
+        {
+          "name": "initialLiabilityWeight",
+          "type": "u128"
+        },
+        {
+          "name": "maintenanceLiabilityWeight",
+          "type": "u128"
+        },
+        {
+          "name": "imfFactor",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketMaxTokenDeposits",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxTokenDeposits",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketStatus",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": "MarketStatus"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketContractTier",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "contractTier",
+          "type": {
+            "defined": "ContractTier"
+          }
         }
       ]
     },
@@ -2578,7 +2797,7 @@
       ]
     },
     {
-      "name": "updateExchangePaused",
+      "name": "updateExchangeStatus",
       "accounts": [
         {
           "name": "admin",
@@ -2593,45 +2812,10 @@
       ],
       "args": [
         {
-          "name": "exchangePaused",
-          "type": "bool"
-        }
-      ]
-    },
-    {
-      "name": "disableAdminControlsPrices",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "updateFundingPaused",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "fundingPaused",
-          "type": "bool"
+          "name": "exchangeStatus",
+          "type": {
+            "defined": "ExchangeStatus"
+          }
         }
       ]
     },
@@ -2773,6 +2957,11 @@
       "name": "addInsuranceFundStake",
       "accounts": [
         {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "spotMarket",
           "isMut": false,
           "isSigner": false
@@ -2793,8 +2982,18 @@
           "isSigner": true
         },
         {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "insuranceFundVault",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -3109,6 +3308,12 @@
             }
           },
           {
+            "name": "contractTier",
+            "type": {
+              "defined": "ContractTier"
+            }
+          },
+          {
             "name": "settlementPrice",
             "type": "i128"
           },
@@ -3251,6 +3456,12 @@
             }
           },
           {
+            "name": "assetTier",
+            "type": {
+              "defined": "AssetTier"
+            }
+          },
+          {
             "name": "expiryTs",
             "type": "i64"
           },
@@ -3348,6 +3559,10 @@
           },
           {
             "name": "borrowBalance",
+            "type": "u128"
+          },
+          {
+            "name": "maxTokenDeposits",
             "type": "u128"
           },
           {
@@ -3509,16 +3724,10 @@
             "type": "publicKey"
           },
           {
-            "name": "exchangePaused",
-            "type": "bool"
-          },
-          {
-            "name": "fundingPaused",
-            "type": "bool"
-          },
-          {
-            "name": "adminControlsPrices",
-            "type": "bool"
+            "name": "exchangeStatus",
+            "type": {
+              "defined": "ExchangeStatus"
+            }
           },
           {
             "name": "whitelistMint",
@@ -3533,6 +3742,10 @@
             "type": {
               "defined": "OracleGuardRails"
             }
+          },
+          {
+            "name": "numberOfAuthorities",
+            "type": "u64"
           },
           {
             "name": "numberOfMarkets",
@@ -3886,7 +4099,7 @@
       }
     },
     {
-      "name": "LiquidateBorrowRecord",
+      "name": "LiquidateSpotRecord",
       "type": {
         "kind": "struct",
         "fields": [
@@ -4010,7 +4223,7 @@
       }
     },
     {
-      "name": "BorrowBankruptcyRecord",
+      "name": "SpotBankruptcyRecord",
       "type": {
         "kind": "struct",
         "fields": [
@@ -4038,6 +4251,10 @@
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
           {
             "name": "balance",
             "type": "u128"
@@ -5085,7 +5302,7 @@
             "name": "LiquidatePerp"
           },
           {
-            "name": "LiquidateBorrow"
+            "name": "LiquidateSpot"
           },
           {
             "name": "LiquidateBorrowForPerpPnl"
@@ -5097,7 +5314,7 @@
             "name": "PerpBankruptcy"
           },
           {
-            "name": "BorrowBankruptcy"
+            "name": "SpotBankruptcy"
           }
         ]
       }
@@ -5159,6 +5376,21 @@
             "name": "Initialized"
           },
           {
+            "name": "Active"
+          },
+          {
+            "name": "FundingPaused"
+          },
+          {
+            "name": "AmmPaused"
+          },
+          {
+            "name": "FillPaused"
+          },
+          {
+            "name": "WithdrawPaused"
+          },
+          {
             "name": "ReduceOnly"
           },
           {
@@ -5180,6 +5412,26 @@
           },
           {
             "name": "Future"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ContractTier",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "A"
+          },
+          {
+            "name": "B"
+          },
+          {
+            "name": "C"
+          },
+          {
+            "name": "Speculative"
           }
         ]
       }
@@ -5225,6 +5477,58 @@
           },
           {
             "name": "Disabled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AssetTier",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Collateral"
+          },
+          {
+            "name": "Protected"
+          },
+          {
+            "name": "Cross"
+          },
+          {
+            "name": "Isolated"
+          },
+          {
+            "name": "Unlisted"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ExchangeStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "FundingPaused"
+          },
+          {
+            "name": "AmmPaused"
+          },
+          {
+            "name": "FillPaused"
+          },
+          {
+            "name": "LiqPaused"
+          },
+          {
+            "name": "WithdrawPaused"
+          },
+          {
+            "name": "Paused"
           }
         ]
       }
@@ -6039,9 +6343,9 @@
           "index": false
         },
         {
-          "name": "liquidateBorrow",
+          "name": "liquidateSpot",
           "type": {
-            "defined": "LiquidateBorrowRecord"
+            "defined": "LiquidateSpotRecord"
           },
           "index": false
         },
@@ -6067,9 +6371,9 @@
           "index": false
         },
         {
-          "name": "borrowBankruptcy",
+          "name": "spotBankruptcy",
           "type": {
-            "defined": "BorrowBankruptcyRecord"
+            "defined": "SpotBankruptcyRecord"
           },
           "index": false
         }
@@ -6436,7 +6740,7 @@
     },
     {
       "code": 6038,
-      "name": "UserMaxDeposit",
+      "name": "MaxDeposit",
       "msg": "Can not deposit more than max deposit"
     },
     {
@@ -6898,6 +7202,21 @@
       "code": 6130,
       "name": "InsufficientIFShares",
       "msg": "Insufficient IF shares"
+    },
+    {
+      "code": 6131,
+      "name": "MarketActionPaused",
+      "msg": "the Market has paused this action"
+    },
+    {
+      "code": 6132,
+      "name": "AssetTierViolation",
+      "msg": "Action violates the asset tier rules"
+    },
+    {
+      "code": 6133,
+      "name": "UserCantBeDeleted",
+      "msg": "User Cant Be Deleted"
     }
   ]
 }

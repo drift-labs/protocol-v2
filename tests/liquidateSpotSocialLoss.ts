@@ -30,7 +30,7 @@ import {
 } from './testHelpers';
 import { isVariant, ONE } from '../sdk';
 
-describe('liquidate borrow w/ social loss', () => {
+describe('liquidate spot w/ social loss', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
@@ -134,7 +134,7 @@ describe('liquidate borrow w/ social loss', () => {
 		const spotMarketBefore = clearingHouse.getSpotMarketAccount(0);
 		const spotMarket1Before = clearingHouse.getSpotMarketAccount(1);
 
-		const txSig = await liquidatorClearingHouse.liquidateBorrow(
+		const txSig = await liquidatorClearingHouse.liquidateSpot(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
 			0,
@@ -170,24 +170,22 @@ describe('liquidate borrow w/ social loss', () => {
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(liquidationRecord.liquidationId === 1);
-		assert(isVariant(liquidationRecord.liquidationType, 'liquidateBorrow'));
-		assert(liquidationRecord.liquidateBorrow.assetPrice.eq(PRICE_PRECISION));
-		assert(liquidationRecord.liquidateBorrow.assetMarketIndex === 0);
+		assert(isVariant(liquidationRecord.liquidationType, 'liquidateSpot'));
+		assert(liquidationRecord.liquidateSpot.assetPrice.eq(PRICE_PRECISION));
+		assert(liquidationRecord.liquidateSpot.assetMarketIndex === 0);
+		assert(liquidationRecord.liquidateSpot.assetTransfer.eq(new BN(100000000)));
 		assert(
-			liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(100000000))
-		);
-		assert(
-			liquidationRecord.liquidateBorrow.liabilityPrice.eq(
+			liquidationRecord.liquidateSpot.liabilityPrice.eq(
 				new BN(200).mul(PRICE_PRECISION)
 			)
 		);
-		assert(liquidationRecord.liquidateBorrow.liabilityMarketIndex === 1);
+		assert(liquidationRecord.liquidateSpot.liabilityMarketIndex === 1);
 		assert(
-			liquidationRecord.liquidateBorrow.liabilityTransfer.eq(new BN(500000000))
+			liquidationRecord.liquidateSpot.liabilityTransfer.eq(new BN(500000000))
 		);
 		assert(
-			liquidationRecord.liquidateBorrow.ifFee.eq(
-				liquidationRecord.liquidateBorrow.liabilityTransfer.div(new BN(100))
+			liquidationRecord.liquidateSpot.ifFee.eq(
+				liquidationRecord.liquidateSpot.liabilityTransfer.div(new BN(100))
 			)
 		);
 		await clearingHouse.fetchAccounts();
@@ -290,7 +288,7 @@ describe('liquidate borrow w/ social loss', () => {
 		const spotMarketCumulativeDepositInterestBefore =
 			clearingHouse.getSpotMarketAccount(1).cumulativeDepositInterest;
 
-		await liquidatorClearingHouse.resolveBorrowBankruptcy(
+		await liquidatorClearingHouse.resolveSpotBankruptcy(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
 			1
@@ -304,19 +302,19 @@ describe('liquidate borrow w/ social loss', () => {
 
 		const bankruptcyRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
-		assert(isVariant(bankruptcyRecord.liquidationType, 'borrowBankruptcy'));
-		console.log(bankruptcyRecord.borrowBankruptcy);
-		assert(bankruptcyRecord.borrowBankruptcy.marketIndex === 1);
-		console.log(bankruptcyRecord.borrowBankruptcy.borrowAmount.toString());
+		assert(isVariant(bankruptcyRecord.liquidationType, 'spotBankruptcy'));
+		console.log(bankruptcyRecord.spotBankruptcy);
+		assert(bankruptcyRecord.spotBankruptcy.marketIndex === 1);
+		console.log(bankruptcyRecord.spotBankruptcy.borrowAmount.toString());
 		assert(
-			bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(5001585)) ||
-				bankruptcyRecord.borrowBankruptcy.borrowAmount.eq(new BN(5001268))
+			bankruptcyRecord.spotBankruptcy.borrowAmount.eq(new BN(5001585)) ||
+				bankruptcyRecord.spotBankruptcy.borrowAmount.eq(new BN(5001268))
 		);
 		const spotMarket = clearingHouse.getSpotMarketAccount(1);
 		assert(
 			spotMarket.cumulativeDepositInterest.eq(
 				spotMarketCumulativeDepositInterestBefore.sub(
-					bankruptcyRecord.borrowBankruptcy.cumulativeDepositInterestDelta
+					bankruptcyRecord.spotBankruptcy.cumulativeDepositInterestDelta
 				)
 			)
 		);
