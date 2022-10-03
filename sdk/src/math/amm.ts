@@ -693,6 +693,10 @@ export function calculateQuoteAssetAmountSwapped(
 	pegMultiplier: BN,
 	swapDirection: SwapDirection
 ): BN {
+	if (isVariant(swapDirection, 'remove')) {
+		quoteAssetReserves = quoteAssetReserves.add(ONE);
+	}
+
 	let quoteAssetAmount = quoteAssetReserves
 		.mul(pegMultiplier)
 		.div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO);

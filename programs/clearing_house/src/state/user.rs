@@ -167,6 +167,10 @@ pub struct SpotPosition {
 }
 
 impl SpotBalance for SpotPosition {
+    fn market_index(&self) -> u16 {
+        self.market_index
+    }
+
     fn balance_type(&self) -> &SpotBalanceType {
         &self.balance_type
     }

@@ -18,7 +18,9 @@ use crate::controller::position::{
     PositionDirection,
 };
 use crate::controller::serum::{invoke_new_order, invoke_settle_funds, SerumFulfillmentParams};
-use crate::controller::spot_balance::update_spot_balances;
+use crate::controller::spot_balance::{
+    transfer_spot_balance_to_revenue_pool, update_spot_balances,
+};
 use crate::controller::spot_position::{
     decrease_spot_open_bids_and_asks, increase_spot_open_bids_and_asks,
     update_spot_position_balance,
@@ -30,7 +32,9 @@ use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::auction::{calculate_auction_end_price, is_auction_complete};
 use crate::math::casting::{cast, cast_to_i128, cast_to_u64, Cast};
-use crate::math::constants::{PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX};
+use crate::math::constants::{
+    PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX, SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+};
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
@@ -54,7 +58,7 @@ use crate::print_error;
 use crate::state::events::{get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::market::PerpMarket;
+use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -248,14 +252,15 @@ pub fn place_order(
     let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
         <= worst_case_base_asset_amount_before.unsigned_abs();
 
-    let meets_initial_maintenance_requirement =
-        meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+    let meets_initial_margin_requirement = meets_place_order_margin_requirement(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        risk_decreasing,
+    )?;
 
-    if !meets_initial_maintenance_requirement && !risk_decreasing {
-        return Err(ErrorCode::InsufficientCollateral);
-    }
-
-    if force_reduce_only && !risk_decreasing {
+    if !meets_initial_margin_requirement || (force_reduce_only && !risk_decreasing) {
         return Err(ErrorCode::InvalidOrder);
     }
 
@@ -305,11 +310,13 @@ pub fn cancel_order_by_order_id(
 ) -> ClearingHouseResult {
     let user_key = user.key();
     let user = &mut load_mut!(user)?;
-    let order_index = user
-        .orders
-        .iter()
-        .position(|order| order.order_id == order_id)
-        .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
+    let order_index = match user.get_order_index(order_id) {
+        Ok(order_index) => order_index,
+        Err(_) => {
+            msg!("could not find order id {}", order_id);
+            return Ok(());
+        }
+    };
 
     cancel_order(
         order_index,
@@ -337,11 +344,17 @@ pub fn cancel_order_by_user_order_id(
 ) -> ClearingHouseResult {
     let user_key = user.key();
     let user = &mut load_mut!(user)?;
-    let order_index = user
+    let order_index = match user
         .orders
         .iter()
         .position(|order| order.user_order_id == user_order_id)
-        .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
+    {
+        Some(order_index) => order_index,
+        None => {
+            msg!("could not find user order id {}", user_order_id);
+            return Ok(());
+        }
+    };
 
     cancel_order(
         order_index,
@@ -505,6 +518,18 @@ pub fn fill_order(
     controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
     controller::lp::settle_lp(user, &user_key, &mut market, now)?;
 
+    validate!(
+        matches!(
+            market.status,
+            MarketStatus::Active
+                | MarketStatus::FundingPaused
+                | MarketStatus::ReduceOnly
+                | MarketStatus::WithdrawPaused
+        ),
+        ErrorCode::DefaultError,
+        "Market unavailable for fills"
+    )?;
+
     drop(market);
 
     validate!(
@@ -519,24 +544,36 @@ pub fn fill_order(
         "Order must be triggered first"
     )?;
 
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+    if user.bankrupt {
+        msg!("user is bankrupt");
+        return Ok((0, false));
+    }
 
-    validate_user_not_being_liquidated(
+    match validate_user_not_being_liquidated(
         user,
         perp_market_map,
         spot_market_map,
         oracle_map,
         state.liquidation_margin_buffer_ratio,
-    )?;
+    ) {
+        Ok(_) => {}
+        Err(_) => {
+            msg!("user is being liquidated");
+            return Ok((0, false));
+        }
+    }
 
     let reserve_price_before: u128;
     let oracle_reserve_price_spread_pct_before: i128;
     let is_oracle_valid: bool;
     let oracle_price: i128;
     let market_is_reduce_only: bool;
+    let mut amm_is_available = state.exchange_status != ExchangeStatus::AmmPaused;
+
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         market_is_reduce_only = market.is_reduce_only()?;
+        amm_is_available &= market.status != MarketStatus::AmmPaused;
         controller::validate::validate_market_account(market)?;
         validate!(
             market.is_active(now)?,
@@ -686,6 +723,7 @@ pub fn fill_order(
         now,
         slot,
         market_is_reduce_only,
+        amm_is_available,
     )?;
 
     if should_cancel_order_after_fulfill(user, order_index, slot)? {
@@ -734,13 +772,16 @@ pub fn fill_order(
     // Try to update the funding rate at the end of every trade
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
+        let funding_paused = matches!(state.exchange_status, ExchangeStatus::FundingPaused)
+            || matches!(market.status, MarketStatus::FundingPaused);
+
         controller::funding::update_funding_rate(
             market_index,
             market,
             oracle_map,
             now,
             &state.oracle_guard_rails,
-            state.funding_paused,
+            funding_paused,
             Some(reserve_price_before),
         )?;
     }
@@ -998,6 +1039,7 @@ fn fulfill_order(
     now: i64,
     slot: u64,
     market_is_reduce_only: bool,
+    amm_is_available: bool,
 ) -> ClearingHouseResult<(u64, bool, bool)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -1033,7 +1075,7 @@ fn fulfill_order(
     let fulfillment_methods = determine_perp_fulfillment_methods(
         &user.orders[user_order_index],
         maker.is_some(),
-        valid_oracle_price.is_some(),
+        amm_is_available,
         slot,
     )?;
 
@@ -2253,11 +2295,16 @@ pub fn place_spot_order(
     let risk_decreasing = worst_case_token_amount_after.unsigned_abs()
         <= worst_case_token_amount_before.unsigned_abs();
 
-    let meets_initial_maintenance_requirement =
-        meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+    let meets_initial_margin_requirement = meets_place_order_margin_requirement(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        risk_decreasing,
+    )?;
 
-    if !meets_initial_maintenance_requirement && !risk_decreasing {
-        return Err(ErrorCode::InsufficientCollateral);
+    if !meets_initial_margin_requirement || (force_reduce_only && !risk_decreasing) {
+        return Err(ErrorCode::InvalidOrder);
     }
 
     let (taker, taker_order, maker, maker_order) =
@@ -2326,8 +2373,23 @@ pub fn fill_spot_order(
         .position(|order| order.order_id == order_id)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
-    let (order_status, order_market_type) =
-        get_struct_values!(user.orders[order_index], status, market_type);
+    let (order_status, order_market_index, order_market_type) =
+        get_struct_values!(user.orders[order_index], status, market_index, market_type);
+
+    {
+        let spot_market = spot_market_map.get_ref(&order_market_index)?;
+        validate!(
+            matches!(
+                spot_market.status,
+                MarketStatus::Active
+                    | MarketStatus::FundingPaused
+                    | MarketStatus::ReduceOnly
+                    | MarketStatus::WithdrawPaused
+            ),
+            ErrorCode::DefaultError,
+            "Market unavailable for fills"
+        )?;
+    }
 
     validate!(
         order_market_type == MarketType::Spot,
@@ -2347,15 +2409,24 @@ pub fn fill_spot_order(
         "Order must be triggered first"
     )?;
 
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+    if user.bankrupt {
+        msg!("User is bankrupt");
+        return Ok(0);
+    }
 
-    validate_user_not_being_liquidated(
+    match validate_user_not_being_liquidated(
         user,
         perp_market_map,
         spot_market_map,
         oracle_map,
         state.liquidation_margin_buffer_ratio,
-    )?;
+    ) {
+        Ok(_) => {}
+        Err(_) => {
+            msg!("User is being liquidated");
+            return Ok(0);
+        }
+    }
 
     // TODO SPOT do we need before and after oracle guardrail checks?
 
@@ -2943,6 +3014,20 @@ pub fn fulfill_spot_order_with_match(
         false,
     )?;
 
+    let fee_pool_amount = get_token_amount(
+        base_market.spot_fee_pool.balance,
+        quote_market,
+        &SpotBalanceType::Deposit,
+    )?;
+
+    if fee_pool_amount > SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD * 2 {
+        transfer_spot_balance_to_revenue_pool(
+            fee_pool_amount - SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+            quote_market,
+            &mut base_market.spot_fee_pool,
+        )?;
+    }
+
     let fill_record_id = get_then_update_id!(base_market, next_fill_record_id);
     let order_action_record = get_order_action_record(
         now,
@@ -3251,9 +3336,17 @@ pub fn fulfill_spot_order_with_serum(
 
     let fee_pool_amount = get_token_amount(
         base_market.spot_fee_pool.balance,
-        base_market,
+        quote_market,
         &SpotBalanceType::Deposit,
     )?;
+
+    if fee_pool_amount > SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD * 2 {
+        transfer_spot_balance_to_revenue_pool(
+            fee_pool_amount - SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+            quote_market,
+            &mut base_market.spot_fee_pool,
+        )?;
+    }
 
     let SerumFillFees {
         user_fee: taker_fee,

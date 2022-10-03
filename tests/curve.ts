@@ -296,7 +296,7 @@ describe('AMM Curve', () => {
 	// 	const ammAccountState = marketData1.amm;
 	// 	const oldPeg = ammAccountState.pegMultiplier;
 
-	// 	const priceBefore = calculateMarkPrice(
+	// 	const priceBefore = calculateReservePrice(
 	// 		clearingHouse.getPerpMarketAccount(marketIndex)
 	// 	);
 
@@ -305,7 +305,7 @@ describe('AMM Curve', () => {
 	// 		marketIndex
 	// 	);
 
-	// 	const priceAfter = calculateMarkPrice(
+	// 	const priceAfter = calculateReservePrice(
 	// 		clearingHouse.getPerpMarketAccount(marketIndex)
 	// 	);
 

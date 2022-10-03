@@ -77,6 +77,8 @@ describe('BigNum Tests', () => {
 		expect(val.toPrecision(5)).to.equal('1234.5');
 		expect(val.toPrecision(11)).to.equal('1234.5678900');
 
+		expect(BigNum.from('1234').toPrecision(5)).to.equal('1234.0');
+
 		// Case 2
 		const val2 = BigNum.from(1, 5);
 
@@ -118,8 +120,8 @@ describe('BigNum Tests', () => {
 		expect(BigNum.fromPrint('1').toMillified(5)).to.equal('1.0000');
 		expect(BigNum.fromPrint('12').toMillified(5)).to.equal('12.000');
 		expect(BigNum.fromPrint('123').toMillified(5)).to.equal('123.00');
-		expect(BigNum.fromPrint('1234').toMillified(5)).to.equal('1.2340K');
-		expect(BigNum.fromPrint('12345').toMillified(5)).to.equal('12.345K');
+		expect(BigNum.fromPrint('1234').toMillified(5)).to.equal('1234.0');
+		expect(BigNum.fromPrint('12345').toMillified(5)).to.equal('12345');
 		expect(BigNum.fromPrint('123456').toMillified(5)).to.equal('123.45K');
 		expect(BigNum.fromPrint('1234567').toMillified(5)).to.equal('1.2345M');
 		expect(BigNum.fromPrint('12345678').toMillified(5)).to.equal('12.345M');

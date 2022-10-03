@@ -218,3 +218,23 @@ pub fn get_serum_fulfillment_accounts<'a, 'b, 'c>(
 
     Ok(Some(serum_fulfillment_accounts))
 }
+
+pub fn get_whitelist_token<'a>(
+    account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
+) -> ClearingHouseResult<Account<'a, TokenAccount>> {
+    let token_account_info = account_info_iter.peek();
+    if token_account_info.is_none() {
+        msg!("Could not find whitelist token");
+        return Err(ErrorCode::InvalidWhitelistToken);
+    }
+
+    let token_account_info = token_account_info.unwrap();
+    let whitelist_token: Account<TokenAccount> =
+        Account::try_from(token_account_info).map_err(|e| {
+            msg!("Unable to deserialize whitelist token");
+            msg!("{:?}", e);
+            ErrorCode::InvalidWhitelistToken
+        })?;
+
+    Ok(whitelist_token)
+}

@@ -91,6 +91,7 @@ describe('update k', () => {
 			periodicity,
 			new BN(initialSOLPrice * PEG_PRECISION.toNumber())
 		);
+		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
 
 		await clearingHouse.initializeUserAccount();
 		userAccount = new ClearingHouseUser({

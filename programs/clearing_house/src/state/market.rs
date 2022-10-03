@@ -6,8 +6,9 @@ use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
-use crate::math::constants::{AMM_RESERVE_PRECISION, SPOT_WEIGHT_PRECISION};
-use crate::math::constants::{LIQUIDATION_FEE_PRECISION, TWENTY_FOUR_HOUR};
+use crate::math::constants::{
+    AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+};
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
@@ -24,10 +25,15 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum MarketStatus {
-    Initialized,
-    ReduceOnly,
-    Settlement,
-    Delisted,
+    Initialized,    // warm up period for initialization, fills are paused
+    Active,         // all operations allowed
+    FundingPaused,  // perp: pause funding rate updates | spot: pause interest updates
+    AmmPaused,      // amm fills are prevented/blocked
+    FillPaused,     // fills are blocked
+    WithdrawPaused, // perp: pause settling positive pnl | spot: pause withdrawing asset
+    ReduceOnly,     // fills only able to reduce liability
+    Settlement, // market has determined settlement price and positions are expired must be settled
+    Delisted,   // market has no remaining participants
 }
 
 impl Default for MarketStatus {
@@ -48,6 +54,20 @@ impl Default for ContractType {
     }
 }
 
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum ContractTier {
+    A,           // max insurance capped at A level
+    B,           // max insurance capped at B level
+    C,           // max insurance capped at C level
+    Speculative, // no insurance
+}
+
+impl Default for ContractTier {
+    fn default() -> Self {
+        ContractTier::Speculative
+    }
+}
+
 #[account(zero_copy)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(packed)]
@@ -56,6 +76,7 @@ pub struct PerpMarket {
     pub pubkey: Pubkey,
     pub status: MarketStatus,
     pub contract_type: ContractType,
+    pub contract_tier: ContractTier,
     pub settlement_price: i128, // iff market has expired, price users can settle position
     pub expiry_ts: i64,         // iff market in reduce only mode
     pub amm: AMM,
@@ -222,11 +243,17 @@ impl PerpMarket {
 
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug)]
+#[repr(packed)]
 pub struct PoolBalance {
+    pub market_index: u16,
     pub balance: u128,
 }
 
 impl SpotBalance for PoolBalance {
+    fn market_index(&self) -> u16 {
+        self.market_index
+    }
+
     fn balance_type(&self) -> &SpotBalanceType {
         &SpotBalanceType::Deposit
     }

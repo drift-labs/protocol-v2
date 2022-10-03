@@ -81,6 +81,10 @@ describe('round in favor', () => {
 			periodicity,
 			new BN(63000000000)
 		);
+		await primaryClearingHouse.updatePerpMarketStatus(
+			new BN(0),
+			MarketStatus.ACTIVE
+		);
 	});
 
 	after(async () => {
@@ -135,7 +139,7 @@ describe('round in favor', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-99409))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-99472))
 		);
 		await clearingHouse.unsubscribe();
 	});
@@ -185,7 +189,7 @@ describe('round in favor', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-99419))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-99482))
 		);
 		await clearingHouse.unsubscribe();
 	});
