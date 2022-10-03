@@ -8,6 +8,7 @@ export class ExchangeStatus {
 	static readonly FUNDINGPAUSED = { fundingpaused: {} };
 	static readonly AMMPAUSED = { ammpaused: {} };
 	static readonly FILLPAUSED = { fillpaused: {} };
+	static readonly LIQPAUSED = { liqpaused: {} };
 	static readonly WITHDRAWPAUSED = { withdrawpaused: {} };
 	static readonly PAUSED = { paused: {} };
 }

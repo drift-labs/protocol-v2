@@ -35,6 +35,7 @@ pub enum ExchangeStatus {
     FundingPaused,
     AmmPaused,
     FillPaused,
+    LiqPaused,
     WithdrawPaused,
     Paused,
 }

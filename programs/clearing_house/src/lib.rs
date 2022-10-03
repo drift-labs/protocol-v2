@@ -1839,7 +1839,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        liq_not_paused(&ctx.accounts.state)
     )]
     pub fn liquidate_perp(
         ctx: Context<LiquidatePerp>,
@@ -1895,7 +1895,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        liq_not_paused(&ctx.accounts.state)
     )]
     pub fn liquidate_spot(
         ctx: Context<LiquidateSpot>,
@@ -1951,7 +1951,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        liq_not_paused(&ctx.accounts.state)
     )]
     pub fn liquidate_borrow_for_perp_pnl(
         ctx: Context<LiquidateBorrowForPerpPnl>,
@@ -2006,7 +2006,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        liq_not_paused(&ctx.accounts.state)
     )]
     pub fn liquidate_perp_pnl_for_deposit(
         ctx: Context<LiquidatePerpPnlForDeposit>,
@@ -2861,7 +2861,7 @@ pub mod clearing_house {
 
         validate!(
             matches!(market.status, MarketStatus::Active),
-            ErrorCode::DefaultError,
+            ErrorCode::MarketActionPaused,
             "Market funding is paused",
         )?;
 
@@ -4002,6 +4002,16 @@ fn market_valid(market: &AccountLoader<PerpMarket>) -> Result<()> {
 fn valid_oracle_for_market(oracle: &AccountInfo, market: &AccountLoader<PerpMarket>) -> Result<()> {
     if !market.load()?.amm.oracle.eq(oracle.key) {
         return Err(ErrorCode::InvalidOracle.into());
+    }
+    Ok(())
+}
+
+fn liq_not_paused(state: &Account<State>) -> Result<()> {
+    if matches!(
+        state.exchange_status,
+        ExchangeStatus::LiqPaused | ExchangeStatus::Paused
+    ) {
+        return Err(ErrorCode::ExchangePaused.into());
     }
     Ok(())
 }
