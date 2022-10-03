@@ -309,11 +309,13 @@ pub fn cancel_order_by_order_id(
 ) -> ClearingHouseResult {
     let user_key = user.key();
     let user = &mut load_mut!(user)?;
-    let order_index = user
-        .orders
-        .iter()
-        .position(|order| order.order_id == order_id)
-        .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
+    let order_index = match user.get_order_index(order_id) {
+        Ok(order_index) => order_index,
+        Err(_) => {
+            msg!("could not find order id {}", order_id);
+            return Ok(());
+        }
+    };
 
     cancel_order(
         order_index,
@@ -341,11 +343,17 @@ pub fn cancel_order_by_user_order_id(
 ) -> ClearingHouseResult {
     let user_key = user.key();
     let user = &mut load_mut!(user)?;
-    let order_index = user
+    let order_index = match user
         .orders
         .iter()
         .position(|order| order.user_order_id == user_order_id)
-        .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
+    {
+        Some(order_index) => order_index,
+        None => {
+            msg!("could not find user order id {}", user_order_id);
+            return Ok(());
+        }
+    };
 
     cancel_order(
         order_index,
