@@ -1,7 +1,7 @@
 mod calculate_base_asset_amount_to_cover_margin_shortage {
     use crate::math::constants::{
-        AMM_TO_QUOTE_PRECISION_RATIO, BASE_PRECISION, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
-        PRICE_PRECISION, PRICE_PRECISION_I128, QUOTE_PRECISION,
+        AMM_TO_QUOTE_PRECISION_RATIO, BASE_PRECISION_U64, LIQUIDATION_FEE_PRECISION,
+        MARGIN_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128, QUOTE_PRECISION,
     };
     use crate::math::liquidation::calculate_base_asset_amount_to_cover_margin_shortage;
 
@@ -20,7 +20,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION); // must lose 1 base
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64); // must lose 1 base
     }
 
     #[test]
@@ -38,13 +38,13 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
         )
         .unwrap();
 
-        let freed_collateral = base_asset_amount * oracle_price.unsigned_abs()
+        let freed_collateral = (base_asset_amount as u128) * oracle_price.unsigned_abs()
             / PRICE_PRECISION
             / AMM_TO_QUOTE_PRECISION_RATIO
             * margin_ratio as u128
             / MARGIN_PRECISION;
 
-        let negative_pnl = base_asset_amount * oracle_price.unsigned_abs()
+        let negative_pnl = (base_asset_amount as u128) * oracle_price.unsigned_abs()
             / PRICE_PRECISION
             / AMM_TO_QUOTE_PRECISION_RATIO
             * liquidation_fee
@@ -52,7 +52,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
 
         assert_eq!(freed_collateral - negative_pnl, 10000000); // ~$10
 
-        assert_eq!(base_asset_amount, BASE_PRECISION * 10 / 9); // must lose 10/9 base
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64 * 10 / 9); // must lose 10/9 base
     }
 
     #[test]
@@ -71,19 +71,19 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
         )
         .unwrap();
 
-        let if_fee = base_asset_amount * oracle_price.unsigned_abs()
+        let if_fee = (base_asset_amount as u128) * oracle_price.unsigned_abs()
             / PRICE_PRECISION
             / AMM_TO_QUOTE_PRECISION_RATIO
             * if_liquidation_fee
             / LIQUIDATION_FEE_PRECISION;
 
-        let freed_collateral = base_asset_amount * oracle_price.unsigned_abs()
+        let freed_collateral = (base_asset_amount as u128) * oracle_price.unsigned_abs()
             / PRICE_PRECISION
             / AMM_TO_QUOTE_PRECISION_RATIO
             * margin_ratio as u128
             / MARGIN_PRECISION;
 
-        let negative_pnl = base_asset_amount * oracle_price.unsigned_abs()
+        let negative_pnl = (base_asset_amount as u128) * oracle_price.unsigned_abs()
             / PRICE_PRECISION
             / AMM_TO_QUOTE_PRECISION_RATIO
             * liquidation_fee

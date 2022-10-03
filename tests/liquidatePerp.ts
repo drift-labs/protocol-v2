@@ -8,14 +8,7 @@ import {
 	QUOTE_PRECISION,
 	ZERO,
 	OracleGuardRails,
-} from '../sdk';
-import { assert } from 'chai';
-
-import { Program } from '@project-serum/anchor';
-
-import { Keypair } from '@solana/web3.js';
-
-import {
+	ContractTier,
 	Admin,
 	ClearingHouse,
 	EventSubscriber,
@@ -24,6 +17,11 @@ import {
 	PositionDirection,
 	Wallet,
 } from '../sdk/src';
+import { assert } from 'chai';
+
+import { Program } from '@project-serum/anchor';
+
+import { Keypair } from '@solana/web3.js';
 
 import {
 	mockOracle,
@@ -254,8 +252,6 @@ describe('liquidate perp and lp', () => {
 		assert(
 			liquidationRecord.liquidatePerp.quoteAssetAmount.eq(new BN(1750000))
 		);
-		assert(liquidationRecord.liquidatePerp.userPnl.eq(new BN(-15767507)));
-		assert(liquidationRecord.liquidatePerp.liquidatorPnl.eq(new BN(0)));
 		assert(liquidationRecord.liquidatePerp.lpShares.eq(nLpShares));
 
 		await liquidatorClearingHouse.liquidatePerpPnlForDeposit(
@@ -283,6 +279,7 @@ describe('liquidate perp and lp', () => {
 			assert(err.message.includes('0x17de'));
 		}
 
+		await clearingHouse.updatePerpMarketContractTier(new BN(0), ContractTier.A);
 		const tx1 = await clearingHouse.updateMarketMaxImbalances(
 			marketIndex,
 			new BN(40000).mul(QUOTE_PRECISION),

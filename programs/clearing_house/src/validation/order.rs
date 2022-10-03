@@ -12,7 +12,7 @@ use crate::math::orders::{
 };
 use crate::state::market::PerpMarket;
 use crate::state::state::State;
-use crate::state::user::{Order, OrderTriggerCondition, OrderType};
+use crate::state::user::{Order, OrderType};
 use crate::validate;
 
 pub fn validate_order(
@@ -40,7 +40,7 @@ pub fn validate_order(
     Ok(())
 }
 
-fn validate_market_order(order: &Order, step_size: u128) -> ClearingHouseResult {
+fn validate_market_order(order: &Order, step_size: u64) -> ClearingHouseResult {
     validate_base_asset_amount(order, step_size)?;
 
     match order.direction {
@@ -129,7 +129,7 @@ fn validate_limit_order(
 
     let limit_price = order.get_limit_price(valid_oracle_price, slot, Some(&market.amm))?;
     let approximate_market_value = limit_price
-        .checked_mul(order.base_asset_amount)
+        .checked_mul(order.base_asset_amount as u128)
         .unwrap_or(u128::MAX)
         .div(AMM_RESERVE_PRECISION)
         .div(PRICE_PRECISION / QUOTE_PRECISION);
@@ -170,7 +170,7 @@ fn validate_post_only_order(
 
 fn validate_trigger_limit_order(
     order: &Order,
-    step_size: u128,
+    step_size: u64,
     minimum_order_value: u128,
 ) -> ClearingHouseResult {
     validate_base_asset_amount(order, step_size)?;
@@ -195,24 +195,8 @@ fn validate_trigger_limit_order(
         return Err(ErrorCode::InvalidOrder);
     }
 
-    match order.trigger_condition {
-        OrderTriggerCondition::Above => {
-            if order.direction == PositionDirection::Long && order.price < order.trigger_price {
-                msg!("If trigger condition is above and direction is long, limit price must be above trigger price");
-                return Err(ErrorCode::InvalidOrder);
-            }
-        }
-        OrderTriggerCondition::Below => {
-            if order.direction == PositionDirection::Short && order.price > order.trigger_price {
-                msg!("If trigger condition is below and direction is short, limit price must be below trigger price");
-                return Err(ErrorCode::InvalidOrder);
-            }
-        }
-    }
-
-    let approximate_market_value = order
-        .price
-        .checked_mul(order.base_asset_amount)
+    let approximate_market_value = (order.price as u128)
+        .checked_mul(order.base_asset_amount as u128)
         .unwrap_or(u128::MAX)
         .div(AMM_RESERVE_PRECISION)
         .div(PRICE_PRECISION / QUOTE_PRECISION);
@@ -227,7 +211,7 @@ fn validate_trigger_limit_order(
 
 fn validate_trigger_market_order(
     order: &Order,
-    step_size: u128,
+    step_size: u64,
     minimum_order_value: u128,
 ) -> ClearingHouseResult {
     validate_base_asset_amount(order, step_size)?;
@@ -252,9 +236,8 @@ fn validate_trigger_market_order(
         return Err(ErrorCode::InvalidOrder);
     }
 
-    let approximate_market_value = order
-        .trigger_price
-        .checked_mul(order.base_asset_amount)
+    let approximate_market_value = (order.trigger_price as u128)
+        .checked_mul(order.base_asset_amount as u128)
         .unwrap_or(u128::MAX)
         .div(AMM_RESERVE_PRECISION)
         .div(PRICE_PRECISION / QUOTE_PRECISION);
@@ -268,7 +251,7 @@ fn validate_trigger_market_order(
     Ok(())
 }
 
-fn validate_base_asset_amount(order: &Order, step_size: u128) -> ClearingHouseResult {
+fn validate_base_asset_amount(order: &Order, step_size: u64) -> ClearingHouseResult {
     if order.base_asset_amount == 0 {
         msg!("Order base_asset_amount cant be 0");
         return Err(ErrorCode::InvalidOrder);
@@ -289,7 +272,7 @@ pub fn validate_spot_order(
     order: &Order,
     valid_oracle_price: Option<i128>,
     slot: u64,
-    step_size: u128,
+    step_size: u64,
     margin_ratio_initial: u128,
     margin_ratio_maintenance: u128,
     minimum_order_value: u128,
@@ -322,7 +305,7 @@ fn validate_spot_limit_order(
     order: &Order,
     valid_oracle_price: Option<i128>,
     slot: u64,
-    step_size: u128,
+    step_size: u64,
     margin_ratio_initial: u128,
     margin_ratio_maintenance: u128,
     minimum_order_value: u128,
@@ -345,11 +328,6 @@ fn validate_spot_limit_order(
         return Err(ErrorCode::InvalidOrder);
     }
 
-    if order.post_only && !order.is_jit_maker() {
-        msg!("Spot limit order can only be post only if jit maker");
-        return Err(ErrorCode::InvalidOrder);
-    }
-
     if order.post_only {
         let order_breaches_oracle_price_limits = order_breaches_oracle_price_limits(
             order,
@@ -367,7 +345,7 @@ fn validate_spot_limit_order(
 
     let limit_price = order.get_limit_price(valid_oracle_price, slot, None)?;
     let approximate_market_value = limit_price
-        .checked_mul(order.base_asset_amount)
+        .checked_mul(order.base_asset_amount as u128)
         .unwrap_or(u128::MAX)
         .div(10_u128.pow(decimals))
         .div(PRICE_PRECISION / QUOTE_PRECISION);

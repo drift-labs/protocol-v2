@@ -5,9 +5,10 @@ use std::cmp::max;
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
-use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::{AMM_RESERVE_PRECISION, SPOT_WEIGHT_PRECISION};
-use crate::math::constants::{LIQUIDATION_FEE_PRECISION, TWENTY_FOUR_HOUR};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
+use crate::math::constants::{
+    AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+};
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
@@ -24,10 +25,15 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum MarketStatus {
-    Initialized,
-    ReduceOnly,
-    Settlement,
-    Delisted,
+    Initialized,    // warm up period for initialization, fills are paused
+    Active,         // all operations allowed
+    FundingPaused,  // perp: pause funding rate updates | spot: pause interest updates
+    AmmPaused,      // amm fills are prevented/blocked
+    FillPaused,     // fills are blocked
+    WithdrawPaused, // perp: pause settling positive pnl | spot: pause withdrawing asset
+    ReduceOnly,     // fills only able to reduce liability
+    Settlement, // market has determined settlement price and positions are expired must be settled
+    Delisted,   // market has no remaining participants
 }
 
 impl Default for MarketStatus {
@@ -48,6 +54,20 @@ impl Default for ContractType {
     }
 }
 
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum ContractTier {
+    A,           // max insurance capped at A level
+    B,           // max insurance capped at B level
+    C,           // max insurance capped at C level
+    Speculative, // no insurance
+}
+
+impl Default for ContractTier {
+    fn default() -> Self {
+        ContractTier::Speculative
+    }
+}
+
 #[account(zero_copy)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(packed)]
@@ -56,6 +76,7 @@ pub struct PerpMarket {
     pub pubkey: Pubkey,
     pub status: MarketStatus,
     pub contract_type: ContractType,
+    pub contract_tier: ContractTier,
     pub settlement_price: i128, // iff market has expired, price users can settle position
     pub expiry_ts: i64,         // iff market in reduce only mode
     pub amm: AMM,
@@ -104,20 +125,21 @@ impl PerpMarket {
         size: u128,
         margin_type: MarginRequirementType,
     ) -> ClearingHouseResult<u32> {
-        let margin_ratio = match margin_type {
-            MarginRequirementType::Initial => max(
-                self.margin_ratio_initial as u128,
-                calculate_size_premium_liability_weight(
-                    size,
-                    self.imf_factor,
-                    self.margin_ratio_initial as u128,
-                    MARGIN_PRECISION,
-                )?,
-            ),
-            MarginRequirementType::Maintenance => self.margin_ratio_maintenance as u128,
+        let default_margin_ratio = match margin_type {
+            MarginRequirementType::Initial => cast_to_u128(self.margin_ratio_initial)?,
+            MarginRequirementType::Maintenance => cast_to_u128(self.margin_ratio_maintenance)?,
         };
 
-        Ok(margin_ratio as u32)
+        let size_adj_margin_ratio = calculate_size_premium_liability_weight(
+            size,
+            self.imf_factor,
+            default_margin_ratio,
+            MARGIN_PRECISION,
+        )?;
+
+        let margin_ratio = default_margin_ratio.max(size_adj_margin_ratio);
+
+        cast_to_u32(margin_ratio)
     }
 
     pub fn get_initial_leverage_ratio(&self, margin_type: MarginRequirementType) -> u128 {
@@ -221,11 +243,17 @@ impl PerpMarket {
 
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug)]
+#[repr(packed)]
 pub struct PoolBalance {
+    pub market_index: u16,
     pub balance: u128,
 }
 
 impl SpotBalance for PoolBalance {
+    fn market_index(&self) -> u16 {
+        self.market_index
+    }
+
     fn balance_type(&self) -> &SpotBalanceType {
         &SpotBalanceType::Deposit
     }
@@ -300,7 +328,7 @@ pub struct AMM {
     pub minimum_quote_asset_trade_size: u128,
     pub max_base_asset_amount_ratio: u16,
     pub max_slippage_ratio: u16,
-    pub base_asset_amount_step_size: u128,
+    pub base_asset_amount_step_size: u64,
 
     // market making
     pub market_position: PerpPosition,
@@ -354,7 +382,7 @@ impl AMM {
             sqrt_k: default_reserves,
             concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
             base_asset_amount_step_size: 1,
-            max_base_asset_reserve: u128::MAX,
+            max_base_asset_reserve: u64::MAX as u128,
             min_base_asset_reserve: 0,
             terminal_quote_asset_reserve: default_reserves,
             peg_multiplier: crate::math::constants::PEG_PRECISION,
@@ -499,7 +527,7 @@ impl AMM {
 
     pub fn update_volume_24h(
         &mut self,
-        quote_asset_amount: u128,
+        quote_asset_amount: u64,
         position_direction: PositionDirection,
         now: i64,
     ) -> ClearingHouseResult {
@@ -513,7 +541,7 @@ impl AMM {
 
         self.volume_24h = amm::calculate_rolling_sum(
             self.volume_24h,
-            cast(quote_asset_amount)?,
+            quote_asset_amount,
             since_last,
             TWENTY_FOUR_HOUR as i128,
         )?;

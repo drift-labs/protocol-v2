@@ -27,9 +27,24 @@ pub struct DepositRecord {
     pub amount: u64,
     pub market_index: u16,
     pub oracle_price: i128,
-    pub referrer: Pubkey,
-    pub from: Option<Pubkey>,
-    pub to: Option<Pubkey>,
+    pub market_deposit_balance: u128,
+    pub market_withdraw_balance: u128,
+    pub market_cumulative_deposit_interest: u128,
+    pub market_cumulative_borrow_interest: u128,
+    pub transfer_user: Option<Pubkey>,
+}
+
+#[event]
+pub struct SpotInterestRecord {
+    pub ts: i64,
+    pub market_index: u16,
+    pub deposit_balance: u128,
+    pub cumulative_deposit_interest: u128,
+    pub borrow_balance: u128,
+    pub cumulative_borrow_interest: u128,
+    pub optimal_utilization: u32,
+    pub optimal_borrow_rate: u32,
+    pub max_borrow_rate: u32,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
@@ -51,10 +66,9 @@ pub struct FundingPaymentRecord {
     pub user_authority: Pubkey,
     pub user: Pubkey,
     pub market_index: u16,
-    pub funding_payment: i128,
-    pub base_asset_amount: i128,
+    pub funding_payment: i64,
+    pub base_asset_amount: i64,
     pub user_last_cumulative_funding: i128,
-    pub user_last_funding_rate_ts: i64,
     pub amm_cumulative_funding_long: i128,
     pub amm_cumulative_funding_short: i128,
 }
@@ -119,7 +133,7 @@ pub struct OrderActionRecord {
     pub filler_reward: Option<u64>,
     pub fill_record_id: Option<u64>,
 
-    pub base_asset_amount_filled: Option<u128>,
+    pub base_asset_amount_filled: Option<u64>,
     pub quote_asset_amount_filled: Option<u64>,
     pub taker_fee: Option<u64>,
     pub maker_fee: Option<i64>,
@@ -128,18 +142,18 @@ pub struct OrderActionRecord {
     pub spot_fulfillment_method_fee: Option<u64>,
 
     pub taker: Option<Pubkey>,
-    pub taker_order_id: Option<u64>,
+    pub taker_order_id: Option<u32>,
     pub taker_order_direction: Option<PositionDirection>,
-    pub taker_order_base_asset_amount: Option<u128>,
-    pub taker_order_cumulative_base_asset_amount_filled: Option<u128>,
+    pub taker_order_base_asset_amount: Option<u64>,
+    pub taker_order_cumulative_base_asset_amount_filled: Option<u64>,
     pub taker_order_cumulative_quote_asset_amount_filled: Option<u64>,
     pub taker_order_fee: Option<i64>,
 
     pub maker: Option<Pubkey>,
-    pub maker_order_id: Option<u64>,
+    pub maker_order_id: Option<u32>,
     pub maker_order_direction: Option<PositionDirection>,
-    pub maker_order_base_asset_amount: Option<u128>,
-    pub maker_order_cumulative_base_asset_amount_filled: Option<u128>,
+    pub maker_order_base_asset_amount: Option<u64>,
+    pub maker_order_cumulative_base_asset_amount_filled: Option<u64>,
     pub maker_order_cumulative_quote_asset_amount_filled: Option<u64>,
     pub maker_order_fee: Option<i64>,
 
@@ -153,13 +167,13 @@ pub fn get_order_action_record(
     market_index: u16,
     filler: Option<Pubkey>,
     fill_record_id: Option<u64>,
-    filler_reward: Option<u128>,
-    fill_base_asset_amount: Option<u128>,
-    fill_quote_asset_amount: Option<u128>,
-    taker_fee: Option<u128>,
-    maker_rebate: Option<u128>,
-    referrer_reward: Option<u128>,
-    quote_asset_amount_surplus: Option<i128>,
+    filler_reward: Option<u64>,
+    base_asset_amount_filled: Option<u64>,
+    quote_asset_amount_filled: Option<u64>,
+    taker_fee: Option<u64>,
+    maker_rebate: Option<u64>,
+    referrer_reward: Option<u64>,
+    quote_asset_amount_surplus: Option<i64>,
     spot_fulfillment_method_fee: Option<u64>,
     taker: Option<Pubkey>,
     taker_order: Option<Order>,
@@ -180,20 +194,11 @@ pub fn get_order_action_record(
             return Err(DefaultError);
         },
         filler,
-        filler_reward: match filler_reward {
-            Some(filler_reward) => Some(cast(filler_reward)?),
-            None => None,
-        },
+        filler_reward,
         fill_record_id,
-        base_asset_amount_filled: fill_base_asset_amount,
-        quote_asset_amount_filled: match fill_quote_asset_amount {
-            Some(fill_quote_asset_amount) => Some(cast(fill_quote_asset_amount)?),
-            None => None,
-        },
-        taker_fee: match taker_fee {
-            Some(taker_fee) => Some(cast(taker_fee)?),
-            None => None,
-        },
+        base_asset_amount_filled,
+        quote_asset_amount_filled,
+        taker_fee,
         maker_fee: match maker_rebate {
             Some(maker_rebate) => Some(-cast(maker_rebate)?),
             None => None,
@@ -202,10 +207,7 @@ pub fn get_order_action_record(
             Some(referrer_reward) if referrer_reward > 0 => Some(cast(referrer_reward)?),
             _ => None,
         },
-        quote_asset_amount_surplus: match quote_asset_amount_surplus {
-            Some(quote_asset_amount_surplus) => Some(cast(quote_asset_amount_surplus)?),
-            None => None,
-        },
+        quote_asset_amount_surplus,
         spot_fulfillment_method_fee,
         taker,
         taker_order_id: taker_order.map(|order| order.order_id),
@@ -227,14 +229,9 @@ pub fn get_order_action_record(
         maker_order_base_asset_amount: maker_order.map(|order| order.base_asset_amount),
         maker_order_cumulative_base_asset_amount_filled: maker_order
             .map(|order| order.base_asset_amount_filled),
-        maker_order_cumulative_quote_asset_amount_filled: match &maker_order {
-            Some(order) => Some(cast_to_u64(order.quote_asset_amount_filled)?),
-            None => None,
-        },
-        maker_order_fee: match &maker_order {
-            Some(order) => Some(cast_to_i64(order.fee)?),
-            None => None,
-        },
+        maker_order_cumulative_quote_asset_amount_filled: maker_order
+            .map(|order| order.quote_asset_amount_filled),
+        maker_order_fee: maker_order.map(|order| order.fee),
         oracle_price,
     })
 }
@@ -273,11 +270,11 @@ pub struct LPRecord {
     pub ts: i64,
     pub user: Pubkey,
     pub action: LPAction,
-    pub n_shares: u128,
+    pub n_shares: u64,
     pub market_index: u16,
-    pub delta_base_asset_amount: i128,
-    pub delta_quote_asset_amount: i128,
-    pub pnl: i128,
+    pub delta_base_asset_amount: i64,
+    pub delta_quote_asset_amount: i64,
+    pub pnl: i64,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
@@ -304,23 +301,23 @@ pub struct LiquidationRecord {
     pub total_collateral: i128,
     pub liquidation_id: u16,
     pub bankrupt: bool,
-    pub canceled_order_ids: Vec<u64>,
+    pub canceled_order_ids: Vec<u32>,
     pub liquidate_perp: LiquidatePerpRecord,
-    pub liquidate_borrow: LiquidateBorrowRecord,
+    pub liquidate_spot: LiquidateSpotRecord,
     pub liquidate_borrow_for_perp_pnl: LiquidateBorrowForPerpPnlRecord,
     pub liquidate_perp_pnl_for_deposit: LiquidatePerpPnlForDepositRecord,
     pub perp_bankruptcy: PerpBankruptcyRecord,
-    pub borrow_bankruptcy: BorrowBankruptcyRecord,
+    pub spot_bankruptcy: SpotBankruptcyRecord,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum LiquidationType {
     LiquidatePerp,
-    LiquidateBorrow,
+    LiquidateSpot,
     LiquidateBorrowForPerpPnl,
     LiquidatePerpPnlForDeposit,
     PerpBankruptcy,
-    BorrowBankruptcy,
+    SpotBankruptcy,
 }
 
 impl Default for LiquidationType {
@@ -334,19 +331,17 @@ impl Default for LiquidationType {
 pub struct LiquidatePerpRecord {
     pub market_index: u16,
     pub oracle_price: i128,
-    pub base_asset_amount: i128,
-    pub quote_asset_amount: i128,
-    pub lp_shares: u128,
-    pub user_pnl: i128,
-    pub liquidator_pnl: i128,
+    pub base_asset_amount: i64,
+    pub quote_asset_amount: i64,
+    pub lp_shares: u64,
     pub fill_record_id: u64,
-    pub user_order_id: u64,
-    pub liquidator_order_id: u64,
+    pub user_order_id: u32,
+    pub liquidator_order_id: u32,
     pub if_fee: u64,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
-pub struct LiquidateBorrowRecord {
+pub struct LiquidateSpotRecord {
     pub asset_market_index: u16,
     pub asset_price: i128,
     pub asset_transfer: u128,
@@ -385,7 +380,7 @@ pub struct PerpBankruptcyRecord {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
-pub struct BorrowBankruptcyRecord {
+pub struct SpotBankruptcyRecord {
     pub market_index: u16,
     pub borrow_amount: u128,
     pub if_payment: u128,
@@ -399,9 +394,9 @@ pub struct SettlePnlRecord {
     pub user: Pubkey,
     pub market_index: u16,
     pub pnl: i128,
-    pub base_asset_amount: i128,
-    pub quote_asset_amount_after: i128,
-    pub quote_entry_amount: i128,
+    pub base_asset_amount: i64,
+    pub quote_asset_amount_after: i64,
+    pub quote_entry_amount: i64,
     pub settle_price: i128,
 }
 

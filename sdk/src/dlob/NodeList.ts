@@ -11,7 +11,10 @@ import { createNode, DLOBNode, DLOBNodeMap } from './DLOBNode';
 
 export type SortDirection = 'asc' | 'desc';
 
-export function getOrderSignature(orderId: BN, userAccount: PublicKey): string {
+export function getOrderSignature(
+	orderId: number,
+	userAccount: PublicKey
+): string {
 	return `${userAccount.toString()}-${orderId.toString()}`;
 }
 
@@ -126,7 +129,7 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 				node.previous.next = node.next;
 			}
 
-			if (this.head && node.order.orderId.eq(this.head.order.orderId)) {
+			if (this.head && node.order.orderId === this.head.order.orderId) {
 				this.head = node.next;
 			}
 

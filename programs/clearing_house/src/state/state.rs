@@ -9,12 +9,11 @@ use crate::math::constants::{
 #[repr(packed)]
 pub struct State {
     pub admin: Pubkey,
-    pub exchange_paused: bool,
-    pub funding_paused: bool,
-    pub admin_controls_prices: bool,
+    pub exchange_status: ExchangeStatus,
     pub whitelist_mint: Pubkey,
     pub discount_mint: Pubkey,
     pub oracle_guard_rails: OracleGuardRails,
+    pub number_of_authorities: u64,
     pub number_of_markets: u16,
     pub number_of_spot_markets: u16,
     pub min_order_quote_asset_amount: u128, // minimum est. quote_asset_amount for place_order to succeed
@@ -28,6 +27,23 @@ pub struct State {
     pub srm_vault: Pubkey,
     pub perp_fee_structure: FeeStructure,
     pub spot_fee_structure: FeeStructure,
+}
+
+#[derive(Clone, AnchorSerialize, AnchorDeserialize, Copy, PartialEq, Debug, Eq)]
+pub enum ExchangeStatus {
+    Active,
+    FundingPaused,
+    AmmPaused,
+    FillPaused,
+    LiqPaused,
+    WithdrawPaused,
+    Paused,
+}
+
+impl Default for ExchangeStatus {
+    fn default() -> Self {
+        ExchangeStatus::Active
+    }
 }
 
 #[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone)]
@@ -74,7 +90,7 @@ pub struct FeeStructure {
     pub fee_tiers: [FeeTier; 10],
     pub filler_reward_structure: OrderFillerRewardStructure,
     pub referrer_reward_epoch_upper_bound: u64,
-    pub flat_filler_fee: u128,
+    pub flat_filler_fee: u64,
 }
 
 impl Default for FeeStructure {

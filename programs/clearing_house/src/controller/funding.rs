@@ -12,9 +12,7 @@ use crate::error::ClearingHouseResult;
 use crate::get_then_update_id;
 use crate::math::amm;
 use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_RATE_BUFFER, ONE_HOUR, TWENTY_FOUR_HOUR,
-};
+use crate::math::constants::{FUNDING_RATE_BUFFER, ONE_HOUR, TWENTY_FOUR_HOUR};
 use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
 use crate::math::helpers::on_the_hour_update;
 use crate::math::stats::calculate_new_twap;
@@ -55,9 +53,7 @@ pub fn settle_funding_payment(
 
     if amm_cumulative_funding_rate != market_position.last_cumulative_funding_rate {
         let market_funding_payment =
-            calculate_funding_payment(amm_cumulative_funding_rate, market_position)?
-                .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
-                .ok_or_else(math_error!())?;
+            calculate_funding_payment(amm_cumulative_funding_rate, market_position)?;
 
         emit!(FundingPaymentRecord {
             ts: now,
@@ -66,14 +62,12 @@ pub fn settle_funding_payment(
             market_index: market_position.market_index,
             funding_payment: market_funding_payment, //10e13
             user_last_cumulative_funding: market_position.last_cumulative_funding_rate, //10e14
-            user_last_funding_rate_ts: market_position.last_funding_rate_ts,
             amm_cumulative_funding_long: amm.cumulative_funding_rate_long, //10e14
             amm_cumulative_funding_short: amm.cumulative_funding_rate_short, //10e14
-            base_asset_amount: market_position.base_asset_amount,          //10e13
+            base_asset_amount: market_position.base_asset_amount, //10e13
         });
 
         market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate;
-        market_position.last_funding_rate_ts = amm.last_funding_rate_ts;
         update_quote_asset_amount(market_position, market, market_funding_payment)?;
     }
 
@@ -102,25 +96,21 @@ pub fn settle_funding_payments(
 
         if amm_cumulative_funding_rate != market_position.last_cumulative_funding_rate {
             let market_funding_payment =
-                calculate_funding_payment(amm_cumulative_funding_rate, market_position)?
-                    .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
-                    .ok_or_else(math_error!())?;
+                calculate_funding_payment(amm_cumulative_funding_rate, market_position)?;
 
             emit!(FundingPaymentRecord {
                 ts: now,
                 user_authority: user.authority,
                 user: *user_key,
                 market_index: market_position.market_index,
-                funding_payment: market_funding_payment, //10e13
-                user_last_cumulative_funding: market_position.last_cumulative_funding_rate, //10e14
-                user_last_funding_rate_ts: market_position.last_funding_rate_ts,
-                amm_cumulative_funding_long: amm.cumulative_funding_rate_long, //10e14
-                amm_cumulative_funding_short: amm.cumulative_funding_rate_short, //10e14
-                base_asset_amount: market_position.base_asset_amount,          //10e13
+                funding_payment: market_funding_payment, //1e6
+                user_last_cumulative_funding: market_position.last_cumulative_funding_rate, //1e9
+                amm_cumulative_funding_long: amm.cumulative_funding_rate_long, //1e9
+                amm_cumulative_funding_short: amm.cumulative_funding_rate_short, //1e9
+                base_asset_amount: market_position.base_asset_amount, //1e9
             });
 
             market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate;
-            market_position.last_funding_rate_ts = amm.last_funding_rate_ts;
             update_quote_asset_amount(market_position, market, market_funding_payment)?;
         }
     }

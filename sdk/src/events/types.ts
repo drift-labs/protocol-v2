@@ -10,6 +10,7 @@ import {
 	SettlePnlRecord,
 	LPRecord,
 	InsuranceFundRecord,
+	SpotInterestRecord,
 } from '../index';
 
 export type EventSubscriptionOptions = {
@@ -37,6 +38,7 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 		'SettlePnlRecord',
 		'LPRecord',
 		'InsuranceFundRecord',
+		'SpotInterestRecord',
 	],
 	maxEventsPerType: 4096,
 	orderBy: 'blockchain',
@@ -74,6 +76,7 @@ export type EventMap = {
 	NewUserRecord: Event<NewUserRecord>;
 	LPRecord: Event<LPRecord>;
 	InsuranceFundRecord: Event<InsuranceFundRecord>;
+	SpotInterestRecord: Event<SpotInterestRecord>;
 };
 
 export type EventType = keyof EventMap;

@@ -98,6 +98,10 @@ describe('oracle offset', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
+		await fillerClearingHouse.updatePerpMarketStatus(
+			new BN(0),
+			MarketStatus.ACTIVE
+		);
 
 		await fillerClearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,

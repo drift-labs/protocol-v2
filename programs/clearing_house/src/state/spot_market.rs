@@ -28,6 +28,7 @@ pub struct SpotMarket {
     pub market_index: u16,
     pub pubkey: Pubkey,
     pub status: MarketStatus,
+    pub asset_tier: AssetTier,
     pub expiry_ts: i64, // iff market in reduce only mode
 
     pub oracle: Pubkey,
@@ -37,7 +38,7 @@ pub struct SpotMarket {
     pub mint: Pubkey,
     pub vault: Pubkey,
     pub insurance_fund_vault: Pubkey,
-    pub revenue_pool: PoolBalance,
+    pub revenue_pool: PoolBalance, // in base asset
 
     pub total_if_factor: u32, // percentage of interest for total insurance
     pub user_if_factor: u32,  // percentage of interest for user staked insurance
@@ -50,11 +51,12 @@ pub struct SpotMarket {
     pub revenue_settle_period: i64,
 
     pub decimals: u8,
-    pub optimal_utilization: u128,
-    pub optimal_borrow_rate: u128,
-    pub max_borrow_rate: u128,
+    pub optimal_utilization: u32,
+    pub optimal_borrow_rate: u32,
+    pub max_borrow_rate: u32,
     pub deposit_balance: u128,
     pub borrow_balance: u128,
+    pub max_token_deposits: u128,
 
     pub deposit_token_twap: u128, // 24 hour twap
     pub borrow_token_twap: u128,  // 24 hour twap
@@ -74,10 +76,10 @@ pub struct SpotMarket {
     pub if_liquidation_fee: u128, // percentage of liquidation transfer for total insurance
     pub withdraw_guard_threshold: u128, // no withdraw limits/guards when deposits below this threshold
 
-    pub order_step_size: u128,
+    pub order_step_size: u64,
     pub next_fill_record_id: u64,
     pub total_spot_fee: u128,
-    pub spot_fee_pool: PoolBalance,
+    pub spot_fee_pool: PoolBalance, // in quote asset
 }
 
 impl SpotMarket {
@@ -127,15 +129,19 @@ impl SpotMarket {
             (size * AMM_RESERVE_PRECISION) / size_precision
         };
 
-        let liability_weight = match margin_requirement_type {
-            MarginRequirementType::Initial => calculate_size_premium_liability_weight(
-                size_in_amm_reserve_precision,
-                self.imf_factor,
-                self.initial_liability_weight,
-                SPOT_WEIGHT_PRECISION,
-            )?,
+        let default_liability_weight = match margin_requirement_type {
+            MarginRequirementType::Initial => self.initial_liability_weight,
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
         };
+
+        let size_based_liability_weight = calculate_size_premium_liability_weight(
+            size_in_amm_reserve_precision,
+            self.imf_factor,
+            default_liability_weight,
+            SPOT_WEIGHT_PRECISION,
+        )?;
+
+        let liability_weight = size_based_liability_weight.max(default_liability_weight);
 
         Ok(liability_weight)
     }
@@ -193,6 +199,7 @@ impl SpotMarket {
             initial_asset_weight: 8000,
             maintenance_asset_weight: 9000,
             decimals: 9,
+            status: MarketStatus::Active,
             ..SpotMarket::default()
         }
     }
@@ -206,6 +213,7 @@ impl SpotMarket {
             maintenance_liability_weight: 10000,
             initial_asset_weight: 10000,
             maintenance_asset_weight: 10000,
+            status: MarketStatus::Active,
             ..SpotMarket::default()
         }
     }
@@ -233,6 +241,8 @@ impl Default for SpotBalanceType {
 }
 
 pub trait SpotBalance {
+    fn market_index(&self) -> u16;
+
     fn balance_type(&self) -> &SpotBalanceType;
 
     fn balance(&self) -> u128;
@@ -273,5 +283,20 @@ pub enum SpotFulfillmentStatus {
 impl Default for SpotFulfillmentStatus {
     fn default() -> Self {
         SpotFulfillmentStatus::Enabled
+    }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum AssetTier {
+    Collateral, // full priviledge
+    Protected,  // collateral, but no borrow
+    Cross,      // not collateral, allow multi-borrow
+    Isolated,   // not collateral, only single borrow
+    Unlisted,   // no priviledge
+}
+
+impl Default for AssetTier {
+    fn default() -> Self {
+        AssetTier::Unlisted
     }
 }

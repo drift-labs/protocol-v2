@@ -122,6 +122,7 @@ describe('stop limit', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
+		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
 
 		await clearingHouse.initializeMarket(
 			btcUsd,
@@ -130,6 +131,7 @@ describe('stop limit', () => {
 			periodicity,
 			new BN(60000000) // btc-ish price level
 		);
+		await clearingHouse.updatePerpMarketStatus(new BN(1), MarketStatus.ACTIVE);
 
 		[, userAccountPublicKey] =
 			await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -233,7 +235,7 @@ describe('stop limit', () => {
 		});
 
 		await clearingHouse.placeOrder(orderParams);
-		const orderId = new BN(2);
+		const orderId = 2;
 		const orderIndex = new BN(0);
 		await clearingHouseUser.fetchAccounts();
 		let order = clearingHouseUser.getOrder(orderId);
@@ -278,10 +280,10 @@ describe('stop limit', () => {
 			orderRecord.quoteAssetAmountFilled.eq(expectedTradeQuoteAssetAmount)
 		);
 
-		const expectedOrderId = new BN(2);
+		const expectedOrderId = 2;
 		const expectedFillRecordId = new BN(2);
 		assert(orderRecord.ts.gt(ZERO));
-		assert(orderRecord.takerOrderId.eq(expectedOrderId));
+		assert(orderRecord.takerOrderId === expectedOrderId);
 		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
 		assert(
 			orderRecord.taker.equals(
@@ -319,7 +321,7 @@ describe('stop limit', () => {
 		});
 
 		await clearingHouse.placeOrder(orderParams);
-		const orderId = new BN(4);
+		const orderId = 4;
 		const orderIndex = new BN(0);
 		let order = clearingHouseUser.getOrder(orderId);
 
@@ -358,10 +360,10 @@ describe('stop limit', () => {
 		const expectedTradeQuoteAssetAmount = new BN(1000001);
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
-		const expectedOrderId = new BN(4);
+		const expectedOrderId = 4;
 		const expectedFillRecord = new BN(4);
 		assert(orderRecord.ts.gt(ZERO));
-		assert(orderRecord.takerOrderId.eq(expectedOrderId));
+		assert(orderRecord.takerOrderId === expectedOrderId);
 		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
 		assert(
 			orderRecord.taker.equals(
