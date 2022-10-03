@@ -77,6 +77,7 @@ export const mockAMM = {
 	terminalQuoteAssetReserve: new BN(0),
 	feePool: {
 		balance: new BN(0),
+		marketIndex: 0,
 	},
 	totalExchangeFee: new BN(0),
 	totalMmFee: new BN(0),
@@ -114,6 +115,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		nextFillRecordId: new BN(0),
 		pnlPool: {
 			balance: new BN(0),
+			marketIndex: 0,
 		},
 		ifLiquidationFee: new BN(0),
 		liquidatorFee: new BN(0),
@@ -145,6 +147,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		nextFillRecordId: new BN(0),
 		pnlPool: {
 			balance: new BN(0),
+			marketIndex: new BN(0),
 		},
 		ifLiquidationFee: new BN(0),
 		liquidatorFee: new BN(0),
@@ -176,6 +179,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		nextFillRecordId: new BN(0),
 		pnlPool: {
 			balance: new BN(0),
+			marketIndex: 0,
 		},
 		ifLiquidationFee: new BN(0),
 		liquidatorFee: new BN(0),
@@ -202,6 +206,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		insuranceWithdrawEscrowPeriod: new BN(0),
 		revenuePool: {
 			balance: new BN(0),
+			marketIndex: 0,
 		},
 		totalIfShares: new BN(0),
 		userIfShares: new BN(0),
@@ -261,6 +266,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		insuranceWithdrawEscrowPeriod: new BN(0),
 		revenuePool: {
 			balance: new BN(0),
+			marketIndex: 0,
 		},
 		totalIfShares: new BN(0),
 		userIfShares: new BN(0),
@@ -320,6 +326,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		insuranceWithdrawEscrowPeriod: new BN(0),
 		revenuePool: {
 			balance: new BN(0),
+			marketIndex: 0,
 		},
 		totalIfShares: new BN(0),
 		userIfShares: new BN(0),

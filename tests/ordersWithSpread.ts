@@ -701,7 +701,7 @@ describe('amm spread: market order', () => {
 		const unrealizedPnl = clearingHouseUser.getUnrealizedPNL();
 		console.log('unrealized pnl', unrealizedPnl.toString());
 
-		const expectedFeeToMarket = new BN(1000);
+		const expectedFeeToMarket = new BN(1040);
 		const firstPosition = clearingHouse.getUserAccount().perpPositions[1];
 		console.log(
 			convertToNumber(firstPosition.baseAssetAmount),
@@ -720,8 +720,8 @@ describe('amm spread: market order', () => {
 		assert.ok(
 			orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount.abs())
 		);
-		assert.ok(orderRecord.quoteAssetAmountSurplus.eq(expectedFeeToMarket));
 		console.log('surplus', orderRecord.quoteAssetAmountSurplus.toString());
+		assert.ok(orderRecord.quoteAssetAmountSurplus.eq(expectedFeeToMarket));
 
 		const numCloses = 10;
 		const directionToClose = PositionDirection.SHORT;
@@ -756,7 +756,7 @@ describe('amm spread: market order', () => {
 		assert(
 			clearingHouse
 				.getPerpMarketAccount(marketIndex2Num)
-				.amm.totalFee.eq(new BN(9995))
+				.amm.totalFee.eq(new BN(10035))
 		);
 	});
 });

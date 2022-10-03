@@ -795,5 +795,7 @@ describe('spot deposit and withdraw', () => {
 			tokenAmount.gte(largeUsdcAmount.sub(QUOTE_PRECISION.div(new BN(100))))
 		); // didnt lose more than a penny
 		assert(tokenAmount.lt(largeUsdcAmount)); // lose a lil bit
+
+		await thirdUserClearingHouse.unsubscribe();
 	});
 });

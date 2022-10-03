@@ -470,6 +470,11 @@
       "name": "updateSpotMarketCumulativeInterest",
       "accounts": [
         {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "spotMarket",
           "isMut": true,
           "isSigner": false
@@ -480,6 +485,11 @@
     {
       "name": "updateSpotMarketExpiry",
       "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
         {
           "name": "spotMarket",
           "isMut": true,
@@ -823,37 +833,6 @@
       ]
     },
     {
-      "name": "triggerSpotOrder",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "filler",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "orderId",
-          "type": "u32"
-        }
-      ]
-    },
-    {
       "name": "placeSpotOrder",
       "accounts": [
         {
@@ -1083,7 +1062,7 @@
       ]
     },
     {
-      "name": "liquidateBorrow",
+      "name": "liquidateSpot",
       "accounts": [
         {
           "name": "state",
@@ -1101,7 +1080,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         }
@@ -1140,7 +1129,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         }
@@ -1179,7 +1178,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         }
@@ -1263,7 +1272,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         },
@@ -1300,7 +1319,7 @@
       ]
     },
     {
-      "name": "resolveBorrowBankruptcy",
+      "name": "resolveSpotBankruptcy",
       "accounts": [
         {
           "name": "state",
@@ -1318,7 +1337,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         },
@@ -1635,7 +1664,7 @@
         },
         {
           "name": "state",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -2144,6 +2173,32 @@
         },
         {
           "name": "imfFactor",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketMaxTokenDeposits",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxTokenDeposits",
           "type": "u128"
         }
       ]
@@ -2845,6 +2900,11 @@
       "name": "addInsuranceFundStake",
       "accounts": [
         {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "spotMarket",
           "isMut": false,
           "isSigner": false
@@ -2865,8 +2925,18 @@
           "isSigner": true
         },
         {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "insuranceFundVault",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -3435,6 +3505,10 @@
             "type": "u128"
           },
           {
+            "name": "maxTokenDeposits",
+            "type": "u128"
+          },
+          {
             "name": "depositTokenTwap",
             "type": "u128"
           },
@@ -3611,6 +3685,10 @@
             "type": {
               "defined": "OracleGuardRails"
             }
+          },
+          {
+            "name": "numberOfAuthorities",
+            "type": "u64"
           },
           {
             "name": "numberOfMarkets",
@@ -3882,7 +3960,9 @@
           },
           {
             "name": "triggerPrice",
-            "type": "u64"
+            "type": {
+              "option": "u64"
+            }
           },
           {
             "name": "triggerCondition",
@@ -3892,7 +3972,9 @@
           },
           {
             "name": "oraclePriceOffset",
-            "type": "i64"
+            "type": {
+              "option": "i64"
+            }
           },
           {
             "name": "auctionDuration",
@@ -3960,7 +4042,7 @@
       }
     },
     {
-      "name": "LiquidateBorrowRecord",
+      "name": "LiquidateSpotRecord",
       "type": {
         "kind": "struct",
         "fields": [
@@ -4084,7 +4166,7 @@
       }
     },
     {
-      "name": "BorrowBankruptcyRecord",
+      "name": "SpotBankruptcyRecord",
       "type": {
         "kind": "struct",
         "fields": [
@@ -4112,6 +4194,10 @@
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
           {
             "name": "balance",
             "type": "u128"
@@ -5159,7 +5245,7 @@
             "name": "LiquidatePerp"
           },
           {
-            "name": "LiquidateBorrow"
+            "name": "LiquidateSpot"
           },
           {
             "name": "LiquidateBorrowForPerpPnl"
@@ -5171,7 +5257,7 @@
             "name": "PerpBankruptcy"
           },
           {
-            "name": "BorrowBankruptcy"
+            "name": "SpotBankruptcy"
           }
         ]
       }
@@ -5237,6 +5323,9 @@
           },
           {
             "name": "FundingPaused"
+          },
+          {
+            "name": "AmmPaused"
           },
           {
             "name": "FillPaused"
@@ -5546,11 +5635,6 @@
         {
           "name": "oraclePrice",
           "type": "i128",
-          "index": false
-        },
-        {
-          "name": "referrer",
-          "type": "publicKey",
           "index": false
         },
         {
@@ -6136,9 +6220,9 @@
           "index": false
         },
         {
-          "name": "liquidateBorrow",
+          "name": "liquidateSpot",
           "type": {
-            "defined": "LiquidateBorrowRecord"
+            "defined": "LiquidateSpotRecord"
           },
           "index": false
         },
@@ -6164,9 +6248,9 @@
           "index": false
         },
         {
-          "name": "borrowBankruptcy",
+          "name": "spotBankruptcy",
           "type": {
-            "defined": "BorrowBankruptcyRecord"
+            "defined": "SpotBankruptcyRecord"
           },
           "index": false
         }
@@ -6533,7 +6617,7 @@
     },
     {
       "code": 6038,
-      "name": "UserMaxDeposit",
+      "name": "MaxDeposit",
       "msg": "Can not deposit more than max deposit"
     },
     {

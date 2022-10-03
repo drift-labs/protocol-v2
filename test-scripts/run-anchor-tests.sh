@@ -13,8 +13,8 @@ test_files=(
    serumTest.ts
    liquidityProvider.ts
    insuranceFundStake.ts
-   liquidateBorrow.ts
-   liquidateBorrowSocialLoss.ts
+   liquidateSpot.ts
+   liquidateSpotSocialLoss.ts
    referrer.ts
    liquidatePerpPnlForDeposit.ts liquidateBorrowForPerpPnl.ts
    liquidatePerp.ts
@@ -26,8 +26,9 @@ test_files=(
    roundInFavorBaseAsset.ts marketOrderBaseAssetAmount.ts oracleOffsetOrders.ts
    userDelegate.ts subaccounts.ts pyth.ts userAccount.ts admin.ts
    assetTier.ts
-   pauseExchange.ts adminWithdraw.ts
+   pauseExchange.ts adminWithdraw.ts whitelist.ts
    updateK.ts curve.ts cappedSymFunding.ts
+   maxDeposit.ts
 )
 
 for test_file in ${test_files[@]}; do

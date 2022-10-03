@@ -78,6 +78,11 @@ mod test {
             .get_liability_weight(size, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(lib_weight, 41522);
+
+        let maint_lib_weight = spot_market
+            .get_liability_weight(size, &MarginRequirementType::Maintenance)
+            .unwrap();
+        assert_eq!(maint_lib_weight, 31622);
     }
 
     #[test]
@@ -240,7 +245,7 @@ mod test {
         let position_unrealized_pnl =
             calculate_position_pnl(&market_position, &market.amm, false).unwrap();
 
-        assert_eq!(position_unrealized_pnl, 22699050927);
+        assert_eq!(position_unrealized_pnl, 22699050905);
 
         // sqrt of oracle price = 149
         market.unrealized_imf_factor = market.imf_factor;
@@ -259,8 +264,8 @@ mod test {
         )
         .unwrap();
 
-        // assert_eq!(upnl, 17409836065);
-        // assert!(upnl < position_unrealized_pnl); // margin system discounts
+        assert_eq!(upnl, 17580307388);
+        assert!(upnl < position_unrealized_pnl); // margin system discounts
 
         assert!(pmr > 0);
         assert_eq!(pmr, 13867100408);
@@ -938,7 +943,7 @@ mod calculate_margin_requirement_and_total_collateral {
             )
             .unwrap();
 
-        // shouldnt affect maintenance margin requirement
+        // doesnt affect maintenance margin requirement
         assert_eq!(maintenance_margin_requirement, 11500000000); // 100 * 100 * .05 + 100 * $100 * 1.1
     }
 }

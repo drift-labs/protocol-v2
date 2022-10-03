@@ -34,7 +34,8 @@ pub fn determine_spot_fulfillment_methods(
         fulfillment_methods.push(SpotFulfillmentMethod::Match)
     }
 
-    if serum_fulfillment_params_available
+    if !taker_order.post_only
+        && serum_fulfillment_params_available
         && is_auction_complete(taker_order.slot, taker_order.auction_duration, slot)?
     {
         fulfillment_methods.push(SpotFulfillmentMethod::SerumV3)

@@ -183,7 +183,6 @@ export type DepositRecord = {
 	marketIndex: number;
 	amount: BN;
 	oraclePrice: BN;
-	referrer: PublicKey;
 	from?: PublicKey;
 	to?: PublicKey;
 };
@@ -212,8 +211,8 @@ export declare type InsuranceFundRecord = {
 	ts: BN;
 	bankIndex: BN;
 	marketIndex: number;
-	userIfFactor: BN;
-	totalIfFactor: BN;
+	userIfFactor: number;
+	totalIfFactor: number;
 	vaultAmountBefore: BN;
 	insuranceVaultAmountBefore: BN;
 	amount: BN;
@@ -276,11 +275,11 @@ export type LiquidationRecord = {
 	liquidationId: number;
 	canceledOrderIds: BN[];
 	liquidatePerp: LiquidatePerpRecord;
-	liquidateBorrow: LiquidateBorrowRecord;
+	liquidateSpot: LiquidateSpotRecord;
 	liquidateBorrowForPerpPnl: LiquidateBorrowForPerpPnlRecord;
 	liquidatePerpPnlForDeposit: LiquidatePerpPnlForDepositRecord;
 	perpBankruptcy: PerpBankruptcyRecord;
-	borrowBankruptcy: BorrowBankruptcyRecord;
+	spotBankruptcy: SpotBankruptcyRecord;
 };
 
 export class LiquidationType {
@@ -312,7 +311,7 @@ export type LiquidatePerpRecord = {
 	ifFee: BN;
 };
 
-export type LiquidateBorrowRecord = {
+export type LiquidateSpotRecord = {
 	assetMarketIndex: number;
 	assetPrice: BN;
 	assetTransfer: BN;
@@ -346,7 +345,7 @@ export type PerpBankruptcyRecord = {
 	cumulativeFundingRateDelta: BN;
 };
 
-export type BorrowBankruptcyRecord = {
+export type SpotBankruptcyRecord = {
 	marketIndex: number;
 	borrowAmount: BN;
 	cumulativeDepositInterestDelta: BN;
@@ -490,8 +489,8 @@ export type SpotMarketAccount = {
 	totalIfShares: BN;
 	userIfShares: BN;
 
-	userIfFactor: BN;
-	totalIfFactor: BN;
+	userIfFactor: number;
+	totalIfFactor: number;
 	ifLiquidationFee: BN;
 
 	decimals: number;
@@ -502,6 +501,8 @@ export type SpotMarketAccount = {
 	cumulativeBorrowInterest: BN;
 	depositBalance: BN;
 	borrowBalance: BN;
+	maxTokenDeposits: BN;
+
 	lastInterestTs: BN;
 	lastTwapTs: BN;
 	initialAssetWeight: BN;
@@ -518,14 +519,13 @@ export type SpotMarketAccount = {
 
 	orderStepSize: BN;
 	nextFillRecordId: BN;
-	spotFeePool: {
-		balance: BN;
-	};
+	spotFeePool: PoolBalance;
 	totalSpotFee: BN;
 };
 
 export type PoolBalance = {
 	balance: BN;
+	marketIndex: number;
 };
 
 export type AMM = {
@@ -692,10 +692,10 @@ export type OrderParams = {
 	reduceOnly: boolean;
 	postOnly: boolean;
 	immediateOrCancel: boolean;
-	triggerPrice: BN;
+	triggerPrice: BN | null;
 	triggerCondition: OrderTriggerCondition;
 	positionLimit: BN;
-	oraclePriceOffset: BN;
+	oraclePriceOffset: BN | null;
 	auctionDuration: number | null;
 	timeInForce: number | null;
 	auctionStartPrice: BN | null;
@@ -723,10 +723,10 @@ export const DefaultOrderParams = {
 	reduceOnly: false,
 	postOnly: false,
 	immediateOrCancel: false,
-	triggerPrice: ZERO,
+	triggerPrice: null,
 	triggerCondition: OrderTriggerCondition.ABOVE,
 	positionLimit: ZERO,
-	oraclePriceOffset: ZERO,
+	oraclePriceOffset: null,
 	auctionDuration: null,
 	timeInForce: null,
 	auctionStartPrice: null,
