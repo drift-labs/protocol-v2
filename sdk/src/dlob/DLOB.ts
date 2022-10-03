@@ -288,16 +288,17 @@ export class DLOB {
 				marketType,
 				oraclePriceData
 			);
-		console.log(`AAAAA: ${vAMMCrossingNodesToFill.length}`);
-		crossingNodesToFill = crossingNodesToFill.concat(vAMMCrossingNodesToFill);
 
 		// get expired market nodes
-		const marketNodesToFill = this.findMarketNodesToFill(
+		const marketNodesToFill = this.findExpiredMarketNodesToFill(
 			marketIndex,
 			slot,
 			marketType
 		);
-		return crossingNodesToFill.concat(marketNodesToFill);
+		return crossingNodesToFill.concat(
+			vAMMCrossingNodesToFill,
+			marketNodesToFill
+		);
 	}
 
 	public findCrossingNodesToFill(
@@ -362,11 +363,14 @@ export class DLOB {
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
 	): NodeToFill[] {
-		// TODO: check all bids against the vAMM, and check all asks against the vAMM
-		// return all bids and asks that cross against the vAMM
-		// might be able to put this check in same generator loop as used in findCrossingNodesToFill
-		// const askVammNode = getVammNodeGenerator(vAsk);
-		// const bidVammNode = getVammNodeGenerator(vBid);
+		const askVAMM = getVammNodeGenerator(vAsk).next();
+		if (askVAMM.done) {
+			throw new Error('no vAMM ask node');
+		}
+		const bidVAMM = getVammNodeGenerator(vBid).next();
+		if (bidVAMM.done) {
+			throw new Error('no vAMM bid node');
+		}
 
 		const nodesToFill = new Array<NodeToFill>();
 
@@ -388,21 +392,7 @@ export class DLOB {
 		let nextAsk = askGenerator.next();
 		let nextBid = bidGenerator.next();
 
-		// check for bids that cross the vAsk
-		while (!nextBid.done) {
-			const bidNode = nextBid.value;
-			const bidPrice = bidNode.getPrice(oraclePriceData, slot);
-
-			if (bidPrice.gte(vAsk) && isAuctionComplete(bidNode.order, slot)) {
-				nodesToFill.push({
-					node: bidNode,
-				});
-			}
-
-			nextBid = bidGenerator.next();
-		}
-
-		// check for bids that cross the vAsk
+		// check for asks that cross vBid
 		while (!nextAsk.done) {
 			const askNode = nextAsk.value;
 			const askPrice = askNode.getPrice(oraclePriceData, slot);
@@ -410,16 +400,34 @@ export class DLOB {
 			if (askPrice.lte(vBid) && isAuctionComplete(askNode.order, slot)) {
 				nodesToFill.push({
 					node: askNode,
+					makerNode: bidVAMM.value,
 				});
+			} else {
 			}
 
 			nextAsk = askGenerator.next();
 		}
 
+		// check for bids that cross vAsk
+		while (!nextBid.done) {
+			const bidNode = nextBid.value;
+			const bidPrice = bidNode.getPrice(oraclePriceData, slot);
+
+			if (bidPrice.gte(vAsk) && isAuctionComplete(bidNode.order, slot)) {
+				nodesToFill.push({
+					node: bidNode,
+					makerNode: askVAMM.value,
+				});
+			} else {
+			}
+
+			nextBid = bidGenerator.next();
+		}
+
 		return nodesToFill;
 	}
 
-	public findMarketNodesToFill(
+	public findExpiredMarketNodesToFill(
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType
@@ -427,10 +435,7 @@ export class DLOB {
 		const nodesToFill = new Array<NodeToFill>();
 		// Then see if there are orders to fill against vamm
 		for (const marketBid of this.getMarketBids(marketIndex, marketType)) {
-			if (
-				isAuctionComplete(marketBid.order, slot) ||
-				isOrderExpired(marketBid.order, slot)
-			) {
+			if (isOrderExpired(marketBid.order, slot)) {
 				nodesToFill.push({
 					node: marketBid,
 				});
@@ -438,10 +443,7 @@ export class DLOB {
 		}
 
 		for (const marketAsk of this.getMarketAsks(marketIndex, marketType)) {
-			if (
-				isAuctionComplete(marketAsk.order, slot) ||
-				isOrderExpired(marketAsk.order, slot)
-			) {
+			if (isOrderExpired(marketAsk.order, slot)) {
 				nodesToFill.push({
 					node: marketAsk,
 				});
@@ -555,6 +557,12 @@ export class DLOB {
 			);
 
 			if (!bestGenerator.next.done) {
+				// skip this node if it's already completely filled
+				if (bestGenerator.next.value.isBaseFilled()) {
+					bestGenerator.next = bestGenerator.generator.next();
+					continue;
+				}
+
 				yield bestGenerator.next.value;
 				bestGenerator.next = bestGenerator.generator.next();
 			} else {
@@ -620,6 +628,12 @@ export class DLOB {
 			);
 
 			if (!bestGenerator.next.done) {
+				// skip this node if it's already completely filled
+				if (bestGenerator.next.value.isBaseFilled()) {
+					bestGenerator.next = bestGenerator.generator.next();
+					continue;
+				}
+
 				yield bestGenerator.next.value;
 				bestGenerator.next = bestGenerator.generator.next();
 			} else {
@@ -637,8 +651,8 @@ export class DLOB {
 		crossingNodes: NodeToFill[];
 		exhaustedSide: Side;
 	} {
-		// const bidPrice = bidNode.getPrice(oraclePriceData, slot);
-		// const askPrice = askNode.getPrice(oraclePriceData, slot);
+		const bidPrice = bidNode.getPrice(oraclePriceData, slot);
+		const askPrice = askNode.getPrice(oraclePriceData, slot);
 
 		const bidOrder = bidNode.order;
 		const askOrder = askNode.order;
@@ -674,7 +688,12 @@ export class DLOB {
 
 		// Can't match two maker orders or if maker and taker are the same
 		const makerIsTaker = bidNode.userAccount.equals(askNode.userAccount);
-		if (makerIsTaker || (bidOrder.postOnly && askOrder.postOnly)) {
+		const ordersDontCross = bidPrice.lt(askPrice);
+		if (
+			makerIsTaker ||
+			(bidOrder.postOnly && askOrder.postOnly) ||
+			ordersDontCross
+		) {
 			// don't have a principle way to pick which one to exhaust,
 			// exhaust each one 50% of the time so we can try each one against other orders
 			const exhaustedSide = Math.random() < 0.5 ? 'bid' : 'ask';
@@ -700,18 +719,60 @@ export class DLOB {
 			exhaustedSide = 'bid';
 		}
 
-		// update the orders as if they fill - so we don't try to match them on the next iteration
+		// update the orders on DLOB as if they were fill - so we don't try to match them on the next iteration
+		// NOTE: if something goes wrong during the actual fill (transaction fails, i.e. due to orders already being filled)
+		// then we risk having a mismatch between this local DLOB and the actual DLOB state on the blockchain. This isn't
+		// a problem in the current implementation because we construct a new DLOB from the blockchain state every time, rather
+		// than updating the existing DLOB based on events.
 		if (exhaustedSide === 'ask') {
-			bidNode.order.baseAssetAmountFilled =
+			// bid partially filled
+			const newBidOrder = { ...bidOrder };
+			newBidOrder.baseAssetAmountFilled =
 				bidOrder.baseAssetAmountFilled.add(askBaseRemaining);
-			askNode.order.baseAssetAmountFilled = askOrder.baseAssetAmount;
+			this.getListForOrder(newBidOrder).update(
+				newBidOrder,
+				bidNode.userAccount
+			);
+
+			// ask completely filled
+			const newAskOrder = { ...askOrder };
+			newAskOrder.baseAssetAmountFilled = askOrder.baseAssetAmount;
+			this.getListForOrder(newAskOrder).update(
+				newAskOrder,
+				askNode.userAccount
+			);
 		} else if (exhaustedSide === 'bid') {
-			askNode.order.baseAssetAmountFilled =
+			// ask partially filled
+			const newAskOrder = { ...askOrder };
+			newAskOrder.baseAssetAmountFilled =
 				askOrder.baseAssetAmountFilled.add(bidBaseRemaining);
-			bidNode.order.baseAssetAmountFilled = bidOrder.baseAssetAmount;
+			this.getListForOrder(newAskOrder).update(
+				newAskOrder,
+				askNode.userAccount
+			);
+
+			// bid completely filled
+			const newBidOrder = { ...bidOrder };
+			newBidOrder.baseAssetAmountFilled = bidOrder.baseAssetAmount;
+			this.getListForOrder(newBidOrder).update(
+				newBidOrder,
+				bidNode.userAccount
+			);
 		} else {
-			askNode.order.baseAssetAmountFilled = askOrder.baseAssetAmount;
-			bidNode.order.baseAssetAmountFilled = bidOrder.baseAssetAmount;
+			// both completely filled
+			const newBidOrder = { ...bidOrder };
+			newBidOrder.baseAssetAmountFilled = bidOrder.baseAssetAmount;
+			this.getListForOrder(newBidOrder).update(
+				newBidOrder,
+				bidNode.userAccount
+			);
+
+			const newAskOrder = { ...askOrder };
+			newAskOrder.baseAssetAmountFilled = askOrder.baseAssetAmount;
+			this.getListForOrder(newAskOrder).update(
+				newAskOrder,
+				askNode.userAccount
+			);
 		}
 
 		// Bid is maker

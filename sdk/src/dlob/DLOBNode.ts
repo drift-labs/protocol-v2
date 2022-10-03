@@ -19,6 +19,7 @@ export interface DLOBNode {
 	getPrice(oraclePriceData: OraclePriceData, slot: number): BN;
 	isVammNode(): boolean;
 	order: Order | undefined;
+	isBaseFilled(): boolean;
 	haveFilled: boolean;
 	userAccount: PublicKey | undefined;
 	market: SpotMarketAccount | PerpMarketAccount;
@@ -85,6 +86,10 @@ export abstract class OrderNode implements DLOBNode {
 		} else {
 			console.error(`Unknown market type: ${this.order.marketType}`);
 		}
+	}
+
+	isBaseFilled(): boolean {
+		return this.order.baseAssetAmountFilled.eq(this.order.baseAssetAmount);
 	}
 
 	isVammNode(): boolean {

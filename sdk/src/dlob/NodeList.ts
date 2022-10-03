@@ -180,6 +180,7 @@ export function* getVammNodeGenerator(
 		order: undefined,
 		market: undefined,
 		userAccount: undefined,
+		isBaseFilled: () => false,
 		haveFilled: false,
 	};
 }

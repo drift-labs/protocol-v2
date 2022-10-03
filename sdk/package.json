@@ -14,6 +14,7 @@
 		"build": "yarn clean && tsc",
 		"clean": "rm -rf lib",
 		"test": "mocha -r ts-node/register tests/**/*.ts",
+		"test:inspect": "mocha --inspect-brk -r ts-node/register tests/**/*.ts",
 		"patch-and-pub": "npm version patch --force && npm publish",
 		"prettify": "prettier --check './src/***/*.ts'",
 		"prettify:fix": "prettier --write './{src,tests}/***/*.ts'"
