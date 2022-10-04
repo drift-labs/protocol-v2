@@ -333,12 +333,24 @@ pub mod clearing_house {
 
         let serum_program_id = serum_program_id;
         let serum_market = serum_market_key;
-        let serum_event_queue = Pubkey::new(cast_slice(&market_state.event_q));
-        let serum_request_queue = Pubkey::new(cast_slice(&market_state.req_q));
-        let serum_bids = Pubkey::new(cast_slice(&market_state.bids));
-        let serum_asks = Pubkey::new(cast_slice(&market_state.asks));
-        let serum_base_vault = Pubkey::new(cast_slice(&market_state.coin_vault));
-        let serum_quote_vault = Pubkey::new(cast_slice(&market_state.pc_vault));
+
+        let market_state_event_queue = market_state.event_q;
+        let serum_event_queue = Pubkey::new(cast_slice(&market_state_event_queue));
+
+        let market_state_request_queue = market_state.req_q;
+        let serum_request_queue = Pubkey::new(cast_slice(&market_state_request_queue));
+
+        let market_state_bids = market_state.bids;
+        let serum_bids = Pubkey::new(cast_slice(&market_state_bids));
+
+        let market_state_asks = market_state.asks;
+        let serum_asks = Pubkey::new(cast_slice(&market_state_asks));
+
+        let market_state_coin_vault = market_state.coin_vault;
+        let serum_base_vault = Pubkey::new(cast_slice(&market_state_coin_vault));
+
+        let market_state_pc_vault = market_state.pc_vault;
+        let serum_quote_vault = Pubkey::new(cast_slice(&market_state_pc_vault));
         let serum_signer_nonce = market_state.vault_signer_nonce;
 
         drop(market_state);
