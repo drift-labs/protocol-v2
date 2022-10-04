@@ -25,10 +25,15 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum MarketStatus {
-    Initialized,
-    ReduceOnly,
-    Settlement,
-    Delisted,
+    Initialized,    // warm up period for initialization, fills are paused
+    Active,         // all operations allowed
+    FundingPaused,  // perp: pause funding rate updates | spot: pause interest updates
+    AmmPaused,      // amm fills are prevented/blocked
+    FillPaused,     // fills are blocked
+    WithdrawPaused, // perp: pause settling positive pnl | spot: pause withdrawing asset
+    ReduceOnly,     // fills only able to reduce liability
+    Settlement, // market has determined settlement price and positions are expired must be settled
+    Delisted,   // market has no remaining participants
 }
 
 impl Default for MarketStatus {
@@ -46,6 +51,20 @@ pub enum ContractType {
 impl Default for ContractType {
     fn default() -> Self {
         ContractType::Perpetual
+    }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum ContractTier {
+    A,           // max insurance capped at A level
+    B,           // max insurance capped at B level
+    C,           // max insurance capped at C level
+    Speculative, // no insurance
+}
+
+impl Default for ContractTier {
+    fn default() -> Self {
+        ContractTier::Speculative
     }
 }
 
@@ -81,7 +100,8 @@ pub struct PerpMarket {
     pub market_index: u16,
     pub status: MarketStatus,
     pub contract_type: ContractType,
-    pub padding: [u8; 4],
+    pub contract_tier: ContractTier,
+    pub padding: [u8; 3],
 }
 
 impl PerpMarket {

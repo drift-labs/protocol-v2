@@ -26,10 +26,25 @@ pub struct State {
     pub min_perp_auction_duration: u8,
     pub default_market_order_time_in_force: u8,
     pub default_spot_auction_duration: u8,
-    pub exchange_paused: bool,
-    pub funding_paused: bool,
-    pub admin_controls_prices: bool,
-    pub padding: [u8; 7],
+    pub exchange_status: ExchangeStatus,
+    pub padding: [u8; 1],
+}
+
+#[derive(Clone, AnchorSerialize, AnchorDeserialize, Copy, PartialEq, Debug, Eq)]
+pub enum ExchangeStatus {
+    Active,
+    FundingPaused,
+    AmmPaused,
+    FillPaused,
+    LiqPaused,
+    WithdrawPaused,
+    Paused,
+}
+
+impl Default for ExchangeStatus {
+    fn default() -> Self {
+        ExchangeStatus::Active
+    }
 }
 
 #[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone)]

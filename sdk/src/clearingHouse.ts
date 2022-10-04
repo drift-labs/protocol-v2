@@ -551,6 +551,28 @@ export class ClearingHouse {
 		);
 	}
 
+	public async deleteUser(userId = 0): Promise<TransactionSignature> {
+		const userAccountPublicKey = getUserAccountPublicKeySync(
+			this.program.programId,
+			this.wallet.publicKey,
+			userId
+		);
+
+		const txSig = await this.program.rpc.deleteUser({
+			accounts: {
+				user: userAccountPublicKey,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
+
+		await this.users.get(userId)?.unsubscribe();
+		this.users.delete(userId);
+
+		return txSig;
+	}
+
 	public getUser(userId?: number): ClearingHouseUser {
 		userId = userId ?? this.activeUserId;
 		if (!this.users.has(userId)) {
@@ -1307,6 +1329,7 @@ export class ClearingHouse {
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 		return await this.program.instruction.updateSpotMarketCumulativeInterest({
 			accounts: {
+				state: await this.getStatePublicKey(),
 				spotMarket: spotMarket.pubkey,
 			},
 		});
@@ -1737,8 +1760,12 @@ export class ClearingHouse {
 					(order) => order.orderId === userAccount.nextOrderId - 1
 			  ).marketIndex;
 
+		const userAccounts = [userAccount];
+		if (makerInfo !== undefined) {
+			userAccounts.push(makerInfo.makerUserAccount);
+		}
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [userAccount],
+			userAccounts,
 			writablePerpMarketIndexes: [marketIndex],
 		});
 
@@ -1865,8 +1892,12 @@ export class ClearingHouse {
 					(order) => order.orderId === userAccount.nextOrderId - 1
 			  ).marketIndex;
 
+		const userAccounts = [userAccount];
+		if (makerInfo !== undefined) {
+			userAccounts.push(makerInfo.makerUserAccount);
+		}
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [userAccount],
+			userAccounts,
 			writableSpotMarketIndexes: [marketIndex, QUOTE_SPOT_MARKET_INDEX],
 		});
 
@@ -2078,8 +2109,12 @@ export class ClearingHouse {
 		const userStatsPublicKey = await this.getUserStatsAccountPublicKey();
 		const userAccountPublicKey = await this.getUserAccountPublicKey();
 
+		const userAccounts = [this.getUserAccount()];
+		if (makerInfo !== undefined) {
+			userAccounts.push(makerInfo.makerUserAccount);
+		}
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts,
 			useMarketLastSlotCache: true,
 			writablePerpMarketIndexes: [orderParams.marketIndex],
 		});

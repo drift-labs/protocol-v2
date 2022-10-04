@@ -108,9 +108,11 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('Initialize USDC Market', async () => {
-		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(new BN(2)); // 50% utilization
-		const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)); // 2000% APR
-		const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(50)); // 5000% APR
+		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
+			new BN(2)
+		).toNumber(); // 50% utilization
+		const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)).toNumber(); // 2000% APR
+		const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(50)).toNumber(); // 5000% APR
 		const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION;
 		const maintenanceAssetWeight = SPOT_MARKET_WEIGHT_PRECISION;
 		const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION;
@@ -135,9 +137,9 @@ describe('spot deposit and withdraw', () => {
 		await admin.fetchAccounts();
 		const spotMarket = await admin.getSpotMarketAccount(0);
 		assert(spotMarket.marketIndex === 0);
-		assert(spotMarket.optimalUtilization.eq(optimalUtilization));
-		assert(spotMarket.optimalBorrowRate.eq(optimalRate));
-		assert(spotMarket.maxBorrowRate.eq(maxRate));
+		assert(spotMarket.optimalUtilization === optimalUtilization);
+		assert(spotMarket.optimalBorrowRate === optimalRate);
+		assert(spotMarket.maxBorrowRate === maxRate);
 		assert(
 			spotMarket.cumulativeBorrowInterest.eq(
 				SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION
@@ -157,9 +159,11 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('Initialize SOL Market', async () => {
-		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(new BN(2)); // 50% utilization
-		const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)); // 2000% APR
-		const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(50)); // 5000% APR
+		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
+			new BN(2)
+		).toNumber(); // 50% utilization
+		const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)).toNumber(); // 2000% APR
+		const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(50)).toNumber(); // 5000% APR
 		const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(new BN(8)).div(
 			new BN(10)
 		);
@@ -194,9 +198,9 @@ describe('spot deposit and withdraw', () => {
 		await admin.fetchAccounts();
 		const spotMarket = await admin.getSpotMarketAccount(1);
 		assert(spotMarket.marketIndex === 1);
-		assert(spotMarket.optimalUtilization.eq(optimalUtilization));
-		assert(spotMarket.optimalBorrowRate.eq(optimalRate));
-		assert(spotMarket.maxBorrowRate.eq(maxRate));
+		assert(spotMarket.optimalUtilization === optimalUtilization);
+		assert(spotMarket.optimalBorrowRate === optimalRate);
+		assert(spotMarket.maxBorrowRate === maxRate);
 		assert(
 			spotMarket.cumulativeBorrowInterest.eq(
 				SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION

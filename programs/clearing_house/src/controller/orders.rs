@@ -31,7 +31,7 @@ use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::auction::{calculate_auction_end_price, is_auction_complete};
-use crate::math::casting::{cast, cast_to_i128, cast_to_u64, Cast};
+use crate::math::casting::{cast, cast_to_u64, Cast};
 use crate::math::constants::{
     PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX, SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
 };
@@ -58,7 +58,7 @@ use crate::print_error;
 use crate::state::events::{get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::market::PerpMarket;
+use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -253,14 +253,15 @@ pub fn place_order(
     let risk_decreasing = worst_case_base_asset_amount_after.unsigned_abs()
         <= worst_case_base_asset_amount_before.unsigned_abs();
 
-    let meets_initial_maintenance_requirement =
-        meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+    let meets_initial_margin_requirement = meets_place_order_margin_requirement(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        risk_decreasing,
+    )?;
 
-    if !meets_initial_maintenance_requirement && !risk_decreasing {
-        return Err(ErrorCode::InsufficientCollateral);
-    }
-
-    if force_reduce_only && !risk_decreasing {
+    if !meets_initial_margin_requirement || (force_reduce_only && !risk_decreasing) {
         return Err(ErrorCode::InvalidOrder);
     }
 
@@ -438,24 +439,33 @@ pub fn cancel_order(
     if is_perp_order {
         // Decrement open orders for existing position
         let position_index = get_position_index(&user.perp_positions, order_market_index)?;
-        let base_asset_amount_unfilled =
-            user.orders[order_index].get_base_asset_amount_unfilled()?;
-        position::decrease_open_bids_and_asks(
-            &mut user.perp_positions[position_index],
-            &order_direction,
-            cast(base_asset_amount_unfilled)?,
-        )?;
+
+        // only decrease open/bids ask if it's not a trigger order or if it's been triggered
+        if !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered {
+            let base_asset_amount_unfilled =
+                user.orders[order_index].get_base_asset_amount_unfilled()?;
+            position::decrease_open_bids_and_asks(
+                &mut user.perp_positions[position_index],
+                &order_direction,
+                cast(base_asset_amount_unfilled)?,
+            )?;
+        }
+
         user.perp_positions[position_index].open_orders -= 1;
         user.orders[order_index] = Order::default();
     } else {
         let spot_position_index = user.get_spot_position_index(order_market_index)?;
-        let base_asset_amount_unfilled =
-            user.orders[order_index].get_base_asset_amount_unfilled()?;
-        decrease_spot_open_bids_and_asks(
-            &mut user.spot_positions[spot_position_index],
-            &order_direction,
-            base_asset_amount_unfilled,
-        )?;
+
+        // only decrease open/bids ask if it's not a trigger order or if it's been triggered
+        if !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered {
+            let base_asset_amount_unfilled =
+                user.orders[order_index].get_base_asset_amount_unfilled()?;
+            decrease_spot_open_bids_and_asks(
+                &mut user.spot_positions[spot_position_index],
+                &order_direction,
+                base_asset_amount_unfilled,
+            )?;
+        }
         user.spot_positions[spot_position_index].open_orders -= 1;
         user.orders[order_index] = Order::default();
     }
@@ -509,6 +519,18 @@ pub fn fill_order(
     controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
     controller::lp::settle_lp(user, &user_key, &mut market, now)?;
 
+    validate!(
+        matches!(
+            market.status,
+            MarketStatus::Active
+                | MarketStatus::FundingPaused
+                | MarketStatus::ReduceOnly
+                | MarketStatus::WithdrawPaused
+        ),
+        ErrorCode::DefaultError,
+        "Market unavailable for fills"
+    )?;
+
     drop(market);
 
     validate!(
@@ -547,9 +569,12 @@ pub fn fill_order(
     let is_oracle_valid: bool;
     let oracle_price: i128;
     let market_is_reduce_only: bool;
+    let mut amm_is_available = state.exchange_status != ExchangeStatus::AmmPaused;
+
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         market_is_reduce_only = market.is_reduce_only()?;
+        amm_is_available &= market.status != MarketStatus::AmmPaused;
         controller::validate::validate_market_account(market)?;
         validate!(
             market.is_active(now)?,
@@ -699,6 +724,7 @@ pub fn fill_order(
         now,
         slot,
         market_is_reduce_only,
+        amm_is_available,
     )?;
 
     if should_cancel_order_after_fulfill(user, order_index, slot)? {
@@ -747,13 +773,16 @@ pub fn fill_order(
     // Try to update the funding rate at the end of every trade
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
+        let funding_paused = matches!(state.exchange_status, ExchangeStatus::FundingPaused)
+            || matches!(market.status, MarketStatus::FundingPaused);
+
         controller::funding::update_funding_rate(
             market_index,
             market,
             oracle_map,
             now,
             &state.oracle_guard_rails,
-            state.funding_paused,
+            funding_paused,
             Some(reserve_price_before),
         )?;
     }
@@ -856,8 +885,14 @@ fn sanitize_maker_order<'a>(
     let maker_key = maker.key();
     let mut maker = load_mut!(maker)?;
     let maker_stats = load_mut!(maker_stats)?;
-    let maker_order_index =
-        maker.get_order_index(maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?)?;
+    let maker_order_id = maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?;
+    let maker_order_index = match maker.get_order_index(maker_order_id) {
+        Ok(order_index) => order_index,
+        Err(_) => {
+            msg!("Maker has no order id {}", maker_order_id);
+            return Ok((None, None, None, None));
+        }
+    };
 
     {
         let maker_order = &maker.orders[maker_order_index];
@@ -1011,6 +1046,7 @@ fn fulfill_order(
     now: i64,
     slot: u64,
     market_is_reduce_only: bool,
+    amm_is_available: bool,
 ) -> ClearingHouseResult<(u64, bool, bool)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -1046,7 +1082,7 @@ fn fulfill_order(
     let fulfillment_methods = determine_perp_fulfillment_methods(
         &user.orders[user_order_index],
         maker.is_some(),
-        valid_oracle_price.is_some(),
+        amm_is_available,
         slot,
     )?;
 
@@ -1129,7 +1165,7 @@ fn fulfill_order(
         emit!(order_record)
     }
 
-    let (margin_requirement, total_collateral, _, _) =
+    let (taker_margin_requirement, taker_total_collateral, _, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -1138,13 +1174,34 @@ fn fulfill_order(
             oracle_map,
             None,
         )?;
-    if total_collateral < cast_to_i128(margin_requirement)? {
+    if taker_total_collateral < taker_margin_requirement.cast()? {
         msg!(
             "taker breached maintenance requirements (margin requirement {}) (total_collateral {})",
-            margin_requirement,
-            total_collateral
+            taker_margin_requirement,
+            taker_total_collateral
         );
         return Err(ErrorCode::InsufficientCollateral);
+    }
+
+    if let Some(maker) = maker {
+        let (maker_margin_requirement, maker_total_collateral, _, _) =
+            calculate_margin_requirement_and_total_collateral(
+                maker,
+                perp_market_map,
+                MarginRequirementType::Maintenance,
+                spot_market_map,
+                oracle_map,
+                None,
+            )?;
+
+        if maker_total_collateral < maker_margin_requirement.cast()? {
+            msg!(
+            "maker breached maintenance requirements (margin requirement {}) (total_collateral {})",
+            maker_margin_requirement,
+            maker_total_collateral
+        );
+            return Err(ErrorCode::InsufficientCollateral);
+        }
     }
 
     let position_base_asset_amount_after = user.perp_positions[position_index].base_asset_amount;
@@ -1856,7 +1913,8 @@ pub fn trigger_order(
     order_id: u32,
     state: &State,
     user: &AccountLoader<User>,
-    market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    perp_market_map: &PerpMarketMap,
     oracle_map: &mut OracleMap,
     filler: &AccountLoader<User>,
     clock: &Clock,
@@ -1895,11 +1953,14 @@ pub fn trigger_order(
         "Order must be a perp order"
     )?;
 
-    let market = &mut market_map.get_ref_mut(&market_index)?;
-    let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
+    let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
+    let oracle_price_data = &oracle_map.get_price_data(&perp_market.amm.oracle)?;
 
     let oracle_validity = oracle::oracle_validity(
-        market.amm.historical_oracle_data.last_oracle_price_twap,
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
     )?;
@@ -1952,7 +2013,7 @@ pub fn trigger_order(
     let filler_reward = pay_keeper_flat_reward_for_perps(
         user,
         filler.as_deref_mut(),
-        market,
+        &mut perp_market,
         state.perp_fee_structure.flat_filler_fee,
     )?;
 
@@ -1978,6 +2039,40 @@ pub fn trigger_order(
         oracle_price,
     )?;
     emit!(order_action_record);
+
+    drop(perp_market);
+
+    // If order is risk increasing and user is below initial margin, cancel it
+    let order_direction = user.orders[order_index].direction;
+    let order_base_asset_amount = user.orders[order_index].base_asset_amount;
+    let position_base_asset_amount = user
+        .force_get_perp_position_mut(market_index)?
+        .base_asset_amount;
+    let is_risk_increasing = is_order_risk_increasing(
+        &order_direction,
+        order_base_asset_amount,
+        position_base_asset_amount,
+    )?;
+
+    let meets_initial_margin_requirement =
+        meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+
+    if is_risk_increasing && !meets_initial_margin_requirement {
+        cancel_order(
+            order_index,
+            user,
+            &user_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::InsufficientFreeCollateral,
+            Some(&filler_key),
+            0,
+            false,
+        )?;
+    }
 
     Ok(())
 }
@@ -2229,11 +2324,16 @@ pub fn place_spot_order(
     let risk_decreasing = worst_case_token_amount_after.unsigned_abs()
         <= worst_case_token_amount_before.unsigned_abs();
 
-    let meets_initial_maintenance_requirement =
-        meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+    let meets_initial_margin_requirement = meets_place_order_margin_requirement(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        risk_decreasing,
+    )?;
 
-    if !meets_initial_maintenance_requirement && !risk_decreasing {
-        return Err(ErrorCode::InsufficientCollateral);
+    if !meets_initial_margin_requirement || (force_reduce_only && !risk_decreasing) {
+        return Err(ErrorCode::InvalidOrder);
     }
 
     let (taker, taker_order, maker, maker_order) =
@@ -2302,8 +2402,23 @@ pub fn fill_spot_order(
         .position(|order| order.order_id == order_id)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
-    let (order_status, order_market_type) =
-        get_struct_values!(user.orders[order_index], status, market_type);
+    let (order_status, order_market_index, order_market_type) =
+        get_struct_values!(user.orders[order_index], status, market_index, market_type);
+
+    {
+        let spot_market = spot_market_map.get_ref(&order_market_index)?;
+        validate!(
+            matches!(
+                spot_market.status,
+                MarketStatus::Active
+                    | MarketStatus::FundingPaused
+                    | MarketStatus::ReduceOnly
+                    | MarketStatus::WithdrawPaused
+            ),
+            ErrorCode::DefaultError,
+            "Market unavailable for fills"
+        )?;
+    }
 
     validate!(
         order_market_type == MarketType::Spot,
@@ -2484,8 +2599,14 @@ fn sanitize_spot_maker_order<'a>(
     let maker_key = maker.key();
     let mut maker = load_mut!(maker)?;
     let maker_stats = load_mut!(maker_stats)?;
-    let maker_order_index =
-        maker.get_order_index(maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?)?;
+    let maker_order_id = maker_order_id.ok_or(ErrorCode::MakerOrderNotFound)?;
+    let maker_order_index = match maker.get_order_index(maker_order_id) {
+        Ok(order_index) => order_index,
+        Err(_) => {
+            msg!("Maker has no order id {}", maker_order_id);
+            return Ok((None, None, None, None));
+        }
+    };
 
     {
         let maker_order = &maker.orders[maker_order_index];
@@ -2704,7 +2825,7 @@ fn fulfill_spot_order(
         emit!(order_record)
     }
 
-    let (margin_requirement, total_collateral, _, _) =
+    let (taker_margin_requirement, taker_total_collateral, _, _) =
         calculate_margin_requirement_and_total_collateral(
             user,
             perp_market_map,
@@ -2714,13 +2835,34 @@ fn fulfill_spot_order(
             None,
         )?;
 
-    if total_collateral < cast_to_i128(margin_requirement)? {
+    if taker_total_collateral < taker_margin_requirement.cast()? {
         msg!(
             "taker breached maintenance requirements (margin requirement {}) (total_collateral {})",
-            margin_requirement,
-            total_collateral
+            taker_margin_requirement,
+            taker_total_collateral
         );
         return Err(ErrorCode::InsufficientCollateral);
+    }
+
+    if let Some(maker) = maker {
+        let (maker_margin_requirement, maker_total_collateral, _, _) =
+            calculate_margin_requirement_and_total_collateral(
+                maker,
+                perp_market_map,
+                MarginRequirementType::Maintenance,
+                spot_market_map,
+                oracle_map,
+                None,
+            )?;
+
+        if maker_total_collateral < maker_margin_requirement.cast()? {
+            msg!(
+            "maker breached maintenance requirements (margin requirement {}) (total_collateral {})",
+            maker_margin_requirement,
+            maker_total_collateral
+        );
+            return Err(ErrorCode::InsufficientCollateral);
+        }
     }
 
     Ok((base_asset_amount, base_asset_amount != 0))
@@ -3408,6 +3550,7 @@ pub fn trigger_spot_order(
     state: &State,
     user: &AccountLoader<User>,
     spot_market_map: &SpotMarketMap,
+    perp_market_map: &PerpMarketMap,
     oracle_map: &mut OracleMap,
     filler: &AccountLoader<User>,
     clock: &Clock,
@@ -3451,17 +3594,17 @@ pub fn trigger_spot_order(
         "Order must be a spot order"
     )?;
 
-    let market = spot_market_map.get_ref(&market_index)?;
+    let spot_market = spot_market_map.get_ref(&market_index)?;
     let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
-        &market.oracle,
-        market.historical_oracle_data.last_oracle_price_twap,
+        &spot_market.oracle,
+        spot_market.historical_oracle_data.last_oracle_price_twap,
     )?;
 
     validate!(
         is_oracle_valid_for_action(oracle_validity, Some(DriftAction::TriggerOrder))?,
         ErrorCode::InvalidOracle,
         "OracleValidity for spot marketIndex={} invalid for TriggerOrder",
-        market.market_index
+        spot_market.market_index
     )?;
 
     let oracle_price = oracle_price_data.price;
@@ -3535,7 +3678,39 @@ pub fn trigger_spot_order(
         None,
         oracle_price,
     )?;
+
     emit!(order_action_record);
+
+    let position_index = user.get_spot_position_index(market_index)?;
+    let token_amount = user.spot_positions[position_index].get_token_amount(&spot_market)?;
+
+    drop(spot_market);
+    drop(quote_market);
+
+    // If order is risk increasing and user is below initial margin, cancel it
+    let balance_type = user.spot_positions[position_index].balance_type;
+    let is_risk_increasing =
+        is_spot_order_risk_increasing(&user.orders[order_index], &balance_type, token_amount)?;
+
+    let meets_initial_margin_requirement =
+        meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+
+    if is_risk_increasing && !meets_initial_margin_requirement {
+        cancel_order(
+            order_index,
+            user,
+            &user_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::InsufficientFreeCollateral,
+            Some(&filler_key),
+            0,
+            false,
+        )?;
+    }
 
     Ok(())
 }

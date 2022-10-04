@@ -296,7 +296,7 @@ describe('AMM Curve', () => {
 	// 	const ammAccountState = marketData1.amm;
 	// 	const oldPeg = ammAccountState.pegMultiplier;
 
-	// 	const priceBefore = calculateMarkPrice(
+	// 	const priceBefore = calculateReservePrice(
 	// 		clearingHouse.getPerpMarketAccount(marketIndex)
 	// 	);
 
@@ -305,7 +305,7 @@ describe('AMM Curve', () => {
 	// 		marketIndex
 	// 	);
 
-	// 	const priceAfter = calculateMarkPrice(
+	// 	const priceAfter = calculateReservePrice(
 	// 		clearingHouse.getPerpMarketAccount(marketIndex)
 	// 	);
 
@@ -406,6 +406,7 @@ describe('AMM Curve', () => {
 			BASE_PRECISION,
 			marketIndex
 		);
+		await clearingHouse.fetchAccounts();
 		amm = clearingHouse.getPerpMarketAccount(marketIndex).amm;
 
 		const candidatePegUp2 = calculateBudgetedPeg(
@@ -433,6 +434,7 @@ describe('AMM Curve', () => {
 			candidatePegDown2.toString()
 		);
 		assert(candidatePegDown2.eq(new BN(10131882)));
+		await clearingHouse.fetchAccounts();
 
 		await clearingHouse.closePosition(marketIndex);
 	});

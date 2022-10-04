@@ -196,6 +196,23 @@ pub struct UpdateUser<'info> {
 }
 
 #[derive(Accounts)]
+pub struct DeleteUser<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+        close = authority
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct InitializeMarket<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
@@ -320,6 +337,7 @@ pub struct TransferDeposit<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateSpotMarketCumulativeInterest<'info> {
+    pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub spot_market: AccountLoader<'info, SpotMarket>,
 }
@@ -732,7 +750,6 @@ pub struct RepegCurve<'info> {
 pub struct MoveAMMPrice<'info> {
     #[account(
         has_one = admin,
-        constraint = state.admin_controls_prices
     )]
     pub state: Box<Account<'info, State>>,
     pub admin: Signer<'info>,

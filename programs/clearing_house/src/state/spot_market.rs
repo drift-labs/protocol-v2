@@ -46,9 +46,6 @@ pub struct SpotMarket {
     pub user_if_shares: u128,
     pub if_shares_base: u128, // exponent for lp shares (for rebasing)
     pub total_spot_fee: u128,
-    pub optimal_utilization: u128,
-    pub optimal_borrow_rate: u128,
-    pub max_borrow_rate: u128,
     pub deposit_balance: u128,
     pub borrow_balance: u128,
     pub max_token_deposits: u128,
@@ -65,13 +62,17 @@ pub struct SpotMarket {
     pub expiry_ts: i64, // iff market in reduce only mode
     pub order_step_size: u64,
     pub next_fill_record_id: u64,
+    pub optimal_utilization: u32,
+    pub optimal_borrow_rate: u32,
+    pub max_borrow_rate: u32,
     pub total_if_factor: u32, // percentage of interest for total insurance
     pub user_if_factor: u32,  // percentage of interest for user staked insurance
     pub market_index: u16,
     pub decimals: u8,
     pub oracle_source: OracleSource,
     pub status: MarketStatus,
-    pub padding: [u8; 3],
+    pub asset_tier: AssetTier,
+    pub padding: [u8; 6],
 }
 
 impl SpotMarket {
@@ -191,6 +192,7 @@ impl SpotMarket {
             initial_asset_weight: 8000,
             maintenance_asset_weight: 9000,
             decimals: 9,
+            status: MarketStatus::Active,
             ..SpotMarket::default()
         }
     }
@@ -204,6 +206,7 @@ impl SpotMarket {
             maintenance_liability_weight: 10000,
             initial_asset_weight: 10000,
             maintenance_asset_weight: 10000,
+            status: MarketStatus::Active,
             ..SpotMarket::default()
         }
     }
@@ -274,5 +277,20 @@ pub enum SpotFulfillmentStatus {
 impl Default for SpotFulfillmentStatus {
     fn default() -> Self {
         SpotFulfillmentStatus::Enabled
+    }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum AssetTier {
+    Collateral, // full priviledge
+    Protected,  // collateral, but no borrow
+    Cross,      // not collateral, allow multi-borrow
+    Isolated,   // not collateral, only single borrow
+    Unlisted,   // no priviledge
+}
+
+impl Default for AssetTier {
+    fn default() -> Self {
+        AssetTier::Unlisted
     }
 }

@@ -810,6 +810,8 @@ impl UserStats {
 
 #[cfg(test)]
 mod test {
+    use crate::state::market::PerpMarket;
+    use crate::state::spot_market::SpotMarket;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
 
     #[test]
@@ -824,6 +826,12 @@ mod test {
         println!("spot_position_size {}", spot_position_size);
 
         let order_size = std::mem::size_of::<Order>();
+        println!("order_size {}", order_size);
+
+        let order_size = std::mem::size_of::<SpotMarket>();
+        println!("order_size {}", order_size);
+
+        let order_size = std::mem::size_of::<PerpMarket>();
         println!("order_size {}", order_size);
     }
 }
