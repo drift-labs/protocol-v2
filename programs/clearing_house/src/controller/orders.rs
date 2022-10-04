@@ -1656,7 +1656,7 @@ pub fn fulfill_order_with_match(
         maker_direction,
     )?;
 
-    validate_fill_price(
+    validate_matched_taker_fill_price(
         quote_asset_amount,
         base_asset_amount_fulfilled,
         taker_direction,

@@ -2790,10 +2790,10 @@ pub mod fill_order {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                // bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                // bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                // ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                // ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 100,
@@ -2801,7 +2801,9 @@ pub mod fill_order {
                 base_asset_amount_step_size: 1000,
                 oracle: oracle_price_key,
                 max_spread: 1000,
-
+                base_spread: 0,
+                long_spread: 0,
+                short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: oracle_price.twap as i128,
                     last_oracle_price_twap_5min: oracle_price.twap as i128,
@@ -2818,6 +2820,14 @@ pub mod fill_order {
         market.status = MarketStatus::Active;
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
+        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+            crate::amm::calculate_spread_reserves(&market.amm, PositionDirection::Long).unwrap();
+        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+            crate::amm::calculate_spread_reserves(&market.amm, PositionDirection::Short).unwrap();
+        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
+        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
+        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
+        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
@@ -2913,7 +2923,7 @@ pub mod fill_order {
         assert_eq!(user_after.orders[0], Order::default()); // order canceled
 
         let filler_after = filler_account_loader.load().unwrap();
-        assert_eq!(filler_after.perp_positions[0].quote_asset_amount, 20000);
+        assert_eq!(filler_after.perp_positions[0].quote_asset_amount, 19950);
     }
 
     #[test]

@@ -415,8 +415,10 @@ pub fn validate_fill_price(
 
     if order_direction == PositionDirection::Long && fill_price > order_limit_price {
         msg!(
-            "long order fill price ({}) > limit price ({})",
+            "long order fill price ({} = {}/{} * 1000) > limit price ({})",
             fill_price,
+            quote_asset_amount,
+            base_asset_amount,
             order_limit_price
         );
         return Err(ErrorCode::DefaultError);
@@ -424,8 +426,53 @@ pub fn validate_fill_price(
 
     if order_direction == PositionDirection::Short && fill_price < order_limit_price {
         msg!(
-            "short order fill price ({}) < limit price ({})",
+            "short order fill price ({} = {}/{} * 1000) < limit price ({})",
             fill_price,
+            quote_asset_amount,
+            base_asset_amount,
+            order_limit_price
+        );
+        return Err(ErrorCode::DefaultError);
+    }
+
+    Ok(())
+}
+
+pub fn validate_matched_taker_fill_price(
+    quote_asset_amount: u64,
+    base_asset_amount: u64,
+    order_direction: PositionDirection,
+    order_limit_price: u128,
+) -> ClearingHouseResult {
+    let rounded_quote_asset_amount = match order_direction {
+        PositionDirection::Long => quote_asset_amount.saturating_sub(1),
+        PositionDirection::Short => quote_asset_amount.saturating_add(1),
+    };
+
+    let fill_price = rounded_quote_asset_amount
+        .cast::<u128>()?
+        .checked_mul(BASE_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_div(base_asset_amount.cast()?)
+        .ok_or_else(math_error!())?;
+
+    if order_direction == PositionDirection::Long && fill_price > order_limit_price {
+        msg!(
+            "taker long order fill price ({} = {}/{} * 1000) > limit price ({})",
+            fill_price,
+            quote_asset_amount,
+            base_asset_amount,
+            order_limit_price
+        );
+        return Err(ErrorCode::DefaultError);
+    }
+
+    if order_direction == PositionDirection::Short && fill_price < order_limit_price {
+        msg!(
+            "taker short order fill price ({} = {}/{} * 1000) < limit price ({})",
+            fill_price,
+            quote_asset_amount,
+            base_asset_amount,
             order_limit_price
         );
         return Err(ErrorCode::DefaultError);
