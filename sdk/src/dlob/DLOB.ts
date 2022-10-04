@@ -54,7 +54,7 @@ export type NodeToTrigger = {
 	node: TriggerOrderNode;
 };
 
-type Side = 'ask' | 'bid' | 'both';
+type Side = 'ask' | 'bid' | 'both' | 'nocross';
 
 export class DLOB {
 	openOrders = new Map<MarketTypeStr, Set<string>>();
@@ -343,6 +343,8 @@ export class DLOB {
 			} else if (exhaustedSide === 'both') {
 				nextBid = bidGenerator.next();
 				nextAsk = askGenerator.next();
+			} else if (exhaustedSide === 'nocross') {
+				break;
 			} else {
 				console.error(`invalid exhaustedSide: ${exhaustedSide}`);
 				break;
@@ -656,17 +658,20 @@ export class DLOB {
 		const bidPrice = bidNode.getPrice(oraclePriceData, slot);
 		const askPrice = askNode.getPrice(oraclePriceData, slot);
 
+		// orders don't cross - we're done walkin gup the book
+		if (bidPrice.lt(askPrice)) {
+			return {
+				crossingNodes: [],
+				exhaustedSide: 'nocross',
+			};
+		}
+
 		const bidOrder = bidNode.order;
 		const askOrder = askNode.order;
 
 		// Can't match two maker orders or if maker and taker are the same
 		const makerIsTaker = bidNode.userAccount.equals(askNode.userAccount);
-		const ordersDontCross = bidPrice.lt(askPrice);
-		if (
-			makerIsTaker ||
-			(bidOrder.postOnly && askOrder.postOnly) ||
-			ordersDontCross
-		) {
+		if (makerIsTaker || (bidOrder.postOnly && askOrder.postOnly)) {
 			// don't have a principle way to pick which one to exhaust,
 			// exhaust each one 50% of the time so we can try each one against other orders
 			const exhaustedSide = Math.random() < 0.5 ? 'bid' : 'ask';
