@@ -7,7 +7,12 @@ import {
 	Admin,
 	BN,
 	EventSubscriber,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
+	ClearingHouse,
+	OracleSource,
+	PositionDirection,
+	Wallet,
+	MarketStatus,
 } from '../sdk/src';
 
 import {
@@ -18,7 +23,6 @@ import {
 	mockUserUSDCAccount,
 } from './testHelpers';
 import { assert } from 'chai';
-import { ClearingHouse, OracleSource, PositionDirection, Wallet } from '../sdk';
 import { Keypair } from '@solana/web3.js';
 
 describe('user delegate', () => {
@@ -39,13 +43,13 @@ describe('user delegate', () => {
 	let delegateClearingHouse: ClearingHouse;
 	let delegateUsdcAccount: Keypair;
 
-	const marketIndexes = [new BN(0)];
-	const spotMarketIndexes = [new BN(0)];
+	const marketIndexes = [0];
+	const spotMarketIndexes = [0];
 
 	let solUsd;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -88,6 +92,7 @@ describe('user delegate', () => {
 			ammInitialQuoteAssetAmount,
 			periodicity
 		);
+		await clearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
 		const userId = 0;
 		const name = 'CRISP';
@@ -171,7 +176,7 @@ describe('user delegate', () => {
 		await delegateClearingHouse.openPosition(
 			PositionDirection.LONG,
 			usdcAmount,
-			new BN(0)
+			0
 		);
 	});
 });

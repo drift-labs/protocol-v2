@@ -7,7 +7,7 @@ import {
 	isVariant,
 	SpotMarketAccount,
 	PerpMarketAccount,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	OraclePriceData,
 	Order,
 	ZERO,
@@ -19,6 +19,7 @@ export interface DLOBNode {
 	getPrice(oraclePriceData: OraclePriceData, slot: number): BN;
 	isVammNode(): boolean;
 	order: Order | undefined;
+	isBaseFilled(): boolean;
 	haveFilled: boolean;
 	userAccount: PublicKey | undefined;
 	market: SpotMarketAccount | PerpMarketAccount;
@@ -56,10 +57,9 @@ export abstract class OrderNode implements DLOBNode {
 			AMM_RESERVE_PRECISION
 		).toFixed(3)}`;
 		if (this.order.price.gt(ZERO)) {
-			msg += ` @ ${convertToNumber(
-				this.order.price,
-				MARK_PRICE_PRECISION
-			).toFixed(3)}`;
+			msg += ` @ ${convertToNumber(this.order.price, PRICE_PRECISION).toFixed(
+				3
+			)}`;
 		}
 		if (this.order.triggerPrice.gt(ZERO)) {
 			msg += ` ${
@@ -67,7 +67,7 @@ export abstract class OrderNode implements DLOBNode {
 			}`;
 			msg += ` ${convertToNumber(
 				this.order.triggerPrice,
-				MARK_PRICE_PRECISION
+				PRICE_PRECISION
 			).toFixed(3)}`;
 		}
 		return msg;
@@ -86,6 +86,10 @@ export abstract class OrderNode implements DLOBNode {
 		} else {
 			console.error(`Unknown market type: ${this.order.marketType}`);
 		}
+	}
+
+	isBaseFilled(): boolean {
+		return this.order.baseAssetAmountFilled.eq(this.order.baseAssetAmount);
 	}
 
 	isVammNode(): boolean {

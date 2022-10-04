@@ -1,16 +1,5 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import {
-	BN,
-	calculateAmmReservesAfterSwap,
-	calculatePrice,
-	ClearingHouseUser,
-	OracleSource,
-	SwapDirection,
-	Wallet,
-	isVariant,
-	LPRecord,
-} from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -21,9 +10,19 @@ import {
 	QUOTE_PRECISION,
 	AMM_RESERVE_PRECISION,
 	EventSubscriber,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PositionDirection,
 	ZERO,
+	BN,
+	calculateAmmReservesAfterSwap,
+	calculatePrice,
+	ClearingHouseUser,
+	OracleSource,
+	SwapDirection,
+	Wallet,
+	isVariant,
+	LPRecord,
+	BASE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -49,7 +48,7 @@ async function adjustOraclePostSwap(baa, swapDirection, market) {
 	);
 
 	const newPrice = calculatePrice(newBaa, newQaa, market.amm.pegMultiplier);
-	const _newPrice = newPrice.toNumber() / MARK_PRICE_PRECISION.toNumber();
+	const _newPrice = newPrice.toNumber() / PRICE_PRECISION.toNumber();
 	await setFeedPrice(anchor.workspace.Pyth, _newPrice, market.amm.oracle);
 
 	console.log('price => new price', price.toString(), newPrice.toString());
@@ -90,8 +89,8 @@ async function createNewUser(
 			commitment: 'confirmed',
 		},
 		activeUserId: 0,
-		perpMarketIndexes: [new BN(0), new BN(1)],
-		spotMarketIndexes: [new BN(0)],
+		perpMarketIndexes: [0, 1],
+		spotMarketIndexes: [0],
 		oracleInfos,
 	});
 	await clearingHouse.subscribe();
@@ -121,7 +120,7 @@ async function fullClosePosition(clearingHouse, userPosition) {
 	let sig;
 	let flag = true;
 	while (flag) {
-		sig = await clearingHouse.closePosition(new BN(0));
+		sig = await clearingHouse.closePosition(0);
 		await clearingHouse.fetchAccounts();
 		position = clearingHouse.getUserAccount().perpPositions[0];
 		if (position.baseAssetAmount.eq(ZERO)) {
@@ -152,16 +151,14 @@ describe('liquidity providing', () => {
 	}
 
 	// ammInvariant == k == x * y
-	const ammInitialBaseAssetReserve = new BN(300).mul(new BN(1e13));
-	const ammInitialQuoteAssetReserve = new BN(300).mul(new BN(1e13));
+	const ammInitialBaseAssetReserve = new BN(300).mul(BASE_PRECISION);
+	const ammInitialQuoteAssetReserve = new BN(300).mul(BASE_PRECISION);
 
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
-	const stableAmmInitialQuoteAssetReserve = new anchor.BN(1 * 10 ** 13).mul(
-		mantissaSqrtScale
-	);
-	const stableAmmInitialBaseAssetReserve = new anchor.BN(1 * 10 ** 13).mul(
-		mantissaSqrtScale
-	);
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
+	const stableAmmInitialQuoteAssetReserve =
+		BASE_PRECISION.mul(mantissaSqrtScale);
+	const stableAmmInitialBaseAssetReserve =
+		BASE_PRECISION.mul(mantissaSqrtScale);
 
 	const usdcAmount = new BN(1_000_000_000 * 1e6);
 
@@ -205,8 +202,8 @@ describe('liquidity providing', () => {
 			ammInitialQuoteAssetReserve,
 			new BN(60 * 60)
 		);
-		await clearingHouse.updateLpCooldownTime(ZERO, new BN(0));
-		await clearingHouse.updateMaxBaseAssetAmountRatio(new BN(0), 1);
+		await clearingHouse.updateLpCooldownTime(0, new BN(0));
+		await clearingHouse.updateMaxBaseAssetAmountRatio(0, 1);
 		// await clearingHouse.updateMarketBaseAssetAmountStepSize(
 		// 	new BN(0),
 		// 	new BN(1)
@@ -219,7 +216,7 @@ describe('liquidity providing', () => {
 			stableAmmInitialQuoteAssetReserve,
 			new BN(0)
 		);
-		await clearingHouse.updateLpCooldownTime(new BN(1), new BN(0));
+		await clearingHouse.updateLpCooldownTime(1, new BN(0));
 		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		[traderClearingHouse, traderClearingHouseUser] = await createNewUser(
@@ -260,8 +257,8 @@ describe('liquidity providing', () => {
 		const initMarginReq = clearingHouseUser.getInitialMarginRequirement();
 		assert(initMarginReq.eq(ZERO));
 
-		let market = clearingHouse.getPerpMarketAccount(new BN(0));
-		const lpAmount = new BN(100 * 1e13); // 100 / (100 + 300) = 1/4
+		let market = clearingHouse.getPerpMarketAccount(0);
+		const lpAmount = new BN(100 * BASE_PRECISION.toNumber()); // 100 / (100 + 300) = 1/4
 		const _sig = await clearingHouse.addLiquidity(lpAmount, market.marketIndex);
 
 		await clearingHouse.fetchAccounts();
@@ -270,7 +267,7 @@ describe('liquidity providing', () => {
 			eventSubscriber.getEventsArray('LPRecord')[0];
 		assert(isVariant(addLiquidityRecord.action, 'addLiquidity'));
 		assert(addLiquidityRecord.nShares.eq(lpAmount));
-		assert(addLiquidityRecord.marketIndex.eq(ZERO));
+		assert(addLiquidityRecord.marketIndex === 0);
 		assert(
 			addLiquidityRecord.user.equals(
 				await clearingHouse.getUserAccountPublicKey()
@@ -282,12 +279,12 @@ describe('liquidity providing', () => {
 		assert(newInitMarginReq.eq(new BN(8283999)));
 
 		// ensure margin calcs didnt modify user position
-		const _position = clearingHouseUser.getUserPosition(ZERO);
+		const _position = clearingHouseUser.getUserPosition(0);
 		assert(_position.openAsks.eq(ZERO));
 		assert(_position.openBids.eq(ZERO));
 
-		const stepSize = new BN(1 * 1e13);
-		await clearingHouse.updateMarketBaseAssetAmountStepSize(ZERO, stepSize);
+		const stepSize = new BN(1 * BASE_PRECISION.toNumber());
+		await clearingHouse.updateMarketBaseAssetAmountStepSize(0, stepSize);
 
 		let user = clearingHouseUser.getUserAccount();
 		console.log('lpUser lpShares:', user.perpPositions[0].lpShares.toString());
@@ -296,15 +293,15 @@ describe('liquidity providing', () => {
 			user.perpPositions[0].baseAssetAmount.toString()
 		);
 
-		assert(user.perpPositions[0].lpShares.eq(new BN('1000000000000000')));
+		assert(user.perpPositions[0].lpShares.eq(new BN('100000000000')));
 		assert(user.perpPositions[0].baseAssetAmount.eq(ZERO));
 		// some user goes long (lp should get a short)
 		console.log('user trading...');
 
-		market = clearingHouse.getPerpMarketAccount(new BN(0));
-		assert(market.amm.sqrtK.eq(new BN('4000000000000000')));
+		market = clearingHouse.getPerpMarketAccount(0);
+		assert(market.amm.sqrtK.eq(new BN('400000000000')));
 
-		const tradeSize = new BN(5 * 1e13);
+		const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
 
 		const [newQaa, _newBaa] = calculateAmmReservesAfterSwap(
 			market.amm,
@@ -327,7 +324,7 @@ describe('liquidity providing', () => {
 			PositionDirection.SHORT,
 			tradeSize,
 			market.marketIndex,
-			new BN((newPrice * MARK_PRICE_PRECISION.toNumber() * 99) / 100)
+			new BN((newPrice * PRICE_PRECISION.toNumber() * 99) / 100)
 		);
 		await _viewLogs(sig);
 
@@ -343,11 +340,11 @@ describe('liquidity providing', () => {
 			position.quoteAssetAmount.toString()
 		);
 
-		assert(position.baseAssetAmount.eq(new BN('-50000000000000')));
+		assert(position.baseAssetAmount.eq(new BN('-5000000000')));
 
 		await clearingHouse.fetchAccounts();
 		const marketNetBaa =
-			clearingHouse.getPerpMarketAccount(ZERO).amm.netBaseAssetAmount;
+			clearingHouse.getPerpMarketAccount(0).amm.netBaseAssetAmount;
 
 		console.log('removing liquidity...');
 		const _txSig = await clearingHouse.settleLP(
@@ -359,7 +356,7 @@ describe('liquidity providing', () => {
 		const settleLiquidityRecord: LPRecord =
 			eventSubscriber.getEventsArray('LPRecord')[0];
 		assert(isVariant(settleLiquidityRecord.action, 'settleLiquidity'));
-		assert(settleLiquidityRecord.marketIndex.eq(ZERO));
+		assert(settleLiquidityRecord.marketIndex === 0);
 		assert(
 			settleLiquidityRecord.user.equals(
 				await clearingHouse.getUserAccountPublicKey()
@@ -370,15 +367,15 @@ describe('liquidity providing', () => {
 		await clearingHouse.fetchAccounts();
 		assert(
 			clearingHouse
-				.getPerpMarketAccount(ZERO)
+				.getPerpMarketAccount(0)
 				.amm.netBaseAssetAmount.eq(marketNetBaa)
 		);
 
-		const marketAfter = clearingHouse.getPerpMarketAccount(ZERO);
+		const marketAfter = clearingHouse.getPerpMarketAccount(0);
 		assert(
-			marketAfter.amm.netUnsettledLpBaseAssetAmount.eq(new BN('-2500000000000'))
+			marketAfter.amm.netUnsettledLpBaseAssetAmount.eq(new BN('-250000000'))
 		);
-		assert(marketAfter.amm.netBaseAssetAmount.eq(new BN('-37500000000000')));
+		assert(marketAfter.amm.netBaseAssetAmount.eq(new BN('-3750000000')));
 
 		user = clearingHouseUser.getUserAccount();
 		const lpPosition = user.perpPositions[0];
@@ -404,40 +401,38 @@ describe('liquidity providing', () => {
 
 		// assert(lpPosition.lpShares.eq(new BN(0)));
 		await clearingHouse.fetchAccounts();
-		assert(user.perpPositions[0].baseAssetAmount.eq(new BN(10000000000000))); // lp is long
+		assert(user.perpPositions[0].baseAssetAmount.eq(new BN(1000000000))); // lp is long
 		console.log(
 			'=> net baa:',
-			clearingHouse.getPerpMarketAccount(ZERO).amm.netBaseAssetAmount.toString()
+			clearingHouse.getPerpMarketAccount(0).amm.netBaseAssetAmount.toString()
 		);
 		assert(user.perpPositions[0].quoteAssetAmount.eq(new BN(-1233600)));
 		// assert(user.perpPositions[0].unsettledPnl.eq(new BN(900)));
 		// remainder goes into the last
 		assert(
-			user.perpPositions[0].lastNetBaseAssetAmountPerLp.eq(new BN(125000000000))
+			user.perpPositions[0].lastNetBaseAssetAmountPerLp.eq(new BN(12500000))
 		);
 		assert(
 			user.perpPositions[0].lastNetQuoteAssetAmountPerLp.eq(new BN(-12336))
 		);
 
-		market = await clearingHouse.getPerpMarketAccount(ZERO);
+		market = await clearingHouse.getPerpMarketAccount(0);
 		console.log(
 			market.amm.marketPositionPerLp.quoteAssetAmount.toString(),
 			market.amm.marketPositionPerLp.baseAssetAmount.toString()
 		);
-		assert(
-			market.amm.marketPositionPerLp.baseAssetAmount.eq(new BN(125000000000))
-		);
+		assert(market.amm.marketPositionPerLp.baseAssetAmount.eq(new BN(12500000)));
 		assert(market.amm.marketPositionPerLp.quoteAssetAmount.eq(new BN(-12336)));
 
 		// remove
 		console.log('removing liquidity...');
-		await clearingHouse.removeLiquidity(ZERO);
+		await clearingHouse.removeLiquidity(0);
 
 		const removeLiquidityRecord: LPRecord =
 			eventSubscriber.getEventsArray('LPRecord')[0];
 		assert(isVariant(removeLiquidityRecord.action, 'removeLiquidity'));
 		assert(removeLiquidityRecord.nShares.eq(lpAmount));
-		assert(removeLiquidityRecord.marketIndex.eq(ZERO));
+		assert(removeLiquidityRecord.marketIndex === 0);
 		assert(
 			removeLiquidityRecord.user.equals(
 				await clearingHouse.getUserAccountPublicKey()
@@ -463,7 +458,9 @@ describe('liquidity providing', () => {
 
 		console.log('closing lp ...');
 		console.log(
-			user.perpPositions[0].baseAssetAmount.div(new BN(1e13)).toString()
+			user.perpPositions[0].baseAssetAmount
+				.div(new BN(BASE_PRECISION.toNumber()))
+				.toString()
 		);
 		await adjustOraclePostSwap(
 			user.perpPositions[0].baseAssetAmount,
@@ -477,7 +474,7 @@ describe('liquidity providing', () => {
 		);
 		// await _viewLogs(ttxsig);
 
-		await clearingHouse.updateMarketBaseAssetAmountStepSize(ZERO, new BN(1));
+		await clearingHouse.updateMarketBaseAssetAmountStepSize(0, new BN(1));
 
 		const user2 = clearingHouseUser.getUserAccount();
 		const position2 = user2.perpPositions[0];
@@ -490,10 +487,10 @@ describe('liquidity providing', () => {
 		await clearingHouse.fetchAccounts();
 		console.log(
 			'=> net baa:',
-			clearingHouse.getPerpMarketAccount(ZERO).amm.netBaseAssetAmount.toString()
+			clearingHouse.getPerpMarketAccount(0).amm.netBaseAssetAmount.toString()
 		);
 		assert(
-			clearingHouse.getPerpMarketAccount(ZERO).amm.netBaseAssetAmount.eq(ZERO)
+			clearingHouse.getPerpMarketAccount(0).amm.netBaseAssetAmount.eq(ZERO)
 		);
 
 		console.log('done!');
@@ -502,9 +499,9 @@ describe('liquidity providing', () => {
 	it('settles lp', async () => {
 		console.log('adding liquidity...');
 
-		const market = clearingHouse.getPerpMarketAccount(new BN(0));
+		const market = clearingHouse.getPerpMarketAccount(0);
 		const _sig = await clearingHouse.addLiquidity(
-			new BN(100 * 1e13),
+			new BN(100 * BASE_PRECISION.toNumber()),
 			market.marketIndex
 		);
 		await delay(lpCooldown + 1000);
@@ -514,14 +511,14 @@ describe('liquidity providing', () => {
 
 		// some user goes long (lp should get a short)
 		console.log('user trading...');
-		const tradeSize = new BN(5 * 1e13);
+		const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
 		try {
 			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
 			const _txsig = await traderClearingHouse.openPosition(
 				PositionDirection.LONG,
 				tradeSize,
 				market.marketIndex
-				// new BN(100 * 1e13)
+				// new BN(100 * BASE_PRECISION.toNumber())
 			);
 			await _viewLogs(_txsig);
 		} catch (e) {
@@ -535,13 +532,13 @@ describe('liquidity providing', () => {
 		);
 
 		const [settledLPPosition, _, sdkPnl] =
-			clearingHouseUser.getSettledLPPosition(ZERO);
+			clearingHouseUser.getSettledLPPosition(0);
 
 		console.log('settling...');
 		try {
 			const _txsigg = await clearingHouse.settleLP(
 				await clearingHouse.getUserAccountPublicKey(),
-				ZERO
+				0
 			);
 			await _viewLogs(_txsigg);
 		} catch (e) {
@@ -554,7 +551,7 @@ describe('liquidity providing', () => {
 			eventSubscriber.getEventsArray('LPRecord')[0];
 
 		console.log(
-			'settl pnl vs sdk',
+			'settle pnl vs sdk',
 			settleLiquidityRecord.pnl.toString(),
 			sdkPnl.toString()
 		);
@@ -581,9 +578,8 @@ describe('liquidity providing', () => {
 		assert(settledLPPosition.quoteAssetAmount.eq(position.quoteAssetAmount));
 		assert(settledLPPosition.quoteEntryAmount.eq(position.quoteEntryAmount));
 		assert(
-			settledLPPosition.remainderBaseAssetAmount.eq(
+			settledLPPosition.remainderBaseAssetAmount ===
 				position.remainderBaseAssetAmount
-			)
 		);
 
 		assert(position.baseAssetAmount.lt(ZERO));
@@ -622,7 +618,7 @@ describe('liquidity providing', () => {
 		);
 
 		console.log('closing lp ...');
-		const market2 = clearingHouse.getPerpMarketAccount(ZERO);
+		const market2 = clearingHouse.getPerpMarketAccount(0);
 		await adjustOraclePostSwap(
 			user.perpPositions[0].baseAssetAmount,
 			SwapDirection.ADD,
@@ -633,10 +629,10 @@ describe('liquidity providing', () => {
 		await clearingHouse.fetchAccounts();
 		console.log(
 			'=> net baa:',
-			clearingHouse.getPerpMarketAccount(ZERO).amm.netBaseAssetAmount.toString()
+			clearingHouse.getPerpMarketAccount(0).amm.netBaseAssetAmount.toString()
 		);
 		assert(
-			clearingHouse.getPerpMarketAccount(ZERO).amm.netBaseAssetAmount.eq(ZERO)
+			clearingHouse.getPerpMarketAccount(0).amm.netBaseAssetAmount.eq(ZERO)
 		);
 
 		console.log('done!');
@@ -653,7 +649,7 @@ describe('liquidity providing', () => {
 		console.log('adding liquidity...');
 		try {
 			const _txsig = await clearingHouse.addLiquidity(
-				new BN(100 * AMM_RESERVE_PRECISION),
+				new BN(100 * AMM_RESERVE_PRECISION.toNumber()),
 				market.marketIndex
 			);
 		} catch (e) {
@@ -707,7 +703,7 @@ describe('liquidity providing', () => {
 		console.log(prevbar.toString(), market.amm.baseAssetReserve.toString());
 		console.log(prevqar.toString(), market.amm.quoteAssetReserve.toString());
 
-		const errThreshold = new BN(500000);
+		const errThreshold = new BN(500);
 		assert(prevSqrtK.eq(market.amm.sqrtK));
 		assert(
 			prevbar.sub(market.amm.baseAssetReserve).abs().lte(errThreshold),
@@ -722,7 +718,7 @@ describe('liquidity providing', () => {
 
 	it('mints too many lp tokens', async () => {
 		console.log('adding liquidity...');
-		const market = clearingHouse.getPerpMarketAccount(ZERO);
+		const market = clearingHouse.getPerpMarketAccount(0);
 		try {
 			const _sig = await poorClearingHouse.addLiquidity(
 				market.amm.sqrtK.mul(new BN(5)),
@@ -756,14 +752,14 @@ describe('liquidity providing', () => {
 		);
 		assert(position0.baseAssetAmount.eq(new BN('0')));
 
-		const market = clearingHouse.getPerpMarketAccount(new BN(0));
+		const market = clearingHouse.getPerpMarketAccount(0);
 		console.log(
 			'market.amm.netBaseAssetAmount:',
 			market.amm.netBaseAssetAmount.toString()
 		);
 		assert(market.amm.netBaseAssetAmount.eq(new BN('0')));
 		const _sig = await clearingHouse.addLiquidity(
-			new BN(100 * 1e13),
+			new BN(100 * BASE_PRECISION.toNumber()),
 			market.marketIndex
 		);
 		// await delay(lpCooldown + 1000);
@@ -777,7 +773,7 @@ describe('liquidity providing', () => {
 
 		// some user goes long (lp should get a short)
 		console.log('user trading...');
-		const tradeSize = new BN(40 * 1e13);
+		const tradeSize = new BN(40 * BASE_PRECISION.toNumber());
 		const _newPrice = await adjustOraclePostSwap(
 			tradeSize,
 			SwapDirection.ADD,
@@ -788,14 +784,14 @@ describe('liquidity providing', () => {
 				PositionDirection.SHORT,
 				tradeSize,
 				market.marketIndex
-				// new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
+				// new BN(newPrice * PRICE_PRECISION.toNumber())
 			);
 		} catch (e) {
 			console.error(e);
 		}
 
 		await traderClearingHouse.fetchAccounts();
-		const market1 = clearingHouse.getPerpMarketAccount(new BN(0));
+		const market1 = clearingHouse.getPerpMarketAccount(0);
 		console.log(
 			'market1.amm.netBaseAssetAmount:',
 			market1.amm.netBaseAssetAmount.toString()
@@ -805,7 +801,7 @@ describe('liquidity providing', () => {
 
 		console.log('amm ratio:', ammLpRatio, '(', 40 * ammLpRatio, ')');
 
-		assert(market1.amm.netBaseAssetAmount.eq(new BN('-30432252249393')));
+		assert(market1.amm.netBaseAssetAmount.eq(new BN('-3043282534')));
 
 		const traderUserAccount = traderClearingHouse.getUserAccount();
 		// console.log(traderUserAccount);
@@ -848,8 +844,8 @@ describe('liquidity providing', () => {
 		);
 
 		assert(lpTokenAmount.eq(new BN(0)));
-		assert(user.perpPositions[0].baseAssetAmount.eq(new BN('10144084083100'))); // lp is long
-		assert(user.perpPositions[0].quoteAssetAmount.eq(new BN(-1465772)));
+		assert(user.perpPositions[0].baseAssetAmount.eq(new BN('1014427400'))); // lp is long
+		assert(user.perpPositions[0].quoteAssetAmount.eq(new BN(-1465818)));
 
 		console.log('closing trader ...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
@@ -860,7 +856,9 @@ describe('liquidity providing', () => {
 
 		console.log('closing lp ...');
 		console.log(
-			user.perpPositions[0].baseAssetAmount.div(new BN(1e13)).toString()
+			user.perpPositions[0].baseAssetAmount
+				.div(new BN(BASE_PRECISION.toNumber()))
+				.toString()
 		);
 		await adjustOraclePostSwap(
 			user.perpPositions[0].baseAssetAmount,
@@ -881,18 +879,18 @@ describe('liquidity providing', () => {
 	});
 
 	it('provides lp, users longs, removes lp, lp has short', async () => {
-		const market = clearingHouse.getPerpMarketAccount(ZERO);
+		const market = clearingHouse.getPerpMarketAccount(0);
 
 		console.log('adding liquidity...');
 		const _sig = await clearingHouse.addLiquidity(
-			new BN(100 * 1e13),
+			new BN(100 * BASE_PRECISION.toNumber()),
 			market.marketIndex
 		);
 		// await delay(lpCooldown + 1000);
 
 		// some user goes long (lp should get a short)
 		console.log('user trading...');
-		const tradeSize = new BN(40 * 1e13);
+		const tradeSize = new BN(40 * BASE_PRECISION.toNumber());
 		const _newPrice0 = await adjustOraclePostSwap(
 			tradeSize,
 			SwapDirection.REMOVE,
@@ -902,7 +900,7 @@ describe('liquidity providing', () => {
 			PositionDirection.LONG,
 			tradeSize,
 			market.marketIndex
-			// new BN(newPrice0 * MARK_PRICE_PRECISION.toNumber())
+			// new BN(newPrice0 * PRICE_PRECISION.toNumber())
 		);
 
 		const position = traderClearingHouse.getUserAccount().perpPositions[0];
@@ -931,8 +929,8 @@ describe('liquidity providing', () => {
 		);
 
 		assert(lpTokenAmount.eq(ZERO));
-		assert(user.perpPositions[0].baseAssetAmount.eq(new BN('-9844246612100'))); // lp is short
-		assert(user.perpPositions[0].quoteAssetAmount.eq(new BN('549260')));
+		assert(user.perpPositions[0].baseAssetAmount.eq(new BN('-984370400'))); // lp is short
+		assert(user.perpPositions[0].quoteAssetAmount.eq(new BN('549233')));
 
 		console.log('closing trader...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.ADD, market);
@@ -954,7 +952,7 @@ describe('liquidity providing', () => {
 		console.log('lp tokens', lpPosition2.lpShares.toString());
 		console.log(
 			'lp position for market',
-			lpPosition2.marketIndex.toNumber(),
+			lpPosition2.marketIndex,
 			':\n',
 			'baa, qaa, qea',
 			lpPosition2.baseAssetAmount.toString(),
@@ -983,7 +981,7 @@ describe('liquidity providing', () => {
 		const position0 = user0.perpPositions[0];
 		console.log(
 			'assert LP has 0 position in market index',
-			market.marketIndex.toNumber(),
+			market.marketIndex,
 			':',
 			position0.baseAssetAmount.toString(),
 			position0.quoteAssetAmount.toString()
@@ -994,7 +992,7 @@ describe('liquidity providing', () => {
 		assert(baa0.eq(ZERO));
 
 		console.log('user trading...');
-		const tradeSize = new BN(40 * 1e13);
+		const tradeSize = new BN(40 * BASE_PRECISION.toNumber());
 		const _newPrice = await adjustOraclePostSwap(
 			tradeSize,
 			SwapDirection.ADD,
@@ -1004,7 +1002,7 @@ describe('liquidity providing', () => {
 			PositionDirection.SHORT,
 			tradeSize,
 			market.marketIndex
-			// new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
+			// new BN(newPrice * PRICE_PRECISION.toNumber())
 		);
 
 		console.log('removing liquidity...');
@@ -1035,8 +1033,8 @@ describe('liquidity providing', () => {
 
 		const baa = user.perpPositions[0].baseAssetAmount;
 		const qaa = user.perpPositions[0].quoteAssetAmount;
-		assert(baa.eq(new BN(10144084082900)));
-		assert(qaa.eq(new BN(-1439562)));
+		assert(baa.eq(new BN(1014427200)));
+		assert(qaa.eq(new BN(-1439635)));
 
 		console.log('removing the other half of liquidity');
 		await clearingHouse.removeLiquidity(market.marketIndex, otherHalfShares);
@@ -1068,9 +1066,9 @@ describe('liquidity providing', () => {
 	it('settles lp with pnl', async () => {
 		console.log('adding liquidity...');
 
-		const market = clearingHouse.getPerpMarketAccount(new BN(0));
+		const market = clearingHouse.getPerpMarketAccount(0);
 		const _sig = await clearingHouse.addLiquidity(
-			new BN(100 * 1e13),
+			new BN(100 * BASE_PRECISION.toNumber()),
 			market.marketIndex
 		);
 		await delay(lpCooldown + 1000);
@@ -1079,14 +1077,14 @@ describe('liquidity providing', () => {
 		console.log(user.perpPositions[0].lpShares.toString());
 
 		// lp goes long
-		const tradeSize = new BN(5 * 1e13);
+		const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
 		try {
 			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
 			const _txsig = await clearingHouse.openPosition(
 				PositionDirection.LONG,
 				tradeSize,
 				market.marketIndex
-				// new BN(100 * 1e13)
+				// new BN(100 * BASE_PRECISION.toNumber())
 			);
 			await _viewLogs(_txsig);
 		} catch (e) {
@@ -1101,7 +1099,7 @@ describe('liquidity providing', () => {
 				PositionDirection.LONG,
 				tradeSize,
 				market.marketIndex
-				// new BN(100 * 1e13)
+				// new BN(100 * BASE_PRECISION.toNumber())
 			);
 			await _viewLogs(_txsig);
 		} catch (e) {
@@ -1114,13 +1112,13 @@ describe('liquidity providing', () => {
 			trader.perpPositions[0].baseAssetAmount.toString()
 		);
 
-		const sdkPnl = clearingHouseUser.getSettledLPPosition(ZERO)[2];
+		const sdkPnl = clearingHouseUser.getSettledLPPosition(0)[2];
 
 		console.log('settling...');
 		try {
 			const _txsigg = await clearingHouse.settleLP(
 				await clearingHouse.getUserAccountPublicKey(),
-				ZERO
+				0
 			);
 			await _viewLogs(_txsigg);
 		} catch (e) {
@@ -1132,7 +1130,7 @@ describe('liquidity providing', () => {
 			eventSubscriber.getEventsArray('LPRecord')[0];
 
 		console.log(
-			'settl pnl vs sdk',
+			'settle pnl vs sdk',
 			settleLiquidityRecord.pnl.toString(),
 			sdkPnl.toString()
 		);
@@ -1141,13 +1139,13 @@ describe('liquidity providing', () => {
 	return;
 
 	it('lp gets paid in funding (todo)', async () => {
-		const market = clearingHouse.getPerpMarketAccount(new BN(1));
+		const market = clearingHouse.getPerpMarketAccount(1);
 		const marketIndex = market.marketIndex;
 
-		console.log('adding liquidity to market ', marketIndex.toNumber(), '...');
+		console.log('adding liquidity to market ', marketIndex, '...');
 		try {
 			const _sig = await clearingHouse.addLiquidity(
-				new BN(100_000).mul(new BN(1e13)),
+				new BN(100_000).mul(new BN(BASE_PRECISION.toNumber())),
 				marketIndex
 			);
 		} catch (e) {
@@ -1164,18 +1162,13 @@ describe('liquidity providing', () => {
 			SwapDirection.ADD,
 			market
 		);
-		console.log(
-			'market',
-			marketIndex.toNumber(),
-			'post trade price:',
-			newPrice
-		);
+		console.log('market', marketIndex, 'post trade price:', newPrice);
 		try {
 			const _txig = await traderClearingHouse.openPosition(
 				PositionDirection.LONG,
 				tradeSize,
 				marketIndex,
-				new BN(newPrice * MARK_PRICE_PRECISION.toNumber())
+				new BN(newPrice * PRICE_PRECISION.toNumber())
 			);
 		} catch (e) {
 			console.error(e);

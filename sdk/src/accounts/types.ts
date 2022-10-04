@@ -11,7 +11,6 @@ import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { AccountInfo } from '@solana/spl-token';
 import { OracleInfo, OraclePriceData } from '..';
-import { BN } from '@project-serum/anchor';
 
 export interface AccountSubscriber<T> {
 	dataAndSlot?: DataAndSlot<T>;
@@ -42,17 +41,17 @@ export interface ClearingHouseAccountSubscriber {
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
-	addPerpMarket(marketIndex: BN): Promise<boolean>;
-	addSpotMarket(marketIndex: BN): Promise<boolean>;
+	addPerpMarket(marketIndex: number): Promise<boolean>;
+	addSpotMarket(marketIndex: number): Promise<boolean>;
 	addOracle(oracleInfo: OracleInfo): Promise<boolean>;
 
 	getStateAccountAndSlot(): DataAndSlot<StateAccount>;
 	getMarketAccountAndSlot(
-		marketIndex: BN
+		marketIndex: number
 	): DataAndSlot<PerpMarketAccount> | undefined;
 	getMarketAccountsAndSlots(): DataAndSlot<PerpMarketAccount>[];
 	getSpotMarketAccountAndSlot(
-		marketIndex: BN
+		marketIndex: number
 	): DataAndSlot<SpotMarketAccount> | undefined;
 	getSpotMarketAccountsAndSlots(): DataAndSlot<SpotMarketAccount>[];
 	getOraclePriceDataAndSlot(

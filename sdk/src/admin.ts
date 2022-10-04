@@ -3,7 +3,15 @@ import {
 	SYSVAR_RENT_PUBKEY,
 	TransactionSignature,
 } from '@solana/web3.js';
-import { FeeStructure, OracleGuardRails, OracleSource } from './types';
+import {
+	FeeStructure,
+	OracleGuardRails,
+	OracleSource,
+	ExchangeStatus,
+	MarketStatus,
+	ContractTier,
+	AssetTier,
+} from './types';
 import { BN } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
 import {
@@ -25,7 +33,7 @@ import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 export class Admin extends ClearingHouse {
 	public async initialize(
 		usdcMint: PublicKey,
-		adminControlsPrices: boolean
+		_adminControlsPrices: boolean
 	): Promise<[TransactionSignature]> {
 		const stateAccountRPCResponse = await this.connection.getParsedAccountInfo(
 			await this.getStatePublicKey()
@@ -39,26 +47,17 @@ export class Admin extends ClearingHouse {
 				this.program.programId
 			);
 
-		const [insuranceVaultPublicKey] = await PublicKey.findProgramAddress(
-			[Buffer.from(anchor.utils.bytes.utf8.encode('insurance_vault'))],
-			this.program.programId
-		);
-
-		const initializeTx = await this.program.transaction.initialize(
-			adminControlsPrices,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: clearingHouseStatePublicKey,
-					quoteAssetMint: usdcMint,
-					rent: SYSVAR_RENT_PUBKEY,
-					insuranceVault: insuranceVaultPublicKey,
-					clearingHouseSigner: this.getSignerPublicKey(),
-					systemProgram: anchor.web3.SystemProgram.programId,
-					tokenProgram: TOKEN_PROGRAM_ID,
-				},
-			}
-		);
+		const initializeTx = await this.program.transaction.initialize({
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: clearingHouseStatePublicKey,
+				quoteAssetMint: usdcMint,
+				rent: SYSVAR_RENT_PUBKEY,
+				clearingHouseSigner: this.getSignerPublicKey(),
+				systemProgram: anchor.web3.SystemProgram.programId,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+		});
 
 		const { txSig: initializeTxSig } = await this.txSender.send(
 			initializeTx,
@@ -71,9 +70,9 @@ export class Admin extends ClearingHouse {
 
 	public async initializeSpotMarket(
 		mint: PublicKey,
-		optimalUtilization: BN,
-		optimalRate: BN,
-		maxRate: BN,
+		optimalUtilization: number,
+		optimalRate: number,
+		maxRate: number,
 		oracle: PublicKey,
 		oracleSource: OracleSource,
 		initialAssetWeight: BN,
@@ -81,7 +80,8 @@ export class Admin extends ClearingHouse {
 		initialLiabilityWeight: BN,
 		maintenanceLiabilityWeight: BN,
 		imfFactor = new BN(0),
-		liquidationFee = ZERO
+		liquidationFee = ZERO,
+		activeStatus = true
 	): Promise<TransactionSignature> {
 		const spotMarketIndex = this.getStateAccount().numberOfSpotMarkets;
 		const spotMarket = await getSpotMarketPublicKey(
@@ -110,6 +110,7 @@ export class Admin extends ClearingHouse {
 			maintenanceLiabilityWeight,
 			imfFactor,
 			liquidationFee,
+			activeStatus,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
@@ -139,8 +140,8 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async initializeSerumFulfillmentConfig(
-		marketIndex: BN,
-		quoteSpotMarketIndex: BN,
+		marketIndex: number,
+		quoteSpotMarketIndex: number,
 		serumMarket: PublicKey,
 		serumProgram: PublicKey
 	): Promise<TransactionSignature> {
@@ -185,7 +186,8 @@ export class Admin extends ClearingHouse {
 		oracleSource: OracleSource = OracleSource.PYTH,
 		marginRatioInitial = 2000,
 		marginRatioMaintenance = 500,
-		liquidationFee = ZERO
+		liquidationFee = ZERO,
+		activeStatus = true
 	): Promise<TransactionSignature> {
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
@@ -201,6 +203,7 @@ export class Admin extends ClearingHouse {
 			marginRatioInitial,
 			marginRatioMaintenance,
 			liquidationFee,
+			activeStatus,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -230,7 +233,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async moveAmmPrice(
-		marketIndex: BN,
+		marketIndex: number,
 		baseAssetReserve: BN,
 		quoteAssetReserve: BN,
 		sqrtK?: BN
@@ -260,7 +263,7 @@ export class Admin extends ClearingHouse {
 
 	public async updateK(
 		sqrtK: BN,
-		marketIndex: BN
+		marketIndex: number
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateK(sqrtK, {
 			accounts: {
@@ -273,7 +276,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateConcentrationScale(
-		marketIndex: BN,
+		marketIndex: number,
 		concentrationScale: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateConcentrationCoef(concentrationScale, {
@@ -286,7 +289,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async moveAmmToPrice(
-		perpMarketIndex: BN,
+		perpMarketIndex: number,
 		targetPrice: BN
 	): Promise<TransactionSignature> {
 		const market = this.getPerpMarketAccount(perpMarketIndex);
@@ -328,7 +331,7 @@ export class Admin extends ClearingHouse {
 
 	public async repegAmmCurve(
 		newPeg: BN,
-		marketIndex: BN
+		marketIndex: number
 	): Promise<TransactionSignature> {
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
@@ -347,7 +350,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateAmmOracleTwap(
-		marketIndex: BN
+		marketIndex: number
 	): Promise<TransactionSignature> {
 		const ammData = this.getPerpMarketAccount(marketIndex).amm;
 		const marketPublicKey = await getMarketPublicKey(
@@ -366,7 +369,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async resetAmmOracleTwap(
-		marketIndex: BN
+		marketIndex: number
 	): Promise<TransactionSignature> {
 		const ammData = this.getPerpMarketAccount(marketIndex).amm;
 		const marketPublicKey = await getMarketPublicKey(
@@ -384,62 +387,19 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
-	public async withdrawFromInsuranceVault(
+	public async depositIntoMarketFeePool(
+		marketIndex: number,
 		amount: BN,
-		recipient: PublicKey
+		sourceVault: PublicKey
 	): Promise<TransactionSignature> {
-		const state = await this.getStateAccount();
-		const spotMarket = this.getQuoteSpotMarketAccount();
-		return await this.program.rpc.withdrawFromInsuranceVault(amount, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				spotMarket: spotMarket.pubkey,
-				insuranceVault: state.insuranceVault,
-				clearingHouseSigner: this.getSignerPublicKey(),
-				recipient: recipient,
-				tokenProgram: TOKEN_PROGRAM_ID,
-			},
-		});
-	}
-
-	public async withdrawFromMarketToInsuranceVault(
-		marketIndex: BN,
-		amount: BN,
-		recipient: PublicKey
-	): Promise<TransactionSignature> {
-		const marketPublicKey = await getMarketPublicKey(
-			this.program.programId,
-			marketIndex
-		);
-		const spotMarket = this.getQuoteSpotMarketAccount();
-		return await this.program.rpc.withdrawFromMarketToInsuranceVault(amount, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				perpMarket: marketPublicKey,
-				spotMarket: spotMarket.pubkey,
-				spotMarketVault: spotMarket.vault,
-				clearingHouseSigner: this.getSignerPublicKey(),
-				recipient: recipient,
-				tokenProgram: TOKEN_PROGRAM_ID,
-			},
-		});
-	}
-
-	public async withdrawFromInsuranceVaultToMarket(
-		marketIndex: BN,
-		amount: BN
-	): Promise<TransactionSignature> {
-		const state = await this.getStateAccount();
 		const spotMarket = this.getQuoteSpotMarketAccount();
 
-		return await this.program.rpc.withdrawFromInsuranceVaultToMarket(amount, {
+		return await this.program.rpc.depositIntoMarketFeePool(amount, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
 				market: await getMarketPublicKey(this.program.programId, marketIndex),
-				insuranceVault: state.insuranceVault,
+				sourceVault,
 				clearingHouseSigner: this.getSignerPublicKey(),
 				quoteSpotMarket: spotMarket.pubkey,
 				spotMarketVault: spotMarket.vault,
@@ -458,7 +418,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateCurveUpdateIntensity(
-		marketIndex: BN,
+		marketIndex: number,
 		curveUpdateIntensity: number
 	): Promise<TransactionSignature> {
 		// assert(curveUpdateIntensity >= 0 && curveUpdateIntensity <= 100);
@@ -477,7 +437,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMarginRatio(
-		marketIndex: BN,
+		marketIndex: number,
 		marginRatioInitial: number,
 		marginRatioMaintenance: number
 	): Promise<TransactionSignature> {
@@ -495,7 +455,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMarketBaseSpread(
-		marketIndex: BN,
+		marketIndex: number,
 		baseSpread: number
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMarketBaseSpread(baseSpread, {
@@ -508,7 +468,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateAmmJitIntensity(
-		marketIndex: BN,
+		marketIndex: number,
 		ammJitIntensity: number
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateAmmJitIntensity(ammJitIntensity, {
@@ -521,7 +481,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMarketMaxSpread(
-		marketIndex: BN,
+		marketIndex: number,
 		maxSpread: number
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMarketMaxSpread(maxSpread, {
@@ -643,7 +603,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateWithdrawGuardThreshold(
-		marketIndex: BN,
+		marketIndex: number,
 		withdrawGuardThreshold: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateWithdrawGuardThreshold(
@@ -662,7 +622,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateSpotMarketIfFactor(
-		marketIndex: BN,
+		marketIndex: number,
 		userIfFactor: BN,
 		totalIfFactor: BN
 	): Promise<TransactionSignature> {
@@ -684,7 +644,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateSpotMarketRevenueSettlePeriod(
-		marketIndex: BN,
+		marketIndex: number,
 		revenueSettlePeriod: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateSpotMarketRevenueSettlePeriod(
@@ -702,8 +662,27 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
+	public async updateSpotMarketMaxTokenDeposits(
+		marketIndex: number,
+		maxTokenDeposits: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSpotMarketMaxTokenDeposits(
+			maxTokenDeposits,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						marketIndex
+					),
+				},
+			}
+		);
+	}
+
 	public async updateInsuranceWithdrawEscrowPeriod(
-		marketIndex: BN,
+		marketIndex: number,
 		insuranceWithdrawEscrowPeriod: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateInsuranceWithdrawEscrowPeriod(
@@ -722,7 +701,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateLpCooldownTime(
-		marketIndex: BN,
+		marketIndex: number,
 		cooldownTime: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateLpCooldownTime(cooldownTime, {
@@ -735,7 +714,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMarketOracle(
-		marketIndex: BN,
+		marketIndex: number,
 		oracle: PublicKey,
 		oracleSource: OracleSource
 	): Promise<TransactionSignature> {
@@ -749,7 +728,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMarketMinimumQuoteAssetTradeSize(
-		marketIndex: BN,
+		marketIndex: number,
 		minimumTradeSize: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMarketMinimumQuoteAssetTradeSize(
@@ -765,7 +744,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMarketBaseAssetAmountStepSize(
-		marketIndex: BN,
+		marketIndex: number,
 		stepSize: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMarketBaseAssetAmountStepSize(
@@ -781,7 +760,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMarketExpiry(
-		perpMarketIndex: BN,
+		perpMarketIndex: number,
 		expiryTs: BN
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMarketExpiry(expiryTs, {
@@ -827,29 +806,101 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
-	public async updateFundingPaused(
-		fundingPaused: boolean
+	public async updateSpotMarketMarginWeights(
+		spotMarketIndex: number,
+		initialAssetWeight: BN,
+		maintenanceAssetWeight: BN,
+		initialLiabilityWeight: BN,
+		maintenanceLiabilityWeight: BN,
+		imfFactor = new BN(0)
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateFundingPaused(fundingPaused, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-			},
-		});
+		return await this.program.rpc.updateSpotMarketMarginWeights(
+			initialAssetWeight,
+			maintenanceAssetWeight,
+			initialLiabilityWeight,
+			maintenanceLiabilityWeight,
+			imfFactor,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
 	}
-	public async updateExchangePaused(
-		exchangePaused: boolean
+
+	public async updateSpotMarketAssetTier(
+		spotMarketIndex: number,
+		assetTier: AssetTier
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateExchangePaused(exchangePaused, {
+		return await this.program.rpc.updateSpotMarketAssetTier(assetTier, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
+				spotMarket: await getSpotMarketPublicKey(
+					this.program.programId,
+					spotMarketIndex
+				),
 			},
 		});
 	}
 
-	public async disableAdminControlsPrices(): Promise<TransactionSignature> {
-		return await this.program.rpc.disableAdminControlsPrices({
+	public async updateSpotMarketStatus(
+		spotMarketIndex: number,
+		marketStatus: MarketStatus
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSpotMarketStatus(marketStatus, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				spotMarket: await getSpotMarketPublicKey(
+					this.program.programId,
+					spotMarketIndex
+				),
+			},
+		});
+	}
+
+	public async updatePerpMarketStatus(
+		perpMarketIndex: number,
+		marketStatus: MarketStatus
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketStatus(marketStatus, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				market: await getMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
+	}
+
+	public async updatePerpMarketContractTier(
+		perpMarketIndex: number,
+		contractTier: ContractTier
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketContractTier(contractTier, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				market: await getMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
+	}
+
+	public async updateExchangeStatus(
+		exchangeStatus: ExchangeStatus
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateExchangeStatus(exchangeStatus, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
@@ -886,7 +937,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMaxBaseAssetAmountRatio(
-		marketIndex: BN,
+		marketIndex: number,
 		maxBaseAssetAmountRatio: number
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMaxBaseAssetAmountRatio(
@@ -902,7 +953,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMaxSlippageRatio(
-		marketIndex: BN,
+		marketIndex: number,
 		maxSlippageRatio: number
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateMaxSlippageRatio(maxSlippageRatio, {
@@ -915,7 +966,7 @@ export class Admin extends ClearingHouse {
 	}
 
 	public async updateMarketMaxImbalances(
-		marketIndex: BN,
+		marketIndex: number,
 		unrealizedMaxImbalance: BN,
 		maxRevenueWithdrawPerPeriod: BN,
 		quoteMaxInsurance: BN
@@ -932,5 +983,17 @@ export class Admin extends ClearingHouse {
 				},
 			}
 		);
+	}
+
+	public async updateSerumVault(
+		srmVault: PublicKey
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSerumVault({
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				srmVault: srmVault,
+			},
+		});
 	}
 }

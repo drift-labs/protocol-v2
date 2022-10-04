@@ -5,7 +5,7 @@ import { BASE_PRECISION, BN } from '../sdk';
 import { Program } from '@project-serum/anchor';
 import { getTokenAccount } from '@project-serum/common';
 
-import { Admin, MARK_PRICE_PRECISION, PositionDirection } from '../sdk/src';
+import { Admin, PRICE_PRECISION, PositionDirection } from '../sdk/src';
 
 import {
 	mockOracle,
@@ -26,7 +26,7 @@ describe('admin withdraw', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);

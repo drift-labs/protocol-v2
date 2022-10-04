@@ -54,13 +54,13 @@ a BigNum: 10,500,000, with precision 10^6, is equal to 10.5 because 10,500,000 /
 
 The Drift SDK uses some common precisions, which are available as constants to import from the SDK.
 
-| Precision Name            | Value |
-| ------------------------- | ----- |
-| QUOTE_PRECISION           | 10^6  |
-| MARK_PRICE_PRECISION      | 10^10 |
-| AMM_RESERVE_PRECISION     | 10^13 |
-| FUNDING_PAYMENT_PRECISION | 10^4  |
-| PEG_PRECISION             | 10^3  |
+| Precision Name        | Value |
+| --------------------- | ----- |
+| FUNDING_RATE_BUFFER   | 10^3  |
+| QUOTE_PRECISION       | 10^6  |
+| PEG_PRECISION         | 10^6  |
+| PRICE_PRECISION       | 10^6  |
+| AMM_RESERVE_PRECISION | 10^9  |
 
 **Important Note for BigNum division**
 
@@ -88,7 +88,7 @@ import { BN, Provider } from '@project-serum/anchor';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
-	calculateMarkPrice,
+	calculateReservePrice,
 	ClearingHouse,
 	ClearingHouseUser,
 	initialize,
@@ -96,9 +96,9 @@ import {
 	PositionDirection,
 	convertToNumber,
 	calculateTradeSlippage,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	QUOTE_PRECISION,
-	Wallet
+	Wallet,
 } from '@drift-labs/sdk';
 
 export const getTokenAddress = (
@@ -177,11 +177,11 @@ const main = async () => {
 		(market) => market.baseAssetSymbol === 'SOL'
 	);
 
-	const currentMarketPrice = calculateMarkPrice(
+	const currentMarketPrice = calculateReservePrice(
 		clearingHouse.getMarket(solMarketInfo.marketIndex)
 	);
 
-	const formattedPrice = convertToNumber(currentMarketPrice, MARK_PRICE_PRECISION);
+	const formattedPrice = convertToNumber(currentMarketPrice, PRICE_PRECISION);
 
 	console.log(`Current Market Price is $${formattedPrice}`);
 
@@ -194,7 +194,7 @@ const main = async () => {
 			new BN(5000).mul(QUOTE_PRECISION),
 			solMarketAccount
 		)[0],
-		MARK_PRICE_PRECISION
+		PRICE_PRECISION
 	);
 
 	console.log(

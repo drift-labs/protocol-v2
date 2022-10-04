@@ -21,15 +21,6 @@ pub struct Initialize<'info> {
     )]
     pub state: Box<Account<'info, State>>,
     pub quote_asset_mint: Box<Account<'info, Mint>>,
-    #[account(
-        init,
-        seeds = [b"insurance_vault".as_ref()],
-        bump,
-        payer = admin,
-        token::mint = quote_asset_mint,
-        token::authority = clearing_house_signer
-    )]
-    pub insurance_vault: Box<Account<'info, TokenAccount>>,
     /// CHECK: checked in `initialize`
     pub clearing_house_signer: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -86,7 +77,7 @@ pub struct InitializeSpotMarket<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(market_index: u64, quote_spot_market_index: u64)]
+#[instruction(market_index: u16, quote_spot_market_index: u16)]
 pub struct InitializeSerumFulfillmentConfig<'info> {
     #[account(
         seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
@@ -134,6 +125,18 @@ pub struct InitializeSerumFulfillmentConfig<'info> {
 }
 
 #[derive(Accounts)]
+pub struct UpdateSerumVault<'info> {
+    #[account(
+        mut,
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub srm_vault: Box<Account<'info, TokenAccount>>,
+}
+
+#[derive(Accounts)]
 pub struct InitializeUserStats<'info> {
     #[account(
         init,
@@ -143,6 +146,7 @@ pub struct InitializeUserStats<'info> {
         payer = payer
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     #[account(mut)]
@@ -192,6 +196,23 @@ pub struct UpdateUser<'info> {
 }
 
 #[derive(Accounts)]
+pub struct DeleteUser<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+        close = authority
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct InitializeMarket<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
@@ -215,7 +236,7 @@ pub struct InitializeMarket<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(market_index: u64,)]
+#[instruction(market_index: u16,)]
 pub struct Deposit<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
@@ -245,7 +266,7 @@ pub struct Deposit<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(market_index: u64,)]
+#[instruction(market_index: u16,)]
 pub struct Withdraw<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
@@ -293,7 +314,7 @@ pub struct UpdateAMM<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(market_index: u64,)]
+#[instruction(market_index: u16,)]
 pub struct TransferDeposit<'info> {
     #[account(
         mut,
@@ -316,71 +337,30 @@ pub struct TransferDeposit<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateSpotMarketCumulativeInterest<'info> {
+    pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub spot_market: AccountLoader<'info, SpotMarket>,
 }
 
 #[derive(Accounts)]
-pub struct WithdrawFromMarketToInsuranceVault<'info> {
+pub struct SettleExpiredMarketPoolsToRevenuePool<'info> {
     #[account(
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
     pub admin: Signer<'info>,
     #[account(
-        seeds = [b"spot_market", 0_u64.to_le_bytes().as_ref()],
+        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
         bump,
         mut
     )]
     pub spot_market: AccountLoader<'info, SpotMarket>,
-    #[account(
-        mut,
-        seeds = [b"spot_market_vault".as_ref(), 0_u64.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
-    #[account(
-        constraint = state.signer.eq(&clearing_house_signer.key())
-    )]
-    /// CHECK: program signer
-    pub clearing_house_signer: AccountInfo<'info>,
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
-    #[account(
-        mut,
-        token::mint = spot_market_vault.mint
-    )]
-    pub recipient: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
-pub struct WithdrawFromInsuranceVault<'info> {
-    #[account(
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    pub admin: Signer<'info>,
-    #[account(
-        mut,
-        constraint = &state.insurance_vault.eq(&insurance_vault.key())
-    )]
-    pub insurance_vault: Box<Account<'info, TokenAccount>>,
-    #[account(
-    constraint = state.signer.eq(&clearing_house_signer.key())
-    )]
-    /// CHECK: withdraw fails if this isn't vault owner
-    pub clearing_house_signer: AccountInfo<'info>,
-    #[account(
-        mut,
-        token::mint = insurance_vault.mint
-    )]
-    pub recipient: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
-}
-
-#[derive(Accounts)]
-pub struct WithdrawFromInsuranceVaultToMarket<'info> {
+pub struct DepositIntoMarketFeePool<'info> {
     #[account(
         mut,
         has_one = admin
@@ -391,9 +371,9 @@ pub struct WithdrawFromInsuranceVaultToMarket<'info> {
     pub admin: Signer<'info>,
     #[account(
         mut,
-        constraint = &state.insurance_vault.eq(&insurance_vault.key())
+        token::authority = admin
     )]
-    pub insurance_vault: Box<Account<'info, TokenAccount>>,
+    pub source_vault: Box<Account<'info, TokenAccount>>,
     #[account(
         constraint = state.signer.eq(&clearing_house_signer.key())
     )]
@@ -401,13 +381,13 @@ pub struct WithdrawFromInsuranceVaultToMarket<'info> {
     pub clearing_house_signer: AccountInfo<'info>,
     #[account(
         mut,
-        seeds = [b"spot_market", 0_u64.to_le_bytes().as_ref()],
+        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
         bump,
     )]
     pub quote_spot_market: AccountLoader<'info, SpotMarket>,
     #[account(
         mut,
-        seeds = [b"spot_market_vault".as_ref(), 0_u64.to_le_bytes().as_ref()],
+        seeds = [b"spot_market_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
         bump,
     )]
     pub spot_market_vault: Box<Account<'info, TokenAccount>>,
@@ -484,19 +464,19 @@ pub struct OrderParams {
     pub market_type: MarketType,
     pub direction: PositionDirection,
     pub user_order_id: u8,
-    pub base_asset_amount: u128,
-    pub price: u128,
-    pub market_index: u64,
-    pub quote_spot_market_index: u64,
+    pub base_asset_amount: u64,
+    pub price: u64,
+    pub market_index: u16,
+    pub quote_spot_market_index: u16,
     pub reduce_only: bool,
     pub post_only: bool,
     pub immediate_or_cancel: bool,
-    pub trigger_price: u128,
+    pub trigger_price: Option<u64>,
     pub trigger_condition: OrderTriggerCondition,
-    pub oracle_price_offset: i128,
+    pub oracle_price_offset: Option<i64>,
     pub auction_duration: Option<u8>,
     pub time_in_force: Option<u8>,
-    pub auction_start_price: Option<u128>,
+    pub auction_start_price: Option<u64>,
 }
 
 impl Default for OrderType {
@@ -603,7 +583,7 @@ pub struct LiquidatePerp<'info> {
 }
 
 #[derive(Accounts)]
-pub struct LiquidateBorrow<'info> {
+pub struct LiquidateSpot<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     #[account(
@@ -611,8 +591,18 @@ pub struct LiquidateBorrow<'info> {
         constraint = can_sign_for_user(&liquidator, &authority)?
     )]
     pub liquidator: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
+    )]
+    pub liquidator_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
 }
 
 #[derive(Accounts)]
@@ -624,8 +614,18 @@ pub struct LiquidateBorrowForPerpPnl<'info> {
         constraint = can_sign_for_user(&liquidator, &authority)?
     )]
     pub liquidator: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
+    )]
+    pub liquidator_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
 }
 
 #[derive(Accounts)]
@@ -637,12 +637,22 @@ pub struct LiquidatePerpPnlForDeposit<'info> {
         constraint = can_sign_for_user(&liquidator, &authority)?
     )]
     pub liquidator: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
+    )]
+    pub liquidator_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
 }
 
 #[derive(Accounts)]
-#[instruction(spot_market_index: u64,)]
+#[instruction(spot_market_index: u16,)]
 pub struct ResolveBankruptcy<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
@@ -651,8 +661,18 @@ pub struct ResolveBankruptcy<'info> {
         constraint = can_sign_for_user(&liquidator, &authority)?
     )]
     pub liquidator: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
+    )]
+    pub liquidator_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
     #[account(
         mut,
         seeds = [b"spot_market_vault".as_ref(), spot_market_index.to_le_bytes().as_ref()],
@@ -674,7 +694,7 @@ pub struct ResolveBankruptcy<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(spot_market_index: u64,)]
+#[instruction(spot_market_index: u16,)]
 pub struct ResolvePerpPnlDeficit<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
@@ -731,7 +751,6 @@ pub struct RepegCurve<'info> {
 pub struct MoveAMMPrice<'info> {
     #[account(
         has_one = admin,
-        constraint = state.admin_controls_prices
     )]
     pub state: Box<Account<'info, State>>,
     pub admin: Signer<'info>,
@@ -786,7 +805,7 @@ pub struct AdminUpdateSpotMarket<'info> {
 
 #[derive(Accounts)]
 #[instruction(
-    market_index: u64,
+    market_index: u16,
 )]
 pub struct InitializeInsuranceFundStake<'info> {
     #[account(
@@ -816,7 +835,7 @@ pub struct InitializeInsuranceFundStake<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(market_index: u64,)]
+#[instruction(market_index: u16,)]
 pub struct SettleRevenueToInsuranceFund<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
@@ -845,8 +864,9 @@ pub struct SettleRevenueToInsuranceFund<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(market_index: u64)]
+#[instruction(market_index: u16)]
 pub struct AddInsuranceFundStake<'info> {
+    pub state: Box<Account<'info, State>>,
     #[account(
         seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
         bump
@@ -865,10 +885,22 @@ pub struct AddInsuranceFundStake<'info> {
     pub authority: Signer<'info>,
     #[account(
         mut,
+        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
         seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        constraint = state.signer.eq(&clearing_house_signer.key())
+    )]
+    /// CHECK: forced clearing_house_signer
+    pub clearing_house_signer: AccountInfo<'info>,
     #[account(
         mut,
         token::mint = insurance_fund_vault.mint,
@@ -879,7 +911,7 @@ pub struct AddInsuranceFundStake<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(market_index: u64,)]
+#[instruction(market_index: u16,)]
 pub struct RequestRemoveInsuranceFundStake<'info> {
     #[account(
         seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
@@ -906,7 +938,7 @@ pub struct RequestRemoveInsuranceFundStake<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(market_index: u64,)]
+#[instruction(market_index: u16,)]
 pub struct RemoveInsuranceFundStake<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
@@ -946,10 +978,43 @@ pub struct RemoveInsuranceFundStake<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(market_index: u16,)]
+pub struct AdminRemoveInsuranceFundStake<'info> {
+    pub admin: Signer<'info>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        constraint = state.signer.eq(&clearing_house_signer.key())
+    )]
+    /// CHECK: forced clearing_house_signer
+    pub clearing_house_signer: AccountInfo<'info>,
+    #[account(
+        mut,
+        token::mint = insurance_fund_vault.mint,
+        token::authority = admin
+    )]
+    pub admin_token_account: Box<Account<'info, TokenAccount>>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
 pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
-        seeds = [b"spot_market", 0_u64.to_le_bytes().as_ref()],
+        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
         bump
     )]
     pub spot_market: AccountLoader<'info, SpotMarket>,
@@ -966,7 +1031,7 @@ pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
     pub authority: Signer<'info>,
     #[account(
         mut,
-        seeds = [b"insurance_fund_vault".as_ref(), 0_u64.to_le_bytes().as_ref()],
+        seeds = [b"insurance_fund_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
     bump,
     )]
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,

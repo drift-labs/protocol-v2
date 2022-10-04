@@ -8,22 +8,20 @@ import {
 	QUOTE_PRECISION,
 	ZERO,
 	OracleGuardRails,
-} from '../sdk';
+	ContractTier,
+	Admin,
+	ClearingHouse,
+	EventSubscriber,
+	findComputeUnitConsumption,
+	PRICE_PRECISION,
+	PositionDirection,
+	Wallet,
+} from '../sdk/src';
 import { assert } from 'chai';
 
 import { Program } from '@project-serum/anchor';
 
 import { Keypair } from '@solana/web3.js';
-
-import {
-	Admin,
-	ClearingHouse,
-	EventSubscriber,
-	findComputeUnitConsumption,
-	MARK_PRICE_PRECISION,
-	PositionDirection,
-	Wallet,
-} from '../sdk/src';
 
 import {
 	mockOracle,
@@ -55,7 +53,7 @@ describe('liquidate perp and lp', () => {
 	let liquidatorClearingHouse: ClearingHouse;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -80,8 +78,8 @@ describe('liquidate perp and lp', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: [new BN(0)],
-			spotMarketIndexes: [new BN(0)],
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0],
 			oracleInfos: [
 				{
 					publicKey: oracle,
@@ -113,20 +111,20 @@ describe('liquidate perp and lp', () => {
 		await clearingHouse.openPosition(
 			PositionDirection.LONG,
 			new BN(175).mul(BASE_PRECISION).div(new BN(10)), // 25 SOL
-			new BN(0),
+			0,
 			new BN(0)
 		);
 
-		const txSig = await clearingHouse.addLiquidity(nLpShares, ZERO);
+		const txSig = await clearingHouse.addLiquidity(nLpShares, 0);
 		await printTxLogs(connection, txSig);
 
 		for (let i = 0; i < 32; i++) {
 			await clearingHouse.placeOrder(
 				getLimitOrderParams({
 					baseAssetAmount: BASE_PRECISION,
-					marketIndex: ZERO,
+					marketIndex: 0,
 					direction: PositionDirection.LONG,
-					price: MARK_PRICE_PRECISION,
+					price: PRICE_PRECISION,
 				})
 			);
 		}
@@ -146,8 +144,8 @@ describe('liquidate perp and lp', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: [new BN(0)],
-			spotMarketIndexes: [new BN(0)],
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0],
 			oracleInfos: [
 				{
 					publicKey: oracle,
@@ -196,7 +194,7 @@ describe('liquidate perp and lp', () => {
 		const txSig = await liquidatorClearingHouse.liquidatePerp(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
-			new BN(0),
+			0,
 			new BN(175).mul(BASE_PRECISION).div(new BN(10))
 		);
 
@@ -222,7 +220,7 @@ describe('liquidate perp and lp', () => {
 		assert(
 			liquidatorClearingHouse
 				.getUserAccount()
-				.perpPositions[0].baseAssetAmount.eq(new BN(175000000000000))
+				.perpPositions[0].baseAssetAmount.eq(new BN(17500000000))
 		);
 
 		assert(clearingHouse.getUserAccount().beingLiquidated);
@@ -230,7 +228,7 @@ describe('liquidate perp and lp', () => {
 
 		// try to add liq when being liquidated -- should fail
 		try {
-			await clearingHouse.addLiquidity(nLpShares, ZERO);
+			await clearingHouse.addLiquidity(nLpShares, 0);
 			assert(false);
 		} catch (err) {
 			assert(err.message.includes('0x17d6'));
@@ -240,31 +238,27 @@ describe('liquidate perp and lp', () => {
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(liquidationRecord.liquidationId === 1);
 		assert(isVariant(liquidationRecord.liquidationType, 'liquidatePerp'));
-		assert(liquidationRecord.liquidatePerp.marketIndex.eq(ZERO));
+		assert(liquidationRecord.liquidatePerp.marketIndex === 0);
 		assert(liquidationRecord.canceledOrderIds.length === 32);
 		assert(
 			liquidationRecord.liquidatePerp.oraclePrice.eq(
-				MARK_PRICE_PRECISION.div(new BN(10))
+				PRICE_PRECISION.div(new BN(10))
 			)
 		);
 		assert(
-			liquidationRecord.liquidatePerp.baseAssetAmount.eq(
-				new BN(-175000000000000)
-			)
+			liquidationRecord.liquidatePerp.baseAssetAmount.eq(new BN(-17500000000))
 		);
 
 		assert(
 			liquidationRecord.liquidatePerp.quoteAssetAmount.eq(new BN(1750000))
 		);
-		assert(liquidationRecord.liquidatePerp.userPnl.eq(new BN(-15768113)));
-		assert(liquidationRecord.liquidatePerp.liquidatorPnl.eq(new BN(0)));
 		assert(liquidationRecord.liquidatePerp.lpShares.eq(nLpShares));
 
 		await liquidatorClearingHouse.liquidatePerpPnlForDeposit(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
-			new BN(0),
-			new BN(0),
+			0,
+			0,
 			clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount
 		);
 
@@ -273,20 +267,21 @@ describe('liquidate perp and lp', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-5785613))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-5785007))
 		);
 
 		// try to add liq when bankrupt -- should fail
 		try {
-			await clearingHouse.addLiquidity(nLpShares, ZERO);
+			await clearingHouse.addLiquidity(nLpShares, 0);
 			assert(false);
 		} catch (err) {
 			// cant add when bankrupt
 			assert(err.message.includes('0x17de'));
 		}
 
+		await clearingHouse.updatePerpMarketContractTier(new BN(0), ContractTier.A);
 		const tx1 = await clearingHouse.updateMarketMaxImbalances(
-			new BN(marketIndex),
+			marketIndex,
 			new BN(40000).mul(QUOTE_PRECISION),
 			QUOTE_PRECISION,
 			QUOTE_PRECISION
@@ -303,7 +298,7 @@ describe('liquidate perp and lp', () => {
 		await liquidatorClearingHouse.resolvePerpBankruptcy(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
-			new BN(0)
+			0
 		);
 
 		await clearingHouse.fetchAccounts();
@@ -313,7 +308,7 @@ describe('liquidate perp and lp', () => {
 		assert(marketAfterBankruptcy.revenueWithdrawSinceLastSettle.eq(ZERO));
 		assert(marketAfterBankruptcy.quoteSettledInsurance.eq(ZERO));
 		assert(marketAfterBankruptcy.quoteMaxInsurance.eq(QUOTE_PRECISION));
-		assert(marketAfterBankruptcy.amm.cumulativeSocialLoss.eq(new BN(-5785613)));
+		assert(marketAfterBankruptcy.amm.cumulativeSocialLoss.eq(new BN(-5785007)));
 
 		assert(!clearingHouse.getUserAccount().bankrupt);
 		assert(!clearingHouse.getUserAccount().beingLiquidated);
@@ -325,19 +320,19 @@ describe('liquidate perp and lp', () => {
 		const perpBankruptcyRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(isVariant(perpBankruptcyRecord.liquidationType, 'perpBankruptcy'));
-		assert(perpBankruptcyRecord.perpBankruptcy.marketIndex.eq(ZERO));
-		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-5785613)));
+		assert(perpBankruptcyRecord.perpBankruptcy.marketIndex === 0);
+		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-5785007)));
 		console.log(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.toString()
 		);
 		assert(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.eq(
-				new BN(33060600000000)
+				new BN(330571000)
 			)
 		);
 
 		const market = clearingHouse.getPerpMarketAccount(0);
-		assert(market.amm.cumulativeFundingRateLong.eq(new BN(33060600000000)));
-		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-33060600000000)));
+		assert(market.amm.cumulativeFundingRateLong.eq(new BN(330571000)));
+		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-330571000)));
 	});
 });

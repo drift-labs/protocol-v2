@@ -23,7 +23,7 @@ import {
 	Admin,
 	SPOT_MARKET_RATE_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	QUOTE_PRECISION,
 	ClearingHouse,
 	ClearingHouseUser,
@@ -208,8 +208,8 @@ export async function initializeAndSubscribeClearingHouse(
 	connection: Connection,
 	program: Program,
 	userKeyPair: Keypair,
-	marketIndexes: BN[],
-	bankIndexes: BN[],
+	marketIndexes: number[],
+	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = []
 ): Promise<ClearingHouse> {
 	const clearingHouse = new ClearingHouse({
@@ -234,8 +234,8 @@ export async function createUserWithUSDCAccount(
 	usdcMint: Keypair,
 	chProgram: Program,
 	usdcAmount: BN,
-	marketIndexes: BN[],
-	bankIndexes: BN[],
+	marketIndexes: number[],
+	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = []
 ): Promise<[ClearingHouse, PublicKey, Keypair]> {
 	const userKeyPair = await createFundedKeyPair(provider.connection);
@@ -283,8 +283,8 @@ export async function createUserWithUSDCAndWSOLAccount(
 	chProgram: Program,
 	solAmount: BN,
 	usdcAmount: BN,
-	marketIndexes: BN[],
-	bankIndexes: BN[],
+	marketIndexes: number[],
+	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = []
 ): Promise<[ClearingHouse, PublicKey, PublicKey, Keypair]> {
 	const userKeyPair = await createFundedKeyPair(provider.connection);
@@ -358,8 +358,8 @@ export async function initUserAccounts(
 	usdcMint: Keypair,
 	usdcAmount: BN,
 	provider: Provider,
-	marketIndexes: BN[],
-	bankIndexes: BN[],
+	marketIndexes: number[],
+	bankIndexes: number[],
 	oracleInfos: OracleInfo[]
 ) {
 	const user_keys = [];
@@ -517,9 +517,9 @@ export const getOraclePriceData = async (
 	);
 	const interData = parsePriceData(info.data);
 	const oraclePriceData: OraclePriceData = {
-		price: new BN(interData.price * MARK_PRICE_PRECISION.toNumber()),
+		price: new BN(interData.price * PRICE_PRECISION.toNumber()),
 		slot: new BN(interData.currentSlot.toString()),
-		confidence: new BN(interData.confidence * MARK_PRICE_PRECISION.toNumber()),
+		confidence: new BN(interData.confidence * PRICE_PRECISION.toNumber()),
 		hasSufficientNumberOfDataPoints: true,
 	};
 
@@ -771,9 +771,11 @@ export async function initializeQuoteSpotMarket(
 	admin: Admin,
 	usdcMint: PublicKey
 ): Promise<void> {
-	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(new BN(2)); // 50% utilization
-	const optimalRate = SPOT_MARKET_RATE_PRECISION;
-	const maxRate = SPOT_MARKET_RATE_PRECISION;
+	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
+		new BN(2)
+	).toNumber(); // 50% utilization
+	const optimalRate = SPOT_MARKET_RATE_PRECISION.toNumber();
+	const maxRate = SPOT_MARKET_RATE_PRECISION.toNumber();
 	const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION;
 	const maintenanceAssetWeight = SPOT_MARKET_WEIGHT_PRECISION;
 	const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION;
@@ -803,11 +805,13 @@ export async function initializeQuoteSpotMarket(
 export async function initializeSolSpotMarket(
 	admin: Admin,
 	solOracle: PublicKey,
-	mint: PublicKey = NATIVE_MINT
+	solMint: PublicKey = NATIVE_MINT
 ): Promise<string> {
-	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(new BN(2)); // 50% utilization
-	const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)); // 2000% APR
-	const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(50)); // 5000% APR
+	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
+		new BN(2)
+	).toNumber(); // 50% utilization
+	const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)).toNumber(); // 2000% APR
+	const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(50)).toNumber(); // 5000% APR
 	const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(new BN(8)).div(
 		new BN(10)
 	);
@@ -823,12 +827,12 @@ export async function initializeSolSpotMarket(
 	const marketIndex = admin.getStateAccount().numberOfSpotMarkets;
 
 	const txSig = await admin.initializeSpotMarket(
-		mint,
+		solMint,
 		optimalUtilization,
 		optimalRate,
 		maxRate,
 		solOracle,
-		OracleSource.QUOTE_ASSET,
+		OracleSource.PYTH,
 		initialAssetWeight,
 		maintenanceAssetWeight,
 		initialLiabilityWeight,
@@ -846,9 +850,9 @@ export async function initializeEthSpotMarket(
 	ethOracle: PublicKey,
 	mint: PublicKey = NATIVE_MINT
 ): Promise<string> {
-	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(new BN(2)); // 50% utilization
-	const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(1)); // 100% APR
-	const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(2)); // 200% APR
+	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(new BN(2)).toNumber();; // 50% utilization
+	const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(1)).toNumber();; // 100% APR
+	const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(2)).toNumber();; // 200% APR
 	const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(new BN(8)).div(
 		new BN(10)
 	);

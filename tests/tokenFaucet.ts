@@ -100,7 +100,7 @@ describe('token faucet', () => {
 		await clearingHouse.initializeUserAccountForDevnet(
 			0,
 			'crisp',
-			new BN(0),
+			0,
 			tokenFaucet,
 			amount
 		);

@@ -30,7 +30,7 @@ function orderActionRecordSortFn(
 ): 'less than' | 'greater than' {
 	const currentEventMarketIndex = currentEvent.marketIndex;
 	const newEventMarketIndex = newEvent.marketIndex;
-	if (!currentEventMarketIndex.eq(newEventMarketIndex)) {
+	if (currentEventMarketIndex !== newEventMarketIndex) {
 		return currentEvent.ts.lte(newEvent.ts) ? 'less than' : 'greater than';
 	}
 

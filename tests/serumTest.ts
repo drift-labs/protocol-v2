@@ -18,7 +18,7 @@ import {
 	getLimitOrderParams,
 	getTokenAmount,
 	isVariant,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	SpotBalanceType,
 } from '../sdk/src';
 
@@ -65,11 +65,11 @@ describe('serum spot market', () => {
 	const usdcAmount = new BN(200 * 10 ** 6);
 	const solAmount = new BN(2 * 10 ** 9);
 
-	let marketIndexes: BN[];
-	let spotMarketIndexes: BN[];
+	let marketIndexes: number[];
+	let spotMarketIndexes: number[];
 	let oracleInfos: OracleInfo[];
 
-	const solSpotMarketIndex = new BN(1);
+	const solSpotMarketIndex = 1;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
@@ -84,7 +84,7 @@ describe('serum spot market', () => {
 		solOracle = await mockOracle(30);
 
 		marketIndexes = [];
-		spotMarketIndexes = [new BN(0), new BN(1)];
+		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
 
 		makerClearingHouse = new Admin({
@@ -116,7 +116,7 @@ describe('serum spot market', () => {
 				solAmount,
 				usdcAmount,
 				[],
-				[new BN(0), new BN(1)],
+				[0, 1],
 				[
 					{
 						publicKey: solOracle,
@@ -125,7 +125,7 @@ describe('serum spot market', () => {
 				]
 			);
 
-		await takerClearingHouse.deposit(usdcAmount, new BN(0), takerUSDC);
+		await takerClearingHouse.deposit(usdcAmount, 0, takerUSDC);
 	});
 
 	after(async () => {
@@ -207,9 +207,11 @@ describe('serum spot market', () => {
 				direction: PositionDirection.LONG,
 				baseAssetAmount,
 				userOrderId: 1,
-				price: new BN(100).mul(MARK_PRICE_PRECISION),
+				price: new BN(100).mul(PRICE_PRECISION),
 			})
 		);
+
+		await takerClearingHouse.fetchAccounts();
 
 		const spotOrder = takerClearingHouse.getOrderByUserId(1);
 
@@ -272,7 +274,7 @@ describe('serum spot market', () => {
 
 		const baseTokenAmount = getTokenAmount(
 			takerBaseSpotBalance.balance,
-			takerClearingHouse.getSpotMarketAccount(new BN(1)),
+			takerClearingHouse.getSpotMarketAccount(1),
 			takerBaseSpotBalance.balanceType
 		);
 		assert(baseTokenAmount.eq(new BN(1000000000)));
@@ -315,9 +317,10 @@ describe('serum spot market', () => {
 				direction: PositionDirection.SHORT,
 				baseAssetAmount,
 				userOrderId: 1,
-				price: new BN(100).mul(MARK_PRICE_PRECISION),
+				price: new BN(100).mul(PRICE_PRECISION),
 			})
 		);
+		await takerClearingHouse.fetchAccounts();
 
 		const spotOrder = takerClearingHouse.getOrderByUserId(1);
 
@@ -380,7 +383,7 @@ describe('serum spot market', () => {
 
 		const baseTokenAmount = getTokenAmount(
 			takerBaseSpotBalance.balance,
-			takerClearingHouse.getSpotMarketAccount(new BN(1)),
+			takerClearingHouse.getSpotMarketAccount(1),
 			takerBaseSpotBalance.balanceType
 		);
 		assert(baseTokenAmount.eq(new BN(0)));
@@ -425,9 +428,10 @@ describe('serum spot market', () => {
 				direction: PositionDirection.LONG,
 				baseAssetAmount,
 				userOrderId: 1,
-				price: new BN(100).mul(MARK_PRICE_PRECISION),
+				price: new BN(100).mul(PRICE_PRECISION),
 			})
 		);
+		await takerClearingHouse.fetchAccounts();
 
 		const spotOrder = takerClearingHouse.getOrderByUserId(1);
 
@@ -491,7 +495,7 @@ describe('serum spot market', () => {
 
 		const baseTokenAmount = getTokenAmount(
 			takerBaseSpotBalance.balance,
-			takerClearingHouse.getSpotMarketAccount(new BN(1)),
+			takerClearingHouse.getSpotMarketAccount(1),
 			takerBaseSpotBalance.balanceType
 		);
 		assert(baseTokenAmount.eq(new BN(1000000000)));

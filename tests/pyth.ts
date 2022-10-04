@@ -13,22 +13,19 @@ import {
 	initUserAccounts,
 	sleep,
 } from './testHelpers';
-
-import {
-	calculateMarkPrice,
-	PEG_PRECISION,
-	PositionDirection,
-	convertToNumber,
-} from '../sdk';
-
 import { Program } from '@project-serum/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
+	calculateReservePrice,
+	PEG_PRECISION,
+	PositionDirection,
+	convertToNumber,
+	MarketStatus,
 	Admin,
-	MARK_PRICE_PRECISION,
-	FUNDING_PAYMENT_PRECISION,
+	PRICE_PRECISION,
+	FUNDING_RATE_BUFFER_PRECISION,
 	ClearingHouse,
 	ClearingHouseUser,
 	QUOTE_SPOT_MARKET_INDEX,
@@ -36,7 +33,7 @@ import {
 
 async function updateFundingRateHelper(
 	clearingHouse: ClearingHouse,
-	marketIndex: BN,
+	marketIndex: number,
 	priceFeedAddress: PublicKey,
 	prices: Array<number>
 ) {
@@ -65,7 +62,7 @@ async function updateFundingRateHelper(
 			frontEndFundingCalc0,
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber() /
-				MARK_PRICE_PRECISION.toNumber(),
+				PRICE_PRECISION.toNumber(),
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber(),
 			'oracleTwap0(vamm):',
@@ -91,8 +88,7 @@ async function updateFundingRateHelper(
 			console.error(e);
 		}
 
-		const CONVERSION_SCALE =
-			FUNDING_PAYMENT_PRECISION.mul(MARK_PRICE_PRECISION);
+		const CONVERSION_SCALE = FUNDING_RATE_BUFFER_PRECISION.mul(PRICE_PRECISION);
 
 		const marketData = clearingHouse.getPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
@@ -132,7 +128,7 @@ async function updateFundingRateHelper(
 		const priceSpread =
 			(ammAccountState.lastMarkPriceTwap.toNumber() -
 				ammAccountState.historicalOracleData.lastOraclePriceTwap.toNumber()) /
-			MARK_PRICE_PRECISION.toNumber();
+			PRICE_PRECISION.toNumber();
 		const frontEndFundingCalc =
 			priceSpread / ((24 * 3600) / Math.max(1, peroidicity.toNumber()));
 
@@ -140,8 +136,7 @@ async function updateFundingRateHelper(
 			'funding rate frontend calc:',
 			frontEndFundingCalc,
 			'markTwap:',
-			ammAccountState.lastMarkPriceTwap.toNumber() /
-				MARK_PRICE_PRECISION.toNumber(),
+			ammAccountState.lastMarkPriceTwap.toNumber() / PRICE_PRECISION.toNumber(),
 			'markTwap:',
 			ammAccountState.lastMarkPriceTwap.toNumber(),
 			'oracleTwap(vamm):',
@@ -199,8 +194,8 @@ describe('pyth-oracle', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: [new BN(0), new BN(1)],
-			spotMarketIndexes: [new BN(0)],
+			perpMarketIndexes: [0, 1],
+			spotMarketIndexes: [0],
 		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
@@ -223,14 +218,7 @@ describe('pyth-oracle', () => {
 
 		// create <NUM_USERS> users with 10k that collectively do <NUM_EVENTS> actions
 		const [_userUSDCAccounts, _user_keys, clearingHouses, userAccountInfos] =
-			await initUserAccounts(
-				1,
-				usdcMint,
-				usdcAmount,
-				provider,
-				[new BN(0), new BN(1)],
-				[new BN(0)]
-			);
+			await initUserAccounts(1, usdcMint, usdcAmount, provider, [0, 1], [0]);
 
 		clearingHouse2 = clearingHouses[0];
 		userAccount2 = userAccountInfos[0];
@@ -269,7 +257,7 @@ describe('pyth-oracle', () => {
 	it('oracle/vamm: funding rate calc 0hour periodicity', async () => {
 		const priceFeedAddress = await mockOracle(40, -10);
 		const periodicity = new BN(0); // 1 HOUR
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		await clearingHouse.initializeMarket(
 			priceFeedAddress,
@@ -278,6 +266,7 @@ describe('pyth-oracle', () => {
 			periodicity,
 			new BN(39.99 * PEG_PRECISION.toNumber())
 		);
+		await clearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
 		await updateFundingRateHelper(
 			clearingHouse,
@@ -290,7 +279,7 @@ describe('pyth-oracle', () => {
 	it('oracle/vamm: funding rate calc2 0hour periodicity', async () => {
 		const priceFeedAddress = await mockOracle(40, -10);
 		const periodicity = new BN(0);
-		const marketIndex = new BN(1);
+		const marketIndex = 1;
 
 		await clearingHouse.initializeMarket(
 			priceFeedAddress,
@@ -299,10 +288,14 @@ describe('pyth-oracle', () => {
 			periodicity,
 			new BN(41.7 * PEG_PRECISION.toNumber())
 		);
+		await clearingHouse.updatePerpMarketStatus(
+			marketIndex,
+			MarketStatus.ACTIVE
+		);
 
 		// await clearingHouse.moveAmmToPrice(
 		// 	marketIndex,
-		// 	new BN(41.5 * MARK_PRICE_PRECISION.toNumber())
+		// 	new BN(41.5 * PRICE_PRECISION.toNumber())
 		// );
 
 		await updateFundingRateHelper(
@@ -314,17 +307,17 @@ describe('pyth-oracle', () => {
 	});
 
 	it('oracle/vamm: asym funding rate calc 0hour periodicity', async () => {
-		const marketIndex = new BN(1);
+		const marketIndex = 1;
 
 		// await clearingHouse.moveAmmToPrice(
 		// 	marketIndex,
-		// 	new BN(41.5 * MARK_PRICE_PRECISION.toNumber())
+		// 	new BN(41.5 * PRICE_PRECISION.toNumber())
 		// );
 
 		console.log(
 			'PRICE',
 			convertToNumber(
-				calculateMarkPrice(clearingHouse.getPerpMarketAccount(marketIndex))
+				calculateReservePrice(clearingHouse.getPerpMarketAccount(marketIndex))
 			)
 		);
 
@@ -343,7 +336,7 @@ describe('pyth-oracle', () => {
 
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 
-		console.log('PRICE AFTER', convertToNumber(calculateMarkPrice(market)));
+		console.log('PRICE AFTER', convertToNumber(calculateReservePrice(market)));
 
 		await updateFundingRateHelper(
 			clearingHouse,

@@ -3,8 +3,23 @@ import { BN, ZERO, QUOTE_SPOT_MARKET_INDEX } from '.';
 
 // # Utility Types / Enums / Constants
 
+export class ExchangeStatus {
+	static readonly ACTIVE = { active: {} };
+	static readonly FUNDINGPAUSED = { fundingpaused: {} };
+	static readonly AMMPAUSED = { ammpaused: {} };
+	static readonly FILLPAUSED = { fillpaused: {} };
+	static readonly LIQPAUSED = { liqpaused: {} };
+	static readonly WITHDRAWPAUSED = { withdrawpaused: {} };
+	static readonly PAUSED = { paused: {} };
+}
+
 export class MarketStatus {
 	static readonly INITIALIZED = { initialized: {} };
+	static readonly ACTIVE = { active: {} };
+	static readonly FUNDINGPAUSED = { fundingpaused: {} };
+	static readonly AMMPAUSED = { ammpaused: {} };
+	static readonly FILLPAUSED = { fillpaused: {} };
+	static readonly WITHDRAWPAUSED = { withdrawpaused: {} };
 	static readonly REDUCEONLY = { reduceonly: {} };
 	static readonly SETTLEMENT = { settlement: {} };
 	static readonly DELISTED = { delisted: {} };
@@ -13,6 +28,21 @@ export class MarketStatus {
 export class ContractType {
 	static readonly PERPETUAL = { perpetual: {} };
 	static readonly FUTURE = { future: {} };
+}
+
+export class ContractTier {
+	static readonly A = { a: {} };
+	static readonly B = { b: {} };
+	static readonly C = { c: {} };
+	static readonly Speculative = { speculative: {} };
+}
+
+export class AssetTier {
+	static readonly COLLATERAL = { collateral: {} };
+	static readonly PROTECTED = { protected: {} };
+	static readonly CROSS = { cross: {} };
+	static readonly ISOLATED = { isolated: {} };
+	static readonly UNLISTED = { unlisted: {} };
 }
 
 export class SwapDirection {
@@ -152,18 +182,32 @@ export type DepositRecord = {
 		deposit?: any;
 		withdraw?: any;
 	};
-	marketIndex: BN;
+	marketIndex: number;
 	amount: BN;
 	oraclePrice: BN;
-	referrer: PublicKey;
-	from?: PublicKey;
-	to?: PublicKey;
+	marketDepositBalance: BN;
+	marketWithdrawBalance: BN;
+	marketCumulativeDepositInterest: BN;
+	marketCumulativeBorrowInterest: BN;
+	transferUser?: PublicKey;
+};
+
+export type SpotInterestRecord = {
+	ts: BN;
+	marketIndex: number;
+	depositBalance: BN;
+	cumulativeDepositInterest: BN;
+	borrowBalance: BN;
+	cumulativeBorrowInterest: BN;
+	optimalUtilization: number;
+	optimalBorrowRate: number;
+	maxBorrowRate: number;
 };
 
 export type CurveRecord = {
 	ts: BN;
 	recordId: BN;
-	marketIndex: BN;
+	marketIndex: number;
 	pegMultiplierBefore: BN;
 	baseAssetReserveBefore: BN;
 	quoteAssetReserveBefore: BN;
@@ -183,9 +227,9 @@ export type CurveRecord = {
 export declare type InsuranceFundRecord = {
 	ts: BN;
 	bankIndex: BN;
-	marketIndex: BN;
-	userIfFactor: BN;
-	totalIfFactor: BN;
+	marketIndex: number;
+	userIfFactor: number;
+	totalIfFactor: number;
 	vaultAmountBefore: BN;
 	insuranceVaultAmountBefore: BN;
 	amount: BN;
@@ -198,7 +242,7 @@ export type LPRecord = {
 	user: PublicKey;
 	action: LPAction;
 	nShares: BN;
-	marketIndex: BN;
+	marketIndex: number;
 	deltaBaseAssetAmount: BN;
 	deltaQuoteAssetAmount: BN;
 	pnl: BN;
@@ -213,7 +257,7 @@ export class LPAction {
 export type FundingRateRecord = {
 	ts: BN;
 	recordId: BN;
-	marketIndex: BN;
+	marketIndex: number;
 	fundingRate: BN;
 	fundingRateLong: BN;
 	fundingRateShort: BN;
@@ -230,11 +274,10 @@ export type FundingPaymentRecord = {
 	ts: BN;
 	userAuthority: PublicKey;
 	user: PublicKey;
-	marketIndex: BN;
+	marketIndex: number;
 	fundingPayment: BN;
 	baseAssetAmount: BN;
 	userLastCumulativeFunding: BN;
-	userLastFundingRateTs: BN;
 	ammCumulativeFundingLong: BN;
 	ammCumulativeFundingShort: BN;
 };
@@ -249,11 +292,11 @@ export type LiquidationRecord = {
 	liquidationId: number;
 	canceledOrderIds: BN[];
 	liquidatePerp: LiquidatePerpRecord;
-	liquidateBorrow: LiquidateBorrowRecord;
+	liquidateSpot: LiquidateSpotRecord;
 	liquidateBorrowForPerpPnl: LiquidateBorrowForPerpPnlRecord;
 	liquidatePerpPnlForDeposit: LiquidatePerpPnlForDepositRecord;
 	perpBankruptcy: PerpBankruptcyRecord;
-	borrowBankruptcy: BorrowBankruptcyRecord;
+	spotBankruptcy: SpotBankruptcyRecord;
 };
 
 export class LiquidationType {
@@ -274,55 +317,53 @@ export class LiquidationType {
 }
 
 export type LiquidatePerpRecord = {
-	marketIndex: BN;
+	marketIndex: number;
 	oraclePrice: BN;
 	baseAssetAmount: BN;
 	quoteAssetAmount: BN;
 	lpShares: BN;
-	userPnl: BN;
-	liquidatorPnl: BN;
 	userOrderId: BN;
 	liquidatorOrderId: BN;
 	fillRecordId: BN;
 	ifFee: BN;
 };
 
-export type LiquidateBorrowRecord = {
-	assetMarketIndex: BN;
+export type LiquidateSpotRecord = {
+	assetMarketIndex: number;
 	assetPrice: BN;
 	assetTransfer: BN;
-	liabilityMarketIndex: BN;
+	liabilityMarketIndex: number;
 	liabilityPrice: BN;
 	liabilityTransfer: BN;
 	ifFee: BN;
 };
 
 export type LiquidateBorrowForPerpPnlRecord = {
-	perpMarketIndex: BN;
+	perpMarketIndex: number;
 	marketOraclePrice: BN;
 	pnlTransfer: BN;
-	liabilityMarketIndex: BN;
+	liabilityMarketIndex: number;
 	liabilityPrice: BN;
 	liabilityTransfer: BN;
 };
 
 export type LiquidatePerpPnlForDepositRecord = {
-	perpMarketIndex: BN;
+	perpMarketIndex: number;
 	marketOraclePrice: BN;
 	pnlTransfer: BN;
-	assetMarketIndex: BN;
+	assetMarketIndex: number;
 	assetPrice: BN;
 	assetTransfer: BN;
 };
 
 export type PerpBankruptcyRecord = {
-	marketIndex: BN;
+	marketIndex: number;
 	pnl: BN;
 	cumulativeFundingRateDelta: BN;
 };
 
-export type BorrowBankruptcyRecord = {
-	marketIndex: BN;
+export type SpotBankruptcyRecord = {
+	marketIndex: number;
 	borrowAmount: BN;
 	cumulativeDepositInterestDelta: BN;
 };
@@ -330,7 +371,7 @@ export type BorrowBankruptcyRecord = {
 export type SettlePnlRecord = {
 	ts: BN;
 	user: PublicKey;
-	marketIndex: BN;
+	marketIndex: number;
 	pnl: BN;
 	baseAssetAmount: BN;
 	quoteAssetAmountAfter: BN;
@@ -348,59 +389,51 @@ export type OrderActionRecord = {
 	ts: BN;
 	action: OrderAction;
 	actionExplanation: OrderActionExplanation;
-	marketIndex: BN;
+	marketIndex: number;
 	marketType: MarketType;
 	filler: PublicKey | null;
 	fillerReward: BN | null;
 	fillRecordId: BN | null;
-	referrer: PublicKey | null;
 	baseAssetAmountFilled: BN | null;
 	quoteAssetAmountFilled: BN | null;
-	takerPnl: BN | null;
-	makerPnl: BN | null;
 	takerFee: BN | null;
-	makerRebate: BN | null;
-	referrerReward: BN | null;
-	refereeDiscount: BN | null;
+	makerFee: BN | null;
+	referrerReward: number | null;
 	quoteAssetAmountSurplus: BN | null;
 	taker: PublicKey | null;
-	takerOrderId: BN | null;
+	takerOrderId: number | null;
 	takerOrderDirection: PositionDirection | null;
 	takerOrderBaseAssetAmount: BN | null;
-	takerOrderBaseAssetAmountFilled: BN | null;
-	takerOrderQuoteAssetAmountFilled: BN | null;
+	takerOrderCumulativeBaseAssetAmountFilled: BN | null;
+	takerOrderCumulativeQuoteAssetAmountFilled: BN | null;
 	takerOrderFee: BN | null;
 	maker: PublicKey | null;
-	makerOrderId: BN | null;
+	makerOrderId: number | null;
 	makerOrderDirection: PositionDirection | null;
 	makerOrderBaseAssetAmount: BN | null;
-	makerOrderBaseAssetAmountFilled: BN | null;
-	makerOrderQuoteAssetAmountFilled: BN | null;
+	makerOrderCumulativeBaseAssetAmountFilled: BN | null;
+	makerOrderCumulativeQuoteAssetAmountFilled: BN | null;
 	makerOrderFee: BN | null;
 	oraclePrice: BN;
 };
 
 export type StateAccount = {
 	admin: PublicKey;
-	fundingPaused: boolean;
-	exchangePaused: boolean;
-	adminControlsPrices: boolean;
-	insuranceVault: PublicKey;
-	totalFee: BN;
-	totalFeeWithdrawn: BN;
+	exchangeStatus: ExchangeStatus;
 	whitelistMint: PublicKey;
 	discountMint: PublicKey;
 	oracleGuardRails: OracleGuardRails;
-	maxDeposit: BN;
-	numberOfMarkets: BN;
-	numberOfSpotMarkets: BN;
+	numberOfMarkets: number;
+	numberOfSpotMarkets: number;
 	minOrderQuoteAssetAmount: BN;
-	signer: PublicKey;
-	signerNonce: number;
-	defaultMarketOrderTimeInForce: number;
 	minPerpAuctionDuration: number;
+	defaultMarketOrderTimeInForce: number;
 	defaultSpotAuctionDuration: number;
 	liquidationMarginBufferRatio: number;
+	settlementDuration: number;
+	signer: PublicKey;
+	signerNonce: number;
+	srmVault: PublicKey;
 	perpFeeStructure: FeeStructure;
 	spotFeeStructure: FeeStructure;
 };
@@ -410,7 +443,7 @@ export type PerpMarketAccount = {
 	contractType: ContractType;
 	expiryTs: BN;
 	settlementPrice: BN;
-	marketIndex: BN;
+	marketIndex: number;
 	pubkey: PublicKey;
 	amm: AMM;
 	baseAssetAmount: BN;
@@ -453,7 +486,10 @@ export type HistoricalIndexData = {
 };
 
 export type SpotMarketAccount = {
-	marketIndex: BN;
+	status: MarketStatus;
+	assetTier: AssetTier;
+
+	marketIndex: number;
 	pubkey: PublicKey;
 	mint: PublicKey;
 	vault: PublicKey;
@@ -470,18 +506,20 @@ export type SpotMarketAccount = {
 	totalIfShares: BN;
 	userIfShares: BN;
 
-	userIfFactor: BN;
-	totalIfFactor: BN;
+	userIfFactor: number;
+	totalIfFactor: number;
 	ifLiquidationFee: BN;
 
 	decimals: number;
-	optimalUtilization: BN;
-	optimalBorrowRate: BN;
-	maxBorrowRate: BN;
+	optimalUtilization: number;
+	optimalBorrowRate: number;
+	maxBorrowRate: number;
 	cumulativeDepositInterest: BN;
 	cumulativeBorrowInterest: BN;
 	depositBalance: BN;
 	borrowBalance: BN;
+	maxTokenDeposits: BN;
+
 	lastInterestTs: BN;
 	lastTwapTs: BN;
 	initialAssetWeight: BN;
@@ -498,14 +536,13 @@ export type SpotMarketAccount = {
 
 	orderStepSize: BN;
 	nextFillRecordId: BN;
-	spotFeePool: {
-		balance: BN;
-	};
+	spotFeePool: PoolBalance;
 	totalSpotFee: BN;
 };
 
 export type PoolBalance = {
 	balance: BN;
+	marketIndex: number;
 };
 
 export type AMM = {
@@ -522,7 +559,7 @@ export type AMM = {
 	oracleSource: OracleSource;
 	historicalOracleData: HistoricalOracleData;
 
-	lastOracleMarkSpreadPct: BN;
+	lastOracleReservePriceSpreadPct: BN;
 	lastOracleConfPct: BN;
 
 	fundingPeriod: BN;
@@ -571,17 +608,16 @@ export type AMM = {
 // # User Account Types
 export type PerpPosition = {
 	baseAssetAmount: BN;
-	remainderBaseAssetAmount: BN;
 	lastCumulativeFundingRate: BN;
-	marketIndex: BN;
+	marketIndex: number;
 	quoteAssetAmount: BN;
 	quoteEntryAmount: BN;
-	openOrders: BN;
+	openOrders: number;
 	openBids: BN;
 	openAsks: BN;
 	settledPnl: BN;
 	lpShares: BN;
-	lastFeePerLp: BN;
+	remainderBaseAssetAmount: number;
 	lastNetBaseAssetAmountPerLp: BN;
 	lastNetQuoteAssetAmountPerLp: BN;
 };
@@ -618,12 +654,12 @@ export type UserAccount = {
 	beingLiquidated: boolean;
 	bankrupt: boolean;
 	nextLiquidationId: number;
-	nextOrderId: BN;
+	nextOrderId: number;
 	customMarginRatio: number;
 };
 
 export type SpotPosition = {
-	marketIndex: BN;
+	marketIndex: number;
 	balanceType: SpotBalanceType;
 	balance: BN;
 	openOrders: number;
@@ -638,10 +674,10 @@ export type Order = {
 	marketType: MarketType;
 	ts: BN;
 	slot: BN;
-	orderId: BN;
+	orderId: number;
 	userOrderId: number;
-	marketIndex: BN;
-	quoteSpotMarketIndex: BN;
+	marketIndex: number;
+	quoteSpotMarketIndex: number;
 	price: BN;
 	baseAssetAmount: BN;
 	baseAssetAmountFilled: BN;
@@ -670,15 +706,15 @@ export type OrderParams = {
 	direction: PositionDirection;
 	baseAssetAmount: BN;
 	price: BN;
-	marketIndex: BN;
-	quoteSpotMarketIndex: BN;
+	marketIndex: number;
+	quoteSpotMarketIndex: number;
 	reduceOnly: boolean;
 	postOnly: boolean;
 	immediateOrCancel: boolean;
-	triggerPrice: BN;
+	triggerPrice: BN | null;
 	triggerCondition: OrderTriggerCondition;
 	positionLimit: BN;
-	oraclePriceOffset: BN;
+	oraclePriceOffset: BN | null;
 	auctionDuration: number | null;
 	timeInForce: number | null;
 	auctionStartPrice: BN | null;
@@ -686,7 +722,7 @@ export type OrderParams = {
 
 export type NecessaryOrderParams = {
 	orderType: OrderType;
-	marketIndex: BN;
+	marketIndex: number;
 	baseAssetAmount: BN;
 	direction: PositionDirection;
 };
@@ -702,15 +738,15 @@ export const DefaultOrderParams = {
 	direction: PositionDirection.LONG,
 	baseAssetAmount: ZERO,
 	price: ZERO,
-	marketIndex: ZERO,
+	marketIndex: 0,
 	quoteSpotMarketIndex: QUOTE_SPOT_MARKET_INDEX,
 	reduceOnly: false,
 	postOnly: false,
 	immediateOrCancel: false,
-	triggerPrice: ZERO,
+	triggerPrice: null,
 	triggerCondition: OrderTriggerCondition.ABOVE,
 	positionLimit: ZERO,
-	oraclePriceOffset: ZERO,
+	oraclePriceOffset: null,
 	auctionDuration: null,
 	timeInForce: null,
 	auctionStartPrice: null,
@@ -719,6 +755,7 @@ export const DefaultOrderParams = {
 export type MakerInfo = {
 	maker: PublicKey;
 	makerStats: PublicKey;
+	makerUserAccount: UserAccount;
 	order: Order;
 };
 
@@ -784,7 +821,7 @@ export type OracleGuardRails = {
 export type MarginCategory = 'Initial' | 'Maintenance';
 
 export type InsuranceFundStake = {
-	marketIndex: BN;
+	marketIndex: number;
 	authority: PublicKey;
 
 	ifShares: BN;
@@ -799,7 +836,7 @@ export type SerumV3FulfillmentConfigAccount = {
 	fulfillmentType: SpotFulfillmentType;
 	status: SpotFulfillmentStatus;
 	pubkey: PublicKey;
-	marketIndex: BN;
+	marketIndex: number;
 	serumProgramId: PublicKey;
 	serumMarket: PublicKey;
 	serumRequestQueue: PublicKey;

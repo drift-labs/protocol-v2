@@ -6,10 +6,14 @@ import { Program } from '@project-serum/anchor';
 import {
 	Admin,
 	BN,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PositionDirection,
 	ClearingHouseUser,
 	getLimitOrderParams,
+	MarketStatus,
+	AMM_RESERVE_PRECISION,
+	OracleSource,
+	isVariant,
 } from '../sdk/src';
 
 import {
@@ -18,7 +22,6 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { AMM_RESERVE_PRECISION, OracleSource } from '../sdk';
 import { AccountInfo, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 describe('user order id', () => {
@@ -34,7 +37,7 @@ describe('user order id', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -47,7 +50,7 @@ describe('user order id', () => {
 	let discountMint: Token;
 	let discountTokenAccount: AccountInfo;
 
-	const marketIndex = new BN(0);
+	const marketIndex = 0;
 	let solUsd;
 	let btcUsd;
 
@@ -58,8 +61,8 @@ describe('user order id', () => {
 		solUsd = await mockOracle(1);
 		btcUsd = await mockOracle(60000);
 
-		const marketIndexes = [marketIndex];
-		const spotMarketIndexes = [new BN(0)];
+		const marketIndexes = [marketIndex, 1];
+		const spotMarketIndexes = [0];
 		const oracleInfos = [
 			{ publicKey: solUsd, source: OracleSource.PYTH },
 			{ publicKey: btcUsd, source: OracleSource.PYTH },
@@ -82,22 +85,45 @@ describe('user order id', () => {
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
+		await clearingHouse.fetchAccounts();
+		assert(isVariant(clearingHouse.getStateAccount().exchangeStatus, 'active'));
+
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await clearingHouse.initializeMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
-			periodicity
+			periodicity,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			false
 		);
+		await clearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
 		await clearingHouse.initializeMarket(
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),
 			periodicity,
-			new BN(60000000) // btc-ish price level
+			new BN(60000000), // btc-ish price level
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			false
 		);
+		await clearingHouse.fetchAccounts();
+		assert(
+			isVariant(clearingHouse.getPerpMarketAccount(1).status, 'initialized')
+		);
+
+		await clearingHouse.updatePerpMarketStatus(1, MarketStatus.ACTIVE);
+		await clearingHouse.fetchAccounts();
+		assert(isVariant(clearingHouse.getPerpMarketAccount(1).status, 'active'));
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -143,7 +169,7 @@ describe('user order id', () => {
 	it('place order', async () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const price = MARK_PRICE_PRECISION.mul(new BN(2));
+		const price = PRICE_PRECISION.mul(new BN(2));
 		const reduceOnly = false;
 		const userOrderId = 1;
 
@@ -167,7 +193,7 @@ describe('user order id', () => {
 	it('fail to place same user id twice', async () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
-		const price = MARK_PRICE_PRECISION.mul(new BN(2));
+		const price = PRICE_PRECISION.mul(new BN(2));
 		const reduceOnly = false;
 		const userOrderId = 1;
 

@@ -27,19 +27,10 @@ pub mod delisting_test {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION,
-        AMM_RESERVE_PRECISION_I128,
-        AMM_TO_QUOTE_PRECISION_RATIO_I128,
-        BASE_PRECISION,
-        BASE_PRECISION_I128,
-        MARK_PRICE_PRECISION,
-        MARK_PRICE_PRECISION_I128,
-        PEG_PRECISION,
-        QUOTE_PRECISION_I128,
-        //  QUOTE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION,
-        SPOT_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64, PEG_PRECISION,
+        PRICE_PRECISION, PRICE_PRECISION_I128, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
+        QUOTE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{MarketStatus, PerpMarket, PoolBalance, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
@@ -73,7 +64,7 @@ pub mod delisting_test {
             unix_timestamp: 1662065595,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -183,7 +174,7 @@ pub mod delisting_test {
             unix_timestamp: 1662065595,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -213,7 +204,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount_long: -(QUOTE_PRECISION_I128 * 50), //longs have $100 cost basis
@@ -280,7 +271,7 @@ pub mod delisting_test {
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price > 0, true);
-        assert_eq!(market.settlement_price, 989999999999);
+        assert_eq!(market.settlement_price, 98999999);
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
     }
@@ -296,7 +287,7 @@ pub mod delisting_test {
             unix_timestamp: 1662065595,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -326,7 +317,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount_long: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
@@ -397,7 +388,7 @@ pub mod delisting_test {
             market.settlement_price < market.amm.historical_oracle_data.last_oracle_price_twap,
             true
         );
-        assert_eq!(market.settlement_price, 199999999999); // best can do :/
+        assert_eq!(market.settlement_price, 19999999); // best can do :/
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
     }
@@ -413,7 +404,7 @@ pub mod delisting_test {
             unix_timestamp: 1662065595,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -443,7 +434,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
                     ..HistoricalOracleData::default()
                 },
                 total_fee_minus_distributions: -(100000 * QUOTE_PRECISION_I128), // down $100k
@@ -515,7 +506,7 @@ pub mod delisting_test {
             market.settlement_price < market.amm.historical_oracle_data.last_oracle_price_twap,
             true
         );
-        assert_eq!(market.settlement_price, 199999999999); // best can do :/
+        assert_eq!(market.settlement_price, 19999999); // best can do :/
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
     }
@@ -531,7 +522,7 @@ pub mod delisting_test {
             unix_timestamp: 1662065595,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -561,7 +552,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
                     ..HistoricalOracleData::default()
                 },
                 total_fee_minus_distributions: -(100000 * QUOTE_PRECISION_I128), // down $100k
@@ -629,7 +620,7 @@ pub mod delisting_test {
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price > 0, true);
-        assert_eq!(market.settlement_price, 990000000001); // target
+        assert_eq!(market.settlement_price, 99000001); // target
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
     }
@@ -645,7 +636,7 @@ pub mod delisting_test {
             unix_timestamp: 1662065595,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -675,7 +666,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount_long: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
@@ -689,7 +680,9 @@ pub mod delisting_test {
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             pnl_pool: PoolBalance {
-                balance: (1000 * QUOTE_PRECISION_I128) as u128,
+                balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
+                market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
@@ -710,8 +703,8 @@ pub mod delisting_test {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             initial_liability_weight: SPOT_WEIGHT_PRECISION,
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
-            borrow_balance: 100 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            borrow_balance: 100 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -724,26 +717,26 @@ pub mod delisting_test {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
-                base_asset_amount: (AMM_RESERVE_PRECISION_I128 / 2),
-                quote_asset_amount: -(QUOTE_PRECISION_I128 * 10),
+                open_bids: BASE_PRECISION_I64,
+                base_asset_amount: (BASE_PRECISION_I64 / 2),
+                quote_asset_amount: -(QUOTE_PRECISION_I64 * 10),
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_INTEREST_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -800,7 +793,7 @@ pub mod delisting_test {
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price > 0, true);
-        assert_eq!(market.settlement_price, 989999999999);
+        assert_eq!(market.settlement_price, 98999999);
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
@@ -851,8 +844,8 @@ pub mod delisting_test {
         .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.pnl_pool.balance, 1000000000);
-        assert_eq!(taker.spot_positions[0].balance, 100000000);
+        assert_eq!(market.pnl_pool.balance, 1000000000000);
+        assert_eq!(taker.spot_positions[0].balance, 100000000000);
         assert_eq!(taker.perp_positions[0].quote_asset_amount, -10000000);
         drop(market);
 
@@ -868,13 +861,11 @@ pub mod delisting_test {
         )
         .unwrap();
 
-        assert_eq!(taker.spot_positions[0].balance > 100000000, true);
-        assert_eq!(taker.spot_positions[0].balance, 139450500);
+        assert_eq!(taker.spot_positions[0].balance > 100000000000, true);
+        assert_eq!(taker.spot_positions[0].balance, 139450500000);
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.pnl_pool.balance, 960549500);
-        assert_eq!(139450500 - 100000000, 39450500);
-        assert_eq!(1000000000 - 960549500, 39450500);
+        assert_eq!(market.pnl_pool.balance, 960549500000);
         drop(market);
 
         assert_eq!(taker.perp_positions[0].open_orders, 0);
@@ -894,7 +885,7 @@ pub mod delisting_test {
             unix_timestamp: 1662065595,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -924,7 +915,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount_long: (QUOTE_PRECISION_I128 * 10), //longs have -$20 cost basis
@@ -938,7 +929,9 @@ pub mod delisting_test {
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             pnl_pool: PoolBalance {
-                balance: (1000 * QUOTE_PRECISION_I128) as u128,
+                balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
+                market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
@@ -959,8 +952,8 @@ pub mod delisting_test {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             initial_liability_weight: SPOT_WEIGHT_PRECISION,
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
-            borrow_balance: 100 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            borrow_balance: 100 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -973,26 +966,26 @@ pub mod delisting_test {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
-                base_asset_amount: (AMM_RESERVE_PRECISION_I128 / 2),
-                quote_asset_amount: (QUOTE_PRECISION_I128 * 10),
+                open_bids: BASE_PRECISION_I64,
+                base_asset_amount: (BASE_PRECISION_I64 / 2),
+                quote_asset_amount: (QUOTE_PRECISION_I64 * 10),
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_INTEREST_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1049,7 +1042,7 @@ pub mod delisting_test {
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price > 0, true);
-        assert_eq!(market.settlement_price, 989999999999);
+        assert_eq!(market.settlement_price, 98999999);
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
@@ -1100,8 +1093,8 @@ pub mod delisting_test {
         .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.pnl_pool.balance, 1000000000);
-        assert_eq!(taker.spot_positions[0].balance, 100000000);
+        assert_eq!(market.pnl_pool.balance, 1000000000000);
+        assert_eq!(taker.spot_positions[0].balance, 100000000000);
         assert_eq!(taker.perp_positions[0].quote_asset_amount, 10000000);
         drop(market);
 
@@ -1117,11 +1110,11 @@ pub mod delisting_test {
         )
         .unwrap();
 
-        assert_eq!(taker.spot_positions[0].balance > 100000000, true);
-        assert_eq!(taker.spot_positions[0].balance, 159450500);
+        assert_eq!(taker.spot_positions[0].balance > 100000000000, true);
+        assert_eq!(taker.spot_positions[0].balance, 159450500000);
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.pnl_pool.balance, 940549500);
+        assert_eq!(market.pnl_pool.balance, 940549500000);
         drop(market);
 
         assert_eq!(taker.perp_positions[0].open_orders, 0);
@@ -1144,7 +1137,7 @@ pub mod delisting_test {
             unix_timestamp: 1662065595,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1174,7 +1167,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount_long: (QUOTE_PRECISION_I128 * 20 * 2000), //longs have -$20 cost basis
@@ -1188,7 +1181,9 @@ pub mod delisting_test {
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             pnl_pool: PoolBalance {
-                balance: (1000 * QUOTE_PRECISION_I128) as u128,
+                balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
+                market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
@@ -1209,8 +1204,8 @@ pub mod delisting_test {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             initial_liability_weight: SPOT_WEIGHT_PRECISION,
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
-            borrow_balance: 100 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            borrow_balance: 100 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1223,26 +1218,26 @@ pub mod delisting_test {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
-                base_asset_amount: (AMM_RESERVE_PRECISION_I128 * 2000),
-                quote_asset_amount: (QUOTE_PRECISION_I128 * 20 * 2000), //longs have -$20 cost basis,
+                open_bids: BASE_PRECISION_I64,
+                base_asset_amount: (BASE_PRECISION_I64 * 2000),
+                quote_asset_amount: (QUOTE_PRECISION_I64 * 20 * 2000), //longs have -$20 cost basis,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_INTEREST_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1285,7 +1280,7 @@ pub mod delisting_test {
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price != 0, true);
-        assert_eq!(market.settlement_price, -195000000001);
+        assert_eq!(market.settlement_price, -19500001);
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
@@ -1336,8 +1331,8 @@ pub mod delisting_test {
         .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.pnl_pool.balance, 1000000000);
-        assert_eq!(taker.spot_positions[0].balance, 100000000);
+        assert_eq!(market.pnl_pool.balance, 1000000000000);
+        assert_eq!(taker.spot_positions[0].balance, 100000000000);
         assert_eq!(taker.perp_positions[0].quote_asset_amount, 40000000000);
         drop(market);
 
@@ -1353,10 +1348,10 @@ pub mod delisting_test {
         )
         .unwrap();
 
-        assert_eq!(taker.spot_positions[0].balance > 100000000, true);
+        assert_eq!(taker.spot_positions[0].balance > 100000000000, true);
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.pnl_pool.balance, 39000000); // no settle fee since base_asse_value=0 (since price is negative)
+        assert_eq!(market.pnl_pool.balance, 39002002000); // no settle fee since base_asse_value=0 (since price is negative)
         assert_eq!(market.amm.fee_pool.balance, 0);
         drop(market);
 
@@ -1377,7 +1372,7 @@ pub mod delisting_test {
             unix_timestamp: 1662065595,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1407,7 +1402,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount_long: -(QUOTE_PRECISION_I128 * 20 * 2000), // longs have $20 cost basis
@@ -1422,7 +1417,9 @@ pub mod delisting_test {
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             pnl_pool: PoolBalance {
-                balance: (1000 * QUOTE_PRECISION_I128) as u128,
+                balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
+                market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
@@ -1443,8 +1440,8 @@ pub mod delisting_test {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             initial_liability_weight: SPOT_WEIGHT_PRECISION,
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 300000 * SPOT_INTEREST_PRECISION,
-            borrow_balance: 100 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 300000 * SPOT_BALANCE_PRECISION,
+            borrow_balance: 100 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1457,26 +1454,26 @@ pub mod delisting_test {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
-                base_asset_amount: (AMM_RESERVE_PRECISION_I128 * 2000),
-                quote_asset_amount: -(QUOTE_PRECISION_I128 * 20 * 2000), //longs have $20 cost basis,
+                open_bids: BASE_PRECISION_I64,
+                base_asset_amount: (BASE_PRECISION_I64 * 2000),
+                quote_asset_amount: -(QUOTE_PRECISION_I64 * 20 * 2000), //longs have $20 cost basis,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 20000 * SPOT_INTEREST_PRECISION,
+                balance: 20000 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1489,23 +1486,23 @@ pub mod delisting_test {
                 status: OrderStatus::Open,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 / 2,
-                base_asset_amount: -(AMM_RESERVE_PRECISION_I128 * 1000),
-                quote_asset_amount: (QUOTE_PRECISION_I128 * 20 * 1000), //shorts have $20 cost basis,
+                open_asks: -BASE_PRECISION_I64 / 2,
+                base_asset_amount: -(BASE_PRECISION_I64 * 1000),
+                quote_asset_amount: (QUOTE_PRECISION_I64 * 20 * 1000), //shorts have $20 cost basis,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 200000 * SPOT_INTEREST_PRECISION,
+                balance: 200000 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1562,7 +1559,7 @@ pub mod delisting_test {
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price != 0, true);
-        assert_eq!(market.settlement_price, 209999999999);
+        assert_eq!(market.settlement_price, 20999999);
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
@@ -1570,7 +1567,7 @@ pub mod delisting_test {
         {
             assert_eq!(shorter.orders[0].order_id, 0);
             assert_eq!(shorter.orders[0].status, OrderStatus::Open);
-            assert_eq!(shorter.orders[0].base_asset_amount, 5000000000000);
+            assert_eq!(shorter.orders[0].base_asset_amount, 500000000);
 
             cancel_order(
                 0,
@@ -1589,15 +1586,12 @@ pub mod delisting_test {
             .unwrap();
 
             let market = market_map.get_ref_mut(&0).unwrap();
-            assert_eq!(market.pnl_pool.balance, 1000000000);
+            assert_eq!(market.pnl_pool.balance, 1000000000000);
 
             let orig_short_balance = shorter.spot_positions[0].balance;
 
-            assert_eq!(orig_short_balance, 200000000000);
-            assert_eq!(
-                shorter.perp_positions[0].base_asset_amount,
-                -10000000000000000
-            );
+            assert_eq!(orig_short_balance, 200000000000000);
+            assert_eq!(shorter.perp_positions[0].base_asset_amount, -1000000000000);
             assert_eq!(shorter.perp_positions[0].quote_asset_amount, 20000000000);
             drop(market);
 
@@ -1615,13 +1609,13 @@ pub mod delisting_test {
 
             // shorts lose
             assert_eq!(shorter.spot_positions[0].balance < orig_short_balance, true);
-            assert_eq!(shorter.spot_positions[0].balance, 198979000002);
+            assert_eq!(shorter.spot_positions[0].balance, 198979001001000);
 
             let shorter_loss = orig_short_balance - shorter.spot_positions[0].balance;
-            assert_eq!(shorter_loss, 1020999998); //$1020 loss
+            assert_eq!(shorter_loss, 1020998999000); //$1020 loss
 
             let market = market_map.get_ref_mut(&0).unwrap();
-            assert_eq!(market.pnl_pool.balance, 2020999998); //$2020
+            assert_eq!(market.pnl_pool.balance, 2020998999000); //$2020
             assert_eq!(market.amm.fee_pool.balance, 0);
             drop(market);
 
@@ -1643,7 +1637,7 @@ pub mod delisting_test {
             .unwrap();
 
         assert_eq!(total_collateral, 20000000000);
-        assert_eq!(margin_requirement, 2101049999);
+        assert_eq!(margin_requirement, 2101049899);
 
         // open orders fails
         assert_eq!(
@@ -1678,8 +1672,8 @@ pub mod delisting_test {
         .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.pnl_pool.balance, 2020999998);
-        assert_eq!(longer.spot_positions[0].balance, 20000000000);
+        assert_eq!(market.pnl_pool.balance, 2020998999000);
+        assert_eq!(longer.spot_positions[0].balance, 20000000000000);
         assert_eq!(longer.perp_positions[0].quote_asset_amount, -40000000000);
         drop(market);
 
@@ -1695,11 +1689,11 @@ pub mod delisting_test {
         )
         .unwrap();
 
-        assert_eq!(longer.spot_positions[0].balance > 100000000, true);
-        assert_eq!(longer.spot_positions[0].balance, 21958000000);
+        assert_eq!(longer.spot_positions[0].balance > 100000000000, true);
+        assert_eq!(longer.spot_positions[0].balance, 21957998002000);
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.pnl_pool.balance, 62999998); //fee from settling
+        assert_eq!(market.pnl_pool.balance, 63000997000); //fee from settling
         assert_eq!(market.amm.fee_pool.balance, 0);
         drop(market);
 
@@ -1720,7 +1714,7 @@ pub mod delisting_test {
             unix_timestamp: 1662065595,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -1750,7 +1744,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount_long: (QUOTE_PRECISION_I128 * 200), // longs have -$1 cost basis
@@ -1765,7 +1759,9 @@ pub mod delisting_test {
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             pnl_pool: PoolBalance {
-                balance: (1000 * QUOTE_PRECISION_I128) as u128,
+                balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
+                market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
@@ -1787,8 +1783,8 @@ pub mod delisting_test {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             initial_liability_weight: SPOT_WEIGHT_PRECISION,
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_INTEREST_PRECISION,
-            borrow_balance: 100 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            borrow_balance: 100 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -1801,26 +1797,26 @@ pub mod delisting_test {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
-                base_asset_amount: (AMM_RESERVE_PRECISION_I128 * 200),
-                quote_asset_amount: (QUOTE_PRECISION_I128 * 2000), //longs have -$1 cost basis,
+                open_bids: BASE_PRECISION_I64,
+                base_asset_amount: (BASE_PRECISION_I64 * 200),
+                quote_asset_amount: (QUOTE_PRECISION_I64 * 2000), //longs have -$1 cost basis,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 20000 * SPOT_INTEREST_PRECISION,
+                balance: 20000 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1833,23 +1829,23 @@ pub mod delisting_test {
                 status: OrderStatus::Open,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 / 2,
-                base_asset_amount: -(AMM_RESERVE_PRECISION_I128 * 1000),
-                quote_asset_amount: (QUOTE_PRECISION_I128 * 97 * 1000), //shorts have $20 cost basis,
+                open_asks: -BASE_PRECISION_I64 / 2,
+                base_asset_amount: -(BASE_PRECISION_I64 * 1000),
+                quote_asset_amount: (QUOTE_PRECISION_I64 * 97 * 1000), //shorts have $20 cost basis,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 20000 * SPOT_INTEREST_PRECISION,
+                balance: 20000 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1920,7 +1916,7 @@ pub mod delisting_test {
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price != 0, true);
-        assert_eq!(market.settlement_price, 1202500000001); //$120.25 (vs $100)
+        assert_eq!(market.settlement_price, 120250001); //$120.25 (vs $100)
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
@@ -1938,7 +1934,7 @@ pub mod delisting_test {
                 .unwrap();
 
             assert_eq!(total_collateral, 20000000000);
-            assert_eq!(margin_requirement, 1208512500);
+            assert_eq!(margin_requirement, 1208512510);
 
             // open orders fails
             assert_eq!(
@@ -1973,8 +1969,8 @@ pub mod delisting_test {
             .unwrap();
 
             let market = market_map.get_ref_mut(&0).unwrap();
-            assert_eq!(market.pnl_pool.balance, 1000000000);
-            assert_eq!(longer.spot_positions[0].balance, 20000000000);
+            assert_eq!(market.pnl_pool.balance, 1000000000000);
+            assert_eq!(longer.spot_positions[0].balance, 20000000000000);
             assert_eq!(longer.perp_positions[0].quote_asset_amount, 2000000000);
             let longer_balance_before = longer.spot_positions[0].balance;
             drop(market);
@@ -2001,13 +1997,13 @@ pub mod delisting_test {
             );
 
             let market = market_map.get_ref_mut(&0).unwrap();
-            assert_eq!(market.pnl_pool.balance, 1000000000);
+            assert_eq!(market.pnl_pool.balance, 1000000000000);
             assert_eq!(market.amm.fee_pool.balance, 0);
             drop(market);
 
             //unchanged
             assert_eq!(longer.perp_positions[0].open_orders, 0);
-            assert_eq!(longer.perp_positions[0].base_asset_amount, 2000000000000000);
+            assert_eq!(longer.perp_positions[0].base_asset_amount, 200000000000);
             assert_eq!(longer.perp_positions[0].quote_asset_amount, 2000000000);
             assert_eq!(longer.perp_positions[0].quote_entry_amount, 0); //doesnt matter
         }
@@ -2098,7 +2094,7 @@ pub mod delisting_test {
             unix_timestamp: 1662065595,
         };
 
-        let mut oracle_price = get_pyth_price(100, 10);
+        let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
         let pyth_program = crate::ids::pyth_program::id();
@@ -2128,7 +2124,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * MARK_PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount_long: (QUOTE_PRECISION_I128 * 200), // longs have -$1 cost basis
@@ -2143,7 +2139,9 @@ pub mod delisting_test {
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             pnl_pool: PoolBalance {
-                balance: (1000 * QUOTE_PRECISION_I128) as u128,
+                balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
+                market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
@@ -2165,8 +2163,8 @@ pub mod delisting_test {
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             initial_liability_weight: SPOT_WEIGHT_PRECISION,
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 40000 * SPOT_INTEREST_PRECISION,
-            borrow_balance: 100 * SPOT_INTEREST_PRECISION,
+            deposit_balance: 40000 * SPOT_BALANCE_PRECISION,
+            borrow_balance: 100 * SPOT_BALANCE_PRECISION,
             ..SpotMarket::default()
         };
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
@@ -2179,26 +2177,26 @@ pub mod delisting_test {
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
-                auction_end_price: 100 * MARK_PRICE_PRECISION,
+                auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
-                base_asset_amount: (AMM_RESERVE_PRECISION_I128 * 200),
-                quote_asset_amount: (QUOTE_PRECISION_I128 * 200), //longs have -$1 cost basis,
+                open_bids: BASE_PRECISION_I64,
+                base_asset_amount: (BASE_PRECISION_I64 * 200),
+                quote_asset_amount: (QUOTE_PRECISION_I64 * 200), //longs have -$1 cost basis,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 20000 * SPOT_INTEREST_PRECISION,
+                balance: 20000 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2211,23 +2209,23 @@ pub mod delisting_test {
                 status: OrderStatus::Open,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION / 2,
+                base_asset_amount: BASE_PRECISION_U64 / 2,
                 ts: 0,
-                price: 100 * MARK_PRICE_PRECISION,
+                price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128 / 2,
-                base_asset_amount: -(AMM_RESERVE_PRECISION_I128 * 1000),
-                quote_asset_amount: (QUOTE_PRECISION_I128 * 97 * 1000), //shorts have $20 cost basis,
+                open_asks: -BASE_PRECISION_I64 / 2,
+                base_asset_amount: -(BASE_PRECISION_I64 * 1000),
+                quote_asset_amount: (QUOTE_PRECISION_I64 * 97 * 1000), //shorts have $20 cost basis,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 20000 * SPOT_INTEREST_PRECISION,
+                balance: 20000 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2237,7 +2235,7 @@ pub mod delisting_test {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 20000 * SPOT_INTEREST_PRECISION,
+                balance: 20000 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2291,7 +2289,7 @@ pub mod delisting_test {
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.settlement_price != 0, true);
-        assert_eq!(market.settlement_price, 1202500000001); //$120.25 (vs $100)
+        assert_eq!(market.settlement_price, 120250001); //$120.25 (vs $100)
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
@@ -2299,7 +2297,7 @@ pub mod delisting_test {
         {
             assert_eq!(shorter.orders[0].order_id, 0);
             assert_eq!(shorter.orders[0].status, OrderStatus::Open);
-            assert_eq!(shorter.orders[0].base_asset_amount, 5000000000000);
+            assert_eq!(shorter.orders[0].base_asset_amount, 500000000);
 
             cancel_order(
                 0,
@@ -2318,15 +2316,12 @@ pub mod delisting_test {
             .unwrap();
 
             let market = market_map.get_ref_mut(&0).unwrap();
-            assert_eq!(market.pnl_pool.balance, 1000000000);
+            assert_eq!(market.pnl_pool.balance, 1000000000000);
 
             let orig_short_balance = shorter.spot_positions[0].balance;
 
-            assert_eq!(orig_short_balance, 20000000000);
-            assert_eq!(
-                shorter.perp_positions[0].base_asset_amount,
-                -10000000000000000
-            );
+            assert_eq!(orig_short_balance, 20000000000000);
+            assert_eq!(shorter.perp_positions[0].base_asset_amount, -1000000000000);
             assert_eq!(shorter.perp_positions[0].quote_asset_amount, 97000000000);
 
             let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
@@ -2341,9 +2336,9 @@ pub mod delisting_test {
             .unwrap();
 
             // short cant pay without bankruptcy
-            assert_eq!(oracle_price_data.price, 1000000000000);
-            assert_eq!(perp_margin_requirement, 12025000000);
-            assert_eq!(weighted_pnl, -23250000000);
+            assert_eq!(oracle_price_data.price, 100000000);
+            assert_eq!(perp_margin_requirement, 12025000100);
+            assert_eq!(weighted_pnl, -23250001000);
             drop(market);
 
             let market = market_map.get_ref_mut(&0).unwrap();
@@ -2360,17 +2355,17 @@ pub mod delisting_test {
             )
             .is_err());
 
-            assert_eq!(longer.spot_positions[0].balance, 20000000000);
+            assert_eq!(longer.spot_positions[0].balance, 20000000000000);
             assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
             assert_eq!(97000000000, market.amm.quote_asset_amount_short);
             assert_eq!(
-                longer.perp_positions[0].quote_asset_amount,
+                longer.perp_positions[0].quote_asset_amount as i128,
                 market.amm.quote_asset_amount_long
             );
 
             assert_eq!(
                 market.base_asset_amount_long + market.base_asset_amount_short,
-                -8000000000000000
+                -800000000000
             );
             assert_eq!(
                 market.amm.quote_asset_amount_long + market.amm.quote_asset_amount_short,
@@ -2421,21 +2416,21 @@ pub mod delisting_test {
                     .unwrap();
 
                 // short cant pay without bankruptcy
-                assert_eq!(shorter.spot_positions[0].balance, 20000000000);
+                assert_eq!(shorter.spot_positions[0].balance, 20000000000000);
                 assert_eq!(
                     shorter.spot_positions[0].balance_type,
                     SpotBalanceType::Deposit
                 );
-                assert_eq!(oracle_price_data.price, 1000000000000);
+                assert_eq!(oracle_price_data.price, 100000000);
                 assert_eq!(perp_margin_requirement, 0);
-                assert_eq!(weighted_pnl, -23250000000);
+                assert_eq!(weighted_pnl, -23250001000);
 
-                assert_eq!(longer.spot_positions[0].balance, 20000000000);
+                assert_eq!(longer.spot_positions[0].balance, 20000000000000);
                 assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
 
                 assert_eq!(
                     market.base_asset_amount_long + market.base_asset_amount_short,
-                    -8000000000000000
+                    -800000000000
                 );
                 assert_eq!(
                     market.amm.quote_asset_amount_long + market.amm.quote_asset_amount_short,
@@ -2443,24 +2438,24 @@ pub mod delisting_test {
                 );
 
                 assert_eq!(shorter.perp_positions[0].base_asset_amount, 0);
-                assert_eq!(shorter.perp_positions[0].quote_asset_amount, -23250000000);
+                assert_eq!(shorter.perp_positions[0].quote_asset_amount, -23250001000);
 
                 assert_eq!(
-                    liquidator.perp_positions[0].base_asset_amount,
+                    liquidator.perp_positions[0].base_asset_amount as i128,
                     market.base_asset_amount_short
                 );
                 assert_eq!(
                     liquidator.perp_positions[0].quote_asset_amount,
                     // market.amm.quote_asset_amount_short
-                    97000000000 + 23250000000
+                    97000000000 + 23250001000
                 );
 
                 assert_eq!(
-                    longer.perp_positions[0].base_asset_amount,
+                    longer.perp_positions[0].base_asset_amount as i128,
                     market.base_asset_amount_long
                 );
                 assert_eq!(
-                    longer.perp_positions[0].quote_asset_amount,
+                    longer.perp_positions[0].quote_asset_amount as i128,
                     market.amm.quote_asset_amount_long
                 );
 
@@ -2511,21 +2506,21 @@ pub mod delisting_test {
                     .unwrap();
 
                 // short cant pay without bankruptcy
-                assert_eq!(shorter.spot_positions[0].balance, 19999000000);
+                assert_eq!(shorter.spot_positions[0].balance, 19999000000000);
                 assert_eq!(
                     shorter.spot_positions[0].balance_type,
                     SpotBalanceType::Deposit
                 );
-                assert_eq!(oracle_price_data.price, 1000000000000);
+                assert_eq!(oracle_price_data.price, 100000000);
                 assert_eq!(perp_margin_requirement, 0);
-                assert_eq!(weighted_pnl, -23249000000);
+                assert_eq!(weighted_pnl, -23249001000);
 
-                assert_eq!(longer.spot_positions[0].balance, 20000000000);
+                assert_eq!(longer.spot_positions[0].balance, 20000000000000);
                 assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
 
                 assert_eq!(
                     market.base_asset_amount_long + market.base_asset_amount_short,
-                    -8000000000000000
+                    -800000000000
                 );
                 assert_eq!(
                     market.amm.quote_asset_amount_long + market.amm.quote_asset_amount_short,
@@ -2533,21 +2528,21 @@ pub mod delisting_test {
                 );
 
                 assert_eq!(shorter.perp_positions[0].base_asset_amount, 0);
-                assert_eq!(shorter.perp_positions[0].quote_asset_amount, -23249000000);
+                assert_eq!(shorter.perp_positions[0].quote_asset_amount, -23249001000);
 
                 assert_eq!(
-                    liquidator.perp_positions[0].base_asset_amount,
+                    liquidator.perp_positions[0].base_asset_amount as i128,
                     market.base_asset_amount_short
                 );
                 assert_eq!(market.amm.quote_asset_amount_short, 96999000000);
                 assert_eq!(
                     liquidator.perp_positions[0].quote_asset_amount,
                     // market.amm.quote_asset_amount_short,
-                    120249000000
+                    120249001000
                 );
 
                 assert_eq!(
-                    longer.perp_positions[0].base_asset_amount,
+                    longer.perp_positions[0].base_asset_amount as i128,
                     market.base_asset_amount_long
                 );
                 assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
@@ -2607,16 +2602,16 @@ pub mod delisting_test {
                     shorter.spot_positions[0].balance_type,
                     SpotBalanceType::Deposit
                 );
-                assert_eq!(oracle_price_data.price, 1000000000000);
+                assert_eq!(oracle_price_data.price, 100000000);
                 assert_eq!(perp_margin_requirement, 0);
-                assert_eq!(weighted_pnl, -3449990000);
+                assert_eq!(weighted_pnl, -3449991000);
 
-                assert_eq!(longer.spot_positions[0].balance, 20000000000);
+                assert_eq!(longer.spot_positions[0].balance, 20000000000000);
                 assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
 
                 assert_eq!(
                     market.base_asset_amount_long + market.base_asset_amount_short,
-                    -8000000000000000
+                    -800000000000
                 );
                 assert_eq!(
                     market.amm.quote_asset_amount_long + market.amm.quote_asset_amount_short,
@@ -2624,21 +2619,21 @@ pub mod delisting_test {
                 );
 
                 assert_eq!(shorter.perp_positions[0].base_asset_amount, 0);
-                assert_eq!(shorter.perp_positions[0].quote_asset_amount, -3449990000);
+                assert_eq!(shorter.perp_positions[0].quote_asset_amount, -3449991000);
 
                 assert_eq!(
-                    liquidator.perp_positions[0].base_asset_amount,
+                    liquidator.perp_positions[0].base_asset_amount as i128,
                     market.base_asset_amount_short
                 );
                 assert_eq!(market.amm.quote_asset_amount_short, 77199990000);
                 assert_eq!(
                     liquidator.perp_positions[0].quote_asset_amount,
                     // market.amm.quote_asset_amount_short,
-                    100449990000
+                    100449991000
                 );
 
                 assert_eq!(
-                    longer.perp_positions[0].base_asset_amount,
+                    longer.perp_positions[0].base_asset_amount as i128,
                     market.base_asset_amount_long
                 );
                 assert_eq!(
@@ -2654,22 +2649,22 @@ pub mod delisting_test {
                 drop(market);
             }
 
-            assert_eq!(liquidator.spot_positions[0].balance, 40000000000);
+            assert_eq!(liquidator.spot_positions[0].balance, 40000000000000);
             assert_eq!(
                 liquidator.spot_positions[0].balance_type,
                 SpotBalanceType::Deposit
             );
             assert_eq!(
                 liquidator.perp_positions[0].base_asset_amount,
-                -10000000000000000
+                -1000000000000
             );
             assert_eq!(
                 liquidator.perp_positions[0].quote_asset_amount,
-                100449990000
+                100449991000
             );
             assert_eq!(
                 liquidator.perp_positions[0].quote_entry_amount,
-                120250000000
+                120250001000
             );
             assert_eq!(liquidator.perp_positions[0].open_orders, 0);
 
@@ -2685,7 +2680,7 @@ pub mod delisting_test {
             )
             .unwrap();
 
-            assert_eq!(liquidator.spot_positions[0].balance, 20079740000);
+            assert_eq!(liquidator.spot_positions[0].balance, 20079739999000);
             // avoid the social loss :p
             // made 79 bucks
 
@@ -2713,18 +2708,18 @@ pub mod delisting_test {
             assert_eq!(shorter.spot_positions[0].balance, 0);
 
             let shorter_loss = orig_short_balance - shorter.spot_positions[0].balance;
-            assert_eq!(shorter_loss, 20000000000); //$16629 loss
+            assert_eq!(shorter_loss, 20000000000000); //$16629 loss
 
             let market = market_map.get_ref_mut(&0).unwrap();
-            assert_eq!(market.amm.cumulative_social_loss, -3449990000);
-            assert_eq!(market.base_asset_amount_long, 2000000000000000);
+            assert_eq!(market.amm.cumulative_social_loss, -3449991000);
+            assert_eq!(market.base_asset_amount_long, 200000000000);
             assert_eq!(market.base_asset_amount_short, 0);
-            assert_eq!(market.amm.net_base_asset_amount, 2000000000000000);
+            assert_eq!(market.amm.net_base_asset_amount, 200000000000);
 
-            assert_eq!(market.amm.cumulative_funding_rate_long, 1724995000000000);
-            assert_eq!(market.amm.cumulative_funding_rate_short, -1724995000000000);
+            assert_eq!(market.amm.cumulative_funding_rate_long, 17249955000);
+            assert_eq!(market.amm.cumulative_funding_rate_short, -17249955000);
 
-            assert_eq!(market.pnl_pool.balance, 20920260000); //$20920
+            assert_eq!(market.pnl_pool.balance, 20920260001000); //$20920
             assert_eq!(market.amm.fee_pool.balance, 0);
             drop(market);
 
@@ -2750,8 +2745,8 @@ pub mod delisting_test {
                 .unwrap();
 
             assert_eq!(total_collateral, 20000000000);
-            assert_eq!(margin_requirement, 1208512500);
-            assert_eq!(longer.spot_positions[0].balance, 20000000000);
+            assert_eq!(margin_requirement, 1208512510);
+            assert_eq!(longer.spot_positions[0].balance, 20000000000000);
             assert_eq!(longer.perp_positions[0].last_cumulative_funding_rate, 0);
             assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
 
@@ -2773,25 +2768,23 @@ pub mod delisting_test {
             .unwrap();
 
             let market = market_map.get_ref_mut(&0).unwrap();
-            assert_eq!(market.pnl_pool.balance, 20920260000);
-            assert_eq!(longer.spot_positions[0].balance, 20000000000);
+            assert_eq!(market.pnl_pool.balance, 20920260001000);
+            assert_eq!(longer.spot_positions[0].balance, 20000000000000);
             assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
             assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
             assert_eq!(longer.perp_positions[0].last_cumulative_funding_rate, 0);
 
-            assert_eq!(market.amm.cumulative_funding_rate_long, 1724995000000000);
+            assert_eq!(market.amm.cumulative_funding_rate_long, 17249955000);
             let longer_funding_payment = calculate_funding_payment(
                 market.amm.cumulative_funding_rate_long,
                 &longer.perp_positions[0],
             )
-            .unwrap()
-            .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
             .unwrap();
-            assert_eq!(longer_funding_payment, -3449990000);
+            assert_eq!(longer_funding_payment, -3449991000);
 
             assert_eq!(market.amm.quote_asset_amount_long, 20000010000);
-            assert_eq!(market.amm.quote_asset_amount_short, -23250000000);
-            assert_eq!(market.amm.cumulative_social_loss, -3449990000);
+            assert_eq!(market.amm.quote_asset_amount_short, -23250001000);
+            assert_eq!(market.amm.cumulative_social_loss, -3449991000);
 
             drop(market);
 
@@ -2810,11 +2803,11 @@ pub mod delisting_test {
             assert_eq!(longer.perp_positions[0].base_asset_amount, 0);
             assert_eq!(longer.perp_positions[0].last_cumulative_funding_rate, 0);
 
-            assert_eq!(longer.spot_positions[0].balance > 100000000, true);
-            assert_eq!(longer.spot_positions[0].balance, 40775960000); //$40775
+            assert_eq!(longer.spot_positions[0].balance > 100000000000, true);
+            assert_eq!(longer.spot_positions[0].balance, 40775959200000); //$40775
 
             let market = market_map.get_ref_mut(&0).unwrap();
-            assert_eq!(market.pnl_pool.balance, 144300000); // fees collected
+            assert_eq!(market.pnl_pool.balance, 144300801000); // fees collected
             assert_eq!(market.amm.fee_pool.balance, 0);
 
             assert_eq!(market.open_interest, 0);
@@ -2824,9 +2817,9 @@ pub mod delisting_test {
             assert_eq!(market.amm.net_base_asset_amount, 0);
 
             assert_eq!(market.amm.quote_asset_amount_long, 19800010000);
-            assert_eq!(market.amm.quote_asset_amount_short, -23250000000);
+            assert_eq!(market.amm.quote_asset_amount_short, -23250001000);
 
-            assert_eq!(market.amm.cumulative_social_loss, -3449990000);
+            assert_eq!(market.amm.cumulative_social_loss, -3449991000);
 
             assert_eq!(
                 market.amm.quote_asset_amount_long + market.amm.quote_asset_amount_short,
@@ -2834,7 +2827,7 @@ pub mod delisting_test {
             );
 
             let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
-            assert_eq!(oracle_price_data.price, 100 * MARK_PRICE_PRECISION_I128);
+            assert_eq!(oracle_price_data.price, 100 * PRICE_PRECISION_I128);
             let net_pnl = calculate_net_user_pnl(&market.amm, oracle_price_data.price).unwrap();
             assert_eq!(net_pnl, 0);
 

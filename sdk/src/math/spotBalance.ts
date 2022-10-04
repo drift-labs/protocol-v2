@@ -10,7 +10,7 @@ import {
 	ONE,
 	TEN,
 	ZERO,
-	SPOT_MARKET_INTEREST_PRECISION,
+	SPOT_MARKET_RATE_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	ONE_YEAR,
 	AMM_RESERVE_PRECISION,
@@ -26,7 +26,7 @@ export function getBalance(
 	spotMarket: SpotMarketAccount,
 	balanceType: SpotBalanceType
 ): BN {
-	const precisionIncrease = TEN.pow(new BN(16 - spotMarket.decimals));
+	const precisionIncrease = TEN.pow(new BN(19 - spotMarket.decimals));
 
 	const cumulativeInterest = isVariant(balanceType, 'deposit')
 		? spotMarket.cumulativeDepositInterest
@@ -46,7 +46,7 @@ export function getTokenAmount(
 	spotMarket: SpotMarketAccount,
 	balanceType: SpotBalanceType
 ): BN {
-	const precisionDecrease = TEN.pow(new BN(16 - spotMarket.decimals));
+	const precisionDecrease = TEN.pow(new BN(19 - spotMarket.decimals));
 
 	const cumulativeInterest = isVariant(balanceType, 'deposit')
 		? spotMarket.cumulativeDepositInterest
@@ -75,7 +75,7 @@ export function getTokenValue(
 		return ZERO;
 	}
 
-	const precisionDecrease = TEN.pow(new BN(10 + spotDecimals - 6));
+	const precisionDecrease = TEN.pow(new BN(spotDecimals));
 
 	return tokenAmount.mul(oraclePriceData.price).div(precisionDecrease);
 }
@@ -196,22 +196,25 @@ export function calculateInterestRate(bank: SpotMarketAccount): BN {
 	const utilization = calculateUtilization(bank);
 
 	let interestRate: BN;
-	if (utilization.gt(bank.optimalUtilization)) {
-		const surplusUtilization = utilization.sub(bank.optimalUtilization);
-		const borrowRateSlope = bank.maxBorrowRate
-			.sub(bank.optimalBorrowRate)
+	if (utilization.gt(new BN(bank.optimalUtilization))) {
+		const surplusUtilization = utilization.sub(new BN(bank.optimalUtilization));
+		const borrowRateSlope = new BN(bank.maxBorrowRate - bank.optimalBorrowRate)
 			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
-			.div(SPOT_MARKET_UTILIZATION_PRECISION.sub(bank.optimalUtilization));
+			.div(
+				SPOT_MARKET_UTILIZATION_PRECISION.sub(new BN(bank.optimalUtilization))
+			);
 
-		interestRate = bank.optimalBorrowRate.add(
+		interestRate = new BN(bank.optimalBorrowRate).add(
 			surplusUtilization
 				.mul(borrowRateSlope)
 				.div(SPOT_MARKET_UTILIZATION_PRECISION)
 		);
 	} else {
-		const borrowRateSlope = bank.optimalBorrowRate
+		const borrowRateSlope = new BN(bank.optimalBorrowRate)
 			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
-			.div(SPOT_MARKET_UTILIZATION_PRECISION.sub(bank.optimalUtilization));
+			.div(
+				SPOT_MARKET_UTILIZATION_PRECISION.sub(new BN(bank.optimalUtilization))
+			);
 
 		interestRate = utilization
 			.mul(borrowRateSlope)
@@ -253,12 +256,12 @@ export function calculateInterestAccumulated(
 	const borrowInterest = bank.cumulativeBorrowInterest
 		.mul(modifiedBorrowRate)
 		.div(ONE_YEAR)
-		.div(SPOT_MARKET_INTEREST_PRECISION)
+		.div(SPOT_MARKET_RATE_PRECISION)
 		.add(ONE);
 	const depositInterest = bank.cumulativeDepositInterest
 		.mul(modifiedDepositRate)
 		.div(ONE_YEAR)
-		.div(SPOT_MARKET_INTEREST_PRECISION);
+		.div(SPOT_MARKET_RATE_PRECISION);
 
 	return { borrowInterest, depositInterest };
 }
