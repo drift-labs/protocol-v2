@@ -1,5 +1,8 @@
 import { PublicKey } from '@solana/web3.js';
 import {
+	AMM,
+	AssetTier,
+	PerpPosition,
 	BN,
 	PerpMarketAccount,
 	SpotMarketAccount,
@@ -12,9 +15,8 @@ import {
 	AMM_TO_QUOTE_PRECISION_RATIO,
 } from '../../src';
 
-export const mockPerpPosition = {
+export const mockPerpPosition: PerpPosition = {
 	baseAssetAmount: new BN(0),
-	remainderBaseAssetAmount: new BN(0),
 	lastCumulativeFundingRate: new BN(0),
 	marketIndex: 0,
 	quoteAssetAmount: new BN(0),
@@ -24,12 +26,12 @@ export const mockPerpPosition = {
 	openAsks: new BN(0),
 	settledPnl: new BN(0),
 	lpShares: new BN(0),
-	lastFeePerLp: new BN(0),
+	remainderBaseAssetAmount: 0,
 	lastNetBaseAssetAmountPerLp: new BN(0),
 	lastNetQuoteAssetAmountPerLp: new BN(0),
 };
 
-export const mockAMM = {
+export const mockAMM: AMM = {
 	/* these values create a bid/ask price of 12 */
 	baseAssetReserve: new BN(1).mul(BASE_PRECISION),
 	quoteAssetReserve: new BN(12)
@@ -61,8 +63,6 @@ export const mockAMM = {
 	cumulativeFundingRateLong: new BN(0),
 	cumulativeFundingRateShort: new BN(0),
 	cumulativeFundingRateLp: new BN(0),
-	cumulativeRepegRebateLong: new BN(0),
-	cumulativeRepegRebateShort: new BN(0),
 	totalFeeMinusDistributions: new BN(0),
 	totalFeeWithdrawn: new BN(0),
 	totalFee: new BN(0),
@@ -152,7 +152,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		nextFillRecordId: new BN(0),
 		pnlPool: {
 			balance: new BN(0),
-			marketIndex: new BN(0),
+			marketIndex: 0,
 		},
 		ifLiquidationFee: new BN(0),
 		liquidatorFee: new BN(0),
@@ -203,6 +203,9 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 
 export const mockSpotMarkets: Array<SpotMarketAccount> = [
 	{
+		status: MarketStatus.ACTIVE,
+		assetTier: AssetTier.COLLATERAL,
+		maxTokenDeposits: new BN(100),
 		marketIndex: 0,
 		pubkey: PublicKey.default,
 		mint: DevnetSpotMarkets[0].mint,
@@ -215,14 +218,14 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		},
 		totalIfShares: new BN(0),
 		userIfShares: new BN(0),
-		userIfFactor: new BN(0),
-		totalIfFactor: new BN(0),
+		userIfFactor: 0,
+		totalIfFactor: 0,
 		ifLiquidationFee: new BN(0),
 		liquidatorFee: new BN(0),
 		decimals: 6,
-		optimalUtilization: new BN(0),
-		optimalBorrowRate: new BN(0),
-		maxBorrowRate: new BN(0),
+		optimalUtilization: 0,
+		optimalBorrowRate: 0,
+		maxBorrowRate: 0,
 		cumulativeDepositInterest: new BN(0),
 		cumulativeBorrowInterest: new BN(0),
 		depositBalance: new BN(0),
@@ -243,6 +246,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		nextFillRecordId: new BN(0),
 		spotFeePool: {
 			balance: new BN(0),
+			marketIndex: 0,
 		},
 		totalSpotFee: new BN(0),
 		oracleSource: OracleSource.PYTH,
@@ -263,6 +267,9 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		},
 	},
 	{
+		status: MarketStatus.ACTIVE,
+		assetTier: AssetTier.CROSS,
+		maxTokenDeposits: new BN(100),
 		marketIndex: 1,
 		pubkey: PublicKey.default,
 		mint: DevnetSpotMarkets[1].mint,
@@ -275,14 +282,14 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		},
 		totalIfShares: new BN(0),
 		userIfShares: new BN(0),
-		userIfFactor: new BN(0),
-		totalIfFactor: new BN(0),
+		userIfFactor: 0,
+		totalIfFactor: 0,
 		ifLiquidationFee: new BN(0),
 		liquidatorFee: new BN(0),
 		decimals: 9,
-		optimalUtilization: new BN(0),
-		optimalBorrowRate: new BN(0),
-		maxBorrowRate: new BN(0),
+		optimalUtilization: 0,
+		optimalBorrowRate: 0,
+		maxBorrowRate: 0,
 		cumulativeDepositInterest: new BN(0),
 		cumulativeBorrowInterest: new BN(0),
 		depositBalance: new BN(0),
@@ -303,6 +310,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		nextFillRecordId: new BN(0),
 		spotFeePool: {
 			balance: new BN(0),
+			marketIndex: 0,
 		},
 		totalSpotFee: new BN(0),
 		oracleSource: OracleSource.PYTH,
@@ -323,6 +331,9 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		},
 	},
 	{
+		status: MarketStatus.ACTIVE,
+		assetTier: AssetTier.PROTECTED,
+		maxTokenDeposits: new BN(100),
 		marketIndex: 2,
 		pubkey: PublicKey.default,
 		mint: DevnetSpotMarkets[2].mint,
@@ -335,14 +346,14 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		},
 		totalIfShares: new BN(0),
 		userIfShares: new BN(0),
-		userIfFactor: new BN(0),
-		totalIfFactor: new BN(0),
+		userIfFactor: 0,
+		totalIfFactor: 0,
 		ifLiquidationFee: new BN(0),
 		liquidatorFee: new BN(0),
 		decimals: 6,
-		optimalUtilization: new BN(0),
-		optimalBorrowRate: new BN(0),
-		maxBorrowRate: new BN(0),
+		optimalUtilization: 0,
+		optimalBorrowRate: 0,
+		maxBorrowRate: 0,
 		cumulativeDepositInterest: new BN(0),
 		cumulativeBorrowInterest: new BN(0),
 		depositBalance: new BN(0),
@@ -363,6 +374,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		nextFillRecordId: new BN(0),
 		spotFeePool: {
 			balance: new BN(0),
+			marketIndex: 0,
 		},
 		totalSpotFee: new BN(0),
 		oracleSource: OracleSource.PYTH,
