@@ -6,6 +6,7 @@ if [ "$1" != "--skip-build" ]
 fi
 
 test_files=(
+  postOnlyAmmFulfillment.ts
   imbalancePerpPnl.ts
    delistMarket.ts 
    delistMarketLiq.ts

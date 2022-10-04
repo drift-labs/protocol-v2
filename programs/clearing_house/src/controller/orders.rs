@@ -1730,10 +1730,14 @@ pub fn fulfill_order_with_match(
         .quote_asset_amount
         .checked_add(fee_to_market)
         .ok_or_else(math_error!())?;
-
     market.amm.total_fee = market
         .amm
         .total_fee
+        .checked_add(fee_to_market.cast()?)
+        .ok_or_else(math_error!())?;
+    market.amm.total_exchange_fee = market
+        .amm
+        .total_exchange_fee
         .checked_add(fee_to_market.cast()?)
         .ok_or_else(math_error!())?;
     market.amm.total_fee_minus_distributions = market
