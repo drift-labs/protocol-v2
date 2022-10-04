@@ -6,27 +6,28 @@ use crate::math::constants::{
 
 #[account]
 #[derive(Default)]
-#[repr(packed)]
+#[repr(C)]
 pub struct State {
     pub admin: Pubkey,
-    pub exchange_status: ExchangeStatus,
     pub whitelist_mint: Pubkey,
     pub discount_mint: Pubkey,
-    pub oracle_guard_rails: OracleGuardRails,
-    pub number_of_authorities: u64,
-    pub number_of_markets: u16,
-    pub number_of_spot_markets: u16,
-    pub min_order_quote_asset_amount: u128, // minimum est. quote_asset_amount for place_order to succeed
-    pub min_perp_auction_duration: u8,
-    pub default_market_order_time_in_force: u8,
-    pub default_spot_auction_duration: u8,
-    pub liquidation_margin_buffer_ratio: u32,
-    pub settlement_duration: u16,
     pub signer: Pubkey,
-    pub signer_nonce: u8,
     pub srm_vault: Pubkey,
     pub perp_fee_structure: FeeStructure,
     pub spot_fee_structure: FeeStructure,
+    pub oracle_guard_rails: OracleGuardRails,
+    pub min_order_quote_asset_amount: u128, // minimum est. quote_asset_amount for place_order to succeed
+    pub number_of_authorities: u64,
+    pub liquidation_margin_buffer_ratio: u32,
+    pub settlement_duration: u16,
+    pub number_of_markets: u16,
+    pub number_of_spot_markets: u16,
+    pub signer_nonce: u8,
+    pub min_perp_auction_duration: u8,
+    pub default_market_order_time_in_force: u8,
+    pub default_spot_auction_duration: u8,
+    pub exchange_status: ExchangeStatus,
+    pub padding: [u8; 1],
 }
 
 #[derive(Clone, AnchorSerialize, AnchorDeserialize, Copy, PartialEq, Debug, Eq)]

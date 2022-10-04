@@ -24,21 +24,22 @@ mod tests;
 
 #[account(zero_copy)]
 #[derive(Default, Eq, PartialEq, Debug)]
-#[repr(packed)]
+#[repr(C)]
 pub struct User {
     pub authority: Pubkey,
     pub delegate: Pubkey,
-    pub user_id: u8,
     pub name: [u8; 32],
     pub spot_positions: [SpotPosition; 8],
-    pub next_order_id: u32,
     pub perp_positions: [PerpPosition; 8],
     pub orders: [Order; 32],
+    pub last_lp_add_time: i64,
+    pub next_order_id: u32,
+    pub custom_margin_ratio: u32,
     pub next_liquidation_id: u16,
+    pub user_id: u8,
     pub being_liquidated: bool,
     pub bankrupt: bool,
-    pub custom_margin_ratio: u32,
-    pub last_lp_add_time: i64,
+    pub padding: [u8; 3],
 }
 
 impl User {
@@ -144,10 +145,9 @@ impl User {
 
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug)]
-#[repr(packed)]
+#[repr(C)]
 pub struct UserFees {
     pub total_fee_paid: u64,
-    pub total_lp_fees: u64,
     pub total_fee_rebate: u64,
     pub total_token_discount: u64,
     pub total_referee_discount: u64,
@@ -155,15 +155,16 @@ pub struct UserFees {
 
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug)]
-#[repr(packed)]
+#[repr(C)]
 pub struct SpotPosition {
-    pub market_index: u16,
-    pub balance_type: SpotBalanceType,
     pub balance: u64,
-    pub open_orders: u8,
     pub open_bids: i64,
     pub open_asks: i64,
     pub cumulative_deposits: i64,
+    pub market_index: u16,
+    pub balance_type: SpotBalanceType,
+    pub open_orders: u8,
+    pub padding: [u8; 4],
 }
 
 impl SpotBalance for SpotPosition {
@@ -256,23 +257,22 @@ impl SpotPosition {
 
 #[zero_copy]
 #[derive(Default, Debug, Eq, PartialEq)]
-#[repr(packed)]
+#[repr(C)]
 pub struct PerpPosition {
-    pub market_index: u16,
+    pub last_cumulative_funding_rate: i128,
     pub base_asset_amount: i64,
     pub quote_asset_amount: i64,
     pub quote_entry_amount: i64,
-    pub last_cumulative_funding_rate: i128,
-    pub open_orders: u8,
     pub open_bids: i64,
     pub open_asks: i64,
     pub settled_pnl: i64,
-
-    // lp stuff
     pub lp_shares: u64,
-    pub remainder_base_asset_amount: i32,
     pub last_net_base_asset_amount_per_lp: i64,
     pub last_net_quote_asset_amount_per_lp: i64,
+    pub remainder_base_asset_amount: i32,
+    pub market_index: u16,
+    pub open_orders: u8,
+    pub padding: [u8; 1],
 }
 
 impl PerpPosition {
@@ -407,35 +407,36 @@ impl PerpPosition {
 pub type PerpPositions = [PerpPosition; 8];
 
 #[zero_copy]
-#[repr(packed)]
+#[repr(C)]
 #[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub struct Order {
-    pub status: OrderStatus,
-    pub order_type: OrderType,
-    pub market_type: MarketType,
     pub ts: i64,
     pub slot: u64,
-    pub order_id: u32,
-    pub user_order_id: u8,
-    pub market_index: u16,
     pub price: u64,
-    pub existing_position_direction: PositionDirection,
     pub base_asset_amount: u64,
     pub base_asset_amount_filled: u64,
     pub quote_asset_amount_filled: u64,
     pub fee: i64,
+    pub trigger_price: u64,
+    pub oracle_price_offset: i64,
+    pub auction_start_price: u64,
+    pub auction_end_price: u64,
+    pub order_id: u32,
+    pub market_index: u16,
+    pub status: OrderStatus,
+    pub order_type: OrderType,
+    pub market_type: MarketType,
+    pub user_order_id: u8,
+    pub existing_position_direction: PositionDirection,
     pub direction: PositionDirection,
     pub reduce_only: bool,
     pub post_only: bool,
     pub immediate_or_cancel: bool,
-    pub trigger_price: u64,
     pub trigger_condition: OrderTriggerCondition,
     pub triggered: bool,
-    pub oracle_price_offset: i64,
-    pub auction_start_price: u64,
-    pub auction_end_price: u64,
     pub auction_duration: u8,
     pub time_in_force: u8,
+    pub padding: [u8; 5],
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
@@ -588,6 +589,7 @@ impl Default for Order {
             auction_end_price: 0,
             auction_duration: 0,
             time_in_force: 0,
+            padding: [0; 5],
         }
     }
 }
@@ -634,18 +636,15 @@ impl Default for MarketType {
 
 #[account(zero_copy)]
 #[derive(Default, Eq, PartialEq, Debug)]
-#[repr(packed)]
+#[repr(C)]
 pub struct UserStats {
     pub authority: Pubkey,
-    pub number_of_users: u8,
-
-    pub is_referrer: bool,
     pub referrer: Pubkey,
+    pub fees: UserFees,
+
     pub total_referrer_reward: u64,
     pub current_epoch_referrer_reward: u64,
     pub next_epoch_ts: i64,
-
-    pub fees: UserFees,
 
     // volume track
     pub maker_volume_30d: u64,
@@ -656,6 +655,9 @@ pub struct UserStats {
     pub last_filler_volume_30d_ts: i64,
 
     pub staked_quote_asset_amount: u64,
+    pub number_of_users: u8,
+    pub is_referrer: bool,
+    pub padding: [u8; 6],
 }
 
 impl UserStats {
@@ -803,25 +805,5 @@ impl UserStats {
         self.taker_volume_30d
             .checked_add(self.maker_volume_30d)
             .ok_or_else(math_error!())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::state::user::{Order, PerpPosition, SpotPosition, User};
-
-    #[test]
-    fn test() {
-        let user_size = std::mem::size_of::<User>();
-        println!("user_size {}", user_size);
-
-        let perp_position_size = std::mem::size_of::<PerpPosition>();
-        println!("perp_position_size {}", perp_position_size);
-
-        let spot_position_size = std::mem::size_of::<SpotPosition>();
-        println!("spot_position_size {}", spot_position_size);
-
-        let order_size = std::mem::size_of::<Order>();
-        println!("order_size {}", order_size);
     }
 }
