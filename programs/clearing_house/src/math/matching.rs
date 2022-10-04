@@ -27,7 +27,7 @@ pub fn are_orders_same_market_but_different_sides(
 }
 
 pub fn do_orders_cross(
-    maker_direction: &PositionDirection,
+    maker_direction: PositionDirection,
     maker_price: u128,
     taker_price: u128,
 ) -> bool {
@@ -58,7 +58,7 @@ pub fn calculate_fill_for_matched_orders(
 
 pub fn calculate_filler_multiplier_for_matched_orders(
     maker_price: u128,
-    maker_direction: &PositionDirection,
+    maker_direction: PositionDirection,
     oracle_price: i128,
 ) -> ClearingHouseResult<u128> {
     // percentage oracle_price is above maker_price
@@ -95,7 +95,7 @@ mod test {
 
     #[test]
     fn filler_multiplier_maker_long() {
-        let direction = &PositionDirection::Long;
+        let direction = PositionDirection::Long;
         let oracle_price = 34 * PRICE_PRECISION_I128;
 
         let mult = calculate_filler_multiplier_for_matched_orders(
@@ -139,7 +139,7 @@ mod test {
 
     #[test]
     fn filler_multiplier_maker_short() {
-        let direction = &PositionDirection::Short;
+        let direction = PositionDirection::Short;
         let oracle_price = 34 * PRICE_PRECISION_I128;
 
         let maker_price_good = 30 * PRICE_PRECISION;
