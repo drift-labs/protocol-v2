@@ -6,13 +6,15 @@ import {
 	getMarketOrderParams,
 	OracleSource,
 	Wallet,
-} from '../sdk';
+	MarketStatus,
+	Admin,
+	ClearingHouse,
+	PositionDirection,
+} from '../sdk/src';
 
 import { Program } from '@project-serum/anchor';
 
 import { Keypair } from '@solana/web3.js';
-
-import { Admin, ClearingHouse, PositionDirection } from '../sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
@@ -81,10 +83,7 @@ describe('round in favor', () => {
 			periodicity,
 			new BN(63000000000)
 		);
-		await primaryClearingHouse.updatePerpMarketStatus(
-			new BN(0),
-			MarketStatus.ACTIVE
-		);
+		await primaryClearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 	});
 
 	after(async () => {
