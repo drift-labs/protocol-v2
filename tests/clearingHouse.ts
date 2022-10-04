@@ -4,7 +4,7 @@ import {
 	BASE_PRECISION,
 	BN,
 	isVariant,
-	MarketAccount,
+	PerpMarketAccount,
 	OracleSource,
 	ZERO,
 } from '../sdk';
@@ -126,11 +126,9 @@ describe('clearing_house', () => {
 		);
 		const market = (await clearingHouse.program.account.perpMarket.fetch(
 			marketPublicKey
-		)) as MarketAccount;
+		)) as PerpMarketAccount;
 
-		assert.ok(
-			JSON.stringify(market.status) === JSON.stringify({ initialized: {} })
-		);
+		assert.ok(JSON.stringify(market.status) === JSON.stringify({ active: {} }));
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(0)));
 		assert.ok(market.openInterest.eq(new BN(0)));
 
@@ -144,6 +142,7 @@ describe('clearing_house', () => {
 		assert.ok(ammD.fundingPeriod.eq(periodicity));
 		assert.ok(ammD.lastFundingRate.eq(new BN(0)));
 		assert.ok(!ammD.lastFundingRateTs.eq(new BN(0)));
+		assert.ok(!ammD.historicalOracleData.lastOraclePriceTwapTs.eq(new BN(0)));
 	});
 
 	it('Initialize user account and deposit collateral atomically', async () => {

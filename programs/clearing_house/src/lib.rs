@@ -546,10 +546,10 @@ pub mod clearing_house {
                 minimum_quote_asset_trade_size: 10000000,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: oracle_price,
-                    last_oracle_conf: 0,
                     last_oracle_delay: oracle_delay,
                     last_oracle_price_twap,
                     last_oracle_price_twap_5min: oracle_price,
+                    last_oracle_price_twap_ts: now,
                     ..HistoricalOracleData::default()
                 },
                 last_oracle_normalised_price: oracle_price,

@@ -14,6 +14,7 @@ import {
 	ClearingHouseUser,
 	Wallet,
 	EventSubscriber,
+	MarketStatus,
 } from '../sdk/src';
 
 import {
@@ -100,7 +101,7 @@ describe('post only', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
-		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
+		await fillerClearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
 		await fillerClearingHouse.updateMarketBaseSpread(0, 500);
 

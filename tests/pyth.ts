@@ -13,19 +13,16 @@ import {
 	initUserAccounts,
 	sleep,
 } from './testHelpers';
+import { Program } from '@project-serum/anchor';
+
+import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
 	calculateReservePrice,
 	PEG_PRECISION,
 	PositionDirection,
 	convertToNumber,
-} from '../sdk';
-
-import { Program } from '@project-serum/anchor';
-
-import { Keypair, PublicKey } from '@solana/web3.js';
-
-import {
+	MarketStatus,
 	Admin,
 	PRICE_PRECISION,
 	FUNDING_RATE_BUFFER_PRECISION,
@@ -269,7 +266,7 @@ describe('pyth-oracle', () => {
 			periodicity,
 			new BN(39.99 * PEG_PRECISION.toNumber())
 		);
-		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
+		await clearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
 		await updateFundingRateHelper(
 			clearingHouse,

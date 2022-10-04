@@ -9,9 +9,16 @@ import {
 	getFeedData,
 	sleep,
 } from './testHelpers';
-import { Admin, ClearingHouseUser, PEG_PRECISION } from '../sdk/src';
 import { Keypair } from '@solana/web3.js';
+import { assert } from 'chai';
 import {
+	Admin,
+	ClearingHouseUser,
+	PEG_PRECISION,
+	MAX_LEVERAGE,
+	PositionDirection,
+	QUOTE_SPOT_MARKET_INDEX,
+	MarketStatus,
 	BASE_PRECISION,
 	BN,
 	OracleSource,
@@ -21,12 +28,6 @@ import {
 	convertToNumber,
 	calculatePrice,
 	AMM_RESERVE_PRECISION,
-} from '../sdk';
-import { assert } from 'chai';
-import {
-	MAX_LEVERAGE,
-	PositionDirection,
-	QUOTE_SPOT_MARKET_INDEX,
 } from '../sdk/src';
 
 describe('User Account', () => {
@@ -92,7 +93,7 @@ describe('User Account', () => {
 			periodicity,
 			new BN(initialSOLPrice).mul(PEG_PRECISION)
 		);
-		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
+		await clearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
 		await clearingHouse.initializeUserAccount();
 		userAccount = new ClearingHouseUser({
