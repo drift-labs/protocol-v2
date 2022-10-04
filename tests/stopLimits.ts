@@ -19,6 +19,7 @@ import {
 	OrderStatus,
 	getTriggerLimitOrderParams,
 	EventSubscriber,
+	MarketStatus,
 } from '../sdk/src';
 
 import {
@@ -122,7 +123,7 @@ describe('stop limit', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
-		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
+		await clearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
 		await clearingHouse.initializeMarket(
 			btcUsd,
@@ -131,7 +132,7 @@ describe('stop limit', () => {
 			periodicity,
 			new BN(60000000) // btc-ish price level
 		);
-		await clearingHouse.updatePerpMarketStatus(new BN(1), MarketStatus.ACTIVE);
+		await clearingHouse.updatePerpMarketStatus(1, MarketStatus.ACTIVE);
 
 		[, userAccountPublicKey] =
 			await clearingHouse.initializeUserAccountAndDepositCollateral(

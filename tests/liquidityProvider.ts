@@ -551,7 +551,7 @@ describe('liquidity providing', () => {
 			eventSubscriber.getEventsArray('LPRecord')[0];
 
 		console.log(
-			'settl pnl vs sdk',
+			'settle pnl vs sdk',
 			settleLiquidityRecord.pnl.toString(),
 			sdkPnl.toString()
 		);
@@ -1130,7 +1130,7 @@ describe('liquidity providing', () => {
 			eventSubscriber.getEventsArray('LPRecord')[0];
 
 		console.log(
-			'settl pnl vs sdk',
+			'settle pnl vs sdk',
 			settleLiquidityRecord.pnl.toString(),
 			sdkPnl.toString()
 		);

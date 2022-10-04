@@ -107,6 +107,7 @@ pub mod clearing_house {
             srm_vault: Pubkey::default(),
             perp_fee_structure: FeeStructure::perps_default(),
             spot_fee_structure: FeeStructure::spot_default(),
+            padding: [0; 1],
         };
 
         Ok(())
@@ -234,6 +235,7 @@ pub mod clearing_house {
             revenue_pool: PoolBalance {
                 balance: 0,
                 market_index: spot_market_index,
+                ..PoolBalance::default()
             }, // in base asset
             total_if_factor: 0,
             user_if_factor: 0,
@@ -269,6 +271,7 @@ pub mod clearing_house {
             next_fill_record_id: 1,
             spot_fee_pool: PoolBalance::default(), // in quote asset
             total_spot_fee: 0,
+            padding: [0; 6],
         };
 
         Ok(())
@@ -330,12 +333,24 @@ pub mod clearing_house {
 
         let serum_program_id = serum_program_id;
         let serum_market = serum_market_key;
-        let serum_event_queue = Pubkey::new(cast_slice(&market_state.event_q));
-        let serum_request_queue = Pubkey::new(cast_slice(&market_state.req_q));
-        let serum_bids = Pubkey::new(cast_slice(&market_state.bids));
-        let serum_asks = Pubkey::new(cast_slice(&market_state.asks));
-        let serum_base_vault = Pubkey::new(cast_slice(&market_state.coin_vault));
-        let serum_quote_vault = Pubkey::new(cast_slice(&market_state.pc_vault));
+
+        let market_state_event_queue = market_state.event_q;
+        let serum_event_queue = Pubkey::new(cast_slice(&market_state_event_queue));
+
+        let market_state_request_queue = market_state.req_q;
+        let serum_request_queue = Pubkey::new(cast_slice(&market_state_request_queue));
+
+        let market_state_bids = market_state.bids;
+        let serum_bids = Pubkey::new(cast_slice(&market_state_bids));
+
+        let market_state_asks = market_state.asks;
+        let serum_asks = Pubkey::new(cast_slice(&market_state_asks));
+
+        let market_state_coin_vault = market_state.coin_vault;
+        let serum_base_vault = Pubkey::new(cast_slice(&market_state_coin_vault));
+
+        let market_state_pc_vault = market_state.pc_vault;
+        let serum_quote_vault = Pubkey::new(cast_slice(&market_state_pc_vault));
         let serum_signer_nonce = market_state.vault_signer_nonce;
 
         drop(market_state);
@@ -386,6 +401,7 @@ pub mod clearing_house {
             serum_quote_vault,
             serum_open_orders: ctx.accounts.serum_open_orders.key(),
             serum_signer_nonce,
+            padding: [0; 4],
         };
 
         Ok(())
@@ -504,11 +520,7 @@ pub mod clearing_house {
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
             quote_max_insurance: 0,
             quote_settled_insurance: 0,
-            padding0: 0,
-            padding1: 0,
-            padding2: 0,
-            padding3: 0,
-            padding4: 0,
+            padding: [0; 3],
             amm: AMM {
                 oracle: *ctx.accounts.oracle.key,
                 oracle_source,
@@ -546,18 +558,18 @@ pub mod clearing_house {
                 minimum_quote_asset_trade_size: 10000000,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: oracle_price,
-                    last_oracle_conf: 0,
                     last_oracle_delay: oracle_delay,
                     last_oracle_price_twap,
                     last_oracle_price_twap_5min: oracle_price,
+                    last_oracle_price_twap_ts: now,
                     ..HistoricalOracleData::default()
                 },
                 last_oracle_normalised_price: oracle_price,
                 last_oracle_conf_pct: 0,
                 last_oracle_reserve_price_spread_pct: 0, // todo
-                base_asset_amount_step_size: 1000,
-                max_slippage_ratio: 50,           // ~2%
-                max_base_asset_amount_ratio: 100, // moves price ~2%
+                base_asset_amount_step_size: BASE_PRECISION_U64 / 10000, // 1e-4
+                max_slippage_ratio: 50,                  // ~2%
+                max_base_asset_amount_ratio: 100,        // moves price ~2%
                 base_spread: 0,
                 long_spread: 0,
                 short_spread: 0,
@@ -595,10 +607,8 @@ pub mod clearing_house {
                 amm_jit_intensity: 0, // turn it off at the start
 
                 last_oracle_valid: false,
-                padding0: 0,
-                padding1: 0,
-                padding2: 0,
-                padding3: 0,
+
+                padding: [0; 6],
             },
         };
 
@@ -1581,40 +1591,36 @@ pub mod clearing_house {
         let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
         let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
-        controller::orders::trigger_order(
-            order_id,
-            &ctx.accounts.state,
-            &ctx.accounts.user,
-            &spot_market_map,
-            &perp_market_map,
-            &mut oracle_map,
-            &ctx.accounts.filler,
-            &Clock::get()?,
-        )?;
+        let market_type = match load!(ctx.accounts.user)?.get_order(order_id) {
+            Some(order) => order.market_type,
+            None => {
+                msg!("order_id not found {}", order_id);
+                return Ok(());
+            }
+        };
 
-        Ok(())
-    }
-
-    #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
-    )]
-    pub fn trigger_spot_order<'info>(ctx: Context<TriggerOrder>, order_id: u32) -> Result<()> {
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
-        let spot_market_market =
-            SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-        let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
-
-        controller::orders::trigger_spot_order(
-            order_id,
-            &ctx.accounts.state,
-            &ctx.accounts.user,
-            &spot_market_market,
-            &perp_market_map,
-            &mut oracle_map,
-            &ctx.accounts.filler,
-            &Clock::get()?,
-        )?;
+        match market_type {
+            MarketType::Perp => controller::orders::trigger_order(
+                order_id,
+                &ctx.accounts.state,
+                &ctx.accounts.user,
+                &spot_market_map,
+                &perp_market_map,
+                &mut oracle_map,
+                &ctx.accounts.filler,
+                &Clock::get()?,
+            )?,
+            MarketType::Spot => controller::orders::trigger_spot_order(
+                order_id,
+                &ctx.accounts.state,
+                &ctx.accounts.user,
+                &spot_market_map,
+                &perp_market_map,
+                &mut oracle_map,
+                &ctx.accounts.filler,
+                &Clock::get()?,
+            )?,
+        }
 
         Ok(())
     }

@@ -23,63 +23,56 @@ use solana_program::msg;
 
 #[account(zero_copy)]
 #[derive(Default, PartialEq, Eq, Debug)]
-#[repr(packed)]
+#[repr(C)]
 pub struct SpotMarket {
-    pub market_index: u16,
     pub pubkey: Pubkey,
-    pub status: MarketStatus,
-    pub asset_tier: AssetTier,
-    pub expiry_ts: i64, // iff market in reduce only mode
-
     pub oracle: Pubkey,
-    pub oracle_source: OracleSource,
-    pub historical_oracle_data: HistoricalOracleData,
-    pub historical_index_data: HistoricalIndexData,
     pub mint: Pubkey,
     pub vault: Pubkey,
     pub insurance_fund_vault: Pubkey,
-    pub revenue_pool: PoolBalance, // in base asset
-
-    pub total_if_factor: u32, // percentage of interest for total insurance
-    pub user_if_factor: u32,  // percentage of interest for user staked insurance
-
-    pub total_if_shares: u128,
-    pub user_if_shares: u128,
-    pub if_shares_base: u128, // exponent for lp shares (for rebasing)
-    pub insurance_withdraw_escrow_period: i64,
-    pub last_revenue_settle_ts: i64,
-    pub revenue_settle_period: i64,
-
-    pub decimals: u8,
-    pub optimal_utilization: u32,
-    pub optimal_borrow_rate: u32,
-    pub max_borrow_rate: u32,
-    pub deposit_balance: u128,
-    pub borrow_balance: u128,
-    pub max_token_deposits: u128,
-
-    pub deposit_token_twap: u128, // 24 hour twap
-    pub borrow_token_twap: u128,  // 24 hour twap
-    pub utilization_twap: u128,   // 24 hour twap
-    pub cumulative_deposit_interest: u128,
-    pub cumulative_borrow_interest: u128,
-    pub last_interest_ts: u64,
-    pub last_twap_ts: u64,
-
+    pub historical_oracle_data: HistoricalOracleData,
+    pub historical_index_data: HistoricalIndexData,
+    pub revenue_pool: PoolBalance,  // in base asset
+    pub spot_fee_pool: PoolBalance, // in quote asset
     pub initial_asset_weight: u128,
     pub maintenance_asset_weight: u128,
     pub initial_liability_weight: u128,
     pub maintenance_liability_weight: u128,
     pub imf_factor: u128,
-
     pub liquidator_fee: u128,
     pub if_liquidation_fee: u128, // percentage of liquidation transfer for total insurance
     pub withdraw_guard_threshold: u128, // no withdraw limits/guards when deposits below this threshold
-
+    pub total_if_shares: u128,
+    pub user_if_shares: u128,
+    pub if_shares_base: u128, // exponent for lp shares (for rebasing)
+    pub total_spot_fee: u128,
+    pub deposit_balance: u128,
+    pub borrow_balance: u128,
+    pub max_token_deposits: u128,
+    pub deposit_token_twap: u128, // 24 hour twap
+    pub borrow_token_twap: u128,  // 24 hour twap
+    pub utilization_twap: u128,   // 24 hour twap
+    pub cumulative_deposit_interest: u128,
+    pub cumulative_borrow_interest: u128,
+    pub insurance_withdraw_escrow_period: i64,
+    pub last_revenue_settle_ts: i64,
+    pub revenue_settle_period: i64,
+    pub last_interest_ts: u64,
+    pub last_twap_ts: u64,
+    pub expiry_ts: i64, // iff market in reduce only mode
     pub order_step_size: u64,
     pub next_fill_record_id: u64,
-    pub total_spot_fee: u128,
-    pub spot_fee_pool: PoolBalance, // in quote asset
+    pub optimal_utilization: u32,
+    pub optimal_borrow_rate: u32,
+    pub max_borrow_rate: u32,
+    pub total_if_factor: u32, // percentage of interest for total insurance
+    pub user_if_factor: u32,  // percentage of interest for user staked insurance
+    pub market_index: u16,
+    pub decimals: u8,
+    pub oracle_source: OracleSource,
+    pub status: MarketStatus,
+    pub asset_tier: AssetTier,
+    pub padding: [u8; 6],
 }
 
 impl SpotMarket {
@@ -256,12 +249,9 @@ pub trait SpotBalance {
 
 #[account(zero_copy)]
 #[derive(Default, PartialEq, Eq, Debug)]
-#[repr(packed)]
+#[repr(C)]
 pub struct SerumV3FulfillmentConfig {
     pub pubkey: Pubkey,
-    pub fulfillment_type: SpotFulfillmentType,
-    pub status: SpotFulfillmentStatus,
-    pub market_index: u16,
     pub serum_program_id: Pubkey,
     pub serum_market: Pubkey,
     pub serum_request_queue: Pubkey,
@@ -272,6 +262,10 @@ pub struct SerumV3FulfillmentConfig {
     pub serum_quote_vault: Pubkey,
     pub serum_open_orders: Pubkey,
     pub serum_signer_nonce: u64,
+    pub market_index: u16,
+    pub fulfillment_type: SpotFulfillmentType,
+    pub status: SpotFulfillmentStatus,
+    pub padding: [u8; 4],
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]

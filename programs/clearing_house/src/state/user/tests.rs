@@ -235,6 +235,7 @@ mod get_claimable_pnl {
             pnl_pool: PoolBalance {
                 balance: (10 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
             },
             ..PerpMarket::default()
         };
@@ -338,6 +339,7 @@ mod get_claimable_pnl {
             pnl_pool: PoolBalance {
                 balance: (60 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
             },
             ..PerpMarket::default()
         };
@@ -486,6 +488,7 @@ mod get_claimable_pnl {
             pnl_pool: PoolBalance {
                 balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: 0,
+                ..PoolBalance::default()
             },
             ..PerpMarket::default()
         };

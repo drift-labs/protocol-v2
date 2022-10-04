@@ -1035,12 +1035,14 @@ mod test {
                 fee_pool: PoolBalance {
                     balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
                     market_index: QUOTE_SPOT_MARKET_INDEX,
+                    ..PoolBalance::default()
                 },
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
                 balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
             },
             ..PerpMarket::default()
         };
@@ -1112,12 +1114,14 @@ mod test {
                 fee_pool: PoolBalance {
                     balance: 50 * SPOT_BALANCE_PRECISION,
                     market_index: QUOTE_SPOT_MARKET_INDEX,
+                    ..PoolBalance::default()
                 },
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
                 balance: 50 * SPOT_BALANCE_PRECISION,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
             },
             ..PerpMarket::default()
         };
@@ -1130,6 +1134,7 @@ mod test {
             revenue_pool: PoolBalance {
                 market_index: 0,
                 balance: 100 * SPOT_BALANCE_PRECISION,
+                ..PoolBalance::default()
             },
             decimals: 6,
             ..SpotMarket::default()
