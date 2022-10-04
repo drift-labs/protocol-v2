@@ -16,10 +16,14 @@ pub mod pyth {
 
         let mut price_oracle = Price::load(oracle).unwrap();
 
+        price_oracle.magic = 2712847316;
         price_oracle.agg.price = price;
         price_oracle.agg.conf = conf;
         price_oracle.agg.conf = 0;
         price_oracle.valid_slot = 228506959; //todo just turned 1->2 for negative delay
+        price_oracle.ver = 2;
+        price_oracle.atype = 3;
+        price_oracle.size = 3216;
 
         price_oracle.twap = price;
         price_oracle.expo = expo;
