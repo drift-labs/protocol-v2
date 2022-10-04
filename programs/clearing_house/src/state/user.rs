@@ -807,31 +807,3 @@ impl UserStats {
             .ok_or_else(math_error!())
     }
 }
-
-#[cfg(test)]
-mod test {
-    use crate::state::market::PerpMarket;
-    use crate::state::spot_market::SpotMarket;
-    use crate::state::user::{Order, PerpPosition, SpotPosition, User};
-
-    #[test]
-    fn test() {
-        let user_size = std::mem::size_of::<User>();
-        println!("user_size {}", user_size);
-
-        let perp_position_size = std::mem::size_of::<PerpPosition>();
-        println!("perp_position_size {}", perp_position_size);
-
-        let spot_position_size = std::mem::size_of::<SpotPosition>();
-        println!("spot_position_size {}", spot_position_size);
-
-        let order_size = std::mem::size_of::<Order>();
-        println!("order_size {}", order_size);
-
-        let order_size = std::mem::size_of::<SpotMarket>();
-        println!("order_size {}", order_size);
-
-        let order_size = std::mem::size_of::<PerpMarket>();
-        println!("order_size {}", order_size);
-    }
-}
