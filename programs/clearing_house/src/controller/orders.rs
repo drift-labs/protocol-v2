@@ -1564,6 +1564,7 @@ pub fn fulfill_order_with_match(
         maker_price,
         taker_base_asset_amount,
         PERP_DECIMALS,
+        *maker_direction,
     )?;
 
     if base_asset_amount == 0 {
@@ -1632,6 +1633,7 @@ pub fn fulfill_order_with_match(
         maker_price,
         taker_base_asset_amount,
         PERP_DECIMALS,
+        *maker_direction,
     )?;
 
     total_quote_asset_amount = total_quote_asset_amount
@@ -2922,6 +2924,7 @@ pub fn fulfill_spot_order_with_match(
         maker_price,
         taker_base_asset_amount,
         base_market.decimals as u32,
+        *maker_direction,
     )?;
 
     if base_asset_amount == 0 {

@@ -3,7 +3,6 @@ use std::ops::Div;
 
 use solana_program::msg;
 
-use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
@@ -11,12 +10,13 @@ use crate::math;
 use crate::math::amm::calculate_max_base_asset_amount_fillable;
 use crate::math::auction::is_auction_complete;
 use crate::math::casting::Cast;
-use crate::math::constants::{MARGIN_PRECISION, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
+use crate::math::constants::MARGIN_PRECISION;
 use crate::math::position::calculate_entry_price;
 
 use crate::math_error;
 use crate::state::market::{PerpMarket, AMM};
 
+use crate::math::ceil_div::CheckedCeilDiv;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::user::{Order, OrderStatus, OrderTriggerCondition, OrderType, User};
 
@@ -91,23 +91,24 @@ pub fn limit_price_satisfied(
 pub fn calculate_quote_asset_amount_for_maker_order(
     base_asset_amount: u64,
     fill_price: u128,
-    swap_direction: SwapDirection,
+    base_decimals: u32,
+    position_direction: PositionDirection,
 ) -> ClearingHouseResult<u64> {
-    let mut quote_asset_amount = fill_price
-        .checked_mul(base_asset_amount.cast()?)
-        .ok_or_else(math_error!())?
-        .div(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
-        .cast::<u64>()?;
+    let precision_decrease = 10_u128.pow(base_decimals);
 
-    // when a user goes long base asset, make the base asset slightly more expensive
-    // by adding one unit of quote asset
-    if swap_direction == SwapDirection::Remove {
-        quote_asset_amount = quote_asset_amount
-            .checked_add(1)
-            .ok_or_else(math_error!())?;
+    match position_direction {
+        PositionDirection::Long => fill_price
+            .checked_mul(base_asset_amount.cast()?)
+            .ok_or_else(math_error!())?
+            .div(precision_decrease)
+            .cast::<u64>(),
+        PositionDirection::Short => fill_price
+            .checked_mul(base_asset_amount.cast()?)
+            .ok_or_else(math_error!())?
+            .checked_ceil_div(precision_decrease)
+            .ok_or_else(math_error!())?
+            .cast::<u64>(),
     }
-
-    Ok(quote_asset_amount)
 }
 
 pub fn calculate_base_asset_amount_for_reduce_only_order(
