@@ -426,7 +426,7 @@ pub mod clearing_house {
         liquidation_fee: u128,
         active_status: bool,
     ) -> Result<()> {
-        // let market_pubkey = ctx.accounts.market.to_account_info().key;
+        let market_pubkey = ctx.accounts.market.to_account_info().key;
         let market = &mut ctx.accounts.market.load_init()?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -504,7 +504,7 @@ pub mod clearing_house {
             },
             settlement_price: 0,
             expiry_ts: 0,
-            // pubkey: *market_pubkey,
+            pubkey: *market_pubkey,
             market_index,
             quote_spot_market_index: QUOTE_SPOT_MARKET_INDEX,
             open_interest: 0,

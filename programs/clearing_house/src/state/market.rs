@@ -72,6 +72,7 @@ impl Default for ContractTier {
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct PerpMarket {
+    pub pubkey: Pubkey,
     pub amm: AMM,
     pub pnl_pool: PoolBalance,
     pub settlement_price: i128, // iff market has expired, price users can settle position

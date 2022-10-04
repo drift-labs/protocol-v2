@@ -26,7 +26,8 @@ use crate::controller::spot_position::{
     update_spot_position_balance,
 };
 use crate::math::constants::{
-    PRICE_PRECISION, PRICE_PRECISION_I128, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX, SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD
+    PERP_DECIMALS, PRICE_PRECISION, PRICE_PRECISION_I128, QUOTE_SPOT_MARKET_INDEX,
+    SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
 };
 use crate::math::helpers::get_proportion_u128;
 
@@ -36,7 +37,7 @@ use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::auction::{calculate_auction_end_price, is_auction_complete};
-use crate::math::casting::{cast, cast_to_u128, cast_to_i128, cast_to_u64, Cast};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64, Cast};
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,

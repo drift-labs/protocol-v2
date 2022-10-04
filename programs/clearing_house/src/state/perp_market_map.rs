@@ -22,7 +22,7 @@ impl<'a> PerpMarketMap<'a> {
         self.0
             .get(market_index)
             .ok_or_else(|| {
-                msg!("market not found: {}", market_index);
+                msg!("perp market not found: {}", market_index);
                 ErrorCode::MarketNotFound
             })?
             .load()
@@ -33,7 +33,7 @@ impl<'a> PerpMarketMap<'a> {
         self.0
             .get(market_index)
             .ok_or_else(|| {
-                msg!("market not found: {}", market_index);
+                msg!("perp market not found: {}", market_index);
                 ErrorCode::MarketNotFound
             })?
             .load_mut()
