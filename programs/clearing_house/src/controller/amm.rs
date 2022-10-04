@@ -7,7 +7,7 @@ use crate::math::amm::{
 };
 use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128, Cast};
 use crate::math::constants::{
-    CONCENTRATION_PRECISION, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT,
+    CONCENTRATION_PRECISION, K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE,
     PRICE_TO_PEG_PRECISION_RATIO,
 };
 use crate::math::repeg::get_total_fee_lower_bound;
@@ -330,7 +330,7 @@ pub fn formulaic_update_k(
     if budget > 0 || (budget < 0 && market.amm.can_lower_k()?) {
         // single k scale is capped by .1% increase and 2.2% decrease (regardless of budget)
         let k_update_max = K_BPS_UPDATE_SCALE
-            + K_BPS_INCREASE_MAX * (market.amm.curve_update_intensity as i128) / 100;
+            + MAX_K_BPS_INCREASE * (market.amm.curve_update_intensity as i128) / 100;
         let (k_scale_numerator, k_scale_denominator) =
             amm::calculate_budgeted_k_scale(market, cast_to_i128(budget)?, k_update_max)?;
 
