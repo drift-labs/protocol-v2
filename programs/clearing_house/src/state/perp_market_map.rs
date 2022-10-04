@@ -60,7 +60,8 @@ impl<'a> PerpMarketMap<'a> {
             if account_discriminator != &market_discriminator {
                 break;
             }
-            let market_index = u16::from_le_bytes(*array_ref![data, 8, 2]);
+
+            let market_index = u16::from_le_bytes(*array_ref![data, 1440, 2]);
 
             let account_info = account_info_iter.next().unwrap();
 
@@ -100,7 +101,7 @@ impl<'a> PerpMarketMap<'a> {
         if account_discriminator != &market_discriminator {
             return Err(ErrorCode::CouldNotLoadMarketData);
         }
-        let market_index = u16::from_le_bytes(*array_ref![data, 8, 2]);
+        let market_index = u16::from_le_bytes(*array_ref![data, 1440, 2]);
 
         let is_writable = account_info.is_writable;
         let account_loader: AccountLoader<PerpMarket> =
@@ -139,7 +140,7 @@ impl<'a> PerpMarketMap<'a> {
             if account_discriminator != &market_discriminator {
                 return Err(ErrorCode::CouldNotLoadMarketData);
             }
-            let market_index = u16::from_le_bytes(*array_ref![data, 8, 2]);
+            let market_index = u16::from_le_bytes(*array_ref![data, 1440, 2]);
 
             let is_writable = account_info.is_writable;
             let account_loader: AccountLoader<PerpMarket> =

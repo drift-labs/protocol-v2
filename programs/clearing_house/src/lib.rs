@@ -107,6 +107,7 @@ pub mod clearing_house {
             srm_vault: Pubkey::default(),
             perp_fee_structure: FeeStructure::perps_default(),
             spot_fee_structure: FeeStructure::spot_default(),
+            padding: [0; 7],
         };
 
         Ok(())
@@ -277,6 +278,7 @@ pub mod clearing_house {
             revenue_pool: PoolBalance {
                 balance: 0,
                 market_index: spot_market_index,
+                ..PoolBalance::default()
             }, // in base asset
             total_if_factor: 0,
             user_if_factor: 0,
@@ -312,6 +314,7 @@ pub mod clearing_house {
             next_fill_record_id: 1,
             spot_fee_pool: PoolBalance::default(), // in quote asset
             total_spot_fee: 0,
+            padding: [0; 3],
         };
 
         Ok(())
@@ -429,6 +432,7 @@ pub mod clearing_house {
             serum_quote_vault,
             serum_open_orders: ctx.accounts.serum_open_orders.key(),
             serum_signer_nonce,
+            padding: [0; 4],
         };
 
         Ok(())
@@ -542,11 +546,7 @@ pub mod clearing_house {
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
             quote_max_insurance: 0,
             quote_settled_insurance: 0,
-            padding0: 0,
-            padding1: 0,
-            padding2: 0,
-            padding3: 0,
-            padding4: 0,
+            padding: [0; 4],
             amm: AMM {
                 oracle: *ctx.accounts.oracle.key,
                 oracle_source,
@@ -633,10 +633,8 @@ pub mod clearing_house {
                 amm_jit_intensity: 0, // turn it off at the start
 
                 last_oracle_valid: false,
-                padding0: 0,
-                padding1: 0,
-                padding2: 0,
-                padding3: 0,
+
+                padding: [0; 6],
             },
         };
 

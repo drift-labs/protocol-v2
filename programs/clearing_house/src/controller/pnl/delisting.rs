@@ -682,6 +682,7 @@ pub mod delisting_test {
             pnl_pool: PoolBalance {
                 balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
@@ -930,6 +931,7 @@ pub mod delisting_test {
             pnl_pool: PoolBalance {
                 balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
@@ -1181,6 +1183,7 @@ pub mod delisting_test {
             pnl_pool: PoolBalance {
                 balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
@@ -1416,6 +1419,7 @@ pub mod delisting_test {
             pnl_pool: PoolBalance {
                 balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
@@ -1757,6 +1761,7 @@ pub mod delisting_test {
             pnl_pool: PoolBalance {
                 balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 
@@ -2136,6 +2141,7 @@ pub mod delisting_test {
             pnl_pool: PoolBalance {
                 balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
             },
             expiry_ts: clock.unix_timestamp - 10, // past expiry time
 

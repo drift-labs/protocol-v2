@@ -89,6 +89,7 @@ pub fn user_no_position() {
         pnl_pool: PoolBalance {
             balance: (50 * SPOT_BALANCE_PRECISION) as u128,
             market_index: QUOTE_SPOT_MARKET_INDEX,
+            ..PoolBalance::default()
         },
         ..PerpMarket::default()
     };
@@ -202,6 +203,7 @@ pub fn user_does_not_meet_maintenance_requirement() {
         pnl_pool: PoolBalance {
             balance: (50 * SPOT_BALANCE_PRECISION) as u128,
             market_index: QUOTE_SPOT_MARKET_INDEX,
+            ..PoolBalance::default()
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -319,6 +321,7 @@ pub fn user_unsettled_negative_pnl() {
         pnl_pool: PoolBalance {
             balance: (50 * SPOT_BALANCE_PRECISION) as u128,
             market_index: QUOTE_SPOT_MARKET_INDEX,
+            ..PoolBalance::default()
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -448,6 +451,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
         pnl_pool: PoolBalance {
             balance: (50 * SPOT_BALANCE_PRECISION) as u128,
             market_index: QUOTE_SPOT_MARKET_INDEX,
+            ..PoolBalance::default()
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -577,6 +581,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
         pnl_pool: PoolBalance {
             balance: (50 * SPOT_BALANCE_PRECISION) as u128,
             market_index: QUOTE_SPOT_MARKET_INDEX,
+            ..PoolBalance::default()
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -707,6 +712,7 @@ pub fn market_fee_pool_receives_portion() {
         pnl_pool: PoolBalance {
             balance: (50 * SPOT_BALANCE_PRECISION) as u128,
             market_index: QUOTE_SPOT_MARKET_INDEX,
+            ..PoolBalance::default()
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -825,6 +831,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
             fee_pool: PoolBalance {
                 balance: (2 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
+                ..PoolBalance::default()
             },
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price as i128,
@@ -842,6 +849,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
         pnl_pool: PoolBalance {
             balance: (50 * SPOT_BALANCE_PRECISION) as u128,
             market_index: QUOTE_SPOT_MARKET_INDEX,
+            ..PoolBalance::default()
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -972,6 +980,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
         pnl_pool: PoolBalance {
             balance: (50 * SPOT_BALANCE_PRECISION) as u128,
             market_index: QUOTE_SPOT_MARKET_INDEX,
+            ..PoolBalance::default()
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -1103,6 +1112,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
         pnl_pool: PoolBalance {
             balance: (50 * SPOT_BALANCE_PRECISION) as u128,
             market_index: QUOTE_SPOT_MARKET_INDEX,
+            ..PoolBalance::default()
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -1231,6 +1241,7 @@ pub fn user_long_negative_unrealized_pnl() {
         pnl_pool: PoolBalance {
             balance: (50 * SPOT_BALANCE_PRECISION) as u128,
             market_index: QUOTE_SPOT_MARKET_INDEX,
+            ..PoolBalance::default()
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -1362,6 +1373,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
         pnl_pool: PoolBalance {
             balance: (50 * SPOT_BALANCE_PRECISION) as u128,
             market_index: QUOTE_SPOT_MARKET_INDEX,
+            ..PoolBalance::default()
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
@@ -1493,6 +1505,7 @@ pub fn user_short_negative_unrealized_pnl() {
         pnl_pool: PoolBalance {
             balance: (50 * SPOT_BALANCE_PRECISION) as u128,
             market_index: QUOTE_SPOT_MARKET_INDEX,
+            ..PoolBalance::default()
         },
         unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
