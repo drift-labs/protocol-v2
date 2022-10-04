@@ -713,7 +713,7 @@ describe('orders', () => {
 		);
 		assert(clearingHouseUser.getUserPosition(marketIndex).openBids.eq(ZERO));
 
-		console.log(amountToFill);
+		console.log(amountToFill.toString());
 
 		const orderId = 5;
 		await fillerClearingHouse.fillOrder(
@@ -1037,6 +1037,7 @@ describe('orders', () => {
 		// assert(userNetGain.lte(ZERO)); // ensure no funny business
 		assert(userLeverage.eq(ZERO));
 		assert(postPosition.baseAssetAmount.eq(ZERO));
+		assert(clearingHouseUser.getUserPosition(marketIndex).openOrders == 0);
 		// await clearingHouse.closePosition(marketIndex);
 		// await clearingHouse.cancelOrder(orderId);
 	});
@@ -1049,6 +1050,7 @@ describe('orders', () => {
 			convertToNumber(userLeverage0, TEN_THOUSAND)
 		);
 
+		assert(clearingHouseUser.getUserPosition(marketIndex).openOrders == 0);
 		const direction = PositionDirection.LONG;
 
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
@@ -1113,6 +1115,12 @@ describe('orders', () => {
 		);
 
 		assert(clearingHouseUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
+
+		console.log(
+			clearingHouseUser.getUserPosition(marketIndex).openBids.toString(),
+			'vs',
+			baseAssetAmount.toString()
+		);
 		assert(
 			clearingHouseUser
 				.getUserPosition(marketIndex)

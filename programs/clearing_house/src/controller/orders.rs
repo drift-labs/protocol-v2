@@ -1344,12 +1344,21 @@ pub fn fulfill_order_with_amm(
             fill_price,
         )?;
 
-    validate_fill_price(
-        quote_asset_amount,
-        base_asset_amount,
-        order_direction,
-        limit_price,
-    )?;
+    if order_post_only {
+        validate_fill_price(
+            quote_asset_amount,
+            base_asset_amount,
+            order_direction,
+            limit_price,
+        )?;
+    } else {
+        validate_taker_fill_price(
+            quote_asset_amount,
+            base_asset_amount,
+            order_direction,
+            limit_price,
+        )?;
+    }
 
     let reward_referrer = referrer.is_some()
         && referrer_stats.is_some()
@@ -1656,7 +1665,7 @@ pub fn fulfill_order_with_match(
         maker_direction,
     )?;
 
-    validate_matched_taker_fill_price(
+    validate_taker_fill_price(
         quote_asset_amount,
         base_asset_amount_fulfilled,
         taker_direction,
@@ -2969,7 +2978,7 @@ pub fn fulfill_spot_order_with_match(
         return Ok(0_u64);
     }
 
-    validate_fill_price(
+    validate_taker_fill_price(
         quote_asset_amount,
         base_asset_amount,
         taker_direction,

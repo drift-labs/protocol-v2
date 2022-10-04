@@ -438,7 +438,7 @@ pub fn validate_fill_price(
     Ok(())
 }
 
-pub fn validate_matched_taker_fill_price(
+pub fn validate_taker_fill_price(
     quote_asset_amount: u64,
     base_asset_amount: u64,
     order_direction: PositionDirection,
