@@ -4920,10 +4920,6 @@
             "type": "i64"
           },
           {
-            "name": "remainderBaseAssetAmount",
-            "type": "i32"
-          },
-          {
             "name": "marketIndex",
             "type": "u16"
           },

@@ -217,7 +217,7 @@ describe('liquidity providing', () => {
 			new BN(0)
 		);
 		await clearingHouse.updateLpCooldownTime(1, new BN(0));
-		await clearingHouse.updatePerpAuctionDuration(new BN(0));
+		await clearingHouse.updatePerpAuctionDuration(0);
 
 		[traderClearingHouse, traderClearingHouseUser] = await createNewUser(
 			chProgram,
@@ -571,16 +571,16 @@ describe('liquidity providing', () => {
 			position.baseAssetAmount.toString(),
 			position.quoteAssetAmount.toString(),
 			position.quoteEntryAmount.toString(),
-			position.remainderBaseAssetAmount.toString()
+			// position.remainderBaseAssetAmount.toString()
 		);
 
 		assert(settledLPPosition.baseAssetAmount.eq(position.baseAssetAmount));
 		assert(settledLPPosition.quoteAssetAmount.eq(position.quoteAssetAmount));
 		assert(settledLPPosition.quoteEntryAmount.eq(position.quoteEntryAmount));
-		assert(
-			settledLPPosition.remainderBaseAssetAmount ===
-				position.remainderBaseAssetAmount
-		);
+		// assert(
+		// 	settledLPPosition.remainderBaseAssetAmount ===
+		// 		position.remainderBaseAssetAmount
+		// );
 
 		assert(position.baseAssetAmount.lt(ZERO));
 		assert(position.quoteAssetAmount.gt(ZERO));

@@ -134,7 +134,6 @@ export class ClearingHouseUser {
 	public getEmptyPosition(marketIndex: number): PerpPosition {
 		return {
 			baseAssetAmount: ZERO,
-			remainderBaseAssetAmount: 0,
 			lastCumulativeFundingRate: ZERO,
 			marketIndex,
 			quoteAssetAmount: ZERO,
@@ -228,20 +227,19 @@ export class ClearingHouseUser {
 			market.amm.baseAssetAmountStepSize
 		);
 
-		position.remainderBaseAssetAmount += remainderBaa.toNumber();
-
-		if (
-			Math.abs(position.remainderBaseAssetAmount) >
-			market.amm.baseAssetAmountStepSize.toNumber()
-		) {
-			const [newStandardizedBaa, newRemainderBaa] = standardize(
-				position.remainderBaseAssetAmount,
-				market.amm.baseAssetAmountStepSize
-			);
-			position.baseAssetAmount =
-				position.baseAssetAmount.add(newStandardizedBaa);
-			position.remainderBaseAssetAmount = newRemainderBaa.toNumber();
-		}
+		// position.remainderBaseAssetAmount += remainderBaa.toNumber();
+		// if (
+		// 	Math.abs(position.remainderBaseAssetAmount) >
+		// 	market.amm.baseAssetAmountStepSize.toNumber()
+		// ) {
+		// 	const [newStandardizedBaa, newRemainderBaa] = standardize(
+		// 		position.remainderBaseAssetAmount,
+		// 		market.amm.baseAssetAmountStepSize
+		// 	);
+		// 	position.baseAssetAmount =
+		// 		position.baseAssetAmount.add(newStandardizedBaa);
+		// 	position.remainderBaseAssetAmount = newRemainderBaa.toNumber();
+		// }
 
 		let updateType;
 		if (position.baseAssetAmount.eq(ZERO)) {
@@ -1061,7 +1059,6 @@ export class ClearingHouseUser {
 		const proposedPerpPosition: PerpPosition = {
 			marketIndex: perpPosition.marketIndex,
 			baseAssetAmount: proposedBaseAssetAmount,
-			remainderBaseAssetAmount: 0,
 			quoteAssetAmount: new BN(0),
 			lastCumulativeFundingRate: ZERO,
 			quoteEntryAmount: new BN(0),

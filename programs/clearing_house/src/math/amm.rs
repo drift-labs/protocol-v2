@@ -2797,7 +2797,7 @@ mod test {
             ..PerpPosition::default()
         };
 
-        mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
+        mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64, 0).unwrap();
 
         market.amm.market_position_per_lp = PerpPosition {
             base_asset_amount: 1,
@@ -2808,11 +2808,11 @@ mod test {
         let reserve_price = market.amm.reserve_price().unwrap();
         update_spreads(&mut market.amm, reserve_price).unwrap();
 
-        settle_lp_position(&mut position, &mut market).unwrap();
+        settle_lp_position(&mut position, &mut market, 0).unwrap();
 
         assert_eq!(position.base_asset_amount, 0);
         assert_eq!(position.quote_asset_amount, -QUOTE_PRECISION_I64);
-        assert_eq!(position.last_net_base_asset_amount_per_lp, 1);
+        assert_eq!(position.last_net_base_asset_amount_per_lp, 1 - 1);
         assert_eq!(
             position.last_net_quote_asset_amount_per_lp,
             -QUOTE_PRECISION_I64
@@ -2839,7 +2839,7 @@ mod test {
 
         // lp whale adds
         let lp_whale_amount = 1000 * BASE_PRECISION_U64;
-        mint_lp_shares(&mut position, &mut market, lp_whale_amount).unwrap();
+        mint_lp_shares(&mut position, &mut market, lp_whale_amount, 0).unwrap();
 
         // ensure same cost
         let update_k_up =
@@ -2868,7 +2868,7 @@ mod test {
         let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
         assert_eq!(
             market.amm.net_base_asset_amount,
-            (AMM_RESERVE_PRECISION / 10) as i128 - 1
+            (AMM_RESERVE_PRECISION / 10) as i128 - 2
         );
         assert_eq!(cost, 49450); //0.05
 
@@ -2885,7 +2885,7 @@ mod test {
         let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
         assert_eq!(
             market.amm.net_base_asset_amount,
-            (AMM_RESERVE_PRECISION / 10) as i128 - 1
+            (AMM_RESERVE_PRECISION / 10) as i128 - 2
         );
         assert_eq!(cost, 187800); //0.19
 

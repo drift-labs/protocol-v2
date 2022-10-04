@@ -516,8 +516,9 @@ pub fn fill_order(
     // settle lp position so its tradeable
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
+    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
     controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
-    controller::lp::settle_lp(user, &user_key, &mut market, now)?;
+    controller::lp::settle_lp(user, &user_key, &mut market, now, oracle_price)?;
 
     validate!(
         matches!(

@@ -1030,7 +1030,7 @@ pub mod clearing_house {
         let now = clock.unix_timestamp;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let _oracle_map = OracleMap::load(
+        let mut oracle_map = OracleMap::load(
             remaining_accounts_iter,
             clock.slot,
             Some(state.oracle_guard_rails),
@@ -1043,7 +1043,8 @@ pub mod clearing_house {
 
         controller::funding::settle_funding_payment(user, &user_key, market, now)?;
 
-        controller::lp::settle_lp(user, &user_key, market, now)?;
+        let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+        controller::lp::settle_lp(user, &user_key, market, now, oracle_price)?;
 
         Ok(())
     }
@@ -1198,10 +1199,12 @@ pub mod clearing_house {
             )?
             .cast::<u64>()?;
 
+            let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
             controller::lp::mint_lp_shares(
                 user.force_get_perp_position_mut(market_index)?,
                 &mut market,
                 n_shares,
+                oracle_price,
             )?;
 
             user.last_lp_add_time = now;

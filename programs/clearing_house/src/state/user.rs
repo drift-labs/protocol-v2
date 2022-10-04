@@ -269,7 +269,6 @@ pub struct PerpPosition {
     pub lp_shares: u64,
     pub last_net_base_asset_amount_per_lp: i64,
     pub last_net_quote_asset_amount_per_lp: i64,
-    pub remainder_base_asset_amount: i32,
     pub market_index: u16,
     pub open_orders: u8,
     pub padding: [u8; 1],

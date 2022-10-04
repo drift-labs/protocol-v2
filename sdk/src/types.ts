@@ -617,7 +617,6 @@ export type PerpPosition = {
 	openAsks: BN;
 	settledPnl: BN;
 	lpShares: BN;
-	remainderBaseAssetAmount: number;
 	lastNetBaseAssetAmountPerLp: BN;
 	lastNetQuoteAssetAmountPerLp: BN;
 };
