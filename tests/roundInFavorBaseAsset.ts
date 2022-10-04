@@ -185,6 +185,8 @@ describe('round in favor', () => {
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9999000)));
 
 		await clearingHouse.closePosition(marketIndex);
+		await clearingHouse.fetchAccounts();
+
 		assert(
 			clearingHouse
 				.getUserAccount()

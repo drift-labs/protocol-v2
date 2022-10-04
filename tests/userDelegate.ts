@@ -8,6 +8,11 @@ import {
 	BN,
 	EventSubscriber,
 	PRICE_PRECISION,
+	ClearingHouse,
+	OracleSource,
+	PositionDirection,
+	Wallet,
+	MarketStatus,
 } from '../sdk/src';
 
 import {
@@ -18,7 +23,6 @@ import {
 	mockUserUSDCAccount,
 } from './testHelpers';
 import { assert } from 'chai';
-import { ClearingHouse, OracleSource, PositionDirection, Wallet } from '../sdk';
 import { Keypair } from '@solana/web3.js';
 
 describe('user delegate', () => {
@@ -88,7 +92,7 @@ describe('user delegate', () => {
 			ammInitialQuoteAssetAmount,
 			periodicity
 		);
-		await clearingHouse.updatePerpMarketStatus(new BN(0), MarketStatus.ACTIVE);
+		await clearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
 		const userId = 0;
 		const name = 'CRISP';

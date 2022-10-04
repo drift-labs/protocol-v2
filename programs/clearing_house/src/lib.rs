@@ -546,18 +546,18 @@ pub mod clearing_house {
                 minimum_quote_asset_trade_size: 10000000,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: oracle_price,
-                    last_oracle_conf: 0,
                     last_oracle_delay: oracle_delay,
                     last_oracle_price_twap,
                     last_oracle_price_twap_5min: oracle_price,
+                    last_oracle_price_twap_ts: now,
                     ..HistoricalOracleData::default()
                 },
                 last_oracle_normalised_price: oracle_price,
                 last_oracle_conf_pct: 0,
                 last_oracle_reserve_price_spread_pct: 0, // todo
-                base_asset_amount_step_size: 1000,
-                max_slippage_ratio: 50,           // ~2%
-                max_base_asset_amount_ratio: 100, // moves price ~2%
+                base_asset_amount_step_size: BASE_PRECISION_U64 / 10000, // 1e-4
+                max_slippage_ratio: 50,                  // ~2%
+                max_base_asset_amount_ratio: 100,        // moves price ~2%
                 base_spread: 0,
                 long_spread: 0,
                 short_spread: 0,

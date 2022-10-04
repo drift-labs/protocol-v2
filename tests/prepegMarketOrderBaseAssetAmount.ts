@@ -614,7 +614,7 @@ describe('prepeg', () => {
 
 			const curPrice = (await getFeedData(anchor.workspace.Pyth, thisUsd))
 				.price;
-			console.log('new oracle price:', curPrice);
+			console.log('market_index=', i, 'new oracle price:', curPrice);
 			const oraclePriceData = await getOraclePriceData(
 				anchor.workspace.Pyth,
 				thisUsd
