@@ -945,7 +945,7 @@ pub mod amm_jit {
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64);
-        assert_eq!(taker_stats.taker_volume_30d, 98994815);
+        assert_eq!(taker_stats.taker_volume_30d, 98994816);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.perp_positions[0];
@@ -963,19 +963,19 @@ pub mod amm_jit {
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.net_base_asset_amount, -250000000);
 
-        assert_eq!(market_after.amm.total_fee, 480802);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 480802);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, 480802);
-        assert_eq!(market_after.amm.total_mm_fee, 443753);
+        assert_eq!(market_after.amm.total_fee, 480801);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 480801);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, 480801);
+        assert_eq!(market_after.amm.total_mm_fee, 443752);
         assert_eq!(market_after.amm.total_exchange_fee, 40747);
         assert_eq!(market_after.amm.total_fee_withdrawn, 0);
 
         let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
 
-        assert_eq!(quote_asset_amount_surplus, 443753);
+        assert_eq!(quote_asset_amount_surplus, 443752);
         assert!(quote_asset_amount_surplus > 0);
 
-        assert_eq!(filler_stats.filler_volume_30d, 98994815);
+        assert_eq!(filler_stats.filler_volume_30d, 98994816);
     }
 
     #[test]
@@ -1165,8 +1165,8 @@ pub mod amm_jit {
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
-        assert_eq!(taker_position.quote_asset_amount, -101_054_598);
-        assert_eq!(taker_position.quote_entry_amount, -101_004_096);
+        assert_eq!(taker_position.quote_asset_amount, -101_054_597);
+        assert_eq!(taker_position.quote_entry_amount, -101_004_095);
         assert_eq!(taker_position.market_index, 0);
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_asks, 0);
@@ -1174,7 +1174,7 @@ pub mod amm_jit {
         assert_eq!(taker_position.settled_pnl, 0);
         assert_eq!(taker_position.last_cumulative_funding_rate, 0);
 
-        assert_eq!(taker_stats.taker_volume_30d, 101004066);
+        assert_eq!(taker_stats.taker_volume_30d, 101004065);
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.perp_positions[0];
@@ -1196,18 +1196,18 @@ pub mod amm_jit {
 
         assert_eq!(market_after.amm.total_exchange_fee, 41752);
         assert_eq!(market_after.amm.total_fee_withdrawn, 0);
-        assert_eq!(market_after.amm.total_mm_fee, 437344);
-        assert_eq!(market_after.amm.total_fee, 437344 + 41752 - 3800); // todo: -3800
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 475296);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, 475296);
+        assert_eq!(market_after.amm.total_mm_fee, 437343);
+        assert_eq!(market_after.amm.total_fee, 437343 + 41752 - 3800); // todo: -3800
+        assert_eq!(market_after.amm.total_fee_minus_distributions, 475295);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, 475295);
 
         // mm gains from trade
         let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
 
-        assert_eq!(quote_asset_amount_surplus, 437344);
+        assert_eq!(quote_asset_amount_surplus, 437343);
         assert!(quote_asset_amount_surplus > 0);
 
-        assert_eq!(filler_stats.filler_volume_30d, 101004066);
+        assert_eq!(filler_stats.filler_volume_30d, 101004065);
         assert_eq!(filler_stats.fees.total_fee_rebate, 0);
     }
 
@@ -1383,7 +1383,7 @@ pub mod amm_jit {
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64 / 2);
-        assert_eq!(taker_stats.taker_volume_30d, 7499999);
+        assert_eq!(taker_stats.taker_volume_30d, 7499998);
 
         let maker_position = &maker.perp_positions[0];
         assert_eq!(
@@ -1408,16 +1408,16 @@ pub mod amm_jit {
         let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
 
         assert!(quote_asset_amount_surplus < 0);
-        assert_eq!(quote_asset_amount_surplus, -21582278);
+        assert_eq!(quote_asset_amount_surplus, -21582279);
 
-        assert_eq!(market_after.amm.total_fee, -21579653);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, -21579653);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, -21579653);
-        assert_eq!(market_after.amm.total_mm_fee, -21582278);
+        assert_eq!(market_after.amm.total_fee, -21579654);
+        assert_eq!(market_after.amm.total_fee_minus_distributions, -21579654);
+        assert_eq!(market_after.amm.net_revenue_since_last_funding, -21579654);
+        assert_eq!(market_after.amm.total_mm_fee, -21582279);
         assert_eq!(market_after.amm.total_exchange_fee, 2875);
         assert_eq!(market_after.amm.total_fee_withdrawn, 0);
 
-        assert_eq!(filler_stats.filler_volume_30d, 7499999);
+        assert_eq!(filler_stats.filler_volume_30d, 7499998);
     }
 
     #[test]
