@@ -489,7 +489,7 @@ export class ClearingHouseUser {
 				let newTotalLiabilityValue = totalLiabilityValue;
 				if (worstCaseTokenAmount.lt(ZERO)) {
 					const baseLiabilityValue = this.getSpotLiabilityValue(
-						worstCaseTokenAmount,
+						worstCaseTokenAmount.abs(),
 						oraclePriceData,
 						spotMarketAccount,
 						marginCategory,
@@ -510,6 +510,7 @@ export class ClearingHouseUser {
 					}
 
 					const weightedTokenValue = worstCaseQuoteTokenAmount
+						.abs()
 						.mul(weight)
 						.div(SPOT_MARKET_WEIGHT_PRECISION);
 
