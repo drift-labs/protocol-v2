@@ -1,7 +1,8 @@
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast_to_i128, cast_to_u128, Cast};
+use crate::math::casting::{cast_to_i128, cast_to_u128};
 use crate::math::constants::{BID_ASK_SPREAD_PRECISION_I128, TEN_BPS};
+use crate::math::orders::calculate_quote_asset_amount_for_maker_order;
 use crate::math_error;
 use crate::state::user::Order;
 use solana_program::msg;
@@ -26,7 +27,7 @@ pub fn are_orders_same_market_but_different_sides(
 }
 
 pub fn do_orders_cross(
-    maker_direction: &PositionDirection,
+    maker_direction: PositionDirection,
     maker_price: u128,
     taker_price: u128,
 ) -> bool {
@@ -40,25 +41,24 @@ pub fn calculate_fill_for_matched_orders(
     maker_base_asset_amount: u64,
     maker_price: u128,
     taker_base_asset_amount: u64,
-    base_precision: u32,
+    base_decimals: u32,
+    maker_direction: PositionDirection,
 ) -> ClearingHouseResult<(u64, u64)> {
     let base_asset_amount = min(maker_base_asset_amount, taker_base_asset_amount);
 
-    let precision_decrease = 10_u128.pow(6 + base_precision - 6);
-
-    let quote_asset_amount = maker_price
-        .checked_mul(base_asset_amount.cast()?)
-        .ok_or_else(math_error!())?
-        .checked_div(precision_decrease)
-        .ok_or_else(math_error!())?
-        .cast::<u64>()?;
+    let quote_asset_amount = calculate_quote_asset_amount_for_maker_order(
+        base_asset_amount,
+        maker_price,
+        base_decimals,
+        maker_direction,
+    )?;
 
     Ok((base_asset_amount, quote_asset_amount))
 }
 
 pub fn calculate_filler_multiplier_for_matched_orders(
     maker_price: u128,
-    maker_direction: &PositionDirection,
+    maker_direction: PositionDirection,
     oracle_price: i128,
 ) -> ClearingHouseResult<u128> {
     // percentage oracle_price is above maker_price
@@ -95,7 +95,7 @@ mod test {
 
     #[test]
     fn filler_multiplier_maker_long() {
-        let direction = &PositionDirection::Long;
+        let direction = PositionDirection::Long;
         let oracle_price = 34 * PRICE_PRECISION_I128;
 
         let mult = calculate_filler_multiplier_for_matched_orders(
@@ -139,7 +139,7 @@ mod test {
 
     #[test]
     fn filler_multiplier_maker_short() {
-        let direction = &PositionDirection::Short;
+        let direction = PositionDirection::Short;
         let oracle_price = 34 * PRICE_PRECISION_I128;
 
         let maker_price_good = 30 * PRICE_PRECISION;

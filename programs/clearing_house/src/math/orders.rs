@@ -2,23 +2,22 @@ use std::cmp::min;
 use std::ops::Div;
 
 use crate::validate;
-use crate::ErrorCode;
 use solana_program::msg;
 
-use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;
-use crate::error::ClearingHouseResult;
+use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math;
 use crate::math::amm::calculate_max_base_asset_amount_fillable;
 use crate::math::auction::is_auction_complete;
 use crate::math::casting::Cast;
-use crate::math::constants::{MARGIN_PRECISION, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
+use crate::math::constants::{BASE_PRECISION, MARGIN_PRECISION};
 use crate::math::position::calculate_entry_price;
 
 use crate::math_error;
 use crate::state::market::{PerpMarket, AMM};
 
+use crate::math::ceil_div::CheckedCeilDiv;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::user::{Order, OrderStatus, OrderTriggerCondition, OrderType, User};
 
@@ -28,11 +27,7 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     valid_oracle_price: Option<i128>,
     slot: u64,
     override_limit_price: Option<u128>,
-) -> ClearingHouseResult<u64> {
-    if order.must_be_triggered() && !order.triggered {
-        return Ok(0);
-    }
-
+) -> ClearingHouseResult<(u64, u128)> {
     let limit_price = if let Some(override_limit_price) = override_limit_price {
         let order_limit_price =
             order.get_limit_price(valid_oracle_price, slot, Some(&market.amm))?;
@@ -51,12 +46,16 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
         order.get_limit_price(valid_oracle_price, slot, Some(&market.amm))?
     };
 
+    if order.must_be_triggered() && !order.triggered {
+        return Ok((0, limit_price));
+    }
+
     let base_asset_amount =
         calculate_base_asset_amount_to_fill_up_to_limit_price(order, market, limit_price)?;
     let max_base_asset_amount =
         calculate_max_base_asset_amount_fillable(&market.amm, &order.direction)?;
 
-    Ok(min(base_asset_amount, max_base_asset_amount))
+    Ok((min(base_asset_amount, max_base_asset_amount), limit_price))
 }
 
 pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
@@ -110,23 +109,24 @@ pub fn limit_price_satisfied(
 pub fn calculate_quote_asset_amount_for_maker_order(
     base_asset_amount: u64,
     fill_price: u128,
-    swap_direction: SwapDirection,
+    base_decimals: u32,
+    position_direction: PositionDirection,
 ) -> ClearingHouseResult<u64> {
-    let mut quote_asset_amount = fill_price
-        .checked_mul(base_asset_amount.cast()?)
-        .ok_or_else(math_error!())?
-        .div(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
-        .cast::<u64>()?;
+    let precision_decrease = 10_u128.pow(base_decimals);
 
-    // when a user goes long base asset, make the base asset slightly more expensive
-    // by adding one unit of quote asset
-    if swap_direction == SwapDirection::Remove {
-        quote_asset_amount = quote_asset_amount
-            .checked_add(1)
-            .ok_or_else(math_error!())?;
+    match position_direction {
+        PositionDirection::Long => fill_price
+            .checked_mul(base_asset_amount.cast()?)
+            .ok_or_else(math_error!())?
+            .div(precision_decrease)
+            .cast::<u64>(),
+        PositionDirection::Short => fill_price
+            .checked_mul(base_asset_amount.cast()?)
+            .ok_or_else(math_error!())?
+            .checked_ceil_div(precision_decrease)
+            .ok_or_else(math_error!())?
+            .cast::<u64>(),
     }
-
-    Ok(quote_asset_amount)
 }
 
 pub fn calculate_base_asset_amount_for_reduce_only_order(
@@ -398,6 +398,40 @@ pub fn is_order_risk_increasing(
         position_base_asset_amount,
     )
     .map(|risk_decreasing| !risk_decreasing)
+}
+
+pub fn validate_fill_price(
+    quote_asset_amount: u64,
+    base_asset_amount: u64,
+    order_direction: PositionDirection,
+    order_limit_price: u128,
+) -> ClearingHouseResult {
+    let fill_price = quote_asset_amount
+        .cast::<u128>()?
+        .checked_mul(BASE_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_div(base_asset_amount.cast()?)
+        .ok_or_else(math_error!())?;
+
+    if order_direction == PositionDirection::Long && fill_price > order_limit_price {
+        msg!(
+            "long order fill price ({}) > limit price ({})",
+            fill_price,
+            order_limit_price
+        );
+        return Err(ErrorCode::DefaultError);
+    }
+
+    if order_direction == PositionDirection::Short && fill_price < order_limit_price {
+        msg!(
+            "short order fill price ({}) < limit price ({})",
+            fill_price,
+            order_limit_price
+        );
+        return Err(ErrorCode::DefaultError);
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

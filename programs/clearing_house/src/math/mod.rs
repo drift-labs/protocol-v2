@@ -5,6 +5,7 @@ pub mod bankruptcy;
 pub mod base_asset_amount;
 pub mod bn;
 pub mod casting;
+pub mod ceil_div;
 pub mod collateral;
 pub mod constants;
 pub mod fees;
