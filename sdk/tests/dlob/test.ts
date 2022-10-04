@@ -199,6 +199,7 @@ function printCrossedNodes(n: NodeToFill, slot: number) {
 	}
 	if (n.makerNode) {
 		if (n.makerNode.isVammNode()) {
+			console.log(`  maker is vAMM node`);
 		} else {
 			const m = n.makerNode.order!;
 			const exp = isOrderExpired(m, slot);
@@ -392,7 +393,7 @@ describe('DLOB Perp Tests', () => {
 		const bids = dlob.getBids(marketIndex, vBid, slot, MarketType.PERP, oracle);
 
 		console.log('The Book Bids:');
-		const gotBids = new Array();
+		const gotBids = [];
 		let countBids = 0;
 		for (const bid of bids) {
 			gotBids.push(bid);
@@ -1076,7 +1077,6 @@ describe('DLOB Perp Tests', () => {
 
 		// check floating asks
 		console.log(`asks:`);
-		let lastAskPrice = new BN(0); // very small
 		let asks = 0;
 		for (const ask of dlob.getAsks(
 			marketIndex,
@@ -1098,9 +1098,6 @@ describe('DLOB Perp Tests', () => {
 					`each ask should be gte the last. current: ${currentPrice.toString()}, last: ${lastBidPrice.toString()}`
 				).to.be.true;
 			}
-
-			// vamm node is first for limit asks
-			lastAskPrice = ask.getPrice(oracle, slot);
 			asks++;
 		}
 		expect(asks).to.equal(4); // vamm ask + 3 orders

@@ -272,7 +272,7 @@ export class DLOB {
 		oraclePriceData: OraclePriceData
 	): NodeToFill[] {
 		// Find all the crossing nodes
-		let crossingNodesToFill: Array<NodeToFill> = this.findCrossingNodesToFill(
+		const crossingNodesToFill: Array<NodeToFill> = this.findCrossingNodesToFill(
 			marketIndex,
 			slot,
 			marketType,
@@ -403,6 +403,7 @@ export class DLOB {
 					makerNode: bidVAMM.value,
 				});
 			} else {
+				break;
 			}
 
 			nextAsk = askGenerator.next();
@@ -419,6 +420,7 @@ export class DLOB {
 					makerNode: askVAMM.value,
 				});
 			} else {
+				break;
 			}
 
 			nextBid = bidGenerator.next();
