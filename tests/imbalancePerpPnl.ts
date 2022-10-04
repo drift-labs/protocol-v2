@@ -228,7 +228,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		await clearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 		await clearingHouse.updateMarketBaseSpread(0, 250);
 		await clearingHouse.updateCurveUpdateIntensity(0, 100);
-
+		await sleep(100);
+		await clearingHouse.fetchAccounts();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
@@ -259,6 +260,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			],
 		});
 		await clearingHouseLoser.subscribe();
+		await sleep(100);
+		await clearingHouseLoser.fetchAccounts();
 		await clearingHouseLoser.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount2.publicKey
@@ -740,7 +743,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const oraclePriceData0 = clearingHouse.getOracleDataForMarket(
 			market0.marketIndex
 		);
-		oraclePriceData0.confidence = 0; //oraclePriceData0.price.div(new BN(1000));
+		oraclePriceData0.confidence = new BN(0); //oraclePriceData0.price.div(new BN(1000));
 
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData0);
 		console.log(prepegAMM.pegMultiplier.toString());

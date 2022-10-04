@@ -158,6 +158,7 @@ describe('delist market', () => {
 
 		// await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
 		// await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
+		await clearingHouse.updateMarketBaseAssetAmountStepSize(0, new BN(1));
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -193,19 +194,6 @@ describe('delist market', () => {
 			usdcAmount,
 			userUSDCAccount2.publicKey
 		);
-
-		// [, whaleAccountPublicKey] =
-		// await whaleClearingHouse.initializeUserAccountAndDepositCollateral(
-		//     usdcAmountWhale,
-		//     whaleUSDCAccount.publicKey
-		// );
-
-		// whaleUser = new ClearingHouseUser({
-		//     clearingHouse: whaleClearingHouse,
-		//     userAccountPublicKey: await whaleClearingHouse.getUserAccountPublicKey(),
-		// });
-
-		// await whaleUser.subscribe();
 	});
 
 	after(async () => {
@@ -218,31 +206,32 @@ describe('delist market', () => {
 	it('put market in big drawdown and net user positive pnl', async () => {
 		await depositToFeePoolFromIF(1000, clearingHouse, userUSDCAccount);
 
-		try {
-			await clearingHouse.openPosition(
-				PositionDirection.SHORT,
-				BASE_PRECISION,
-				0,
-				new BN(0)
-			);
-		} catch (e) {
-			console.log('clearingHouse.openPosition');
+		// try {
+		await clearingHouse.openPosition(
+			PositionDirection.SHORT,
+			BASE_PRECISION,
+			0,
+			new BN(0)
+		);
+		// } catch (e) {
+		// 	console.log('clearingHouse.openPosition');
 
-			console.error(e);
-		}
+		// 	console.error(e);
+		// }
 
 		// todo
-		try {
-			await clearingHouseLoser.openPosition(
-				PositionDirection.LONG,
-				new BN(2000),
-				0
-			);
-		} catch (e) {
-			console.log('clearingHouseLoserc.openPosition');
+		// try {
+		await clearingHouseLoser.openPosition(
+			PositionDirection.LONG,
+			new BN(2000),
+			0
+		);
+		// } catch (e) {
+		// 	console.log('clearingHouseLoserc.openPosition');
 
-			console.error(e);
-		}
+		// 	console.error(e);
+		// 	return 0;
+		// }
 
 		const market00 = clearingHouse.getPerpMarketAccount(0);
 		assert(market00.amm.feePool.balance.eq(new BN(1000000000000)));
@@ -306,11 +295,6 @@ describe('delist market', () => {
 		const now = await connection.getBlockTime(slot);
 		const expiryTs = new BN(now + 3);
 
-		// await clearingHouse.moveAmmToPrice(
-		// 	new BN(0),
-		// 	new BN(43.1337 * PRICE_PRECISION.toNumber())
-		// );
-
 		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 		assert(market0.expiryTs.eq(ZERO));
 
@@ -343,9 +327,11 @@ describe('delist market', () => {
 		// 	await clearingHouseLoser.openPosition(
 		// 		PositionDirection.LONG,
 		// 		new BN(10000000),
-		// 		new BN(0),
+		// 		0,
 		// 		new BN(0)
 		// 	);
+		// 	console.log('risk increase trade succeed when it should have failed!');
+
 		// 	assert(false);
 		// } catch (e) {
 		// 	console.log(e);
@@ -356,11 +342,15 @@ describe('delist market', () => {
 		// 	console.log('risk increase trade failed');
 		// }
 
-		// should succeed
+		// await clearingHouseLoser.fetchAccounts();
+
+		// const loserUser0 = clearingHouseLoser.getUserAccount();
+		// console.log(loserUser0.perpPositions[0]);
+		// // should succeed
 		// await clearingHouseLoser.openPosition(
 		// 	PositionDirection.SHORT,
 		// 	new BN(10000000),
-		// 	new BN(0),
+		// 	0,
 		// 	new BN(0)
 		// );
 	});
@@ -422,10 +412,13 @@ describe('delist market', () => {
 
 	it('settle expired market position', async () => {
 		const marketIndex = 0;
+		await clearingHouseLoser.fetchAccounts();
+
 		const loserUser0 = clearingHouseLoser.getUserAccount();
+		console.log(loserUser0.perpPositions[0]);
+
 		assert(loserUser0.perpPositions[0].baseAssetAmount.gt(new BN(0)));
 		assert(loserUser0.perpPositions[0].quoteAssetAmount.lt(new BN(0)));
-		console.log(loserUser0.perpPositions[0]);
 
 		const txSig = await clearingHouseLoser.settleExpiredPosition(
 			await clearingHouseLoser.getUserAccountPublicKey(),
