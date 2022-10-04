@@ -134,12 +134,6 @@ pub fn calculate_base_swap_output_with_spread(
         },
     )?;
 
-    msg!(
-        "base_asset_reserve_with_spread={}, not={}",
-        base_asset_reserve_with_spread,
-        amm.base_asset_reserve
-    );
-
     let (new_quote_asset_reserve_with_spread, _) = amm::calculate_swap_output(
         base_asset_swap_amount.cast()?,
         base_asset_reserve_with_spread,
