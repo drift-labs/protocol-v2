@@ -365,15 +365,6 @@ export class DLOB {
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
 	): NodeToFill[] {
-		const askVAMM = getVammNodeGenerator(vAsk).next();
-		if (askVAMM.done) {
-			throw new Error('no vAMM ask node');
-		}
-		const bidVAMM = getVammNodeGenerator(vBid).next();
-		if (bidVAMM.done) {
-			throw new Error('no vAMM bid node');
-		}
-
 		const nodesToFill = new Array<NodeToFill>();
 
 		const askGenerator = this.getAsks(
@@ -402,7 +393,7 @@ export class DLOB {
 			if (askPrice.lte(vBid) && isAuctionComplete(askNode.order, slot)) {
 				nodesToFill.push({
 					node: askNode,
-					makerNode: bidVAMM.value,
+					makerNode: undefined, // filled by vAMM
 				});
 			} else {
 				break;
@@ -419,7 +410,7 @@ export class DLOB {
 			if (bidPrice.gte(vAsk) && isAuctionComplete(bidNode.order, slot)) {
 				nodesToFill.push({
 					node: bidNode,
-					makerNode: askVAMM.value,
+					makerNode: undefined, // filled by vAMM
 				});
 			} else {
 				break;
