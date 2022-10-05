@@ -7,10 +7,10 @@ use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64, Cast};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
-    CONCENTRATION_PRECISION, DEFAULT_LARGE_BID_ASK_FACTOR, K_BPS_DECREASE_MAX, K_BPS_UPDATE_SCALE,
-    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION, PRICE_PRECISION,
-    PRICE_PRECISION_I128, PRICE_TO_PEG_PRECISION_RATIO, PRICE_TO_QUOTE_PRECISION_RATIO,
-    QUOTE_PRECISION,
+    CONCENTRATION_PRECISION, DEFAULT_LARGE_BID_ASK_FACTOR, K_BPS_UPDATE_SCALE,
+    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, MAX_K_BPS_DECREASE, ONE_HOUR_I128, PEG_PRECISION,
+    PRICE_PRECISION, PRICE_PRECISION_I128, PRICE_TO_PEG_PRECISION_RATIO,
+    PRICE_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
@@ -1030,7 +1030,7 @@ pub fn calculate_budgeted_k_scale(
     )?;
 
     let k_pct_lower_bound =
-        K_BPS_UPDATE_SCALE - (K_BPS_DECREASE_MAX) * curve_update_intensity / 100;
+        K_BPS_UPDATE_SCALE - (MAX_K_BPS_DECREASE) * curve_update_intensity / 100;
 
     let (numerator, denominator) = _calculate_budgeted_k_scale(
         market.amm.base_asset_reserve,
@@ -1482,8 +1482,8 @@ mod test {
     use crate::controller::lp::mint_lp_shares;
     use crate::controller::lp::settle_lp_position;
     use crate::math::constants::{
-        BASE_PRECISION_U64, BID_ASK_SPREAD_PRECISION, K_BPS_INCREASE_MAX,
-        MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
+        BASE_PRECISION_U64, BID_ASK_SPREAD_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
+        MAX_K_BPS_INCREASE, PRICE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
     };
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::user::PerpPosition;
@@ -2657,9 +2657,9 @@ mod test {
 
         let curve_update_intensity = 100;
         let k_pct_upper_bound =
-            K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX) * curve_update_intensity / 100;
+            K_BPS_UPDATE_SCALE + (MAX_K_BPS_INCREASE) * curve_update_intensity / 100;
         let k_pct_lower_bound =
-            K_BPS_UPDATE_SCALE - (K_BPS_DECREASE_MAX) * curve_update_intensity / 100;
+            K_BPS_UPDATE_SCALE - (MAX_K_BPS_DECREASE) * curve_update_intensity / 100;
 
         // with positive budget, how much can k be increased?
         let (numer1, denom1) = _calculate_budgeted_k_scale(

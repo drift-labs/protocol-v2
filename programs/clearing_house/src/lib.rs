@@ -100,7 +100,7 @@ pub mod clearing_house {
             min_perp_auction_duration: 10,
             default_market_order_time_in_force: 60,
             default_spot_auction_duration: 10,
-            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50, // 2%
+            liquidation_margin_buffer_ratio: DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
             settlement_duration: 0, // extra duration after market expiry to allow settlement
             signer: clearing_house_signer,
             signer_nonce: clearing_house_signer_nonce,
@@ -567,9 +567,9 @@ pub mod clearing_house {
                 last_oracle_normalised_price: oracle_price,
                 last_oracle_conf_pct: 0,
                 last_oracle_reserve_price_spread_pct: 0, // todo
-                base_asset_amount_step_size: BASE_PRECISION_U64 / 10000, // 1e-4
-                max_slippage_ratio: 50,                  // ~2%
-                max_base_asset_amount_ratio: 100,        // moves price ~2%
+                base_asset_amount_step_size: DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE,
+                max_slippage_ratio: 50,           // ~2%
+                max_base_asset_amount_ratio: 100, // moves price ~2%
                 base_spread: 0,
                 long_spread: 0,
                 short_spread: 0,
@@ -3024,14 +3024,14 @@ pub mod clearing_house {
             .checked_sub(cast_to_i128(price_after)?)
             .ok_or_else(math_error!())?
             .unsigned_abs()
-            .gt(&UPDATE_K_ALLOWED_PRICE_CHANGE);
+            .gt(&MAX_UPDATE_K_PRICE_CHANGE);
 
         if price_change_too_large {
             msg!(
                 "{:?} -> {:?} (> {:?})",
                 price_before,
                 price_after,
-                UPDATE_K_ALLOWED_PRICE_CHANGE
+                MAX_UPDATE_K_PRICE_CHANGE
             );
             return Err(ErrorCode::InvalidUpdateK.into());
         }
