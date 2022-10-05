@@ -5382,7 +5382,12 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "AMM"
+            "name": "AMM",
+            "fields": [
+              {
+                "option": "u128"
+              }
+            ]
           },
           {
             "name": "Match"

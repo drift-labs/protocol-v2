@@ -264,7 +264,7 @@ describe('prepeg', () => {
 		assert.ok(market.openInterest.eq(ONE));
 		assert.ok(market.amm.totalFee.gt(new BN(49750)));
 		assert.ok(market.amm.totalFeeMinusDistributions.gt(new BN(49750)));
-		assert.ok(market.amm.totalExchangeFee.eq(new BN(49999)));
+		assert.ok(market.amm.totalExchangeFee.eq(new BN(49999 + 1)));
 
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
@@ -274,8 +274,9 @@ describe('prepeg', () => {
 
 		// console.log(orderRecord);
 		console.log(market.amm.totalExchangeFee.toNumber());
+		console.log(position0.quoteAssetAmount.toNumber());
 
-		assert.ok(position0.quoteAssetAmount.eq(new BN(-50049073)));
+		assert.ok(position0.quoteAssetAmount.eq(new BN(-50049074)));
 		assert.ok(
 			position0.quoteAssetAmount.eq(
 				position0.quoteEntryAmount.sub(market.amm.totalExchangeFee)
@@ -376,9 +377,9 @@ describe('prepeg', () => {
 		console.log(effectiveLeverage);
 		assert(newAmm.maxSpread == (100000 / 2) * 0.95);
 		assert(inventoryScale == 0.003409);
-		assert(effectiveLeverage == 0.19906507487401007);
+		assert(effectiveLeverage == 0.19905711326640804);
 		assert(shortSpread == 500);
-		assert(longSpread.toString() == '26785.788286582472');
+		assert(longSpread.toString() == '26785.610433069665');
 
 		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 
@@ -514,8 +515,13 @@ describe('prepeg', () => {
 		// 		.eq(acquiredQuoteAssetAmount.add(new BN(49999074)).add(new BN(-1001)))
 		// );
 		assert(acquiredQuoteAssetAmount.eq(new BN(1027809)));
+		console.log(
+			'position0.quoteAssetAmount:',
+			position0.quoteAssetAmount.toNumber()
+		);
+
 		assert.ok(position0qea.eq(new BN(-51026883)));
-		assert.ok(position0.quoteAssetAmount.eq(new BN(-51077909)));
+		assert.ok(position0.quoteAssetAmount.eq(new BN(-51077911)));
 	});
 
 	it('Reduce long position', async () => {

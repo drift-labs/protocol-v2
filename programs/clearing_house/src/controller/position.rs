@@ -8,7 +8,7 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::{cast, cast_to_i128, Cast};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, LP_FEE_SLICE_DENOMINATOR,
-    LP_FEE_SLICE_NUMERATOR,
+    LP_FEE_SLICE_NUMERATOR, PERP_DECIMALS,
 };
 use crate::math::helpers::get_proportion_i128;
 use crate::math::orders::{
@@ -578,7 +578,7 @@ pub fn update_position_with_base_asset_amount(
 
     let (quote_asset_amount, quote_asset_amount_surplus) = match fill_price {
         Some(fill_price) => calculate_quote_asset_amount_surplus(
-            swap_direction,
+            direction,
             quote_asset_swapped,
             base_asset_amount,
             fill_price,
@@ -601,11 +601,13 @@ pub fn update_position_with_base_asset_amount(
         .checked_add(position_delta.base_asset_amount.cast()?)
         .ok_or_else(math_error!())?;
 
+    controller::amm::update_spread_reserves(&mut market.amm)?;
+
     Ok((quote_asset_amount, quote_asset_amount_surplus, pnl))
 }
 
 fn calculate_quote_asset_amount_surplus(
-    swap_direction: SwapDirection,
+    position_direction: PositionDirection,
     quote_asset_swapped: u64,
     base_asset_amount: u64,
     fill_price: u128,
@@ -613,15 +615,16 @@ fn calculate_quote_asset_amount_surplus(
     let quote_asset_amount = calculate_quote_asset_amount_for_maker_order(
         base_asset_amount,
         fill_price,
-        swap_direction,
+        PERP_DECIMALS,
+        position_direction,
     )?;
 
-    let quote_asset_amount_surplus = match swap_direction {
-        SwapDirection::Remove => quote_asset_amount
+    let quote_asset_amount_surplus = match position_direction {
+        PositionDirection::Long => quote_asset_amount
             .cast::<i64>()?
             .checked_sub(quote_asset_swapped.cast()?)
             .ok_or_else(math_error!())?,
-        SwapDirection::Add => quote_asset_swapped
+        PositionDirection::Short => quote_asset_swapped
             .cast::<i64>()?
             .checked_sub(quote_asset_amount.cast()?)
             .ok_or_else(math_error!())?,
