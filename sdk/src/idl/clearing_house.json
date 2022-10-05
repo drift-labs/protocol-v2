@@ -3561,6 +3561,18 @@
             "type": "u64"
           },
           {
+            "name": "orderTickSize",
+            "type": "u64"
+          },
+          {
+            "name": "orderMinimumSize",
+            "type": "u64"
+          },
+          {
+            "name": "maxPositionSize",
+            "type": "u64"
+          },
+          {
             "name": "nextFillRecordId",
             "type": "u64"
           },
@@ -4506,6 +4518,18 @@
           },
           {
             "name": "baseAssetAmountStepSize",
+            "type": "u64"
+          },
+          {
+            "name": "orderTickSize",
+            "type": "u64"
+          },
+          {
+            "name": "orderMinimumSize",
+            "type": "u64"
+          },
+          {
+            "name": "maxPositionSize",
             "type": "u64"
           },
           {
