@@ -54,8 +54,8 @@ async function createNewUser(
 			commitment: 'confirmed',
 		},
 		activeUserId: 0,
-		marketIndexes: [0, 1],
-		bankIndexes: [0],
+		perpMarketIndexes: [0, 1],
+		spotMarketIndexes: [0],
 		oracleInfos,
 	});
 	await clearingHouse.subscribe();
@@ -139,12 +139,9 @@ describe('liquidity providing', () => {
 			ammInitialQuoteAssetReserve,
 			new BN(60 * 60)
 		);
-		await clearingHouse.updateLpCooldownTime(ZERO, new BN(0));
-		await clearingHouse.updateMaxBaseAssetAmountRatio(new BN(0), 1);
-		await clearingHouse.updateMarketBaseAssetAmountStepSize(
-			new BN(0),
-			new BN(1)
-		);
+		await clearingHouse.updateLpCooldownTime(0, new BN(0));
+		await clearingHouse.updateMaxBaseAssetAmountRatio(0, 1);
+		await clearingHouse.updateMarketBaseAssetAmountStepSize(0, new BN(1));
 
 		// second market -- used for funding ..
 		await clearingHouse.initializeMarket(
@@ -153,7 +150,7 @@ describe('liquidity providing', () => {
 			stableAmmInitialQuoteAssetReserve,
 			new BN(0)
 		);
-		await clearingHouse.updateLpCooldownTime(new BN(1), new BN(0));
+		await clearingHouse.updateLpCooldownTime(1, new BN(0));
 		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		[traderClearingHouse, traderClearingHouseUser] = await createNewUser(
@@ -177,7 +174,7 @@ describe('liquidity providing', () => {
 	});
 
 	it('lp trades with short', async () => {
-		let market = clearingHouse.getPerpMarketAccount(ZERO);
+		let market = clearingHouse.getPerpMarketAccount(0);
 
 		console.log('adding liquidity...');
 		const _sig = await clearingHouse.addLiquidity(
@@ -194,7 +191,8 @@ describe('liquidity providing', () => {
 			market.marketIndex
 		);
 
-		const position = traderClearingHouse.getUserAccount().perp_positions[0];
+		await traderClearingHouse.fetchAccounts();
+		const position = traderClearingHouse.getUserAccount().perpPositions[0];
 		console.log(
 			'trader position:',
 			position.baseAssetAmount.toString(),
@@ -203,7 +201,7 @@ describe('liquidity providing', () => {
 		assert(position.baseAssetAmount.gt(ZERO));
 
 		// settle says the lp would take on a short
-		const lpPosition = clearingHouseUser.getSettledLPPosition(ZERO)[0];
+		const lpPosition = clearingHouseUser.getSettledLPPosition(0)[0];
 		console.log(
 			'sdk settled lp position:',
 			lpPosition.baseAssetAmount.toString(),
@@ -218,9 +216,11 @@ describe('liquidity providing', () => {
 			tradeSize,
 			market.marketIndex
 		);
+		await clearingHouse.fetchAccounts();
+		await clearingHouseUser.fetchAccounts();
 
 		// lp now has a long
-		const newLpPosition = clearingHouseUser.getUserAccount().perp_positions[0];
+		const newLpPosition = clearingHouseUser.getUserAccount().perpPositions[0];
 		console.log(
 			'lp position:',
 			newLpPosition.baseAssetAmount.toString(),
@@ -230,7 +230,7 @@ describe('liquidity providing', () => {
 		assert(newLpPosition.quoteAssetAmount.lt(ZERO));
 		// is still an lp
 		assert(newLpPosition.lpShares.gt(ZERO));
-		market = clearingHouse.getPerpMarketAccount(ZERO);
+		market = clearingHouse.getPerpMarketAccount(0);
 
 		console.log('done!');
 	});

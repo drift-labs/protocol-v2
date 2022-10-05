@@ -13,6 +13,7 @@ test_files=(
    triggerSpotOrder.ts
    serumTest.ts
    liquidityProvider.ts
+   tradingLP.ts
    insuranceFundStake.ts
    liquidateSpot.ts
    liquidateSpotSocialLoss.ts
