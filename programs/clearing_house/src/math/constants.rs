@@ -1,8 +1,5 @@
-use solana_program::native_token::LAMPORTS_PER_SOL;
-pub const LAMPORTS_PER_SOL_I128: i128 = LAMPORTS_PER_SOL as i128;
-pub const LAMPORT_PER_SOL: u128 = LAMPORTS_PER_SOL as u128; // expo 9
-pub const LAMPORT_PER_SOL_I128: i128 = LAMPORTS_PER_SOL as i128;
-pub const LAMPORT_PER_SOL_U64: u64 = LAMPORTS_PER_SOL as u64; // expo 9
+use solana_program::native_token::LAMPORTS_PER_SOL; // expo 9
+pub const LAMPORTS_PER_SOL_U64: u64 = LAMPORTS_PER_SOL;
 pub const LAMPORTS_PER_SOL_I64: i64 = LAMPORTS_PER_SOL as i64;
 
 // SPOT MARKET CONSTANTS

@@ -80,7 +80,7 @@ pub fn calculate_price_from_serum_limit_price(
 
 #[cfg(test)]
 mod test {
-    use crate::math::constants::{LAMPORT_PER_SOL_U64, PRICE_PRECISION};
+    use crate::math::constants::{LAMPORTS_PER_SOL_U64, PRICE_PRECISION};
     use crate::math::serum::{
         calculate_price_from_serum_limit_price, calculate_serum_limit_price,
         calculate_serum_max_coin_qty, calculate_serum_max_native_pc_quantity,
@@ -88,7 +88,7 @@ mod test {
 
     #[test]
     fn test_calculate_serum_max_coin_qty() {
-        let base_asset_amount = LAMPORT_PER_SOL_U64;
+        let base_asset_amount = LAMPORTS_PER_SOL_U64;
         let coin_lot_size = 100000000;
         let max_coin_qty = calculate_serum_max_coin_qty(base_asset_amount, coin_lot_size).unwrap();
         assert_eq!(max_coin_qty, 10)
