@@ -193,6 +193,7 @@ impl SpotMarket {
             initial_asset_weight: 8000,
             maintenance_asset_weight: 9000,
             decimals: 9,
+            order_tick_size: 1,
             status: MarketStatus::Active,
             ..SpotMarket::default()
         }
@@ -207,6 +208,7 @@ impl SpotMarket {
             maintenance_liability_weight: 10000,
             initial_asset_weight: 10000,
             maintenance_asset_weight: 10000,
+            order_tick_size: 1,
             status: MarketStatus::Active,
             ..SpotMarket::default()
         }

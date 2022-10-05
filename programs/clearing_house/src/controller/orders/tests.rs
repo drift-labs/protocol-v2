@@ -1463,6 +1463,7 @@ pub mod fulfill_order {
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
+                quote_asset_amount_tick_size: 1,
                 oracle: oracle_price_key,
                 base_spread: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -1580,6 +1581,7 @@ pub mod fulfill_order {
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 1000,
+                quote_asset_amount_tick_size: 1,
                 oracle: oracle_price_key,
                 base_spread: 0, // 1 basis point
                 historical_oracle_data: HistoricalOracleData {
@@ -1791,6 +1793,7 @@ pub mod fulfill_order {
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 1000,
+                quote_asset_amount_tick_size: 1,
                 oracle: oracle_price_key,
                 base_spread: 100, // 1 basis point
                 historical_oracle_data: HistoricalOracleData {
@@ -1983,6 +1986,7 @@ pub mod fulfill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 base_asset_amount_step_size: 1,
+                quote_asset_amount_tick_size: 1,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i128,
                     last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
@@ -2170,6 +2174,7 @@ pub mod fulfill_order {
                 max_slippage_ratio: 10,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
+                quote_asset_amount_tick_size: 1,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i128,
@@ -2321,6 +2326,7 @@ pub mod fulfill_order {
                 max_slippage_ratio: 10,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
+                quote_asset_amount_tick_size: 1,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i128,
@@ -2455,6 +2461,7 @@ pub mod fulfill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 base_asset_amount_step_size: 1,
+                quote_asset_amount_tick_size: 1,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: 100 * PRICE_PRECISION_I128,
                     ..HistoricalOracleData::default()
@@ -2480,6 +2487,7 @@ pub mod fulfill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 20000 * PEG_PRECISION,
                 base_asset_amount_step_size: 1,
+                quote_asset_amount_tick_size: 1,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: 20000 * PRICE_PRECISION_I128,
                     ..HistoricalOracleData::default()
@@ -2799,6 +2807,7 @@ pub mod fill_order {
                 max_slippage_ratio: 100,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 1000,
+                quote_asset_amount_tick_size: 1,
                 oracle: oracle_price_key,
                 max_spread: 1000,
                 base_spread: 0,
@@ -2942,6 +2951,7 @@ pub mod fill_order {
                 max_slippage_ratio: 100,
                 max_base_asset_amount_ratio: 100,
                 base_asset_amount_step_size: 10000000,
+                quote_asset_amount_tick_size: 1,
                 max_base_asset_reserve: 200 * AMM_RESERVE_PRECISION,
                 min_base_asset_reserve: 50 * AMM_RESERVE_PRECISION,
                 ..AMM::default()

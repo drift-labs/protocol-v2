@@ -117,6 +117,7 @@ fn validate_limit_order(
             order,
             valid_oracle_price.ok_or(ErrorCode::InvalidOracle)?,
             slot,
+            market.amm.quote_asset_amount_tick_size,
             market.margin_ratio_initial as u128,
             market.margin_ratio_maintenance as u128,
             Some(&market.amm),
@@ -127,7 +128,12 @@ fn validate_limit_order(
         }
     }
 
-    let limit_price = order.get_limit_price(valid_oracle_price, slot, Some(&market.amm))?;
+    let limit_price = order.get_limit_price(
+        valid_oracle_price,
+        slot,
+        market.amm.quote_asset_amount_tick_size,
+        Some(&market.amm),
+    )?;
     let approximate_market_value = limit_price
         .checked_mul(order.base_asset_amount as u128)
         .unwrap_or(u128::MAX)
@@ -151,7 +157,12 @@ fn validate_post_only_order(
     let base_asset_amount_market_can_fill = calculate_base_asset_amount_to_fill_up_to_limit_price(
         order,
         market,
-        order.get_limit_price(valid_oracle_price, slot, Some(&market.amm))?,
+        order.get_limit_price(
+            valid_oracle_price,
+            slot,
+            market.amm.quote_asset_amount_tick_size,
+            Some(&market.amm),
+        )?,
     )?;
 
     if base_asset_amount_market_can_fill != 0 {
@@ -273,6 +284,7 @@ pub fn validate_spot_order(
     valid_oracle_price: Option<i128>,
     slot: u64,
     step_size: u64,
+    tick_size: u64,
     margin_ratio_initial: u128,
     margin_ratio_maintenance: u128,
     minimum_order_value: u128,
@@ -285,6 +297,7 @@ pub fn validate_spot_order(
             valid_oracle_price,
             slot,
             step_size,
+            tick_size,
             margin_ratio_initial,
             margin_ratio_maintenance,
             minimum_order_value,
@@ -306,6 +319,7 @@ fn validate_spot_limit_order(
     valid_oracle_price: Option<i128>,
     slot: u64,
     step_size: u64,
+    tick_size: u64,
     margin_ratio_initial: u128,
     margin_ratio_maintenance: u128,
     minimum_order_value: u128,
@@ -333,6 +347,7 @@ fn validate_spot_limit_order(
             order,
             valid_oracle_price.ok_or(ErrorCode::InvalidOracle)?,
             slot,
+            tick_size,
             margin_ratio_initial,
             margin_ratio_maintenance,
             None,
@@ -343,7 +358,7 @@ fn validate_spot_limit_order(
         }
     }
 
-    let limit_price = order.get_limit_price(valid_oracle_price, slot, None)?;
+    let limit_price = order.get_limit_price(valid_oracle_price, slot, tick_size, None)?;
     let approximate_market_value = limit_price
         .checked_mul(order.base_asset_amount as u128)
         .unwrap_or(u128::MAX)

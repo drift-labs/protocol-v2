@@ -644,6 +644,7 @@ pub fn fill_order(
             &user.orders[order_index],
             oracle_price,
             slot,
+            market.amm.quote_asset_amount_tick_size,
             market.margin_ratio_initial as u128,
             market.margin_ratio_maintenance as u128,
             Some(&market.amm),
@@ -928,6 +929,7 @@ fn sanitize_maker_order<'a>(
             &maker.orders[maker_order_index],
             oracle_price,
             slot,
+            market.amm.quote_asset_amount_tick_size,
             market.margin_ratio_initial as u128,
             market.margin_ratio_maintenance as u128,
             Some(&market.amm),
@@ -1298,6 +1300,7 @@ pub fn fulfill_order_with_amm(
             let limit_price = user.orders[order_index].get_limit_price(
                 valid_oracle_price,
                 slot,
+                market.amm.quote_asset_amount_tick_size,
                 Some(&market.amm),
             )?;
             (override_base_asset_amount, limit_price, override_fill_price)
@@ -1562,6 +1565,7 @@ pub fn fulfill_order_with_match(
     let taker_price = taker.orders[taker_order_index].get_limit_price(
         Some(oracle_price),
         slot,
+        market.amm.quote_asset_amount_tick_size,
         Some(&market.amm),
     )?;
     let taker_direction = taker.orders[taker_order_index].direction;
@@ -1571,6 +1575,7 @@ pub fn fulfill_order_with_match(
     let maker_price = maker.orders[maker_order_index].get_limit_price(
         Some(oracle_price),
         slot,
+        market.amm.quote_asset_amount_tick_size,
         Some(&market.amm),
     )?;
     let maker_direction = maker.orders[maker_order_index].direction;
@@ -2357,6 +2362,7 @@ pub fn place_spot_order(
         valid_oracle_price,
         slot,
         spot_market.order_step_size,
+        spot_market.order_tick_size,
         spot_market.get_margin_ratio(&MarginRequirementType::Initial)?,
         spot_market.get_margin_ratio(&MarginRequirementType::Maintenance)?,
         state.min_order_quote_asset_amount,
@@ -2689,6 +2695,7 @@ fn sanitize_spot_maker_order<'a>(
             &maker.orders[maker_order_index],
             oracle_price.price,
             slot,
+            spot_market.order_tick_size,
             initial_margin_ratio,
             maintenance_margin_ratio,
             None,
@@ -2945,16 +2952,24 @@ pub fn fulfill_spot_order_with_match(
 
     let market_index = taker.orders[taker_order_index].market_index;
     let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
-    let taker_price =
-        taker.orders[taker_order_index].get_limit_price(Some(oracle_price), slot, None)?;
+    let taker_price = taker.orders[taker_order_index].get_limit_price(
+        Some(oracle_price),
+        slot,
+        base_market.order_tick_size,
+        None,
+    )?;
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
     let taker_order_ts = taker.orders[taker_order_index].ts;
     let taker_spot_position_index = taker.get_spot_position_index(market_index)?;
     let taker_direction = taker.orders[taker_order_index].direction;
 
-    let maker_price =
-        maker.orders[maker_order_index].get_limit_price(Some(oracle_price), slot, None)?;
+    let maker_price = maker.orders[maker_order_index].get_limit_price(
+        Some(oracle_price),
+        slot,
+        base_market.order_tick_size,
+        None,
+    )?;
     let maker_direction = maker.orders[maker_order_index].direction;
     let maker_base_asset_amount =
         maker.orders[maker_order_index].get_base_asset_amount_unfilled()?;
@@ -3210,8 +3225,12 @@ pub fn fulfill_spot_order_with_serum(
     };
 
     let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
-    let taker_price =
-        taker.orders[taker_order_index].get_limit_price(Some(oracle_price), slot, None)?;
+    let taker_price = taker.orders[taker_order_index].get_limit_price(
+        Some(oracle_price),
+        slot,
+        base_market.order_tick_size,
+        None,
+    )?;
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
     let order_direction = taker.orders[taker_order_index].direction;
