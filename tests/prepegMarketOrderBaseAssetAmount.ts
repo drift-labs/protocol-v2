@@ -264,7 +264,7 @@ describe('prepeg', () => {
 		assert.ok(market.openInterest.eq(ONE));
 		assert.ok(market.amm.totalFee.gt(new BN(49750)));
 		assert.ok(market.amm.totalFeeMinusDistributions.gt(new BN(49750)));
-		assert.ok(market.amm.totalExchangeFee.eq(new BN(49999)));
+		assert.ok(market.amm.totalExchangeFee.eq(new BN(49999 + 1)));
 
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
@@ -376,9 +376,9 @@ describe('prepeg', () => {
 		console.log(effectiveLeverage);
 		assert(newAmm.maxSpread == (100000 / 2) * 0.95);
 		assert(inventoryScale == 0.003409);
-		assert(effectiveLeverage == 0.19906507487401007);
+		assert(effectiveLeverage == 0.19905711326640804);
 		assert(shortSpread == 500);
-		assert(longSpread.toString() == '26785.788286582472');
+		assert(longSpread.toString() == '26785.610433069665');
 
 		const [bid, ask] = calculateBidAskPrice(market0.amm, oraclePriceData);
 

@@ -134,7 +134,8 @@ pub fn calculate_base_asset_amount_for_reduce_only_order(
     order_direction: PositionDirection,
     existing_position: i64,
 ) -> u64 {
-    if (order_direction == PositionDirection::Long && existing_position >= 0)
+    if proposed_base_asset_amount > 0
+        && (order_direction == PositionDirection::Long && existing_position >= 0)
         || (order_direction == PositionDirection::Short && existing_position <= 0)
     {
         msg!("Reduce only order can not increase position");
