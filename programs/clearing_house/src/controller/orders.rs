@@ -37,7 +37,7 @@ use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::auction::{calculate_auction_end_price, is_auction_complete};
-use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64, Cast};
+use crate::math::casting::{cast, cast_to_u128, cast_to_u64, Cast};
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
@@ -1059,6 +1059,7 @@ fn fulfill_order(
     amm_is_available: bool,
 ) -> ClearingHouseResult<(u64, bool, bool)> {
     let market_index = user.orders[user_order_index].market_index;
+    msg!("hi00");
 
     let position_index = get_position_index(&user.perp_positions, market_index)?;
     let order_direction = user.orders[user_order_index].direction;
@@ -1088,6 +1089,7 @@ fn fulfill_order(
 
         return Ok((0, false, true));
     }
+    msg!("hi001");
 
     let fulfillment_methods = determine_perp_fulfillment_methods(
         &user.orders[user_order_index],
@@ -1103,6 +1105,10 @@ fn fulfill_order(
     let mut base_asset_amount = 0_u64;
     let mut quote_asset_amount = 0_u64;
     let mut order_records: Vec<OrderActionRecord> = vec![];
+
+    msg!("hi0");
+
+
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
             break;
@@ -1174,6 +1180,8 @@ fn fulfill_order(
     for order_record in order_records {
         emit!(order_record)
     }
+    msg!("hi1");
+
 
     let (taker_margin_requirement, taker_total_collateral, _, _) =
         calculate_margin_requirement_and_total_collateral(
@@ -1192,6 +1200,7 @@ fn fulfill_order(
         );
         return Err(ErrorCode::InsufficientCollateral);
     }
+    msg!("hi2");
 
     if let Some(maker) = maker {
         let (maker_margin_requirement, maker_total_collateral, _, _) =
