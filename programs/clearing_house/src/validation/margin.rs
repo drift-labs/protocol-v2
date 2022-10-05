@@ -1,6 +1,6 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::constants::{
-    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, MAXIMUM_MARGIN_RATIO, MINIMUM_MARGIN_RATIO,
+    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, MAX_MARGIN_RATIO, MIN_MARGIN_RATIO,
     SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION,
 };
 use crate::validate;
@@ -12,7 +12,7 @@ pub fn validate_margin(
     liquidation_fee: u128,
     max_spread: u32,
 ) -> ClearingHouseResult {
-    if !(MINIMUM_MARGIN_RATIO..=MAXIMUM_MARGIN_RATIO).contains(&margin_ratio_initial) {
+    if !(MIN_MARGIN_RATIO..=MAX_MARGIN_RATIO).contains(&margin_ratio_initial) {
         return Err(ErrorCode::InvalidMarginRatio);
     }
 
@@ -20,7 +20,7 @@ pub fn validate_margin(
         return Err(ErrorCode::InvalidMarginRatio);
     }
 
-    if !(MINIMUM_MARGIN_RATIO..=MAXIMUM_MARGIN_RATIO).contains(&margin_ratio_maintenance) {
+    if !(MIN_MARGIN_RATIO..=MAX_MARGIN_RATIO).contains(&margin_ratio_maintenance) {
         return Err(ErrorCode::InvalidMarginRatio);
     }
 

@@ -3067,7 +3067,7 @@ pub mod fulfill_spot_order_with_match {
     use crate::controller::orders::fulfill_spot_order_with_match;
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{
-        LAMPORTS_PER_SOL_I64, LAMPORT_PER_SOL_U64, PRICE_PRECISION_U64, QUOTE_PRECISION_U64,
+        LAMPORTS_PER_SOL_I64, LAMPORTS_PER_SOL_U64, PRICE_PRECISION_U64, QUOTE_PRECISION_U64,
         SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
     };
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -3097,7 +3097,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -3125,7 +3125,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -3224,7 +3224,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -3252,7 +3252,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 price: 160 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -3347,7 +3347,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -3379,7 +3379,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -3474,7 +3474,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -3506,7 +3506,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 price: 70 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -3605,7 +3605,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -3633,7 +3633,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 price: 201 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -3705,7 +3705,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -3737,7 +3737,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 price: 49 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -3809,7 +3809,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -3841,7 +3841,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 price: 70 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -3917,7 +3917,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -3945,7 +3945,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -4021,7 +4021,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: 100 * LAMPORT_PER_SOL_U64,
+                base_asset_amount: 100 * LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -4049,7 +4049,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -4101,7 +4101,7 @@ pub mod fulfill_spot_order_with_match {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, LAMPORT_PER_SOL_U64);
+        assert_eq!(base_asset_amount, LAMPORTS_PER_SOL_U64);
 
         let taker_quote_position = taker.spot_positions[0];
         assert_eq!(taker_quote_position.balance, 950000000);
@@ -4112,7 +4112,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_base_position.open_orders, 1);
 
         let taker_order = taker.orders[0];
-        assert_eq!(taker_order.base_asset_amount_filled, LAMPORT_PER_SOL_U64);
+        assert_eq!(taker_order.base_asset_amount_filled, LAMPORTS_PER_SOL_U64);
         assert_eq!(
             taker_order.quote_asset_amount_filled,
             100 * QUOTE_PRECISION_U64
@@ -4161,7 +4161,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -4189,7 +4189,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: 100 * LAMPORT_PER_SOL_U64,
+                base_asset_amount: 100 * LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -4241,7 +4241,7 @@ pub mod fulfill_spot_order_with_match {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, LAMPORT_PER_SOL_U64);
+        assert_eq!(base_asset_amount, LAMPORTS_PER_SOL_U64);
 
         let taker_quote_position = taker.spot_positions[0];
         assert_eq!(taker_quote_position.balance, 950000000);
@@ -4266,7 +4266,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_base_position.open_orders, 1);
 
         let maker_order = maker.orders[0];
-        assert_eq!(maker_order.base_asset_amount_filled, LAMPORT_PER_SOL_U64);
+        assert_eq!(maker_order.base_asset_amount_filled, LAMPORTS_PER_SOL_U64);
         assert_eq!(
             maker_order.quote_asset_amount_filled,
             100 * QUOTE_PRECISION_U64
@@ -4301,7 +4301,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -4329,7 +4329,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 auction_start_price: 200 * PRICE_PRECISION_U64,
                 auction_end_price: 100 * PRICE_PRECISION_U64,
@@ -4430,7 +4430,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 price: 100 * PRICE_PRECISION_U64,
@@ -4456,7 +4456,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -4551,7 +4551,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 price: 100 * PRICE_PRECISION_U64,
@@ -4581,7 +4581,7 @@ pub mod fulfill_spot_order_with_match {
                 market_type: MarketType::Spot,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -4670,7 +4670,7 @@ pub mod fulfill_spot_order {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        LAMPORTS_PER_SOL_I64, LAMPORT_PER_SOL_U64, PRICE_PRECISION_U64, SPOT_BALANCE_PRECISION,
+        LAMPORTS_PER_SOL_I64, LAMPORTS_PER_SOL_U64, PRICE_PRECISION_U64, SPOT_BALANCE_PRECISION,
         SPOT_BALANCE_PRECISION_U64,
     };
     use crate::math::margin::calculate_free_collateral;
@@ -4747,7 +4747,7 @@ pub mod fulfill_spot_order {
                 order_type: OrderType::Market,
                 status: OrderStatus::Open,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -4786,7 +4786,7 @@ pub mod fulfill_spot_order {
                 order_type: OrderType::Limit,
                 status: OrderStatus::Open,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL_U64 / 2,
+                base_asset_amount: LAMPORTS_PER_SOL_U64 / 2,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -4942,7 +4942,7 @@ pub mod fulfill_spot_order {
             order_type: OrderType::Market,
             status: OrderStatus::Open,
             direction: PositionDirection::Long,
-            base_asset_amount: LAMPORT_PER_SOL_U64,
+            base_asset_amount: LAMPORTS_PER_SOL_U64,
             ts: 0,
             slot: 0,
             auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -4958,7 +4958,7 @@ pub mod fulfill_spot_order {
             order_type: OrderType::Market,
             status: OrderStatus::Open,
             direction: PositionDirection::Long,
-            base_asset_amount: LAMPORT_PER_SOL_U64,
+            base_asset_amount: LAMPORTS_PER_SOL_U64,
             ts: 0,
             slot: 0,
             auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -5007,7 +5007,7 @@ pub mod fulfill_spot_order {
             order_type: OrderType::Limit,
             status: OrderStatus::Open,
             direction: PositionDirection::Short,
-            base_asset_amount: LAMPORT_PER_SOL_U64,
+            base_asset_amount: LAMPORTS_PER_SOL_U64,
             ts: 0,
             price: 100 * PRICE_PRECISION_U64,
             ..Order::default()
@@ -5020,7 +5020,7 @@ pub mod fulfill_spot_order {
             order_type: OrderType::Limit,
             status: OrderStatus::Open,
             direction: PositionDirection::Short,
-            base_asset_amount: LAMPORT_PER_SOL_U64,
+            base_asset_amount: LAMPORTS_PER_SOL_U64,
             ts: 0,
             price: 100 * PRICE_PRECISION_U64,
             ..Order::default()
@@ -5131,7 +5131,7 @@ pub mod fill_spot_order {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        LAMPORTS_PER_SOL_I64, LAMPORT_PER_SOL_U64, PRICE_PRECISION_U64, SPOT_BALANCE_PRECISION,
+        LAMPORTS_PER_SOL_I64, LAMPORTS_PER_SOL_U64, PRICE_PRECISION_U64, SPOT_BALANCE_PRECISION,
         SPOT_BALANCE_PRECISION_U64,
     };
     use crate::state::perp_market_map::PerpMarketMap;
@@ -5206,7 +5206,7 @@ pub mod fill_spot_order {
                 order_type: OrderType::Market,
                 status: OrderStatus::Open,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -5245,7 +5245,7 @@ pub mod fill_spot_order {
                 order_type: OrderType::Limit,
                 status: OrderStatus::Open,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL_U64 / 2,
+                base_asset_amount: LAMPORTS_PER_SOL_U64 / 2,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -5364,7 +5364,7 @@ pub mod fill_spot_order {
                 order_type: OrderType::Market,
                 status: OrderStatus::Open,
                 direction: PositionDirection::Long,
-                base_asset_amount: LAMPORT_PER_SOL_U64,
+                base_asset_amount: LAMPORTS_PER_SOL_U64,
                 ts: 0,
                 slot: 0,
                 auction_start_price: 100 * PRICE_PRECISION_U64,
@@ -5404,7 +5404,7 @@ pub mod fill_spot_order {
                 order_type: OrderType::Limit,
                 status: OrderStatus::Open,
                 direction: PositionDirection::Short,
-                base_asset_amount: LAMPORT_PER_SOL_U64 / 2,
+                base_asset_amount: LAMPORTS_PER_SOL_U64 / 2,
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
