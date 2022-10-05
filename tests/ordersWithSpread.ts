@@ -204,7 +204,7 @@ describe('amm spread: market order', () => {
 
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		const expectedQuoteAssetSurplus = new BN(250);
-		const expectedExchangeFee = new BN(1000);
+		const expectedExchangeFee = new BN(1001);
 		const expectedFeeToMarket = expectedExchangeFee.add(
 			expectedQuoteAssetSurplus
 		);
@@ -244,7 +244,7 @@ describe('amm spread: market order', () => {
 		const pnl = clearingHouse.getQuoteAssetTokenAmount().sub(initialCollateral);
 		console.log(pnl.toString());
 		console.log(clearingHouse.getPerpMarketAccount(0).amm.totalFee.toString());
-		assert(clearingHouse.getPerpMarketAccount(0).amm.totalFee.eq(new BN(2499)));
+		assert(clearingHouse.getPerpMarketAccount(0).amm.totalFee.eq(new BN(2500)));
 	});
 
 	it('short market order base', async () => {

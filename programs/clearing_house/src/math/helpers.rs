@@ -79,6 +79,7 @@ pub fn get_proportion_u128(
             .checked_sub(cast_to_u128(r.signum())?)
             .ok_or_else(math_error!())?
     } else {
+        msg!("{} * {}/{}", value, numerator, denominator);
         value
             .checked_mul(numerator)
             .ok_or_else(math_error!())?
