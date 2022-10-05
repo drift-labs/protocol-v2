@@ -6,6 +6,7 @@ if [ "$1" != "--skip-build" ]
 fi
 
 test_files=(
+  postOnlyAmmFulfillment.ts
   imbalancePerpPnl.ts
    delistMarket.ts 
    delistMarketLiq.ts
@@ -18,12 +19,17 @@ test_files=(
    referrer.ts
    liquidatePerpPnlForDeposit.ts liquidateBorrowForPerpPnl.ts
    liquidatePerp.ts
-   order.ts spotDepositWithdraw.ts prepegMarketOrderBaseAssetAmount.ts
-   updateAMM.ts repegAndSpread.ts
+   order.ts 
+   spotDepositWithdraw.ts 
+   prepegMarketOrderBaseAssetAmount.ts updateAMM.ts 
+   repegAndSpread.ts
    clearingHouse.ts
    ordersWithSpread.ts
-   marketOrder.ts triggerOrders.ts stopLimits.ts userOrderId.ts postOnly.ts
-   roundInFavorBaseAsset.ts marketOrderBaseAssetAmount.ts oracleOffsetOrders.ts
+   marketOrder.ts 
+   triggerOrders.ts 
+   stopLimits.ts userOrderId.ts postOnly.ts
+   roundInFavorBaseAsset.ts
+   marketOrderBaseAssetAmount.ts oracleOffsetOrders.ts
    userDelegate.ts subaccounts.ts pyth.ts userAccount.ts admin.ts
    assetTier.ts
    pauseExchange.ts adminWithdraw.ts whitelist.ts

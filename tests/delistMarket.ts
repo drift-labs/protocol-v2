@@ -475,7 +475,7 @@ describe('delist market', () => {
 
 		const marketAfter = clearingHouse.getPerpMarketAccount(marketIndex);
 
-		const finalPnlResultMin = new BN(985673294 - 1090);
+		const finalPnlResultMin = new BN(985673154000 - 109000);
 		console.log('pnlPool:', marketAfter.pnlPool.balance.toString());
 		assert(marketAfter.pnlPool.balance.gt(finalPnlResultMin));
 		assert(marketAfter.pnlPool.balance.lt(new BN(986673294000)));
@@ -485,6 +485,7 @@ describe('delist market', () => {
 			'totalExchangeFee:',
 			marketAfter.amm.totalExchangeFee.toString()
 		);
-		assert(marketAfter.amm.feePool.balance.eq(new BN(21566000)));
+		assert(marketAfter.amm.feePool.balance.eq(new BN(21567000)));
+		assert(marketAfter.amm.totalExchangeFee.eq(new BN(43134)));
 	});
 });
