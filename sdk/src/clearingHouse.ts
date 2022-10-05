@@ -1658,7 +1658,7 @@ export class ClearingHouse {
 	public async fillOrder(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
-		order?: Order,
+		order?: Pick<Order, 'marketIndex' | 'orderId'>,
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionSignature> {
