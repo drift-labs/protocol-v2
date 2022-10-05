@@ -191,6 +191,7 @@ describe('liquidity providing', () => {
 			market.marketIndex
 		);
 
+		await traderClearingHouse.fetchAccounts();
 		const position = traderClearingHouse.getUserAccount().perpPositions[0];
 		console.log(
 			'trader position:',
@@ -215,6 +216,8 @@ describe('liquidity providing', () => {
 			tradeSize,
 			market.marketIndex
 		);
+		await clearingHouse.fetchAccounts();
+		await clearingHouseUser.fetchAccounts();
 
 		// lp now has a long
 		const newLpPosition = clearingHouseUser.getUserAccount().perpPositions[0];
