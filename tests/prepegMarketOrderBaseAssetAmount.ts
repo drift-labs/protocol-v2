@@ -274,8 +274,9 @@ describe('prepeg', () => {
 
 		// console.log(orderRecord);
 		console.log(market.amm.totalExchangeFee.toNumber());
+		console.log(position0.quoteAssetAmount.toNumber());
 
-		assert.ok(position0.quoteAssetAmount.eq(new BN(-50049073)));
+		assert.ok(position0.quoteAssetAmount.eq(new BN(-50049074)));
 		assert.ok(
 			position0.quoteAssetAmount.eq(
 				position0.quoteEntryAmount.sub(market.amm.totalExchangeFee)
@@ -514,8 +515,13 @@ describe('prepeg', () => {
 		// 		.eq(acquiredQuoteAssetAmount.add(new BN(49999074)).add(new BN(-1001)))
 		// );
 		assert(acquiredQuoteAssetAmount.eq(new BN(1027809)));
+		console.log(
+			'position0.quoteAssetAmount:',
+			position0.quoteAssetAmount.toNumber()
+		);
+
 		assert.ok(position0qea.eq(new BN(-51026883)));
-		assert.ok(position0.quoteAssetAmount.eq(new BN(-51077909)));
+		assert.ok(position0.quoteAssetAmount.eq(new BN(-51077911)));
 	});
 
 	it('Reduce long position', async () => {
