@@ -1084,9 +1084,8 @@ fn fulfill_order(
 
         determine_perp_fulfillment_methods(
             &user.orders[user_order_index],
-            if maker.is_some() {
-                let maker_inter = maker.as_deref_mut().unwrap();
-                Some(&(maker_inter.orders[maker_order_index.unwrap()]))
+            if let Some(maker) = maker {
+                Some(&maker.orders[maker_order_index.unwrap()])
             } else {
                 None
             },
@@ -1344,21 +1343,14 @@ pub fn fulfill_order_with_amm(
             fill_price,
         )?;
 
-    if order_post_only {
-        validate_fill_price(
-            quote_asset_amount,
-            base_asset_amount,
-            order_direction,
-            limit_price,
-        )?;
-    } else {
-        validate_taker_fill_price(
-            quote_asset_amount,
-            base_asset_amount,
-            order_direction,
-            limit_price,
-        )?;
-    }
+    validate_fill_price(
+        quote_asset_amount,
+        base_asset_amount,
+        order_direction,
+        limit_price,
+        !order_post_only,
+    )?;
+   
 
     let reward_referrer = referrer.is_some()
         && referrer_stats.is_some()
@@ -1665,17 +1657,19 @@ pub fn fulfill_order_with_match(
         maker_direction,
     )?;
 
-    validate_taker_fill_price(
+    validate_fill_price(
         quote_asset_amount,
         base_asset_amount_fulfilled,
         taker_direction,
         taker_price,
+        true,
     )?;
     validate_fill_price(
         quote_asset_amount,
         base_asset_amount_fulfilled,
         maker_direction,
         maker_price,
+        false,
     )?;
 
     total_quote_asset_amount = total_quote_asset_amount
@@ -2978,17 +2972,19 @@ pub fn fulfill_spot_order_with_match(
         return Ok(0_u64);
     }
 
-    validate_taker_fill_price(
+    validate_fill_price(
         quote_asset_amount,
         base_asset_amount,
         taker_direction,
         taker_price,
+        true,
     )?;
     validate_fill_price(
         quote_asset_amount,
         base_asset_amount,
         maker_direction,
         maker_price,
+        false,
     )?;
 
     let filler_multiplier = if filler.is_some() {
@@ -3458,6 +3454,7 @@ pub fn fulfill_spot_order_with_serum(
         base_asset_amount_filled,
         order_direction,
         taker_price,
+        true,
     )?;
 
     let fee_pool_amount = get_token_amount(
