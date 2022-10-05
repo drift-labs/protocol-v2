@@ -268,6 +268,9 @@ pub mod clearing_house {
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
             withdraw_guard_threshold: 0,
             order_step_size,
+            order_tick_size: 0,
+            order_minimum_size: 0,
+            max_position_size: 0,
             next_fill_record_id: 1,
             spot_fee_pool: PoolBalance::default(), // in quote asset
             total_spot_fee: 0,
@@ -568,6 +571,9 @@ pub mod clearing_house {
                 last_oracle_conf_pct: 0,
                 last_oracle_reserve_price_spread_pct: 0, // todo
                 base_asset_amount_step_size: DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE,
+                order_tick_size: 0,
+                order_minimum_size: 0,
+                max_position_size: 0,
                 max_slippage_ratio: 50,           // ~2%
                 max_base_asset_amount_ratio: 100, // moves price ~2%
                 base_spread: 0,
