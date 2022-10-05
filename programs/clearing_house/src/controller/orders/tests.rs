@@ -1921,11 +1921,11 @@ pub mod fulfill_order {
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
-        assert_eq!(taker_position.quote_asset_amount, -100331523);
+        assert_eq!(taker_position.quote_asset_amount, -100331524);
         assert_eq!(taker_position.quote_entry_amount, -100281382);
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
-        assert_eq!(taker_stats.fees.total_fee_paid, 50141);
+        assert_eq!(taker_stats.fees.total_fee_paid, 50142);
         assert_eq!(taker_stats.fees.total_referee_discount, 0);
         assert_eq!(taker_stats.fees.total_token_discount, 0);
         assert_eq!(taker_stats.taker_volume_30d, 100281362);
@@ -1948,14 +1948,14 @@ pub mod fulfill_order {
         assert_eq!(market_after.amm.net_base_asset_amount, 500000000);
         assert_eq!(market_after.base_asset_amount_long, 1000000000);
         assert_eq!(market_after.base_asset_amount_short, -500000000);
-        assert_eq!(market_after.amm.quote_asset_amount_long, -100326510);
+        assert_eq!(market_after.amm.quote_asset_amount_long, -100326511);
         assert_eq!(market_after.amm.quote_asset_amount_short, 50020001);
 
         let expected_market_fee = (taker_stats.fees.total_fee_paid
             - (maker_stats.fees.total_fee_rebate
                 + filler.perp_positions[0].quote_asset_amount as u64))
             as i128;
-        assert_eq!(expected_market_fee, 30127);
+        assert_eq!(expected_market_fee, 30128);
         assert_eq!(market_after.amm.total_fee, expected_market_fee);
         assert_eq!(
             market_after.amm.total_fee_minus_distributions,

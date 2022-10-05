@@ -408,7 +408,7 @@ pub fn validate_fill_price(
     is_taker: bool,
 ) -> ClearingHouseResult {
     let rounded_quote_asset_amount = if is_taker {
-            match order_direction {
+        match order_direction {
             PositionDirection::Long => quote_asset_amount.saturating_sub(1),
             PositionDirection::Short => quote_asset_amount.saturating_add(1),
         }

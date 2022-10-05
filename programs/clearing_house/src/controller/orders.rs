@@ -1350,7 +1350,6 @@ pub fn fulfill_order_with_amm(
         limit_price,
         !order_post_only,
     )?;
-   
 
     let reward_referrer = referrer.is_some()
         && referrer_stats.is_some()

@@ -5,6 +5,7 @@ use solana_program::msg;
 
 use crate::error::ClearingHouseResult;
 use crate::math::casting::{cast_to_u128, Cast};
+use crate::math::ceil_div::CheckedCeilDiv;
 use crate::math::constants::{
     FIFTY_MILLION_QUOTE, FIVE_MILLION_QUOTE, ONE_HUNDRED_MILLION_QUOTE, ONE_HUNDRED_THOUSAND_QUOTE,
     ONE_MILLION_QUOTE, ONE_THOUSAND_QUOTE, TEN_BPS, TEN_MILLION_QUOTE, TEN_THOUSAND_QUOTE,
@@ -123,11 +124,9 @@ pub fn calculate_fee_for_fulfillment_with_amm(
 fn calculate_taker_fee(quote_asset_amount: u64, fee_tier: &FeeTier) -> ClearingHouseResult<u64> {
     quote_asset_amount
         .cast::<u128>()?
-        .checked_mul(fee_tier.fee_numerator as u128)
+        .checked_mul(cast_to_u128(fee_tier.fee_numerator)?)
         .ok_or_else(math_error!())?
-        .checked_add((fee_tier.fee_denominator / 2) as u128)
-        .ok_or_else(math_error!())?
-        .checked_div(fee_tier.fee_denominator as u128)
+        .checked_ceil_div(cast_to_u128(fee_tier.fee_denominator)?)
         .ok_or_else(math_error!())?
         .cast()
 }
