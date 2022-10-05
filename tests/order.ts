@@ -417,7 +417,7 @@ describe('orders', () => {
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log('markPrice After:', calculateReservePrice(market).toString());
 
-		const expectedFeeToMarket = new BN(900);
+		const expectedFeeToMarket = new BN(901);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 
 		assert(order.baseAssetAmount.eq(new BN(0)));

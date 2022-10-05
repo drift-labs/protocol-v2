@@ -1202,6 +1202,8 @@ pub mod amm_jit {
 
         assert_eq!(taker_stats.taker_volume_30d, 101_004_065);
         assert_eq!(taker_stats.fees.total_fee_paid, 54_598 - 4_095);
+        assert_eq!(taker_stats.fees.total_fee_paid, 12750 + 12500 + 25253);
+
         assert_eq!(taker.orders[0], Order::default());
 
         let maker_position = &maker.perp_positions[0];
@@ -1222,21 +1224,36 @@ pub mod amm_jit {
         assert_eq!(market_after.amm.net_base_asset_amount, 250000000);
 
         assert_eq!(market_after.amm.volume_24h, 101_003_510);
+        assert_eq!(market_after.amm.long_intensity_count, 1);
+        assert_eq!(market_after.amm.long_intensity_volume, 100_990_067);
+        assert_eq!(market_after.amm.short_intensity_count, 0);
+        assert_eq!(market_after.amm.short_intensity_volume, 0);
 
         assert_eq!(
             (taker_stats.fees.total_fee_paid - maker_stats.fees.total_fee_rebate) as u128,
             43_003
-        );
-        assert_eq!(
-            market_after.amm.total_exchange_fee,
-            (taker_stats.fees.total_fee_paid - maker_stats.fees.total_fee_rebate) as u128
-        );
+        ); //1250 diff
 
         assert_eq!(market_after.amm.total_exchange_fee, 41_753);
         assert_eq!(market_after.amm.total_mm_fee, 437_343);
+        assert_eq!(
+            market_after.amm.total_fee_minus_distributions,
+            22728 + 3750 + 448818
+        );
         assert_eq!(market_after.amm.total_fee_withdrawn, 0);
 
-        assert_eq!(market_after.amm.total_fee, 437343 + 41753 - 3800); // todo: -3800
+        let filler_position = &filler.perp_positions[0];
+        assert_eq!(filler_position.market_index, 0);
+        assert_eq!(filler_position.base_asset_amount, 0);
+        assert_eq!(filler_position.quote_asset_amount, 1275 + 2525 + 1250);
+        assert_eq!(filler_position.quote_entry_amount, 0);
+
+        let total_filler_reward_from_quote_surplus = 1275 + 2525;
+
+        assert_eq!(
+            market_after.amm.total_fee,
+            437343 + 41753 - total_filler_reward_from_quote_surplus
+        );
         assert_eq!(market_after.amm.total_fee_minus_distributions, 475_296);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 475_296);
 
@@ -1936,7 +1953,7 @@ pub mod amm_jit {
         // auction should go through both position and negative
         assert!(neg);
         assert!(pos);
-        // assert!(none);
+        // assert!(none); //todo: skips over this (-1 -> 1)
 
         println!("{} {} {}", neg, pos, none);
     }

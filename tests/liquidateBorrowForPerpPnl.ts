@@ -223,8 +223,13 @@ describe('liquidate borrow for perp pnl', () => {
 		);
 		assert(liquidationRecord.liquidateBorrowForPerpPnl.perpMarketIndex === 0);
 		assert(
-			liquidationRecord.liquidateBorrowForPerpPnl.pnlTransfer.eq(
-				new BN(9969992)
+			liquidationRecord.liquidateBorrowForPerpPnl.pnlTransfer.gt(
+				new BN(9969992 - 10)
+			)
+		);
+		assert(
+			liquidationRecord.liquidateBorrowForPerpPnl.pnlTransfer.lt(
+				new BN(9969992 + 10)
 			)
 		);
 		assert(

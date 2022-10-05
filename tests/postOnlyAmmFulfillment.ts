@@ -236,7 +236,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		console.log(position.quoteAssetAmount.toString());
 		console.log(position.quoteEntryAmount.toString());
 
-		assert(position.quoteAssetAmount.eq(new BN(-32208902)));
+		assert(position.quoteAssetAmount.eq(new BN(-32208904)));
 		assert(position.quoteEntryAmount.eq(new BN(-32176726)));
 
 		console.log(
@@ -249,7 +249,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 
 		const clearingHouseUserStats = clearingHouse.getUserStats().getAccount();
 		console.log('user stats:', clearingHouseUserStats);
-		assert(clearingHouseUserStats.fees.totalFeePaid.eq(new BN(32176)));
+		assert(clearingHouseUserStats.fees.totalFeePaid.eq(new BN(32178)));
 		assert(clearingHouseUserStats.fees.totalFeeRebate.eq(ZERO));
 
 		await fillerClearingHouse.fetchAccounts();
@@ -262,8 +262,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 		console.log(orderRecord);
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(isVariant(orderRecord.actionExplanation, 'orderFilledWithAmm'));
-		assert(orderRecord.takerFee.eq(new BN(16090)));
-		assert(orderRecord.takerOrderFee.eq(new BN(32176)));
+		assert(orderRecord.takerFee.eq(new BN(16091)));
+		assert(orderRecord.takerOrderFee.eq(new BN(32178)));
 		assert(orderRecord.fillRecordId.eq(new BN(2)));
 		assert(orderRecord.fillerReward.eq(ZERO));
 		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(4022)));
@@ -282,7 +282,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		assert(orderRecord2.quoteAssetAmountFilled.eq(new BN(16086352)));
 		assert(orderRecord2.quoteAssetAmountSurplus == null);
 		assert(orderRecord2.makerFee.eq(new BN(-3217)));
-		assert(orderRecord2.takerFee.eq(new BN(16086)));
+		assert(orderRecord2.takerFee.eq(new BN(16087)));
 		assert(orderRecord2.fillerReward.eq(ZERO));
 
 		const orderRecord3 = orderRecords[2];
@@ -313,9 +313,9 @@ describe('post only maker order w/ amm fulfillments', () => {
 		console.log(perpMarket.amm.totalMmFee.toString());
 		console.log(perpMarket.amm.totalFeeWithdrawn.toString());
 
-		assert(perpMarket.amm.totalFee.eq(new BN(32981)));
-		assert(perpMarket.amm.totalFeeMinusDistributions.eq(new BN(32981)));
-		assert(perpMarket.amm.totalExchangeFee.eq(new BN(28959)));
+		assert(perpMarket.amm.totalFee.eq(new BN(32983)));
+		assert(perpMarket.amm.totalFeeMinusDistributions.eq(new BN(32983)));
+		assert(perpMarket.amm.totalExchangeFee.eq(new BN(28961)));
 		assert(perpMarket.amm.totalMmFee.eq(new BN(4022)));
 		assert(perpMarket.amm.totalFeeWithdrawn.eq(ZERO));
 
