@@ -240,14 +240,10 @@ describe('liquidate borrow for perp pnl', () => {
 		assert(
 			liquidationRecord.liquidateBorrowForPerpPnl.liabilityMarketIndex === 1
 		);
+
 		assert(
-			liquidationRecord.liquidateBorrowForPerpPnl.liabilityTransfer.gt(
-				new BN(199399840 - 10)
-			)
-		);
-		assert(
-			liquidationRecord.liquidateBorrowForPerpPnl.liabilityTransfer.lt(
-				new BN(199399840 + 10)
+			liquidationRecord.liquidateBorrowForPerpPnl.liabilityTransfer.eq(
+				new BN(199399800)
 			)
 		);
 	});

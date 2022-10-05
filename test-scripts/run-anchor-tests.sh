@@ -22,8 +22,7 @@ test_files=(
    liquidatePerp.ts
    order.ts 
    spotDepositWithdraw.ts 
-   prepegMarketOrderBaseAssetAmount.ts updateAMM.ts 
-   repegAndSpread.ts
+   prepegMarketOrderBaseAssetAmount.ts updateAMM.ts  repegAndSpread.ts
    clearingHouse.ts
    ordersWithSpread.ts
    marketOrder.ts 
