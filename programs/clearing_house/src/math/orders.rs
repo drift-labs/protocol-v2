@@ -187,6 +187,14 @@ pub fn is_multiple_of_step_size(
     Ok(remainder == 0)
 }
 
+pub fn standardize_price(price: u64, tick_size: u64) -> ClearingHouseResult<u64> {
+    let remainder = price
+        .checked_rem_euclid(tick_size)
+        .ok_or_else(math_error!())?;
+
+    price.checked_sub(remainder).ok_or_else(math_error!())
+}
+
 pub fn get_position_delta_for_fill(
     base_asset_amount: u64,
     quote_asset_amount: u64,

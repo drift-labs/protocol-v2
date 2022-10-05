@@ -330,6 +330,7 @@ pub struct AMM {
     pub last_funding_rate_ts: i64,
     pub funding_period: i64,
     pub base_asset_amount_step_size: u64,
+    pub quote_asset_amount_tick_size: u64,
     pub volume_24h: u64,
     pub long_intensity_volume: u64,
     pub short_intensity_volume: u64,
