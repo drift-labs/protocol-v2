@@ -9,7 +9,7 @@ use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
     CONCENTRATION_PRECISION, DEFAULT_LARGE_BID_ASK_FACTOR, K_BPS_UPDATE_SCALE,
     MAX_BID_ASK_INVENTORY_SKEW_FACTOR, MAX_K_BPS_DECREASE, ONE_HOUR_I128, PEG_PRECISION,
-    PRICE_PRECISION, PRICE_PRECISION_I128, PRICE_TO_PEG_PRECISION_RATIO,
+    PERCENTAGE_PRECISION_I128, PRICE_PRECISION, PRICE_PRECISION_I128, PRICE_TO_PEG_PRECISION_RATIO,
     PRICE_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
 };
 use crate::math::orders::standardize_base_asset_amount;
@@ -1061,6 +1061,8 @@ pub fn _calculate_budgeted_k_scale(
     let c_sign: i128 = if c > 0 { 1 } else { -1 };
     let d_sign: i128 = if d > 0 { 1 } else { -1 };
 
+    let rounding_bias: i128 = c_sign.checked_mul(d_sign).ok_or_else(math_error!())?;
+
     let x_d = cast_to_i128(x)?.checked_add(d).ok_or_else(math_error!())?;
 
     let amm_reserve_precision_u192 = U192::from(AMM_RESERVE_PRECISION);
@@ -1109,7 +1111,7 @@ pub fn _calculate_budgeted_k_scale(
     let numer1 = pegged_quote_times_dd;
 
     let numer2 = cast_to_i128(c_times_x_d_d)?
-        .checked_mul(c_sign.checked_mul(d_sign).ok_or_else(math_error!())?)
+        .checked_mul(rounding_bias)
         .ok_or_else(math_error!())?;
 
     let denom1 = cast_to_i128(x_times_x_d_c)?
@@ -1148,13 +1150,13 @@ pub fn _calculate_budgeted_k_scale(
 
     let (numerator, denominator) = if numerator > denominator {
         let current_pct_change = numerator
-            .checked_mul(10000)
+            .checked_mul(PERCENTAGE_PRECISION_I128)
             .ok_or_else(math_error!())?
             .checked_div(denominator)
             .ok_or_else(math_error!())?;
 
         let maximum_pct_change = k_pct_upper_bound
-            .checked_mul(10000)
+            .checked_mul(PERCENTAGE_PRECISION_I128)
             .ok_or_else(math_error!())?
             .checked_div(K_BPS_UPDATE_SCALE)
             .ok_or_else(math_error!())?;
@@ -1162,17 +1164,17 @@ pub fn _calculate_budgeted_k_scale(
         if current_pct_change > maximum_pct_change {
             (k_pct_upper_bound, K_BPS_UPDATE_SCALE)
         } else {
-            (numerator, denominator)
+            (current_pct_change, K_BPS_UPDATE_SCALE)
         }
     } else {
         let current_pct_change = numerator
-            .checked_mul(10000)
+            .checked_mul(PERCENTAGE_PRECISION_I128)
             .ok_or_else(math_error!())?
             .checked_div(denominator)
             .ok_or_else(math_error!())?;
 
         let maximum_pct_change = k_pct_lower_bound
-            .checked_mul(10000)
+            .checked_mul(PERCENTAGE_PRECISION_I128)
             .ok_or_else(math_error!())?
             .checked_div(K_BPS_UPDATE_SCALE)
             .ok_or_else(math_error!())?;
@@ -1180,7 +1182,7 @@ pub fn _calculate_budgeted_k_scale(
         if current_pct_change < maximum_pct_change {
             (k_pct_lower_bound, K_BPS_UPDATE_SCALE)
         } else {
-            (numerator, denominator)
+            (current_pct_change, K_BPS_UPDATE_SCALE)
         }
     };
 
@@ -2613,6 +2615,62 @@ mod test {
     }
 
     #[test]
+    fn calculate_k_with_rounding() {
+        let base_asset_reserve: u128 = 9942017440883516352;
+        let quote_asset_reserve: u128 = 10058320717561858267;
+        let budget: i128 = 32195176;
+        let peg_multiplier: u128 = 1103;
+        let net_base_asset_amount: i128 = 57982559000000000;
+        let k_pct_upper_bound = 100000000;
+        let k_pct_lower_bound = 1000000;
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve,
+                quote_asset_reserve,
+                concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
+                sqrt_k: 10000000000000000000,
+                peg_multiplier,
+                net_base_asset_amount,
+                ..AMM::default()
+            },
+            ..PerpMarket::default()
+        };
+
+        let (numerator, denominator) = _calculate_budgeted_k_scale(
+            base_asset_reserve,
+            quote_asset_reserve,
+            budget,
+            peg_multiplier,
+            net_base_asset_amount,
+            k_pct_upper_bound,
+            k_pct_lower_bound,
+        )
+        .unwrap();
+        assert_eq!(numerator, 1094419);
+        assert_eq!(denominator, 1000000);
+
+        assert_eq!(100000000 * numerator / denominator, 109441900);
+
+        let k_scale_numerator: u128 = 373175;
+        let k_scale_denominator: u128 = 340980;
+
+        let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
+            .checked_mul(bn::U192::from(k_scale_numerator))
+            .ok_or_else(math_error!())
+            .unwrap()
+            .checked_div(bn::U192::from(k_scale_denominator))
+            .ok_or_else(math_error!())
+            .unwrap();
+
+        let update_k_result = get_update_k_result(&market, new_sqrt_k, true).unwrap();
+
+        let adjustment_cost = adjust_k_cost(&mut market, &update_k_result).unwrap();
+        assert!(adjustment_cost <= budget);
+        assert_eq!(adjustment_cost, 32195097);
+    }
+
+    #[test]
     fn calculate_k_tests() {
         let mut market = PerpMarket {
             amm: AMM {
@@ -2674,8 +2732,8 @@ mod test {
         .unwrap();
 
         assert!(numer1 > denom1);
-        assert_eq!(numer1, 8796289171560000);
-        assert_eq!(denom1, 8790133110760000);
+        assert_eq!(numer1, 1000700);
+        assert_eq!(denom1, 1000000);
 
         let mut pct_change_in_k = (numer1 * 10000) / denom1;
         assert_eq!(pct_change_in_k, 10007); // k was increased .07%
@@ -2764,8 +2822,8 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(numer1, 8796289171560000);
-        assert_eq!(denom1, 8790133110760000);
+        assert_eq!(numer1, 1000700);
+        assert_eq!(denom1, 1000000);
         assert!(numer1 > denom1);
 
         let pct_change_in_k = (numer1 * 10000) / denom1;
