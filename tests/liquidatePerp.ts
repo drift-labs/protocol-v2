@@ -264,10 +264,13 @@ describe('liquidate perp and lp', () => {
 
 		await clearingHouse.fetchAccounts();
 		assert(clearingHouse.getUserAccount().bankrupt);
+		console.log(
+			clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount
+		);
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-5785007))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-5785008))
 		);
 
 		// try to add liq when bankrupt -- should fail

@@ -5,6 +5,7 @@ import {
 	SPOT_MARKET_BALANCE_PRECISION_EXP,
 	LAMPORTS_EXP,
 	LAMPORTS_PRECISION,
+	SIX,
 } from './numericConstants';
 
 export type SpotMarketConfig = {
@@ -29,8 +30,8 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		oracle: PublicKey.default,
 		oracleSource: OracleSource.QUOTE_ASSET,
 		mint: new PublicKey('8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2'),
-		precision: SPOT_MARKET_BALANCE_PRECISION,
-		precisionExp: SPOT_MARKET_BALANCE_PRECISION_EXP,
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
 	},
 	{
 		symbol: 'SOL',
@@ -48,8 +49,8 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		oracle: new PublicKey('HovQMDrbAgAYPCmHVSrezcSmkMtXSSUsLDFANExrZh2J'),
 		oracleSource: OracleSource.PYTH,
 		mint: new PublicKey('3BZPwbcqB5kKScF3TEXxwNfx5ipV13kbRVDvfVp5c6fv'),
-		precision: SPOT_MARKET_BALANCE_PRECISION,
-		precisionExp: SPOT_MARKET_BALANCE_PRECISION_EXP,
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
 		serumMarket: new PublicKey('AGsmbVu3MS9u68GEYABWosQQCZwmLcBHu4pWEuBYH7Za'),
 	},
 ];

@@ -214,7 +214,7 @@ describe('market order', () => {
 			clearingHouseUser.getUserAccount().orders[orderIndex.toString()];
 
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		const expectedFeeToMarket = new BN(1000);
+		const expectedFeeToMarket = new BN(1001);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 
 		assert(order.baseAssetAmount.eq(new BN(0)));

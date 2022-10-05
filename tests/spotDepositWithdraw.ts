@@ -232,6 +232,8 @@ describe('spot deposit and withdraw', () => {
 			);
 
 		const marketIndex = 0;
+		await sleep(100);
+		await firstUserClearingHouse.fetchAccounts();
 		const txSig = await firstUserClearingHouse.deposit(
 			usdcAmount,
 			marketIndex,

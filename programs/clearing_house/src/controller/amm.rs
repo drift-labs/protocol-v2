@@ -7,7 +7,7 @@ use crate::math::amm::{
 };
 use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128, Cast};
 use crate::math::constants::{
-    CONCENTRATION_PRECISION, K_BPS_INCREASE_MAX, K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT,
+    CONCENTRATION_PRECISION, K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE,
     PRICE_TO_PEG_PRECISION_RATIO,
 };
 use crate::math::repeg::get_total_fee_lower_bound;
@@ -206,6 +206,20 @@ fn calculate_base_swap_output_without_spread(
     ))
 }
 
+pub fn update_spread_reserves(amm: &mut AMM) -> ClearingHouseResult {
+    let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+        calculate_spread_reserves(amm, PositionDirection::Long)?;
+    let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+        calculate_spread_reserves(amm, PositionDirection::Short)?;
+
+    amm.ask_base_asset_reserve = new_ask_base_asset_reserve.min(amm.base_asset_reserve);
+    amm.bid_base_asset_reserve = new_bid_base_asset_reserve.max(amm.base_asset_reserve);
+    amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve.max(amm.quote_asset_reserve);
+    amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve.min(amm.quote_asset_reserve);
+
+    Ok(())
+}
+
 pub fn update_spreads(amm: &mut AMM, reserve_price: u128) -> ClearingHouseResult<(u128, u128)> {
     let (long_spread, short_spread) = if amm.curve_update_intensity > 0 {
         amm::calculate_spread(
@@ -231,15 +245,7 @@ pub fn update_spreads(amm: &mut AMM, reserve_price: u128) -> ClearingHouseResult
     amm.long_spread = long_spread;
     amm.short_spread = short_spread;
 
-    let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-        calculate_spread_reserves(amm, PositionDirection::Long)?;
-    let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-        calculate_spread_reserves(amm, PositionDirection::Short)?;
-
-    amm.ask_base_asset_reserve = new_ask_base_asset_reserve.min(amm.base_asset_reserve);
-    amm.bid_base_asset_reserve = new_bid_base_asset_reserve.max(amm.base_asset_reserve);
-    amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve.max(amm.quote_asset_reserve);
-    amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve.min(amm.quote_asset_reserve);
+    update_spread_reserves(amm)?;
 
     Ok((long_spread, short_spread))
 }
@@ -330,7 +336,7 @@ pub fn formulaic_update_k(
     if budget > 0 || (budget < 0 && market.amm.can_lower_k()?) {
         // single k scale is capped by .1% increase and 2.2% decrease (regardless of budget)
         let k_update_max = K_BPS_UPDATE_SCALE
-            + K_BPS_INCREASE_MAX * (market.amm.curve_update_intensity as i128) / 100;
+            + MAX_K_BPS_INCREASE * (market.amm.curve_update_intensity as i128) / 100;
         let (k_scale_numerator, k_scale_denominator) =
             amm::calculate_budgeted_k_scale(market, cast_to_i128(budget)?, k_update_max)?;
 
