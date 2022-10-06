@@ -48,9 +48,11 @@ describe('admin', () => {
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
+		await clearingHouse.fetchAccounts();
 
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 		await clearingHouse.updatePerpAuctionDuration(new BN(0));
+		await clearingHouse.fetchAccounts();
 
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -211,13 +213,14 @@ describe('admin', () => {
 		await clearingHouse.updateExchangeStatus(ExchangeStatus.LIQPAUSED);
 		await clearingHouse.fetchAccounts();
 		const state = clearingHouse.getStateAccount();
-		assert(isVariant(state.exchangeStatus, 'fundingpaused'));
+		assert(isVariant(state.exchangeStatus, 'liqPaused'));
 
 		console.log('paused liq!');
 		// unpause
 		await clearingHouse.updateExchangeStatus(ExchangeStatus.ACTIVE);
 		await clearingHouse.fetchAccounts();
-		assert(isVariant(state.exchangeStatus, 'active'));
+		const state2 = clearingHouse.getStateAccount();
+		assert(isVariant(state2.exchangeStatus, 'active'));
 		console.log('unpaused liq!');
 	});
 
@@ -225,13 +228,14 @@ describe('admin', () => {
 		await clearingHouse.updateExchangeStatus(ExchangeStatus.AMMPAUSED);
 		await clearingHouse.fetchAccounts();
 		const state = clearingHouse.getStateAccount();
-		assert(isVariant(state.exchangeStatus, 'fundingpaused'));
+		assert(isVariant(state.exchangeStatus, 'ammPaused'));
 
 		console.log('paused amm!');
 		// unpause
 		await clearingHouse.updateExchangeStatus(ExchangeStatus.ACTIVE);
 		await clearingHouse.fetchAccounts();
-		assert(isVariant(state.exchangeStatus, 'active'));
+		const state2 = clearingHouse.getStateAccount();
+		assert(isVariant(state2.exchangeStatus, 'active'));
 		console.log('unpaused amm!');
 	});
 
@@ -239,13 +243,14 @@ describe('admin', () => {
 		await clearingHouse.updateExchangeStatus(ExchangeStatus.FUNDINGPAUSED);
 		await clearingHouse.fetchAccounts();
 		const state = clearingHouse.getStateAccount();
-		assert(isVariant(state.exchangeStatus, 'fundingpaused'));
+		assert(isVariant(state.exchangeStatus, 'fundingPaused'));
 
 		console.log('paused funding!');
 		// unpause
 		await clearingHouse.updateExchangeStatus(ExchangeStatus.ACTIVE);
 		await clearingHouse.fetchAccounts();
-		assert(isVariant(state.exchangeStatus, 'active'));
+		const state2 = clearingHouse.getStateAccount();
+		assert(isVariant(state2.exchangeStatus, 'active'));
 		console.log('unpaused funding!');
 	});
 
