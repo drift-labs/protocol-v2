@@ -535,6 +535,7 @@ export type SpotMarketAccount = {
 	utilizationTwap: BN;
 
 	orderStepSize: BN;
+	orderTickSize: BN;
 	nextFillRecordId: BN;
 	spotFeePool: PoolBalance;
 	totalSpotFee: BN;
@@ -577,7 +578,8 @@ export type AMM = {
 	userLpShares: BN;
 	netUnsettledLpBaseAssetAmount: BN;
 	minimumQuoteAssetTradeSize: BN;
-	baseAssetAmountStepSize: BN;
+	orderStepSize: BN;
+	orderTickSize: BN;
 	maxBaseAssetAmountRatio: number;
 	maxSlippageRatio: number;
 	baseSpread: number;

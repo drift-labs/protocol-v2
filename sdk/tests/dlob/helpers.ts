@@ -72,7 +72,7 @@ export const mockAMM: AMM = {
 	userLpShares: new BN(0),
 	netUnsettledLpBaseAssetAmount: new BN(0),
 	minimumQuoteAssetTradeSize: new BN(0),
-	baseAssetAmountStepSize: new BN(0),
+	orderStepSize: new BN(0),
 	maxBaseAssetAmountRatio: 0,
 	baseSpread: 0,
 	curveUpdateIntensity: 0,

@@ -3629,16 +3629,15 @@ pub mod clearing_house {
     #[access_control(
         market_valid(&ctx.accounts.market)
     )]
-    pub fn update_market_base_asset_amount_step_size(
+    pub fn update_perp_step_size_and_tick_size(
         ctx: Context<AdminUpdateMarket>,
-        minimum_trade_size: u64,
+        step_size: u64,
+        tick_size: u64,
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
-        if minimum_trade_size > 0 {
-            market.amm.order_step_size = minimum_trade_size;
-        } else {
-            return Err(ErrorCode::DefaultError.into());
-        }
+        validate!(step_size > 0 && tick_size > 0, ErrorCode::DefaultError)?;
+        market.amm.order_step_size = step_size;
+        market.amm.order_tick_size = tick_size;
         Ok(())
     }
 

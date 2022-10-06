@@ -2625,7 +2625,7 @@
       ]
     },
     {
-      "name": "updateMarketBaseAssetAmountStepSize",
+      "name": "updatePerpStepSizeAndTickSize",
       "accounts": [
         {
           "name": "admin",
@@ -2645,7 +2645,11 @@
       ],
       "args": [
         {
-          "name": "minimumTradeSize",
+          "name": "stepSize",
+          "type": "u64"
+        },
+        {
+          "name": "tickSize",
           "type": "u64"
         }
       ]
@@ -4517,7 +4521,7 @@
             "type": "i64"
           },
           {
-            "name": "baseAssetAmountStepSize",
+            "name": "orderStepSize",
             "type": "u64"
           },
           {

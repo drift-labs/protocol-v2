@@ -740,12 +740,14 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
-	public async updateMarketBaseAssetAmountStepSize(
+	public async updatePerpStepSizeAndTickSize(
 		marketIndex: number,
-		stepSize: BN
+		stepSize: BN,
+		tickSize: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateMarketBaseAssetAmountStepSize(
+		return await this.program.rpc.updatePerpStepSizeAndTickSize(
 			stepSize,
+			tickSize,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
