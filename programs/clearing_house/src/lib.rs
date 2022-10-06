@@ -14,7 +14,7 @@ use error::ErrorCode;
 use math::{amm, bn, constants::*, margin::*, oracle};
 use state::oracle::{get_oracle_price, HistoricalIndexData, HistoricalOracleData, OracleSource};
 
-use crate::math::amm::get_update_k_result;
+use crate::math::cp_curve::get_update_k_result;
 use crate::state::events::{LPAction, LPRecord};
 use crate::state::market::{ContractTier, ContractType, MarketStatus, PerpMarket};
 use crate::state::spot_market::AssetTier;
@@ -2975,9 +2975,9 @@ pub mod clearing_house {
 
         let update_k_result = get_update_k_result(market, new_sqrt_k_u192, true)?;
 
-        let adjustment_cost = math::amm::adjust_k_cost(market, &update_k_result)?;
+        let adjustment_cost = math::cp_curve::adjust_k_cost(market, &update_k_result)?;
 
-        math::amm::update_k(market, &update_k_result);
+        math::cp_curve::update_k(market, &update_k_result);
 
         if k_increasing {
             validate!(

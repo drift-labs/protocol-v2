@@ -13,6 +13,7 @@ use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
 };
+use crate::math::stats;
 use crate::math_error;
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
@@ -519,7 +520,7 @@ impl AMM {
 
         amm::update_amm_long_short_intensity(self, now, quote_asset_amount, position_direction)?;
 
-        self.volume_24h = amm::calculate_rolling_sum(
+        self.volume_24h = stats::calculate_rolling_sum(
             self.volume_24h,
             quote_asset_amount,
             since_last,

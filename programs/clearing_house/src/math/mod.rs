@@ -8,6 +8,7 @@ pub mod casting;
 pub mod ceil_div;
 pub mod collateral;
 pub mod constants;
+pub mod cp_curve;
 pub mod fees;
 pub mod fulfillment;
 pub mod funding;
