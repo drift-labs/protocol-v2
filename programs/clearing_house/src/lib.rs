@@ -37,7 +37,7 @@ mod validation;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("By7XjakxXVnQ9gMZ4VT98DenTgBCeP295A58ybzgwVPZ");
+declare_id!("DUZwKJKAk2C9S88BYvQzck1M1i5hySQjxB4zW6tJ29Nw");
 
 #[program]
 pub mod clearing_house {
@@ -269,6 +269,8 @@ pub mod clearing_house {
             withdraw_guard_threshold: 0,
             order_step_size,
             order_tick_size: DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE,
+            order_minimum_size: 0,
+            max_position_size: 0,
             next_fill_record_id: 1,
             spot_fee_pool: PoolBalance::default(), // in quote asset
             total_spot_fee: 0,
@@ -570,6 +572,8 @@ pub mod clearing_house {
                 last_oracle_reserve_price_spread_pct: 0, // todo
                 order_step_size: DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE,
                 order_tick_size: DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE,
+                order_minimum_size: 0,
+                max_position_size: 0,
                 max_slippage_ratio: 50,           // ~2%
                 max_base_asset_amount_ratio: 100, // moves price ~2%
                 base_spread: 0,
@@ -2927,7 +2931,7 @@ pub mod clearing_house {
             &mut oracle_map,
             now,
             &state.oracle_guard_rails,
-            !matches!(state.exchange_status, ExchangeStatus::FundingPaused),
+            matches!(state.exchange_status, ExchangeStatus::FundingPaused),
             None,
         )?;
 

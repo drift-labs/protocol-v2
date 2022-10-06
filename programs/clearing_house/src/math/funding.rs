@@ -97,6 +97,7 @@ pub fn calculate_funding_rate_long_short(
 
         // makes sure the clearing house doesn't pay more than the share of fees allocated to `distributions`
         if new_total_fee_minus_distributions < total_fee_minus_distributions_lower_bound {
+            msg!("new_total_fee_minus_distributions={} < total_fee_minus_distributions_lower_bound={}", new_total_fee_minus_distributions, total_fee_minus_distributions_lower_bound);
             return Err(ErrorCode::InvalidFundingProfitability);
         }
     }

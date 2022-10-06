@@ -311,7 +311,7 @@ describe('liquidate perp and lp', () => {
 		assert(marketAfterBankruptcy.revenueWithdrawSinceLastSettle.eq(ZERO));
 		assert(marketAfterBankruptcy.quoteSettledInsurance.eq(ZERO));
 		assert(marketAfterBankruptcy.quoteMaxInsurance.eq(QUOTE_PRECISION));
-		assert(marketAfterBankruptcy.amm.cumulativeSocialLoss.eq(new BN(-5785007)));
+		assert(marketAfterBankruptcy.amm.cumulativeSocialLoss.eq(new BN(-5785008)));
 
 		assert(!clearingHouse.getUserAccount().bankrupt);
 		assert(!clearingHouse.getUserAccount().beingLiquidated);
@@ -324,7 +324,7 @@ describe('liquidate perp and lp', () => {
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(isVariant(perpBankruptcyRecord.liquidationType, 'perpBankruptcy'));
 		assert(perpBankruptcyRecord.perpBankruptcy.marketIndex === 0);
-		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-5785007)));
+		assert(perpBankruptcyRecord.perpBankruptcy.pnl.eq(new BN(-5785008)));
 		console.log(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.toString()
 		);

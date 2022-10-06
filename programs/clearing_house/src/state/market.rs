@@ -331,6 +331,8 @@ pub struct AMM {
     pub funding_period: i64,
     pub order_step_size: u64,
     pub order_tick_size: u64,
+    pub order_minimum_size: u64,
+    pub max_position_size: u64,
     pub volume_24h: u64,
     pub long_intensity_volume: u64,
     pub short_intensity_volume: u64,

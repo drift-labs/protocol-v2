@@ -879,8 +879,8 @@ mod test {
         formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
 
         // new numbers bc of increased sqrt_k precision
-        assert_eq!(market.amm.sqrt_k, 489505222926); // increase k by 1.00003314258x
-        assert_eq!(market.amm.total_fee_minus_distributions, 1000316487); // ~$.005 spent from slippage decrease
+        assert_eq!(market.amm.sqrt_k, 489505153137); // increase k by 1.00003314258x
+        assert_eq!(market.amm.total_fee_minus_distributions, 1000316489); // ~$.005 spent from slippage decrease
                                                                           // todo: (316988-316491)/1e6 * 2 = 0.000994 < .001
     }
 

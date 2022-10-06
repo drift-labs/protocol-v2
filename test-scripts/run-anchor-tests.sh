@@ -22,8 +22,7 @@ test_files=(
    liquidatePerp.ts
    order.ts 
    spotDepositWithdraw.ts 
-   prepegMarketOrderBaseAssetAmount.ts updateAMM.ts 
-   repegAndSpread.ts
+   prepegMarketOrderBaseAssetAmount.ts updateAMM.ts  repegAndSpread.ts
    clearingHouse.ts
    ordersWithSpread.ts
    marketOrder.ts 
@@ -31,10 +30,13 @@ test_files=(
    stopLimits.ts userOrderId.ts postOnly.ts
    roundInFavorBaseAsset.ts
    marketOrderBaseAssetAmount.ts oracleOffsetOrders.ts
-   userDelegate.ts subaccounts.ts pyth.ts userAccount.ts admin.ts
+   userDelegate.ts subaccounts.ts pyth.ts userAccount.ts 
+   admin.ts
    assetTier.ts
-   pauseExchange.ts adminWithdraw.ts whitelist.ts
-   updateK.ts curve.ts cappedSymFunding.ts
+   pauseExchange.ts 
+   adminWithdraw.ts whitelist.ts
+   updateK.ts curve.ts 
+   cappedSymFunding.ts
    maxDeposit.ts
 )
 

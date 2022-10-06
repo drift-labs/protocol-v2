@@ -62,6 +62,8 @@ pub struct SpotMarket {
     pub expiry_ts: i64, // iff market in reduce only mode
     pub order_step_size: u64,
     pub order_tick_size: u64,
+    pub order_minimum_size: u64,
+    pub max_position_size: u64,
     pub next_fill_record_id: u64,
     pub optimal_utilization: u32,
     pub optimal_borrow_rate: u32,

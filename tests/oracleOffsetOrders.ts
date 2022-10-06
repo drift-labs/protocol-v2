@@ -267,7 +267,8 @@ describe('oracle offset', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
-		const expectedEntryPrice = new BN(950001);
+		const expectedEntryPrice = new BN(950000);
+		console.log(entryPrice.toString(), 'vs', expectedEntryPrice.toString());
 		assert(entryPrice.eq(expectedEntryPrice));
 
 		await clearingHouse.unsubscribe();
