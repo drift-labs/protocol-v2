@@ -499,7 +499,7 @@ export class BigNum {
 
 	public toMillified(precision = 3, rounded = false): string {
 		if (rounded) {
-			return this.toRounded(precision).toFixed(precision);
+			return this.toRounded(precision).toMillified(precision);
 		}
 
 		const stringVal = this.print();
