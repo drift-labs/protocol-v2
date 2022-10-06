@@ -1,8 +1,8 @@
 use solana_program::msg;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast, cast_to_i128, cast_to_u64};
-use crate::math::constants::{ONE_YEAR, SPOT_INTEREST_PRECISION, SPOT_UTILIZATION_PRECISION};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u64, Cast};
+use crate::math::constants::{ONE_YEAR, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION};
 use crate::math_error;
 use crate::state::oracle::OraclePriceData;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -16,7 +16,7 @@ pub fn get_spot_balance(
     round_up: bool,
 ) -> ClearingHouseResult<u128> {
     let precision_increase = 10_u128.pow(
-        16_u8
+        19_u8
             .checked_sub(spot_market.decimals)
             .ok_or_else(math_error!())?
             .into(),
@@ -46,7 +46,7 @@ pub fn get_token_amount(
     balance_type: &SpotBalanceType,
 ) -> ClearingHouseResult<u128> {
     let precision_decrease = 10_u128.pow(
-        16_u8
+        19_u8
             .checked_sub(spot_market.decimals)
             .ok_or_else(math_error!())?
             .into(),
@@ -82,7 +82,7 @@ pub fn get_interest_token_amount(
     interest: u128,
 ) -> ClearingHouseResult<u128> {
     let precision_decrease = 10_u128.pow(
-        16_u8
+        19_u8
             .checked_sub(spot_market.decimals)
             .ok_or_else(math_error!())?
             .into(),
@@ -147,26 +147,28 @@ pub fn calculate_accumulated_interest(
         });
     }
 
-    let borrow_rate = if utilization > spot_market.optimal_utilization {
+    let borrow_rate = if utilization > spot_market.optimal_utilization.cast()? {
         let surplus_utilization = utilization
-            .checked_sub(spot_market.optimal_utilization)
+            .checked_sub(spot_market.optimal_utilization.cast()?)
             .ok_or_else(math_error!())?;
 
         let borrow_rate_slope = spot_market
             .max_borrow_rate
-            .checked_sub(spot_market.optimal_borrow_rate)
+            .cast::<u128>()?
+            .checked_sub(spot_market.optimal_borrow_rate.cast()?)
             .ok_or_else(math_error!())?
             .checked_mul(SPOT_UTILIZATION_PRECISION)
             .ok_or_else(math_error!())?
             .checked_div(
                 SPOT_UTILIZATION_PRECISION
-                    .checked_sub(spot_market.optimal_utilization)
+                    .checked_sub(spot_market.optimal_utilization.cast()?)
                     .ok_or_else(math_error!())?,
             )
             .ok_or_else(math_error!())?;
 
         spot_market
             .optimal_borrow_rate
+            .cast::<u128>()?
             .checked_add(
                 surplus_utilization
                     .checked_mul(borrow_rate_slope)
@@ -178,9 +180,10 @@ pub fn calculate_accumulated_interest(
     } else {
         let borrow_rate_slope = spot_market
             .optimal_borrow_rate
+            .cast::<u128>()?
             .checked_mul(SPOT_UTILIZATION_PRECISION)
             .ok_or_else(math_error!())?
-            .checked_div(spot_market.optimal_utilization)
+            .checked_div(spot_market.optimal_utilization.cast()?)
             .ok_or_else(math_error!())?;
 
         utilization
@@ -213,7 +216,7 @@ pub fn calculate_accumulated_interest(
         .ok_or_else(math_error!())?
         .checked_div(ONE_YEAR)
         .ok_or_else(math_error!())?
-        .checked_div(SPOT_INTEREST_PRECISION)
+        .checked_div(SPOT_RATE_PRECISION)
         .ok_or_else(math_error!())?
         .checked_add(1)
         .ok_or_else(math_error!())?;
@@ -224,7 +227,7 @@ pub fn calculate_accumulated_interest(
         .ok_or_else(math_error!())?
         .checked_div(ONE_YEAR)
         .ok_or_else(math_error!())?
-        .checked_div(SPOT_INTEREST_PRECISION)
+        .checked_div(SPOT_RATE_PRECISION)
         .ok_or_else(math_error!())?;
 
     Ok(InterestAccumulated {
@@ -238,13 +241,9 @@ pub fn get_balance_value_and_token_amount(
     spot_market: &SpotMarket,
     oracle_price_data: &OraclePriceData,
 ) -> ClearingHouseResult<(u128, u128)> {
-    let token_amount = get_token_amount(
-        spot_position.balance,
-        spot_market,
-        &spot_position.balance_type,
-    )?;
+    let token_amount = spot_position.get_token_amount(spot_market)?;
 
-    let precision_decrease = 10_u128.pow(10_u32 + (spot_market.decimals - 6) as u32);
+    let precision_decrease = 10_u128.pow(spot_market.decimals as u32);
 
     let value = token_amount
         .checked_mul(cast(oracle_price_data.price)?)
@@ -264,7 +263,7 @@ pub fn get_token_value(
         return Ok(0);
     }
 
-    let precision_decrease = 10_i128.pow(10_u32 + (spot_decimals - 6) as u32);
+    let precision_decrease = 10_i128.pow(spot_decimals as u32);
 
     token_amount
         .checked_mul(oracle_price_data.price)
@@ -350,9 +349,6 @@ pub fn validate_spot_balances(spot_market: &SpotMarket) -> ClearingHouseResult<u
         spot_market,
         &SpotBalanceType::Borrow,
     )?)?;
-
-    msg!("depositors_amount={}", depositors_amount);
-    msg!("borrowers_amount={}", borrowers_amount);
 
     validate!(
         depositors_amount >= borrowers_amount,

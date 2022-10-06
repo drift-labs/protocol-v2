@@ -3,7 +3,7 @@ import { Wallet } from '..';
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
-	calculateMarkPrice,
+	calculateReservePrice,
 	ClearingHouse,
 	ClearingHouseUser,
 	initialize,
@@ -12,7 +12,7 @@ import {
 	calculateTradeSlippage,
 	BulkAccountLoader,
 	PerpMarkets,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	QUOTE_PRECISION,
 } from '..';
 import { SpotMarkets } from '../constants/spotMarkets';
@@ -120,15 +120,12 @@ const main = async () => {
 		(market) => market.baseAssetSymbol === 'SOL'
 	);
 
-	const currentMarketPrice = calculateMarkPrice(
+	const currentMarketPrice = calculateReservePrice(
 		clearingHouse.getPerpMarketAccount(solMarketInfo.marketIndex),
 		undefined
 	);
 
-	const formattedPrice = convertToNumber(
-		currentMarketPrice,
-		MARK_PRICE_PRECISION
-	);
+	const formattedPrice = convertToNumber(currentMarketPrice, PRICE_PRECISION);
 
 	console.log(`Current Market Price is $${formattedPrice}`);
 
@@ -146,7 +143,7 @@ const main = async () => {
 			'quote',
 			undefined
 		)[0],
-		MARK_PRICE_PRECISION
+		PRICE_PRECISION
 	);
 
 	console.log(

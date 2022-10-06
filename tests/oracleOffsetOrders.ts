@@ -9,12 +9,17 @@ import { assert } from 'chai';
 import {
 	Admin,
 	BN,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	ClearingHouse,
 	PositionDirection,
 	ClearingHouseUser,
 	Wallet,
 	getLimitOrderParams,
+	MarketStatus,
+	AMM_RESERVE_PRECISION,
+	calculateEntryPrice,
+	OracleSource,
+	ZERO,
 } from '../sdk/src';
 
 import {
@@ -24,12 +29,6 @@ import {
 	setFeedPrice,
 	initializeQuoteSpotMarket,
 } from './testHelpers';
-import {
-	AMM_RESERVE_PRECISION,
-	calculateEntryPrice,
-	OracleSource,
-	ZERO,
-} from '../sdk';
 
 describe('oracle offset', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -47,17 +46,17 @@ describe('oracle offset', () => {
 	let userUSDCAccount;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
-	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+	const mantissaSqrtScale = new BN(100000);
+	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 9).mul(
 		mantissaSqrtScale
 	);
-	const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+	const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 9).mul(
 		mantissaSqrtScale
 	);
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
-	const marketIndex = new BN(0);
+	const marketIndex = 0;
 	let solUsd;
 
 	let marketIndexes;
@@ -69,8 +68,8 @@ describe('oracle offset', () => {
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
 		solUsd = await mockOracle(1);
-		marketIndexes = [new BN(0)];
-		spotMarketIndexes = [new BN(0)];
+		marketIndexes = [0];
+		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		fillerClearingHouse = new Admin({
@@ -98,6 +97,7 @@ describe('oracle offset', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
+		await fillerClearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
 		await fillerClearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -113,7 +113,7 @@ describe('oracle offset', () => {
 
 	beforeEach(async () => {
 		await fillerClearingHouse.moveAmmPrice(
-			ZERO,
+			0,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve
 		);
@@ -162,7 +162,7 @@ describe('oracle offset', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const price = ZERO;
 		const reduceOnly = false;
-		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20)).neg();
+		const priceOffset = PRICE_PRECISION.div(new BN(20)).neg();
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
@@ -193,7 +193,7 @@ describe('oracle offset', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
-		assert(entryPrice.eq(new BN(9090930000)));
+		assert(entryPrice.eq(new BN(909093)));
 
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();
@@ -235,7 +235,7 @@ describe('oracle offset', () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
-		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20)).neg();
+		const priceOffset = PRICE_PRECISION.div(new BN(20)).neg();
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
@@ -267,7 +267,8 @@ describe('oracle offset', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
-		const expectedEntryPrice = new BN(9500010000);
+		const expectedEntryPrice = new BN(950000);
+		console.log(entryPrice.toString(), 'vs', expectedEntryPrice.toString());
 		assert(entryPrice.eq(expectedEntryPrice));
 
 		await clearingHouse.unsubscribe();
@@ -310,7 +311,7 @@ describe('oracle offset', () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
-		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20));
+		const priceOffset = PRICE_PRECISION.div(new BN(20));
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
@@ -340,7 +341,7 @@ describe('oracle offset', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
-		assert(entryPrice.eq(new BN(10999970000)));
+		assert(entryPrice.eq(new BN(1099997)));
 
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();
@@ -382,7 +383,7 @@ describe('oracle offset', () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
-		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20));
+		const priceOffset = PRICE_PRECISION.div(new BN(20));
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
@@ -413,7 +414,8 @@ describe('oracle offset', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
-		const expectedEntryPrice = MARK_PRICE_PRECISION.add(priceOffset);
+		const expectedEntryPrice = PRICE_PRECISION.add(priceOffset);
+		console.log(entryPrice.toString());
 		assert(entryPrice.eq(expectedEntryPrice));
 
 		await clearingHouse.unsubscribe();
@@ -456,7 +458,7 @@ describe('oracle offset', () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
-		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20));
+		const priceOffset = PRICE_PRECISION.div(new BN(20));
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
@@ -512,7 +514,7 @@ describe('oracle offset', () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
-		const priceOffset = MARK_PRICE_PRECISION.div(new BN(20));
+		const priceOffset = PRICE_PRECISION.div(new BN(20));
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,

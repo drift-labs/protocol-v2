@@ -36,7 +36,12 @@ import {
 	getTokenAmount,
 } from '../sdk/src/math/spotBalance';
 import { NATIVE_MINT } from '@solana/spl-token';
-import { QUOTE_PRECISION, ZERO, ONE } from '../sdk';
+import {
+	QUOTE_PRECISION,
+	ZERO,
+	ONE,
+	SPOT_MARKET_BALANCE_PRECISION,
+} from '../sdk';
 
 describe('spot deposit and withdraw', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -60,20 +65,22 @@ describe('spot deposit and withdraw', () => {
 	let secondUserClearingHouseUSDCAccount: PublicKey;
 
 	const usdcAmount = new BN(10 * 10 ** 6);
+	const largeUsdcAmount = new BN(10_000 * 10 ** 6);
+
 	const solAmount = new BN(1 * 10 ** 9);
 
-	let marketIndexes: BN[];
-	let spotMarketIndexes: BN[];
+	let marketIndexes: number[];
+	let spotMarketIndexes: number[];
 	let oracleInfos: OracleInfo[];
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
-		await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		await mockUserUSDCAccount(usdcMint, largeUsdcAmount, provider);
 
 		solOracle = await mockOracle(30);
 
 		marketIndexes = [];
-		spotMarketIndexes = [new BN(0), new BN(1)];
+		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
 
 		admin = new Admin({
@@ -101,9 +108,11 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('Initialize USDC Market', async () => {
-		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(new BN(2)); // 50% utilization
-		const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)); // 2000% APR
-		const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(50)); // 5000% APR
+		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
+			new BN(2)
+		).toNumber(); // 50% utilization
+		const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)).toNumber(); // 2000% APR
+		const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(50)).toNumber(); // 5000% APR
 		const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION;
 		const maintenanceAssetWeight = SPOT_MARKET_WEIGHT_PRECISION;
 		const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION;
@@ -121,16 +130,16 @@ describe('spot deposit and withdraw', () => {
 			maintenanceLiabilityWeight
 		);
 		const txSig = await admin.updateWithdrawGuardThreshold(
-			new BN(0),
+			0,
 			new BN(10 ** 10).mul(QUOTE_PRECISION)
 		);
 		await printTxLogs(connection, txSig);
 		await admin.fetchAccounts();
 		const spotMarket = await admin.getSpotMarketAccount(0);
-		assert(spotMarket.marketIndex.eq(new BN(0)));
-		assert(spotMarket.optimalUtilization.eq(optimalUtilization));
-		assert(spotMarket.optimalBorrowRate.eq(optimalRate));
-		assert(spotMarket.maxBorrowRate.eq(maxRate));
+		assert(spotMarket.marketIndex === 0);
+		assert(spotMarket.optimalUtilization === optimalUtilization);
+		assert(spotMarket.optimalBorrowRate === optimalRate);
+		assert(spotMarket.maxBorrowRate === maxRate);
 		assert(
 			spotMarket.cumulativeBorrowInterest.eq(
 				SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION
@@ -146,13 +155,15 @@ describe('spot deposit and withdraw', () => {
 		assert(spotMarket.initialLiabilityWeight.eq(initialLiabilityWeight));
 		assert(spotMarket.maintenanceAssetWeight.eq(maintenanceAssetWeight));
 
-		assert(admin.getStateAccount().numberOfSpotMarkets.eq(new BN(1)));
+		assert(admin.getStateAccount().numberOfSpotMarkets === 1);
 	});
 
 	it('Initialize SOL Market', async () => {
-		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(new BN(2)); // 50% utilization
-		const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)); // 2000% APR
-		const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(50)); // 5000% APR
+		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
+			new BN(2)
+		).toNumber(); // 50% utilization
+		const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)).toNumber(); // 2000% APR
+		const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(50)).toNumber(); // 5000% APR
 		const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(new BN(8)).div(
 			new BN(10)
 		);
@@ -180,16 +191,16 @@ describe('spot deposit and withdraw', () => {
 		);
 
 		const txSig = await admin.updateWithdrawGuardThreshold(
-			new BN(1),
+			1,
 			new BN(10 ** 10).mul(QUOTE_PRECISION)
 		);
 		await printTxLogs(connection, txSig);
 		await admin.fetchAccounts();
 		const spotMarket = await admin.getSpotMarketAccount(1);
-		assert(spotMarket.marketIndex.eq(new BN(1)));
-		assert(spotMarket.optimalUtilization.eq(optimalUtilization));
-		assert(spotMarket.optimalBorrowRate.eq(optimalRate));
-		assert(spotMarket.maxBorrowRate.eq(maxRate));
+		assert(spotMarket.marketIndex === 1);
+		assert(spotMarket.optimalUtilization === optimalUtilization);
+		assert(spotMarket.optimalBorrowRate === optimalRate);
+		assert(spotMarket.maxBorrowRate === maxRate);
 		assert(
 			spotMarket.cumulativeBorrowInterest.eq(
 				SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION
@@ -205,7 +216,7 @@ describe('spot deposit and withdraw', () => {
 		assert(spotMarket.initialLiabilityWeight.eq(initialLiabilityWeight));
 		assert(spotMarket.maintenanceAssetWeight.eq(maintenanceAssetWeight));
 
-		assert(admin.getStateAccount().numberOfSpotMarkets.eq(new BN(2)));
+		assert(admin.getStateAccount().numberOfSpotMarkets === 2);
 	});
 
 	it('First User Deposit USDC', async () => {
@@ -220,7 +231,9 @@ describe('spot deposit and withdraw', () => {
 				oracleInfos
 			);
 
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
+		await sleep(100);
+		await firstUserClearingHouse.fetchAccounts();
 		const txSig = await firstUserClearingHouse.deposit(
 			usdcAmount,
 			marketIndex,
@@ -229,7 +242,11 @@ describe('spot deposit and withdraw', () => {
 		await printTxLogs(connection, txSig);
 
 		const spotMarket = await admin.getSpotMarketAccount(marketIndex);
-		assert(spotMarket.depositBalance.eq(usdcAmount));
+		assert(
+			spotMarket.depositBalance.eq(
+				new BN(10 * SPOT_MARKET_BALANCE_PRECISION.toNumber())
+			)
+		);
 
 		const vaultAmount = new BN(
 			(
@@ -265,7 +282,7 @@ describe('spot deposit and withdraw', () => {
 			oracleInfos
 		);
 
-		const marketIndex = new BN(1);
+		const marketIndex = 1;
 		const txSig = await secondUserClearingHouse.deposit(
 			solAmount,
 			marketIndex,
@@ -274,7 +291,7 @@ describe('spot deposit and withdraw', () => {
 		await printTxLogs(connection, txSig);
 
 		const spotMarket = await admin.getSpotMarketAccount(marketIndex);
-		assert(spotMarket.depositBalance.eq(SPOT_MARKET_RATE_PRECISION));
+		assert(spotMarket.depositBalance.eq(SPOT_MARKET_BALANCE_PRECISION));
 
 		const vaultAmount = new BN(
 			(
@@ -295,7 +312,7 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('Second User Withdraw First half USDC', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const withdrawAmount = usdcAmount.div(new BN(2));
 		const txSig = await secondUserClearingHouse.withdraw(
 			withdrawAmount,
@@ -305,7 +322,7 @@ describe('spot deposit and withdraw', () => {
 		await printTxLogs(connection, txSig);
 
 		const spotMarket = await admin.getSpotMarketAccount(marketIndex);
-		const expectedBorrowBalance = new BN(5000001);
+		const expectedBorrowBalance = new BN(5000000001);
 		assert(spotMarket.borrowBalance.eq(expectedBorrowBalance));
 
 		const vaultAmount = new BN(
@@ -339,7 +356,7 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('Update Cumulative Interest with 50% utilization', async () => {
-		const usdcmarketIndex = new BN(0);
+		const usdcmarketIndex = 0;
 		const oldSpotMarketAccount =
 			firstUserClearingHouse.getSpotMarketAccount(usdcmarketIndex);
 
@@ -381,7 +398,7 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('Second User Withdraw second half USDC', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		let spotMarketAccount =
 			secondUserClearingHouse.getSpotMarketAccount(marketIndex);
 		const spotMarketDepositTokenAmountBefore = getTokenAmount(
@@ -486,7 +503,7 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('Update Cumulative Interest with 100% utilization', async () => {
-		const usdcmarketIndex = new BN(0);
+		const usdcmarketIndex = 0;
 		const oldSpotMarketAccount =
 			firstUserClearingHouse.getSpotMarketAccount(usdcmarketIndex);
 
@@ -528,7 +545,7 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('Flip second user borrow to deposit', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const mintAmount = new BN(2 * 10 ** 6); // $2
 		const userUSDCAmountBefore = await getTokenAmountAsBN(
 			connection,
@@ -584,7 +601,7 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('Flip second user deposit to borrow', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 
 		const spotMarketAccountBefore =
 			secondUserClearingHouse.getSpotMarketAccount(marketIndex);
@@ -637,7 +654,7 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('Second user reduce only pay down borrow', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const userUSDCAmountBefore = await getTokenAmountAsBN(
 			connection,
 			secondUserClearingHouseUSDCAccount
@@ -683,7 +700,7 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('Second user reduce only withdraw deposit', async () => {
-		const marketIndex = new BN(1);
+		const marketIndex = 1;
 		const userWSOLAmountBefore = await getTokenAmountAsBN(
 			connection,
 			secondUserClearingHouseWSOLAccount
@@ -722,5 +739,69 @@ describe('spot deposit and withdraw', () => {
 		const userBalanceAfter =
 			secondUserClearingHouse.getSpotPosition(marketIndex);
 		assert(userBalanceAfter.balance.eq(ZERO));
+	});
+
+	it('Third user deposits when cumulative interest off init value', async () => {
+		// rounding on bank balance <-> token conversions can lead to tiny epislon of loss on deposits
+
+		const [
+			thirdUserClearingHouse,
+			_thirdUserClearingHouseWSOLAccount,
+			thirdUserClearingHouseUSDCAccount,
+		] = await createUserWithUSDCAndWSOLAccount(
+			provider,
+			usdcMint,
+			chProgram,
+			solAmount,
+			largeUsdcAmount,
+			marketIndexes,
+			spotMarketIndexes,
+			oracleInfos
+		);
+
+		const marketIndex = 0;
+
+		const spotPosition = thirdUserClearingHouse.getSpotPosition(marketIndex);
+		console.log(spotPosition);
+		assert(spotPosition.balance.eq(ZERO));
+
+		const spotMarket = thirdUserClearingHouse.getSpotMarketAccount(marketIndex);
+
+		console.log(spotMarket.cumulativeDepositInterest.toString());
+		console.log(spotMarket.cumulativeBorrowInterest.toString());
+
+		assert(
+			spotMarket.cumulativeDepositInterest.gt(
+				SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION
+			)
+		);
+		assert(
+			spotMarket.cumulativeBorrowInterest.gt(
+				SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION
+			)
+		);
+
+		console.log('usdcAmount:', largeUsdcAmount.toString(), 'user deposits');
+		const txSig = await thirdUserClearingHouse.deposit(
+			largeUsdcAmount,
+			marketIndex,
+			thirdUserClearingHouseUSDCAccount
+		);
+		await printTxLogs(connection, txSig);
+
+		const spotPositionAfter =
+			thirdUserClearingHouse.getSpotPosition(marketIndex);
+		const tokenAmount = getTokenAmount(
+			spotPositionAfter.balance,
+			spotMarket,
+			spotPositionAfter.balanceType
+		);
+		console.log('tokenAmount:', tokenAmount.toString());
+		assert(
+			tokenAmount.gte(largeUsdcAmount.sub(QUOTE_PRECISION.div(new BN(100))))
+		); // didnt lose more than a penny
+		assert(tokenAmount.lt(largeUsdcAmount)); // lose a lil bit
+
+		await thirdUserClearingHouse.unsubscribe();
 	});
 });

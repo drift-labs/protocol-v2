@@ -1,10 +1,15 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
-import { BN } from '../sdk';
 import { assert } from 'chai';
 
-import { Admin, OracleGuardRails } from '../sdk/src';
-import { OracleSource } from '../sdk';
+import {
+	Admin,
+	ExchangeStatus,
+	OracleGuardRails,
+	OracleSource,
+	isVariant,
+	BN,
+} from '../sdk/src';
 
 import {
 	mockOracle,
@@ -37,15 +42,17 @@ describe('admin', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: [new BN(0)],
-			spotMarketIndexes: [new BN(0)],
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0],
 		});
 
 		await clearingHouse.initialize(usdcMint.publicKey, true);
 		await clearingHouse.subscribe();
+		await clearingHouse.fetchAccounts();
 
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 		await clearingHouse.updatePerpAuctionDuration(new BN(0));
+		await clearingHouse.fetchAccounts();
 
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -62,11 +69,11 @@ describe('admin', () => {
 		await clearingHouse.fetchAccounts();
 		assert(clearingHouse.getPerpMarketAccount(0).amm.ammJitIntensity == 0);
 
-		await clearingHouse.updateAmmJitIntensity(new BN(0), 100);
+		await clearingHouse.updateAmmJitIntensity(0, 100);
 		await clearingHouse.fetchAccounts();
 		assert(clearingHouse.getPerpMarketAccount(0).amm.ammJitIntensity == 100);
 
-		await clearingHouse.updateAmmJitIntensity(new BN(0), 50);
+		await clearingHouse.updateAmmJitIntensity(0, 50);
 		await clearingHouse.fetchAccounts();
 		assert(clearingHouse.getPerpMarketAccount(0).amm.ammJitIntensity == 50);
 	});
@@ -76,7 +83,7 @@ describe('admin', () => {
 		const marginRatioMaintenance = 1000;
 
 		await clearingHouse.updateMarginRatio(
-			new BN(0),
+			0,
 			marginRatioInitial,
 			marginRatioMaintenance
 		);
@@ -123,7 +130,8 @@ describe('admin', () => {
 				markOracleDivergenceDenominator: new BN(1),
 			},
 			validity: {
-				slotsBeforeStale: new BN(1),
+				slotsBeforeStaleForAmm: new BN(1),
+				slotsBeforeStaleForMargin: new BN(1),
 				confidenceIntervalMaxSize: new BN(1),
 				tooVolatileRatio: new BN(1),
 			},
@@ -167,11 +175,7 @@ describe('admin', () => {
 		const newOracle = PublicKey.default;
 		const newOracleSource = OracleSource.SWITCHBOARD;
 
-		await clearingHouse.updateMarketOracle(
-			new BN(0),
-			newOracle,
-			newOracleSource
-		);
+		await clearingHouse.updateMarketOracle(0, newOracle, newOracleSource);
 
 		await clearingHouse.fetchAccounts();
 		const market = clearingHouse.getPerpMarketAccount(0);
@@ -186,7 +190,7 @@ describe('admin', () => {
 		const minimumTradeSize = new BN(1);
 
 		await clearingHouse.updateMarketMinimumQuoteAssetTradeSize(
-			new BN(0),
+			0,
 			minimumTradeSize
 		);
 
@@ -198,30 +202,56 @@ describe('admin', () => {
 	it('Update market base asset step size', async () => {
 		const stepSize = new BN(2);
 
-		await clearingHouse.updateMarketBaseAssetAmountStepSize(
-			new BN(0),
-			stepSize
-		);
+		await clearingHouse.updateMarketBaseAssetAmountStepSize(0, stepSize);
 
 		await clearingHouse.fetchAccounts();
 		const market = clearingHouse.getPerpMarketAccount(0);
 		assert(market.amm.baseAssetAmountStepSize.eq(stepSize));
 	});
 
-	it('Pause funding', async () => {
-		await clearingHouse.updateFundingPaused(true);
+	it('Pause liq', async () => {
+		await clearingHouse.updateExchangeStatus(ExchangeStatus.LIQPAUSED);
 		await clearingHouse.fetchAccounts();
 		const state = clearingHouse.getStateAccount();
-		assert(state.fundingPaused);
+		assert(isVariant(state.exchangeStatus, 'liqPaused'));
+
+		console.log('paused liq!');
+		// unpause
+		await clearingHouse.updateExchangeStatus(ExchangeStatus.ACTIVE);
+		await clearingHouse.fetchAccounts();
+		const state2 = clearingHouse.getStateAccount();
+		assert(isVariant(state2.exchangeStatus, 'active'));
+		console.log('unpaused liq!');
 	});
 
-	it('Disable admin controls prices', async () => {
-		let state = clearingHouse.getStateAccount();
-		assert(state.adminControlsPrices);
-		await clearingHouse.disableAdminControlsPrices();
+	it('Pause amm', async () => {
+		await clearingHouse.updateExchangeStatus(ExchangeStatus.AMMPAUSED);
 		await clearingHouse.fetchAccounts();
-		state = clearingHouse.getStateAccount();
-		assert(!state.adminControlsPrices);
+		const state = clearingHouse.getStateAccount();
+		assert(isVariant(state.exchangeStatus, 'ammPaused'));
+
+		console.log('paused amm!');
+		// unpause
+		await clearingHouse.updateExchangeStatus(ExchangeStatus.ACTIVE);
+		await clearingHouse.fetchAccounts();
+		const state2 = clearingHouse.getStateAccount();
+		assert(isVariant(state2.exchangeStatus, 'active'));
+		console.log('unpaused amm!');
+	});
+
+	it('Pause funding', async () => {
+		await clearingHouse.updateExchangeStatus(ExchangeStatus.FUNDINGPAUSED);
+		await clearingHouse.fetchAccounts();
+		const state = clearingHouse.getStateAccount();
+		assert(isVariant(state.exchangeStatus, 'fundingPaused'));
+
+		console.log('paused funding!');
+		// unpause
+		await clearingHouse.updateExchangeStatus(ExchangeStatus.ACTIVE);
+		await clearingHouse.fetchAccounts();
+		const state2 = clearingHouse.getStateAccount();
+		assert(isVariant(state2.exchangeStatus, 'active'));
+		console.log('unpaused funding!');
 	});
 
 	it('Update admin', async () => {

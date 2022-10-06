@@ -2,7 +2,6 @@ import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
 
 import { Program } from '@project-serum/anchor';
-import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 import { PublicKey } from '@solana/web3.js';
 
@@ -15,7 +14,7 @@ import {
 	Admin,
 	ClearingHouse,
 	convertToNumber,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	PositionDirection,
 	EventSubscriber,
 	QUOTE_PRECISION,
@@ -35,11 +34,7 @@ import {
 	sleep,
 } from './testHelpers';
 import { isVariant } from '../sdk';
-import {
-	Keypair,
-	sendAndConfirmTransaction,
-	Transaction,
-} from '@solana/web3.js';
+import { Keypair } from '@solana/web3.js';
 
 async function depositToFeePoolFromIF(
 	amount: number,
@@ -47,33 +42,35 @@ async function depositToFeePoolFromIF(
 	userUSDCAccount: Keypair
 ) {
 	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
-	const state = await clearingHouse.getStateAccount();
-	const tokenIx = Token.createTransferInstruction(
-		TOKEN_PROGRAM_ID,
-		userUSDCAccount.publicKey,
-		state.insuranceVault,
-		clearingHouse.provider.wallet.publicKey,
-		// usdcMint.publicKey,
-		[],
-		ifAmount.toNumber()
-	);
+	// const state = await clearingHouse.getStateAccount();
+	// const tokenIx = Token.createTransferInstruction(
+	// 	TOKEN_PROGRAM_ID,
+	// 	userUSDCAccount.publicKey,
+	// 	state.insuranceVault,
+	// 	clearingHouse.provider.wallet.publicKey,
+	// 	// usdcMint.publicKey,
+	// 	[],
+	// 	ifAmount.toNumber()
+	// );
+	//
+	// await sendAndConfirmTransaction(
+	// 	clearingHouse.provider.connection,
+	// 	new Transaction().add(tokenIx),
+	// 	// @ts-ignore
+	// 	[clearingHouse.provider.wallet.payer],
+	// 	{
+	// 		skipPreflight: false,
+	// 		commitment: 'recent',
+	// 		preflightCommitment: 'recent',
+	// 	}
+	// );
 
-	await sendAndConfirmTransaction(
-		clearingHouse.provider.connection,
-		new Transaction().add(tokenIx),
-		// @ts-ignore
-		[clearingHouse.provider.wallet.payer],
-		{
-			skipPreflight: false,
-			commitment: 'recent',
-			preflightCommitment: 'recent',
-		}
-	);
-
+	console.log(userUSDCAccount.publicKey.toString());
 	// // send $50 to market from IF
-	const txSig00 = await clearingHouse.withdrawFromInsuranceVaultToMarket(
-		new BN(0),
-		ifAmount
+	const txSig00 = await clearingHouse.depositIntoMarketFeePool(
+		0,
+		ifAmount,
+		userUSDCAccount.publicKey
 	);
 	console.log(txSig00);
 }
@@ -103,7 +100,7 @@ describe('delist market', () => {
 	let solOracle: PublicKey;
 
 	// ammInvariant == k == x * y
-	const mantissaSqrtScale = new BN(Math.sqrt(MARK_PRICE_PRECISION.toNumber()));
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
@@ -132,8 +129,8 @@ describe('delist market', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: [new BN(0)],
-			spotMarketIndexes: [new BN(0), new BN(1)],
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0, 1],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
@@ -156,11 +153,12 @@ describe('delist market', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(43_133)
+			new BN(43_133_000)
 		);
 
 		// await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
 		// await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
+		await clearingHouse.updateMarketBaseAssetAmountStepSize(0, new BN(1));
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -182,8 +180,8 @@ describe('delist market', () => {
 				commitment: 'confirmed',
 			},
 			activeUserId: 0,
-			perpMarketIndexes: [new BN(0)],
-			spotMarketIndexes: [new BN(0), new BN(1)],
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0, 1],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
@@ -196,19 +194,6 @@ describe('delist market', () => {
 			usdcAmount,
 			userUSDCAccount2.publicKey
 		);
-
-		// [, whaleAccountPublicKey] =
-		// await whaleClearingHouse.initializeUserAccountAndDepositCollateral(
-		//     usdcAmountWhale,
-		//     whaleUSDCAccount.publicKey
-		// );
-
-		// whaleUser = new ClearingHouseUser({
-		//     clearingHouse: whaleClearingHouse,
-		//     userAccountPublicKey: await whaleClearingHouse.getUserAccountPublicKey(),
-		// });
-
-		// await whaleUser.subscribe();
 	});
 
 	after(async () => {
@@ -221,40 +206,40 @@ describe('delist market', () => {
 	it('put market in big drawdown and net user positive pnl', async () => {
 		await depositToFeePoolFromIF(1000, clearingHouse, userUSDCAccount);
 
-		try {
-			await clearingHouse.openPosition(
-				PositionDirection.SHORT,
-				BASE_PRECISION,
-				new BN(0),
-				new BN(0)
-			);
-		} catch (e) {
-			console.log('clearingHouse.openPosition');
+		// try {
+		await clearingHouse.openPosition(
+			PositionDirection.SHORT,
+			BASE_PRECISION,
+			0,
+			new BN(0)
+		);
+		// } catch (e) {
+		// 	console.log('clearingHouse.openPosition');
 
-			console.error(e);
-		}
+		// 	console.error(e);
+		// }
 
 		// todo
-		try {
-			await clearingHouseLoser.openPosition(
-				PositionDirection.LONG,
-				new BN(20000000),
-				new BN(0),
-				new BN(0)
-			);
-		} catch (e) {
-			console.log('clearingHouseLoserc.openPosition');
+		// try {
+		await clearingHouseLoser.openPosition(
+			PositionDirection.LONG,
+			new BN(2000),
+			0
+		);
+		// } catch (e) {
+		// 	console.log('clearingHouseLoserc.openPosition');
 
-			console.error(e);
-		}
+		// 	console.error(e);
+		// 	return 0;
+		// }
 
-		const market00 = clearingHouse.getPerpMarketAccount(new BN(0));
-		assert(market00.amm.feePool.balance.eq(new BN(1000000000)));
+		const market00 = clearingHouse.getPerpMarketAccount(0);
+		assert(market00.amm.feePool.balance.eq(new BN(1000000000000)));
 
 		// sol tanks 90%
 		await clearingHouse.moveAmmToPrice(
-			new BN(0),
-			new BN(43.1337 * MARK_PRICE_PRECISION.toNumber()).div(new BN(10))
+			0,
+			new BN(43.1337 * PRICE_PRECISION.toNumber()).div(new BN(10))
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 43.1337 / 10, solOracle);
 
@@ -266,8 +251,8 @@ describe('delist market', () => {
 				chProgram,
 				solAmount,
 				usdcAmount,
-				[new BN(0)],
-				[new BN(0), new BN(1)],
+				[0],
+				[0, 1],
 				[
 					{
 						publicKey: solOracle,
@@ -277,14 +262,14 @@ describe('delist market', () => {
 			);
 		await liquidatorClearingHouse.subscribe();
 
-		const bankIndex = new BN(1);
+		const bankIndex = 1;
 		await liquidatorClearingHouse.deposit(
 			solAmount,
 			bankIndex,
 			liquidatorClearingHouseWSOLAccount
 		);
 
-		const market0 = clearingHouse.getPerpMarketAccount(new BN(0));
+		const market0 = clearingHouse.getPerpMarketAccount(0);
 		const winnerUser = clearingHouse.getUserAccount();
 		const loserUser = clearingHouseLoser.getUserAccount();
 		console.log(winnerUser.perpPositions[0].quoteAssetAmount.toString());
@@ -305,15 +290,10 @@ describe('delist market', () => {
 	});
 
 	it('put market in reduce only mode', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		const slot = await connection.getSlot();
 		const now = await connection.getBlockTime(slot);
 		const expiryTs = new BN(now + 3);
-
-		// await clearingHouse.moveAmmToPrice(
-		// 	new BN(0),
-		// 	new BN(43.1337 * MARK_PRICE_PRECISION.toNumber())
-		// );
 
 		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 		assert(market0.expiryTs.eq(ZERO));
@@ -347,9 +327,11 @@ describe('delist market', () => {
 		// 	await clearingHouseLoser.openPosition(
 		// 		PositionDirection.LONG,
 		// 		new BN(10000000),
-		// 		new BN(0),
+		// 		0,
 		// 		new BN(0)
 		// 	);
+		// 	console.log('risk increase trade succeed when it should have failed!');
+
 		// 	assert(false);
 		// } catch (e) {
 		// 	console.log(e);
@@ -360,17 +342,21 @@ describe('delist market', () => {
 		// 	console.log('risk increase trade failed');
 		// }
 
-		// should succeed
+		// await clearingHouseLoser.fetchAccounts();
+
+		// const loserUser0 = clearingHouseLoser.getUserAccount();
+		// console.log(loserUser0.perpPositions[0]);
+		// // should succeed
 		// await clearingHouseLoser.openPosition(
 		// 	PositionDirection.SHORT,
 		// 	new BN(10000000),
-		// 	new BN(0),
+		// 	0,
 		// 	new BN(0)
 		// );
 	});
 
 	it('put market in settlement mode', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
 		let slot = await connection.getSlot();
 		let now = await connection.getBlockTime(slot);
 
@@ -400,8 +386,8 @@ describe('delist market', () => {
 			convertToNumber(market.settlementPrice)
 		);
 		console.log(
-			'market.amm.lastOraclePriceTwap:',
-			convertToNumber(market.amm.lastOraclePriceTwap)
+			'market.amm.historicalOracleData.lastOraclePriceTwap:',
+			convertToNumber(market.amm.historicalOracleData.lastOraclePriceTwap)
 		);
 
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solOracle))
@@ -416,16 +402,23 @@ describe('delist market', () => {
 		assert(market.settlementPrice.gt(ZERO));
 
 		assert(market.amm.netBaseAssetAmount.lt(ZERO));
-		assert(market.amm.lastOraclePriceTwap.lt(market.settlementPrice));
-		assert(market.settlementPrice.eq(new BN(287558000001)));
+		assert(
+			market.amm.historicalOracleData.lastOraclePriceTwap.lt(
+				market.settlementPrice
+			)
+		);
+		assert(market.settlementPrice.eq(new BN(28755801)));
 	});
 
 	it('settle expired market position', async () => {
-		const marketIndex = new BN(0);
+		const marketIndex = 0;
+		await clearingHouseLoser.fetchAccounts();
+
 		const loserUser0 = clearingHouseLoser.getUserAccount();
+		console.log(loserUser0.perpPositions[0]);
+
 		assert(loserUser0.perpPositions[0].baseAssetAmount.gt(new BN(0)));
 		assert(loserUser0.perpPositions[0].quoteAssetAmount.lt(new BN(0)));
-		console.log(loserUser0.perpPositions[0]);
 
 		const txSig = await clearingHouseLoser.settleExpiredPosition(
 			await clearingHouseLoser.getUserAccountPublicKey(),
@@ -460,7 +453,7 @@ describe('delist market', () => {
 		const finalPnlResultMin0 = new BN(999978435 - 1090);
 		console.log(marketAfter0.pnlPool.balance.toString());
 		assert(marketAfter0.pnlPool.balance.gt(finalPnlResultMin0));
-		assert(marketAfter0.pnlPool.balance.lt(new BN(999978435 + 1000)));
+		assert(marketAfter0.pnlPool.balance.lt(new BN(999978435000 + 1000000)));
 
 		const txSig2 = await clearingHouse.settleExpiredPosition(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -482,16 +475,17 @@ describe('delist market', () => {
 
 		const marketAfter = clearingHouse.getPerpMarketAccount(marketIndex);
 
-		const finalPnlResultMin = new BN(985673294 - 1090);
+		const finalPnlResultMin = new BN(985673154000 - 109000);
 		console.log('pnlPool:', marketAfter.pnlPool.balance.toString());
 		assert(marketAfter.pnlPool.balance.gt(finalPnlResultMin));
-		assert(marketAfter.pnlPool.balance.lt(new BN(986673294)));
+		assert(marketAfter.pnlPool.balance.lt(new BN(986673294000)));
 
 		console.log('feePool:', marketAfter.amm.feePool.balance.toString());
 		console.log(
 			'totalExchangeFee:',
 			marketAfter.amm.totalExchangeFee.toString()
 		);
-		assert(marketAfter.amm.feePool.balance.eq(new BN(21566)));
+		assert(marketAfter.amm.feePool.balance.eq(new BN(21567000)));
+		assert(marketAfter.amm.totalExchangeFee.eq(new BN(43134)));
 	});
 });

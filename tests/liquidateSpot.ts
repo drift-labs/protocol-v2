@@ -13,7 +13,7 @@ import {
 	OracleSource,
 	ZERO,
 	EventSubscriber,
-	MARK_PRICE_PRECISION,
+	PRICE_PRECISION,
 	getTokenAmount,
 	SpotBalanceType,
 	isVariant,
@@ -29,9 +29,8 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { ONE } from '../sdk';
 
-describe('liquidate borrow', () => {
+describe('liquidate spot', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
@@ -76,7 +75,7 @@ describe('liquidate borrow', () => {
 			},
 			activeUserId: 0,
 			perpMarketIndexes: [],
-			spotMarketIndexes: [new BN(0), new BN(1)],
+			spotMarketIndexes: [0, 1],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
@@ -105,7 +104,7 @@ describe('liquidate borrow', () => {
 				solAmount,
 				usdcAmount,
 				[],
-				[new BN(0), new BN(1)],
+				[0, 1],
 				[
 					{
 						publicKey: solOracle,
@@ -114,14 +113,14 @@ describe('liquidate borrow', () => {
 				]
 			);
 
-		const marketIndex = new BN(1);
+		const marketIndex = 1;
 		await liquidatorClearingHouse.deposit(
 			solAmount,
 			marketIndex,
 			liquidatorClearingHouseWSOLAccount
 		);
 		const solBorrow = new BN(5 * 10 ** 8);
-		await clearingHouse.withdraw(solBorrow, new BN(1), userWSOLAccount);
+		await clearingHouse.withdraw(solBorrow, 1, userWSOLAccount);
 	});
 
 	after(async () => {
@@ -135,11 +134,11 @@ describe('liquidate borrow', () => {
 		const spotMarketBefore = clearingHouse.getSpotMarketAccount(0);
 		const spotMarket1Before = clearingHouse.getSpotMarketAccount(1);
 
-		const txSig = await liquidatorClearingHouse.liquidateBorrow(
+		const txSig = await liquidatorClearingHouse.liquidateSpot(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
-			new BN(0),
-			new BN(1),
+			0,
+			1,
 			new BN(6 * 10 ** 8)
 		);
 
@@ -181,47 +180,39 @@ describe('liquidate borrow', () => {
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(liquidationRecord.liquidationId === 1);
-		assert(isVariant(liquidationRecord.liquidationType, 'liquidateBorrow'));
-		assert(
-			liquidationRecord.liquidateBorrow.assetPrice.eq(MARK_PRICE_PRECISION)
-		);
-		assert(liquidationRecord.liquidateBorrow.assetMarketIndex.eq(ZERO));
+		assert(isVariant(liquidationRecord.liquidationType, 'liquidateSpot'));
+		assert(liquidationRecord.liquidateSpot.assetPrice.eq(PRICE_PRECISION));
+		assert(liquidationRecord.liquidateSpot.assetMarketIndex === 0);
 		console.log(
 			'asset transfer',
-			liquidationRecord.liquidateBorrow.assetTransfer.toString()
+			liquidationRecord.liquidateSpot.assetTransfer.toString()
 		);
 
 		// todo, why?
-		console.log(liquidationRecord.liquidateBorrow.assetTransfer.toString());
+		console.log(liquidationRecord.liquidateSpot.assetTransfer.toString());
 		assert(
-			liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(58828575)) ||
-				liquidationRecord.liquidateBorrow.assetTransfer.eq(new BN(58827950))
+			liquidationRecord.liquidateSpot.assetTransfer.eq(new BN(58826626)) ||
+				liquidationRecord.liquidateSpot.assetTransfer.eq(new BN(58826001))
 		);
 		assert(
-			liquidationRecord.liquidateBorrow.liabilityPrice.eq(
-				new BN(190).mul(MARK_PRICE_PRECISION)
+			liquidationRecord.liquidateSpot.liabilityPrice.eq(
+				new BN(190).mul(PRICE_PRECISION)
 			)
 		);
-		assert(
-			liquidationRecord.liquidateBorrow.liabilityMarketIndex.eq(new BN(1))
-		);
+		assert(liquidationRecord.liquidateSpot.liabilityMarketIndex === 1);
 		console.log(
 			'liability transfer',
-			liquidationRecord.liquidateBorrow.liabilityTransfer.toString()
+			liquidationRecord.liquidateSpot.liabilityTransfer.toString()
 		);
 		assert(
-			liquidationRecord.liquidateBorrow.liabilityTransfer.eq(
-				new BN(309620791)
-			) ||
-				liquidationRecord.liquidateBorrow.liabilityTransfer.eq(
-					new BN(309624080)
-				)
+			liquidationRecord.liquidateSpot.liabilityTransfer.eq(new BN(309613825)) ||
+				liquidationRecord.liquidateSpot.liabilityTransfer.eq(new BN(309610535))
 		);
 
 		// if fee costs 1/100th of liability transfer
 		assert(
-			liquidationRecord.liquidateBorrow.ifFee.eq(
-				liquidationRecord.liquidateBorrow.liabilityTransfer.div(new BN(100))
+			liquidationRecord.liquidateSpot.ifFee.eq(
+				liquidationRecord.liquidateSpot.liabilityTransfer.div(new BN(100))
 			)
 		);
 		await clearingHouse.fetchAccounts();
@@ -301,6 +292,6 @@ describe('liquidate borrow', () => {
 			'->',
 			netBalanceAfter.toString()
 		);
-		assert(netBalanceBefore.sub(netBalanceAfter).lte(ONE));
+		assert(netBalanceBefore.sub(netBalanceAfter).lte(new BN(1000)));
 	});
 });

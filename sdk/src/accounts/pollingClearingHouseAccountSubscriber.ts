@@ -6,7 +6,7 @@ import {
 	NotSubscribedError,
 	OraclesToPoll,
 } from './types';
-import { BN, Program } from '@project-serum/anchor';
+import { Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
@@ -32,8 +32,8 @@ export class PollingClearingHouseAccountSubscriber
 {
 	isSubscribed: boolean;
 	program: Program;
-	perpMarketIndexes: BN[];
-	spotMarketIndexes: BN[];
+	perpMarketIndexes: number[];
+	spotMarketIndexes: number[];
 	oracleInfos: OracleInfo[];
 	oracleClientCache = new OracleClientCache();
 
@@ -57,8 +57,8 @@ export class PollingClearingHouseAccountSubscriber
 	public constructor(
 		program: Program,
 		accountLoader: BulkAccountLoader,
-		perpMarketIndexes: BN[],
-		spotMarketIndexes: BN[],
+		perpMarketIndexes: number[],
+		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[]
 	) {
 		this.isSubscribed = false;
@@ -132,7 +132,7 @@ export class PollingClearingHouseAccountSubscriber
 		return true;
 	}
 
-	async addMarketAccountToPoll(marketIndex: BN): Promise<boolean> {
+	async addMarketAccountToPoll(marketIndex: number): Promise<boolean> {
 		const marketPublicKey = await getMarketPublicKey(
 			this.program.programId,
 			marketIndex
@@ -142,7 +142,7 @@ export class PollingClearingHouseAccountSubscriber
 			key: 'perpMarket',
 			publicKey: marketPublicKey,
 			eventType: 'perpMarketAccountUpdate',
-			mapKey: marketIndex.toNumber(),
+			mapKey: marketIndex,
 		});
 
 		return true;
@@ -156,7 +156,7 @@ export class PollingClearingHouseAccountSubscriber
 		return true;
 	}
 
-	async addSpotMarketAccountToPoll(marketIndex: BN): Promise<boolean> {
+	async addSpotMarketAccountToPoll(marketIndex: number): Promise<boolean> {
 		const marketPublicKey = await getSpotMarketPublicKey(
 			this.program.programId,
 			marketIndex
@@ -166,7 +166,7 @@ export class PollingClearingHouseAccountSubscriber
 			key: 'spotMarket',
 			publicKey: marketPublicKey,
 			eventType: 'spotMarketAccountUpdate',
-			mapKey: marketIndex.toNumber(),
+			mapKey: marketIndex,
 		});
 		return true;
 	}
@@ -353,14 +353,14 @@ export class PollingClearingHouseAccountSubscriber
 		this.isSubscribed = false;
 	}
 
-	async addSpotMarket(marketIndex: BN): Promise<boolean> {
+	async addSpotMarket(marketIndex: number): Promise<boolean> {
 		await this.addSpotMarketAccountToPoll(marketIndex);
 		const accountToPoll = this.accountsToPoll.get(marketIndex.toString());
 		this.addAccountToAccountLoader(accountToPoll);
 		return true;
 	}
 
-	async addPerpMarket(marketIndex: BN): Promise<boolean> {
+	async addPerpMarket(marketIndex: number): Promise<boolean> {
 		await this.addMarketAccountToPoll(marketIndex);
 		const accountToPoll = this.accountsToPoll.get(marketIndex.toString());
 		this.addAccountToAccountLoader(accountToPoll);
@@ -394,9 +394,9 @@ export class PollingClearingHouseAccountSubscriber
 	}
 
 	public getMarketAccountAndSlot(
-		marketIndex: BN
+		marketIndex: number
 	): DataAndSlot<PerpMarketAccount> | undefined {
-		return this.perpMarket.get(marketIndex.toNumber());
+		return this.perpMarket.get(marketIndex);
 	}
 
 	public getMarketAccountsAndSlots(): DataAndSlot<PerpMarketAccount>[] {
@@ -404,9 +404,9 @@ export class PollingClearingHouseAccountSubscriber
 	}
 
 	public getSpotMarketAccountAndSlot(
-		marketIndex: BN
+		marketIndex: number
 	): DataAndSlot<SpotMarketAccount> | undefined {
-		return this.spotMarket.get(marketIndex.toNumber());
+		return this.spotMarket.get(marketIndex);
 	}
 
 	public getSpotMarketAccountsAndSlots(): DataAndSlot<SpotMarketAccount>[] {

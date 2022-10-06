@@ -51,8 +51,8 @@ pub enum ErrorCode {
     ClockUnavailable,
     #[msg("Unable To Load Oracles")]
     UnableToLoadOracle,
-    #[msg("Oracle/Mark Spread Too Large")]
-    OracleMarkSpreadLimit,
+    #[msg("Price Bands Breached")]
+    PriceBandsBreached,
     #[msg("Exchange is paused")]
     ExchangePaused,
     #[msg("Invalid whitelist token")]
@@ -82,7 +82,7 @@ pub enum ErrorCode {
     #[msg("Liquidations Blocked By Oracle")]
     LiquidationsBlockedByOracle,
     #[msg("Can not deposit more than max deposit")]
-    UserMaxDeposit,
+    MaxDeposit,
     #[msg("Can not delete user that still has collateral")]
     CantDeleteUserWithCollateral,
     #[msg("AMM funding out of bounds pnl")]
@@ -251,6 +251,10 @@ pub enum ErrorCode {
     InvalidSerumProgram,
     #[msg("InvalidSerumMarket")]
     InvalidSerumMarket,
+    #[msg("InvalidSerumBids")]
+    InvalidSerumBids,
+    #[msg("InvalidSerumAsks")]
+    InvalidSerumAsks,
     #[msg("InvalidSerumOpenOrders")]
     InvalidSerumOpenOrders,
     #[msg("FailedSerumCPI")]
@@ -261,6 +265,14 @@ pub enum ErrorCode {
     InvalidSerumFulfillmentConfig,
     #[msg("InvalidFeeStructure")]
     InvalidFeeStructure,
+    #[msg("Insufficient IF shares")]
+    InsufficientIFShares,
+    #[msg("the Market has paused this action")]
+    MarketActionPaused,
+    #[msg("Action violates the asset tier rules")]
+    AssetTierViolation,
+    #[msg("User Cant Be Deleted")]
+    UserCantBeDeleted,
 }
 
 #[macro_export]

@@ -79,6 +79,7 @@ pub fn get_proportion_u128(
             .checked_sub(cast_to_u128(r.signum())?)
             .ok_or_else(math_error!())?
     } else {
+        msg!("{} * {}/{}", value, numerator, denominator);
         value
             .checked_mul(numerator)
             .ok_or_else(math_error!())?
@@ -132,4 +133,24 @@ pub fn on_the_hour_update(
         .max(0);
 
     Ok(time_remaining_until_update)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn proportion_tests() {
+        let result = get_proportion_i128(999999999369, 1000000036297, 1000000042597).unwrap();
+        assert_eq!(result, 999999993069);
+        let result = get_proportion_u128(999999999369, 1000000036297, 1000000042597).unwrap();
+        assert_eq!(result, 999999993069);
+        let result = get_proportion_u128(1000000036297, 999999999369, 1000000042597).unwrap();
+        assert_eq!(result, 999999993069);
+
+        let result = get_proportion_u128(999999999369, 1000000042597, 1000000036297).unwrap();
+        assert_eq!(result, 1000000005668);
+        let result = get_proportion_u128(1000000042597, 999999999369, 1000000036297).unwrap();
+        assert_eq!(result, 1000000005668);
+    }
 }

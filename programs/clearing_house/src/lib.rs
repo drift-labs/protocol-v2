@@ -1,6 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(unaligned_references)]
 #![allow(clippy::bool_assert_comparison)]
+#![allow(clippy::comparison_chain)]
 
 use std::convert::identity;
 
@@ -10,12 +11,13 @@ use serum_dex::state::ToAlignedBytes;
 
 use context::*;
 use error::ErrorCode;
-use math::{amm, bn, constants::*, margin::*};
-use state::oracle::{get_oracle_price, OracleSource};
+use math::{amm, bn, constants::*, margin::*, oracle};
+use state::oracle::{get_oracle_price, HistoricalIndexData, HistoricalOracleData, OracleSource};
 
 use crate::math::amm::get_update_k_result;
 use crate::state::events::{LPAction, LPRecord};
-use crate::state::market::{ContractType, MarketStatus, PerpMarket};
+use crate::state::market::{ContractTier, ContractType, MarketStatus, PerpMarket};
+use crate::state::spot_market::AssetTier;
 use crate::state::user::PerpPosition;
 use crate::state::{market::AMM, state::*, user::*};
 
@@ -35,79 +37,77 @@ mod validation;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("6MVFno8SFkVffGuCCQzg2wi8FvF8sPRFDNHa13ZPP9cK");
+declare_id!("DUZwKJKAk2C9S88BYvQzck1M1i5hySQjxB4zW6tJ29Nw");
 
 #[program]
 pub mod clearing_house {
-    use std::cmp::min;
-    use std::mem::size_of;
     use std::option::Option::Some;
 
-    use bytemuck::cast_slice;
-
     use crate::controller::lp::burn_lp_shares;
-    use crate::controller::position::{add_new_position, get_position_index};
+    use crate::controller::position::get_position_index;
     use crate::controller::validate::validate_market_account;
     use crate::math;
-    use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
-    use crate::math::insurance::if_shares_to_vault_amount;
+    use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32, Cast};
+    use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
     use crate::math::spot_balance::get_token_amount;
     use crate::optional_accounts::{
         get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
+        get_whitelist_token,
     };
     use crate::state::events::{CurveRecord, DepositRecord};
     use crate::state::events::{DepositDirection, NewUserRecord};
-    use crate::state::insurance_fund_stake::InsuranceFundStake;
     use crate::state::market::{PerpMarket, PoolBalance};
-    use crate::state::oracle::OraclePriceData;
+    use crate::state::oracle::{get_pyth_price, get_switchboard_price, OraclePriceData};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::{
         get_market_set, get_market_set_for_user_positions, get_market_set_from_list, MarketSet,
         PerpMarketMap,
     };
-    use crate::state::serum::{load_market_state, load_open_orders};
     use crate::state::spot_market::{
-        SerumV3FulfillmentConfig, SpotBalanceType, SpotFulfillmentStatus, SpotMarket,
+        AssetTier, SerumV3FulfillmentConfig, SpotBalanceType, SpotFulfillmentStatus, SpotMarket,
     };
     use crate::state::spot_market_map::{
         get_writable_spot_market_set, SpotMarketMap, SpotMarketSet,
     };
-    use crate::state::state::FeeStructure;
-    use crate::validation::margin::validate_margin;
+    use crate::validation::margin::{validate_margin, validate_margin_weights};
 
     use super::*;
+    use crate::math::insurance::if_shares_to_vault_amount;
+    use crate::math::repeg::get_total_fee_lower_bound;
+    use crate::state::insurance_fund_stake::InsuranceFundStake;
+    use crate::state::serum::{load_open_orders, load_serum_market};
+    use crate::state::state::FeeStructure;
     use crate::validation::fee_structure::validate_fee_structure;
+    use crate::validation::user::validate_user_deletion;
+    use crate::validation::whitelist::validate_whitelist_token;
+    use bytemuck::cast_slice;
+    use std::mem::size_of;
 
-    pub fn initialize(ctx: Context<Initialize>, admin_controls_prices: bool) -> Result<()> {
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         let (clearing_house_signer, clearing_house_signer_nonce) =
             Pubkey::find_program_address(&[b"clearing_house_signer".as_ref()], ctx.program_id);
 
-        let insurance_vault = &ctx.accounts.insurance_vault;
-        if insurance_vault.owner != clearing_house_signer {
-            return Err(ErrorCode::InvalidInsuranceFundAuthority.into());
-        }
-
         **ctx.accounts.state = State {
             admin: *ctx.accounts.admin.key,
-            funding_paused: false,
-            exchange_paused: false,
-            admin_controls_prices,
-            insurance_vault: insurance_vault.key(),
+            exchange_status: ExchangeStatus::Active,
             whitelist_mint: Pubkey::default(),
             discount_mint: Pubkey::default(),
             oracle_guard_rails: OracleGuardRails::default(),
+            number_of_authorities: 0,
             number_of_markets: 0,
             number_of_spot_markets: 0,
             min_order_quote_asset_amount: 500_000, // 50 cents
             min_perp_auction_duration: 10,
             default_market_order_time_in_force: 60,
             default_spot_auction_duration: 10,
-            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50, // 2%
+            liquidation_margin_buffer_ratio: DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
             settlement_duration: 0, // extra duration after market expiry to allow settlement
             signer: clearing_house_signer,
             signer_nonce: clearing_house_signer_nonce,
+            srm_vault: Pubkey::default(),
             perp_fee_structure: FeeStructure::perps_default(),
             spot_fee_structure: FeeStructure::spot_default(),
+            padding: [0; 1],
         };
 
         Ok(())
@@ -115,9 +115,9 @@ pub mod clearing_house {
 
     pub fn initialize_spot_market(
         ctx: Context<InitializeSpotMarket>,
-        optimal_utilization: u128,
-        optimal_borrow_rate: u128,
-        max_borrow_rate: u128,
+        optimal_utilization: u32,
+        optimal_borrow_rate: u32,
+        max_borrow_rate: u32,
         oracle_source: OracleSource,
         initial_asset_weight: u128,
         maintenance_asset_weight: u128,
@@ -125,6 +125,7 @@ pub mod clearing_house {
         maintenance_liability_weight: u128,
         imf_factor: u128,
         liquidation_fee: u128,
+        active_status: bool,
     ) -> Result<()> {
         let state = &mut ctx.accounts.state;
         let spot_market_pubkey = ctx.accounts.spot_market.key();
@@ -140,124 +141,102 @@ pub mod clearing_house {
         }
 
         validate!(
-            optimal_utilization <= SPOT_UTILIZATION_PRECISION,
+            optimal_utilization <= SPOT_UTILIZATION_PRECISION_U32,
             ErrorCode::InvalidSpotMarketInitialization,
             "For spot market, optimal_utilization must be < {}",
             SPOT_UTILIZATION_PRECISION
         )?;
 
         let spot_market_index = get_then_update_id!(state, number_of_spot_markets);
-        if spot_market_index == 0 {
-            validate!(
-                initial_asset_weight == SPOT_WEIGHT_PRECISION,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "For quote asset spot market, initial asset weight must be {}",
-                SPOT_WEIGHT_PRECISION
-            )?;
 
-            validate!(
-                maintenance_asset_weight == SPOT_WEIGHT_PRECISION,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "For quote asset spot market, maintenance asset weight must be {}",
-                SPOT_WEIGHT_PRECISION
-            )?;
+        let oracle_price_data = get_oracle_price(
+            &oracle_source,
+            &ctx.accounts.oracle,
+            cast(Clock::get()?.unix_timestamp)?,
+        );
 
-            validate!(
-                initial_liability_weight == SPOT_WEIGHT_PRECISION,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "For quote asset spot market, initial liability weight must be {}",
-                SPOT_WEIGHT_PRECISION
-            )?;
+        let (historical_oracle_data_default, historical_index_data_default) =
+            if spot_market_index == 0 {
+                validate!(
+                    ctx.accounts.oracle.key == &Pubkey::default(),
+                    ErrorCode::InvalidSpotMarketInitialization,
+                    "For quote asset spot market, oracle must be default public key"
+                )?;
 
-            validate!(
-                maintenance_liability_weight == SPOT_WEIGHT_PRECISION,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "For quote asset spot market, maintenance liability weight must be {}",
-                SPOT_WEIGHT_PRECISION
-            )?;
+                validate!(
+                    oracle_source == OracleSource::QuoteAsset,
+                    ErrorCode::InvalidSpotMarketInitialization,
+                    "For quote asset spot market, oracle source must be QuoteAsset"
+                )?;
 
-            validate!(
-                ctx.accounts.oracle.key == &Pubkey::default(),
-                ErrorCode::InvalidSpotMarketInitialization,
-                "For quote asset spot market, oracle must be default public key"
-            )?;
+                validate!(
+                    ctx.accounts.spot_market_mint.decimals == 6,
+                    ErrorCode::InvalidSpotMarketInitialization,
+                    "For quote asset spot market, mint decimals must be 6"
+                )?;
 
-            validate!(
-                oracle_source == OracleSource::QuoteAsset,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "For quote asset spot market, oracle source must be QuoteAsset"
-            )?;
+                (
+                    HistoricalOracleData::default_quote_oracle(),
+                    HistoricalIndexData::default_quote_oracle(),
+                )
+            } else {
+                validate!(
+                    ctx.accounts.spot_market_mint.decimals >= 6,
+                    ErrorCode::InvalidSpotMarketInitialization,
+                    "Mint decimals must be greater than or equal to 6"
+                )?;
 
-            validate!(
-                ctx.accounts.spot_market_mint.decimals == 6,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "For quote asset spot market, mint decimals must be 6"
-            )?;
-        } else {
-            validate!(
-                initial_asset_weight > 0 && initial_asset_weight < SPOT_WEIGHT_PRECISION,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "Initial asset weight must be between 0 {}",
-                SPOT_WEIGHT_PRECISION
-            )?;
+                validate!(
+                    oracle_price_data.is_ok(),
+                    ErrorCode::InvalidSpotMarketInitialization,
+                    "Unable to read oracle price for {}",
+                    ctx.accounts.oracle.key,
+                )?;
 
-            validate!(
-                maintenance_asset_weight > 0 && maintenance_asset_weight < SPOT_WEIGHT_PRECISION,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "Maintenance asset weight must be between 0 {}",
-                SPOT_WEIGHT_PRECISION
-            )?;
+                (
+                    HistoricalOracleData::default_with_current_oracle(oracle_price_data?),
+                    HistoricalIndexData::default_with_current_oracle(oracle_price_data?),
+                )
+            };
 
-            validate!(
-                initial_liability_weight > SPOT_WEIGHT_PRECISION,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "Initial liability weight must be greater than {}",
-                SPOT_WEIGHT_PRECISION
-            )?;
-
-            validate!(
-                maintenance_liability_weight > SPOT_WEIGHT_PRECISION,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "Maintenance liability weight must be greater than {}",
-                SPOT_WEIGHT_PRECISION
-            )?;
-
-            validate!(
-                ctx.accounts.spot_market_mint.decimals >= 6,
-                ErrorCode::InvalidSpotMarketInitialization,
-                "Mint decimals must be greater than or equal to 6"
-            )?;
-
-            let oracle_price = get_oracle_price(
-                &oracle_source,
-                &ctx.accounts.oracle,
-                cast(Clock::get()?.unix_timestamp)?,
-            );
-
-            validate!(
-                oracle_price.is_ok(),
-                ErrorCode::InvalidSpotMarketInitialization,
-                "Unable to read oracle price for {}",
-                ctx.accounts.oracle.key,
-            )?;
-        }
+        validate_margin_weights(
+            spot_market_index,
+            initial_asset_weight,
+            maintenance_asset_weight,
+            initial_liability_weight,
+            maintenance_liability_weight,
+            imf_factor,
+        )?;
 
         let spot_market = &mut ctx.accounts.spot_market.load_init()?;
-        let now = cast(Clock::get()?.unix_timestamp).or(Err(ErrorCode::UnableToCastUnixTime))?;
+        let clock = Clock::get()?;
+        let now = cast(clock.unix_timestamp).or(Err(ErrorCode::UnableToCastUnixTime))?;
 
         let decimals = ctx.accounts.spot_market_mint.decimals;
-        let order_step_size = 10_u128.pow(2 + (decimals - 6) as u32); // 10 for usdc/btc, 10000 for sol
+        let order_step_size = 10_u64.pow(2 + (decimals - 6) as u32); // 10 for usdc/btc, 10000 for sol
+
         **spot_market = SpotMarket {
             market_index: spot_market_index,
             pubkey: spot_market_pubkey,
-            status: MarketStatus::Initialized,
+            status: if active_status {
+                MarketStatus::Active
+            } else {
+                MarketStatus::Initialized
+            },
+            asset_tier: AssetTier::Collateral,
             expiry_ts: 0,
             oracle: ctx.accounts.oracle.key(),
             oracle_source,
+            historical_oracle_data: historical_oracle_data_default,
+            historical_index_data: historical_index_data_default,
             mint: ctx.accounts.spot_market_mint.key(),
             vault: *ctx.accounts.spot_market_vault.to_account_info().key,
             insurance_fund_vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
-            revenue_pool: PoolBalance { balance: 0 },
+            revenue_pool: PoolBalance {
+                balance: 0,
+                market_index: spot_market_index,
+                ..PoolBalance::default()
+            }, // in base asset
             total_if_factor: 0,
             user_if_factor: 0,
             total_if_shares: 0,
@@ -272,6 +251,7 @@ pub mod clearing_house {
             max_borrow_rate,
             deposit_balance: 0,
             borrow_balance: 0,
+            max_token_deposits: 0,
             deposit_token_twap: 0,
             borrow_token_twap: 0,
             utilization_twap: 0, // todo: use for dynamic interest / additional guards
@@ -288,17 +268,41 @@ pub mod clearing_house {
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
             withdraw_guard_threshold: 0,
             order_step_size,
+            order_tick_size: 0,
+            order_minimum_size: 0,
+            max_position_size: 0,
             next_fill_record_id: 1,
-            spot_fee_pool: PoolBalance::default(),
+            spot_fee_pool: PoolBalance::default(), // in quote asset
             total_spot_fee: 0,
+            padding: [0; 6],
         };
+
+        Ok(())
+    }
+
+    pub fn update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
+        let vault = &ctx.accounts.srm_vault;
+        validate!(
+            vault.mint == crate::ids::srm_mint::id() || vault.mint == crate::ids::msrm_mint::id(),
+            ErrorCode::DefaultError,
+            "vault did not hav srm or msrm mint"
+        )?;
+
+        validate!(
+            vault.owner == ctx.accounts.state.signer,
+            ErrorCode::DefaultError,
+            "vault owner was not program signer"
+        )?;
+
+        let state = &mut ctx.accounts.state;
+        state.srm_vault = vault.key();
 
         Ok(())
     }
 
     pub fn initialize_serum_fulfillment_config(
         ctx: Context<InitializeSerumFulfillmentConfig>,
-        market_index: u64,
+        market_index: u16,
     ) -> Result<()> {
         validate!(
             market_index != 0,
@@ -316,7 +320,7 @@ pub mod clearing_house {
         )?;
 
         let serum_market_key = ctx.accounts.serum_market.key();
-        let market_state = load_market_state(&ctx.accounts.serum_market, &serum_program_id)?;
+        let market_state = load_serum_market(&ctx.accounts.serum_market, &serum_program_id)?;
 
         validate!(
             identity(market_state.coin_mint) == base_spot_market.mint.to_aligned_bytes(),
@@ -332,12 +336,24 @@ pub mod clearing_house {
 
         let serum_program_id = serum_program_id;
         let serum_market = serum_market_key;
-        let serum_event_queue = Pubkey::new(cast_slice(&market_state.event_q));
-        let serum_request_queue = Pubkey::new(cast_slice(&market_state.req_q));
-        let serum_bids = Pubkey::new(cast_slice(&market_state.bids));
-        let serum_asks = Pubkey::new(cast_slice(&market_state.asks));
-        let serum_base_vault = Pubkey::new(cast_slice(&market_state.coin_vault));
-        let serum_quote_vault = Pubkey::new(cast_slice(&market_state.pc_vault));
+
+        let market_state_event_queue = market_state.event_q;
+        let serum_event_queue = Pubkey::new(cast_slice(&market_state_event_queue));
+
+        let market_state_request_queue = market_state.req_q;
+        let serum_request_queue = Pubkey::new(cast_slice(&market_state_request_queue));
+
+        let market_state_bids = market_state.bids;
+        let serum_bids = Pubkey::new(cast_slice(&market_state_bids));
+
+        let market_state_asks = market_state.asks;
+        let serum_asks = Pubkey::new(cast_slice(&market_state_asks));
+
+        let market_state_coin_vault = market_state.coin_vault;
+        let serum_base_vault = Pubkey::new(cast_slice(&market_state_coin_vault));
+
+        let market_state_pc_vault = market_state.pc_vault;
+        let serum_quote_vault = Pubkey::new(cast_slice(&market_state_pc_vault));
         let serum_signer_nonce = market_state.vault_signer_nonce;
 
         drop(market_state);
@@ -388,6 +404,7 @@ pub mod clearing_house {
             serum_quote_vault,
             serum_open_orders: ctx.accounts.serum_open_orders.key(),
             serum_signer_nonce,
+            padding: [0; 4],
         };
 
         Ok(())
@@ -403,6 +420,7 @@ pub mod clearing_house {
         margin_ratio_initial: u32,
         margin_ratio_maintenance: u32,
         liquidation_fee: u128,
+        active_status: bool,
     ) -> Result<()> {
         let market_pubkey = ctx.accounts.market.to_account_info().key;
         let market = &mut ctx.accounts.market.load_init()?;
@@ -414,11 +432,13 @@ pub mod clearing_house {
             return Err(ErrorCode::InvalidInitialPeg.into());
         }
 
-        let init_mark_price = amm::calculate_price(
+        let init_reserve_price = amm::calculate_price(
             amm_quote_asset_reserve,
             amm_base_asset_reserve,
             amm_peg_multiplier,
         )?;
+
+        assert_eq!(amm_peg_multiplier, init_reserve_price);
 
         let concentration_coef = MAX_CONCENTRATION_COEFFICIENT;
 
@@ -436,14 +456,10 @@ pub mod clearing_house {
             delay: oracle_delay,
             ..
         } = match oracle_source {
-            OracleSource::Pyth => market
-                .amm
-                .get_pyth_price(&ctx.accounts.oracle, clock_slot)
-                .unwrap(),
-            OracleSource::Switchboard => market
-                .amm
-                .get_switchboard_price(&ctx.accounts.oracle, clock_slot)
-                .unwrap(),
+            OracleSource::Pyth => get_pyth_price(&ctx.accounts.oracle, clock_slot).unwrap(),
+            OracleSource::Switchboard => {
+                get_switchboard_price(&ctx.accounts.oracle, clock_slot).unwrap()
+            }
             OracleSource::QuoteAsset => panic!(),
         };
 
@@ -454,6 +470,16 @@ pub mod clearing_house {
         };
 
         let max_spread = (margin_ratio_initial - margin_ratio_maintenance) * (100 - 5);
+
+        // todo? should ensure peg within 1 cent of current oracle?
+        // validate!(
+        //     cast_to_i128(amm_peg_multiplier)?
+        //         .checked_sub(oracle_price)
+        //         .ok_or_else(math_error!())?
+        //         .unsigned_abs()
+        //         < PRICE_PRECISION / 100,
+        //     ErrorCode::InvalidInitialPeg
+        // )?;
 
         validate_margin(
             margin_ratio_initial,
@@ -466,22 +492,26 @@ pub mod clearing_house {
         let market_index = state.number_of_markets;
         **market = PerpMarket {
             contract_type: ContractType::Perpetual,
-            status: MarketStatus::Initialized,
+            contract_tier: ContractTier::Speculative, // default
+            status: if active_status {
+                MarketStatus::Active
+            } else {
+                MarketStatus::Initialized
+            },
             settlement_price: 0,
             expiry_ts: 0,
             pubkey: *market_pubkey,
             market_index,
+            open_interest: 0,
             base_asset_amount_long: 0,
             base_asset_amount_short: 0,
-            // base_asset_amount: 0,
-            open_interest: 0,
             margin_ratio_initial, // unit is 20% (+2 decimal places)
             margin_ratio_maintenance,
             imf_factor: 0,
             next_fill_record_id: 1,
             next_funding_rate_record_id: 1,
             next_curve_record_id: 1,
-            pnl_pool: PoolBalance { balance: 0 },
+            pnl_pool: PoolBalance::default(),
             revenue_withdraw_since_last_settle: 0,
             max_revenue_withdraw_per_period: 0,
             last_revenue_withdraw_ts: now,
@@ -493,11 +523,7 @@ pub mod clearing_house {
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
             quote_max_insurance: 0,
             quote_settled_insurance: 0,
-            padding0: 0,
-            padding1: 0,
-            padding2: 0,
-            padding3: 0,
-            padding4: 0,
+            padding: [0; 3],
             amm: AMM {
                 oracle: *ctx.accounts.oracle.key,
                 oracle_source,
@@ -508,20 +534,17 @@ pub mod clearing_house {
                 ask_quote_asset_reserve: amm_quote_asset_reserve,
                 bid_base_asset_reserve: amm_base_asset_reserve,
                 bid_quote_asset_reserve: amm_quote_asset_reserve,
-                cumulative_repeg_rebate_long: 0,
-                cumulative_repeg_rebate_short: 0,
                 cumulative_funding_rate_long: 0,
                 cumulative_funding_rate_short: 0,
                 cumulative_social_loss: 0,
                 last_funding_rate: 0,
                 last_funding_rate_long: 0,
                 last_funding_rate_short: 0,
+                last_24h_avg_funding_rate: 0,
                 last_funding_rate_ts: now,
                 funding_period: amm_periodicity,
-                last_oracle_price_twap,
-                last_oracle_price_twap_5min: oracle_price,
-                last_mark_price_twap: init_mark_price,
-                last_mark_price_twap_5min: init_mark_price,
+                last_mark_price_twap: init_reserve_price,
+                last_mark_price_twap_5min: init_reserve_price,
                 last_mark_price_twap_ts: now,
                 sqrt_k: amm_base_asset_reserve,
                 concentration_coef,
@@ -536,33 +559,43 @@ pub mod clearing_house {
                 total_liquidation_fee: 0,
                 net_revenue_since_last_funding: 0,
                 minimum_quote_asset_trade_size: 10000000,
-                last_oracle_price_twap_ts: now,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: oracle_price,
+                    last_oracle_delay: oracle_delay,
+                    last_oracle_price_twap,
+                    last_oracle_price_twap_5min: oracle_price,
+                    last_oracle_price_twap_ts: now,
+                    ..HistoricalOracleData::default()
+                },
                 last_oracle_normalised_price: oracle_price,
-                last_oracle_price: oracle_price,
                 last_oracle_conf_pct: 0,
-                last_oracle_delay: oracle_delay,
-                last_oracle_mark_spread_pct: 0, // todo
-                base_asset_amount_step_size: 10000000,
+                last_oracle_reserve_price_spread_pct: 0, // todo
+                base_asset_amount_step_size: DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE,
+                order_tick_size: 0,
+                order_minimum_size: 0,
+                max_position_size: 0,
                 max_slippage_ratio: 50,           // ~2%
                 max_base_asset_amount_ratio: 100, // moves price ~2%
                 base_spread: 0,
                 long_spread: 0,
                 short_spread: 0,
                 max_spread,
-                last_bid_price_twap: init_mark_price,
-                last_ask_price_twap: init_mark_price,
+                last_bid_price_twap: init_reserve_price,
+                last_ask_price_twap: init_reserve_price,
                 net_base_asset_amount: 0,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 0,
                 quote_entry_amount_long: 0,
                 quote_entry_amount_short: 0,
                 mark_std: 0,
+                volume_24h: 0,
                 long_intensity_count: 0,
                 long_intensity_volume: 0,
                 short_intensity_count: 0,
                 short_intensity_volume: 0,
+                last_trade_ts: now,
                 curve_update_intensity: 0,
-                fee_pool: PoolBalance { balance: 0 },
+                fee_pool: PoolBalance::default(),
                 market_position_per_lp: PerpPosition {
                     market_index,
                     ..PerpPosition::default()
@@ -580,10 +613,8 @@ pub mod clearing_house {
                 amm_jit_intensity: 0, // turn it off at the start
 
                 last_oracle_valid: false,
-                padding0: 0,
-                padding1: 0,
-                padding2: 0,
-                padding3: 0,
+
+                padding: [0; 6],
             },
         };
 
@@ -594,20 +625,25 @@ pub mod clearing_house {
 
     pub fn deposit(
         ctx: Context<Deposit>,
-        market_index: u64,
+        market_index: u16,
         amount: u64,
         reduce_only: bool,
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
-        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+        let state = &ctx.accounts.state;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
         validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(market_index),
             remaining_accounts_iter,
@@ -622,24 +658,26 @@ pub mod clearing_house {
         validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
 
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
-        controller::spot_balance::update_spot_market_cumulative_interest(spot_market, now)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
 
-        validate!(
-            spot_market.status == MarketStatus::Initialized,
-            ErrorCode::DefaultError,
-            "spot_market in reduce only mode",
+        controller::spot_balance::update_spot_market_cumulative_interest(
+            spot_market,
+            Some(oracle_price_data),
+            now,
         )?;
 
         let spot_position = user.force_get_spot_position_mut(spot_market.market_index)?;
 
+        let force_reduce_only = spot_market.is_reduce_only()?;
+
         // if reduce only, have to compare ix amount to current borrow amount
-        let amount = if reduce_only && spot_position.balance_type == SpotBalanceType::Borrow {
-            let borrow_token_amount = get_token_amount(
-                spot_position.balance,
-                spot_market,
-                &spot_position.balance_type,
-            )?;
-            min(borrow_token_amount as u64, amount)
+        let amount = if (force_reduce_only || reduce_only)
+            && spot_position.balance_type == SpotBalanceType::Borrow
+        {
+            spot_position
+                .get_token_amount(spot_market)?
+                .cast::<u64>()?
+                .min(amount)
         } else {
             amount
         };
@@ -652,6 +690,21 @@ pub mod clearing_house {
             false,
         )?;
 
+        if spot_position.balance_type == SpotBalanceType::Deposit && spot_position.balance > 0 {
+            validate!(
+                matches!(
+                    spot_market.status,
+                    MarketStatus::Active
+                        | MarketStatus::FundingPaused
+                        | MarketStatus::AmmPaused
+                        | MarketStatus::FillPaused
+                        | MarketStatus::WithdrawPaused
+                ),
+                ErrorCode::MarketActionPaused,
+                "spot_market in reduce only mode",
+            )?;
+        }
+
         controller::token::receive(
             &ctx.accounts.token_program,
             &ctx.accounts.user_token_account,
@@ -659,8 +712,7 @@ pub mod clearing_house {
             &ctx.accounts.authority,
             amount,
         )?;
-
-        let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
+        let oracle_price = oracle_price_data.price;
         let deposit_record = DepositRecord {
             ts: now,
             user_authority: user.authority,
@@ -668,28 +720,44 @@ pub mod clearing_house {
             direction: DepositDirection::DEPOSIT,
             amount,
             oracle_price,
+            market_deposit_balance: spot_market.deposit_balance,
+            market_withdraw_balance: spot_market.borrow_balance,
+            market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
+            market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
             market_index,
-            referrer: user_stats.referrer,
-            from: None,
-            to: None,
+            transfer_user: None,
         };
         emit!(deposit_record);
+
+        let deposits_token_amount = get_token_amount(
+            spot_market.deposit_balance,
+            spot_market,
+            &SpotBalanceType::Deposit,
+        )?;
+
+        validate!(
+            spot_market.max_token_deposits == 0
+                || deposits_token_amount <= spot_market.max_token_deposits,
+            ErrorCode::MaxDeposit,
+            "max deposits: {} new deposits {}",
+            spot_market.max_token_deposits,
+            deposits_token_amount
+        )?;
 
         Ok(())
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        withdraw_not_paused(&ctx.accounts.state)
     )]
     pub fn withdraw(
         ctx: Context<Withdraw>,
-        market_index: u64,
+        market_index: u16,
         amount: u64,
         reduce_only: bool,
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
-        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let state = &ctx.accounts.state;
@@ -697,7 +765,11 @@ pub mod clearing_house {
         validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(market_index),
             remaining_accounts_iter,
@@ -706,7 +778,13 @@ pub mod clearing_house {
 
         let amount = {
             let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
-            controller::spot_balance::update_spot_market_cumulative_interest(spot_market, now)?;
+            let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+
+            controller::spot_balance::update_spot_market_cumulative_interest(
+                spot_market,
+                Some(oracle_price_data),
+                now,
+            )?;
 
             let spot_position = user.force_get_spot_position_mut(spot_market.market_index)?;
 
@@ -716,12 +794,10 @@ pub mod clearing_house {
             let amount = if (force_reduce_only || reduce_only)
                 && spot_position.balance_type == SpotBalanceType::Deposit
             {
-                let borrow_token_amount = get_token_amount(
-                    spot_position.balance,
-                    spot_market,
-                    &spot_position.balance_type,
-                )?;
-                min(borrow_token_amount as u64, amount)
+                spot_position
+                    .get_token_amount(spot_market)?
+                    .cast::<u64>()?
+                    .min(amount)
             } else {
                 amount
             };
@@ -734,18 +810,16 @@ pub mod clearing_house {
                 spot_position,
             )?;
 
-            // todo: prevents borrow when spot market's oracle invalid
             amount
         };
 
-        if !meets_initial_margin_requirement(user, &market_map, &spot_market_map, &mut oracle_map)?
-        {
-            return Err(ErrorCode::InsufficientCollateral.into());
-        }
-
-        user.being_liquidated = false;
+        meets_withdraw_margin_requirement(user, &market_map, &spot_market_map, &mut oracle_map)?;
 
         let spot_market = spot_market_map.get_ref(&market_index)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+        let oracle_price = oracle_price_data.price;
+
+        user.being_liquidated = false;
 
         controller::token::send_from_program_vault(
             &ctx.accounts.token_program,
@@ -756,8 +830,6 @@ pub mod clearing_house {
             amount,
         )?;
 
-        let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
-
         let deposit_record = DepositRecord {
             ts: now,
             user_authority: user.authority,
@@ -766,9 +838,11 @@ pub mod clearing_house {
             oracle_price,
             amount,
             market_index,
-            referrer: user_stats.referrer,
-            from: None,
-            to: None,
+            market_deposit_balance: spot_market.deposit_balance,
+            market_withdraw_balance: spot_market.borrow_balance,
+            market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
+            market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+            transfer_user: None,
         };
         emit!(deposit_record);
 
@@ -779,19 +853,23 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        withdraw_not_paused(&ctx.accounts.state)
+    )]
     pub fn transfer_deposit(
         ctx: Context<TransferDeposit>,
-        market_index: u64,
+        market_index: u16,
         amount: u64,
     ) -> Result<()> {
         let authority_key = ctx.accounts.authority.key;
         let to_user_key = ctx.accounts.to_user.key();
         let from_user_key = ctx.accounts.from_user.key();
+
+        let state = &ctx.accounts.state;
         let clock = Clock::get()?;
 
         let to_user = &mut load_mut!(ctx.accounts.to_user)?;
         let from_user = &mut load_mut!(ctx.accounts.from_user)?;
-        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
         validate!(
             !to_user.bankrupt,
@@ -805,7 +883,11 @@ pub mod clearing_house {
         )?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(market_index),
             remaining_accounts_iter,
@@ -814,14 +896,21 @@ pub mod clearing_house {
 
         {
             let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+            let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
             controller::spot_balance::update_spot_market_cumulative_interest(
                 spot_market,
+                Some(oracle_price_data),
                 clock.unix_timestamp,
             )?;
         }
 
         {
             let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+            validate!(
+                spot_market.status != MarketStatus::WithdrawPaused,
+                ErrorCode::DailyWithdrawLimit
+            )?;
+
             let from_spot_position =
                 from_user.force_get_spot_position_mut(spot_market.market_index)?;
 
@@ -835,11 +924,11 @@ pub mod clearing_house {
         }
 
         validate!(
-            meets_initial_margin_requirement(
+            meets_withdraw_margin_requirement(
                 from_user,
                 &market_map,
                 &spot_market_map,
-                &mut oracle_map
+                &mut oracle_map,
             )?,
             ErrorCode::InsufficientCollateral,
             "From user does not meet initial margin requirement"
@@ -852,19 +941,25 @@ pub mod clearing_house {
             oracle_map.get_price_data(&spot_market.oracle)?.price
         };
 
-        let deposit_record = DepositRecord {
-            ts: clock.unix_timestamp,
-            user_authority: *authority_key,
-            user: from_user_key,
-            direction: DepositDirection::WITHDRAW,
-            amount,
-            oracle_price,
-            market_index,
-            referrer: user_stats.referrer,
-            from: None,
-            to: Some(to_user_key),
-        };
-        emit!(deposit_record);
+        {
+            let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+
+            let deposit_record = DepositRecord {
+                ts: clock.unix_timestamp,
+                user_authority: *authority_key,
+                user: from_user_key,
+                direction: DepositDirection::WITHDRAW,
+                amount,
+                oracle_price,
+                market_index,
+                market_deposit_balance: spot_market.deposit_balance,
+                market_withdraw_balance: spot_market.borrow_balance,
+                market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
+                market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+                transfer_user: Some(to_user_key),
+            };
+            emit!(deposit_record);
+        }
 
         {
             let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
@@ -877,31 +972,36 @@ pub mod clearing_house {
                 to_spot_position,
                 false,
             )?;
-        }
 
-        let deposit_record = DepositRecord {
-            ts: clock.unix_timestamp,
-            user_authority: *authority_key,
-            user: to_user_key,
-            direction: DepositDirection::DEPOSIT,
-            amount,
-            oracle_price,
-            market_index,
-            referrer: user_stats.referrer,
-            from: Some(from_user_key),
-            to: None,
-        };
-        emit!(deposit_record);
+            let deposit_record = DepositRecord {
+                ts: clock.unix_timestamp,
+                user_authority: *authority_key,
+                user: to_user_key,
+                direction: DepositDirection::DEPOSIT,
+                amount,
+                oracle_price,
+                market_index,
+                market_deposit_balance: spot_market.deposit_balance,
+                market_withdraw_balance: spot_market.borrow_balance,
+                market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
+                market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+                transfer_user: Some(from_user_key),
+            };
+            emit!(deposit_record);
+        }
 
         Ok(())
     }
 
+    #[access_control(
+        funding_not_paused(&ctx.accounts.state)
+    )]
     pub fn update_spot_market_cumulative_interest(
         ctx: Context<UpdateSpotMarketCumulativeInterest>,
     ) -> Result<()> {
         let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
         let now = Clock::get()?.unix_timestamp;
-        controller::spot_balance::update_spot_market_cumulative_interest(spot_market, now)?;
+        controller::spot_balance::update_spot_market_cumulative_interest(spot_market, None, now)?;
         Ok(())
     }
 
@@ -925,16 +1025,22 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        amm_not_paused(&ctx.accounts.state)
     )]
-    pub fn settle_lp<'info>(ctx: Context<SettleLP>, market_index: u64) -> Result<()> {
+    pub fn settle_lp<'info>(ctx: Context<SettleLP>, market_index: u16) -> Result<()> {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
+
+        let state = &ctx.accounts.state;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let _oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let _oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let _spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
         let market_map =
             PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
@@ -949,21 +1055,27 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        amm_not_paused(&ctx.accounts.state)
     )]
     pub fn remove_liquidity<'info>(
         ctx: Context<AddRemoveLiquidity>,
-        shares_to_burn: u128,
-        market_index: u64,
+        shares_to_burn: u64,
+        market_index: u16,
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
+
+        let state = &ctx.accounts.state;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let _spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
         let market_map =
             PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
@@ -973,12 +1085,13 @@ pub mod clearing_house {
         }
 
         // standardize n shares to burn
-        let shares_to_burn = {
+        let shares_to_burn: u64 = {
             let market = market_map.get_ref(&market_index)?;
             crate::math::orders::standardize_base_asset_amount(
-                shares_to_burn,
+                shares_to_burn.cast()?,
                 market.amm.base_asset_amount_step_size,
             )?
+            .cast()?
         };
 
         if shares_to_burn == 0 {
@@ -986,21 +1099,22 @@ pub mod clearing_house {
         }
 
         let mut market = market_map.get_ref_mut(&market_index)?;
+
+        let time_since_last_add_liquidity = now
+            .checked_sub(user.last_lp_add_time)
+            .ok_or_else(math_error!())?;
+
+        validate!(
+            time_since_last_add_liquidity >= market.amm.lp_cooldown_time,
+            ErrorCode::TryingToRemoveLiquidityTooFast
+        )?;
+
         let position_index = get_position_index(&user.perp_positions, market_index)?;
         let position = &mut user.perp_positions[position_index];
 
         validate!(
             position.lp_shares >= shares_to_burn,
             ErrorCode::InsufficientLPTokens
-        )?;
-
-        let time_since_last_add_liquidity = now
-            .checked_sub(position.last_lp_add_time)
-            .ok_or_else(math_error!())?;
-
-        validate!(
-            time_since_last_add_liquidity >= market.amm.lp_cooldown_time,
-            ErrorCode::TryingToRemoveLiquidityTooFast
         )?;
 
         let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
@@ -1022,20 +1136,25 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        amm_not_paused(&ctx.accounts.state)
     )]
     pub fn add_liquidity<'info>(
         ctx: Context<AddRemoveLiquidity>,
-        n_shares: u128,
-        market_index: u64,
+        n_shares: u64,
+        market_index: u16,
     ) -> Result<()> {
         let user_key = ctx.accounts.user.key();
         let user = &mut load_mut!(ctx.accounts.user)?;
+        let state = &ctx.accounts.state;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
 
         let market_map =
@@ -1046,14 +1165,17 @@ pub mod clearing_house {
             controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
 
             validate!(
-                market.status == MarketStatus::Initialized,
+                matches!(
+                    market.status,
+                    MarketStatus::Active
+                        | MarketStatus::FundingPaused
+                        | MarketStatus::FillPaused
+                        | MarketStatus::WithdrawPaused
+                ),
                 ErrorCode::DefaultError,
                 "Market Status doesn't allow for new LP liquidity"
             )?;
         }
-
-        let position_index = get_position_index(&user.perp_positions, market_index)
-            .or_else(|_| add_new_position(&mut user.perp_positions, market_index))?;
 
         validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
         math::liquidation::validate_user_not_being_liquidated(
@@ -1061,10 +1183,8 @@ pub mod clearing_house {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            ctx.accounts.state.liquidation_margin_buffer_ratio,
+            state.liquidation_margin_buffer_ratio,
         )?;
-
-        let position = &mut user.perp_positions[position_index];
 
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
@@ -1079,11 +1199,18 @@ pub mod clearing_house {
 
             // standardize n shares to mint
             let n_shares = crate::math::orders::standardize_base_asset_amount(
-                n_shares,
+                n_shares.cast()?,
                 market.amm.base_asset_amount_step_size,
+            )?
+            .cast::<u64>()?;
+
+            controller::lp::mint_lp_shares(
+                user.force_get_perp_position_mut(market_index)?,
+                &mut market,
+                n_shares,
             )?;
 
-            controller::lp::mint_lp_shares(position, &mut market, n_shares, now)?;
+            user.last_lp_add_time = now;
         }
 
         // check margin requirements
@@ -1105,9 +1232,19 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
     pub fn place_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
+        let clock = &Clock::get()?;
+        let state = &ctx.accounts.state;
+
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
         let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
@@ -1122,16 +1259,26 @@ pub mod clearing_house {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            &Clock::get()?,
+            clock,
             params,
         )?;
 
         Ok(())
     }
 
-    pub fn cancel_order(ctx: Context<CancelOrder>, order_id: Option<u64>) -> Result<()> {
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
+    pub fn cancel_order(ctx: Context<CancelOrder>, order_id: Option<u32>) -> Result<()> {
+        let clock = &Clock::get()?;
+        let state = &ctx.accounts.state;
+
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
         let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
@@ -1146,15 +1293,25 @@ pub mod clearing_house {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            &Clock::get()?,
+            clock,
         )?;
 
         Ok(())
     }
 
+    #[access_control(
+        exchange_not_paused(&ctx.accounts.state)
+    )]
     pub fn cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: u8) -> Result<()> {
+        let clock = &Clock::get()?;
+        let state = &ctx.accounts.state;
+
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
         let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
@@ -1164,20 +1321,23 @@ pub mod clearing_house {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            &Clock::get()?,
+            clock,
         )?;
 
         Ok(())
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        fill_not_paused(&ctx.accounts.state)
     )]
     pub fn fill_order<'info>(
         ctx: Context<FillOrder>,
-        order_id: Option<u64>,
-        maker_order_id: Option<u64>,
+        order_id: Option<u32>,
+        maker_order_id: Option<u32>,
     ) -> Result<()> {
+        let clock = &Clock::get()?;
+        let state = &ctx.accounts.state;
+
         let (order_id, market_index) = {
             let user = &load!(ctx.accounts.user)?;
             // if there is no order id, use the users last order id
@@ -1193,7 +1353,11 @@ pub mod clearing_house {
         };
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
         let market_map =
             PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
@@ -1207,8 +1371,6 @@ pub mod clearing_house {
         };
 
         let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
-
-        let clock = &Clock::get()?;
 
         controller::repeg::update_amm(
             market_index,
@@ -1233,22 +1395,29 @@ pub mod clearing_house {
             maker_order_id,
             referrer.as_ref(),
             referrer_stats.as_ref(),
-            &Clock::get()?,
+            clock,
         )?;
 
         Ok(())
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        fill_not_paused(&ctx.accounts.state)
     )]
     pub fn place_and_take<'info>(
         ctx: Context<PlaceAndTake>,
         params: OrderParams,
-        maker_order_id: Option<u64>,
+        maker_order_id: Option<u32>,
     ) -> Result<()> {
+        let clock = Clock::get()?;
+        let state = &ctx.accounts.state;
+
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
 
         let market_map = PerpMarketMap::load(
@@ -1272,7 +1441,6 @@ pub mod clearing_house {
         let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
         let is_immediate_or_cancel = params.immediate_or_cancel;
-        let base_asset_amount_to_fill = params.base_asset_amount;
 
         controller::repeg::update_amm(
             params.market_index,
@@ -1295,7 +1463,7 @@ pub mod clearing_house {
         let user = &mut ctx.accounts.user;
         let order_id = load!(user)?.get_last_order_id();
 
-        let (base_asset_amount_filled, _) = controller::orders::fill_order(
+        controller::orders::fill_order(
             order_id,
             &ctx.accounts.state,
             user,
@@ -1313,7 +1481,12 @@ pub mod clearing_house {
             &Clock::get()?,
         )?;
 
-        if is_immediate_or_cancel && base_asset_amount_to_fill != base_asset_amount_filled {
+        let order_exists = load!(ctx.accounts.user)?
+            .orders
+            .iter()
+            .any(|order| order.order_id == order_id);
+
+        if is_immediate_or_cancel && order_exists {
             controller::orders::cancel_order_by_order_id(
                 order_id,
                 &ctx.accounts.user,
@@ -1328,15 +1501,22 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        fill_not_paused(&ctx.accounts.state)
     )]
     pub fn place_and_make<'info>(
         ctx: Context<PlaceAndMake>,
         params: OrderParams,
-        taker_order_id: u64,
+        taker_order_id: u32,
     ) -> Result<()> {
+        let clock = &Clock::get()?;
+        let state = &ctx.accounts.state;
+
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
         let market_map = PerpMarketMap::load(
             &get_market_set(params.market_index),
@@ -1355,17 +1535,17 @@ pub mod clearing_house {
             params.market_index,
             &market_map,
             &mut oracle_map,
-            &ctx.accounts.state,
-            &Clock::get()?,
+            state,
+            clock,
         )?;
 
         controller::orders::place_order(
-            &ctx.accounts.state,
+            state,
             &ctx.accounts.user,
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            &Clock::get()?,
+            clock,
             params,
         )?;
 
@@ -1373,7 +1553,7 @@ pub mod clearing_house {
 
         controller::orders::fill_order(
             taker_order_id,
-            &ctx.accounts.state,
+            state,
             &ctx.accounts.taker,
             &ctx.accounts.taker_stats,
             &spot_market_map,
@@ -1386,7 +1566,7 @@ pub mod clearing_house {
             Some(order_id),
             referrer.as_ref(),
             referrer_stats.as_ref(),
-            &Clock::get()?,
+            clock,
         )?;
 
         let order_exists = load!(ctx.accounts.user)?
@@ -1401,7 +1581,7 @@ pub mod clearing_house {
                 &market_map,
                 &spot_market_map,
                 &mut oracle_map,
-                &Clock::get()?,
+                clock,
             )?;
         }
 
@@ -1411,51 +1591,49 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u64) -> Result<()> {
+    pub fn trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u32) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-        let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
+        let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
+        let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
-        controller::orders::trigger_order(
-            order_id,
-            &ctx.accounts.state,
-            &ctx.accounts.user,
-            &market_map,
-            &mut oracle_map,
-            &ctx.accounts.filler,
-            &Clock::get()?,
-        )?;
+        let market_type = match load!(ctx.accounts.user)?.get_order(order_id) {
+            Some(order) => order.market_type,
+            None => {
+                msg!("order_id not found {}", order_id);
+                return Ok(());
+            }
+        };
 
-        Ok(())
-    }
-
-    #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
-    )]
-    pub fn trigger_spot_order<'info>(ctx: Context<TriggerOrder>, order_id: u64) -> Result<()> {
-        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
-        let spot_market_market =
-            SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-        PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
-
-        controller::orders::trigger_spot_order(
-            order_id,
-            &ctx.accounts.state,
-            &ctx.accounts.user,
-            &spot_market_market,
-            &mut oracle_map,
-            &ctx.accounts.filler,
-            &Clock::get()?,
-        )?;
+        match market_type {
+            MarketType::Perp => controller::orders::trigger_order(
+                order_id,
+                &ctx.accounts.state,
+                &ctx.accounts.user,
+                &spot_market_map,
+                &perp_market_map,
+                &mut oracle_map,
+                &ctx.accounts.filler,
+                &Clock::get()?,
+            )?,
+            MarketType::Spot => controller::orders::trigger_spot_order(
+                order_id,
+                &ctx.accounts.state,
+                &ctx.accounts.user,
+                &spot_market_map,
+                &perp_market_map,
+                &mut oracle_map,
+                &ctx.accounts.filler,
+                &Clock::get()?,
+            )?,
+        }
 
         Ok(())
     }
 
     pub fn place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
         let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
         let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
@@ -1478,13 +1656,13 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        fill_not_paused(&ctx.accounts.state)
     )]
     pub fn fill_spot_order<'info>(
         ctx: Context<FillOrder>,
-        order_id: Option<u64>,
+        order_id: Option<u32>,
         fulfillment_type: Option<SpotFulfillmentType>,
-        maker_order_id: Option<u64>,
+        maker_order_id: Option<u32>,
     ) -> Result<()> {
         let (order_id, market_index) = {
             let user = &load!(ctx.accounts.user)?;
@@ -1499,7 +1677,7 @@ pub mod clearing_house {
         };
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot)?;
+        let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
         let mut writable_spot_markets = SpotMarketSet::new();
         writable_spot_markets.insert(QUOTE_SPOT_MARKET_INDEX);
         writable_spot_markets.insert(market_index);
@@ -1551,7 +1729,7 @@ pub mod clearing_house {
     #[access_control(
         exchange_not_paused(&ctx.accounts.state)
     )]
-    pub fn update_amms(ctx: Context<UpdateAMM>, market_indexes: [u64; 5]) -> Result<()> {
+    pub fn update_amms(ctx: Context<UpdateAMM>, market_indexes: [u16; 5]) -> Result<()> {
         // up to ~60k compute units (per amm) worst case
 
         let clock = Clock::get()?;
@@ -1559,7 +1737,7 @@ pub mod clearing_house {
         let state = &ctx.accounts.state;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
         let market_map = &mut PerpMarketMap::load(
             &get_market_set_from_list(market_indexes),
             remaining_accounts_iter,
@@ -1571,12 +1749,18 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        withdraw_not_paused(&ctx.accounts.state)
     )]
-    pub fn settle_pnl(ctx: Context<SettlePNL>, market_index: u64) -> Result<()> {
+    pub fn settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
         let clock = Clock::get()?;
+        let state = &ctx.accounts.state;
+
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
             remaining_accounts_iter,
@@ -1588,7 +1772,7 @@ pub mod clearing_house {
             market_index,
             &market_map,
             &mut oracle_map,
-            &ctx.accounts.state,
+            state,
             &Clock::get()?,
         )?;
 
@@ -1604,20 +1788,26 @@ pub mod clearing_house {
             &spot_market_map,
             &mut oracle_map,
             clock.unix_timestamp,
+            state,
         )?;
 
         Ok(())
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        withdraw_not_paused(&ctx.accounts.state)
     )]
-    pub fn settle_expired_market(ctx: Context<UpdateAMM>, market_index: u64) -> Result<()> {
+    pub fn settle_expired_market(ctx: Context<UpdateAMM>, market_index: u16) -> Result<()> {
         let clock = Clock::get()?;
         let _now = clock.unix_timestamp;
+        let state = &ctx.accounts.state;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
             remaining_accounts_iter,
@@ -1625,35 +1815,35 @@ pub mod clearing_house {
         let market_map =
             PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
 
-        controller::repeg::update_amm(
-            market_index,
-            &market_map,
-            &mut oracle_map,
-            &ctx.accounts.state,
-            &clock,
-        )?;
+        controller::repeg::update_amm(market_index, &market_map, &mut oracle_map, state, &clock)?;
 
         controller::repeg::settle_expired_market(
             market_index,
             &market_map,
             &mut oracle_map,
             &spot_market_map,
-            &ctx.accounts.state,
+            state,
             &clock,
         )?;
 
         Ok(())
     }
 
+    #[allow(unused_must_use)]
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        withdraw_not_paused(&ctx.accounts.state) &&
+        amm_not_paused(&ctx.accounts.state)
     )]
-    pub fn settle_expired_position(ctx: Context<SettlePNL>, market_index: u64) -> Result<()> {
+    pub fn settle_expired_position(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
         let clock = Clock::get()?;
         let state = &ctx.accounts.state;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
             remaining_accounts_iter,
@@ -1691,16 +1881,17 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        liq_not_paused(&ctx.accounts.state)
     )]
     pub fn liquidate_perp(
         ctx: Context<LiquidatePerp>,
-        market_index: u64,
-        liquidator_max_base_asset_amount: u128,
+        market_index: u16,
+        liquidator_max_base_asset_amount: u64,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let slot = clock.slot;
+        let state = &ctx.accounts.state;
 
         let user_key = ctx.accounts.user.key();
         let liquidator_key = ctx.accounts.liquidator.key();
@@ -1716,7 +1907,11 @@ pub mod clearing_house {
         let liquidator_stats = &mut load_mut!(ctx.accounts.liquidator_stats)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
         let market_map =
             PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
@@ -1735,23 +1930,24 @@ pub mod clearing_house {
             &mut oracle_map,
             slot,
             now,
-            ctx.accounts.state.liquidation_margin_buffer_ratio,
+            state.liquidation_margin_buffer_ratio,
         )?;
 
         Ok(())
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        liq_not_paused(&ctx.accounts.state)
     )]
-    pub fn liquidate_borrow(
-        ctx: Context<LiquidateBorrow>,
-        asset_market_index: u64,
-        liability_market_index: u64,
+    pub fn liquidate_spot(
+        ctx: Context<LiquidateSpot>,
+        asset_market_index: u16,
+        liability_market_index: u16,
         liquidator_max_liability_transfer: u128,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
+        let state = &ctx.accounts.state;
 
         let user_key = ctx.accounts.user.key();
         let liquidator_key = ctx.accounts.liquidator.key();
@@ -1765,7 +1961,11 @@ pub mod clearing_house {
         let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
 
         let mut writable_spot_markets = SpotMarketSet::new();
         writable_spot_markets.insert(asset_market_index);
@@ -1773,7 +1973,7 @@ pub mod clearing_house {
         let spot_market_map = SpotMarketMap::load(&writable_spot_markets, remaining_accounts_iter)?;
         let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
-        controller::liquidation::liquidate_borrow(
+        controller::liquidation::liquidate_spot(
             asset_market_index,
             liability_market_index,
             liquidator_max_liability_transfer,
@@ -1786,23 +1986,24 @@ pub mod clearing_house {
             &mut oracle_map,
             now,
             clock.slot,
-            ctx.accounts.state.liquidation_margin_buffer_ratio,
+            state.liquidation_margin_buffer_ratio,
         )?;
 
         Ok(())
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        liq_not_paused(&ctx.accounts.state)
     )]
     pub fn liquidate_borrow_for_perp_pnl(
         ctx: Context<LiquidateBorrowForPerpPnl>,
-        perp_market_index: u64,
-        spot_market_index: u64,
+        perp_market_index: u16,
+        spot_market_index: u16,
         liquidator_max_liability_transfer: u128,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
+        let state = &ctx.accounts.state;
 
         let user_key = ctx.accounts.user.key();
         let liquidator_key = ctx.accounts.liquidator.key();
@@ -1816,7 +2017,11 @@ pub mod clearing_house {
         let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
 
         let mut writable_spot_markets = SpotMarketSet::new();
         writable_spot_markets.insert(spot_market_index);
@@ -1836,21 +2041,22 @@ pub mod clearing_house {
             &mut oracle_map,
             now,
             clock.slot,
-            ctx.accounts.state.liquidation_margin_buffer_ratio,
+            state.liquidation_margin_buffer_ratio,
         )?;
 
         Ok(())
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        liq_not_paused(&ctx.accounts.state)
     )]
     pub fn liquidate_perp_pnl_for_deposit(
         ctx: Context<LiquidatePerpPnlForDeposit>,
-        perp_market_index: u64,
-        spot_market_index: u64,
+        perp_market_index: u16,
+        spot_market_index: u16,
         liquidator_max_pnl_transfer: u128,
     ) -> Result<()> {
+        let state = &ctx.accounts.state;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -1866,7 +2072,11 @@ pub mod clearing_house {
         let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
 
         let mut writable_spot_markets = SpotMarketSet::new();
         writable_spot_markets.insert(spot_market_index);
@@ -1886,16 +2096,19 @@ pub mod clearing_house {
             &mut oracle_map,
             now,
             clock.slot,
-            ctx.accounts.state.liquidation_margin_buffer_ratio,
+            state.liquidation_margin_buffer_ratio,
         )?;
 
         Ok(())
     }
 
+    #[access_control(
+        withdraw_not_paused(&ctx.accounts.state)
+    )]
     pub fn resolve_perp_pnl_deficit(
         ctx: Context<ResolvePerpPnlDeficit>,
-        spot_market_index: u64,
-        perp_market_index: u64,
+        spot_market_index: u16,
+        perp_market_index: u16,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -1904,7 +2117,11 @@ pub mod clearing_house {
         let state = &ctx.accounts.state;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(spot_market_index),
             remaining_accounts_iter,
@@ -1920,6 +2137,19 @@ pub mod clearing_house {
             &clock,
         )?;
 
+        {
+            let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.clearing_house_signer,
+                state,
+            )?;
+        }
+
         let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;
         let spot_market_vault_amount = ctx.accounts.spot_market_vault.amount;
 
@@ -1927,11 +2157,27 @@ pub mod clearing_house {
             let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
             let perp_market = &mut market_map.get_ref_mut(&perp_market_index)?;
 
+            if perp_market.amm.curve_update_intensity > 0 {
+                validate!(
+                    perp_market.amm.last_oracle_valid,
+                    ErrorCode::InvalidOracle,
+                    "Oracle Price detected as invalid"
+                )?;
+
+                validate!(
+                    oracle_map.slot == perp_market.amm.last_update_slot,
+                    ErrorCode::AMMNotUpdatedInSameSlot,
+                    "AMM must be updated in a prior instruction within same slot"
+                )?;
+            }
+
             validate!(
                 perp_market.is_active(now)?,
                 ErrorCode::DefaultError,
                 "Market is in settlement mode",
             )?;
+
+            controller::orders::validate_market_within_price_band(perp_market, state, true, None)?;
 
             controller::insurance::resolve_perp_pnl_deficit(
                 spot_market_vault_amount,
@@ -1973,12 +2219,12 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        withdraw_not_paused(&ctx.accounts.state)
     )]
     pub fn resolve_perp_bankruptcy(
         ctx: Context<ResolveBankruptcy>,
-        quote_spot_market_index: u64,
-        market_index: u64,
+        quote_spot_market_index: u16,
+        market_index: u16,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -2001,13 +2247,30 @@ pub mod clearing_house {
         let state = &ctx.accounts.state;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(quote_spot_market_index),
             remaining_accounts_iter,
         )?;
         let market_map =
             PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
+
+        {
+            let spot_market = &mut spot_market_map.get_ref_mut(&quote_spot_market_index)?;
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.clearing_house_signer,
+                state,
+            )?;
+        }
 
         let pay_from_insurance = controller::liquidation::resolve_perp_bankruptcy(
             market_index,
@@ -2051,12 +2314,13 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        withdraw_not_paused(&ctx.accounts.state)
     )]
-    pub fn resolve_borrow_bankruptcy(
+    pub fn resolve_spot_bankruptcy(
         ctx: Context<ResolveBankruptcy>,
-        market_index: u64,
+        market_index: u16,
     ) -> Result<()> {
+        let state = &ctx.accounts.state;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
@@ -2072,14 +2336,32 @@ pub mod clearing_house {
         let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
         let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-        let mut oracle_map = OracleMap::load(remaining_accounts_iter, clock.slot)?;
+        let mut oracle_map = OracleMap::load(
+            remaining_accounts_iter,
+            clock.slot,
+            Some(state.oracle_guard_rails),
+        )?;
         let spot_market_map = SpotMarketMap::load(
             &get_writable_spot_market_set(market_index),
             remaining_accounts_iter,
         )?;
+
+        {
+            let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.clearing_house_signer,
+                state,
+            )?;
+        }
+
         let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
-        let pay_from_insurance = controller::liquidation::resolve_borrow_bankruptcy(
+        let pay_from_insurance = controller::liquidation::resolve_spot_bankruptcy(
             market_index,
             user,
             &user_key,
@@ -2114,9 +2396,7 @@ pub mod clearing_house {
 
     #[allow(unused_must_use)]
     #[access_control(
-        market_initialized(&ctx.accounts.perp_market) &&
-        exchange_not_paused(&ctx.accounts.state) &&
-        admin_controls_prices(&ctx.accounts.state)
+        market_valid(&ctx.accounts.perp_market)
     )]
     pub fn move_amm_price(
         ctx: Context<MoveAMMPrice>,
@@ -2137,7 +2417,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.perp_market)
+        market_valid(&ctx.accounts.perp_market)
     )]
     pub fn update_market_expiry(ctx: Context<MoveAMMPrice>, expiry_ts: i64) -> Result<()> {
         let clock = Clock::get()?;
@@ -2156,10 +2436,10 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.perp_market)
+        market_valid(&ctx.accounts.perp_market)
     )]
     pub fn settle_expired_market_pools_to_revenue_pool(
-        ctx: Context<WithdrawFromMarketToInsuranceVault>,
+        ctx: Context<SettleExpiredMarketPoolsToRevenuePool>,
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.perp_market)?;
         let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
@@ -2167,7 +2447,7 @@ pub mod clearing_house {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
 
-        controller::spot_balance::update_spot_market_cumulative_interest(spot_market, now)?;
+        controller::spot_balance::update_spot_market_cumulative_interest(spot_market, None, now)?;
 
         validate!(
             spot_market.market_index == QUOTE_SPOT_MARKET_INDEX,
@@ -2267,7 +2547,6 @@ pub mod clearing_house {
             "Bank token balances must be equal before and after"
         )?;
 
-        ctx.accounts.spot_market_vault.reload()?;
         math::spot_balance::validate_spot_balances(spot_market)?;
 
         market.status = MarketStatus::Delisted;
@@ -2276,99 +2555,14 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.perp_market)
+        market_valid(&ctx.accounts.market)
     )]
-    pub fn withdraw_from_market_to_insurance_vault(
-        ctx: Context<WithdrawFromMarketToInsuranceVault>,
-        amount: u64,
-    ) -> Result<()> {
-        let market = &mut load_mut!(ctx.accounts.perp_market)?;
-
-        // A portion of fees must always remain in protocol to be used to keep markets optimal
-        let max_withdraw = market
-            .amm
-            .total_exchange_fee
-            .checked_mul(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR)
-            .ok_or_else(math_error!())?
-            .checked_div(SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR)
-            .ok_or_else(math_error!())?
-            .checked_sub(market.amm.total_fee_withdrawn)
-            .ok_or_else(math_error!())?;
-
-        let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-
-        let amm_fee_pool_token_amount = get_token_amount(
-            market.amm.fee_pool.balance,
-            spot_market,
-            &SpotBalanceType::Deposit,
-        )?;
-
-        if cast_to_u128(amount)? > max_withdraw {
-            msg!("withdraw size exceeds max_withdraw: {:?}", max_withdraw);
-            return Err(ErrorCode::AdminWithdrawTooLarge.into());
-        }
-
-        if cast_to_u128(amount)? > amm_fee_pool_token_amount {
-            msg!(
-                "withdraw size exceeds amm_fee_pool_token_amount: {:?}",
-                amm_fee_pool_token_amount
-            );
-            return Err(ErrorCode::AdminWithdrawTooLarge.into());
-        }
-
-        controller::token::send_from_program_vault(
-            &ctx.accounts.token_program,
-            &ctx.accounts.spot_market_vault,
-            &ctx.accounts.recipient,
-            &ctx.accounts.clearing_house_signer,
-            ctx.accounts.state.signer_nonce,
-            amount,
-        )?;
-
-        controller::spot_balance::update_spot_balances(
-            cast_to_u128(amount)?,
-            &SpotBalanceType::Borrow,
-            spot_market,
-            &mut market.amm.fee_pool,
-            false,
-        )?;
-
-        market.amm.total_fee_withdrawn = market
-            .amm
-            .total_fee_withdrawn
-            .checked_add(cast(amount)?)
-            .ok_or_else(math_error!())?;
-
-        Ok(())
-    }
-
-    pub fn withdraw_from_insurance_vault(
-        ctx: Context<WithdrawFromInsuranceVault>,
-        amount: u64,
-    ) -> Result<()> {
-        controller::token::send_from_program_vault(
-            &ctx.accounts.token_program,
-            &ctx.accounts.insurance_vault,
-            &ctx.accounts.recipient,
-            &ctx.accounts.clearing_house_signer,
-            ctx.accounts.state.signer_nonce,
-            amount,
-        )?;
-        Ok(())
-    }
-
-    #[access_control(
-        market_initialized(&ctx.accounts.market)
-    )]
-    pub fn withdraw_from_insurance_vault_to_market(
-        ctx: Context<WithdrawFromInsuranceVaultToMarket>,
+    pub fn deposit_into_market_fee_pool(
+        ctx: Context<DepositIntoMarketFeePool>,
         amount: u64,
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
 
-        // The admin can move fees from the insurance fund back to the protocol so that money in
-        // the insurance fund can be used to make market more optimal
-        // 100% goes to user fee pool (symmetric funding, repeg, and k adjustments)
         market.amm.total_fee_minus_distributions = market
             .amm
             .total_fee_minus_distributions
@@ -2385,21 +2579,20 @@ pub mod clearing_house {
             false,
         )?;
 
-        controller::token::send_from_program_vault(
+        controller::token::receive(
             &ctx.accounts.token_program,
-            &ctx.accounts.insurance_vault,
+            &ctx.accounts.source_vault,
             &ctx.accounts.spot_market_vault,
-            &ctx.accounts.clearing_house_signer,
-            ctx.accounts.state.signer_nonce,
+            &ctx.accounts.admin.to_account_info(),
             amount,
         )?;
+
         Ok(())
     }
 
     #[allow(unused_must_use)]
     #[access_control(
-        market_initialized(&ctx.accounts.market) &&
-        exchange_not_paused(&ctx.accounts.state) &&
+        market_valid(&ctx.accounts.market) &&
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
     )]
     pub fn repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128) -> Result<()> {
@@ -2412,7 +2605,7 @@ pub mod clearing_house {
         let OraclePriceData {
             price: oracle_price,
             ..
-        } = market.amm.get_oracle_price(price_oracle, 0)?;
+        } = get_oracle_price(&market.amm.oracle_source, price_oracle, clock.slot)?;
 
         let peg_multiplier_before = market.amm.peg_multiplier;
         let base_asset_reserve_before = market.amm.base_asset_reserve;
@@ -2462,7 +2655,7 @@ pub mod clearing_house {
 
     #[allow(unused_must_use)]
     #[access_control(
-        market_initialized(&ctx.accounts.market) &&
+        market_valid(&ctx.accounts.market) &&
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
     )]
     pub fn update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
@@ -2478,7 +2671,7 @@ pub mod clearing_house {
 
         if let Some(oracle_twap) = oracle_twap {
             let oracle_mark_gap_before = cast_to_i128(market.amm.last_mark_price_twap)?
-                .checked_sub(market.amm.last_oracle_price_twap)
+                .checked_sub(market.amm.historical_oracle_data.last_oracle_price_twap)
                 .ok_or_else(math_error!())?;
 
             let oracle_mark_gap_after = cast_to_i128(market.amm.last_mark_price_twap)?
@@ -2488,14 +2681,15 @@ pub mod clearing_house {
             if (oracle_mark_gap_after > 0 && oracle_mark_gap_before < 0)
                 || (oracle_mark_gap_after < 0 && oracle_mark_gap_before > 0)
             {
-                market.amm.last_oracle_price_twap = cast_to_i128(market.amm.last_mark_price_twap)?;
-                market.amm.last_oracle_price_twap_ts = now;
+                market.amm.historical_oracle_data.last_oracle_price_twap =
+                    cast_to_i128(market.amm.last_mark_price_twap)?;
+                market.amm.historical_oracle_data.last_oracle_price_twap_ts = now;
             } else if oracle_mark_gap_after.unsigned_abs() <= oracle_mark_gap_before.unsigned_abs()
             {
-                market.amm.last_oracle_price_twap = oracle_twap;
-                market.amm.last_oracle_price_twap_ts = now;
+                market.amm.historical_oracle_data.last_oracle_price_twap = oracle_twap;
+                market.amm.historical_oracle_data.last_oracle_price_twap_ts = now;
             } else {
-                return Err(ErrorCode::OracleMarkSpreadLimit.into());
+                return Err(ErrorCode::PriceBandsBreached.into());
             }
         } else {
             return Err(ErrorCode::InvalidOracle.into());
@@ -2506,11 +2700,13 @@ pub mod clearing_house {
 
     #[allow(unused_must_use)]
     #[access_control(
-        market_initialized(&ctx.accounts.market) &&
+        market_valid(&ctx.accounts.market) &&
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
      )]
     pub fn reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
         // if oracle is invalid, failsafe to reset amm oracle_twap to the mark_twap
+
+        let state = &ctx.accounts.state;
 
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -2518,17 +2714,22 @@ pub mod clearing_house {
 
         let market = &mut load_mut!(ctx.accounts.market)?;
         let price_oracle = &ctx.accounts.oracle;
-        let oracle_price_data = &market.amm.get_oracle_price(price_oracle, clock_slot)?;
+        let oracle_price_data =
+            &get_oracle_price(&market.amm.oracle_source, price_oracle, clock_slot)?;
 
-        let is_oracle_valid = amm::is_oracle_valid(
-            &market.amm,
+        let oracle_validity = oracle::oracle_validity(
+            market.amm.historical_oracle_data.last_oracle_price_twap,
             oracle_price_data,
-            &ctx.accounts.state.oracle_guard_rails.validity,
+            &state.oracle_guard_rails.validity,
         )?;
 
+        let is_oracle_valid =
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::UpdateFunding))?;
+
         if !is_oracle_valid {
-            market.amm.last_oracle_price_twap = cast_to_i128(market.amm.last_mark_price_twap)?;
-            market.amm.last_oracle_price_twap_ts = now;
+            market.amm.historical_oracle_data.last_oracle_price_twap =
+                cast_to_i128(market.amm.last_mark_price_twap)?;
+            market.amm.historical_oracle_data.last_oracle_price_twap_ts = now;
         }
 
         Ok(())
@@ -2554,6 +2755,8 @@ pub mod clearing_house {
             ..User::default()
         };
 
+        let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
         let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
         user_stats.number_of_users = user_stats
             .number_of_users
@@ -2562,7 +2765,6 @@ pub mod clearing_house {
 
         // Only try to add referrer if it is the first user
         if user_stats.number_of_users == 1 {
-            let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
             let (referrer, referrer_stats) =
                 get_referrer_and_referrer_stats(remaining_accounts_iter)?;
             let referrer =
@@ -2585,6 +2787,15 @@ pub mod clearing_house {
                 };
 
             user_stats.referrer = referrer;
+        }
+
+        let whitelist_mint = &ctx.accounts.state.whitelist_mint;
+        if !whitelist_mint.eq(&Pubkey::default()) {
+            validate_whitelist_token(
+                get_whitelist_token(remaining_accounts_iter)?,
+                whitelist_mint,
+                &ctx.accounts.authority.key(),
+            )?;
         }
 
         emit!(NewUserRecord {
@@ -2617,6 +2828,9 @@ pub mod clearing_house {
             ..UserStats::default()
         };
 
+        let state = &mut ctx.accounts.state;
+        checked_increment!(state.number_of_authorities, 1);
+
         Ok(())
     }
 
@@ -2646,8 +2860,19 @@ pub mod clearing_house {
         Ok(())
     }
 
+    pub fn delete_user(ctx: Context<DeleteUser>) -> Result<()> {
+        let user = &load!(ctx.accounts.user)?;
+        let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+        validate_user_deletion(user, user_stats)?;
+
+        checked_decrement!(user_stats.number_of_users, 1);
+
+        Ok(())
+    }
+
     #[access_control(
-        exchange_not_paused(&ctx.accounts.state)
+        funding_not_paused(&ctx.accounts.state)
     )]
     pub fn settle_funding_payment(ctx: Context<SettleFunding>) -> Result<()> {
         let clock = Clock::get()?;
@@ -2668,25 +2893,29 @@ pub mod clearing_house {
 
     #[allow(unused_must_use)]
     #[access_control(
-        market_initialized(&ctx.accounts.market) &&
-        exchange_not_paused(&ctx.accounts.state) &&
+        market_valid(&ctx.accounts.market) &&
+        funding_not_paused(&ctx.accounts.state) &&
         valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
     )]
-    pub fn update_funding_rate(ctx: Context<UpdateFundingRate>, market_index: u64) -> Result<()> {
+    pub fn update_funding_rate(ctx: Context<UpdateFundingRate>, market_index: u16) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let clock_slot = clock.slot;
         let state = &ctx.accounts.state;
-        let mut oracle_map = OracleMap::load_one(&ctx.accounts.oracle, clock_slot)?;
+        let mut oracle_map = OracleMap::load_one(
+            &ctx.accounts.oracle,
+            clock_slot,
+            Some(state.oracle_guard_rails),
+        )?;
 
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
         controller::repeg::_update_amm(market, oracle_price_data, state, now, clock_slot)?;
 
         validate!(
-            market.status == MarketStatus::Initialized,
-            ErrorCode::DefaultError,
-            "Market is in reduce only / settlement mode",
+            matches!(market.status, MarketStatus::Active),
+            ErrorCode::MarketActionPaused,
+            "Market funding is paused",
         )?;
 
         validate!(
@@ -2702,7 +2931,7 @@ pub mod clearing_house {
             &mut oracle_map,
             now,
             &state.oracle_guard_rails,
-            state.funding_paused,
+            matches!(state.exchange_status, ExchangeStatus::FundingPaused),
             None,
         )?;
 
@@ -2715,9 +2944,8 @@ pub mod clearing_house {
 
     #[allow(unused_must_use)]
     #[access_control(
-        market_initialized(&ctx.accounts.market) &&
-        valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market) &&
-        exchange_not_paused(&ctx.accounts.state)
+        market_valid(&ctx.accounts.market) &&
+        valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
     )]
     pub fn update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         let clock = Clock::get()?;
@@ -2741,6 +2969,8 @@ pub mod clearing_house {
         let quote_asset_reserve_before = market.amm.quote_asset_reserve;
         let sqrt_k_before = market.amm.sqrt_k;
 
+        let k_increasing = sqrt_k > market.amm.sqrt_k;
+
         let new_sqrt_k_u192 = bn::U192::from(sqrt_k);
 
         let update_k_result = get_update_k_result(market, new_sqrt_k_u192, true)?;
@@ -2749,10 +2979,26 @@ pub mod clearing_house {
 
         math::amm::update_k(market, &update_k_result);
 
+        if k_increasing {
+            validate!(
+                adjustment_cost >= 0,
+                ErrorCode::InvalidUpdateK,
+                "adjustment_cost negative when k increased",
+            )?;
+        } else {
+            validate!(
+                adjustment_cost <= 0,
+                ErrorCode::InvalidUpdateK,
+                "adjustment_cost positive when k decreased",
+            )?;
+        }
+
         if adjustment_cost > 0 {
             let max_cost = market
                 .amm
                 .total_fee_minus_distributions
+                .checked_sub(cast_to_i128(get_total_fee_lower_bound(market)?)?)
+                .ok_or_else(math_error!())?
                 .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
                 .ok_or_else(math_error!())?;
             if adjustment_cost > max_cost {
@@ -2763,13 +3009,13 @@ pub mod clearing_house {
         market.amm.total_fee_minus_distributions = market
             .amm
             .total_fee_minus_distributions
-            .checked_add(adjustment_cost)
+            .checked_sub(adjustment_cost)
             .ok_or_else(math_error!())?;
 
         market.amm.net_revenue_since_last_funding = market
             .amm
             .net_revenue_since_last_funding
-            .checked_add(adjustment_cost as i64)
+            .checked_sub(adjustment_cost as i64)
             .ok_or_else(math_error!())?;
 
         let amm = &market.amm;
@@ -2784,14 +3030,14 @@ pub mod clearing_house {
             .checked_sub(cast_to_i128(price_after)?)
             .ok_or_else(math_error!())?
             .unsigned_abs()
-            .gt(&UPDATE_K_ALLOWED_PRICE_CHANGE);
+            .gt(&MAX_UPDATE_K_PRICE_CHANGE);
 
         if price_change_too_large {
             msg!(
                 "{:?} -> {:?} (> {:?})",
                 price_before,
                 price_after,
-                UPDATE_K_ALLOWED_PRICE_CHANGE
+                MAX_UPDATE_K_PRICE_CHANGE
             );
             return Err(ErrorCode::InvalidUpdateK.into());
         }
@@ -2822,7 +3068,7 @@ pub mod clearing_house {
         let OraclePriceData {
             price: oracle_price,
             ..
-        } = amm.get_oracle_price(&ctx.accounts.oracle, 0)?;
+        } = get_oracle_price(&market.amm.oracle_source, &ctx.accounts.oracle, clock.slot)?;
 
         emit!(CurveRecord {
             ts: now,
@@ -2851,7 +3097,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_margin_ratio(
         ctx: Context<AdminUpdateMarket>,
@@ -2872,7 +3118,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_market_max_imbalances(
         ctx: Context<AdminUpdateMarket>,
@@ -2882,20 +3128,24 @@ pub mod clearing_house {
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
 
+        let max_insurance_for_tier = match market.contract_tier {
+            ContractTier::A => INSURANCE_A_MAX,
+            ContractTier::B => INSURANCE_B_MAX,
+            ContractTier::C => INSURANCE_C_MAX,
+            ContractTier::Speculative => INSURANCE_SPECULATIVE_MAX,
+        };
+
         validate!(
-            max_revenue_withdraw_per_period < 100_000 * QUOTE_PRECISION,
+            max_revenue_withdraw_per_period <= max_insurance_for_tier
+                && unrealized_max_imbalance <= max_insurance_for_tier + 1
+                && quote_max_insurance <= max_insurance_for_tier,
             ErrorCode::DefaultError,
-            "max_revenue_withdraw_per_period must be less than 100k"
+            "all maxs must be less than max_insurance for ContractTier ={}",
+            max_insurance_for_tier
         )?;
 
         validate!(
-            unrealized_max_imbalance < 100_000 * QUOTE_PRECISION,
-            ErrorCode::DefaultError,
-            "unrealized_max_imbalance must be less than 100k"
-        )?;
-
-        validate!(
-            market.quote_settled_insurance < quote_max_insurance,
+            market.quote_settled_insurance <= quote_max_insurance,
             ErrorCode::DefaultError,
             "quote_max_insurance must be above market.quote_settled_insurance={}",
             market.quote_settled_insurance
@@ -2927,7 +3177,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_perp_liquidation_fee(
         ctx: Context<AdminUpdateMarket>,
@@ -3007,7 +3257,7 @@ pub mod clearing_house {
 
     pub fn update_spot_market_if_factor(
         ctx: Context<AdminUpdateSpotMarket>,
-        spot_market_index: u64,
+        spot_market_index: u16,
         user_if_factor: u32,
         total_if_factor: u32,
     ) -> Result<()> {
@@ -3026,7 +3276,7 @@ pub mod clearing_house {
         )?;
 
         validate!(
-            total_if_factor <= cast_to_u32(SPOT_INTEREST_PRECISION)?,
+            total_if_factor <= cast_to_u32(IF_FACTOR_PRECISION)?,
             ErrorCode::DefaultError,
             "total_if_factor must be <= 100%"
         )?;
@@ -3063,8 +3313,102 @@ pub mod clearing_house {
         Ok(())
     }
 
+    pub fn update_spot_market_status(
+        ctx: Context<AdminUpdateSpotMarket>,
+        status: MarketStatus,
+    ) -> Result<()> {
+        let market = &mut load_mut!(ctx.accounts.spot_market)?;
+        market.status = status;
+        Ok(())
+    }
+
+    pub fn update_spot_market_asset_tier(
+        ctx: Context<AdminUpdateSpotMarket>,
+        asset_tier: AssetTier,
+    ) -> Result<()> {
+        let market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+        if market.initial_asset_weight > 0 {
+            validate!(
+                matches!(asset_tier, AssetTier::Collateral | AssetTier::Protected),
+                ErrorCode::DefaultError,
+                "initial_asset_weight > 0 so AssetTier must be collateral or protected"
+            )?;
+        }
+
+        market.asset_tier = asset_tier;
+        Ok(())
+    }
+
+    pub fn update_spot_market_margin_weights(
+        ctx: Context<AdminUpdateSpotMarket>,
+        initial_asset_weight: u128,
+        maintenance_asset_weight: u128,
+        initial_liability_weight: u128,
+        maintenance_liability_weight: u128,
+        imf_factor: u128,
+    ) -> Result<()> {
+        let market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+        validate_margin_weights(
+            market.market_index,
+            initial_asset_weight,
+            maintenance_asset_weight,
+            initial_liability_weight,
+            maintenance_liability_weight,
+            imf_factor,
+        )?;
+
+        market.initial_asset_weight = initial_asset_weight;
+        market.maintenance_asset_weight = maintenance_asset_weight;
+        market.initial_liability_weight = initial_liability_weight;
+        market.maintenance_liability_weight = maintenance_liability_weight;
+        market.imf_factor = imf_factor;
+
+        Ok(())
+    }
+
+    pub fn update_spot_market_max_token_deposits(
+        ctx: Context<AdminUpdateSpotMarket>,
+        max_token_deposits: u128,
+    ) -> Result<()> {
+        let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+        spot_market.max_token_deposits = max_token_deposits;
+        Ok(())
+    }
+
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
+    )]
+    pub fn update_perp_market_status(
+        ctx: Context<AdminUpdateMarket>,
+        status: MarketStatus,
+    ) -> Result<()> {
+        validate!(
+            !matches!(status, MarketStatus::Delisted | MarketStatus::Settlement),
+            ErrorCode::DefaultError,
+            "must set settlement/delist through another instruction",
+        )?;
+
+        let market = &mut load_mut!(ctx.accounts.market)?;
+        market.status = status;
+        Ok(())
+    }
+
+    #[access_control(
+        market_valid(&ctx.accounts.market)
+    )]
+    pub fn update_perp_market_contract_tier(
+        ctx: Context<AdminUpdateMarket>,
+        contract_tier: ContractTier,
+    ) -> Result<()> {
+        let market = &mut load_mut!(ctx.accounts.market)?;
+        market.contract_tier = contract_tier;
+        Ok(())
+    }
+
+    #[access_control(
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_market_imf_factor(
         ctx: Context<AdminUpdateMarket>,
@@ -3081,7 +3425,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_market_unrealized_asset_weight(
         ctx: Context<AdminUpdateMarket>,
@@ -3110,7 +3454,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_concentration_coef(
         ctx: Context<AdminUpdateMarket>,
@@ -3143,7 +3487,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_curve_update_intensity(
         ctx: Context<AdminUpdateMarket>,
@@ -3160,7 +3504,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_lp_cooldown_time(
         ctx: Context<AdminUpdateMarket>,
@@ -3199,7 +3543,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_market_oracle(
         ctx: Context<AdminUpdateMarket>,
@@ -3213,7 +3557,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_market_minimum_quote_asset_trade_size(
         ctx: Context<AdminUpdateMarket>,
@@ -3225,7 +3569,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_market_base_spread(
         ctx: Context<AdminUpdateMarket>,
@@ -3239,7 +3583,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_amm_jit_intensity(
         ctx: Context<AdminUpdateMarket>,
@@ -3258,7 +3602,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_market_max_spread(
         ctx: Context<AdminUpdateMarket>,
@@ -3283,11 +3627,11 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_market_base_asset_amount_step_size(
         ctx: Context<AdminUpdateMarket>,
-        minimum_trade_size: u128,
+        minimum_trade_size: u64,
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
         if minimum_trade_size > 0 {
@@ -3299,7 +3643,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_market_max_slippage_ratio(
         ctx: Context<AdminUpdateMarket>,
@@ -3312,7 +3656,7 @@ pub mod clearing_house {
     }
 
     #[access_control(
-        market_initialized(&ctx.accounts.market)
+        market_valid(&ctx.accounts.market)
     )]
     pub fn update_max_base_asset_amount_ratio(
         ctx: Context<AdminUpdateMarket>,
@@ -3345,24 +3689,11 @@ pub mod clearing_house {
         Ok(())
     }
 
-    pub fn update_exchange_paused(
+    pub fn update_exchange_status(
         ctx: Context<AdminUpdateState>,
-        exchange_paused: bool,
+        exchange_status: ExchangeStatus,
     ) -> Result<()> {
-        ctx.accounts.state.exchange_paused = exchange_paused;
-        Ok(())
-    }
-
-    pub fn disable_admin_controls_prices(ctx: Context<AdminUpdateState>) -> Result<()> {
-        ctx.accounts.state.admin_controls_prices = false;
-        Ok(())
-    }
-
-    pub fn update_funding_paused(
-        ctx: Context<AdminUpdateState>,
-        funding_paused: bool,
-    ) -> Result<()> {
-        ctx.accounts.state.funding_paused = funding_paused;
+        ctx.accounts.state.exchange_status = exchange_status;
         Ok(())
     }
 
@@ -3384,7 +3715,7 @@ pub mod clearing_house {
 
     pub fn initialize_insurance_fund_stake(
         ctx: Context<InitializeInsuranceFundStake>,
-        market_index: u64,
+        market_index: u16,
     ) -> Result<()> {
         let mut if_stake = ctx
             .accounts
@@ -3400,9 +3731,12 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        withdraw_not_paused(&ctx.accounts.state)
+    )]
     pub fn settle_revenue_to_insurance_fund(
         ctx: Context<SettleRevenueToInsuranceFund>,
-        _market_index: u64,
+        _market_index: u16,
     ) -> Result<()> {
         let state = &ctx.accounts.state;
         let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
@@ -3449,8 +3783,6 @@ pub mod clearing_house {
             token_amount as u64,
         )?;
 
-        // todo: settle remaining revenue pool to a revenue vault
-
         spot_market.last_revenue_settle_ts = now;
 
         Ok(())
@@ -3458,7 +3790,7 @@ pub mod clearing_house {
 
     pub fn add_insurance_fund_stake(
         ctx: Context<AddInsuranceFundStake>,
-        market_index: u64,
+        market_index: u16,
         amount: u64,
     ) -> Result<()> {
         if amount == 0 {
@@ -3466,9 +3798,11 @@ pub mod clearing_house {
         }
 
         let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
         let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
         let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
         let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+        let state = &ctx.accounts.state;
 
         validate!(
             insurance_fund_stake.market_index == market_index,
@@ -3482,6 +3816,18 @@ pub mod clearing_house {
             ErrorCode::DefaultError,
             "withdraw request in progress"
         )?;
+
+        {
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.clearing_house_signer,
+                state,
+            )?;
+        }
 
         controller::insurance::add_insurance_fund_stake(
             amount,
@@ -3505,7 +3851,7 @@ pub mod clearing_house {
 
     pub fn request_remove_insurance_fund_stake(
         ctx: Context<RequestRemoveInsuranceFundStake>,
-        market_index: u64,
+        market_index: u16,
         amount: u64,
     ) -> Result<()> {
         let clock = Clock::get()?;
@@ -3538,7 +3884,7 @@ pub mod clearing_house {
         )?;
 
         let user_if_shares = insurance_fund_stake.checked_if_shares(spot_market)?;
-        validate!(user_if_shares >= n_shares, ErrorCode::InsufficientLPTokens)?;
+        validate!(user_if_shares >= n_shares, ErrorCode::InsufficientIFShares)?;
 
         controller::insurance::request_remove_insurance_fund_stake(
             n_shares,
@@ -3554,7 +3900,7 @@ pub mod clearing_house {
 
     pub fn cancel_request_remove_insurance_fund_stake(
         ctx: Context<RequestRemoveInsuranceFundStake>,
-        market_index: u64,
+        market_index: u16,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -3585,9 +3931,12 @@ pub mod clearing_house {
         Ok(())
     }
 
+    #[access_control(
+        withdraw_not_paused(&ctx.accounts.state)
+    )]
     pub fn remove_insurance_fund_stake(
         ctx: Context<RemoveInsuranceFundStake>,
-        market_index: u64,
+        market_index: u16,
     ) -> Result<()> {
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
@@ -3628,6 +3977,54 @@ pub mod clearing_house {
         Ok(())
     }
 
+    pub fn admin_remove_insurance_fund_stake(
+        ctx: Context<AdminRemoveInsuranceFundStake>,
+        market_index: u16,
+        amount: u64,
+    ) -> Result<()> {
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+        let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+        let state = &ctx.accounts.state;
+
+        validate!(
+            market_index == spot_market.market_index,
+            ErrorCode::DefaultError,
+            "market_index doesnt match spot_market"
+        )?;
+
+        let n_shares = math::insurance::vault_amount_to_if_shares(
+            amount,
+            spot_market.total_if_shares,
+            ctx.accounts.insurance_fund_vault.amount,
+        )?;
+
+        let withdrawn_amount = controller::insurance::admin_remove_insurance_fund_stake(
+            ctx.accounts.insurance_fund_vault.amount,
+            n_shares,
+            spot_market,
+            now,
+            *ctx.accounts.admin.key,
+        )?;
+
+        controller::token::send_from_program_vault(
+            &ctx.accounts.token_program,
+            &ctx.accounts.insurance_fund_vault,
+            &ctx.accounts.admin_token_account,
+            &ctx.accounts.clearing_house_signer,
+            state.signer_nonce,
+            withdrawn_amount,
+        )?;
+
+        validate!(
+            ctx.accounts.insurance_fund_vault.amount > 0,
+            ErrorCode::DefaultError,
+            "insurance_fund_vault.amount must remain > 0"
+        )?;
+
+        Ok(())
+    }
+
     pub fn update_user_quote_asset_insurance_stake(
         ctx: Context<UpdateUserQuoteAssetInsuranceStake>,
     ) -> Result<()> {
@@ -3651,9 +4048,8 @@ pub mod clearing_house {
     }
 }
 
-fn market_initialized(market: &AccountLoader<PerpMarket>) -> Result<()> {
-    // todo?
-    if market.load()?.status != MarketStatus::Initialized {
+fn market_valid(market: &AccountLoader<PerpMarket>) -> Result<()> {
+    if market.load()?.status == MarketStatus::Delisted {
         return Err(ErrorCode::MarketIndexNotInitialized.into());
     }
     Ok(())
@@ -3666,16 +4062,59 @@ fn valid_oracle_for_market(oracle: &AccountInfo, market: &AccountLoader<PerpMark
     Ok(())
 }
 
-fn exchange_not_paused(state: &Account<State>) -> Result<()> {
-    if state.exchange_paused {
+fn liq_not_paused(state: &Account<State>) -> Result<()> {
+    if matches!(
+        state.exchange_status,
+        ExchangeStatus::LiqPaused | ExchangeStatus::Paused
+    ) {
         return Err(ErrorCode::ExchangePaused.into());
     }
     Ok(())
 }
 
-fn admin_controls_prices(state: &Account<State>) -> Result<()> {
-    if !state.admin_controls_prices {
-        return Err(ErrorCode::AdminControlsPricesDisabled.into());
+fn funding_not_paused(state: &Account<State>) -> Result<()> {
+    if matches!(
+        state.exchange_status,
+        ExchangeStatus::FundingPaused | ExchangeStatus::Paused
+    ) {
+        return Err(ErrorCode::ExchangePaused.into());
+    }
+    Ok(())
+}
+
+fn amm_not_paused(state: &Account<State>) -> Result<()> {
+    if matches!(
+        state.exchange_status,
+        ExchangeStatus::AmmPaused | ExchangeStatus::Paused
+    ) {
+        return Err(ErrorCode::ExchangePaused.into());
+    }
+    Ok(())
+}
+
+fn fill_not_paused(state: &Account<State>) -> Result<()> {
+    if matches!(
+        state.exchange_status,
+        ExchangeStatus::FillPaused | ExchangeStatus::Paused
+    ) {
+        return Err(ErrorCode::ExchangePaused.into());
+    }
+    Ok(())
+}
+
+fn withdraw_not_paused(state: &Account<State>) -> Result<()> {
+    if matches!(
+        state.exchange_status,
+        ExchangeStatus::WithdrawPaused | ExchangeStatus::Paused
+    ) {
+        return Err(ErrorCode::ExchangePaused.into());
+    }
+    Ok(())
+}
+
+fn exchange_not_paused(state: &Account<State>) -> Result<()> {
+    if state.exchange_status == ExchangeStatus::Paused {
+        return Err(ErrorCode::ExchangePaused.into());
     }
     Ok(())
 }

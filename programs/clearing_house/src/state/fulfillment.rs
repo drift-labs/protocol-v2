@@ -1,6 +1,6 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum PerpFulfillmentMethod {
-    AMM,
+    AMM(Option<u128>),
     Match,
 }
 

@@ -16,26 +16,29 @@ import {
 	Admin,
 	BN,
 	QUOTE_SPOT_MARKET_INDEX,
-	MARK_PRICE_PRECISION,
-	FUNDING_PAYMENT_PRECISION,
+	PRICE_PRECISION,
+	FUNDING_RATE_BUFFER_PRECISION,
 	PEG_PRECISION,
 	ClearingHouse,
 	ClearingHouseUser,
 	PositionDirection,
 	QUOTE_PRECISION,
 	AMM_RESERVE_PRECISION,
-	calculateMarkPrice,
+	calculateReservePrice,
 	convertToNumber,
+	ExchangeStatus,
+	BASE_PRECISION,
+	OracleSource,
+	isVariant,
 } from '../sdk/src';
 
 import { Program } from '@project-serum/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
-import { BASE_PRECISION, OracleSource } from '../sdk';
 
 async function updateFundingRateHelper(
 	clearingHouse: ClearingHouse,
-	marketIndex: BN,
+	marketIndex: number,
 	priceFeedAddress: PublicKey,
 	prices: Array<number>
 ) {
@@ -60,7 +63,9 @@ async function updateFundingRateHelper(
 
 		const priceSpread0 =
 			convertToNumber(ammAccountState0.lastMarkPriceTwap) -
-			convertToNumber(ammAccountState0.lastOraclePriceTwap);
+			convertToNumber(
+				ammAccountState0.historicalOracleData.lastOraclePriceTwap
+			);
 		const frontEndFundingCalc0 = priceSpread0 / oraclePx0.twap / (24 * 3600);
 
 		console.log(
@@ -68,10 +73,10 @@ async function updateFundingRateHelper(
 			frontEndFundingCalc0,
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber() /
-				MARK_PRICE_PRECISION.toNumber(),
+				PRICE_PRECISION.toNumber(),
 			'oracleTwap0:',
-			ammAccountState0.lastOraclePriceTwap.toNumber() /
-				MARK_PRICE_PRECISION.toNumber(),
+			ammAccountState0.historicalOracleData.lastOraclePriceTwap.toNumber() /
+				PRICE_PRECISION.toNumber(),
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber(),
 			'oracleTwapPyth:',
@@ -85,18 +90,15 @@ async function updateFundingRateHelper(
 		const cumulativeFundingRateShortOld =
 			ammAccountState0.cumulativeFundingRateShort;
 
-		let _tx;
-		try {
-			_tx = await clearingHouse.updateFundingRate(
-				priceFeedAddress,
-				marketIndex
-			);
-		} catch (e) {
-			console.error(e);
-		}
+		const state = clearingHouse.getStateAccount();
+		assert(isVariant(state.exchangeStatus, 'active'));
 
-		const CONVERSION_SCALE =
-			FUNDING_PAYMENT_PRECISION.mul(MARK_PRICE_PRECISION);
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
+		assert(isVariant(market.status, 'active'));
+
+		await clearingHouse.updateFundingRate(priceFeedAddress, marketIndex);
+
+		const CONVERSION_SCALE = FUNDING_RATE_BUFFER_PRECISION.mul(PRICE_PRECISION);
 
 		await clearingHouse.fetchAccounts();
 		const marketData = clearingHouse.getPerpMarketAccount(marketIndex);
@@ -132,10 +134,10 @@ async function updateFundingRateHelper(
 		assert(ammAccountState.lastFundingRate.abs().gte(lastFundingLong.abs()));
 		console.log(
 			convertToNumber(ammAccountState.lastFundingRate.abs()) /
-				FUNDING_PAYMENT_PRECISION.toNumber(),
+				FUNDING_RATE_BUFFER_PRECISION.toNumber(),
 			'>=',
 			convertToNumber(lastFundingShort.abs()) /
-				FUNDING_PAYMENT_PRECISION.toNumber()
+				FUNDING_RATE_BUFFER_PRECISION.toNumber()
 		);
 		assert(ammAccountState.lastFundingRate.abs().gte(lastFundingShort.abs()));
 
@@ -148,9 +150,9 @@ async function updateFundingRateHelper(
 
 		const priceSpread =
 			ammAccountState.lastMarkPriceTwap.toNumber() /
-				MARK_PRICE_PRECISION.toNumber() -
-			ammAccountState.lastOraclePriceTwap.toNumber() /
-				MARK_PRICE_PRECISION.toNumber();
+				PRICE_PRECISION.toNumber() -
+			ammAccountState.historicalOracleData.lastOraclePriceTwap.toNumber() /
+				PRICE_PRECISION.toNumber();
 		const frontEndFundingCalc =
 			priceSpread / ((24 * 3600) / Math.max(1, peroidicity.toNumber()));
 
@@ -158,11 +160,10 @@ async function updateFundingRateHelper(
 			'funding rate frontend calc:',
 			frontEndFundingCalc,
 			'markTwap:',
-			ammAccountState.lastMarkPriceTwap.toNumber() /
-				MARK_PRICE_PRECISION.toNumber(),
+			ammAccountState.lastMarkPriceTwap.toNumber() / PRICE_PRECISION.toNumber(),
 			'oracleTwap:',
-			ammAccountState.lastOraclePriceTwap.toNumber() /
-				MARK_PRICE_PRECISION.toNumber(),
+			ammAccountState.historicalOracleData.lastOraclePriceTwap.toNumber() /
+				PRICE_PRECISION.toNumber(),
 			'markTwap:',
 			ammAccountState.lastMarkPriceTwap.toNumber(),
 			'oracleTwapPyth:',
@@ -185,7 +186,7 @@ async function cappedSymFundingScenario(
 	userAccount: ClearingHouseUser,
 	clearingHouse2: ClearingHouse,
 	userAccount2: ClearingHouseUser,
-	marketIndex: BN,
+	marketIndex: number,
 	kSqrt: BN,
 	priceAction: Array<number>,
 	longShortSizes: Array<number>,
@@ -212,7 +213,7 @@ async function cappedSymFundingScenario(
 	await sleep(2500);
 
 	if (fees && fees > 0) {
-		await clearingHouse.updateFundingPaused(true);
+		await clearingHouse.updateExchangeStatus(ExchangeStatus.FUNDINGPAUSED);
 
 		console.log('spawn some fee pool');
 
@@ -227,22 +228,25 @@ async function cappedSymFundingScenario(
 			clearingHouse.getUserAccount(),
 			marketIndex
 		);
-		await clearingHouse.updateFundingPaused(false);
+		await clearingHouse.updateExchangeStatus(ExchangeStatus.ACTIVE);
 	}
 	await clearingHouse.fetchAccounts();
 
-	const oracleData = clearingHouse.getOracleDataForMarket(new BN(0));
+	const oracleData = clearingHouse.getOracleDataForMarket(0);
 	console.log(
 		'PRICE',
 		convertToNumber(
-			calculateMarkPrice(clearingHouse.getPerpMarketAccount(marketIndex))
+			calculateReservePrice(clearingHouse.getPerpMarketAccount(marketIndex))
 		),
 		'oracleData:',
 		convertToNumber(oracleData.price),
 		'+/-',
 		convertToNumber(oracleData.confidence)
 	);
-	await clearingHouse.updateFundingPaused(true);
+	console.log(ExchangeStatus.FUNDINGPAUSED);
+	console.log(ExchangeStatus.ACTIVE);
+
+	await clearingHouse.updateExchangeStatus(ExchangeStatus.FUNDINGPAUSED);
 	await clearingHouse.fetchAccounts();
 
 	if (longShortSizes[0] !== 0) {
@@ -275,7 +279,7 @@ async function cappedSymFundingScenario(
 	console.log(
 		'userAccount.getTotalPositionValue():',
 		userAccount.getTotalPerpPositionValue().toString(),
-		uA.perpPositions[0].marketIndex.toNumber(),
+		uA.perpPositions[0].marketIndex,
 		':',
 		uA.perpPositions[0].baseAssetAmount.toString(),
 		'/',
@@ -287,7 +291,7 @@ async function cappedSymFundingScenario(
 	console.log(
 		'userAccount2.getTotalPositionValue():',
 		userAccount2.getTotalPerpPositionValue().toString(),
-		uA2.perpPositions[0].marketIndex.toNumber(),
+		uA2.perpPositions[0].marketIndex,
 		':',
 		uA2.perpPositions[0].baseAssetAmount.toString(),
 		'/',
@@ -308,7 +312,7 @@ async function cappedSymFundingScenario(
 	await clearingHouse.fetchAccounts();
 	const market = clearingHouse.getPerpMarketAccount(marketIndex);
 
-	await clearingHouse.updateFundingPaused(false);
+	await clearingHouse.updateExchangeStatus(ExchangeStatus.ACTIVE);
 
 	console.log('priceAction update', priceAction, priceAction.slice(1));
 	await updateFundingRateHelper(
@@ -330,12 +334,12 @@ async function cappedSymFundingScenario(
 		'fundingRateLong',
 		convertToNumber(
 			fundingRateLong,
-			MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 		),
 		'fundingRateShort',
 		convertToNumber(
 			fundingRateShort,
-			MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+			PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 		)
 	);
 	console.log(
@@ -361,14 +365,14 @@ async function cappedSymFundingScenario(
 		'fundingPnLForLongs',
 		convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		),
 		'fundingPnLForShorts',
 		convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		)
@@ -380,11 +384,11 @@ async function cappedSymFundingScenario(
 
 	// await clearingHouse.moveAmmToPrice(
 	// 	marketIndex,
-	// 	new BN(priceAction[1] * MARK_PRICE_PRECISION.toNumber())
+	// 	new BN(priceAction[1] * PRICE_PRECISION.toNumber())
 	// );
 
 	setFeedPrice(anchor.workspace.Pyth, priceAction[0], priceFeedAddress);
-	await clearingHouse.updateFundingPaused(true);
+	await clearingHouse.updateExchangeStatus(ExchangeStatus.FUNDINGPAUSED);
 
 	assert(fundingRateShort.lte(fundingRateLong));
 	if (longShortSizes[0] !== 0) {
@@ -403,7 +407,7 @@ async function cappedSymFundingScenario(
 			marketIndex
 		);
 	}
-	await clearingHouse.updateFundingPaused(false);
+	await clearingHouse.updateExchangeStatus(ExchangeStatus.ACTIVE);
 	setFeedPrice(anchor.workspace.Pyth, priceAction[1], priceFeedAddress);
 
 	await sleep(2000);
@@ -450,7 +454,7 @@ describe('capped funding', () => {
 	let userUSDCAccount: Keypair;
 
 	const ammInitialBaseAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
-		MARK_PRICE_PRECISION
+		PRICE_PRECISION
 	);
 
 	const usdcAmount = new BN(100000 * 10 ** 6);
@@ -463,8 +467,8 @@ describe('capped funding', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		const spotMarketIndexes = [new BN(0)];
-		const marketIndexes = Array.from({ length: 15 }, (_, i) => new BN(i));
+		const spotMarketIndexes = [0];
+		const marketIndexes = Array.from({ length: 15 }, (_, i) => i);
 		clearingHouse = new Admin({
 			connection,
 			wallet: provider.wallet,
@@ -521,7 +525,7 @@ describe('capped funding', () => {
 	});
 
 	it('capped sym funding: ($1 long, $200 short, oracle < mark)', async () => {
-		const marketIndex = new BN(rollingMarketNum);
+		const marketIndex = rollingMarketNum;
 		rollingMarketNum += 1;
 		const [
 			fundingRateLong,
@@ -554,13 +558,13 @@ describe('capped funding', () => {
 		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
@@ -578,7 +582,7 @@ describe('capped funding', () => {
 	});
 
 	it('capped sym funding: ($0 long, $200 short, oracle < mark)', async () => {
-		const marketIndex = new BN(rollingMarketNum);
+		const marketIndex = rollingMarketNum;
 		rollingMarketNum += 1;
 
 		const [
@@ -612,13 +616,13 @@ describe('capped funding', () => {
 		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
@@ -637,7 +641,7 @@ describe('capped funding', () => {
 	it('capped sym funding: ($1 long, $200 short, oracle > mark)', async () => {
 		// symmetric is taking fees
 
-		const marketIndex = new BN(rollingMarketNum);
+		const marketIndex = rollingMarketNum;
 		rollingMarketNum += 1;
 
 		const [
@@ -671,13 +675,13 @@ describe('capped funding', () => {
 		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
@@ -694,7 +698,7 @@ describe('capped funding', () => {
 		);
 	});
 	it('capped sym funding: ($200 long, $1 short, oracle > mark)', async () => {
-		const marketIndex = new BN(rollingMarketNum);
+		const marketIndex = rollingMarketNum;
 		rollingMarketNum += 1;
 
 		const [
@@ -731,13 +735,13 @@ describe('capped funding', () => {
 		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
@@ -755,7 +759,7 @@ describe('capped funding', () => {
 		);
 	});
 	it('capped sym funding: ($2000 long, $1000 short, oracle > mark), clamped to ~3.03% price spread', async () => {
-		const marketIndex = new BN(rollingMarketNum);
+		const marketIndex = rollingMarketNum;
 		rollingMarketNum += 1;
 
 		const [
@@ -781,27 +785,28 @@ describe('capped funding', () => {
 		await clearingHouse.fetchAccounts();
 		const marketNew = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log(
-			'marketNew.amm.lastOraclePriceTwap:',
-			marketNew.amm.lastOraclePriceTwap.toString()
+			'marketNew.amm.historicalOracleData.lastOraclePriceTwap:',
+			marketNew.amm.historicalOracleData.lastOraclePriceTwap.toString()
 		);
 		const clampedFundingRatePct = new BN(
-			(0.03 * MARK_PRICE_PRECISION.toNumber()) / 24
-		).mul(FUNDING_PAYMENT_PRECISION);
-		const clampedFundingRate = new BN(44.5 * MARK_PRICE_PRECISION.toNumber())
-			.mul(FUNDING_PAYMENT_PRECISION)
+			(0.03 * PRICE_PRECISION.toNumber()) / 24
+		).mul(FUNDING_RATE_BUFFER_PRECISION);
+		const clampedFundingRate = new BN(44.5 * PRICE_PRECISION.toNumber())
+			.mul(FUNDING_RATE_BUFFER_PRECISION)
 			.div(new BN(24))
 			.div(new BN(33));
 		console.log(
 			'clamped funding:',
 			convertToNumber(clampedFundingRate) /
-				FUNDING_PAYMENT_PRECISION.toNumber(),
+				FUNDING_RATE_BUFFER_PRECISION.toNumber(),
 			'hourly pct:',
 			convertToNumber(clampedFundingRatePct) /
-				FUNDING_PAYMENT_PRECISION.toNumber()
+				FUNDING_RATE_BUFFER_PRECISION.toNumber()
 		);
 		console.log(
 			'short funding:',
-			convertToNumber(fundingRateShort) / FUNDING_PAYMENT_PRECISION.toNumber()
+			convertToNumber(fundingRateShort) /
+				FUNDING_RATE_BUFFER_PRECISION.toNumber()
 		);
 
 		assert(fundingRateShort.abs().eq(fundingRateLong.abs()));
@@ -827,13 +832,13 @@ describe('capped funding', () => {
 		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
@@ -853,7 +858,7 @@ describe('capped funding', () => {
 		);
 	});
 	it('capped sym funding: ($20000 long, $1000 short, oracle > mark), clamped to ~3.03% price spread, fee pool drain', async () => {
-		const marketIndex = new BN(rollingMarketNum);
+		const marketIndex = rollingMarketNum;
 		rollingMarketNum += 1;
 
 		const [
@@ -878,23 +883,24 @@ describe('capped funding', () => {
 		await clearingHouse.fetchAccounts();
 		const _marketNew = clearingHouse.getPerpMarketAccount(marketIndex);
 		const clampedFundingRatePct = new BN(
-			(0.03 * MARK_PRICE_PRECISION.toNumber()) / 24
-		).mul(FUNDING_PAYMENT_PRECISION);
-		const clampedFundingRate = new BN(45.1 * MARK_PRICE_PRECISION.toNumber())
-			.mul(FUNDING_PAYMENT_PRECISION)
+			(0.03 * PRICE_PRECISION.toNumber()) / 24
+		).mul(FUNDING_RATE_BUFFER_PRECISION);
+		const clampedFundingRate = new BN(45.1 * PRICE_PRECISION.toNumber())
+			.mul(FUNDING_RATE_BUFFER_PRECISION)
 			.div(new BN(24))
 			.div(new BN(33));
 		console.log(
 			'clamped funding:',
 			convertToNumber(clampedFundingRate) /
-				FUNDING_PAYMENT_PRECISION.toNumber(),
+				FUNDING_RATE_BUFFER_PRECISION.toNumber(),
 			'hourly pct:',
 			convertToNumber(clampedFundingRatePct) /
-				FUNDING_PAYMENT_PRECISION.toNumber()
+				FUNDING_RATE_BUFFER_PRECISION.toNumber()
 		);
 		console.log(
 			'short funding:',
-			convertToNumber(fundingRateShort) / FUNDING_PAYMENT_PRECISION.toNumber()
+			convertToNumber(fundingRateShort) /
+				FUNDING_RATE_BUFFER_PRECISION.toNumber()
 		);
 
 		assert(fundingRateShort.abs().gt(fundingRateLong.abs()));
@@ -922,13 +928,13 @@ describe('capped funding', () => {
 		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
@@ -947,7 +953,7 @@ describe('capped funding', () => {
 		);
 	});
 	it('capped sym funding: ($2000 long, $1000 short, oracle > mark)', async () => {
-		const marketIndex = new BN(rollingMarketNum);
+		const marketIndex = rollingMarketNum;
 		rollingMarketNum += 1;
 
 		const [
@@ -984,13 +990,13 @@ describe('capped funding', () => {
 		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
@@ -1008,7 +1014,7 @@ describe('capped funding', () => {
 		);
 	});
 	it('capped sym funding: ($200 long, $0 short, oracle > mark)', async () => {
-		const marketIndex = new BN(rollingMarketNum);
+		const marketIndex = rollingMarketNum;
 		rollingMarketNum += 1;
 
 		const [
@@ -1045,13 +1051,13 @@ describe('capped funding', () => {
 		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
@@ -1070,7 +1076,7 @@ describe('capped funding', () => {
 	});
 	it('capped sym funding: ($200 long, $1 short, oracle < mark)', async () => {
 		//symmetric is taking fees
-		const marketIndex = new BN(rollingMarketNum);
+		const marketIndex = rollingMarketNum;
 		rollingMarketNum += 1;
 
 		const [
@@ -1107,13 +1113,13 @@ describe('capped funding', () => {
 		const precisionFundingPay = AMM_RESERVE_PRECISION;
 		const fundingPnLForLongsNum = convertToNumber(
 			fundingPnLForLongs.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
 		const fundingPnLForShortsNum = convertToNumber(
 			fundingPnLForShorts.div(
-				MARK_PRICE_PRECISION.mul(FUNDING_PAYMENT_PRECISION)
+				PRICE_PRECISION.mul(FUNDING_RATE_BUFFER_PRECISION)
 			),
 			precisionFundingPay
 		);
