@@ -141,10 +141,8 @@ pub fn place_order(
         let market_position = &mut user.perp_positions[position_index];
         market_position.open_orders += 1;
 
-        let standardized_base_asset_amount = standardize_base_asset_amount(
-            params.base_asset_amount,
-            market.amm.base_asset_amount_step_size,
-        )?;
+        let standardized_base_asset_amount =
+            standardize_base_asset_amount(params.base_asset_amount, market.amm.order_step_size)?;
 
         let base_asset_amount = if params.reduce_only || force_reduce_only {
             calculate_base_asset_amount_for_reduce_only_order(
@@ -185,8 +183,8 @@ pub fn place_order(
         };
 
         (
-            standardize_price(auction_start_price, market.amm.quote_asset_amount_tick_size)?,
-            standardize_price(auction_end_price, market.amm.quote_asset_amount_tick_size)?,
+            standardize_price(auction_start_price, market.amm.order_tick_size)?,
+            standardize_price(auction_end_price, market.amm.order_tick_size)?,
         )
     } else {
         (0_u64, 0_u64)
@@ -218,7 +216,7 @@ pub fn place_order(
         order_id: get_then_update_id!(user, next_order_id),
         user_order_id: params.user_order_id,
         market_index: params.market_index,
-        price: standardize_price(params.price, market.amm.quote_asset_amount_tick_size)?,
+        price: standardize_price(params.price, market.amm.order_tick_size)?,
         existing_position_direction,
         base_asset_amount: order_base_asset_amount,
         base_asset_amount_filled: 0,
@@ -644,7 +642,7 @@ pub fn fill_order(
             &user.orders[order_index],
             oracle_price,
             slot,
-            market.amm.quote_asset_amount_tick_size,
+            market.amm.order_tick_size,
             market.margin_ratio_initial as u128,
             market.margin_ratio_maintenance as u128,
             Some(&market.amm),
@@ -929,7 +927,7 @@ fn sanitize_maker_order<'a>(
             &maker.orders[maker_order_index],
             oracle_price,
             slot,
-            market.amm.quote_asset_amount_tick_size,
+            market.amm.order_tick_size,
             market.margin_ratio_initial as u128,
             market.margin_ratio_maintenance as u128,
             Some(&market.amm),
@@ -1300,7 +1298,7 @@ pub fn fulfill_order_with_amm(
             let limit_price = user.orders[order_index].get_limit_price(
                 valid_oracle_price,
                 slot,
-                market.amm.quote_asset_amount_tick_size,
+                market.amm.order_tick_size,
                 Some(&market.amm),
             )?;
             (override_base_asset_amount, limit_price, override_fill_price)
@@ -1565,7 +1563,7 @@ pub fn fulfill_order_with_match(
     let taker_price = taker.orders[taker_order_index].get_limit_price(
         Some(oracle_price),
         slot,
-        market.amm.quote_asset_amount_tick_size,
+        market.amm.order_tick_size,
         Some(&market.amm),
     )?;
     let taker_direction = taker.orders[taker_order_index].direction;
@@ -1575,7 +1573,7 @@ pub fn fulfill_order_with_match(
     let maker_price = maker.orders[maker_order_index].get_limit_price(
         Some(oracle_price),
         slot,
-        market.amm.quote_asset_amount_tick_size,
+        market.amm.order_tick_size,
         Some(&market.amm),
     )?;
     let maker_direction = maker.orders[maker_order_index].direction;

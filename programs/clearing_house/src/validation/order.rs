@@ -23,16 +23,16 @@ pub fn validate_order(
     slot: u64,
 ) -> ClearingHouseResult {
     match order.order_type {
-        OrderType::Market => validate_market_order(order, market.amm.base_asset_amount_step_size)?,
+        OrderType::Market => validate_market_order(order, market.amm.order_step_size)?,
         OrderType::Limit => validate_limit_order(order, market, state, valid_oracle_price, slot)?,
         OrderType::TriggerMarket => validate_trigger_market_order(
             order,
-            market.amm.base_asset_amount_step_size,
+            market.amm.order_step_size,
             state.min_order_quote_asset_amount,
         )?,
         OrderType::TriggerLimit => validate_trigger_limit_order(
             order,
-            market.amm.base_asset_amount_step_size,
+            market.amm.order_step_size,
             state.min_order_quote_asset_amount,
         )?,
     }
@@ -93,7 +93,7 @@ fn validate_limit_order(
     valid_oracle_price: Option<i128>,
     slot: u64,
 ) -> ClearingHouseResult {
-    validate_base_asset_amount(order, market.amm.base_asset_amount_step_size)?;
+    validate_base_asset_amount(order, market.amm.order_step_size)?;
 
     if order.price == 0 && !order.has_oracle_price_offset() {
         msg!("Limit order price == 0");
@@ -117,7 +117,7 @@ fn validate_limit_order(
             order,
             valid_oracle_price.ok_or(ErrorCode::InvalidOracle)?,
             slot,
-            market.amm.quote_asset_amount_tick_size,
+            market.amm.order_tick_size,
             market.margin_ratio_initial as u128,
             market.margin_ratio_maintenance as u128,
             Some(&market.amm),
@@ -131,7 +131,7 @@ fn validate_limit_order(
     let limit_price = order.get_limit_price(
         valid_oracle_price,
         slot,
-        market.amm.quote_asset_amount_tick_size,
+        market.amm.order_tick_size,
         Some(&market.amm),
     )?;
     let approximate_market_value = limit_price
@@ -160,7 +160,7 @@ fn validate_post_only_order(
         order.get_limit_price(
             valid_oracle_price,
             slot,
-            market.amm.quote_asset_amount_tick_size,
+            market.amm.order_tick_size,
             Some(&market.amm),
         )?,
     )?;

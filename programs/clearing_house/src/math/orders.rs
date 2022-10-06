@@ -32,7 +32,7 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
         let order_limit_price = order.get_limit_price(
             valid_oracle_price,
             slot,
-            market.amm.quote_asset_amount_tick_size,
+            market.amm.order_tick_size,
             Some(&market.amm),
         )?;
 
@@ -50,7 +50,7 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
         order.get_limit_price(
             valid_oracle_price,
             slot,
-            market.amm.quote_asset_amount_tick_size,
+            market.amm.order_tick_size,
             Some(&market.amm),
         )?
     };
@@ -87,7 +87,7 @@ pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
 
     standardize_base_asset_amount(
         min(base_asset_amount_unfilled, max_trade_base_asset_amount),
-        market.amm.base_asset_amount_step_size,
+        market.amm.order_step_size,
     )
 }
 

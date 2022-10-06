@@ -25,7 +25,7 @@ pub fn determine_perp_fulfillment_methods(
             let maker_price = maker_order.get_limit_price(
                 valid_oracle_price,
                 slot,
-                amm.quote_asset_amount_tick_size,
+                amm.order_tick_size,
                 Some(amm),
             )?;
 

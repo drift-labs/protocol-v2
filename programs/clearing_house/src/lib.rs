@@ -568,8 +568,8 @@ pub mod clearing_house {
                 last_oracle_normalised_price: oracle_price,
                 last_oracle_conf_pct: 0,
                 last_oracle_reserve_price_spread_pct: 0, // todo
-                base_asset_amount_step_size: DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE,
-                quote_asset_amount_tick_size: DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE,
+                order_step_size: DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE,
+                order_tick_size: DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE,
                 max_slippage_ratio: 50,           // ~2%
                 max_base_asset_amount_ratio: 100, // moves price ~2%
                 base_spread: 0,
@@ -1085,7 +1085,7 @@ pub mod clearing_house {
             let market = market_map.get_ref(&market_index)?;
             crate::math::orders::standardize_base_asset_amount(
                 shares_to_burn.cast()?,
-                market.amm.base_asset_amount_step_size,
+                market.amm.order_step_size,
             )?
             .cast()?
         };
@@ -1186,17 +1186,17 @@ pub mod clearing_house {
             let mut market = market_map.get_ref_mut(&market_index)?;
 
             validate!(
-                n_shares >= market.amm.base_asset_amount_step_size,
+                n_shares >= market.amm.order_step_size,
                 ErrorCode::DefaultError,
                 "minting {} shares is less than step size {}",
                 n_shares,
-                market.amm.base_asset_amount_step_size,
+                market.amm.order_step_size,
             )?;
 
             // standardize n shares to mint
             let n_shares = crate::math::orders::standardize_base_asset_amount(
                 n_shares.cast()?,
-                market.amm.base_asset_amount_step_size,
+                market.amm.order_step_size,
             )?
             .cast::<u64>()?;
 
@@ -3631,7 +3631,7 @@ pub mod clearing_house {
     ) -> Result<()> {
         let market = &mut load_mut!(ctx.accounts.market)?;
         if minimum_trade_size > 0 {
-            market.amm.base_asset_amount_step_size = minimum_trade_size;
+            market.amm.order_step_size = minimum_trade_size;
         } else {
             return Err(ErrorCode::DefaultError.into());
         }
