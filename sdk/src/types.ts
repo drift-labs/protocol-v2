@@ -425,7 +425,6 @@ export type StateAccount = {
 	oracleGuardRails: OracleGuardRails;
 	numberOfMarkets: number;
 	numberOfSpotMarkets: number;
-	minOrderQuoteAssetAmount: BN;
 	minPerpAuctionDuration: number;
 	defaultMarketOrderTimeInForce: number;
 	defaultSpotAuctionDuration: number;
@@ -577,7 +576,6 @@ export type AMM = {
 	cumulativeNetBaseAssetAmountPerLp: BN;
 	userLpShares: BN;
 	netUnsettledLpBaseAssetAmount: BN;
-	minimumQuoteAssetTradeSize: BN;
 	orderStepSize: BN;
 	orderTickSize: BN;
 	maxBaseAssetAmountRatio: number;

@@ -252,7 +252,7 @@ pub fn place_order(
         &state.oracle_guard_rails.validity,
     )?;
 
-    validate_order(&new_order, market, state, valid_oracle_price, slot)?;
+    validate_order(&new_order, market, valid_oracle_price, slot)?;
 
     user.orders[new_order_index] = new_order;
 
@@ -2379,8 +2379,7 @@ pub fn place_spot_order(
         spot_market.order_tick_size,
         spot_market.get_margin_ratio(&MarginRequirementType::Initial)?,
         spot_market.get_margin_ratio(&MarginRequirementType::Maintenance)?,
-        state.min_order_quote_asset_amount,
-        spot_market.decimals as u32,
+        spot_market.min_order_size,
     )?;
 
     user.orders[new_order_index] = new_order;

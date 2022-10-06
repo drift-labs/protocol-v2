@@ -186,19 +186,6 @@ describe('admin', () => {
 		);
 	});
 
-	it('Update market minimum quote asset trade size', async () => {
-		const minimumTradeSize = new BN(1);
-
-		await clearingHouse.updateMarketMinimumQuoteAssetTradeSize(
-			0,
-			minimumTradeSize
-		);
-
-		await clearingHouse.fetchAccounts();
-		const market = clearingHouse.getPerpMarketAccount(0);
-		assert(market.amm.minimumQuoteAssetTradeSize.eq(minimumTradeSize));
-	});
-
 	it('Update market base asset step size', async () => {
 		const stepSize = new BN(2);
 		const tickSize = new BN(2);

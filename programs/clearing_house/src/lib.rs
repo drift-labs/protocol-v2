@@ -96,7 +96,6 @@ pub mod clearing_house {
             number_of_authorities: 0,
             number_of_markets: 0,
             number_of_spot_markets: 0,
-            min_order_quote_asset_amount: 500_000, // 50 cents
             min_perp_auction_duration: 10,
             default_market_order_time_in_force: 60,
             default_spot_auction_duration: 10,
@@ -269,7 +268,7 @@ pub mod clearing_house {
             withdraw_guard_threshold: 0,
             order_step_size,
             order_tick_size: DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE,
-            order_minimum_size: 0,
+            min_order_size: order_step_size,
             max_position_size: 0,
             next_fill_record_id: 1,
             spot_fee_pool: PoolBalance::default(), // in quote asset
@@ -471,16 +470,6 @@ pub mod clearing_house {
 
         let max_spread = (margin_ratio_initial - margin_ratio_maintenance) * (100 - 5);
 
-        // todo? should ensure peg within 1 cent of current oracle?
-        // validate!(
-        //     cast_to_i128(amm_peg_multiplier)?
-        //         .checked_sub(oracle_price)
-        //         .ok_or_else(math_error!())?
-        //         .unsigned_abs()
-        //         < PRICE_PRECISION / 100,
-        //     ErrorCode::InvalidInitialPeg
-        // )?;
-
         validate_margin(
             margin_ratio_initial,
             margin_ratio_maintenance,
@@ -558,7 +547,6 @@ pub mod clearing_house {
                 total_exchange_fee: 0,
                 total_liquidation_fee: 0,
                 net_revenue_since_last_funding: 0,
-                minimum_quote_asset_trade_size: 10000000,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: oracle_price,
                     last_oracle_delay: oracle_delay,
@@ -572,7 +560,7 @@ pub mod clearing_house {
                 last_oracle_reserve_price_spread_pct: 0, // todo
                 order_step_size: DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE,
                 order_tick_size: DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE,
-                order_minimum_size: 0,
+                min_order_size: DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE,
                 max_position_size: 0,
                 max_slippage_ratio: 50,           // ~2%
                 max_base_asset_amount_ratio: 100, // moves price ~2%
@@ -3553,18 +3541,6 @@ pub mod clearing_house {
         let market = &mut load_mut!(ctx.accounts.market)?;
         market.amm.oracle = oracle;
         market.amm.oracle_source = oracle_source;
-        Ok(())
-    }
-
-    #[access_control(
-        market_valid(&ctx.accounts.market)
-    )]
-    pub fn update_market_minimum_quote_asset_trade_size(
-        ctx: Context<AdminUpdateMarket>,
-        minimum_trade_size: u128,
-    ) -> Result<()> {
-        let market = &mut load_mut!(ctx.accounts.market)?;
-        market.amm.minimum_quote_asset_trade_size = minimum_trade_size;
         Ok(())
     }
 

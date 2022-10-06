@@ -17,7 +17,6 @@ pub struct State {
     pub perp_fee_structure: FeeStructure,
     pub spot_fee_structure: FeeStructure,
     pub oracle_guard_rails: OracleGuardRails,
-    pub min_order_quote_asset_amount: u128, // minimum est. quote_asset_amount for place_order to succeed
     pub number_of_authorities: u64,
     pub liquidation_margin_buffer_ratio: u32,
     pub settlement_duration: u16,
