@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::math::constants::{
     FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR, MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
@@ -30,7 +31,7 @@ pub struct State {
     pub padding: [u8; 1],
 }
 
-#[derive(Clone, AnchorSerialize, AnchorDeserialize, Copy, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum ExchangeStatus {
     Active,
     FundingPaused,

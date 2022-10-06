@@ -3,7 +3,7 @@ use crate::math::amm;
 use crate::math::casting::cast_to_u128;
 use crate::math::constants::BID_ASK_SPREAD_PRECISION;
 use crate::math_error;
-use crate::state::market::AMM;
+use crate::state::market::{MarketStatus, PerpMarket, AMM};
 use crate::state::oracle::OraclePriceData;
 use crate::state::state::{OracleGuardRails, ValidityGuardRails};
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -88,7 +88,7 @@ pub fn is_oracle_valid_for_action(
 }
 
 pub fn block_operation(
-    amm: &AMM,
+    market: &PerpMarket,
     oracle_price_data: &OraclePriceData,
     guard_rails: &OracleGuardRails,
     precomputed_reserve_price: Option<u128>,
@@ -99,14 +99,17 @@ pub fn block_operation(
         oracle_reserve_price_spread_pct: _,
         ..
     } = get_oracle_status(
-        amm,
+        &market.amm,
         oracle_price_data,
         guard_rails,
         precomputed_reserve_price,
     )?;
     let is_oracle_valid =
         is_oracle_valid_for_action(oracle_validity, Some(DriftAction::UpdateFunding))?;
-    let block = !is_oracle_valid || is_oracle_mark_too_divergent;
+
+    let funding_paused_on_market = market.status == MarketStatus::FundingPaused;
+
+    let block = !is_oracle_valid || is_oracle_mark_too_divergent || funding_paused_on_market;
     Ok(block)
 }
 

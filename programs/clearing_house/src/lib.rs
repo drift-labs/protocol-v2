@@ -37,7 +37,7 @@ mod validation;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("By7XjakxXVnQ9gMZ4VT98DenTgBCeP295A58ybzgwVPZ");
+declare_id!("DUZwKJKAk2C9S88BYvQzck1M1i5hySQjxB4zW6tJ29Nw");
 
 #[program]
 pub mod clearing_house {
@@ -100,7 +100,7 @@ pub mod clearing_house {
             min_perp_auction_duration: 10,
             default_market_order_time_in_force: 60,
             default_spot_auction_duration: 10,
-            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50, // 2%
+            liquidation_margin_buffer_ratio: DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
             settlement_duration: 0, // extra duration after market expiry to allow settlement
             signer: clearing_house_signer,
             signer_nonce: clearing_house_signer_nonce,
@@ -268,6 +268,9 @@ pub mod clearing_house {
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
             withdraw_guard_threshold: 0,
             order_step_size,
+            order_tick_size: 0,
+            order_minimum_size: 0,
+            max_position_size: 0,
             next_fill_record_id: 1,
             spot_fee_pool: PoolBalance::default(), // in quote asset
             total_spot_fee: 0,
@@ -576,9 +579,12 @@ pub mod clearing_house {
                 last_oracle_normalised_price: oracle_price,
                 last_oracle_conf_pct: 0,
                 last_oracle_reserve_price_spread_pct: 0, // todo
-                base_asset_amount_step_size: BASE_PRECISION_U64 / 10000, // 1e-4
-                max_slippage_ratio: 50,                  // ~2%
-                max_base_asset_amount_ratio: 100,        // moves price ~2%
+                base_asset_amount_step_size: DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE,
+                order_tick_size: 0,
+                order_minimum_size: 0,
+                max_position_size: 0,
+                max_slippage_ratio: 50,           // ~2%
+                max_base_asset_amount_ratio: 100, // moves price ~2%
                 base_spread: 0,
                 long_spread: 0,
                 short_spread: 0,
@@ -2941,7 +2947,7 @@ pub mod clearing_house {
             &mut oracle_map,
             now,
             &state.oracle_guard_rails,
-            !matches!(state.exchange_status, ExchangeStatus::FundingPaused),
+            matches!(state.exchange_status, ExchangeStatus::FundingPaused),
             None,
         )?;
 
@@ -3040,14 +3046,14 @@ pub mod clearing_house {
             .checked_sub(cast_to_i128(price_after)?)
             .ok_or_else(math_error!())?
             .unsigned_abs()
-            .gt(&UPDATE_K_ALLOWED_PRICE_CHANGE);
+            .gt(&MAX_UPDATE_K_PRICE_CHANGE);
 
         if price_change_too_large {
             msg!(
                 "{:?} -> {:?} (> {:?})",
                 price_before,
                 price_after,
-                UPDATE_K_ALLOWED_PRICE_CHANGE
+                MAX_UPDATE_K_PRICE_CHANGE
             );
             return Err(ErrorCode::InvalidUpdateK.into());
         }

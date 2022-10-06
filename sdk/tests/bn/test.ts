@@ -1,4 +1,4 @@
-import { BN } from '@project-serum/anchor';
+import { BN } from '../../src';
 import { expect } from 'chai';
 import { BigNum } from '../../src/factory/bigNum';
 import {

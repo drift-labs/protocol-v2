@@ -505,7 +505,7 @@ describe('repeg and spread amm', () => {
 			clearingHouse
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(
-					new BN(-0.19316 * BASE_PRECISION.toNumber())
+					new BN(-0.1931 * BASE_PRECISION.toNumber())
 				)
 		);
 		// assert(

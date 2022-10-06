@@ -11,8 +11,8 @@ use crate::error::ErrorCode;
 use crate::math::amm::calculate_net_user_pnl;
 use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128, cast_to_u32, cast_to_u64};
 use crate::math::constants::{
-    MAX_APR_PER_REVENUE_SETTLE_PRECISION, MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT,
-    ONE_YEAR, SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
+    MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT, ONE_YEAR, PERCENTAGE_PRECISION_U64,
+    SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_NUMERATOR,
 };
 use crate::math::helpers::get_proportion_u128;
@@ -591,7 +591,7 @@ pub fn settle_revenue_to_insurance_fund(
             insurance_vault_amount
                 .checked_mul(MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT)
                 .ok_or_else(math_error!())?
-                .checked_div(MAX_APR_PER_REVENUE_SETTLE_PRECISION)
+                .checked_div(PERCENTAGE_PRECISION_U64)
                 .ok_or_else(math_error!())?
                 .checked_div(
                     cast_to_u64(ONE_YEAR)?

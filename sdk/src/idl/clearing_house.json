@@ -3561,6 +3561,18 @@
             "type": "u64"
           },
           {
+            "name": "orderTickSize",
+            "type": "u64"
+          },
+          {
+            "name": "orderMinimumSize",
+            "type": "u64"
+          },
+          {
+            "name": "maxPositionSize",
+            "type": "u64"
+          },
+          {
             "name": "nextFillRecordId",
             "type": "u64"
           },
@@ -4513,6 +4525,18 @@
             "type": "u64"
           },
           {
+            "name": "orderTickSize",
+            "type": "u64"
+          },
+          {
+            "name": "orderMinimumSize",
+            "type": "u64"
+          },
+          {
+            "name": "maxPositionSize",
+            "type": "u64"
+          },
+          {
             "name": "volume24h",
             "type": "u64"
           },
@@ -5386,7 +5410,12 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "AMM"
+            "name": "AMM",
+            "fields": [
+              {
+                "option": "u128"
+              }
+            ]
           },
           {
             "name": "Match"

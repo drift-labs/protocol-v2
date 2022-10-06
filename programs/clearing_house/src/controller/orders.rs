@@ -1091,12 +1091,23 @@ fn fulfill_order(
     }
     msg!("hi001");
 
-    let fulfillment_methods = determine_perp_fulfillment_methods(
-        &user.orders[user_order_index],
-        maker.is_some(),
-        amm_is_available,
-        slot,
-    )?;
+    let fulfillment_methods = {
+        let market = perp_market_map.get_ref(&market_index)?;
+
+        determine_perp_fulfillment_methods(
+            &user.orders[user_order_index],
+            if let Some(maker) = maker {
+                Some(&maker.orders[maker_order_index.unwrap()])
+            } else {
+                None
+            },
+            &market.amm,
+            reserve_price_before,
+            valid_oracle_price,
+            amm_is_available,
+            slot,
+        )?
+    };
 
     if fulfillment_methods.is_empty() {
         return Ok((0, false, false));
@@ -1108,16 +1119,14 @@ fn fulfill_order(
 
     msg!("hi0");
 
-
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
             break;
         }
-
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
         let (fill_base_asset_amount, fill_quote_asset_amount) = match fulfillment_method {
-            PerpFulfillmentMethod::AMM => fulfill_order_with_amm(
+            PerpFulfillmentMethod::AMM(maker_price) => fulfill_order_with_amm(
                 user,
                 user_stats,
                 user_order_index,
@@ -1136,7 +1145,7 @@ fn fulfill_order(
                 fee_structure,
                 &mut order_records,
                 None,
-                None,
+                *maker_price,
                 true,
             )?,
             PerpFulfillmentMethod::Match => fulfill_order_with_match(
@@ -1181,7 +1190,6 @@ fn fulfill_order(
         emit!(order_record)
     }
     msg!("hi1");
-
 
     let (taker_margin_requirement, taker_total_collateral, _, _) =
         calculate_margin_requirement_and_total_collateral(
@@ -1294,32 +1302,34 @@ pub fn fulfill_order_with_amm(
     fee_structure: &FeeStructure,
     order_records: &mut Vec<OrderActionRecord>,
     override_base_asset_amount: Option<u64>,
-    override_fill_price: Option<u128>, // todo probs dont need this since its the user_limit_price / current auction time
+    override_fill_price: Option<u128>,
     split_with_lps: bool,
 ) -> ClearingHouseResult<(u64, u64)> {
     // Determine the base asset amount the market can fill
-    let (base_asset_amount, fill_price) = match override_base_asset_amount {
-        Some(override_base_asset_amount) => (override_base_asset_amount, override_fill_price),
+    let (base_asset_amount, limit_price, fill_price) = match override_base_asset_amount {
+        Some(override_base_asset_amount) => {
+            let limit_price = user.orders[order_index].get_limit_price(
+                valid_oracle_price,
+                slot,
+                Some(&market.amm),
+            )?;
+            (override_base_asset_amount, limit_price, override_fill_price)
+        }
         None => {
+            let (base_asset_amount, limit_price) = calculate_base_asset_amount_for_amm_to_fulfill(
+                &user.orders[order_index],
+                market,
+                valid_oracle_price,
+                slot,
+                override_fill_price,
+            )?;
+
             let fill_price = if user.orders[order_index].post_only {
-                Some(user.orders[order_index].get_limit_price(
-                    valid_oracle_price,
-                    slot,
-                    Some(&market.amm),
-                )?)
+                Some(limit_price)
             } else {
                 None
             };
-
-            (
-                calculate_base_asset_amount_for_amm_to_fulfill(
-                    &user.orders[order_index],
-                    market,
-                    valid_oracle_price,
-                    slot,
-                )?,
-                fill_price,
-            )
+            (base_asset_amount, limit_price, fill_price)
         }
     };
 
@@ -1349,6 +1359,14 @@ pub fn fulfill_order_with_amm(
             now,
             fill_price,
         )?;
+
+    validate_fill_price(
+        quote_asset_amount,
+        base_asset_amount,
+        order_direction,
+        limit_price,
+        !order_post_only,
+    )?;
 
     let reward_referrer = referrer.is_some()
         && referrer_stats.is_some()
@@ -1568,7 +1586,7 @@ pub fn fulfill_order_with_match(
         slot,
         Some(&market.amm),
     )?;
-    let maker_direction = &maker.orders[maker_order_index].direction;
+    let maker_direction = maker.orders[maker_order_index].direction;
     let maker_base_asset_amount =
         maker.orders[maker_order_index].get_base_asset_amount_unfilled()?;
 
@@ -1583,6 +1601,7 @@ pub fn fulfill_order_with_match(
         maker_price,
         taker_base_asset_amount,
         PERP_DECIMALS,
+        maker_direction,
     )?;
 
     if base_asset_amount == 0 {
@@ -1646,11 +1665,27 @@ pub fn fulfill_order_with_match(
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
 
-    let (_, quote_asset_amount) = calculate_fill_for_matched_orders(
+    let (base_asset_amount_fulfilled, quote_asset_amount) = calculate_fill_for_matched_orders(
         base_asset_amount_left_to_fill,
         maker_price,
         taker_base_asset_amount,
         PERP_DECIMALS,
+        maker_direction,
+    )?;
+
+    validate_fill_price(
+        quote_asset_amount,
+        base_asset_amount_fulfilled,
+        taker_direction,
+        taker_price,
+        true,
+    )?;
+    validate_fill_price(
+        quote_asset_amount,
+        base_asset_amount_fulfilled,
+        maker_direction,
+        maker_price,
+        false,
     )?;
 
     total_quote_asset_amount = total_quote_asset_amount
@@ -1737,10 +1772,14 @@ pub fn fulfill_order_with_match(
         .quote_asset_amount
         .checked_add(fee_to_market)
         .ok_or_else(math_error!())?;
-
     market.amm.total_fee = market
         .amm
         .total_fee
+        .checked_add(fee_to_market.cast()?)
+        .ok_or_else(math_error!())?;
+    market.amm.total_exchange_fee = market
+        .amm
+        .total_exchange_fee
         .checked_add(fee_to_market.cast()?)
         .ok_or_else(math_error!())?;
     market.amm.total_fee_minus_distributions = market
@@ -3027,10 +3066,11 @@ pub fn fulfill_spot_order_with_match(
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
     let taker_order_ts = taker.orders[taker_order_index].ts;
     let taker_spot_position_index = taker.get_spot_position_index(market_index)?;
+    let taker_direction = taker.orders[taker_order_index].direction;
 
     let maker_price =
         maker.orders[maker_order_index].get_limit_price(Some(oracle_price), slot, None)?;
-    let maker_direction = &maker.orders[maker_order_index].direction;
+    let maker_direction = maker.orders[maker_order_index].direction;
     let maker_base_asset_amount =
         maker.orders[maker_order_index].get_base_asset_amount_unfilled()?;
     let maker_spot_position_index = maker.get_spot_position_index(market_index)?;
@@ -3046,11 +3086,27 @@ pub fn fulfill_spot_order_with_match(
         maker_price,
         taker_base_asset_amount,
         base_market.decimals as u32,
+        maker_direction,
     )?;
 
     if base_asset_amount == 0 {
         return Ok(0_u64);
     }
+
+    validate_fill_price(
+        quote_asset_amount,
+        base_asset_amount,
+        taker_direction,
+        taker_price,
+        true,
+    )?;
+    validate_fill_price(
+        quote_asset_amount,
+        base_asset_amount,
+        maker_direction,
+        maker_price,
+        false,
+    )?;
 
     let filler_multiplier = if filler.is_some() {
         calculate_filler_multiplier_for_matched_orders(maker_price, maker_direction, oracle_price)?
@@ -3513,6 +3569,14 @@ pub fn fulfill_spot_order_with_serum(
                 .ok_or_else(math_error!())?,
         )
     };
+
+    validate_fill_price(
+        quote_asset_amount_filled,
+        base_asset_amount_filled,
+        order_direction,
+        taker_price,
+        true,
+    )?;
 
     let fee_pool_amount = get_token_amount(
         base_market.spot_fee_pool.balance,

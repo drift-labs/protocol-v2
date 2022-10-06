@@ -214,7 +214,7 @@ describe('market order', () => {
 			clearingHouseUser.getUserAccount().orders[orderIndex.toString()];
 
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		const expectedFeeToMarket = new BN(1000);
+		const expectedFeeToMarket = new BN(1001);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 
 		assert(order.baseAssetAmount.eq(new BN(0)));
@@ -238,7 +238,7 @@ describe('market order', () => {
 		);
 
 		const expectedFillRecordId = new BN(1);
-		const expectedFee = new BN(1000);
+		const expectedFee = new BN(1001);
 		assert(orderActionRecord.ts.gt(ZERO));
 		assert(orderActionRecord.takerFee.eq(expectedFee));
 		assert(orderActionRecord.takerOrderFee.eq(expectedFee));

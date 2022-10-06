@@ -73,7 +73,7 @@ describe('subaccounts', () => {
 		const userId = 0;
 		const name = 'CRISP';
 		await clearingHouse.initializeUserAccount(userId, name);
-
+		await clearingHouse.fetchAccounts();
 		assert(clearingHouse.getUserAccount().userId === userId);
 		assert(decodeName(clearingHouse.getUserAccount().name) === name);
 

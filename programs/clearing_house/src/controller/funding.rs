@@ -20,7 +20,7 @@ use crate::math::stats::calculate_new_twap;
 use crate::math::oracle;
 use crate::math_error;
 use crate::state::events::{FundingPaymentRecord, FundingRateRecord};
-use crate::state::market::{MarketStatus, PerpMarket, AMM};
+use crate::state::market::{PerpMarket, AMM};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::state::OracleGuardRails;
@@ -128,17 +128,13 @@ pub fn update_funding_rate(
     funding_paused: bool,
     precomputed_reserve_price: Option<u128>,
 ) -> ClearingHouseResult<bool> {
-    if market.status != MarketStatus::Initialized {
-        return Ok(false);
-    }
-
     let reserve_price = match precomputed_reserve_price {
         Some(reserve_price) => reserve_price,
         None => market.amm.reserve_price()?,
     };
     // Pause funding if oracle is invalid or if mark/oracle spread is too divergent
     let block_funding_rate_update = oracle::block_operation(
-        &market.amm,
+        market,
         oracle_map.get_price_data(&market.amm.oracle)?,
         guard_rails,
         Some(reserve_price),

@@ -411,7 +411,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance00:', imbalance00.toString());
-		assert(imbalance00.eq(new BN(-9821950)));
+		assert(imbalance00.eq(new BN(-9821952)));
 
 		const bank0Value1p5 = clearingHouseLoserUser.getSpotMarketAssetValue(0);
 		console.log('uL.bank0Value1p5:', bank0Value1p5.toString());
@@ -567,7 +567,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			);
 
 			console.log('pnlimbalance:', imbalance.toString());
-			assert(imbalance.eq(new BN(44462178050))); //44k! :o
+			assert(imbalance.eq(new BN(44462178048))); //44k! :o
 
 			console.log(
 				'lastOraclePrice:',
@@ -608,7 +608,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance:', imbalance.toString());
-		assert(imbalance.eq(new BN(44462178050))); //44k! :o
+		assert(imbalance.eq(new BN(44462178048))); //44k! :o
 
 		console.log(
 			'lastOraclePrice:',
@@ -685,7 +685,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance:', imbalance.toString());
-		assert(imbalance.eq(new BN(44462178050))); //44k still :o
+		assert(imbalance.eq(new BN(44462178048))); //44k still :o
 
 		assert(market.revenueWithdrawSinceLastSettle, ZERO);
 		assert(

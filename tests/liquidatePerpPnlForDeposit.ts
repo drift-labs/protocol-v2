@@ -224,9 +224,10 @@ describe('liquidate perp pnl for deposit', () => {
 			)
 		);
 		assert(liquidationRecord.liquidatePerpPnlForDeposit.perpMarketIndex === 0);
+		console.log(liquidationRecord.liquidatePerpPnlForDeposit.pnlTransfer);
 		assert(
 			liquidationRecord.liquidatePerpPnlForDeposit.pnlTransfer.eq(
-				new BN(9011003)
+				new BN(9011005)
 			)
 		);
 		assert(
