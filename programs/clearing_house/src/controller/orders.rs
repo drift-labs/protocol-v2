@@ -183,8 +183,16 @@ pub fn place_order(
         };
 
         (
-            standardize_price(auction_start_price, market.amm.order_tick_size)?,
-            standardize_price(auction_end_price, market.amm.order_tick_size)?,
+            standardize_price(
+                auction_start_price,
+                market.amm.order_tick_size,
+                params.direction,
+            )?,
+            standardize_price(
+                auction_end_price,
+                market.amm.order_tick_size,
+                params.direction,
+            )?,
         )
     } else {
         (0_u64, 0_u64)
@@ -216,7 +224,7 @@ pub fn place_order(
         order_id: get_then_update_id!(user, next_order_id),
         user_order_id: params.user_order_id,
         market_index: params.market_index,
-        price: standardize_price(params.price, market.amm.order_tick_size)?,
+        price: standardize_price(params.price, market.amm.order_tick_size, params.direction)?,
         existing_position_direction,
         base_asset_amount: order_base_asset_amount,
         base_asset_amount_filled: 0,
@@ -2296,8 +2304,16 @@ pub fn place_spot_order(
             params.price
         };
         (
-            standardize_price(auction_start_price, spot_market.order_tick_size)?,
-            standardize_price(auction_end_price, spot_market.order_tick_size)?,
+            standardize_price(
+                auction_start_price,
+                spot_market.order_tick_size,
+                params.direction,
+            )?,
+            standardize_price(
+                auction_end_price,
+                spot_market.order_tick_size,
+                params.direction,
+            )?,
         )
     } else {
         (0_u64, 0_u64)
@@ -2333,7 +2349,7 @@ pub fn place_spot_order(
         order_id: get_then_update_id!(user, next_order_id),
         user_order_id: params.user_order_id,
         market_index: params.market_index,
-        price: standardize_price(params.price, spot_market.order_tick_size)?,
+        price: standardize_price(params.price, spot_market.order_tick_size, params.direction)?,
         existing_position_direction,
         base_asset_amount: order_base_asset_amount,
         base_asset_amount_filled: 0,

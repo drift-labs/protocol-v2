@@ -75,7 +75,7 @@ pub fn calculate_auction_price(
             .ok_or_else(math_error!())?,
     };
 
-    standardize_price(price, tick_size)
+    standardize_price(price, tick_size, order.direction)
 }
 
 pub fn does_auction_satisfy_maker_order(

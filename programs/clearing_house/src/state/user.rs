@@ -470,7 +470,8 @@ impl Order {
                     return Err(crate::error::ErrorCode::InvalidOracleOffset);
                 }
 
-                standardize_price(limit_price.cast::<u64>()?, tick_size)?.cast::<u128>()?
+                standardize_price(limit_price.cast::<u64>()?, tick_size, self.direction)?
+                    .cast::<u128>()?
             } else {
                 msg!("Could not find oracle too calculate oracle offset limit price");
                 return Err(crate::error::ErrorCode::OracleNotFound);
@@ -492,7 +493,8 @@ impl Order {
                                 .checked_div(amm.max_slippage_ratio as u128)
                                 .ok_or_else(math_error!())?;
                             let price = ask_price.checked_add(delta).ok_or_else(math_error!())?;
-                            standardize_price(price.cast()?, tick_size)?.cast::<u128>()?
+                            standardize_price(price.cast()?, tick_size, self.direction)?
+                                .cast::<u128>()?
                         }
                         PositionDirection::Short => {
                             let bid_price = amm.bid_price(amm.reserve_price()?)?;
@@ -500,7 +502,8 @@ impl Order {
                                 .checked_div(amm.max_slippage_ratio as u128)
                                 .ok_or_else(math_error!())?;
                             let price = bid_price.checked_sub(delta).ok_or_else(math_error!())?;
-                            standardize_price(price.cast()?, tick_size)?.cast::<u128>()?
+                            standardize_price(price.cast()?, tick_size, self.direction)?
+                                .cast::<u128>()?
                         }
                     },
                     None => {
@@ -522,7 +525,8 @@ impl Order {
                                 .ok_or_else(math_error!())?,
                         };
 
-                        standardize_price(price.cast()?, tick_size)?.cast::<u128>()?
+                        standardize_price(price.cast()?, tick_size, self.direction)?
+                            .cast::<u128>()?
                     }
                 }
             }
