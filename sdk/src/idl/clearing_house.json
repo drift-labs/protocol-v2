@@ -3404,7 +3404,7 @@
             "type": {
               "array": [
                 "u8",
-                1
+                5
               ]
             }
           }
@@ -4613,15 +4613,6 @@
           {
             "name": "lastOracleValid",
             "type": "bool"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                4
-              ]
-            }
           }
         ]
       }
