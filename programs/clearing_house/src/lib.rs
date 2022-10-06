@@ -531,7 +531,7 @@ pub mod clearing_house {
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
             quote_max_insurance: 0,
             quote_settled_insurance: 0,
-            padding: [0; 3],
+            padding: [0; 1],
             amm: AMM {
                 oracle: *ctx.accounts.oracle.key,
                 oracle_source,
@@ -623,7 +623,7 @@ pub mod clearing_house {
 
                 last_oracle_valid: false,
 
-                padding: [0; 6],
+                padding: [0; 4],
             },
         };
 

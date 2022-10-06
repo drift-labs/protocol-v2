@@ -102,7 +102,7 @@ pub struct PerpMarket {
     pub status: MarketStatus,
     pub contract_type: ContractType,
     pub contract_tier: ContractTier,
-    pub padding: [u8; 3],
+    pub padding: [u8; 1],
 }
 
 impl PerpMarket {
@@ -351,7 +351,7 @@ pub struct AMM {
     pub amm_jit_intensity: u8,
     pub oracle_source: OracleSource,
     pub last_oracle_valid: bool,
-    pub padding: [u8; 6],
+    pub padding: [u8; 4],
 }
 
 impl AMM {

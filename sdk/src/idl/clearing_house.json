@@ -235,6 +235,10 @@
         {
           "name": "marketIndex",
           "type": "u16"
+        },
+        {
+          "name": "quoteSpotMarketIndex",
+          "type": "u16"
         }
       ]
     },
@@ -3374,6 +3378,10 @@
             "type": "u16"
           },
           {
+            "name": "quoteSpotMarketIndex",
+            "type": "u16"
+          },
+          {
             "name": "status",
             "type": {
               "defined": "MarketStatus"
@@ -3396,7 +3404,7 @@
             "type": {
               "array": [
                 "u8",
-                3
+                1
               ]
             }
           }
@@ -4029,7 +4037,7 @@
           },
           {
             "name": "quoteSpotMarketIndex",
-            "type": "u64"
+            "type": "u16"
           },
           {
             "name": "reduceOnly",
@@ -4565,6 +4573,10 @@
             "type": "u32"
           },
           {
+            "name": "oracleQuoteSpotMarketIndex",
+            "type": "u16"
+          },
+          {
             "name": "maxBaseAssetAmountRatio",
             "type": "u16"
           },
@@ -4607,7 +4619,7 @@
             "type": {
               "array": [
                 "u8",
-                6
+                4
               ]
             }
           }
@@ -5026,6 +5038,10 @@
           },
           {
             "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "quoteSpotMarketIndex",
             "type": "u16"
           },
           {
