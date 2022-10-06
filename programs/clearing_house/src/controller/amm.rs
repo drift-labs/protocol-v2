@@ -1,9 +1,8 @@
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::get_then_update_id;
-use crate::math::amm::{
-    calculate_quote_asset_amount_swapped, calculate_spread_reserves, get_spread_reserves,
-};
+use crate::math::amm::calculate_quote_asset_amount_swapped;
+use crate::math::amm_spread::{calculate_spread_reserves, get_spread_reserves};
 use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128, Cast};
 use crate::math::constants::{
     CONCENTRATION_PRECISION, K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE,
@@ -12,7 +11,7 @@ use crate::math::constants::{
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::repeg::get_total_fee_lower_bound;
 use crate::math::spot_balance::{get_token_amount, validate_spot_balances};
-use crate::math::{amm, bn, cp_curve, quote_asset::*};
+use crate::math::{amm, amm_spread, bn, cp_curve, quote_asset::*};
 use crate::math_error;
 use crate::state::events::CurveRecord;
 use crate::state::market::{PerpMarket, AMM};
@@ -222,7 +221,7 @@ pub fn update_spread_reserves(amm: &mut AMM) -> ClearingHouseResult {
 
 pub fn update_spreads(amm: &mut AMM, reserve_price: u128) -> ClearingHouseResult<(u128, u128)> {
     let (long_spread, short_spread) = if amm.curve_update_intensity > 0 {
-        amm::calculate_spread(
+        amm_spread::calculate_spread(
             amm.base_spread,
             amm.last_oracle_reserve_price_spread_pct,
             amm.last_oracle_conf_pct,

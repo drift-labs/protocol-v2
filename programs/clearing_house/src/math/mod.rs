@@ -1,5 +1,6 @@
 pub mod amm;
 pub mod amm_jit;
+pub mod amm_spread;
 pub mod auction;
 pub mod bankruptcy;
 pub mod base_asset_amount;
