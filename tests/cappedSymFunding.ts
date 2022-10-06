@@ -26,12 +26,15 @@ import {
 	AMM_RESERVE_PRECISION,
 	calculateReservePrice,
 	convertToNumber,
+	ExchangeStatus,
+	BASE_PRECISION,
+	OracleSource,
+	isVariant,
 } from '../sdk/src';
 
 import { Program } from '@project-serum/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
-import { BASE_PRECISION, OracleSource } from '../sdk';
 
 async function updateFundingRateHelper(
 	clearingHouse: ClearingHouse,
@@ -87,15 +90,13 @@ async function updateFundingRateHelper(
 		const cumulativeFundingRateShortOld =
 			ammAccountState0.cumulativeFundingRateShort;
 
-		let _tx;
-		try {
-			_tx = await clearingHouse.updateFundingRate(
-				priceFeedAddress,
-				marketIndex
-			);
-		} catch (e) {
-			console.error(e);
-		}
+		const state = clearingHouse.getStateAccount();
+		assert(isVariant(state.exchangeStatus, 'active'));
+
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
+		assert(isVariant(market.status, 'active'));
+
+		await clearingHouse.updateFundingRate(priceFeedAddress, marketIndex);
 
 		const CONVERSION_SCALE = FUNDING_RATE_BUFFER_PRECISION.mul(PRICE_PRECISION);
 
@@ -212,7 +213,7 @@ async function cappedSymFundingScenario(
 	await sleep(2500);
 
 	if (fees && fees > 0) {
-		await clearingHouse.updateFundingPaused(true);
+		await clearingHouse.updateExchangeStatus(ExchangeStatus.FUNDINGPAUSED);
 
 		console.log('spawn some fee pool');
 
@@ -227,7 +228,7 @@ async function cappedSymFundingScenario(
 			clearingHouse.getUserAccount(),
 			marketIndex
 		);
-		await clearingHouse.updateFundingPaused(false);
+		await clearingHouse.updateExchangeStatus(ExchangeStatus.ACTIVE);
 	}
 	await clearingHouse.fetchAccounts();
 
@@ -242,7 +243,10 @@ async function cappedSymFundingScenario(
 		'+/-',
 		convertToNumber(oracleData.confidence)
 	);
-	await clearingHouse.updateFundingPaused(true);
+	console.log(ExchangeStatus.FUNDINGPAUSED);
+	console.log(ExchangeStatus.ACTIVE);
+
+	await clearingHouse.updateExchangeStatus(ExchangeStatus.FUNDINGPAUSED);
 	await clearingHouse.fetchAccounts();
 
 	if (longShortSizes[0] !== 0) {
@@ -308,7 +312,7 @@ async function cappedSymFundingScenario(
 	await clearingHouse.fetchAccounts();
 	const market = clearingHouse.getPerpMarketAccount(marketIndex);
 
-	await clearingHouse.updateFundingPaused(false);
+	await clearingHouse.updateExchangeStatus(ExchangeStatus.ACTIVE);
 
 	console.log('priceAction update', priceAction, priceAction.slice(1));
 	await updateFundingRateHelper(
@@ -384,7 +388,7 @@ async function cappedSymFundingScenario(
 	// );
 
 	setFeedPrice(anchor.workspace.Pyth, priceAction[0], priceFeedAddress);
-	await clearingHouse.updateFundingPaused(true);
+	await clearingHouse.updateExchangeStatus(ExchangeStatus.FUNDINGPAUSED);
 
 	assert(fundingRateShort.lte(fundingRateLong));
 	if (longShortSizes[0] !== 0) {
@@ -403,7 +407,7 @@ async function cappedSymFundingScenario(
 			marketIndex
 		);
 	}
-	await clearingHouse.updateFundingPaused(false);
+	await clearingHouse.updateExchangeStatus(ExchangeStatus.ACTIVE);
 	setFeedPrice(anchor.workspace.Pyth, priceAction[1], priceFeedAddress);
 
 	await sleep(2000);

@@ -1,8 +1,6 @@
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
-use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, MARGIN_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION,
-};
+use crate::math::constants::{MARGIN_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION};
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
     calculate_base_asset_value_with_oracle_price,
@@ -12,20 +10,18 @@ use crate::math_error;
 use crate::state::user::User;
 use crate::validate;
 
-use crate::math::casting::cast_to_i128;
+use crate::math::casting::{cast_to_i128, Cast};
 use crate::math::funding::calculate_funding_payment;
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
-use crate::math::spot_balance::{
-    get_balance_value_and_token_amount, get_token_amount, get_token_value,
-};
+use crate::math::spot_balance::{get_balance_value_and_token_amount, get_token_value};
 
 use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
-use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{PerpPosition, SpotPosition};
 use num_integer::Roots;
@@ -148,9 +144,7 @@ pub fn calculate_perp_position_value_and_pnl(
             market.amm.cumulative_funding_rate_short
         },
         market_position,
-    )?
-    .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
-    .ok_or_else(math_error!())?;
+    )?;
 
     let market_position = if market_position.is_lp() {
         // compute lp metrics
@@ -159,25 +153,25 @@ pub fn calculate_perp_position_value_and_pnl(
         // compute settled position
         let base_asset_amount = market_position
             .base_asset_amount
-            .checked_add(lp_metrics.base_asset_amount)
+            .checked_add(lp_metrics.base_asset_amount.cast()?)
             .ok_or_else(math_error!())?;
 
         let mut quote_asset_amount = market_position
             .quote_asset_amount
-            .checked_add(lp_metrics.quote_asset_amount)
+            .checked_add(lp_metrics.quote_asset_amount.cast()?)
             .ok_or_else(math_error!())?;
 
         // dust position in baa/qaa
         if lp_metrics.remainder_base_asset_amount != 0 {
             let dust_base_asset_value = calculate_base_asset_value_with_oracle_price(
-                lp_metrics.remainder_base_asset_amount,
+                lp_metrics.remainder_base_asset_amount.cast()?,
                 oracle_price_data.price,
             )?
             .checked_add(1)
             .ok_or_else(math_error!())?;
 
             quote_asset_amount = quote_asset_amount
-                .checked_sub(cast_to_i128(dust_base_asset_value)?)
+                .checked_sub(dust_base_asset_value.cast()?)
                 .ok_or_else(math_error!())?;
         }
 
@@ -214,8 +208,8 @@ pub fn calculate_perp_position_value_and_pnl(
     let (_, unrealized_pnl) =
         calculate_base_asset_value_and_pnl_with_oracle_price(&market_position, valuation_price)?;
 
-    let total_unrealized_pnl = unrealized_funding
-        .checked_add(unrealized_pnl)
+    let total_unrealized_pnl = unrealized_pnl
+        .checked_add(unrealized_funding.cast()?)
         .ok_or_else(math_error!())?;
 
     let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount()?;
@@ -252,18 +246,20 @@ pub fn calculate_perp_position_value_and_pnl(
     ))
 }
 
-pub fn calculate_margin_requirement_and_total_collateral(
+pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     user: &User,
     perp_market_map: &PerpMarketMap,
     margin_requirement_type: MarginRequirementType,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     margin_buffer_ratio: Option<u128>,
-) -> ClearingHouseResult<(u128, i128, u128, bool)> {
+) -> ClearingHouseResult<(u128, i128, u128, bool, u8, bool)> {
     let mut total_collateral: i128 = 0;
     let mut margin_requirement: u128 = 0;
     let mut margin_requirement_plus_buffer: u128 = 0;
-    let mut all_oracles_valid = true;
+    let mut all_oracles_valid: bool = true;
+    let mut num_of_liabilities: u8 = 0;
+    let mut with_isolated_liability: bool = false;
 
     let user_custom_margin_ratio = if margin_requirement_type == MarginRequirementType::Initial {
         user.custom_margin_ratio as u128
@@ -285,11 +281,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
 
         if spot_market.market_index == 0 {
-            let token_amount = get_token_amount(
-                spot_position.balance,
-                &spot_market,
-                &spot_position.balance_type,
-            )?;
+            let token_amount = spot_position.get_token_amount(&spot_market)?;
 
             match spot_position.balance_type {
                 SpotBalanceType::Deposit => {
@@ -308,6 +300,8 @@ pub fn calculate_margin_requirement_and_total_collateral(
                     margin_requirement = margin_requirement
                         .checked_add(weighted_token_value)
                         .ok_or_else(math_error!())?;
+
+                    num_of_liabilities += 1;
 
                     if let Some(margin_buffer_ratio) = margin_buffer_ratio {
                         margin_requirement_plus_buffer = margin_requirement_plus_buffer
@@ -376,6 +370,9 @@ pub fn calculate_margin_requirement_and_total_collateral(
                             )?)
                             .ok_or_else(math_error!())?;
                     }
+
+                    num_of_liabilities += 1;
+                    with_isolated_liability &= spot_market.asset_tier == AssetTier::Isolated;
                 }
                 Ordering::Equal => {}
             }
@@ -458,7 +455,43 @@ pub fn calculate_margin_requirement_and_total_collateral(
         total_collateral = total_collateral
             .checked_add(weighted_pnl)
             .ok_or_else(math_error!())?;
+
+        num_of_liabilities += 1;
     }
+
+    Ok((
+        margin_requirement,
+        total_collateral,
+        margin_requirement_plus_buffer,
+        all_oracles_valid,
+        num_of_liabilities,
+        with_isolated_liability,
+    ))
+}
+
+pub fn calculate_margin_requirement_and_total_collateral(
+    user: &User,
+    perp_market_map: &PerpMarketMap,
+    margin_requirement_type: MarginRequirementType,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    margin_buffer_ratio: Option<u128>,
+) -> ClearingHouseResult<(u128, i128, u128, bool)> {
+    let (
+        margin_requirement,
+        total_collateral,
+        margin_requirement_plus_buffer,
+        all_oracles_valid,
+        _,
+        _,
+    ) = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        perp_market_map,
+        margin_requirement_type,
+        spot_market_map,
+        oracle_map,
+        margin_buffer_ratio,
+    )?;
 
     Ok((
         margin_requirement,
@@ -474,21 +507,35 @@ pub fn meets_withdraw_margin_requirement(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<bool> {
-    let (initial_margin_requirement, total_collateral, _, oracles_valid) =
-        calculate_margin_requirement_and_total_collateral(
-            user,
-            perp_market_map,
-            MarginRequirementType::Initial,
-            spot_market_map,
-            oracle_map,
-            None,
-        )?;
+    let (
+        initial_margin_requirement,
+        total_collateral,
+        _,
+        oracles_valid,
+        num_of_liabilities,
+        includes_isolated_liability,
+    ) = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        perp_market_map,
+        MarginRequirementType::Initial,
+        spot_market_map,
+        oracle_map,
+        None,
+    )?;
 
     if initial_margin_requirement > 0 {
         validate!(
             oracles_valid,
             ErrorCode::InvalidOracle,
             "User attempting to withdraw with outstanding liabilities when an oracle is invalid"
+        )?;
+    }
+
+    if num_of_liabilities > 1 {
+        validate!(
+            !includes_isolated_liability,
+            ErrorCode::DefaultError,
+            "User attempting to increase number of liabilities above 1 with a isolated tier liability"
         )?;
     }
 
@@ -516,6 +563,46 @@ fn calculate_margin_requirement_with_buffer(
                 / MARGIN_PRECISION,
         )
         .ok_or_else(math_error!())
+}
+
+pub fn meets_place_order_margin_requirement(
+    user: &User,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    risk_decreasing: bool,
+) -> ClearingHouseResult<bool> {
+    let (
+        margin_requirement,
+        total_collateral,
+        _,
+        _,
+        num_of_liabilities,
+        includes_isolated_liability,
+    ) = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        perp_market_map,
+        MarginRequirementType::Initial,
+        spot_market_map,
+        oracle_map,
+        None,
+    )?;
+
+    let meets_initial_margin_requirement = total_collateral >= cast_to_i128(margin_requirement)?;
+
+    if !meets_initial_margin_requirement && !risk_decreasing {
+        return Err(ErrorCode::InsufficientCollateral);
+    }
+
+    if num_of_liabilities > 1 {
+        validate!(
+            !includes_isolated_liability,
+            ErrorCode::DefaultError,
+            "User attempting to increase number of liabilities above 1 with a isolated tier liability"
+        )?;
+    }
+
+    Ok(true)
 }
 
 pub fn meets_initial_margin_requirement(

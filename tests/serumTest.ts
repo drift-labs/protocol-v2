@@ -211,6 +211,8 @@ describe('serum spot market', () => {
 			})
 		);
 
+		await takerClearingHouse.fetchAccounts();
+
 		const spotOrder = takerClearingHouse.getOrderByUserId(1);
 
 		assert(isVariant(spotOrder.marketType, 'spot'));
@@ -318,6 +320,7 @@ describe('serum spot market', () => {
 				price: new BN(100).mul(PRICE_PRECISION),
 			})
 		);
+		await takerClearingHouse.fetchAccounts();
 
 		const spotOrder = takerClearingHouse.getOrderByUserId(1);
 
@@ -428,6 +431,7 @@ describe('serum spot market', () => {
 				price: new BN(100).mul(PRICE_PRECISION),
 			})
 		);
+		await takerClearingHouse.fetchAccounts();
 
 		const spotOrder = takerClearingHouse.getOrderByUserId(1);
 

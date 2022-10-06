@@ -4,10 +4,12 @@ pub mod liquidate_perp {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION,
-        MARGIN_PRECISION, PEG_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I128,
-        SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
+        LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, PEG_PRECISION, QUOTE_PRECISION,
+        QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64,
+        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
+    use crate::math::liquidation::is_user_being_liquidated;
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
     };
@@ -93,18 +95,18 @@ pub mod liquidate_perp {
                 status: OrderStatus::Open,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -150 * QUOTE_PRECISION_I128,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -150 * QUOTE_PRECISION_I64,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: [SpotPosition::default(); 8],
@@ -116,7 +118,7 @@ pub mod liquidate_perp {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 50 * SPOT_BALANCE_PRECISION,
+                balance: 50 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -130,7 +132,7 @@ pub mod liquidate_perp {
 
         liquidate_perp(
             0,
-            BASE_PRECISION,
+            BASE_PRECISION_U64,
             &mut user,
             &user_key,
             &mut user_stats,
@@ -149,18 +151,18 @@ pub mod liquidate_perp {
         assert_eq!(user.perp_positions[0].base_asset_amount, 0);
         assert_eq!(
             user.perp_positions[0].quote_asset_amount,
-            -52 * QUOTE_PRECISION_I128
+            -52 * QUOTE_PRECISION_I64
         );
         assert_eq!(user.perp_positions[0].open_orders, 0);
         assert_eq!(user.perp_positions[0].open_bids, 0);
 
         assert_eq!(
             liquidator.perp_positions[0].base_asset_amount,
-            BASE_PRECISION_I128
+            BASE_PRECISION_I64
         );
         assert_eq!(
             liquidator.perp_positions[0].quote_asset_amount,
-            -99 * QUOTE_PRECISION_I128
+            -99 * QUOTE_PRECISION_I64
         );
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
@@ -233,18 +235,18 @@ pub mod liquidate_perp {
                 status: OrderStatus::Open,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                base_asset_amount: -BASE_PRECISION_I128,
-                quote_asset_amount: 50 * QUOTE_PRECISION_I128,
-                quote_entry_amount: 50 * QUOTE_PRECISION_I128,
+                base_asset_amount: -BASE_PRECISION_I64,
+                quote_asset_amount: 50 * QUOTE_PRECISION_I64,
+                quote_entry_amount: 50 * QUOTE_PRECISION_I64,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I128,
+                open_asks: -BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: [SpotPosition::default(); 8],
@@ -256,7 +258,7 @@ pub mod liquidate_perp {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 50 * SPOT_BALANCE_PRECISION,
+                balance: 50 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -270,7 +272,7 @@ pub mod liquidate_perp {
 
         liquidate_perp(
             0,
-            BASE_PRECISION,
+            BASE_PRECISION_U64,
             &mut user,
             &user_key,
             &mut user_stats,
@@ -289,18 +291,18 @@ pub mod liquidate_perp {
         assert_eq!(user.perp_positions[0].base_asset_amount, 0);
         assert_eq!(
             user.perp_positions[0].quote_asset_amount,
-            -52 * QUOTE_PRECISION_I128
+            -52 * QUOTE_PRECISION_I64
         );
         assert_eq!(user.perp_positions[0].open_orders, 0);
         assert_eq!(user.perp_positions[0].open_bids, 0);
 
         assert_eq!(
             liquidator.perp_positions[0].base_asset_amount,
-            -BASE_PRECISION_I128
+            -BASE_PRECISION_I64
         );
         assert_eq!(
             liquidator.perp_positions[0].quote_asset_amount,
-            101 * QUOTE_PRECISION_I128
+            101 * QUOTE_PRECISION_I64
         );
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
@@ -373,23 +375,23 @@ pub mod liquidate_perp {
                 status: OrderStatus::Open,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: 1000 * BASE_PRECISION,
+                base_asset_amount: 1000 * BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: 100 * QUOTE_PRECISION_I128,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: 100 * QUOTE_PRECISION_I64,
                 open_orders: 1,
-                open_bids: 1000 * BASE_PRECISION_I128,
+                open_bids: 1000 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 50 * SPOT_BALANCE_PRECISION,
+                balance: 50 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -399,7 +401,7 @@ pub mod liquidate_perp {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 50 * SPOT_BALANCE_PRECISION,
+                balance: 50 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -413,7 +415,7 @@ pub mod liquidate_perp {
 
         liquidate_perp(
             0,
-            BASE_PRECISION,
+            BASE_PRECISION_U64,
             &mut user,
             &user_key,
             &mut user_stats,
@@ -429,10 +431,7 @@ pub mod liquidate_perp {
         )
         .unwrap();
 
-        assert_eq!(
-            user.perp_positions[0].base_asset_amount,
-            BASE_PRECISION_I128
-        );
+        assert_eq!(user.perp_positions[0].base_asset_amount, BASE_PRECISION_I64);
         assert_eq!(user.perp_positions[0].open_orders, 0);
         assert_eq!(user.perp_positions[0].open_bids, 0);
 
@@ -505,18 +504,18 @@ pub mod liquidate_perp {
                 status: OrderStatus::Open,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                base_asset_amount: BASE_PRECISION_I128,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -150 * QUOTE_PRECISION_I128,
+                base_asset_amount: BASE_PRECISION_I64,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -150 * QUOTE_PRECISION_I64,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: [SpotPosition::default(); 8],
@@ -528,7 +527,7 @@ pub mod liquidate_perp {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 50 * SPOT_BALANCE_PRECISION,
+                balance: 50 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -544,7 +543,7 @@ pub mod liquidate_perp {
 
         liquidate_perp(
             0,
-            BASE_PRECISION / 2,
+            BASE_PRECISION_U64 / 2,
             &mut user,
             &user_key,
             &mut user_stats,
@@ -562,7 +561,7 @@ pub mod liquidate_perp {
 
         assert_eq!(
             user.perp_positions[0].base_asset_amount,
-            BASE_PRECISION_I128 / 2
+            BASE_PRECISION_I64 / 2
         );
         assert_eq!(user.perp_positions[0].quote_asset_amount, -101000000);
         assert_eq!(user.perp_positions[0].quote_entry_amount, -75000000);
@@ -571,7 +570,7 @@ pub mod liquidate_perp {
 
         assert_eq!(
             liquidator.perp_positions[0].base_asset_amount,
-            BASE_PRECISION_I128 / 2
+            BASE_PRECISION_I64 / 2
         );
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -49500000);
 
@@ -646,24 +645,24 @@ pub mod liquidate_perp {
                 status: OrderStatus::Open,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                base_asset_amount: 2 * BASE_PRECISION_I128,
-                quote_asset_amount: -200 * QUOTE_PRECISION_I128,
-                quote_entry_amount: -200 * QUOTE_PRECISION_I128,
+                base_asset_amount: 2 * BASE_PRECISION_I64,
+                quote_asset_amount: -200 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -200 * QUOTE_PRECISION_I64,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 5 * SPOT_BALANCE_PRECISION,
+                balance: 5 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
 
@@ -674,7 +673,7 @@ pub mod liquidate_perp {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 50 * SPOT_BALANCE_PRECISION,
+                balance: 50 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -689,7 +688,7 @@ pub mod liquidate_perp {
         let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
         liquidate_perp(
             0,
-            10 * BASE_PRECISION,
+            10 * BASE_PRECISION_U64,
             &mut user,
             &user_key,
             &mut user_stats,
@@ -731,7 +730,7 @@ pub mod liquidate_perp {
         let oracle_price = oracle_map.get_price_data(&oracle_price_key).unwrap().price;
 
         let perp_value = calculate_base_asset_value_with_oracle_price(
-            user.perp_positions[0].base_asset_amount,
+            user.perp_positions[0].base_asset_amount as i128,
             oracle_price,
         )
         .unwrap();
@@ -746,15 +745,201 @@ pub mod liquidate_perp {
         let market_after = perp_market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.total_liquidation_fee, 1800000)
     }
+
+    #[test]
+    pub fn successful_liquidation_long_perp_whale_imf_factor() {
+        let now = 0_i64;
+        let slot = 0_u64;
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_base_asset_amount_ratio: 100,
+                base_asset_amount_step_size: 10000000,
+                quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+                net_base_asset_amount: BASE_PRECISION_I128,
+                oracle: oracle_price_key,
+                historical_oracle_data: HistoricalOracleData::default_price(
+                    oracle_price.agg.price as i128,
+                ),
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            open_interest: 1,
+            status: MarketStatus::Initialized,
+            imf_factor: 1000, // SPOT_IMF_PRECISION == 1e6
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            ..PerpMarket::default()
+        };
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let perp_market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
+
+        let mut user = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64,
+                ts: 0,
+                slot: 0,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                base_asset_amount: BASE_PRECISION_I64 * 10000,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I64 * 10000,
+                quote_entry_amount: -150 * QUOTE_PRECISION_I64 * 10000,
+                open_orders: 1,
+                open_bids: BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 150 * 10000 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+
+            ..User::default()
+        };
+
+        let (margin_req, _, _, _) = calculate_margin_requirement_and_total_collateral(
+            &user,
+            &perp_market_map,
+            MarginRequirementType::Maintenance,
+            &spot_market_map,
+            &mut oracle_map,
+            None,
+        )
+        .unwrap();
+        assert_eq!(margin_req, 150_015_000_000);
+        assert!(!is_user_being_liquidated(
+            &user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            0
+        )
+        .unwrap());
+
+        {
+            let market_to_edit = &mut perp_market_map.get_ref_mut(&0).unwrap();
+            market_to_edit.imf_factor *= 10;
+        }
+
+        let (margin_req2, _, _, _) = calculate_margin_requirement_and_total_collateral(
+            &user,
+            &perp_market_map,
+            MarginRequirementType::Maintenance,
+            &spot_market_map,
+            &mut oracle_map,
+            None,
+        )
+        .unwrap();
+        assert_eq!(margin_req2, 1_049_604_950_000);
+        assert!(is_user_being_liquidated(
+            &user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            0
+        )
+        .unwrap());
+
+        let mut liquidator = User {
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                balance: 50 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let user_key = Pubkey::default();
+        let liquidator_key = Pubkey::default();
+
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
+
+        liquidate_perp(
+            0,
+            BASE_PRECISION_U64,
+            &mut user,
+            &user_key,
+            &mut user_stats,
+            &mut liquidator,
+            &liquidator_key,
+            &mut liquidator_stats,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            slot,
+            now,
+            10,
+        )
+        .unwrap();
+
+        assert_eq!(user.perp_positions[0].base_asset_amount, 9999000000000);
+        assert_eq!(user.perp_positions[0].quote_asset_amount, -1499902000000);
+        assert_eq!(user.perp_positions[0].open_orders, 0);
+        assert_eq!(user.perp_positions[0].open_bids, 0);
+
+        assert_eq!(
+            liquidator.perp_positions[0].base_asset_amount,
+            BASE_PRECISION_I64
+        );
+        assert_eq!(
+            liquidator.perp_positions[0].quote_asset_amount,
+            -99 * QUOTE_PRECISION_I64
+        );
+
+        let market_after = perp_market_map.get_ref(&0).unwrap();
+        assert_eq!(market_after.amm.total_liquidation_fee, QUOTE_PRECISION);
+    }
 }
 
-pub mod liquidate_borrow {
-    use crate::controller::liquidation::liquidate_borrow;
+pub mod liquidate_spot {
+    use crate::controller::liquidation::liquidate_spot;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, SPOT_BALANCE_PRECISION,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
@@ -837,18 +1022,18 @@ pub mod liquidate_borrow {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100 * SPOT_BALANCE_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Borrow,
-            balance: SPOT_BALANCE_PRECISION,
+            balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
-            perp_positions: [PerpPosition::default(); 5],
+            perp_positions: [PerpPosition::default(); 8],
             spot_positions,
             ..User::default()
         };
@@ -857,7 +1042,7 @@ pub mod liquidate_borrow {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -866,7 +1051,7 @@ pub mod liquidate_borrow {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
-        liquidate_borrow(
+        liquidate_spot(
             0,
             1,
             10_u128.pow(6),
@@ -961,18 +1146,18 @@ pub mod liquidate_borrow {
         spot_market[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100 * SPOT_BALANCE_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         spot_market[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Borrow,
-            balance: SPOT_BALANCE_PRECISION,
+            balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
-            perp_positions: [PerpPosition::default(); 5],
+            perp_positions: [PerpPosition::default(); 8],
             spot_positions: spot_market,
             ..User::default()
         };
@@ -981,7 +1166,7 @@ pub mod liquidate_borrow {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -991,7 +1176,7 @@ pub mod liquidate_borrow {
         let liquidator_key = Pubkey::default();
 
         // oracle twap too volatile to liq rn
-        assert!(liquidate_borrow(
+        assert!(liquidate_spot(
             0,
             1,
             10_u128.pow(6) / 10,
@@ -1016,7 +1201,7 @@ pub mod liquidate_borrow {
             (sol_oracle_price.agg.price * 6744 / 10000) as i128;
         drop(market1);
 
-        liquidate_borrow(
+        liquidate_spot(
             0,
             1,
             10_u128.pow(6) / 10,
@@ -1112,18 +1297,18 @@ pub mod liquidate_borrow {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 105 * SPOT_BALANCE_PRECISION,
+            balance: 105 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Borrow,
-            balance: SPOT_BALANCE_PRECISION,
+            balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
-            perp_positions: [PerpPosition::default(); 5],
+            perp_positions: [PerpPosition::default(); 8],
             spot_positions,
             ..User::default()
         };
@@ -1132,7 +1317,7 @@ pub mod liquidate_borrow {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1143,7 +1328,7 @@ pub mod liquidate_borrow {
 
         let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
 
-        liquidate_borrow(
+        liquidate_spot(
             0,
             1,
             10_u128.pow(6),
@@ -1160,8 +1345,8 @@ pub mod liquidate_borrow {
         )
         .unwrap();
 
-        // assert_eq!(user.spot_positions[0].balance, 45558159000);
-        // assert_eq!(user.spot_positions[1].balance, 406768999);
+        assert_eq!(user.spot_positions[0].balance, 45558159000);
+        assert_eq!(user.spot_positions[1].balance, 406768999);
 
         let (margin_requirement, total_collateral, margin_requirement_plus_buffer, _) =
             calculate_margin_requirement_and_total_collateral(
@@ -1179,7 +1364,7 @@ pub mod liquidate_borrow {
         assert_eq!(margin_requirement_plus_buffer, 45558016);
 
         let token_amount = get_token_amount(
-            user.spot_positions[1].balance,
+            user.spot_positions[1].balance as u128,
             spot_market_map.get_ref(&1).unwrap().deref(),
             &user.spot_positions[1].balance_type,
         )
@@ -1214,8 +1399,8 @@ pub mod liquidate_borrow {
         assert_eq!(market_revenue, 593);
         assert_eq!(
             liquidator.spot_positions[1].balance + user.spot_positions[1].balance
-                - market_after.revenue_pool.balance,
-            SPOT_BALANCE_PRECISION
+                - market_after.revenue_pool.balance as u64,
+            SPOT_BALANCE_PRECISION_U64
         );
     }
 }
@@ -1228,8 +1413,8 @@ pub mod liquidate_borrow_for_perp_pnl {
 
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
-        PEG_PRECISION, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
@@ -1340,14 +1525,14 @@ pub mod liquidate_borrow_for_perp_pnl {
         spot_positions[0] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Borrow,
-            balance: SPOT_BALANCE_PRECISION,
+            balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                quote_asset_amount: 100 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions,
@@ -1358,7 +1543,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1487,14 +1672,14 @@ pub mod liquidate_borrow_for_perp_pnl {
         spot_positions[0] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Borrow,
-            balance: SPOT_BALANCE_PRECISION,
+            balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                quote_asset_amount: 105 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: 105 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions,
@@ -1505,7 +1690,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1550,7 +1735,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         assert_eq!(margin_requirement_plus_buffer, 40066768);
 
         let token_amount = get_token_amount(
-            user.spot_positions[0].balance,
+            user.spot_positions[0].balance as u128,
             spot_market_map.get_ref(&1).unwrap().deref(),
             &user.spot_positions[0].balance_type,
         )
@@ -1671,14 +1856,14 @@ pub mod liquidate_borrow_for_perp_pnl {
         spot_positions[0] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Borrow,
-            balance: SPOT_BALANCE_PRECISION,
+            balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                quote_asset_amount: 80 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: 80 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions,
@@ -1689,7 +1874,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1735,8 +1920,8 @@ pub mod liquidate_perp_pnl_for_deposit {
 
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
-        PEG_PRECISION, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::OracleSource;
@@ -1842,14 +2027,14 @@ pub mod liquidate_perp_pnl_for_deposit {
         spot_positions[0] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION,
+            balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                quote_asset_amount: -100 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions,
@@ -1860,7 +2045,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1989,14 +2174,14 @@ pub mod liquidate_perp_pnl_for_deposit {
         spot_positions[0] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION,
+            balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                quote_asset_amount: -91 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: -91 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions,
@@ -2007,7 +2192,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2138,14 +2323,14 @@ pub mod liquidate_perp_pnl_for_deposit {
         spot_positions[0] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION,
+            balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         let mut user = User {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128 as i128,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions,
@@ -2156,7 +2341,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2201,8 +2386,9 @@ pub mod resolve_perp_bankruptcy {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, FUNDING_RATE_PRECISION_I128,
-        LIQUIDATION_FEE_PRECISION, PEG_PRECISION, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
+        FUNDING_RATE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
+        QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
@@ -2283,7 +2469,7 @@ pub mod resolve_perp_bankruptcy {
                 status: OrderStatus::Open,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 ..Order::default()
@@ -2291,9 +2477,9 @@ pub mod resolve_perp_bankruptcy {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 base_asset_amount: 0,
-                quote_asset_amount: -100 * QUOTE_PRECISION_I128,
+                quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I128,
+                open_bids: BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: [SpotPosition::default(); 8],
@@ -2307,7 +2493,7 @@ pub mod resolve_perp_bankruptcy {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 50 * SPOT_BALANCE_PRECISION,
+                balance: 50 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2347,9 +2533,9 @@ pub mod resolve_perp_bankruptcy {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                base_asset_amount: 5 * BASE_PRECISION_I128,
-                quote_asset_amount: -500 * QUOTE_PRECISION_I128,
-                open_bids: BASE_PRECISION_I128,
+                base_asset_amount: 5 * BASE_PRECISION_I64,
+                quote_asset_amount: -500 * QUOTE_PRECISION_I64,
+                open_bids: BASE_PRECISION_I64,
                 last_cumulative_funding_rate: 1000 * FUNDING_RATE_PRECISION_I128,
                 ..PerpPosition::default()
             }),
@@ -2359,7 +2545,7 @@ pub mod resolve_perp_bankruptcy {
 
         let mut expected_affected_long_user = affected_long_user;
         expected_affected_long_user.perp_positions[0].quote_asset_amount =
-            -550 * QUOTE_PRECISION_I128; // loses $50
+            -550 * QUOTE_PRECISION_I64; // loses $50
         expected_affected_long_user.perp_positions[0].last_cumulative_funding_rate =
             1010 * FUNDING_RATE_PRECISION_I128;
 
@@ -2380,9 +2566,9 @@ pub mod resolve_perp_bankruptcy {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                base_asset_amount: -5 * BASE_PRECISION_I128,
-                quote_asset_amount: 500 * QUOTE_PRECISION_I128,
-                open_bids: BASE_PRECISION_I128,
+                base_asset_amount: -5 * BASE_PRECISION_I64,
+                quote_asset_amount: 500 * QUOTE_PRECISION_I64,
+                open_bids: BASE_PRECISION_I64,
                 last_cumulative_funding_rate: -1000 * FUNDING_RATE_PRECISION_I128,
                 ..PerpPosition::default()
             }),
@@ -2392,7 +2578,7 @@ pub mod resolve_perp_bankruptcy {
 
         let mut expected_affected_short_user = affected_short_user;
         expected_affected_short_user.perp_positions[0].quote_asset_amount =
-            450 * QUOTE_PRECISION_I128; // loses $50
+            450 * QUOTE_PRECISION_I64; // loses $50
         expected_affected_short_user.perp_positions[0].last_cumulative_funding_rate =
             -1010 * FUNDING_RATE_PRECISION_I128;
 
@@ -2411,16 +2597,16 @@ pub mod resolve_perp_bankruptcy {
     }
 }
 
-pub mod resolve_borrow_bankruptcy {
-    use crate::controller::liquidation::resolve_borrow_bankruptcy;
+pub mod resolve_spot_bankruptcy {
+    use crate::controller::liquidation::resolve_spot_bankruptcy;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, BASE_PRECISION_I128, FUNDING_RATE_PRECISION_I128,
-        LIQUIDATION_FEE_PRECISION, PEG_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I128,
-        QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_U64,
+        FUNDING_RATE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION, QUOTE_PRECISION,
+        QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::spot_balance::get_token_amount;
     use crate::state::market::{MarketStatus, PerpMarket, AMM};
@@ -2437,7 +2623,7 @@ pub mod resolve_borrow_bankruptcy {
     use std::str::FromStr;
 
     #[test]
-    pub fn successful_resolve_borrow_bankruptcy() {
+    pub fn successful_resolve_spot_bankruptcy() {
         let now = 0_i64;
         let slot = 0_u64;
 
@@ -2504,15 +2690,15 @@ pub mod resolve_borrow_bankruptcy {
                 status: OrderStatus::Open,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION,
+                base_asset_amount: BASE_PRECISION_U64,
                 ts: 0,
                 slot: 0,
                 ..Order::default()
             }),
-            perp_positions: [PerpPosition::default(); 5],
+            perp_positions: [PerpPosition::default(); 8],
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 balance_type: SpotBalanceType::Borrow,
                 ..SpotPosition::default()
             }),
@@ -2526,7 +2712,7 @@ pub mod resolve_borrow_bankruptcy {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 50 * SPOT_BALANCE_PRECISION,
+                balance: 50 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2546,7 +2732,7 @@ pub mod resolve_borrow_bankruptcy {
         expected_spot_market.cumulative_deposit_interest =
             9 * SPOT_CUMULATIVE_INTEREST_PRECISION / 10;
 
-        resolve_borrow_bankruptcy(
+        resolve_spot_bankruptcy(
             0,
             &mut user,
             &user_key,

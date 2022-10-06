@@ -1,5 +1,5 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::cast;
+use crate::math::casting::{cast, Cast};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO,
     LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, PRICE_PRECISION,
@@ -27,13 +27,13 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
     liquidation_fee: u128,
     if_liquidation_fee: u128,
     oracle_price: i128,
-) -> ClearingHouseResult<u128> {
+) -> ClearingHouseResult<u64> {
     let margin_ratio = (margin_ratio as u128)
         .checked_mul(LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO)
         .ok_or_else(math_error!())?;
 
     if oracle_price == 0 || margin_ratio <= liquidation_fee {
-        return Ok(u128::MAX);
+        return Ok(u64::MAX);
     }
 
     margin_shortage
@@ -60,7 +60,8 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
                 )
                 .ok_or_else(math_error!())?,
         )
-        .ok_or_else(math_error!())
+        .ok_or_else(math_error!())?
+        .cast()
 }
 
 pub fn calculate_liability_transfer_to_cover_margin_shortage(

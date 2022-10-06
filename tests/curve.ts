@@ -1,12 +1,13 @@
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
-import { BASE_PRECISION, BN } from '../sdk';
 import {
 	Admin,
 	PRICE_PRECISION,
 	PEG_PRECISION,
 	QUOTE_PRECISION,
+	BASE_PRECISION,
+	BN,
 	calculateReservePrice,
 	calculateTargetPriceTrade,
 	ClearingHouseUser,
@@ -295,7 +296,7 @@ describe('AMM Curve', () => {
 	// 	const ammAccountState = marketData1.amm;
 	// 	const oldPeg = ammAccountState.pegMultiplier;
 
-	// 	const priceBefore = calculateMarkPrice(
+	// 	const priceBefore = calculateReservePrice(
 	// 		clearingHouse.getPerpMarketAccount(marketIndex)
 	// 	);
 
@@ -304,7 +305,7 @@ describe('AMM Curve', () => {
 	// 		marketIndex
 	// 	);
 
-	// 	const priceAfter = calculateMarkPrice(
+	// 	const priceAfter = calculateReservePrice(
 	// 		clearingHouse.getPerpMarketAccount(marketIndex)
 	// 	);
 
@@ -405,6 +406,7 @@ describe('AMM Curve', () => {
 			BASE_PRECISION,
 			marketIndex
 		);
+		await clearingHouse.fetchAccounts();
 		amm = clearingHouse.getPerpMarketAccount(marketIndex).amm;
 
 		const candidatePegUp2 = calculateBudgetedPeg(
@@ -432,6 +434,7 @@ describe('AMM Curve', () => {
 			candidatePegDown2.toString()
 		);
 		assert(candidatePegDown2.eq(new BN(10131882)));
+		await clearingHouse.fetchAccounts();
 
 		await clearingHouse.closePosition(marketIndex);
 	});

@@ -41,12 +41,7 @@
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "adminControlsPrices",
-          "type": "bool"
-        }
-      ]
+      "args": []
     },
     {
       "name": "initializeSpotMarket",
@@ -110,15 +105,15 @@
       "args": [
         {
           "name": "optimalUtilization",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "optimalBorrowRate",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "maxBorrowRate",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "oracleSource",
@@ -149,6 +144,10 @@
         {
           "name": "liquidationFee",
           "type": "u128"
+        },
+        {
+          "name": "activeStatus",
+          "type": "bool"
         }
       ]
     },
@@ -307,6 +306,10 @@
         {
           "name": "liquidationFee",
           "type": "u128"
+        },
+        {
+          "name": "activeStatus",
+          "type": "bool"
         }
       ]
     },
@@ -467,6 +470,11 @@
       "name": "updateSpotMarketCumulativeInterest",
       "accounts": [
         {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "spotMarket",
           "isMut": true,
           "isSigner": false
@@ -477,6 +485,11 @@
     {
       "name": "updateSpotMarketExpiry",
       "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
         {
           "name": "spotMarket",
           "isMut": true,
@@ -533,7 +546,7 @@
       "args": [
         {
           "name": "sharesToBurn",
-          "type": "u128"
+          "type": "u64"
         },
         {
           "name": "marketIndex",
@@ -563,7 +576,7 @@
       "args": [
         {
           "name": "nShares",
-          "type": "u128"
+          "type": "u64"
         },
         {
           "name": "marketIndex",
@@ -622,7 +635,7 @@
         {
           "name": "orderId",
           "type": {
-            "option": "u64"
+            "option": "u32"
           }
         }
       ]
@@ -691,13 +704,13 @@
         {
           "name": "orderId",
           "type": {
-            "option": "u64"
+            "option": "u32"
           }
         },
         {
           "name": "makerOrderId",
           "type": {
-            "option": "u64"
+            "option": "u32"
           }
         }
       ]
@@ -736,7 +749,7 @@
         {
           "name": "makerOrderId",
           "type": {
-            "option": "u64"
+            "option": "u32"
           }
         }
       ]
@@ -784,7 +797,7 @@
         },
         {
           "name": "takerOrderId",
-          "type": "u64"
+          "type": "u32"
         }
       ]
     },
@@ -815,38 +828,7 @@
       "args": [
         {
           "name": "orderId",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "triggerSpotOrder",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "filler",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "orderId",
-          "type": "u64"
+          "type": "u32"
         }
       ]
     },
@@ -916,7 +898,7 @@
         {
           "name": "orderId",
           "type": {
-            "option": "u64"
+            "option": "u32"
           }
         },
         {
@@ -930,7 +912,7 @@
         {
           "name": "makerOrderId",
           "type": {
-            "option": "u64"
+            "option": "u32"
           }
         }
       ]
@@ -1075,12 +1057,12 @@
         },
         {
           "name": "liquidatorMaxBaseAssetAmount",
-          "type": "u128"
+          "type": "u64"
         }
       ]
     },
     {
-      "name": "liquidateBorrow",
+      "name": "liquidateSpot",
       "accounts": [
         {
           "name": "state",
@@ -1098,7 +1080,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         }
@@ -1137,7 +1129,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         }
@@ -1176,7 +1178,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         }
@@ -1260,7 +1272,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         },
@@ -1297,7 +1319,7 @@
       ]
     },
     {
-      "name": "resolveBorrowBankruptcy",
+      "name": "resolveSpotBankruptcy",
       "accounts": [
         {
           "name": "state",
@@ -1315,7 +1337,17 @@
           "isSigner": false
         },
         {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         },
@@ -1632,7 +1664,7 @@
         },
         {
           "name": "state",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -1737,6 +1769,32 @@
           "type": "publicKey"
         }
       ]
+    },
+    {
+      "name": "deleteUser",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": []
     },
     {
       "name": "settleFundingPayment",
@@ -2044,6 +2102,186 @@
         {
           "name": "revenueSettlePeriod",
           "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketStatus",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": "MarketStatus"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketAssetTier",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "assetTier",
+          "type": {
+            "defined": "AssetTier"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketMarginWeights",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "initialAssetWeight",
+          "type": "u128"
+        },
+        {
+          "name": "maintenanceAssetWeight",
+          "type": "u128"
+        },
+        {
+          "name": "initialLiabilityWeight",
+          "type": "u128"
+        },
+        {
+          "name": "maintenanceLiabilityWeight",
+          "type": "u128"
+        },
+        {
+          "name": "imfFactor",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketMaxTokenDeposits",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxTokenDeposits",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketStatus",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": "MarketStatus"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketContractTier",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "contractTier",
+          "type": {
+            "defined": "ContractTier"
+          }
         }
       ]
     },
@@ -2408,7 +2646,7 @@
       "args": [
         {
           "name": "minimumTradeSize",
-          "type": "u128"
+          "type": "u64"
         }
       ]
     },
@@ -2528,7 +2766,7 @@
       ]
     },
     {
-      "name": "updateExchangePaused",
+      "name": "updateExchangeStatus",
       "accounts": [
         {
           "name": "admin",
@@ -2543,45 +2781,10 @@
       ],
       "args": [
         {
-          "name": "exchangePaused",
-          "type": "bool"
-        }
-      ]
-    },
-    {
-      "name": "disableAdminControlsPrices",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "updateFundingPaused",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "fundingPaused",
-          "type": "bool"
+          "name": "exchangeStatus",
+          "type": {
+            "defined": "ExchangeStatus"
+          }
         }
       ]
     },
@@ -2723,6 +2926,11 @@
       "name": "addInsuranceFundStake",
       "accounts": [
         {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "spotMarket",
           "isMut": false,
           "isSigner": false
@@ -2743,8 +2951,18 @@
           "isSigner": true
         },
         {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "insuranceFundVault",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -2999,11 +3217,11 @@
             "type": "publicKey"
           },
           {
-            "name": "marketIndex",
-            "type": "u16"
+            "name": "ifShares",
+            "type": "u128"
           },
           {
-            "name": "ifShares",
+            "name": "lastWithdrawRequestShares",
             "type": "u128"
           },
           {
@@ -3015,10 +3233,6 @@
             "type": "i64"
           },
           {
-            "name": "lastWithdrawRequestShares",
-            "type": "u128"
-          },
-          {
             "name": "lastWithdrawRequestValue",
             "type": "u64"
           },
@@ -3027,8 +3241,21 @@
             "type": "i64"
           },
           {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
             "name": "costBasis",
             "type": "i64"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                6
+              ]
+            }
           }
         ]
       }
@@ -3039,38 +3266,24 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "marketIndex",
-            "type": "u16"
-          },
-          {
             "name": "pubkey",
             "type": "publicKey"
-          },
-          {
-            "name": "status",
-            "type": {
-              "defined": "MarketStatus"
-            }
-          },
-          {
-            "name": "contractType",
-            "type": {
-              "defined": "ContractType"
-            }
-          },
-          {
-            "name": "settlementPrice",
-            "type": "i128"
-          },
-          {
-            "name": "expiryTs",
-            "type": "i64"
           },
           {
             "name": "amm",
             "type": {
               "defined": "AMM"
             }
+          },
+          {
+            "name": "pnlPool",
+            "type": {
+              "defined": "PoolBalance"
+            }
+          },
+          {
+            "name": "settlementPrice",
+            "type": "i128"
           },
           {
             "name": "baseAssetAmountLong",
@@ -3085,32 +3298,6 @@
             "type": "u128"
           },
           {
-            "name": "marginRatioInitial",
-            "type": "u32"
-          },
-          {
-            "name": "marginRatioMaintenance",
-            "type": "u32"
-          },
-          {
-            "name": "nextFillRecordId",
-            "type": "u64"
-          },
-          {
-            "name": "nextFundingRateRecordId",
-            "type": "u64"
-          },
-          {
-            "name": "nextCurveRecordId",
-            "type": "u64"
-          },
-          {
-            "name": "pnlPool",
-            "type": {
-              "defined": "PoolBalance"
-            }
-          },
-          {
             "name": "revenueWithdrawSinceLastSettle",
             "type": "u128"
           },
@@ -3119,20 +3306,8 @@
             "type": "u128"
           },
           {
-            "name": "lastRevenueWithdrawTs",
-            "type": "i64"
-          },
-          {
             "name": "imfFactor",
             "type": "u128"
-          },
-          {
-            "name": "unrealizedInitialAssetWeight",
-            "type": "u32"
-          },
-          {
-            "name": "unrealizedMaintenanceAssetWeight",
-            "type": "u32"
           },
           {
             "name": "unrealizedImfFactor",
@@ -3159,24 +3334,71 @@
             "type": "u128"
           },
           {
-            "name": "padding0",
+            "name": "expiryTs",
+            "type": "i64"
+          },
+          {
+            "name": "nextFillRecordId",
+            "type": "u64"
+          },
+          {
+            "name": "nextFundingRateRecordId",
+            "type": "u64"
+          },
+          {
+            "name": "nextCurveRecordId",
+            "type": "u64"
+          },
+          {
+            "name": "lastRevenueWithdrawTs",
+            "type": "i64"
+          },
+          {
+            "name": "marginRatioInitial",
             "type": "u32"
           },
           {
-            "name": "padding1",
-            "type": "u128"
+            "name": "marginRatioMaintenance",
+            "type": "u32"
           },
           {
-            "name": "padding2",
-            "type": "u128"
+            "name": "unrealizedInitialAssetWeight",
+            "type": "u32"
           },
           {
-            "name": "padding3",
-            "type": "u128"
+            "name": "unrealizedMaintenanceAssetWeight",
+            "type": "u32"
           },
           {
-            "name": "padding4",
-            "type": "u128"
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "MarketStatus"
+            }
+          },
+          {
+            "name": "contractType",
+            "type": {
+              "defined": "ContractType"
+            }
+          },
+          {
+            "name": "contractTier",
+            "type": {
+              "defined": "ContractTier"
+            }
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
           }
         ]
       }
@@ -3187,44 +3409,12 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "marketIndex",
-            "type": "u16"
-          },
-          {
             "name": "pubkey",
             "type": "publicKey"
           },
           {
-            "name": "status",
-            "type": {
-              "defined": "MarketStatus"
-            }
-          },
-          {
-            "name": "expiryTs",
-            "type": "i64"
-          },
-          {
             "name": "oracle",
             "type": "publicKey"
-          },
-          {
-            "name": "oracleSource",
-            "type": {
-              "defined": "OracleSource"
-            }
-          },
-          {
-            "name": "historicalOracleData",
-            "type": {
-              "defined": "HistoricalOracleData"
-            }
-          },
-          {
-            "name": "historicalIndexData",
-            "type": {
-              "defined": "HistoricalIndexData"
-            }
           },
           {
             "name": "mint",
@@ -3239,94 +3429,28 @@
             "type": "publicKey"
           },
           {
+            "name": "historicalOracleData",
+            "type": {
+              "defined": "HistoricalOracleData"
+            }
+          },
+          {
+            "name": "historicalIndexData",
+            "type": {
+              "defined": "HistoricalIndexData"
+            }
+          },
+          {
             "name": "revenuePool",
             "type": {
               "defined": "PoolBalance"
             }
           },
           {
-            "name": "totalIfFactor",
-            "type": "u32"
-          },
-          {
-            "name": "userIfFactor",
-            "type": "u32"
-          },
-          {
-            "name": "totalIfShares",
-            "type": "u128"
-          },
-          {
-            "name": "userIfShares",
-            "type": "u128"
-          },
-          {
-            "name": "ifSharesBase",
-            "type": "u128"
-          },
-          {
-            "name": "insuranceWithdrawEscrowPeriod",
-            "type": "i64"
-          },
-          {
-            "name": "lastRevenueSettleTs",
-            "type": "i64"
-          },
-          {
-            "name": "revenueSettlePeriod",
-            "type": "i64"
-          },
-          {
-            "name": "decimals",
-            "type": "u8"
-          },
-          {
-            "name": "optimalUtilization",
-            "type": "u128"
-          },
-          {
-            "name": "optimalBorrowRate",
-            "type": "u128"
-          },
-          {
-            "name": "maxBorrowRate",
-            "type": "u128"
-          },
-          {
-            "name": "depositBalance",
-            "type": "u128"
-          },
-          {
-            "name": "borrowBalance",
-            "type": "u128"
-          },
-          {
-            "name": "depositTokenTwap",
-            "type": "u128"
-          },
-          {
-            "name": "borrowTokenTwap",
-            "type": "u128"
-          },
-          {
-            "name": "utilizationTwap",
-            "type": "u128"
-          },
-          {
-            "name": "cumulativeDepositInterest",
-            "type": "u128"
-          },
-          {
-            "name": "cumulativeBorrowInterest",
-            "type": "u128"
-          },
-          {
-            "name": "lastInterestTs",
-            "type": "u64"
-          },
-          {
-            "name": "lastTwapTs",
-            "type": "u64"
+            "name": "spotFeePool",
+            "type": {
+              "defined": "PoolBalance"
+            }
           },
           {
             "name": "initialAssetWeight",
@@ -3361,21 +3485,150 @@
             "type": "u128"
           },
           {
-            "name": "orderStepSize",
+            "name": "totalIfShares",
             "type": "u128"
           },
           {
-            "name": "nextFillRecordId",
-            "type": "u64"
+            "name": "userIfShares",
+            "type": "u128"
+          },
+          {
+            "name": "ifSharesBase",
+            "type": "u128"
           },
           {
             "name": "totalSpotFee",
             "type": "u128"
           },
           {
-            "name": "spotFeePool",
+            "name": "depositBalance",
+            "type": "u128"
+          },
+          {
+            "name": "borrowBalance",
+            "type": "u128"
+          },
+          {
+            "name": "maxTokenDeposits",
+            "type": "u128"
+          },
+          {
+            "name": "depositTokenTwap",
+            "type": "u128"
+          },
+          {
+            "name": "borrowTokenTwap",
+            "type": "u128"
+          },
+          {
+            "name": "utilizationTwap",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeDepositInterest",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeBorrowInterest",
+            "type": "u128"
+          },
+          {
+            "name": "insuranceWithdrawEscrowPeriod",
+            "type": "i64"
+          },
+          {
+            "name": "lastRevenueSettleTs",
+            "type": "i64"
+          },
+          {
+            "name": "revenueSettlePeriod",
+            "type": "i64"
+          },
+          {
+            "name": "lastInterestTs",
+            "type": "u64"
+          },
+          {
+            "name": "lastTwapTs",
+            "type": "u64"
+          },
+          {
+            "name": "expiryTs",
+            "type": "i64"
+          },
+          {
+            "name": "orderStepSize",
+            "type": "u64"
+          },
+          {
+            "name": "orderTickSize",
+            "type": "u64"
+          },
+          {
+            "name": "orderMinimumSize",
+            "type": "u64"
+          },
+          {
+            "name": "maxPositionSize",
+            "type": "u64"
+          },
+          {
+            "name": "nextFillRecordId",
+            "type": "u64"
+          },
+          {
+            "name": "optimalUtilization",
+            "type": "u32"
+          },
+          {
+            "name": "optimalBorrowRate",
+            "type": "u32"
+          },
+          {
+            "name": "maxBorrowRate",
+            "type": "u32"
+          },
+          {
+            "name": "totalIfFactor",
+            "type": "u32"
+          },
+          {
+            "name": "userIfFactor",
+            "type": "u32"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "decimals",
+            "type": "u8"
+          },
+          {
+            "name": "oracleSource",
             "type": {
-              "defined": "PoolBalance"
+              "defined": "OracleSource"
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "MarketStatus"
+            }
+          },
+          {
+            "name": "assetTier",
+            "type": {
+              "defined": "AssetTier"
+            }
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                6
+              ]
             }
           }
         ]
@@ -3389,22 +3642,6 @@
           {
             "name": "pubkey",
             "type": "publicKey"
-          },
-          {
-            "name": "fulfillmentType",
-            "type": {
-              "defined": "SpotFulfillmentType"
-            }
-          },
-          {
-            "name": "status",
-            "type": {
-              "defined": "SpotFulfillmentStatus"
-            }
-          },
-          {
-            "name": "marketIndex",
-            "type": "u16"
           },
           {
             "name": "serumProgramId",
@@ -3445,6 +3682,31 @@
           {
             "name": "serumSignerNonce",
             "type": "u64"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "fulfillmentType",
+            "type": {
+              "defined": "SpotFulfillmentType"
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "SpotFulfillmentStatus"
+            }
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
           }
         ]
       }
@@ -3459,18 +3721,6 @@
             "type": "publicKey"
           },
           {
-            "name": "exchangePaused",
-            "type": "bool"
-          },
-          {
-            "name": "fundingPaused",
-            "type": "bool"
-          },
-          {
-            "name": "adminControlsPrices",
-            "type": "bool"
-          },
-          {
             "name": "whitelistMint",
             "type": "publicKey"
           },
@@ -3479,50 +3729,8 @@
             "type": "publicKey"
           },
           {
-            "name": "oracleGuardRails",
-            "type": {
-              "defined": "OracleGuardRails"
-            }
-          },
-          {
-            "name": "numberOfMarkets",
-            "type": "u16"
-          },
-          {
-            "name": "numberOfSpotMarkets",
-            "type": "u16"
-          },
-          {
-            "name": "minOrderQuoteAssetAmount",
-            "type": "u128"
-          },
-          {
-            "name": "minPerpAuctionDuration",
-            "type": "u8"
-          },
-          {
-            "name": "defaultMarketOrderTimeInForce",
-            "type": "u8"
-          },
-          {
-            "name": "defaultSpotAuctionDuration",
-            "type": "u8"
-          },
-          {
-            "name": "liquidationMarginBufferRatio",
-            "type": "u32"
-          },
-          {
-            "name": "settlementDuration",
-            "type": "u16"
-          },
-          {
             "name": "signer",
             "type": "publicKey"
-          },
-          {
-            "name": "signerNonce",
-            "type": "u8"
           },
           {
             "name": "srmVault",
@@ -3538,6 +3746,67 @@
             "name": "spotFeeStructure",
             "type": {
               "defined": "FeeStructure"
+            }
+          },
+          {
+            "name": "oracleGuardRails",
+            "type": {
+              "defined": "OracleGuardRails"
+            }
+          },
+          {
+            "name": "minOrderQuoteAssetAmount",
+            "type": "u128"
+          },
+          {
+            "name": "numberOfAuthorities",
+            "type": "u64"
+          },
+          {
+            "name": "liquidationMarginBufferRatio",
+            "type": "u32"
+          },
+          {
+            "name": "settlementDuration",
+            "type": "u16"
+          },
+          {
+            "name": "numberOfMarkets",
+            "type": "u16"
+          },
+          {
+            "name": "numberOfSpotMarkets",
+            "type": "u16"
+          },
+          {
+            "name": "signerNonce",
+            "type": "u8"
+          },
+          {
+            "name": "minPerpAuctionDuration",
+            "type": "u8"
+          },
+          {
+            "name": "defaultMarketOrderTimeInForce",
+            "type": "u8"
+          },
+          {
+            "name": "defaultSpotAuctionDuration",
+            "type": "u8"
+          },
+          {
+            "name": "exchangeStatus",
+            "type": {
+              "defined": "ExchangeStatus"
+            }
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
             }
           }
         ]
@@ -3555,10 +3824,6 @@
           {
             "name": "delegate",
             "type": "publicKey"
-          },
-          {
-            "name": "userId",
-            "type": "u8"
           },
           {
             "name": "name",
@@ -3581,17 +3846,13 @@
             }
           },
           {
-            "name": "nextOrderId",
-            "type": "u64"
-          },
-          {
             "name": "perpPositions",
             "type": {
               "array": [
                 {
                   "defined": "PerpPosition"
                 },
-                5
+                8
               ]
             }
           },
@@ -3607,8 +3868,24 @@
             }
           },
           {
+            "name": "lastLpAddTime",
+            "type": "i64"
+          },
+          {
+            "name": "nextOrderId",
+            "type": "u32"
+          },
+          {
+            "name": "customMarginRatio",
+            "type": "u32"
+          },
+          {
             "name": "nextLiquidationId",
             "type": "u16"
+          },
+          {
+            "name": "userId",
+            "type": "u8"
           },
           {
             "name": "beingLiquidated",
@@ -3619,8 +3896,13 @@
             "type": "bool"
           },
           {
-            "name": "customMarginRatio",
-            "type": "u32"
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
           }
         ]
       }
@@ -3635,16 +3917,14 @@
             "type": "publicKey"
           },
           {
-            "name": "numberOfUsers",
-            "type": "u8"
-          },
-          {
-            "name": "isReferrer",
-            "type": "bool"
-          },
-          {
             "name": "referrer",
             "type": "publicKey"
+          },
+          {
+            "name": "fees",
+            "type": {
+              "defined": "UserFees"
+            }
           },
           {
             "name": "totalReferrerReward",
@@ -3657,12 +3937,6 @@
           {
             "name": "nextEpochTs",
             "type": "i64"
-          },
-          {
-            "name": "fees",
-            "type": {
-              "defined": "UserFees"
-            }
           },
           {
             "name": "makerVolume30d",
@@ -3691,6 +3965,23 @@
           {
             "name": "stakedQuoteAssetAmount",
             "type": "u64"
+          },
+          {
+            "name": "numberOfUsers",
+            "type": "u8"
+          },
+          {
+            "name": "isReferrer",
+            "type": "bool"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                6
+              ]
+            }
           }
         ]
       }
@@ -3726,11 +4017,11 @@
           },
           {
             "name": "baseAssetAmount",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "price",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "marketIndex",
@@ -3750,7 +4041,9 @@
           },
           {
             "name": "triggerPrice",
-            "type": "u128"
+            "type": {
+              "option": "u64"
+            }
           },
           {
             "name": "triggerCondition",
@@ -3760,7 +4053,9 @@
           },
           {
             "name": "oraclePriceOffset",
-            "type": "i128"
+            "type": {
+              "option": "i64"
+            }
           },
           {
             "name": "auctionDuration",
@@ -3777,7 +4072,7 @@
           {
             "name": "auctionStartPrice",
             "type": {
-              "option": "u128"
+              "option": "u64"
             }
           }
         ]
@@ -3798,23 +4093,15 @@
           },
           {
             "name": "baseAssetAmount",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "quoteAssetAmount",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "lpShares",
-            "type": "u128"
-          },
-          {
-            "name": "userPnl",
-            "type": "i128"
-          },
-          {
-            "name": "liquidatorPnl",
-            "type": "i128"
+            "type": "u64"
           },
           {
             "name": "fillRecordId",
@@ -3822,11 +4109,11 @@
           },
           {
             "name": "userOrderId",
-            "type": "u64"
+            "type": "u32"
           },
           {
             "name": "liquidatorOrderId",
-            "type": "u64"
+            "type": "u32"
           },
           {
             "name": "ifFee",
@@ -3836,7 +4123,7 @@
       }
     },
     {
-      "name": "LiquidateBorrowRecord",
+      "name": "LiquidateSpotRecord",
       "type": {
         "kind": "struct",
         "fields": [
@@ -3960,7 +4247,7 @@
       }
     },
     {
-      "name": "BorrowBankruptcyRecord",
+      "name": "SpotBankruptcyRecord",
       "type": {
         "kind": "struct",
         "fields": [
@@ -3991,6 +4278,19 @@
           {
             "name": "balance",
             "type": "u128"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                6
+              ]
+            }
           }
         ]
       }
@@ -4005,28 +4305,28 @@
             "type": "publicKey"
           },
           {
-            "name": "oracleSource",
-            "type": {
-              "defined": "OracleSource"
-            }
-          },
-          {
             "name": "historicalOracleData",
             "type": {
               "defined": "HistoricalOracleData"
             }
           },
           {
-            "name": "lastOracleValid",
-            "type": "bool"
+            "name": "marketPosition",
+            "type": {
+              "defined": "PerpPosition"
+            }
           },
           {
-            "name": "lastUpdateSlot",
-            "type": "u64"
+            "name": "marketPositionPerLp",
+            "type": {
+              "defined": "PerpPosition"
+            }
           },
           {
-            "name": "lastOracleConfPct",
-            "type": "u64"
+            "name": "feePool",
+            "type": {
+              "defined": "PoolBalance"
+            }
           },
           {
             "name": "lastOracleNormalisedPrice",
@@ -4089,26 +4389,12 @@
             "type": "i128"
           },
           {
-            "name": "netUnsettledLpBaseAssetAmount",
-            "type": "i128"
-          },
-          {
-            "name": "lpCooldownTime",
-            "type": "i64"
-          },
-          {
             "name": "userLpShares",
             "type": "u128"
           },
           {
-            "name": "marketPositionPerLp",
-            "type": {
-              "defined": "PerpPosition"
-            }
-          },
-          {
-            "name": "ammJitIntensity",
-            "type": "u8"
+            "name": "netUnsettledLpBaseAssetAmount",
+            "type": "i128"
           },
           {
             "name": "lastFundingRate",
@@ -4125,132 +4411,6 @@
           {
             "name": "last24hAvgFundingRate",
             "type": "i128"
-          },
-          {
-            "name": "lastFundingRateTs",
-            "type": "i64"
-          },
-          {
-            "name": "fundingPeriod",
-            "type": "i64"
-          },
-          {
-            "name": "cumulativeFundingRateLong",
-            "type": "i128"
-          },
-          {
-            "name": "cumulativeFundingRateShort",
-            "type": "i128"
-          },
-          {
-            "name": "cumulativeSocialLoss",
-            "type": "i128"
-          },
-          {
-            "name": "minimumQuoteAssetTradeSize",
-            "type": "u128"
-          },
-          {
-            "name": "maxBaseAssetAmountRatio",
-            "type": "u16"
-          },
-          {
-            "name": "maxSlippageRatio",
-            "type": "u16"
-          },
-          {
-            "name": "baseAssetAmountStepSize",
-            "type": "u128"
-          },
-          {
-            "name": "marketPosition",
-            "type": {
-              "defined": "PerpPosition"
-            }
-          },
-          {
-            "name": "baseSpread",
-            "type": "u16"
-          },
-          {
-            "name": "longSpread",
-            "type": "u128"
-          },
-          {
-            "name": "shortSpread",
-            "type": "u128"
-          },
-          {
-            "name": "maxSpread",
-            "type": "u32"
-          },
-          {
-            "name": "askBaseAssetReserve",
-            "type": "u128"
-          },
-          {
-            "name": "askQuoteAssetReserve",
-            "type": "u128"
-          },
-          {
-            "name": "bidBaseAssetReserve",
-            "type": "u128"
-          },
-          {
-            "name": "bidQuoteAssetReserve",
-            "type": "u128"
-          },
-          {
-            "name": "volume24h",
-            "type": "u64"
-          },
-          {
-            "name": "longIntensityCount",
-            "type": "u16"
-          },
-          {
-            "name": "longIntensityVolume",
-            "type": "u64"
-          },
-          {
-            "name": "shortIntensityCount",
-            "type": "u16"
-          },
-          {
-            "name": "shortIntensityVolume",
-            "type": "u64"
-          },
-          {
-            "name": "curveUpdateIntensity",
-            "type": "u8"
-          },
-          {
-            "name": "lastTradeTs",
-            "type": "i64"
-          },
-          {
-            "name": "markStd",
-            "type": "u64"
-          },
-          {
-            "name": "lastBidPriceTwap",
-            "type": "u128"
-          },
-          {
-            "name": "lastAskPriceTwap",
-            "type": "u128"
-          },
-          {
-            "name": "lastMarkPriceTwap",
-            "type": "u128"
-          },
-          {
-            "name": "lastMarkPriceTwap5min",
-            "type": "u128"
-          },
-          {
-            "name": "lastMarkPriceTwapTs",
-            "type": "i64"
           },
           {
             "name": "totalFee",
@@ -4273,34 +4433,179 @@
             "type": "u128"
           },
           {
-            "name": "netRevenueSinceLastFunding",
-            "type": "i64"
-          },
-          {
             "name": "totalLiquidationFee",
             "type": "u128"
           },
           {
-            "name": "feePool",
-            "type": {
-              "defined": "PoolBalance"
-            }
+            "name": "cumulativeFundingRateLong",
+            "type": "i128"
           },
           {
-            "name": "padding0",
-            "type": "u16"
+            "name": "cumulativeFundingRateShort",
+            "type": "i128"
           },
           {
-            "name": "padding1",
+            "name": "cumulativeSocialLoss",
+            "type": "i128"
+          },
+          {
+            "name": "minimumQuoteAssetTradeSize",
+            "type": "u128"
+          },
+          {
+            "name": "longSpread",
+            "type": "u128"
+          },
+          {
+            "name": "shortSpread",
+            "type": "u128"
+          },
+          {
+            "name": "askBaseAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "askQuoteAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "bidBaseAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "bidQuoteAssetReserve",
+            "type": "u128"
+          },
+          {
+            "name": "lastBidPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastAskPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastMarkPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastMarkPriceTwap5min",
+            "type": "u128"
+          },
+          {
+            "name": "lastUpdateSlot",
+            "type": "u64"
+          },
+          {
+            "name": "lastOracleConfPct",
+            "type": "u64"
+          },
+          {
+            "name": "netRevenueSinceLastFunding",
+            "type": "i64"
+          },
+          {
+            "name": "lpCooldownTime",
+            "type": "i64"
+          },
+          {
+            "name": "lastFundingRateTs",
+            "type": "i64"
+          },
+          {
+            "name": "fundingPeriod",
+            "type": "i64"
+          },
+          {
+            "name": "baseAssetAmountStepSize",
+            "type": "u64"
+          },
+          {
+            "name": "orderTickSize",
+            "type": "u64"
+          },
+          {
+            "name": "orderMinimumSize",
+            "type": "u64"
+          },
+          {
+            "name": "maxPositionSize",
+            "type": "u64"
+          },
+          {
+            "name": "volume24h",
+            "type": "u64"
+          },
+          {
+            "name": "longIntensityVolume",
+            "type": "u64"
+          },
+          {
+            "name": "shortIntensityVolume",
+            "type": "u64"
+          },
+          {
+            "name": "lastTradeTs",
+            "type": "i64"
+          },
+          {
+            "name": "markStd",
+            "type": "u64"
+          },
+          {
+            "name": "lastMarkPriceTwapTs",
+            "type": "i64"
+          },
+          {
+            "name": "maxSpread",
             "type": "u32"
           },
           {
-            "name": "padding2",
-            "type": "u128"
+            "name": "maxBaseAssetAmountRatio",
+            "type": "u16"
           },
           {
-            "name": "padding3",
-            "type": "u128"
+            "name": "maxSlippageRatio",
+            "type": "u16"
+          },
+          {
+            "name": "baseSpread",
+            "type": "u16"
+          },
+          {
+            "name": "longIntensityCount",
+            "type": "u16"
+          },
+          {
+            "name": "shortIntensityCount",
+            "type": "u16"
+          },
+          {
+            "name": "curveUpdateIntensity",
+            "type": "u8"
+          },
+          {
+            "name": "ammJitIntensity",
+            "type": "u8"
+          },
+          {
+            "name": "oracleSource",
+            "type": {
+              "defined": "OracleSource"
+            }
+          },
+          {
+            "name": "lastOracleValid",
+            "type": "bool"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                6
+              ]
+            }
           }
         ]
       }
@@ -4457,7 +4762,7 @@
           },
           {
             "name": "flatFillerFee",
-            "type": "u128"
+            "type": "u64"
           }
         ]
       }
@@ -4532,10 +4837,6 @@
             "type": "u64"
           },
           {
-            "name": "totalLpFees",
-            "type": "u64"
-          },
-          {
             "name": "totalFeeRebate",
             "type": "u64"
           },
@@ -4556,6 +4857,22 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "balance",
+            "type": "u64"
+          },
+          {
+            "name": "openBids",
+            "type": "i64"
+          },
+          {
+            "name": "openAsks",
+            "type": "i64"
+          },
+          {
+            "name": "cumulativeDeposits",
+            "type": "i64"
+          },
+          {
             "name": "marketIndex",
             "type": "u16"
           },
@@ -4566,24 +4883,17 @@
             }
           },
           {
-            "name": "balance",
-            "type": "u128"
-          },
-          {
             "name": "openOrders",
             "type": "u8"
           },
           {
-            "name": "openBids",
-            "type": "i128"
-          },
-          {
-            "name": "openAsks",
-            "type": "i128"
-          },
-          {
-            "name": "cumulativeDeposits",
-            "type": "i64"
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
           }
         ]
       }
@@ -4594,40 +4904,28 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "marketIndex",
-            "type": "u16"
-          },
-          {
-            "name": "baseAssetAmount",
-            "type": "i128"
-          },
-          {
-            "name": "quoteAssetAmount",
-            "type": "i128"
-          },
-          {
-            "name": "quoteEntryAmount",
-            "type": "i128"
-          },
-          {
             "name": "lastCumulativeFundingRate",
             "type": "i128"
           },
           {
-            "name": "lastFundingRateTs",
+            "name": "baseAssetAmount",
             "type": "i64"
           },
           {
-            "name": "openOrders",
-            "type": "u8"
+            "name": "quoteAssetAmount",
+            "type": "i64"
+          },
+          {
+            "name": "quoteEntryAmount",
+            "type": "i64"
           },
           {
             "name": "openBids",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "openAsks",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "settledPnl",
@@ -4635,23 +4933,36 @@
           },
           {
             "name": "lpShares",
-            "type": "u128"
-          },
-          {
-            "name": "remainderBaseAssetAmount",
-            "type": "i128"
+            "type": "u64"
           },
           {
             "name": "lastNetBaseAssetAmountPerLp",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "lastNetQuoteAssetAmountPerLp",
-            "type": "i128"
+            "type": "i64"
           },
           {
-            "name": "lastLpAddTime",
-            "type": "i64"
+            "name": "remainderBaseAssetAmount",
+            "type": "i32"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "openOrders",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
+            }
           }
         ]
       }
@@ -4661,6 +4972,58 @@
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "price",
+            "type": "u64"
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "u64"
+          },
+          {
+            "name": "baseAssetAmountFilled",
+            "type": "u64"
+          },
+          {
+            "name": "quoteAssetAmountFilled",
+            "type": "u64"
+          },
+          {
+            "name": "fee",
+            "type": "i64"
+          },
+          {
+            "name": "triggerPrice",
+            "type": "u64"
+          },
+          {
+            "name": "oraclePriceOffset",
+            "type": "i64"
+          },
+          {
+            "name": "auctionStartPrice",
+            "type": "u64"
+          },
+          {
+            "name": "auctionEndPrice",
+            "type": "u64"
+          },
+          {
+            "name": "orderId",
+            "type": "u32"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
           {
             "name": "status",
             "type": {
@@ -4680,50 +5043,14 @@
             }
           },
           {
-            "name": "ts",
-            "type": "i64"
-          },
-          {
-            "name": "slot",
-            "type": "u64"
-          },
-          {
-            "name": "orderId",
-            "type": "u64"
-          },
-          {
             "name": "userOrderId",
             "type": "u8"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u16"
-          },
-          {
-            "name": "price",
-            "type": "u128"
           },
           {
             "name": "existingPositionDirection",
             "type": {
               "defined": "PositionDirection"
             }
-          },
-          {
-            "name": "baseAssetAmount",
-            "type": "u128"
-          },
-          {
-            "name": "baseAssetAmountFilled",
-            "type": "u128"
-          },
-          {
-            "name": "quoteAssetAmountFilled",
-            "type": "u128"
-          },
-          {
-            "name": "fee",
-            "type": "i128"
           },
           {
             "name": "direction",
@@ -4744,10 +5071,6 @@
             "type": "bool"
           },
           {
-            "name": "triggerPrice",
-            "type": "u128"
-          },
-          {
             "name": "triggerCondition",
             "type": {
               "defined": "OrderTriggerCondition"
@@ -4758,24 +5081,21 @@
             "type": "bool"
           },
           {
-            "name": "oraclePriceOffset",
-            "type": "i128"
-          },
-          {
-            "name": "auctionStartPrice",
-            "type": "u128"
-          },
-          {
-            "name": "auctionEndPrice",
-            "type": "u128"
-          },
-          {
             "name": "auctionDuration",
             "type": "u8"
           },
           {
             "name": "timeInForce",
             "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
           }
         ]
       }
@@ -5043,7 +5363,7 @@
             "name": "LiquidatePerp"
           },
           {
-            "name": "LiquidateBorrow"
+            "name": "LiquidateSpot"
           },
           {
             "name": "LiquidateBorrowForPerpPnl"
@@ -5055,7 +5375,7 @@
             "name": "PerpBankruptcy"
           },
           {
-            "name": "BorrowBankruptcy"
+            "name": "SpotBankruptcy"
           }
         ]
       }
@@ -5086,7 +5406,12 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "AMM"
+            "name": "AMM",
+            "fields": [
+              {
+                "option": "u128"
+              }
+            ]
           },
           {
             "name": "Match"
@@ -5117,6 +5442,21 @@
             "name": "Initialized"
           },
           {
+            "name": "Active"
+          },
+          {
+            "name": "FundingPaused"
+          },
+          {
+            "name": "AmmPaused"
+          },
+          {
+            "name": "FillPaused"
+          },
+          {
+            "name": "WithdrawPaused"
+          },
+          {
             "name": "ReduceOnly"
           },
           {
@@ -5138,6 +5478,26 @@
           },
           {
             "name": "Future"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ContractTier",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "A"
+          },
+          {
+            "name": "B"
+          },
+          {
+            "name": "C"
+          },
+          {
+            "name": "Speculative"
           }
         ]
       }
@@ -5183,6 +5543,58 @@
           },
           {
             "name": "Disabled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AssetTier",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Collateral"
+          },
+          {
+            "name": "Protected"
+          },
+          {
+            "name": "Cross"
+          },
+          {
+            "name": "Isolated"
+          },
+          {
+            "name": "Unlisted"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ExchangeStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "FundingPaused"
+          },
+          {
+            "name": "AmmPaused"
+          },
+          {
+            "name": "FillPaused"
+          },
+          {
+            "name": "LiqPaused"
+          },
+          {
+            "name": "WithdrawPaused"
+          },
+          {
+            "name": "Paused"
           }
         ]
       }
@@ -5352,22 +5764,80 @@
           "index": false
         },
         {
-          "name": "referrer",
-          "type": "publicKey",
+          "name": "marketDepositBalance",
+          "type": "u128",
           "index": false
         },
         {
-          "name": "from",
+          "name": "marketWithdrawBalance",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "marketCumulativeDepositInterest",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "marketCumulativeBorrowInterest",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "transferUser",
           "type": {
             "option": "publicKey"
           },
           "index": false
+        }
+      ]
+    },
+    {
+      "name": "SpotInterestRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
         },
         {
-          "name": "to",
-          "type": {
-            "option": "publicKey"
-          },
+          "name": "marketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "depositBalance",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "cumulativeDepositInterest",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "borrowBalance",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "cumulativeBorrowInterest",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "optimalUtilization",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "optimalBorrowRate",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "maxBorrowRate",
+          "type": "u32",
           "index": false
         }
       ]
@@ -5397,22 +5867,17 @@
         },
         {
           "name": "fundingPayment",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "baseAssetAmount",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "userLastCumulativeFunding",
           "type": "i128",
-          "index": false
-        },
-        {
-          "name": "userLastFundingRateTs",
-          "type": "i64",
           "index": false
         },
         {
@@ -5682,7 +6147,7 @@
         {
           "name": "baseAssetAmountFilled",
           "type": {
-            "option": "u128"
+            "option": "u64"
           },
           "index": false
         },
@@ -5738,7 +6203,7 @@
         {
           "name": "takerOrderId",
           "type": {
-            "option": "u64"
+            "option": "u32"
           },
           "index": false
         },
@@ -5754,14 +6219,14 @@
         {
           "name": "takerOrderBaseAssetAmount",
           "type": {
-            "option": "u128"
+            "option": "u64"
           },
           "index": false
         },
         {
           "name": "takerOrderCumulativeBaseAssetAmountFilled",
           "type": {
-            "option": "u128"
+            "option": "u64"
           },
           "index": false
         },
@@ -5789,7 +6254,7 @@
         {
           "name": "makerOrderId",
           "type": {
-            "option": "u64"
+            "option": "u32"
           },
           "index": false
         },
@@ -5805,14 +6270,14 @@
         {
           "name": "makerOrderBaseAssetAmount",
           "type": {
-            "option": "u128"
+            "option": "u64"
           },
           "index": false
         },
         {
           "name": "makerOrderCumulativeBaseAssetAmountFilled",
           "type": {
-            "option": "u128"
+            "option": "u64"
           },
           "index": false
         },
@@ -5859,7 +6324,7 @@
         },
         {
           "name": "nShares",
-          "type": "u128",
+          "type": "u64",
           "index": false
         },
         {
@@ -5869,17 +6334,17 @@
         },
         {
           "name": "deltaBaseAssetAmount",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "deltaQuoteAssetAmount",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "pnl",
-          "type": "i128",
+          "type": "i64",
           "index": false
         }
       ]
@@ -5932,7 +6397,7 @@
         {
           "name": "canceledOrderIds",
           "type": {
-            "vec": "u64"
+            "vec": "u32"
           },
           "index": false
         },
@@ -5944,9 +6409,9 @@
           "index": false
         },
         {
-          "name": "liquidateBorrow",
+          "name": "liquidateSpot",
           "type": {
-            "defined": "LiquidateBorrowRecord"
+            "defined": "LiquidateSpotRecord"
           },
           "index": false
         },
@@ -5972,9 +6437,9 @@
           "index": false
         },
         {
-          "name": "borrowBankruptcy",
+          "name": "spotBankruptcy",
           "type": {
-            "defined": "BorrowBankruptcyRecord"
+            "defined": "SpotBankruptcyRecord"
           },
           "index": false
         }
@@ -6005,17 +6470,17 @@
         },
         {
           "name": "baseAssetAmount",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "quoteAssetAmountAfter",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "quoteEntryAmount",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
@@ -6341,7 +6806,7 @@
     },
     {
       "code": 6038,
-      "name": "UserMaxDeposit",
+      "name": "MaxDeposit",
       "msg": "Can not deposit more than max deposit"
     },
     {
@@ -6803,6 +7268,21 @@
       "code": 6130,
       "name": "InsufficientIFShares",
       "msg": "Insufficient IF shares"
+    },
+    {
+      "code": 6131,
+      "name": "MarketActionPaused",
+      "msg": "the Market has paused this action"
+    },
+    {
+      "code": 6132,
+      "name": "AssetTierViolation",
+      "msg": "Action violates the asset tier rules"
+    },
+    {
+      "code": 6133,
+      "name": "UserCantBeDeleted",
+      "msg": "User Cant Be Deleted"
     }
   ]
 }

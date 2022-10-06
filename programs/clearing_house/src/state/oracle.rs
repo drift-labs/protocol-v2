@@ -5,9 +5,7 @@ use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
 use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I128};
 use crate::math_error;
 use solana_program::msg;
-use std::cmp::max;
 use switchboard_v2::decimal::SwitchboardDecimal;
-use switchboard_v2::AggregatorAccountData;
 
 #[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
 pub struct HistoricalOracleData {
@@ -190,44 +188,48 @@ pub fn get_pyth_price(
 }
 
 pub fn get_switchboard_price(
-    price_oracle: &AccountInfo,
-    clock_slot: u64,
+    _price_oracle: &AccountInfo,
+    _clock_slot: u64,
 ) -> ClearingHouseResult<OraclePriceData> {
-    let aggregator_data = AggregatorAccountData::new(price_oracle)
-        .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
-
-    let price = convert_switchboard_decimal(&aggregator_data.latest_confirmed_round.result)?;
-    let confidence =
-        convert_switchboard_decimal(&aggregator_data.latest_confirmed_round.std_deviation)?;
-
-    // std deviation should always be positive, if we get a negative make it u128::MAX so it's flagged as bad value
-    let confidence = if confidence < 0 {
-        u128::MAX
-    } else {
-        let price_10bps = price
-            .unsigned_abs()
-            .checked_div(1000)
-            .ok_or_else(math_error!())?;
-        max(confidence.unsigned_abs(), price_10bps)
-    };
-
-    let delay: i64 = cast_to_i64(clock_slot)?
-        .checked_sub(cast(
-            aggregator_data.latest_confirmed_round.round_open_slot,
-        )?)
-        .ok_or_else(math_error!())?;
-
-    let has_sufficient_number_of_data_points =
-        aggregator_data.latest_confirmed_round.num_success >= aggregator_data.min_oracle_results;
-
-    Ok(OraclePriceData {
-        price,
-        confidence,
-        delay,
-        has_sufficient_number_of_data_points,
-    })
+    // updating solana/anchor cause this to make compiler complan
+    // fix when we're using switchboard again
+    panic!();
+    // let aggregator_data = AggregatorAccountData::new(price_oracle)
+    //     .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
+    //
+    // let price = convert_switchboard_decimal(&aggregator_data.latest_confirmed_round.result)?;
+    // let confidence =
+    //     convert_switchboard_decimal(&aggregator_data.latest_confirmed_round.std_deviation)?;
+    //
+    // // std deviation should always be positive, if we get a negative make it u128::MAX so it's flagged as bad value
+    // let confidence = if confidence < 0 {
+    //     u128::MAX
+    // } else {
+    //     let price_10bps = price
+    //         .unsigned_abs()
+    //         .checked_div(1000)
+    //         .ok_or_else(math_error!())?;
+    //     max(confidence.unsigned_abs(), price_10bps)
+    // };
+    //
+    // let delay: i64 = cast_to_i64(clock_slot)?
+    //     .checked_sub(cast(
+    //         aggregator_data.latest_confirmed_round.round_open_slot,
+    //     )?)
+    //     .ok_or_else(math_error!())?;
+    //
+    // let has_sufficient_number_of_data_points =
+    //     aggregator_data.latest_confirmed_round.num_success >= aggregator_data.min_oracle_results;
+    //
+    // Ok(OraclePriceData {
+    //     price,
+    //     confidence,
+    //     delay,
+    //     has_sufficient_number_of_data_points,
+    // })
 }
 
+#[allow(dead_code)]
 /// Given a decimal number represented as a mantissa (the digits) plus an
 /// original_precision (10.pow(some number of decimals)), scale the
 /// mantissa/digits to make sense with a new_precision.

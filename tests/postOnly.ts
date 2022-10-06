@@ -14,6 +14,7 @@ import {
 	ClearingHouseUser,
 	Wallet,
 	EventSubscriber,
+	MarketStatus,
 } from '../sdk/src';
 
 import {
@@ -100,6 +101,7 @@ describe('post only', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
+		await fillerClearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
 		await fillerClearingHouse.updateMarketBaseSpread(0, 500);
 
@@ -210,7 +212,7 @@ describe('post only', () => {
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.takerFee.eq(ZERO));
-		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(19508)));
+		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(19507)));
 
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();

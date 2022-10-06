@@ -15,6 +15,11 @@ import {
 	ClearingHouseUser,
 	Wallet,
 	getLimitOrderParams,
+	MarketStatus,
+	AMM_RESERVE_PRECISION,
+	calculateEntryPrice,
+	OracleSource,
+	ZERO,
 } from '../sdk/src';
 
 import {
@@ -24,12 +29,6 @@ import {
 	setFeedPrice,
 	initializeQuoteSpotMarket,
 } from './testHelpers';
-import {
-	AMM_RESERVE_PRECISION,
-	calculateEntryPrice,
-	OracleSource,
-	ZERO,
-} from '../sdk';
 
 describe('oracle offset', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -98,6 +97,7 @@ describe('oracle offset', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
+		await fillerClearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
 		await fillerClearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -267,7 +267,8 @@ describe('oracle offset', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
-		const expectedEntryPrice = new BN(950001);
+		const expectedEntryPrice = new BN(950000);
+		console.log(entryPrice.toString(), 'vs', expectedEntryPrice.toString());
 		assert(entryPrice.eq(expectedEntryPrice));
 
 		await clearingHouse.unsubscribe();

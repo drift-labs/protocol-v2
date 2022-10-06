@@ -5,9 +5,10 @@ use std::cmp::max;
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
-use crate::math::casting::{cast, cast_to_i128};
-use crate::math::constants::{AMM_RESERVE_PRECISION, SPOT_WEIGHT_PRECISION};
-use crate::math::constants::{LIQUIDATION_FEE_PRECISION, TWENTY_FOUR_HOUR};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
+use crate::math::constants::{
+    AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+};
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
@@ -24,10 +25,15 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum MarketStatus {
-    Initialized,
-    ReduceOnly,
-    Settlement,
-    Delisted,
+    Initialized,    // warm up period for initialization, fills are paused
+    Active,         // all operations allowed
+    FundingPaused,  // perp: pause funding rate updates | spot: pause interest updates
+    AmmPaused,      // amm fills are prevented/blocked
+    FillPaused,     // fills are blocked
+    WithdrawPaused, // perp: pause settling positive pnl | spot: pause withdrawing asset
+    ReduceOnly,     // fills only able to reduce liability
+    Settlement, // market has determined settlement price and positions are expired must be settled
+    Delisted,   // market has no remaining participants
 }
 
 impl Default for MarketStatus {
@@ -48,44 +54,54 @@ impl Default for ContractType {
     }
 }
 
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum ContractTier {
+    A,           // max insurance capped at A level
+    B,           // max insurance capped at B level
+    C,           // max insurance capped at C level
+    Speculative, // no insurance
+}
+
+impl Default for ContractTier {
+    fn default() -> Self {
+        ContractTier::Speculative
+    }
+}
+
 #[account(zero_copy)]
 #[derive(Default, Eq, PartialEq, Debug)]
-#[repr(packed)]
+#[repr(C)]
 pub struct PerpMarket {
-    pub market_index: u16,
     pub pubkey: Pubkey,
-    pub status: MarketStatus,
-    pub contract_type: ContractType,
-    pub settlement_price: i128, // iff market has expired, price users can settle position
-    pub expiry_ts: i64,         // iff market in reduce only mode
     pub amm: AMM,
+    pub pnl_pool: PoolBalance,
+    pub settlement_price: i128, // iff market has expired, price users can settle position
     pub base_asset_amount_long: i128,
     pub base_asset_amount_short: i128,
     pub open_interest: u128, // number of users in a position
-    pub margin_ratio_initial: u32,
-    pub margin_ratio_maintenance: u32,
-    pub next_fill_record_id: u64,
-    pub next_funding_rate_record_id: u64,
-    pub next_curve_record_id: u64,
-    pub pnl_pool: PoolBalance,
     pub revenue_withdraw_since_last_settle: u128,
     pub max_revenue_withdraw_per_period: u128,
-    pub last_revenue_withdraw_ts: i64,
     pub imf_factor: u128,
-    pub unrealized_initial_asset_weight: u32,
-    pub unrealized_maintenance_asset_weight: u32,
     pub unrealized_imf_factor: u128,
     pub unrealized_max_imbalance: u128,
     pub liquidator_fee: u128,
     pub if_liquidation_fee: u128,
     pub quote_max_insurance: u128,
     pub quote_settled_insurance: u128,
-    // upgrade-ability
-    pub padding0: u32,
-    pub padding1: u128,
-    pub padding2: u128,
-    pub padding3: u128,
-    pub padding4: u128,
+    pub expiry_ts: i64, // iff market in reduce only mode
+    pub next_fill_record_id: u64,
+    pub next_funding_rate_record_id: u64,
+    pub next_curve_record_id: u64,
+    pub last_revenue_withdraw_ts: i64,
+    pub margin_ratio_initial: u32,
+    pub margin_ratio_maintenance: u32,
+    pub unrealized_initial_asset_weight: u32,
+    pub unrealized_maintenance_asset_weight: u32,
+    pub market_index: u16,
+    pub status: MarketStatus,
+    pub contract_type: ContractType,
+    pub contract_tier: ContractTier,
+    pub padding: [u8; 3],
 }
 
 impl PerpMarket {
@@ -104,20 +120,21 @@ impl PerpMarket {
         size: u128,
         margin_type: MarginRequirementType,
     ) -> ClearingHouseResult<u32> {
-        let margin_ratio = match margin_type {
-            MarginRequirementType::Initial => max(
-                self.margin_ratio_initial as u128,
-                calculate_size_premium_liability_weight(
-                    size,
-                    self.imf_factor,
-                    self.margin_ratio_initial as u128,
-                    MARGIN_PRECISION,
-                )?,
-            ),
-            MarginRequirementType::Maintenance => self.margin_ratio_maintenance as u128,
+        let default_margin_ratio = match margin_type {
+            MarginRequirementType::Initial => cast_to_u128(self.margin_ratio_initial)?,
+            MarginRequirementType::Maintenance => cast_to_u128(self.margin_ratio_maintenance)?,
         };
 
-        Ok(margin_ratio as u32)
+        let size_adj_margin_ratio = calculate_size_premium_liability_weight(
+            size,
+            self.imf_factor,
+            default_margin_ratio,
+            MARGIN_PRECISION,
+        )?;
+
+        let margin_ratio = default_margin_ratio.max(size_adj_margin_ratio);
+
+        cast_to_u32(margin_ratio)
     }
 
     pub fn get_initial_leverage_ratio(&self, margin_type: MarginRequirementType) -> u128 {
@@ -221,11 +238,18 @@ impl PerpMarket {
 
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug)]
+#[repr(C)]
 pub struct PoolBalance {
     pub balance: u128,
+    pub market_index: u16,
+    pub padding: [u8; 6],
 }
 
 impl SpotBalance for PoolBalance {
+    fn market_index(&self) -> u16 {
+        self.market_index
+    }
+
     fn balance_type(&self) -> &SpotBalanceType {
         &SpotBalanceType::Deposit
     }
@@ -251,18 +275,15 @@ impl SpotBalance for PoolBalance {
 
 #[zero_copy]
 #[derive(Default, Debug, PartialEq, Eq)]
-#[repr(packed)]
+#[repr(C)]
 pub struct AMM {
-    // oracle
     pub oracle: Pubkey,
-    pub oracle_source: OracleSource,
     pub historical_oracle_data: HistoricalOracleData,
-    pub last_oracle_valid: bool,
-    pub last_update_slot: u64,
-    pub last_oracle_conf_pct: u64,
+    pub market_position: PerpPosition,
+    pub market_position_per_lp: PerpPosition,
+    pub fee_pool: PoolBalance,
     pub last_oracle_normalised_price: i128,
     pub last_oracle_reserve_price_spread_pct: i128,
-
     pub base_asset_reserve: u128,
     pub quote_asset_reserve: u128,
     pub concentration_coef: u128,
@@ -270,78 +291,65 @@ pub struct AMM {
     pub max_base_asset_reserve: u128,
     pub sqrt_k: u128,
     pub peg_multiplier: u128,
-
     pub terminal_quote_asset_reserve: u128,
     pub net_base_asset_amount: i128,
     pub quote_asset_amount_long: i128,
     pub quote_asset_amount_short: i128,
     pub quote_entry_amount_long: i128,
     pub quote_entry_amount_short: i128,
-
-    // lp stuff
-    pub net_unsettled_lp_base_asset_amount: i128,
-    pub lp_cooldown_time: i64,
     pub user_lp_shares: u128,
-    pub market_position_per_lp: PerpPosition,
-    pub amm_jit_intensity: u8,
-
-    // funding
+    pub net_unsettled_lp_base_asset_amount: i128,
     pub last_funding_rate: i128,
     pub last_funding_rate_long: i128,
     pub last_funding_rate_short: i128,
     pub last_24h_avg_funding_rate: i128,
-    pub last_funding_rate_ts: i64,
-    pub funding_period: i64,
-    pub cumulative_funding_rate_long: i128,
-    pub cumulative_funding_rate_short: i128,
-    pub cumulative_social_loss: i128,
-
-    // trade constraints
-    pub minimum_quote_asset_trade_size: u128,
-    pub max_base_asset_amount_ratio: u16,
-    pub max_slippage_ratio: u16,
-    pub base_asset_amount_step_size: u128,
-
-    // market making
-    pub market_position: PerpPosition,
-    pub base_spread: u16,
-    pub long_spread: u128,
-    pub short_spread: u128,
-    pub max_spread: u32,
-    pub ask_base_asset_reserve: u128,
-    pub ask_quote_asset_reserve: u128,
-    pub bid_base_asset_reserve: u128,
-    pub bid_quote_asset_reserve: u128,
-
-    pub volume_24h: u64,
-    pub long_intensity_count: u16,
-    pub long_intensity_volume: u64,
-    pub short_intensity_count: u16,
-    pub short_intensity_volume: u64,
-    pub curve_update_intensity: u8,
-    pub last_trade_ts: i64,
-
-    pub mark_std: u64,
-    pub last_bid_price_twap: u128,
-    pub last_ask_price_twap: u128,
-    pub last_mark_price_twap: u128,
-    pub last_mark_price_twap_5min: u128,
-    pub last_mark_price_twap_ts: i64,
-
-    // fee tracking
     pub total_fee: i128,
     pub total_mm_fee: i128,
     pub total_exchange_fee: u128,
     pub total_fee_minus_distributions: i128,
     pub total_fee_withdrawn: u128,
-    pub net_revenue_since_last_funding: i64,
     pub total_liquidation_fee: u128,
-    pub fee_pool: PoolBalance,
-
-    pub padding0: u16,
-    pub padding1: u32,
-    pub padding2: u128,
-    pub padding3: u128,
+    pub cumulative_funding_rate_long: i128,
+    pub cumulative_funding_rate_short: i128,
+    pub cumulative_social_loss: i128,
+    pub minimum_quote_asset_trade_size: u128,
+    pub long_spread: u128,
+    pub short_spread: u128,
+    pub ask_base_asset_reserve: u128,
+    pub ask_quote_asset_reserve: u128,
+    pub bid_base_asset_reserve: u128,
+    pub bid_quote_asset_reserve: u128,
+    pub last_bid_price_twap: u128,
+    pub last_ask_price_twap: u128,
+    pub last_mark_price_twap: u128,
+    pub last_mark_price_twap_5min: u128,
+    pub last_update_slot: u64,
+    pub last_oracle_conf_pct: u64,
+    pub net_revenue_since_last_funding: i64,
+    pub lp_cooldown_time: i64,
+    pub last_funding_rate_ts: i64,
+    pub funding_period: i64,
+    pub base_asset_amount_step_size: u64,
+    pub order_tick_size: u64,
+    pub order_minimum_size: u64,
+    pub max_position_size: u64,
+    pub volume_24h: u64,
+    pub long_intensity_volume: u64,
+    pub short_intensity_volume: u64,
+    pub last_trade_ts: i64,
+    pub mark_std: u64,
+    pub last_mark_price_twap_ts: i64,
+    pub max_spread: u32,
+    pub max_base_asset_amount_ratio: u16,
+    pub max_slippage_ratio: u16,
+    pub base_spread: u16,
+    pub long_intensity_count: u16,
+    pub short_intensity_count: u16,
+    pub curve_update_intensity: u8,
+    pub amm_jit_intensity: u8,
+    pub oracle_source: OracleSource,
+    pub last_oracle_valid: bool,
+    pub padding: [u8; 6],
 }
 
 impl AMM {
@@ -354,7 +362,7 @@ impl AMM {
             sqrt_k: default_reserves,
             concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
             base_asset_amount_step_size: 1,
-            max_base_asset_reserve: u128::MAX,
+            max_base_asset_reserve: u64::MAX as u128,
             min_base_asset_reserve: 0,
             terminal_quote_asset_reserve: default_reserves,
             peg_multiplier: crate::math::constants::PEG_PRECISION,
@@ -499,7 +507,7 @@ impl AMM {
 
     pub fn update_volume_24h(
         &mut self,
-        quote_asset_amount: u128,
+        quote_asset_amount: u64,
         position_direction: PositionDirection,
         now: i64,
     ) -> ClearingHouseResult {
@@ -513,7 +521,7 @@ impl AMM {
 
         self.volume_24h = amm::calculate_rolling_sum(
             self.volume_24h,
-            cast(quote_asset_amount)?,
+            quote_asset_amount,
             since_last,
             TWENTY_FOUR_HOUR as i128,
         )?;

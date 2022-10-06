@@ -175,7 +175,7 @@ describe('trigger orders', () => {
 		const newOraclePrice = 0.49;
 		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 
-		await fillerClearingHouse.triggerSpotOrder(
+		await fillerClearingHouse.triggerOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
@@ -241,6 +241,7 @@ describe('trigger orders', () => {
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			userOrderId: 1,
 		});
+		await clearingHouse.fetchAccounts();
 		await clearingHouse.placeSpotOrder(stopOrderParams);
 
 		await clearingHouseUser.fetchAccounts();
@@ -248,8 +249,9 @@ describe('trigger orders', () => {
 
 		const newOraclePrice = 2.01;
 		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
+		await fillerClearingHouse.fetchAccounts();
 
-		await fillerClearingHouse.triggerSpotOrder(
+		await fillerClearingHouse.triggerOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order

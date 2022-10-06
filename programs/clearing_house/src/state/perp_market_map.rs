@@ -11,7 +11,7 @@ use arrayref::array_ref;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::state::market::PerpMarket;
-use crate::state::user::UserPositions;
+use crate::state::user::PerpPositions;
 
 use solana_program::msg;
 
@@ -60,7 +60,8 @@ impl<'a> PerpMarketMap<'a> {
             if account_discriminator != &market_discriminator {
                 break;
             }
-            let market_index = u16::from_le_bytes(*array_ref![data, 8, 2]);
+
+            let market_index = u16::from_le_bytes(*array_ref![data, 1464, 2]);
 
             let account_info = account_info_iter.next().unwrap();
 
@@ -100,7 +101,7 @@ impl<'a> PerpMarketMap<'a> {
         if account_discriminator != &market_discriminator {
             return Err(ErrorCode::CouldNotLoadMarketData);
         }
-        let market_index = u16::from_le_bytes(*array_ref![data, 8, 2]);
+        let market_index = u16::from_le_bytes(*array_ref![data, 1464, 2]);
 
         let is_writable = account_info.is_writable;
         let account_loader: AccountLoader<PerpMarket> =
@@ -139,7 +140,7 @@ impl<'a> PerpMarketMap<'a> {
             if account_discriminator != &market_discriminator {
                 return Err(ErrorCode::CouldNotLoadMarketData);
             }
-            let market_index = u16::from_le_bytes(*array_ref![data, 8, 2]);
+            let market_index = u16::from_le_bytes(*array_ref![data, 1464, 2]);
 
             let is_writable = account_info.is_writable;
             let account_loader: AccountLoader<PerpMarket> =
@@ -175,7 +176,7 @@ pub fn get_market_set_from_list(market_indexes: [u16; 5]) -> MarketSet {
     writable_markets
 }
 
-pub fn get_market_set_for_user_positions(user_positions: &UserPositions) -> MarketSet {
+pub fn get_market_set_for_user_positions(user_positions: &PerpPositions) -> MarketSet {
     let mut writable_markets = MarketSet::new();
     for position in user_positions.iter() {
         writable_markets.insert(position.market_index);
@@ -184,7 +185,7 @@ pub fn get_market_set_for_user_positions(user_positions: &UserPositions) -> Mark
 }
 
 pub fn get_market_set_for_user_positions_and_order(
-    user_positions: &UserPositions,
+    user_positions: &PerpPositions,
     market_index: u16,
 ) -> MarketSet {
     let mut writable_markets = MarketSet::new();

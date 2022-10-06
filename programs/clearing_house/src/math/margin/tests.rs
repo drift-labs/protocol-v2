@@ -4,8 +4,8 @@ mod test {
     use crate::controller::amm::SwapDirection;
     use crate::math::collateral::calculate_updated_collateral;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
+        AMM_RESERVE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I64,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
     };
     use crate::math::margin::{
         calculate_perp_position_value_and_pnl, calculate_spot_position_value, MarginRequirementType,
@@ -78,6 +78,11 @@ mod test {
             .get_liability_weight(size, &MarginRequirementType::Initial)
             .unwrap();
         assert_eq!(lib_weight, 41522);
+
+        let maint_lib_weight = spot_market
+            .get_liability_weight(size, &MarginRequirementType::Maintenance)
+            .unwrap();
+        assert_eq!(maint_lib_weight, 31622);
     }
 
     #[test]
@@ -91,7 +96,7 @@ mod test {
 
         let spot_position = SpotPosition {
             balance_type: SpotBalanceType::Deposit,
-            balance: PRICE_PRECISION,
+            balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
 
@@ -99,7 +104,7 @@ mod test {
 
         let market_position = PerpPosition {
             market_index: 0,
-            quote_asset_amount: -(2 * QUOTE_PRECISION as i128),
+            quote_asset_amount: -2 * QUOTE_PRECISION_I64,
             ..PerpPosition::default()
         };
 
@@ -172,7 +177,7 @@ mod test {
 
         let spot_position = SpotPosition {
             balance_type: SpotBalanceType::Deposit,
-            balance: PRICE_PRECISION,
+            balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
 
@@ -217,7 +222,7 @@ mod test {
 
         let market_position = PerpPosition {
             market_index: 0,
-            base_asset_amount: -(12295081967 / 2_i128),
+            base_asset_amount: -(12295081967 / 2_i64),
             quote_asset_amount: 153688524588, // $25,000 entry price
             ..PerpPosition::default()
         };
@@ -240,7 +245,7 @@ mod test {
         let position_unrealized_pnl =
             calculate_position_pnl(&market_position, &market.amm, false).unwrap();
 
-        assert_eq!(position_unrealized_pnl, 22699050927);
+        assert_eq!(position_unrealized_pnl, 22699050905);
 
         // sqrt of oracle price = 149
         market.unrealized_imf_factor = market.imf_factor;
@@ -259,8 +264,8 @@ mod test {
         )
         .unwrap();
 
-        // assert_eq!(upnl, 17409836065);
-        // assert!(upnl < position_unrealized_pnl); // margin system discounts
+        assert_eq!(upnl, 17580307388);
+        assert!(upnl < position_unrealized_pnl); // margin system discounts
 
         assert!(pmr > 0);
         assert_eq!(pmr, 13867100408);
@@ -375,7 +380,7 @@ mod test {
         };
 
         let position = PerpPosition {
-            lp_shares: market.amm.user_lp_shares,
+            lp_shares: market.amm.user_lp_shares as u64,
             ..PerpPosition::default()
         };
 
@@ -442,7 +447,7 @@ mod test {
         };
 
         let position = PerpPosition {
-            lp_shares: market.amm.user_lp_shares,
+            lp_shares: market.amm.user_lp_shares as u64,
             ..PerpPosition::default()
         };
 
@@ -493,9 +498,9 @@ mod calculate_margin_requirement_and_total_collateral {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
-        PEG_PRECISION, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
+        PEG_PRECISION, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
+        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
@@ -569,19 +574,19 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 10000 * SPOT_BALANCE_PRECISION,
+            balance: 10000 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
             open_orders: 1,
-            open_bids: 500 * 10_i128.pow(9),
+            open_bids: 500 * 10_i64.pow(9),
             ..SpotPosition::default()
         };
         let user = User {
             orders: [Order::default(); 32],
-            perp_positions: [PerpPosition::default(); 5],
+            perp_positions: [PerpPosition::default(); 8],
             spot_positions,
             ..User::default()
         };
@@ -657,19 +662,19 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 10000 * SPOT_BALANCE_PRECISION,
+            balance: 10000 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
             open_orders: 1,
-            open_asks: -500 * 10_i128.pow(9),
+            open_asks: -500 * 10_i64.pow(9),
             ..SpotPosition::default()
         };
         let user = User {
             orders: [Order::default(); 32],
-            perp_positions: [PerpPosition::default(); 5],
+            perp_positions: [PerpPosition::default(); 8],
             spot_positions,
             ..User::default()
         };
@@ -751,14 +756,14 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: 500 * SPOT_BALANCE_PRECISION,
+            balance: 500 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
-            open_asks: -3000 * 10_i128.pow(9),
+            open_asks: -3000 * 10_i64.pow(9),
             ..SpotPosition::default()
         };
         let user = User {
             orders: [Order::default(); 32],
-            perp_positions: [PerpPosition::default(); 5],
+            perp_positions: [PerpPosition::default(); 8],
             spot_positions,
             ..User::default()
         };
@@ -854,13 +859,13 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100 * SPOT_BALANCE_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Borrow,
-            balance: 100 * SPOT_BALANCE_PRECISION,
+            balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
 
@@ -868,7 +873,7 @@ mod calculate_margin_requirement_and_total_collateral {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
-                base_asset_amount: 100 * BASE_PRECISION_I128,
+                base_asset_amount: 100 * BASE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions,
@@ -938,7 +943,7 @@ mod calculate_margin_requirement_and_total_collateral {
             )
             .unwrap();
 
-        // shouldnt affect maintenance margin requirement
+        // doesnt affect maintenance margin requirement
         assert_eq!(maintenance_margin_requirement, 11500000000); // 100 * 100 * .05 + 100 * $100 * 1.1
     }
 }

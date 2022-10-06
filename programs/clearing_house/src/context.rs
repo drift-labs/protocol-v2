@@ -146,6 +146,7 @@ pub struct InitializeUserStats<'info> {
         payer = payer
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     #[account(mut)]
@@ -191,6 +192,23 @@ pub struct UpdateUser<'info> {
         bump,
     )]
     pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct DeleteUser<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+        close = authority
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
 }
 
@@ -319,6 +337,7 @@ pub struct TransferDeposit<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateSpotMarketCumulativeInterest<'info> {
+    pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub spot_market: AccountLoader<'info, SpotMarket>,
 }
@@ -445,18 +464,18 @@ pub struct OrderParams {
     pub market_type: MarketType,
     pub direction: PositionDirection,
     pub user_order_id: u8,
-    pub base_asset_amount: u128,
-    pub price: u128,
+    pub base_asset_amount: u64,
+    pub price: u64,
     pub market_index: u16,
     pub reduce_only: bool,
     pub post_only: bool,
     pub immediate_or_cancel: bool,
-    pub trigger_price: u128,
+    pub trigger_price: Option<u64>,
     pub trigger_condition: OrderTriggerCondition,
-    pub oracle_price_offset: i128,
+    pub oracle_price_offset: Option<i64>,
     pub auction_duration: Option<u8>,
     pub time_in_force: Option<u8>,
-    pub auction_start_price: Option<u128>,
+    pub auction_start_price: Option<u64>,
 }
 
 impl Default for OrderType {
@@ -563,7 +582,7 @@ pub struct LiquidatePerp<'info> {
 }
 
 #[derive(Accounts)]
-pub struct LiquidateBorrow<'info> {
+pub struct LiquidateSpot<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     #[account(
@@ -571,8 +590,18 @@ pub struct LiquidateBorrow<'info> {
         constraint = can_sign_for_user(&liquidator, &authority)?
     )]
     pub liquidator: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
+    )]
+    pub liquidator_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
 }
 
 #[derive(Accounts)]
@@ -584,8 +613,18 @@ pub struct LiquidateBorrowForPerpPnl<'info> {
         constraint = can_sign_for_user(&liquidator, &authority)?
     )]
     pub liquidator: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
+    )]
+    pub liquidator_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
 }
 
 #[derive(Accounts)]
@@ -597,8 +636,18 @@ pub struct LiquidatePerpPnlForDeposit<'info> {
         constraint = can_sign_for_user(&liquidator, &authority)?
     )]
     pub liquidator: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
+    )]
+    pub liquidator_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
 }
 
 #[derive(Accounts)]
@@ -611,8 +660,18 @@ pub struct ResolveBankruptcy<'info> {
         constraint = can_sign_for_user(&liquidator, &authority)?
     )]
     pub liquidator: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
+    )]
+    pub liquidator_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
     #[account(
         mut,
         seeds = [b"spot_market_vault".as_ref(), spot_market_index.to_le_bytes().as_ref()],
@@ -691,7 +750,6 @@ pub struct RepegCurve<'info> {
 pub struct MoveAMMPrice<'info> {
     #[account(
         has_one = admin,
-        constraint = state.admin_controls_prices
     )]
     pub state: Box<Account<'info, State>>,
     pub admin: Signer<'info>,
@@ -807,6 +865,7 @@ pub struct SettleRevenueToInsuranceFund<'info> {
 #[derive(Accounts)]
 #[instruction(market_index: u16)]
 pub struct AddInsuranceFundStake<'info> {
+    pub state: Box<Account<'info, State>>,
     #[account(
         seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
         bump
@@ -825,10 +884,22 @@ pub struct AddInsuranceFundStake<'info> {
     pub authority: Signer<'info>,
     #[account(
         mut,
+        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
         seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        constraint = state.signer.eq(&clearing_house_signer.key())
+    )]
+    /// CHECK: forced clearing_house_signer
+    pub clearing_house_signer: AccountInfo<'info>,
     #[account(
         mut,
         token::mint = insurance_fund_vault.mint,

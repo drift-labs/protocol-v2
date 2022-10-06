@@ -6,13 +6,15 @@ import {
 	getMarketOrderParams,
 	OracleSource,
 	Wallet,
-} from '../sdk';
+	MarketStatus,
+	Admin,
+	ClearingHouse,
+	PositionDirection,
+} from '../sdk/src';
 
 import { Program } from '@project-serum/anchor';
 
 import { Keypair } from '@solana/web3.js';
-
-import { Admin, ClearingHouse, PositionDirection } from '../sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
@@ -81,6 +83,7 @@ describe('round in favor', () => {
 			periodicity,
 			new BN(63000000000)
 		);
+		await primaryClearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 	});
 
 	after(async () => {
@@ -132,10 +135,15 @@ describe('round in favor', () => {
 
 		await clearingHouse.fetchAccounts();
 
+		console.log(
+			clearingHouse
+				.getUserAccount()
+				.perpPositions[0].quoteAssetAmount.toString()
+		);
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-99409))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-88262))
 		);
 		await clearingHouse.unsubscribe();
 	});
@@ -182,10 +190,17 @@ describe('round in favor', () => {
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9999000)));
 
 		await clearingHouse.closePosition(marketIndex);
+		await clearingHouse.fetchAccounts();
+
+		console.log(
+			clearingHouse
+				.getUserAccount()
+				.perpPositions[0].quoteAssetAmount.toString()
+		);
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].quoteAssetAmount.eq(new BN(-99419))
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-88268))
 		);
 		await clearingHouse.unsubscribe();
 	});

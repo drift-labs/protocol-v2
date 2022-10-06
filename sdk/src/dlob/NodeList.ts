@@ -11,7 +11,10 @@ import { createNode, DLOBNode, DLOBNodeMap } from './DLOBNode';
 
 export type SortDirection = 'asc' | 'desc';
 
-export function getOrderSignature(orderId: BN, userAccount: PublicKey): string {
+export function getOrderSignature(
+	orderId: number,
+	userAccount: PublicKey
+): string {
 	return `${userAccount.toString()}-${orderId.toString()}`;
 }
 
@@ -31,6 +34,12 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 		private sortDirection: SortDirection
 	) {}
 
+	public clear() {
+		this.head = undefined;
+		this.length = 0;
+		this.nodeMap.clear();
+	}
+
 	public insert(
 		order: Order,
 		marketType: MarketTypeStr,
@@ -49,11 +58,11 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 
 		const newNode = createNode(this.nodeType, order, market, userAccount);
 
-		const orderId = getOrderSignature(order.orderId, userAccount);
-		if (this.nodeMap.has(orderId)) {
+		const orderSignature = getOrderSignature(order.orderId, userAccount);
+		if (this.nodeMap.has(orderSignature)) {
 			return;
 		}
-		this.nodeMap.set(orderId, newNode);
+		this.nodeMap.set(orderSignature, newNode);
 
 		this.length += 1;
 
@@ -126,7 +135,7 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 				node.previous.next = node.next;
 			}
 
-			if (this.head && node.order.orderId.eq(this.head.order.orderId)) {
+			if (this.head && node.order.orderId === this.head.order.orderId) {
 				this.head = node.next;
 			}
 
@@ -180,6 +189,7 @@ export function* getVammNodeGenerator(
 		order: undefined,
 		market: undefined,
 		userAccount: undefined,
+		isBaseFilled: () => false,
 		haveFilled: false,
 	};
 }

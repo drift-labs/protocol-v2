@@ -3,14 +3,14 @@ use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
 use crate::math::bn::U192;
-use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
+use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64, Cast};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
     AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
-    CONCENTRATION_PRECISION, K_BPS_DECREASE_MAX, K_BPS_UPDATE_SCALE,
-    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, ONE_HOUR_I128, PEG_PRECISION, PRICE_PRECISION,
-    PRICE_PRECISION_I128, PRICE_TO_PEG_PRECISION_RATIO, PRICE_TO_QUOTE_PRECISION_RATIO,
-    QUOTE_PRECISION,
+    CONCENTRATION_PRECISION, DEFAULT_LARGE_BID_ASK_FACTOR, K_BPS_UPDATE_SCALE,
+    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, MAX_K_BPS_DECREASE, ONE_HOUR_I128, PEG_PRECISION,
+    PERCENTAGE_PRECISION_I128, PRICE_PRECISION, PRICE_PRECISION_I128, PRICE_TO_PEG_PRECISION_RATIO,
+    PRICE_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
@@ -212,7 +212,7 @@ pub fn calculate_spread(
 
     // inventory scale
     let inventory_scale = net_base_asset_amount
-        .checked_mul(BID_ASK_SPREAD_PRECISION_I128 * 10)
+        .checked_mul(cast_to_i128(DEFAULT_LARGE_BID_ASK_FACTOR)?)
         .ok_or_else(math_error!())?
         .checked_div(min_side_liquidity.max(1))
         .ok_or_else(math_error!())?
@@ -274,12 +274,12 @@ pub fn calculate_spread(
 
     if total_fee_minus_distributions <= 0 {
         long_spread = long_spread
-            .checked_mul(MAX_BID_ASK_INVENTORY_SKEW_FACTOR)
+            .checked_mul(DEFAULT_LARGE_BID_ASK_FACTOR)
             .ok_or_else(math_error!())?
             .checked_div(BID_ASK_SPREAD_PRECISION)
             .ok_or_else(math_error!())?;
         short_spread = short_spread
-            .checked_mul(MAX_BID_ASK_INVENTORY_SKEW_FACTOR)
+            .checked_mul(DEFAULT_LARGE_BID_ASK_FACTOR)
             .ok_or_else(math_error!())?
             .checked_div(BID_ASK_SPREAD_PRECISION)
             .ok_or_else(math_error!())?;
@@ -632,7 +632,7 @@ pub fn update_amm_mark_std(
 pub fn update_amm_long_short_intensity(
     amm: &mut AMM,
     now: i64,
-    quote_asset_amount: u128,
+    quote_asset_amount: u64,
     direction: PositionDirection,
 ) -> ClearingHouseResult<bool> {
     let since_last = cast_to_i128(max(
@@ -642,9 +642,9 @@ pub fn update_amm_long_short_intensity(
     ))?;
 
     let (long_quote_amount, short_quote_amount) = if direction == PositionDirection::Long {
-        (cast_to_u64(quote_asset_amount)?, 0_u64)
+        (quote_asset_amount, 0_u64)
     } else {
-        (0_u64, cast_to_u64(quote_asset_amount)?)
+        (0_u64, quote_asset_amount)
     };
 
     amm.long_intensity_count = (calculate_rolling_sum(
@@ -740,7 +740,7 @@ pub fn calculate_quote_asset_amount_swapped(
     swap_direction: SwapDirection,
     peg_multiplier: u128,
 ) -> ClearingHouseResult<u128> {
-    let quote_asset_reserve_change = match swap_direction {
+    let mut quote_asset_reserve_change = match swap_direction {
         SwapDirection::Add => quote_asset_reserve_before
             .checked_sub(quote_asset_reserve_after)
             .ok_or_else(math_error!())?,
@@ -749,6 +749,14 @@ pub fn calculate_quote_asset_amount_swapped(
             .checked_sub(quote_asset_reserve_before)
             .ok_or_else(math_error!())?,
     };
+
+    // when a user goes long base asset, make the base asset slightly more expensive
+    // by adding one unit of quote asset
+    if swap_direction == SwapDirection::Remove {
+        quote_asset_reserve_change = quote_asset_reserve_change
+            .checked_add(1)
+            .ok_or_else(math_error!())?;
+    }
 
     let mut quote_asset_amount =
         reserve_to_asset_amount(quote_asset_reserve_change, peg_multiplier)?;
@@ -1022,7 +1030,7 @@ pub fn calculate_budgeted_k_scale(
     )?;
 
     let k_pct_lower_bound =
-        K_BPS_UPDATE_SCALE - (K_BPS_DECREASE_MAX) * curve_update_intensity / 100;
+        K_BPS_UPDATE_SCALE - (MAX_K_BPS_DECREASE) * curve_update_intensity / 100;
 
     let (numerator, denominator) = _calculate_budgeted_k_scale(
         market.amm.base_asset_reserve,
@@ -1052,6 +1060,8 @@ pub fn _calculate_budgeted_k_scale(
 
     let c_sign: i128 = if c > 0 { 1 } else { -1 };
     let d_sign: i128 = if d > 0 { 1 } else { -1 };
+
+    let rounding_bias: i128 = c_sign.checked_mul(d_sign).ok_or_else(math_error!())?;
 
     let x_d = cast_to_i128(x)?.checked_add(d).ok_or_else(math_error!())?;
 
@@ -1101,7 +1111,7 @@ pub fn _calculate_budgeted_k_scale(
     let numer1 = pegged_quote_times_dd;
 
     let numer2 = cast_to_i128(c_times_x_d_d)?
-        .checked_mul(c_sign.checked_mul(d_sign).ok_or_else(math_error!())?)
+        .checked_mul(rounding_bias)
         .ok_or_else(math_error!())?;
 
     let denom1 = cast_to_i128(x_times_x_d_c)?
@@ -1140,13 +1150,13 @@ pub fn _calculate_budgeted_k_scale(
 
     let (numerator, denominator) = if numerator > denominator {
         let current_pct_change = numerator
-            .checked_mul(10000)
+            .checked_mul(PERCENTAGE_PRECISION_I128)
             .ok_or_else(math_error!())?
             .checked_div(denominator)
             .ok_or_else(math_error!())?;
 
         let maximum_pct_change = k_pct_upper_bound
-            .checked_mul(10000)
+            .checked_mul(PERCENTAGE_PRECISION_I128)
             .ok_or_else(math_error!())?
             .checked_div(K_BPS_UPDATE_SCALE)
             .ok_or_else(math_error!())?;
@@ -1154,17 +1164,17 @@ pub fn _calculate_budgeted_k_scale(
         if current_pct_change > maximum_pct_change {
             (k_pct_upper_bound, K_BPS_UPDATE_SCALE)
         } else {
-            (numerator, denominator)
+            (current_pct_change, K_BPS_UPDATE_SCALE)
         }
     } else {
         let current_pct_change = numerator
-            .checked_mul(10000)
+            .checked_mul(PERCENTAGE_PRECISION_I128)
             .ok_or_else(math_error!())?
             .checked_div(denominator)
             .ok_or_else(math_error!())?;
 
         let maximum_pct_change = k_pct_lower_bound
-            .checked_mul(10000)
+            .checked_mul(PERCENTAGE_PRECISION_I128)
             .ok_or_else(math_error!())?
             .checked_div(K_BPS_UPDATE_SCALE)
             .ok_or_else(math_error!())?;
@@ -1172,7 +1182,7 @@ pub fn _calculate_budgeted_k_scale(
         if current_pct_change < maximum_pct_change {
             (k_pct_lower_bound, K_BPS_UPDATE_SCALE)
         } else {
-            (numerator, denominator)
+            (current_pct_change, K_BPS_UPDATE_SCALE)
         }
     };
 
@@ -1325,7 +1335,7 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
     amm: &AMM,
     limit_price: u128,
     direction: PositionDirection,
-) -> ClearingHouseResult<(u128, PositionDirection)> {
+) -> ClearingHouseResult<(u64, PositionDirection)> {
     let invariant_sqrt_u192 = U192::from(amm.sqrt_k);
     let invariant = invariant_sqrt_u192
         .checked_mul(invariant_sqrt_u192)
@@ -1357,12 +1367,14 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
     if new_base_asset_reserve > base_asset_reserve_before {
         let max_trade_amount = new_base_asset_reserve
             .checked_sub(base_asset_reserve_before)
-            .ok_or_else(math_error!())?;
+            .ok_or_else(math_error!())?
+            .cast::<u64>()?;
         Ok((max_trade_amount, PositionDirection::Short))
     } else {
         let max_trade_amount = base_asset_reserve_before
             .checked_sub(new_base_asset_reserve)
-            .ok_or_else(math_error!())?;
+            .ok_or_else(math_error!())?
+            .cast::<u64>()?;
         Ok((max_trade_amount, PositionDirection::Long))
     }
 }
@@ -1370,8 +1382,9 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
 pub fn calculate_max_base_asset_amount_fillable(
     amm: &AMM,
     order_direction: &PositionDirection,
-) -> ClearingHouseResult<u128> {
-    let max_fill_size = amm.base_asset_reserve / amm.max_base_asset_amount_ratio as u128;
+) -> ClearingHouseResult<u64> {
+    let max_fill_size: u64 =
+        (amm.base_asset_reserve / amm.max_base_asset_amount_ratio as u128).cast()?;
 
     // one fill can only take up to half of side's liquidity
     let max_base_asset_amount_on_side = match order_direction {
@@ -1385,7 +1398,8 @@ pub fn calculate_max_base_asset_amount_fillable(
                 .saturating_sub(amm.base_asset_reserve)
                 / 2
         }
-    };
+    }
+    .cast::<u64>()?;
 
     standardize_base_asset_amount(
         max_fill_size.min(max_base_asset_amount_on_side),
@@ -1470,8 +1484,8 @@ mod test {
     use crate::controller::lp::mint_lp_shares;
     use crate::controller::lp::settle_lp_position;
     use crate::math::constants::{
-        BID_ASK_SPREAD_PRECISION, K_BPS_INCREASE_MAX, MAX_CONCENTRATION_COEFFICIENT,
-        PRICE_PRECISION, QUOTE_PRECISION_I128,
+        BASE_PRECISION_U64, BID_ASK_SPREAD_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
+        MAX_K_BPS_INCREASE, PRICE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
     };
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::user::PerpPosition;
@@ -1542,7 +1556,7 @@ mod test {
 
         let market_position = PerpPosition {
             market_index: 0,
-            base_asset_amount: (12295081967 / 2_i128),
+            base_asset_amount: (12295081967 / 2_i64),
             quote_asset_amount: -193688524588, // $31506 entry price
             ..PerpPosition::default()
         };
@@ -1556,7 +1570,7 @@ mod test {
                 peg_multiplier: 22_100_000_000,
                 net_base_asset_amount: (12295081967_i128),
                 max_spread: 1000,
-                quote_asset_amount_long: market_position.quote_asset_amount * 2,
+                quote_asset_amount_long: market_position.quote_asset_amount as i128 * 2,
                 // assume someone else has other half same entry,
                 ..AMM::default()
             },
@@ -1625,7 +1639,7 @@ mod test {
 
         let market_position = PerpPosition {
             market_index: 0,
-            base_asset_amount: (12295081967 / 2_i128),
+            base_asset_amount: (12295081967 / 2_i64),
             quote_asset_amount: -103688524588, // $16,866.66 entry price
             ..PerpPosition::default()
         };
@@ -1639,7 +1653,7 @@ mod test {
                 peg_multiplier: 22_100_000_000,
                 net_base_asset_amount: (12295081967_i128),
                 max_spread: 1000,
-                quote_asset_amount_long: market_position.quote_asset_amount * 2,
+                quote_asset_amount_long: market_position.quote_asset_amount as i128 * 2,
                 // assume someone else has other half same entry,
                 ..AMM::default()
             },
@@ -1743,7 +1757,7 @@ mod test {
 
         let market_position = PerpPosition {
             market_index: 0,
-            base_asset_amount: -(122950819670000 / 2_i128),
+            base_asset_amount: -(122950819670000 / 2_i64),
             quote_asset_amount: 153688524588, // $25,000 entry price
             ..PerpPosition::default()
         };
@@ -1757,7 +1771,7 @@ mod test {
                 peg_multiplier: 22_100_000_000,
                 net_base_asset_amount: -(12295081967_i128),
                 max_spread: 1000,
-                quote_asset_amount_short: market_position.quote_asset_amount * 2,
+                quote_asset_amount_short: market_position.quote_asset_amount as i128 * 2,
                 // assume someone else has other half same entry,
                 ..AMM::default()
             },
@@ -2601,6 +2615,62 @@ mod test {
     }
 
     #[test]
+    fn calculate_k_with_rounding() {
+        let base_asset_reserve: u128 = 9942017440883516352;
+        let quote_asset_reserve: u128 = 10058320717561858267;
+        let budget: i128 = 32195176;
+        let peg_multiplier: u128 = 1103;
+        let net_base_asset_amount: i128 = 57982559000000000;
+        let k_pct_upper_bound = 100000000;
+        let k_pct_lower_bound = 1000000;
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve,
+                quote_asset_reserve,
+                concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
+                sqrt_k: 10000000000000000000,
+                peg_multiplier,
+                net_base_asset_amount,
+                ..AMM::default()
+            },
+            ..PerpMarket::default()
+        };
+
+        let (numerator, denominator) = _calculate_budgeted_k_scale(
+            base_asset_reserve,
+            quote_asset_reserve,
+            budget,
+            peg_multiplier,
+            net_base_asset_amount,
+            k_pct_upper_bound,
+            k_pct_lower_bound,
+        )
+        .unwrap();
+        assert_eq!(numerator, 1094419);
+        assert_eq!(denominator, 1000000);
+
+        assert_eq!(100000000 * numerator / denominator, 109441900);
+
+        let k_scale_numerator: u128 = 373175;
+        let k_scale_denominator: u128 = 340980;
+
+        let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
+            .checked_mul(bn::U192::from(k_scale_numerator))
+            .ok_or_else(math_error!())
+            .unwrap()
+            .checked_div(bn::U192::from(k_scale_denominator))
+            .ok_or_else(math_error!())
+            .unwrap();
+
+        let update_k_result = get_update_k_result(&market, new_sqrt_k, true).unwrap();
+
+        let adjustment_cost = adjust_k_cost(&mut market, &update_k_result).unwrap();
+        assert!(adjustment_cost <= budget);
+        assert_eq!(adjustment_cost, 32195097);
+    }
+
+    #[test]
     fn calculate_k_tests() {
         let mut market = PerpMarket {
             amm: AMM {
@@ -2645,9 +2715,9 @@ mod test {
 
         let curve_update_intensity = 100;
         let k_pct_upper_bound =
-            K_BPS_UPDATE_SCALE + (K_BPS_INCREASE_MAX) * curve_update_intensity / 100;
+            K_BPS_UPDATE_SCALE + (MAX_K_BPS_INCREASE) * curve_update_intensity / 100;
         let k_pct_lower_bound =
-            K_BPS_UPDATE_SCALE - (K_BPS_DECREASE_MAX) * curve_update_intensity / 100;
+            K_BPS_UPDATE_SCALE - (MAX_K_BPS_DECREASE) * curve_update_intensity / 100;
 
         // with positive budget, how much can k be increased?
         let (numer1, denom1) = _calculate_budgeted_k_scale(
@@ -2662,8 +2732,8 @@ mod test {
         .unwrap();
 
         assert!(numer1 > denom1);
-        assert_eq!(numer1, 8796289171560000);
-        assert_eq!(denom1, 8790133110760000);
+        assert_eq!(numer1, 1000700);
+        assert_eq!(denom1, 1000000);
 
         let mut pct_change_in_k = (numer1 * 10000) / denom1;
         assert_eq!(pct_change_in_k, 10007); // k was increased .07%
@@ -2752,8 +2822,8 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(numer1, 8796289171560000);
-        assert_eq!(denom1, 8790133110760000);
+        assert_eq!(numer1, 1000700);
+        assert_eq!(denom1, 1000000);
         assert!(numer1 > denom1);
 
         let pct_change_in_k = (numer1 * 10000) / denom1;
@@ -2785,11 +2855,11 @@ mod test {
             ..PerpPosition::default()
         };
 
-        mint_lp_shares(&mut position, &mut market, AMM_RESERVE_PRECISION, 0).unwrap();
+        mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
 
         market.amm.market_position_per_lp = PerpPosition {
             base_asset_amount: 1,
-            quote_asset_amount: -QUOTE_PRECISION_I128,
+            quote_asset_amount: -QUOTE_PRECISION_I64,
             ..PerpPosition::default()
         };
 
@@ -2799,11 +2869,11 @@ mod test {
         settle_lp_position(&mut position, &mut market).unwrap();
 
         assert_eq!(position.base_asset_amount, 0);
-        assert_eq!(position.quote_asset_amount, -QUOTE_PRECISION_I128);
+        assert_eq!(position.quote_asset_amount, -QUOTE_PRECISION_I64);
         assert_eq!(position.last_net_base_asset_amount_per_lp, 1);
         assert_eq!(
             position.last_net_quote_asset_amount_per_lp,
-            -QUOTE_PRECISION_I128
+            -QUOTE_PRECISION_I64
         );
 
         // increase k by 1%
@@ -2826,8 +2896,8 @@ mod test {
         assert_eq!(cost, 49400); //0.05
 
         // lp whale adds
-        let lp_whale_amount = 1000 * AMM_RESERVE_PRECISION;
-        mint_lp_shares(&mut position, &mut market, lp_whale_amount, 0).unwrap();
+        let lp_whale_amount = 1000 * BASE_PRECISION_U64;
+        mint_lp_shares(&mut position, &mut market, lp_whale_amount).unwrap();
 
         // ensure same cost
         let update_k_up =
@@ -2867,7 +2937,7 @@ mod test {
         assert_eq!(cost, -1407000); //0.05
 
         // lp owns 50% of vAMM, same k
-        position.lp_shares = 50 * AMM_RESERVE_PRECISION;
+        position.lp_shares = 50 * BASE_PRECISION_U64;
         market.amm.user_lp_shares = 50 * AMM_RESERVE_PRECISION;
         // cost to increase k is always positive when imbalanced
         let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
@@ -2878,14 +2948,14 @@ mod test {
         assert_eq!(cost, 187800); //0.19
 
         // lp owns 99% of vAMM, same k
-        position.lp_shares = 99 * AMM_RESERVE_PRECISION;
+        position.lp_shares = 99 * BASE_PRECISION_U64;
         market.amm.user_lp_shares = 99 * AMM_RESERVE_PRECISION;
         let cost2 = adjust_k_cost(&mut market, &update_k_up).unwrap();
         assert!(cost2 > cost);
         assert_eq!(cost2, 76804900); //216.45
 
         // lp owns 100% of vAMM, same k
-        position.lp_shares = 100 * AMM_RESERVE_PRECISION;
+        position.lp_shares = 100 * BASE_PRECISION_U64;
         market.amm.user_lp_shares = 100 * AMM_RESERVE_PRECISION;
         let cost3 = adjust_k_cost(&mut market, &update_k_up).unwrap();
         assert!(cost3 > cost);

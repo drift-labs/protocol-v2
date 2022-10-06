@@ -1,7 +1,7 @@
 use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
-use crate::math::casting::cast;
-use crate::math::constants::{BID_ASK_SPREAD_PRECISION, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
+use crate::math::casting::{cast, cast_to_u64};
+use crate::math::constants::BID_ASK_SPREAD_PRECISION;
 use crate::math_error;
 use crate::state::oracle::OraclePriceData;
 use crate::state::user::Order;
@@ -11,7 +11,7 @@ use std::cmp::min;
 pub fn calculate_auction_end_price(
     oracle_price: &OraclePriceData,
     direction: PositionDirection,
-) -> ClearingHouseResult<u128> {
+) -> ClearingHouseResult<u64> {
     let numerator = match direction {
         PositionDirection::Long => {
             BID_ASK_SPREAD_PRECISION + BID_ASK_SPREAD_PRECISION / 100 // 1%
@@ -19,16 +19,18 @@ pub fn calculate_auction_end_price(
         PositionDirection::Short => BID_ASK_SPREAD_PRECISION - BID_ASK_SPREAD_PRECISION / 100,
     };
 
-    oracle_price
-        .price
-        .unsigned_abs()
-        .checked_mul(numerator)
-        .ok_or_else(math_error!())?
-        .checked_div(BID_ASK_SPREAD_PRECISION)
-        .ok_or_else(math_error!())
+    cast_to_u64(
+        oracle_price
+            .price
+            .unsigned_abs()
+            .checked_mul(numerator)
+            .ok_or_else(math_error!())?
+            .checked_div(BID_ASK_SPREAD_PRECISION)
+            .ok_or_else(math_error!())?,
+    )
 }
 
-pub fn calculate_auction_price(order: &Order, slot: u64) -> ClearingHouseResult<u128> {
+pub fn calculate_auction_price(order: &Order, slot: u64) -> ClearingHouseResult<u64> {
     let slots_elapsed = slot.checked_sub(order.slot).ok_or_else(math_error!())?;
 
     let delta_numerator = min(slots_elapsed, cast(order.auction_duration)?);
@@ -74,7 +76,7 @@ pub fn calculate_auction_price(order: &Order, slot: u64) -> ClearingHouseResult<
 pub fn does_auction_satisfy_maker_order(
     maker_order: &Order,
     taker_order: &Order,
-    auction_price: u128,
+    auction_price: u64,
 ) -> bool {
     // TODO more conditions to check?
     if maker_order.direction == taker_order.direction
@@ -89,36 +91,6 @@ pub fn does_auction_satisfy_maker_order(
     }
 }
 
-pub fn calculate_auction_fill_amount(
-    auction_price: u128,
-    maker_order: &Order,
-    taker_order: &Order,
-) -> ClearingHouseResult<(u128, u128)> {
-    let maker_base_asset_amount_unfilled = maker_order
-        .base_asset_amount
-        .checked_sub(maker_order.base_asset_amount_filled)
-        .ok_or_else(math_error!())?;
-
-    let taker_base_asset_amount_unfilled = taker_order
-        .base_asset_amount
-        .checked_sub(taker_order.base_asset_amount_filled)
-        .ok_or_else(math_error!())?;
-
-    let base_asset_amount_to_fill = min(
-        taker_base_asset_amount_unfilled,
-        maker_base_asset_amount_unfilled,
-    );
-
-    // TODO: should round up taker/maker quote asset amount based on who is going long/short
-    let quote_asset_amount = base_asset_amount_to_fill
-        .checked_mul(auction_price)
-        .ok_or_else(math_error!())?
-        .checked_div(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
-        .ok_or_else(math_error!())?;
-
-    Ok((base_asset_amount_to_fill, quote_asset_amount))
-}
-
 pub fn is_auction_complete(
     order_slot: u64,
     auction_duration: u8,
@@ -131,81 +103,4 @@ pub fn is_auction_complete(
     let slots_elapsed = slot.checked_sub(order_slot).ok_or_else(math_error!())?;
 
     Ok(slots_elapsed > cast(auction_duration)?)
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION,
-    };
-
-    #[test]
-    fn maker_order_fills_entire_taker_order() {
-        let auction_price = 10 * PRICE_PRECISION;
-        let taker_order = Order {
-            base_asset_amount: 2 * BASE_PRECISION,
-            ..Order::default()
-        };
-
-        let maker_order = Order {
-            base_asset_amount: 2 * BASE_PRECISION,
-            ..Order::default()
-        };
-
-        let (base_asset_amount, quote_asset_amount) =
-            calculate_auction_fill_amount(auction_price, &maker_order, &taker_order).unwrap();
-
-        let expected_base_asset_amount = 2 * AMM_RESERVE_PRECISION;
-        assert_eq!(base_asset_amount, expected_base_asset_amount);
-
-        let expected_quote_asset_amount = 20 * QUOTE_PRECISION;
-        assert_eq!(quote_asset_amount, expected_quote_asset_amount);
-    }
-
-    #[test]
-    fn maker_order_fills_portion_taker_order() {
-        let auction_price = 10 * PRICE_PRECISION;
-        let taker_order = Order {
-            base_asset_amount: 2 * BASE_PRECISION,
-            ..Order::default()
-        };
-
-        let maker_order = Order {
-            base_asset_amount: BASE_PRECISION,
-            ..Order::default()
-        };
-
-        let (base_asset_amount, quote_asset_amount) =
-            calculate_auction_fill_amount(auction_price, &maker_order, &taker_order).unwrap();
-
-        let expected_base_asset_amount = AMM_RESERVE_PRECISION;
-        assert_eq!(base_asset_amount, expected_base_asset_amount);
-
-        let expected_quote_asset_amount = 10 * QUOTE_PRECISION;
-        assert_eq!(quote_asset_amount, expected_quote_asset_amount);
-    }
-
-    #[test]
-    fn portion_of_maker_order_fills_taker_order() {
-        let auction_price = 10 * PRICE_PRECISION;
-        let taker_order = Order {
-            base_asset_amount: BASE_PRECISION,
-            ..Order::default()
-        };
-
-        let maker_order = Order {
-            base_asset_amount: 2 * BASE_PRECISION,
-            ..Order::default()
-        };
-
-        let (base_asset_amount, quote_asset_amount) =
-            calculate_auction_fill_amount(auction_price, &maker_order, &taker_order).unwrap();
-
-        let expected_base_asset_amount = AMM_RESERVE_PRECISION;
-        assert_eq!(base_asset_amount, expected_base_asset_amount);
-
-        let expected_quote_asset_amount = 10 * QUOTE_PRECISION;
-        assert_eq!(quote_asset_amount, expected_quote_asset_amount);
-    }
 }
