@@ -1,4 +1,4 @@
-import { BN } from '../../src';
+import { BN } from '../../src/index';
 import { expect } from 'chai';
 import { BigNum } from '../../src/factory/bigNum';
 import {
@@ -6,6 +6,7 @@ import {
 	BASE_PRECISION_EXP,
 	TEN_THOUSAND,
 } from '../../src/constants/numericConstants';
+
 // if you used the '@types/mocha' method to install mocha type definitions, uncomment the following line
 // import 'mocha';
 
@@ -265,5 +266,22 @@ describe('BigNum Tests', () => {
 
 		const val10 = BigNum.from('100000000000', 6);
 		expect(val10.prettyPrint(true)).to.equal('100,000');
+	});
+
+	it('can round up and down', () => {
+		const val1 = BigNum.from('1234', 1);
+		expect(val1.toRounded(3).toString()).to.equal('1230');
+
+		const val2 = BigNum.from('1236', 1);
+		expect(val2.toRounded(3).toString()).to.equal('1240');
+
+		const val3 = BigNum.from('123456789', 5);
+		expect(val3.toRounded(4).print()).to.equal('1235.00000');
+
+		const val4 = BigNum.from('123456789', 5);
+		expect(val4.toRounded(3).print()).to.equal('1230.00000');
+
+		const val5 = BigNum.from('123000000', 5);
+		expect(val5.toRounded(3).print()).to.equal('1230.00000');
 	});
 });
