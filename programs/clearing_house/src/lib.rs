@@ -3620,6 +3620,19 @@ pub mod clearing_house {
     #[access_control(
         market_valid(&ctx.accounts.market)
     )]
+    pub fn update_perp_min_order_size(
+        ctx: Context<AdminUpdateMarket>,
+        order_size: u64,
+    ) -> Result<()> {
+        let market = &mut load_mut!(ctx.accounts.market)?;
+        validate!(order_size > 0, ErrorCode::DefaultError)?;
+        market.amm.min_order_size = order_size;
+        Ok(())
+    }
+
+    #[access_control(
+        market_valid(&ctx.accounts.market)
+    )]
     pub fn update_market_max_slippage_ratio(
         ctx: Context<AdminUpdateMarket>,
         max_slippage_ratio: u16,

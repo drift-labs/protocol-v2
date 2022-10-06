@@ -742,6 +742,19 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
+	public async updatePerpMinOrderSize(
+		marketIndex: number,
+		orderSize: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMinOrderSize(orderSize, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				market: await getMarketPublicKey(this.program.programId, marketIndex),
+			},
+		});
+	}
+
 	public async updateMarketExpiry(
 		perpMarketIndex: number,
 		expiryTs: BN

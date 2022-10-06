@@ -2521,32 +2521,6 @@
       ]
     },
     {
-      "name": "updateMarketMinimumQuoteAssetTradeSize",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "market",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "minimumTradeSize",
-          "type": "u128"
-        }
-      ]
-    },
-    {
       "name": "updateMarketBaseSpread",
       "accounts": [
         {
@@ -2650,6 +2624,32 @@
         },
         {
           "name": "tickSize",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMinOrderSize",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderSize",
           "type": "u64"
         }
       ]
@@ -3569,7 +3569,7 @@
             "type": "u64"
           },
           {
-            "name": "orderMinimumSize",
+            "name": "minOrderSize",
             "type": "u64"
           },
           {
@@ -3757,10 +3757,6 @@
             "type": {
               "defined": "OracleGuardRails"
             }
-          },
-          {
-            "name": "minOrderQuoteAssetAmount",
-            "type": "u128"
           },
           {
             "name": "numberOfAuthorities",
@@ -4453,10 +4449,6 @@
             "type": "i128"
           },
           {
-            "name": "minimumQuoteAssetTradeSize",
-            "type": "u128"
-          },
-          {
             "name": "longSpread",
             "type": "u128"
           },
@@ -4529,7 +4521,7 @@
             "type": "u64"
           },
           {
-            "name": "orderMinimumSize",
+            "name": "minOrderSize",
             "type": "u64"
           },
           {
