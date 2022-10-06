@@ -2931,7 +2931,7 @@ pub mod clearing_house {
             &mut oracle_map,
             now,
             &state.oracle_guard_rails,
-            !matches!(state.exchange_status, ExchangeStatus::FundingPaused),
+            matches!(state.exchange_status, ExchangeStatus::FundingPaused),
             None,
         )?;
 

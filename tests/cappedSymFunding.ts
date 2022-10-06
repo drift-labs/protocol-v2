@@ -27,12 +27,14 @@ import {
 	calculateReservePrice,
 	convertToNumber,
 	ExchangeStatus,
+	BASE_PRECISION,
+	OracleSource,
+	isVariant,
 } from '../sdk/src';
 
 import { Program } from '@project-serum/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
-import { BASE_PRECISION, OracleSource } from '../sdk';
 
 async function updateFundingRateHelper(
 	clearingHouse: ClearingHouse,
@@ -88,15 +90,13 @@ async function updateFundingRateHelper(
 		const cumulativeFundingRateShortOld =
 			ammAccountState0.cumulativeFundingRateShort;
 
-		let _tx;
-		try {
-			_tx = await clearingHouse.updateFundingRate(
-				priceFeedAddress,
-				marketIndex
-			);
-		} catch (e) {
-			console.error(e);
-		}
+		const state = clearingHouse.getStateAccount();
+		assert(isVariant(state.exchangeStatus, 'active'));
+
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
+		assert(isVariant(market.status, 'active'));
+
+		await clearingHouse.updateFundingRate(priceFeedAddress, marketIndex);
 
 		const CONVERSION_SCALE = FUNDING_RATE_BUFFER_PRECISION.mul(PRICE_PRECISION);
 
