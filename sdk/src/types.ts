@@ -5,22 +5,22 @@ import { BN, ZERO } from '.';
 
 export class ExchangeStatus {
 	static readonly ACTIVE = { active: {} };
-	static readonly FUNDINGPAUSED = { fundingpaused: {} };
-	static readonly AMMPAUSED = { ammpaused: {} };
-	static readonly FILLPAUSED = { fillpaused: {} };
-	static readonly LIQPAUSED = { liqpaused: {} };
-	static readonly WITHDRAWPAUSED = { withdrawpaused: {} };
+	static readonly FUNDINGPAUSED = { fundingPaused: {} };
+	static readonly AMMPAUSED = { ammPaused: {} };
+	static readonly FILLPAUSED = { fillPaused: {} };
+	static readonly LIQPAUSED = { liqPaused: {} };
+	static readonly WITHDRAWPAUSED = { withdrawPaused: {} };
 	static readonly PAUSED = { paused: {} };
 }
 
 export class MarketStatus {
 	static readonly INITIALIZED = { initialized: {} };
 	static readonly ACTIVE = { active: {} };
-	static readonly FUNDINGPAUSED = { fundingpaused: {} };
-	static readonly AMMPAUSED = { ammpaused: {} };
-	static readonly FILLPAUSED = { fillpaused: {} };
-	static readonly WITHDRAWPAUSED = { withdrawpaused: {} };
-	static readonly REDUCEONLY = { reduceonly: {} };
+	static readonly FUNDINGPAUSED = { fundingPaused: {} };
+	static readonly AMMPAUSED = { ammPaused: {} };
+	static readonly FILLPAUSED = { fillPaused: {} };
+	static readonly WITHDRAWPAUSED = { withdrawPaused: {} };
+	static readonly REDUCEONLY = { reduceOnly: {} };
 	static readonly SETTLEMENT = { settlement: {} };
 	static readonly DELISTED = { delisted: {} };
 }

@@ -263,10 +263,10 @@ describe('User Account', () => {
 
 		console.log('marketMarginRatio:', marketMarginRatio);
 
-		const expectedPNL = new BN(-50001);
-		const expectedTotalCollateral = new BN(19949999);
-		const expectedBuyingPower = new BN(49749745);
-		const expectedFreeCollateral = new BN(9949949);
+		const expectedPNL = new BN(-50002);
+		const expectedTotalCollateral = new BN(19949998);
+		const expectedBuyingPower = new BN(49749740);
+		const expectedFreeCollateral = new BN(9949948);
 		const expectedLeverage = new BN(25062);
 		const expectedMarginRatio = new BN(3989);
 
@@ -324,10 +324,10 @@ describe('User Account', () => {
 			convertToNumber(oraclePrice2)
 		);
 
-		const expectedPNL = new BN(4949473);
-		const expectedTotalCollateral = new BN(24949473);
-		const expectedBuyingPower = new BN(69747645);
-		const expectedFreeCollateral = new BN(13949529);
+		const expectedPNL = new BN(4949472);
+		const expectedTotalCollateral = new BN(24949472);
+		const expectedBuyingPower = new BN(69747640);
+		const expectedFreeCollateral = new BN(13949528);
 		const expectedLeverage = new BN(22044);
 		const expectedMarginRatio = new BN(4536);
 
@@ -343,10 +343,10 @@ describe('User Account', () => {
 	it('Close Position', async () => {
 		await clearingHouse.closePosition(marketIndex);
 
-		const expectedBuyingPower = new BN(124472375);
-		const expectedFreeCollateral = new BN(24894475);
-		const expectedPNL = new BN(4894475);
-		const expectedTotalCollateral = new BN(24894475);
+		const expectedBuyingPower = new BN(124472365);
+		const expectedFreeCollateral = new BN(24894473);
+		const expectedPNL = new BN(4894473);
+		const expectedTotalCollateral = new BN(24894473);
 		const expectedLeverage = new BN(0);
 		const expectedMarginRatio = new BN(Number.MAX_SAFE_INTEGER);
 

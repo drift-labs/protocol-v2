@@ -112,12 +112,22 @@ describe('clearing_house', () => {
 		);
 		await printTxLogs(connection, txSig);
 
-		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9951999)));
+		console.log(
+			clearingHouse.getQuoteAssetTokenAmount().toString(),
+			clearingHouse
+				.getUserStats()
+				.getAccountAndSlot()
+				.data.fees.totalFeePaid.toString(),
+			clearingHouse
+				.getUserAccount()
+				.perpPositions[0].quoteEntryAmount.toString()
+		);
+		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9951998)));
 		assert(
 			clearingHouse
 				.getUserStats()
 				.getAccountAndSlot()
-				.data.fees.totalFeePaid.eq(new BN(48000))
+				.data.fees.totalFeePaid.eq(new BN(48001))
 		);
 
 		assert.ok(
@@ -139,8 +149,8 @@ describe('clearing_house', () => {
 		assert.ok(market.baseAssetAmountLong.eq(new BN(48000000000)));
 		assert.ok(market.baseAssetAmountShort.eq(ZERO));
 		assert.ok(market.openInterest.eq(ONE));
-		assert.ok(market.amm.totalFee.eq(new BN(48000)));
-		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(48000)));
+		assert.ok(market.amm.totalFee.eq(new BN(48001)));
+		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(48001)));
 
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
@@ -182,12 +192,12 @@ describe('clearing_house', () => {
 		);
 
 		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9927999)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9927998)));
 		assert(
 			clearingHouse
 				.getUserStats()
 				.getAccount()
-				.fees.totalFeePaid.eq(new BN(72000))
+				.fees.totalFeePaid.eq(new BN(72001))
 		);
 
 		const market = clearingHouse.getPerpMarketAccount(0);
@@ -196,8 +206,8 @@ describe('clearing_house', () => {
 		assert.ok(market.baseAssetAmountLong.eq(new BN(24000000000)));
 		assert.ok(market.baseAssetAmountShort.eq(ZERO));
 		assert.ok(market.openInterest.eq(ONE));
-		assert.ok(market.amm.totalFee.eq(new BN(72000)));
-		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(72000)));
+		assert.ok(market.amm.totalFee.eq(new BN(72001)));
+		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(72001)));
 
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
@@ -224,12 +234,12 @@ describe('clearing_house', () => {
 			marketIndex
 		);
 
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9879999)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9879998)));
 		assert(
 			clearingHouse
 				.getUserStats()
 				.getAccount()
-				.fees.totalFeePaid.eq(new BN(120000))
+				.fees.totalFeePaid.eq(new BN(120001))
 		);
 		assert.ok(
 			clearingHouse
@@ -250,8 +260,8 @@ describe('clearing_house', () => {
 		assert.ok(market.baseAssetAmountLong.eq(ZERO));
 		assert.ok(market.baseAssetAmountShort.eq(new BN(-24000000000)));
 		assert.ok(market.openInterest.eq(ONE));
-		assert.ok(market.amm.totalFee.eq(new BN(120000)));
-		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120000)));
+		assert.ok(market.amm.totalFee.eq(new BN(120001)));
+		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120001)));
 
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
@@ -292,18 +302,18 @@ describe('clearing_house', () => {
 		);
 
 		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
-		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9855999)));
+		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9855998)));
 		assert(
 			clearingHouse
 				.getUserStats()
 				.getAccount()
-				.fees.totalFeePaid.eq(new BN(144000))
+				.fees.totalFeePaid.eq(new BN(144001))
 		);
 
 		const market = clearingHouse.getPerpMarketAccount(0);
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(0)));
-		assert.ok(market.amm.totalFee.eq(new BN(144000)));
-		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(144000)));
+		assert.ok(market.amm.totalFee.eq(new BN(144001)));
+		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(144001)));
 
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
