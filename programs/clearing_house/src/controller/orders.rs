@@ -133,12 +133,6 @@ pub fn place_order(
         "Market is in settlement mode",
     )?;
 
-    validate!(
-        market.is_active(now)?,
-        ErrorCode::DefaultError,
-        "Market is in settlement mode",
-    )?;
-
     let position_index = get_position_index(&user.perp_positions, market_index)
         .or_else(|_| add_new_position(&mut user.perp_positions, market_index))?;
 
