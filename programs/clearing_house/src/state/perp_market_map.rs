@@ -52,7 +52,8 @@ impl<'a> PerpMarketMap<'a> {
                 .try_borrow_data()
                 .or(Err(ErrorCode::CouldNotLoadMarketData))?;
 
-            if data.len() < std::mem::size_of::<PerpMarket>() + 8 {
+            let expected_data_len = std::mem::size_of::<PerpMarket>() + 8;
+            if data.len() < expected_data_len {
                 break;
             }
 
@@ -61,7 +62,8 @@ impl<'a> PerpMarketMap<'a> {
                 break;
             }
 
-            let market_index = u16::from_le_bytes(*array_ref![data, 1464, 2]);
+            // market index 8 bytes from the back of the account
+            let market_index = u16::from_le_bytes(*array_ref![data, expected_data_len - 8, 2]);
 
             let account_info = account_info_iter.next().unwrap();
 
@@ -92,7 +94,8 @@ impl<'a> PerpMarketMap<'a> {
             .try_borrow_data()
             .or(Err(ErrorCode::CouldNotLoadMarketData))?;
 
-        if data.len() < std::mem::size_of::<PerpMarket>() + 8 {
+        let expected_data_len = std::mem::size_of::<PerpMarket>() + 8;
+        if data.len() < expected_data_len {
             return Err(ErrorCode::CouldNotLoadMarketData);
         }
 
@@ -101,7 +104,9 @@ impl<'a> PerpMarketMap<'a> {
         if account_discriminator != &market_discriminator {
             return Err(ErrorCode::CouldNotLoadMarketData);
         }
-        let market_index = u16::from_le_bytes(*array_ref![data, 1464, 2]);
+
+        // market index 8 bytes from back of account
+        let market_index = u16::from_le_bytes(*array_ref![data, expected_data_len - 8, 2]);
 
         let is_writable = account_info.is_writable;
         let account_loader: AccountLoader<PerpMarket> =
@@ -131,7 +136,8 @@ impl<'a> PerpMarketMap<'a> {
                 .try_borrow_data()
                 .or(Err(ErrorCode::CouldNotLoadMarketData))?;
 
-            if data.len() < std::mem::size_of::<PerpMarket>() + 8 {
+            let expected_data_len = std::mem::size_of::<PerpMarket>() + 8;
+            if data.len() < expected_data_len {
                 return Err(ErrorCode::CouldNotLoadMarketData);
             }
 
@@ -140,7 +146,9 @@ impl<'a> PerpMarketMap<'a> {
             if account_discriminator != &market_discriminator {
                 return Err(ErrorCode::CouldNotLoadMarketData);
             }
-            let market_index = u16::from_le_bytes(*array_ref![data, 1464, 2]);
+
+            // market index 8 bytes from back of account
+            let market_index = u16::from_le_bytes(*array_ref![data, expected_data_len - 8, 2]);
 
             let is_writable = account_info.is_writable;
             let account_loader: AccountLoader<PerpMarket> =

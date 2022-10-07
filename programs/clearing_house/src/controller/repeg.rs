@@ -6,9 +6,10 @@ use crate::controller::spot_balance::update_spot_balances;
 use crate::error::ErrorCode;
 use crate::load_mut;
 use crate::math::amm;
-use crate::math::amm::get_update_k_result;
 use crate::math::bn;
 use crate::math::constants::{K_BPS_UPDATE_SCALE, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX};
+use crate::math::cp_curve;
+use crate::math::cp_curve::get_update_k_result;
 use crate::math::oracle;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::repeg;
@@ -311,7 +312,7 @@ pub fn settle_expired_market(
     )?;
 
     if budget > 0 {
-        let (k_scale_numerator, k_scale_denominator) = amm::calculate_budgeted_k_scale(
+        let (k_scale_numerator, k_scale_denominator) = cp_curve::calculate_budgeted_k_scale(
             market,
             cast_to_i128(budget)?,
             K_BPS_UPDATE_SCALE * 100,
@@ -325,7 +326,7 @@ pub fn settle_expired_market(
 
         let update_k_result = get_update_k_result(market, new_sqrt_k, true)?;
 
-        let adjustment_cost = amm::adjust_k_cost(market, &update_k_result)?;
+        let adjustment_cost = cp_curve::adjust_k_cost(market, &update_k_result)?;
 
         let cost_applied = apply_cost_to_market(market, adjustment_cost, true)?;
 
@@ -336,7 +337,7 @@ pub fn settle_expired_market(
         )?;
 
         if cost_applied {
-            amm::update_k(market, &update_k_result)?;
+            cp_curve::update_k(market, &update_k_result)?;
         }
     }
 

@@ -13,6 +13,7 @@ use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
 };
+use crate::math::stats;
 use crate::math_error;
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
@@ -313,7 +314,6 @@ pub struct AMM {
     pub cumulative_funding_rate_long: i128,
     pub cumulative_funding_rate_short: i128,
     pub cumulative_social_loss: i128,
-    pub minimum_quote_asset_trade_size: u128,
     pub long_spread: u128,
     pub short_spread: u128,
     pub ask_base_asset_reserve: u128,
@@ -330,9 +330,9 @@ pub struct AMM {
     pub lp_cooldown_time: i64,
     pub last_funding_rate_ts: i64,
     pub funding_period: i64,
-    pub base_asset_amount_step_size: u64,
+    pub order_step_size: u64,
     pub order_tick_size: u64,
-    pub order_minimum_size: u64,
+    pub min_order_size: u64,
     pub max_position_size: u64,
     pub volume_24h: u64,
     pub long_intensity_volume: u64,
@@ -351,7 +351,7 @@ pub struct AMM {
     pub amm_jit_intensity: u8,
     pub oracle_source: OracleSource,
     pub last_oracle_valid: bool,
-    // pub padding: [u8; 4],
+    pub padding: [u8; 6],
 }
 
 impl AMM {
@@ -363,7 +363,8 @@ impl AMM {
             quote_asset_reserve: default_reserves,
             sqrt_k: default_reserves,
             concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-            base_asset_amount_step_size: 1,
+            order_step_size: 1,
+            order_tick_size: 1,
             max_base_asset_reserve: u64::MAX as u128,
             min_base_asset_reserve: 0,
             terminal_quote_asset_reserve: default_reserves,
@@ -521,7 +522,7 @@ impl AMM {
 
         amm::update_amm_long_short_intensity(self, now, quote_asset_amount, position_direction)?;
 
-        self.volume_24h = amm::calculate_rolling_sum(
+        self.volume_24h = stats::calculate_rolling_sum(
             self.volume_24h,
             quote_asset_amount,
             since_last,

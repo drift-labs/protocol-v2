@@ -79,7 +79,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 1000,
+                order_step_size: 1000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 base_spread: 20000,
@@ -105,9 +106,17 @@ pub mod amm_jit {
         market.amm.min_base_asset_reserve = 0;
 
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-            crate::amm::calculate_spread_reserves(&market.amm, PositionDirection::Long).unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(
+                &market.amm,
+                PositionDirection::Long,
+            )
+            .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-            crate::amm::calculate_spread_reserves(&market.amm, PositionDirection::Short).unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(
+                &market.amm,
+                PositionDirection::Short,
+            )
+            .unwrap();
         market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
         market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
@@ -273,7 +282,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -456,7 +466,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -635,7 +646,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 base_spread: 20000,
@@ -659,9 +671,17 @@ pub mod amm_jit {
         market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-            crate::amm::calculate_spread_reserves(&market.amm, PositionDirection::Long).unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(
+                &market.amm,
+                PositionDirection::Long,
+            )
+            .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-            crate::amm::calculate_spread_reserves(&market.amm, PositionDirection::Short).unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(
+                &market.amm,
+                PositionDirection::Short,
+            )
+            .unwrap();
         market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
         market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
@@ -822,7 +842,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -845,9 +866,17 @@ pub mod amm_jit {
         market.amm.min_base_asset_reserve = 0;
 
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-            crate::amm::calculate_spread_reserves(&market.amm, PositionDirection::Long).unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(
+                &market.amm,
+                PositionDirection::Long,
+            )
+            .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-            crate::amm::calculate_spread_reserves(&market.amm, PositionDirection::Short).unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(
+                &market.amm,
+                PositionDirection::Short,
+            )
+            .unwrap();
         market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
         market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
@@ -1035,7 +1064,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 1000,
+                order_step_size: 1000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -1058,9 +1088,17 @@ pub mod amm_jit {
         market.amm.min_base_asset_reserve = 0;
 
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-            crate::amm::calculate_spread_reserves(&market.amm, PositionDirection::Long).unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(
+                &market.amm,
+                PositionDirection::Long,
+            )
+            .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-            crate::amm::calculate_spread_reserves(&market.amm, PositionDirection::Short).unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(
+                &market.amm,
+                PositionDirection::Short,
+            )
+            .unwrap();
         market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
         market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
@@ -1297,7 +1335,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -1506,7 +1545,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -1710,7 +1750,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 1000,
+                order_step_size: 1000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 base_spread: 5000,
                 max_spread: 1000000,
@@ -1736,9 +1777,17 @@ pub mod amm_jit {
         market.amm.min_base_asset_reserve = 0;
 
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-            crate::amm::calculate_spread_reserves(&market.amm, PositionDirection::Long).unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(
+                &market.amm,
+                PositionDirection::Long,
+            )
+            .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-            crate::amm::calculate_spread_reserves(&market.amm, PositionDirection::Short).unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(
+                &market.amm,
+                PositionDirection::Short,
+            )
+            .unwrap();
         market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
         market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
@@ -1829,8 +1878,8 @@ pub mod amm_jit {
             }
 
             let auction_price =
-                crate::math::auction::calculate_auction_price(&taker.orders[0], slot).unwrap();
-            let baa = market.amm.base_asset_amount_step_size * 4;
+                crate::math::auction::calculate_auction_price(&taker.orders[0], slot, 1).unwrap();
+            let baa = market.amm.order_step_size * 4;
 
             let (mark, ask, bid) = {
                 let market = market_map.get_ref(&0).unwrap();
@@ -1987,7 +2036,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 1000,
+                order_step_size: 1000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 base_spread: 5000,
                 max_spread: 1000000,
@@ -2014,9 +2064,17 @@ pub mod amm_jit {
         market.amm.min_base_asset_reserve = 0;
 
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-            crate::amm::calculate_spread_reserves(&market.amm, PositionDirection::Long).unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(
+                &market.amm,
+                PositionDirection::Long,
+            )
+            .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-            crate::amm::calculate_spread_reserves(&market.amm, PositionDirection::Short).unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(
+                &market.amm,
+                PositionDirection::Short,
+            )
+            .unwrap();
         market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
         market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
@@ -2109,8 +2167,8 @@ pub mod amm_jit {
             }
 
             let auction_price =
-                crate::math::auction::calculate_auction_price(&taker.orders[0], slot).unwrap();
-            let baa = market.amm.base_asset_amount_step_size * 4;
+                crate::math::auction::calculate_auction_price(&taker.orders[0], slot, 1).unwrap();
+            let baa = market.amm.order_step_size * 4;
 
             let (mark, ask, bid) = {
                 let market = market_map.get_ref(&0).unwrap();

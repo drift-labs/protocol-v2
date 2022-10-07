@@ -268,7 +268,7 @@ pub fn liquidate_perp(
             if_liquidation_fee,
             oracle_price,
         )?,
-        market.amm.base_asset_amount_step_size,
+        market.amm.order_step_size,
     )?;
     drop(market);
 
@@ -278,10 +278,7 @@ pub fn liquidate_perp(
 
     let base_asset_amount = standardize_base_asset_amount(
         base_asset_amount,
-        perp_market_map
-            .get_ref(&market_index)?
-            .amm
-            .base_asset_amount_step_size,
+        perp_market_map.get_ref(&market_index)?.amm.order_step_size,
     )?;
 
     let liquidation_multiplier = calculate_liquidation_multiplier(

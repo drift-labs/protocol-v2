@@ -233,7 +233,7 @@ export function calculateBaseAssetAmountToFillUpToLimitPrice(
 
 	const baseAssetAmount = standardizeBaseAssetAmount(
 		maxAmountToTrade,
-		market.amm.baseAssetAmountStepSize
+		market.amm.orderStepSize
 	);
 
 	// Check that directions are the same

@@ -350,7 +350,7 @@ pub struct SettleExpiredMarketPoolsToRevenuePool<'info> {
     pub state: Box<Account<'info, State>>,
     pub admin: Signer<'info>,
     #[account(
-        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
+        seeds = [b"spot_market", quote_spot_market_index.to_le_bytes().as_ref()],
         bump,
         mut
     )]
@@ -381,13 +381,13 @@ pub struct DepositIntoMarketFeePool<'info> {
     pub clearing_house_signer: AccountInfo<'info>,
     #[account(
         mut,
-        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
+        seeds = [b"spot_market", quote_spot_market_index.to_le_bytes().as_ref()],
         bump,
     )]
     pub quote_spot_market: AccountLoader<'info, SpotMarket>,
     #[account(
         mut,
-        seeds = [b"spot_market_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
+        seeds = [b"spot_market_vault".as_ref(), quote_spot_market_index.to_le_bytes().as_ref()],
         bump,
     )]
     pub spot_market_vault: Box<Account<'info, TokenAccount>>,
@@ -1014,7 +1014,7 @@ pub struct AdminRemoveInsuranceFundStake<'info> {
 pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
-        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
+        seeds = [b"spot_market", quote_spot_market_index.to_le_bytes().as_ref()],
         bump
     )]
     pub spot_market: AccountLoader<'info, SpotMarket>,
@@ -1031,7 +1031,7 @@ pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
     pub authority: Signer<'info>,
     #[account(
         mut,
-        seeds = [b"insurance_fund_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
+        seeds = [b"insurance_fund_vault".as_ref(), quote_spot_market_index.to_le_bytes().as_ref()],
     bump,
     )]
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,

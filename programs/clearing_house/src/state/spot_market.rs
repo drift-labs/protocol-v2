@@ -4,8 +4,8 @@ use std::fmt::{Display, Formatter};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::context::SpotFulfillmentType;
 use crate::error::ClearingHouseResult;
+use crate::instructions::SpotFulfillmentType;
 #[cfg(test)]
 use crate::math::constants::SPOT_CUMULATIVE_INTEREST_PRECISION;
 use crate::math::constants::{
@@ -62,7 +62,7 @@ pub struct SpotMarket {
     pub expiry_ts: i64, // iff market in reduce only mode
     pub order_step_size: u64,
     pub order_tick_size: u64,
-    pub order_minimum_size: u64,
+    pub min_order_size: u64,
     pub max_position_size: u64,
     pub next_fill_record_id: u64,
     pub optimal_utilization: u32,
@@ -195,6 +195,7 @@ impl SpotMarket {
             initial_asset_weight: 8000,
             maintenance_asset_weight: 9000,
             decimals: 9,
+            order_tick_size: 1,
             status: MarketStatus::Active,
             ..SpotMarket::default()
         }
@@ -209,6 +210,7 @@ impl SpotMarket {
             maintenance_liability_weight: 10000,
             initial_asset_weight: 10000,
             maintenance_asset_weight: 10000,
+            order_tick_size: 1,
             status: MarketStatus::Active,
             ..SpotMarket::default()
         }

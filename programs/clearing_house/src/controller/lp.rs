@@ -1,16 +1,16 @@
-use crate::controller::position::get_position_index;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math_error;
+use crate::state::events::{LPAction, LPRecord};
 use crate::state::market::PerpMarket;
+use crate::state::user::PerpPosition;
 use crate::state::user::User;
-use crate::PerpPosition;
 
 use crate::bn::U192;
 use crate::controller::position::PositionDelta;
 use crate::controller::position::{update_position_and_market, update_quote_asset_amount};
 use crate::get_struct_values;
-use crate::math::amm::{get_update_k_result, update_k};
 use crate::math::casting::Cast;
+use crate::math::cp_curve::{get_update_k_result, update_k};
 use crate::math::lp::calculate_settle_lp_metrics;
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 
@@ -75,13 +75,11 @@ pub fn settle_lp_position(
         .checked_add(lp_metrics.remainder_base_asset_amount)
         .ok_or_else(math_error!())?;
 
-    if position.remainder_base_asset_amount.unsigned_abs()
-        >= market.amm.base_asset_amount_step_size.cast()?
-    {
+    if position.remainder_base_asset_amount.unsigned_abs() >= market.amm.order_step_size.cast()? {
         let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
             crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
                 position.remainder_base_asset_amount.cast()?,
-                market.amm.base_asset_amount_step_size.cast()?,
+                market.amm.order_step_size.cast()?,
             )?;
 
         lp_metrics.base_asset_amount = lp_metrics
@@ -126,15 +124,14 @@ pub fn settle_lp(
     user_key: &Pubkey,
     market: &mut PerpMarket,
     now: i64,
-) -> ClearingHouseResult<()> {
-    if let Ok(position_index) = get_position_index(&user.perp_positions, market.market_index) {
-        let position = &mut user.perp_positions[position_index];
+) -> ClearingHouseResult {
+    if let Ok(position) = user.get_perp_position_mut(market.market_index) {
         if position.lp_shares > 0 {
             let (position_delta, pnl) = settle_lp_position(position, market)?;
 
-            crate::emit!(crate::LPRecord {
+            crate::emit!(LPRecord {
                 ts: now,
-                action: crate::LPAction::SettleLiquidity,
+                action: LPAction::SettleLiquidity,
                 user: *user_key,
                 market_index: market.market_index,
                 delta_base_asset_amount: position_delta.base_asset_amount,
@@ -143,8 +140,22 @@ pub fn settle_lp(
                 n_shares: 0
             });
         }
-    };
+    }
+
     Ok(())
+}
+
+// note: must settle funding before settling the lp bc
+// settling the lp can take on a new position which requires funding
+// to be up-to-date
+pub fn settle_funding_payment_then_lp(
+    user: &mut User,
+    user_key: &Pubkey,
+    market: &mut PerpMarket,
+    now: i64,
+) -> ClearingHouseResult {
+    crate::controller::funding::settle_funding_payment(user, user_key, market, now)?;
+    settle_lp(user, user_key, market, now)
 }
 
 pub fn burn_lp_shares(
@@ -153,10 +164,6 @@ pub fn burn_lp_shares(
     shares_to_burn: u64,
     oracle_price: i128,
 ) -> ClearingHouseResult<(PositionDelta, i64)> {
-    if shares_to_burn == 0 {
-        return Ok((PositionDelta::default(), 0));
-    }
-
     // settle
     let (position_delta, pnl) = settle_lp_position(position, market)?;
 
@@ -170,10 +177,10 @@ pub fn burn_lp_shares(
 
     if shares_to_burn == market.amm.user_lp_shares.cast()? && unsettled_remainder != 0 {
         crate::validate!(
-            unsettled_remainder.unsigned_abs() <= market.amm.base_asset_amount_step_size,
+            unsettled_remainder.unsigned_abs() <= market.amm.order_step_size,
             ErrorCode::DefaultError,
             "unsettled baa on final burn too big rel to stepsize {}: {}",
-            market.amm.base_asset_amount_step_size,
+            market.amm.order_step_size,
             market.amm.net_unsettled_lp_base_asset_amount,
         )?;
 
@@ -263,7 +270,7 @@ mod test {
         };
 
         let amm = AMM {
-            base_asset_amount_step_size: 1,
+            order_step_size: 1,
             ..AMM::default_test()
         };
         let mut market = PerpMarket {
@@ -311,7 +318,7 @@ mod test {
         let amm = AMM {
             peg_multiplier: 1,
             user_lp_shares: 100 * AMM_RESERVE_PRECISION,
-            base_asset_amount_step_size: 1,
+            order_step_size: 1,
             ..AMM::default_test()
         };
 
@@ -343,7 +350,7 @@ mod test {
         };
 
         let amm = AMM {
-            base_asset_amount_step_size: 3,
+            order_step_size: 3,
             ..AMM::default_test()
         };
 
@@ -390,7 +397,7 @@ mod test {
                 quote_asset_amount: 10,
                 ..PerpPosition::default()
             },
-            base_asset_amount_step_size: 3,
+            order_step_size: 3,
             ..AMM::default_test()
         };
 

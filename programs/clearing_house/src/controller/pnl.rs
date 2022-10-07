@@ -52,8 +52,12 @@ pub fn settle_pnl(
     {
         let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
         validate_market_within_price_band(&perp_market, state, true, None)?;
-        settle_funding_payment(user, user_key, &mut perp_market, now)?;
-        crate::controller::lp::settle_lp(user, user_key, &mut perp_market, now)?;
+        crate::controller::lp::settle_funding_payment_then_lp(
+            user,
+            user_key,
+            &mut perp_market,
+            now,
+        )?;
         let spot_market = &mut spot_market_map.get_ref_mut(&perp_market.quote_spot_market_index)?;
         update_spot_market_cumulative_interest(spot_market, None, now)?;
     }

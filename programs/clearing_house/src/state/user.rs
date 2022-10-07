@@ -4,15 +4,16 @@ use solana_program::msg;
 
 use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::amm::calculate_rolling_sum;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::{cast_to_i128, Cast};
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, PRICE_PRECISION_I128,
     QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY_I128,
 };
+use crate::math::orders::standardize_price;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
+use crate::math::stats::calculate_rolling_sum;
 use crate::math_error;
 use crate::state::market::AMM;
 use crate::state::oracle::OraclePriceData;
@@ -480,9 +481,10 @@ impl Order {
         &self,
         valid_oracle_price: Option<i128>,
         slot: u64,
+        tick_size: u64,
         amm: Option<&AMM>,
     ) -> ClearingHouseResult<u128> {
-        // the limit price can be hardcoded on order or derived from oracle_price + oracle_price_offset
+        // the limit price can be hardcoded on order or derived based on oracle/slot
         let price = if self.has_oracle_price_offset() {
             if let Some(oracle_price) = valid_oracle_price {
                 let limit_price = oracle_price
@@ -494,7 +496,8 @@ impl Order {
                     return Err(crate::error::ErrorCode::InvalidOracleOffset);
                 }
 
-                limit_price.unsigned_abs()
+                standardize_price(limit_price.cast::<u64>()?, tick_size, self.direction)?
+                    .cast::<u128>()?
             } else {
                 msg!("Could not find oracle too calculate oracle offset limit price");
                 return Err(crate::error::ErrorCode::OracleNotFound);
@@ -504,7 +507,7 @@ impl Order {
             OrderType::Market | OrderType::TriggerMarket
         ) {
             if !is_auction_complete(self.slot, self.auction_duration, slot)? {
-                calculate_auction_price(self, slot)? as u128
+                calculate_auction_price(self, slot, tick_size)? as u128
             } else if self.price != 0 {
                 self.price as u128
             } else {
@@ -515,14 +518,18 @@ impl Order {
                             let delta = ask_price
                                 .checked_div(amm.max_slippage_ratio as u128)
                                 .ok_or_else(math_error!())?;
-                            ask_price.checked_add(delta).ok_or_else(math_error!())?
+                            let price = ask_price.checked_add(delta).ok_or_else(math_error!())?;
+                            standardize_price(price.cast()?, tick_size, self.direction)?
+                                .cast::<u128>()?
                         }
                         PositionDirection::Short => {
                             let bid_price = amm.bid_price(amm.reserve_price()?)?;
                             let delta = bid_price
                                 .checked_div(amm.max_slippage_ratio as u128)
                                 .ok_or_else(math_error!())?;
-                            bid_price.checked_sub(delta).ok_or_else(math_error!())?
+                            let price = bid_price.checked_sub(delta).ok_or_else(math_error!())?;
+                            standardize_price(price.cast()?, tick_size, self.direction)?
+                                .cast::<u128>()?
                         }
                     },
                     None => {
@@ -535,14 +542,17 @@ impl Order {
 
                         let oracle_price_1pct = oracle_price / 100;
 
-                        match self.direction {
+                        let price = match self.direction {
                             PositionDirection::Long => oracle_price
                                 .checked_add(oracle_price_1pct)
                                 .ok_or_else(math_error!())?,
                             PositionDirection::Short => oracle_price
                                 .checked_sub(oracle_price_1pct)
                                 .ok_or_else(math_error!())?,
-                        }
+                        };
+
+                        standardize_price(price.cast()?, tick_size, self.direction)?
+                            .cast::<u128>()?
                     }
                 }
             }
@@ -635,6 +645,12 @@ pub enum OrderType {
     Limit,
     TriggerMarket,
     TriggerLimit,
+}
+
+impl Default for OrderType {
+    fn default() -> Self {
+        OrderType::Limit
+    }
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]

@@ -2,8 +2,7 @@ if [ "$1" != "--skip-build" ]
   then
     cd sdk && yarn && yarn build && cd ..
     anchor build &&
-    cp target/idl/clearing_house.json sdk/src/idl/ &&
-    cd sdk && yarn && yarn build && cd ..
+    cp target/idl/clearing_house.json sdk/src/idl/
 fi
 
 test_files=(

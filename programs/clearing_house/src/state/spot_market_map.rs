@@ -107,6 +107,7 @@ impl<'a> SpotMarketMap<'a> {
         }
 
         let market_index = u16::from_le_bytes(*array_ref![data, 796, 2]);
+
         let is_writable = account_info.is_writable;
         let account_loader: AccountLoader<SpotMarket> =
             AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidSpotMarketAccount))?;
@@ -143,6 +144,7 @@ impl<'a> SpotMarketMap<'a> {
             }
 
             let market_index = u16::from_le_bytes(*array_ref![data, 796, 2]);
+
             let is_writable = account_info.is_writable;
             let account_loader: AccountLoader<SpotMarket> =
                 AccountLoader::try_from(account_info)
