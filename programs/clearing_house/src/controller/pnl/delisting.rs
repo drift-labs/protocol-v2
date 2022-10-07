@@ -90,7 +90,7 @@ pub mod delisting_test {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 ..AMM::default()
@@ -200,7 +200,7 @@ pub mod delisting_test {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -313,7 +313,7 @@ pub mod delisting_test {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -430,7 +430,7 @@ pub mod delisting_test {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -548,7 +548,7 @@ pub mod delisting_test {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -662,7 +662,7 @@ pub mod delisting_test {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -911,7 +911,7 @@ pub mod delisting_test {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -1163,7 +1163,7 @@ pub mod delisting_test {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -1398,7 +1398,7 @@ pub mod delisting_test {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -1740,7 +1740,7 @@ pub mod delisting_test {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -2120,7 +2120,7 @@ pub mod delisting_test {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {

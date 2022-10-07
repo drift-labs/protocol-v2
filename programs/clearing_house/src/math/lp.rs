@@ -28,7 +28,7 @@ pub fn calculate_settle_lp_metrics(
     let (standardized_base_asset_amount, remainder_base_asset_amount) =
         standardize_base_asset_amount_with_remainder_i128(
             base_asset_amount,
-            amm.base_asset_amount_step_size.cast()?,
+            amm.order_step_size.cast()?,
         )?;
 
     let lp_metrics = LPMetrics {
@@ -310,7 +310,7 @@ mod test {
                     quote_asset_amount: -10,
                     ..PerpPosition::default()
                 },
-                base_asset_amount_step_size: 1,
+                order_step_size: 1,
                 ..AMM::default_test()
             };
 
@@ -334,7 +334,7 @@ mod test {
                     quote_asset_amount: -10,
                     ..PerpPosition::default()
                 },
-                base_asset_amount_step_size: 50 * 100,
+                order_step_size: 50 * 100,
                 ..AMM::default_test()
             };
 
@@ -358,7 +358,7 @@ mod test {
                     quote_asset_amount: -10,
                     ..PerpPosition::default()
                 },
-                base_asset_amount_step_size: 3,
+                order_step_size: 3,
                 ..AMM::default_test()
             };
 

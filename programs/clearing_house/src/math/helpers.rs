@@ -79,7 +79,6 @@ pub fn get_proportion_u128(
             .checked_sub(cast_to_u128(r.signum())?)
             .ok_or_else(math_error!())?
     } else {
-        msg!("{} * {}/{}", value, numerator, denominator);
         value
             .checked_mul(numerator)
             .ok_or_else(math_error!())?
@@ -135,9 +134,56 @@ pub fn on_the_hour_update(
     Ok(time_remaining_until_update)
 }
 
+#[allow(clippy::comparison_chain)]
+pub fn log10(n: u128) -> u128 {
+    if n < 10 {
+        0
+    } else if n == 10 {
+        1
+    } else {
+        log10(n / 10) + 1
+    }
+}
+
+pub fn log10_iter(n: u128) -> u128 {
+    let mut result = 0;
+    let mut n_copy = n;
+
+    while n_copy >= 10 {
+        result += 1;
+        n_copy /= 10;
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    pub fn log_test() {
+        assert_eq!(log10_iter(0), 0);
+        assert_eq!(log10(0), 0);
+
+        assert_eq!(log10_iter(9), 0);
+        assert_eq!(log10(9), 0);
+
+        assert_eq!(log10(19), 1);
+        assert_eq!(log10_iter(19), 1);
+
+        assert_eq!(log10_iter(13432429), 7);
+
+        assert_eq!(log10(100), 2);
+        assert_eq!(log10_iter(100), 2);
+
+        // no modify check
+        let n = 1005325523;
+        assert_eq!(log10_iter(n), 9);
+        assert_eq!(log10_iter(n), 9);
+        assert_eq!(log10(n), 9);
+        assert_eq!(log10_iter(n), 9);
+    }
 
     #[test]
     fn proportion_tests() {

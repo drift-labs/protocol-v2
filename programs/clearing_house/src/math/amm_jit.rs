@@ -100,7 +100,7 @@ pub fn calculate_jit_base_asset_amount(
     // last step we always standardize
     jit_base_asset_amount = standardize_base_asset_amount(
         jit_base_asset_amount,
-        market.amm.base_asset_amount_step_size,
+        market.amm.order_step_size,
     )?;
 
     Ok(jit_base_asset_amount)
