@@ -4,7 +4,7 @@ use anchor_spl::token::{Token, TokenAccount};
 use crate::checked_decrement;
 use crate::checked_increment;
 use crate::controller::lp::burn_lp_shares;
-use crate::controller::position::{get_position_index, PositionDirection};
+use crate::controller::position::PositionDirection;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::load;
@@ -842,25 +842,7 @@ pub fn handle_add_liquidity<'info>(
         Some(state.oracle_guard_rails),
     )?;
     let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-
     let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
-
-    {
-        let mut market = market_map.get_ref_mut(&market_index)?;
-        controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
-
-        validate!(
-            matches!(
-                market.status,
-                MarketStatus::Active
-                    | MarketStatus::FundingPaused
-                    | MarketStatus::FillPaused
-                    | MarketStatus::WithdrawPaused
-            ),
-            ErrorCode::DefaultError,
-            "Market Status doesn't allow for new LP liquidity"
-        )?;
-    }
 
     validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
     math::liquidation::validate_user_not_being_liquidated(
@@ -873,6 +855,18 @@ pub fn handle_add_liquidity<'info>(
 
     {
         let mut market = market_map.get_ref_mut(&market_index)?;
+
+        validate!(
+            matches!(
+                market.status,
+                MarketStatus::Active
+                    | MarketStatus::FundingPaused
+                    | MarketStatus::FillPaused
+                    | MarketStatus::WithdrawPaused
+            ),
+            ErrorCode::DefaultError,
+            "Market Status doesn't allow for new LP liquidity"
+        )?;
 
         validate!(
             n_shares >= market.amm.order_step_size,
@@ -941,10 +935,6 @@ pub fn handle_remove_liquidity<'info>(
     )?;
     let _spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
     let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
-    {
-        let mut market = market_map.get_ref_mut(&market_index)?;
-        controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
-    }
 
     // standardize n shares to burn
     let shares_to_burn: u64 = {
@@ -971,8 +961,9 @@ pub fn handle_remove_liquidity<'info>(
         ErrorCode::TryingToRemoveLiquidityTooFast
     )?;
 
-    let position_index = get_position_index(&user.perp_positions, market_index)?;
-    let position = &mut user.perp_positions[position_index];
+    controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
+
+    let position = user.get_perp_position_mut(market_index)?;
 
     validate!(
         position.lp_shares >= shares_to_burn,
