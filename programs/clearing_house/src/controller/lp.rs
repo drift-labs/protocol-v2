@@ -146,10 +146,10 @@ pub fn settle_lp(
     Ok(())
 }
 
-// note: must settle funding before settling the lp bc 
-// settling the lp can take on a new position which requires funding 
+// note: must settle funding before settling the lp bc
+// settling the lp can take on a new position which requires funding
 // to be up-to-date
-pub fn settle_lp_and_funding_payment(
+pub fn settle_funding_payment_then_lp(
     user: &mut User,
     user_key: &Pubkey,
     market: &mut PerpMarket,

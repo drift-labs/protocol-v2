@@ -58,7 +58,7 @@ pub fn settle_pnl(
 
     validate_market_within_price_band(&market, state, true, None)?;
 
-    crate::controller::lp::settle_lp_and_funding_payment(user, user_key, &mut market, now)?;
+    crate::controller::lp::settle_funding_payment_then_lp(user, user_key, &mut market, now)?;
 
     drop(market);
 

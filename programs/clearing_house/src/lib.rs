@@ -1045,7 +1045,7 @@ pub mod clearing_house {
             PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
 
         let market = &mut market_map.get_ref_mut(&market_index)?;
-        controller::lp::settle_lp_and_funding_payment(user, &user_key, market, now)?;
+        controller::lp::settle_funding_payment_then_lp(user, &user_key, market, now)?;
 
         Ok(())
     }
