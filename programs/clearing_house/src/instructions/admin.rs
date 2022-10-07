@@ -19,11 +19,11 @@ use crate::math::amm::get_update_k_result;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
 use crate::math::constants::{
     DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
-    IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX,
-    INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
-    MAX_UPDATE_K_PRICE_CHANGE, QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION,
-    SPOT_IMF_PRECISION, SPOT_UTILIZATION_PRECISION, SPOT_UTILIZATION_PRECISION_U32,
-    SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+    DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE, IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX,
+    INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION,
+    MAX_CONCENTRATION_COEFFICIENT, MAX_UPDATE_K_PRICE_CHANGE, QUOTE_SPOT_MARKET_INDEX,
+    SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_UTILIZATION_PRECISION,
+    SPOT_UTILIZATION_PRECISION_U32, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::repeg::get_total_fee_lower_bound;
@@ -62,7 +62,6 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         number_of_authorities: 0,
         number_of_markets: 0,
         number_of_spot_markets: 0,
-        min_order_quote_asset_amount: 500_000, // 50 cents
         min_perp_auction_duration: 10,
         default_market_order_time_in_force: 60,
         default_spot_auction_duration: 10,
@@ -234,8 +233,8 @@ pub fn handle_initialize_spot_market(
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
         withdraw_guard_threshold: 0,
         order_step_size,
-        order_tick_size: 0,
-        order_minimum_size: 0,
+        order_tick_size: DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE,
+        min_order_size: order_step_size,
         max_position_size: 0,
         next_fill_record_id: 1,
         spot_fee_pool: PoolBalance::default(), // in quote asset
@@ -524,7 +523,6 @@ pub fn handle_initialize_market(
             total_exchange_fee: 0,
             total_liquidation_fee: 0,
             net_revenue_since_last_funding: 0,
-            minimum_quote_asset_trade_size: 10000000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price,
                 last_oracle_delay: oracle_delay,
@@ -536,9 +534,9 @@ pub fn handle_initialize_market(
             last_oracle_normalised_price: oracle_price,
             last_oracle_conf_pct: 0,
             last_oracle_reserve_price_spread_pct: 0, // todo
-            base_asset_amount_step_size: DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE,
-            order_tick_size: 0,
-            order_minimum_size: 0,
+            order_step_size: DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE,
+            order_tick_size: DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE,
+            min_order_size: DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE,
             max_position_size: 0,
             max_slippage_ratio: 50,           // ~2%
             max_base_asset_amount_ratio: 100, // moves price ~2%
@@ -1564,18 +1562,6 @@ pub fn handle_update_market_oracle(
 #[access_control(
     market_valid(&ctx.accounts.market)
 )]
-pub fn handle_update_market_minimum_quote_asset_trade_size(
-    ctx: Context<AdminUpdateMarket>,
-    minimum_trade_size: u128,
-) -> Result<()> {
-    let market = &mut load_mut!(ctx.accounts.market)?;
-    market.amm.minimum_quote_asset_trade_size = minimum_trade_size;
-    Ok(())
-}
-
-#[access_control(
-    market_valid(&ctx.accounts.market)
-)]
 pub fn handle_update_market_base_spread(
     ctx: Context<AdminUpdateMarket>,
     base_spread: u16,
@@ -1634,16 +1620,28 @@ pub fn handle_update_market_max_spread(
 #[access_control(
     market_valid(&ctx.accounts.market)
 )]
-pub fn handle_update_market_base_asset_amount_step_size(
+pub fn handle_update_perp_step_size_and_tick_size(
     ctx: Context<AdminUpdateMarket>,
-    minimum_trade_size: u64,
+    step_size: u64,
+    tick_size: u64,
 ) -> Result<()> {
     let market = &mut load_mut!(ctx.accounts.market)?;
-    if minimum_trade_size > 0 {
-        market.amm.base_asset_amount_step_size = minimum_trade_size;
-    } else {
-        return Err(ErrorCode::DefaultError.into());
-    }
+    validate!(step_size > 0 && tick_size > 0, ErrorCode::DefaultError)?;
+    market.amm.order_step_size = step_size;
+    market.amm.order_tick_size = tick_size;
+    Ok(())
+}
+
+#[access_control(
+    market_valid(&ctx.accounts.market)
+)]
+pub fn handle_update_perp_min_order_size(
+    ctx: Context<AdminUpdateMarket>,
+    order_size: u64,
+) -> Result<()> {
+    let market = &mut load_mut!(ctx.accounts.market)?;
+    validate!(order_size > 0, ErrorCode::DefaultError)?;
+    market.amm.min_order_size = order_size;
     Ok(())
 }
 

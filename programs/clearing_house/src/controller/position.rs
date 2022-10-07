@@ -408,7 +408,7 @@ pub fn update_position_and_market(
     validate!(
         is_multiple_of_step_size(
             position.base_asset_amount.unsigned_abs(),
-            market.amm.base_asset_amount_step_size
+            market.amm.order_step_size
         )?,
         ErrorCode::DefaultError,
         "update_position_and_market left invalid position before {} after {}",
@@ -857,7 +857,7 @@ mod test {
             amm: AMM {
                 cumulative_funding_rate_long: 1,
                 sqrt_k: 1,
-                base_asset_amount_step_size: 1,
+                order_step_size: 1,
                 ..AMM::default()
             },
             open_interest: 0,
@@ -1171,7 +1171,7 @@ mod test {
                 quote_asset_amount_short: 0,
                 cumulative_funding_rate_short: 2,
                 cumulative_funding_rate_long: 1,
-                base_asset_amount_step_size: 1,
+                order_step_size: 1,
                 ..AMM::default()
             },
             open_interest: 1,
@@ -1581,7 +1581,7 @@ mod test {
                 quote_asset_amount_long: -11,
                 quote_entry_amount_long: -8,
                 cumulative_funding_rate_long: 1,
-                base_asset_amount_step_size: 1,
+                order_step_size: 1,
                 ..AMM::default()
             },
             open_interest: 2,
@@ -1626,7 +1626,7 @@ mod test {
                 quote_asset_amount_short: 11,
                 quote_entry_amount_short: 15,
                 cumulative_funding_rate_short: 1,
-                base_asset_amount_step_size: 1,
+                order_step_size: 1,
                 ..AMM::default()
             },
             open_interest: 2,

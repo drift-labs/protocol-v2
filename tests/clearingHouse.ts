@@ -114,6 +114,8 @@ describe('clearing_house', () => {
 			periodicity
 		);
 
+		await clearingHouse.updatePerpStepSizeAndTickSize(0, new BN(1), new BN(1));
+
 		console.log(
 			'tx logs',
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
@@ -574,7 +576,7 @@ describe('clearing_house', () => {
 		try {
 			await clearingHouse.openPosition(
 				PositionDirection.LONG,
-				clearingHouse.getPerpMarketAccount(0).amm.baseAssetAmountStepSize,
+				clearingHouse.getPerpMarketAccount(0).amm.orderStepSize,
 				0
 			);
 		} catch (e) {

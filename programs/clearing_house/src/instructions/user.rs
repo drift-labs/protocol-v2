@@ -875,17 +875,17 @@ pub fn handle_add_liquidity<'info>(
         let mut market = market_map.get_ref_mut(&market_index)?;
 
         validate!(
-            n_shares >= market.amm.base_asset_amount_step_size,
+            n_shares >= market.amm.order_step_size,
             ErrorCode::DefaultError,
             "minting {} shares is less than step size {}",
             n_shares,
-            market.amm.base_asset_amount_step_size,
+            market.amm.order_step_size,
         )?;
 
         // standardize n shares to mint
         let n_shares = crate::math::orders::standardize_base_asset_amount(
             n_shares.cast()?,
-            market.amm.base_asset_amount_step_size,
+            market.amm.order_step_size,
         )?
         .cast::<u64>()?;
 
@@ -951,7 +951,7 @@ pub fn handle_remove_liquidity<'info>(
         let market = market_map.get_ref(&market_index)?;
         crate::math::orders::standardize_base_asset_amount(
             shares_to_burn.cast()?,
-            market.amm.base_asset_amount_step_size,
+            market.amm.order_step_size,
         )?
         .cast()?
     };

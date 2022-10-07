@@ -730,6 +730,6 @@ export function calculateMaxBaseAssetAmountFillable(
 
 	return standardizeBaseAssetAmount(
 		BN.min(maxFillSize, maxBaseAssetAmountOnSide),
-		amm.baseAssetAmountStepSize
+		amm.orderStepSize
 	);
 }

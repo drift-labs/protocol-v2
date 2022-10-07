@@ -158,7 +158,8 @@ describe('delist market', () => {
 
 		// await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
 		// await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
-		await clearingHouse.updateMarketBaseAssetAmountStepSize(0, new BN(1));
+		await clearingHouse.updatePerpStepSizeAndTickSize(0, new BN(1), new BN(1));
+		await clearingHouse.updatePerpMinOrderSize(0, new BN(1));
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,

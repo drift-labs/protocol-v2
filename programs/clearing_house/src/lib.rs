@@ -36,7 +36,6 @@ declare_id!("DUZwKJKAk2C9S88BYvQzck1M1i5hySQjxB4zW6tJ29Nw");
 
 #[program]
 pub mod clearing_house {
-
     use super::*;
 
     /// User Instructions
@@ -177,6 +176,7 @@ pub mod clearing_house {
     pub fn settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
         handle_settle_pnl(ctx, market_index)
     }
+
     pub fn settle_funding_payment(ctx: Context<SettleFunding>) -> Result<()> {
         handle_settle_funding_payment(ctx)
     }
@@ -644,13 +644,6 @@ pub mod clearing_house {
         handle_update_market_oracle(ctx, oracle, oracle_source)
     }
 
-    pub fn update_market_minimum_quote_asset_trade_size(
-        ctx: Context<AdminUpdateMarket>,
-        minimum_trade_size: u128,
-    ) -> Result<()> {
-        handle_update_market_minimum_quote_asset_trade_size(ctx, minimum_trade_size)
-    }
-
     pub fn update_market_base_spread(
         ctx: Context<AdminUpdateMarket>,
         base_spread: u16,
@@ -672,11 +665,22 @@ pub mod clearing_house {
         handle_update_market_max_spread(ctx, max_spread)
     }
 
-    pub fn update_market_base_asset_amount_step_size(
+    pub fn update_perp_step_size_and_tick_size(
         ctx: Context<AdminUpdateMarket>,
-        minimum_trade_size: u64,
+        step_size: u64,
+        tick_size: u64,
     ) -> Result<()> {
-        handle_update_market_base_asset_amount_step_size(ctx, minimum_trade_size)
+        handle_update_perp_step_size_and_tick_size(ctx, step_size, tick_size)
+    }
+
+    #[access_control(
+        market_valid(&ctx.accounts.market)
+    )]
+    pub fn update_perp_min_order_size(
+        ctx: Context<AdminUpdateMarket>,
+        order_size: u64,
+    ) -> Result<()> {
+        handle_update_perp_min_order_size(ctx, order_size)
     }
 
     pub fn update_market_max_slippage_ratio(
