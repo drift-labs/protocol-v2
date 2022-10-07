@@ -44,7 +44,6 @@ pub mod clearing_house {
     use std::option::Option::Some;
 
     use crate::controller::lp::burn_lp_shares;
-    use crate::controller::position::get_position_index;
     use crate::controller::validate::validate_market_account;
     use crate::math;
     use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32, Cast};
@@ -1046,10 +1045,7 @@ pub mod clearing_house {
             PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
 
         let market = &mut market_map.get_ref_mut(&market_index)?;
-
-        controller::funding::settle_funding_payment(user, &user_key, market, now)?;
-
-        controller::lp::settle_lp(user, &user_key, market, now)?;
+        controller::lp::settle_funding_payment_then_lp(user, &user_key, market, now)?;
 
         Ok(())
     }
@@ -1079,10 +1075,6 @@ pub mod clearing_house {
         let _spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
         let market_map =
             PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
-        {
-            let mut market = market_map.get_ref_mut(&market_index)?;
-            controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
-        }
 
         // standardize n shares to burn
         let shares_to_burn: u64 = {
@@ -1109,15 +1101,17 @@ pub mod clearing_house {
             ErrorCode::TryingToRemoveLiquidityTooFast
         )?;
 
-        let position_index = get_position_index(&user.perp_positions, market_index)?;
-        let position = &mut user.perp_positions[position_index];
+        crate::controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
+
+        let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+
+        let position = user.get_perp_position_mut(market_index)?;
 
         validate!(
             position.lp_shares >= shares_to_burn,
             ErrorCode::InsufficientLPTokens
         )?;
 
-        let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
         let (position_delta, pnl) =
             burn_lp_shares(position, &mut market, shares_to_burn, oracle_price)?;
 
@@ -1156,26 +1150,8 @@ pub mod clearing_house {
             Some(state.oracle_guard_rails),
         )?;
         let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-
         let market_map =
             PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
-
-        {
-            let mut market = market_map.get_ref_mut(&market_index)?;
-            controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
-
-            validate!(
-                matches!(
-                    market.status,
-                    MarketStatus::Active
-                        | MarketStatus::FundingPaused
-                        | MarketStatus::FillPaused
-                        | MarketStatus::WithdrawPaused
-                ),
-                ErrorCode::DefaultError,
-                "Market Status doesn't allow for new LP liquidity"
-            )?;
-        }
 
         validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
         math::liquidation::validate_user_not_being_liquidated(
@@ -1188,6 +1164,18 @@ pub mod clearing_house {
 
         {
             let mut market = market_map.get_ref_mut(&market_index)?;
+
+            validate!(
+                matches!(
+                    market.status,
+                    MarketStatus::Active
+                        | MarketStatus::FundingPaused
+                        | MarketStatus::FillPaused
+                        | MarketStatus::WithdrawPaused
+                ),
+                ErrorCode::DefaultError,
+                "Market Status doesn't allow for new LP liquidity"
+            )?;
 
             validate!(
                 n_shares >= market.amm.base_asset_amount_step_size,
@@ -1203,6 +1191,8 @@ pub mod clearing_house {
                 market.amm.base_asset_amount_step_size,
             )?
             .cast::<u64>()?;
+
+            crate::controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
 
             controller::lp::mint_lp_shares(
                 user.force_get_perp_position_mut(market_index)?,

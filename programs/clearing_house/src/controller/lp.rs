@@ -1,4 +1,3 @@
-use crate::controller::position::get_position_index;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math_error;
 use crate::state::market::PerpMarket;
@@ -126,9 +125,8 @@ pub fn settle_lp(
     user_key: &Pubkey,
     market: &mut PerpMarket,
     now: i64,
-) -> ClearingHouseResult<()> {
-    if let Ok(position_index) = get_position_index(&user.perp_positions, market.market_index) {
-        let position = &mut user.perp_positions[position_index];
+) -> ClearingHouseResult {
+    if let Ok(position) = user.get_perp_position_mut(market.market_index) {
         if position.lp_shares > 0 {
             let (position_delta, pnl) = settle_lp_position(position, market)?;
 
@@ -143,8 +141,22 @@ pub fn settle_lp(
                 n_shares: 0
             });
         }
-    };
+    }
+
     Ok(())
+}
+
+// note: must settle funding before settling the lp bc
+// settling the lp can take on a new position which requires funding
+// to be up-to-date
+pub fn settle_funding_payment_then_lp(
+    user: &mut User,
+    user_key: &Pubkey,
+    market: &mut PerpMarket,
+    now: i64,
+) -> ClearingHouseResult {
+    crate::controller::funding::settle_funding_payment(user, user_key, market, now)?;
+    settle_lp(user, user_key, market, now)
 }
 
 pub fn burn_lp_shares(
@@ -153,10 +165,6 @@ pub fn burn_lp_shares(
     shares_to_burn: u64,
     oracle_price: i128,
 ) -> ClearingHouseResult<(PositionDelta, i64)> {
-    if shares_to_burn == 0 {
-        return Ok((PositionDelta::default(), 0));
-    }
-
     // settle
     let (position_delta, pnl) = settle_lp_position(position, market)?;
 
