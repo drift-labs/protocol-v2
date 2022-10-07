@@ -111,6 +111,7 @@ pub mod clearing_house {
     }
 
     pub fn add_liquidity(
+        // add_perp_lp_shares
         ctx: Context<AddRemoveLiquidity>,
         n_shares: u64,
         market_index: u16,
@@ -119,6 +120,7 @@ pub mod clearing_house {
     }
 
     pub fn remove_liquidity(
+        // remove_perp_lp_shares
         ctx: Context<AddRemoveLiquidity>,
         shares_to_burn: u64,
         market_index: u16,
@@ -387,6 +389,7 @@ pub mod clearing_house {
     }
 
     pub fn initialize_market(
+        // initialize_perp_market
         ctx: Context<InitializeMarket>,
         amm_base_asset_reserve: u128,
         amm_quote_asset_reserve: u128,

@@ -32,31 +32,36 @@ pub struct SpotMarket {
     pub insurance_fund_vault: Pubkey,
     pub historical_oracle_data: HistoricalOracleData,
     pub historical_index_data: HistoricalIndexData,
-    pub revenue_pool: PoolBalance,  // in base asset
-    pub spot_fee_pool: PoolBalance, // in quote asset
-    pub initial_asset_weight: u128,
-    pub maintenance_asset_weight: u128,
-    pub initial_liability_weight: u128,
-    pub maintenance_liability_weight: u128,
-    pub imf_factor: u128,
-    pub liquidator_fee: u128,
-    pub if_liquidation_fee: u128, // percentage of liquidation transfer for total insurance
-    pub withdraw_guard_threshold: u128, // no withdraw limits/guards when deposits below this threshold
-    pub total_if_shares: u128,
-    pub user_if_shares: u128,
-    pub if_shares_base: u128, // exponent for lp shares (for rebasing)
+    pub revenue_pool: PoolBalance,          // in base asset
+    pub spot_fee_pool: PoolBalance,         // in quote asset
+    pub initial_asset_weight: u128,         // u32
+    pub maintenance_asset_weight: u128,     // u32
+    pub initial_liability_weight: u128,     // u32
+    pub maintenance_liability_weight: u128, // u32
+    pub imf_factor: u128,                   // u32
+    pub liquidator_fee: u128,               //u32
+    // percentage of liquidation transfer for total insurance
+    pub if_liquidation_fee: u128, // u32
+    // no withdraw limits/guards when deposits below this threshold
+    pub withdraw_guard_threshold: u128, // u64
     pub total_spot_fee: u128,
     pub deposit_balance: u128,
     pub borrow_balance: u128,
-    pub max_token_deposits: u128,
-    pub deposit_token_twap: u128, // 24 hour twap
-    pub borrow_token_twap: u128,  // 24 hour twap
-    pub utilization_twap: u128,   // 24 hour twap
+    pub max_token_deposits: u128, //u64
+    pub deposit_token_twap: u128, // 24 hour twap u64
+    pub borrow_token_twap: u128,  // 24 hour twap u64
+    pub utilization_twap: u128,   // 24 hour twap u32
     pub cumulative_deposit_interest: u128,
     pub cumulative_borrow_interest: u128,
-    pub insurance_withdraw_escrow_period: i64,
+
+    // InsuranceState
+    pub total_if_shares: u128,
+    pub user_if_shares: u128,
+    pub if_shares_base: u128, // exponent for lp shares (for rebasing)
+    pub insurance_withdraw_escrow_period: i64, // if_unstaking_period
     pub last_revenue_settle_ts: i64,
     pub revenue_settle_period: i64,
+
     pub last_interest_ts: u64,
     pub last_twap_ts: u64,
     pub expiry_ts: i64, // iff market in reduce only mode
@@ -71,7 +76,7 @@ pub struct SpotMarket {
     pub total_if_factor: u32, // percentage of interest for total insurance
     pub user_if_factor: u32,  // percentage of interest for user staked insurance
     pub market_index: u16,
-    pub decimals: u8,
+    pub decimals: u8, // u32
     pub oracle_source: OracleSource,
     pub status: MarketStatus,
     pub asset_tier: AssetTier,
@@ -239,6 +244,8 @@ impl Default for SpotBalanceType {
 }
 
 pub trait SpotBalance {
+    // SpotTokenShares
+
     fn market_index(&self) -> u16;
 
     fn balance_type(&self) -> &SpotBalanceType;

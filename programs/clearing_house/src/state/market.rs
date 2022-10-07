@@ -76,28 +76,30 @@ pub struct PerpMarket {
     pub pubkey: Pubkey,
     pub amm: AMM,
     pub pnl_pool: PoolBalance,
-    pub settlement_price: i128, // iff market has expired, price users can settle position
-    pub base_asset_amount_long: i128,
+    // iff market has expired, price users can settle position
+    pub settlement_price: i128,       // expiry price i64
+    pub base_asset_amount_long: i128, // move to amm
     pub base_asset_amount_short: i128,
-    pub open_interest: u128, // number of users in a position
-    pub revenue_withdraw_since_last_settle: u128,
-    pub max_revenue_withdraw_per_period: u128,
-    pub imf_factor: u128,
-    pub unrealized_imf_factor: u128,
-    pub unrealized_max_imbalance: u128,
-    pub liquidator_fee: u128,
-    pub if_liquidation_fee: u128,
-    pub quote_max_insurance: u128,
-    pub quote_settled_insurance: u128,
-    pub expiry_ts: i64, // iff market in reduce only mode
+    pub open_interest: u128, // number of users u32
+    // struct  InsuranceClaim
+    pub revenue_withdraw_since_last_settle: u128, // u64
+    pub max_revenue_withdraw_per_period: u128,    // u64
+    pub quote_max_insurance: u128,                // u64
+    pub quote_settled_insurance: u128,            // u64
+    pub last_revenue_withdraw_ts: i64,
+    pub imf_factor: u128,               // imf_factor u32
+    pub unrealized_imf_factor: u128,    //unrealized_pnl_imf_factor u32
+    pub unrealized_max_imbalance: u128, //max_unrealized_pnl_imbalance u64
+    pub liquidator_fee: u128,           // u32
+    pub if_liquidation_fee: u128,       // u32
+    pub expiry_ts: i64,                 // iff market in reduce only mode
     pub next_fill_record_id: u64,
     pub next_funding_rate_record_id: u64,
     pub next_curve_record_id: u64,
-    pub last_revenue_withdraw_ts: i64,
     pub margin_ratio_initial: u32,
     pub margin_ratio_maintenance: u32,
-    pub unrealized_initial_asset_weight: u32,
-    pub unrealized_maintenance_asset_weight: u32,
+    pub unrealized_initial_asset_weight: u32, // unrealized_pnl_initial_asset_weight
+    pub unrealized_maintenance_asset_weight: u32, // unrealized_pnl_maintenance_asset_weight
     pub market_index: u16,
     pub status: MarketStatus,
     pub contract_type: ContractType,
@@ -280,30 +282,30 @@ impl SpotBalance for PoolBalance {
 pub struct AMM {
     pub oracle: Pubkey,
     pub historical_oracle_data: HistoricalOracleData,
-    pub market_position: PerpPosition,
-    pub market_position_per_lp: PerpPosition,
+    pub market_position: PerpPosition,        // remove
+    pub market_position_per_lp: PerpPosition, // remove
     pub fee_pool: PoolBalance,
-    pub last_oracle_normalised_price: i128,
-    pub last_oracle_reserve_price_spread_pct: i128,
+    pub last_oracle_normalised_price: i128,         // i64
+    pub last_oracle_reserve_price_spread_pct: i128, //i64
     pub base_asset_reserve: u128,
     pub quote_asset_reserve: u128,
-    pub concentration_coef: u128,
+    pub concentration_coef: u128, // u32
     pub min_base_asset_reserve: u128,
     pub max_base_asset_reserve: u128,
     pub sqrt_k: u128,
-    pub peg_multiplier: u128,
+    pub peg_multiplier: u128, // u64
     pub terminal_quote_asset_reserve: u128,
-    pub net_base_asset_amount: i128,
+    pub net_base_asset_amount: i128, // base_asset_amount_with_amm
     pub quote_asset_amount_long: i128,
     pub quote_asset_amount_short: i128,
     pub quote_entry_amount_long: i128,
     pub quote_entry_amount_short: i128,
     pub user_lp_shares: u128,
-    pub net_unsettled_lp_base_asset_amount: i128,
-    pub last_funding_rate: i128,
-    pub last_funding_rate_long: i128,
-    pub last_funding_rate_short: i128,
-    pub last_24h_avg_funding_rate: i128,
+    pub net_unsettled_lp_base_asset_amount: i128, // base_asset_amount_with_unsettled_lp
+    pub last_funding_rate: i128,                  // i64
+    pub last_funding_rate_long: i128,             // i64
+    pub last_funding_rate_short: i128,            // i64
+    pub last_24h_avg_funding_rate: i128,          // i64
     pub total_fee: i128,
     pub total_mm_fee: i128,
     pub total_exchange_fee: u128,
@@ -313,16 +315,16 @@ pub struct AMM {
     pub cumulative_funding_rate_long: i128,
     pub cumulative_funding_rate_short: i128,
     pub cumulative_social_loss: i128,
-    pub long_spread: u128,
-    pub short_spread: u128,
+    pub long_spread: u128,  // u32
+    pub short_spread: u128, // u32
     pub ask_base_asset_reserve: u128,
     pub ask_quote_asset_reserve: u128,
     pub bid_base_asset_reserve: u128,
     pub bid_quote_asset_reserve: u128,
-    pub last_bid_price_twap: u128,
-    pub last_ask_price_twap: u128,
-    pub last_mark_price_twap: u128,
-    pub last_mark_price_twap_5min: u128,
+    pub last_bid_price_twap: u128,       //u64
+    pub last_ask_price_twap: u128,       // u64
+    pub last_mark_price_twap: u128,      // u64
+    pub last_mark_price_twap_5min: u128, // u64
     pub last_update_slot: u64,
     pub last_oracle_conf_pct: u64,
     pub net_revenue_since_last_funding: i64,
@@ -340,11 +342,11 @@ pub struct AMM {
     pub mark_std: u64,
     pub last_mark_price_twap_ts: i64,
     pub max_spread: u32,
-    pub max_base_asset_amount_ratio: u16,
-    pub max_slippage_ratio: u16,
+    pub max_base_asset_amount_ratio: u16, // max_fill_reserve_fraction
+    pub max_slippage_ratio: u16,          // MAKE CONSTANT
     pub base_spread: u16,
-    pub long_intensity_count: u16,
-    pub short_intensity_count: u16,
+    pub long_intensity_count: u16,  // u32
+    pub short_intensity_count: u16, // u32
     pub curve_update_intensity: u8,
     pub amm_jit_intensity: u8,
     pub oracle_source: OracleSource,

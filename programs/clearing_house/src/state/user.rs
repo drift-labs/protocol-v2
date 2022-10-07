@@ -33,13 +33,13 @@ pub struct User {
     pub spot_positions: [SpotPosition; 8],
     pub perp_positions: [PerpPosition; 8],
     pub orders: [Order; 32],
-    pub last_lp_add_time: i64,
+    pub last_lp_add_time: i64, // last_add_perp_lp_shares_ts
     pub next_order_id: u32,
-    pub custom_margin_ratio: u32,
+    pub custom_margin_ratio: u32, // max_margin_ratio
     pub next_liquidation_id: u16,
-    pub user_id: u8,
-    pub being_liquidated: bool,
-    pub bankrupt: bool,
+    pub user_id: u8,            // subaccount_id
+    pub being_liquidated: bool, // is_being_liquidated
+    pub bankrupt: bool,         // is_bankrupt
     pub padding: [u8; 3],
 }
 
@@ -260,7 +260,7 @@ impl SpotPosition {
 #[derive(Default, Debug, Eq, PartialEq)]
 #[repr(C)]
 pub struct PerpPosition {
-    pub last_cumulative_funding_rate: i128,
+    pub last_cumulative_funding_rate: i128, //  i64
     pub base_asset_amount: i64,
     pub quote_asset_amount: i64,
     pub quote_entry_amount: i64,
@@ -419,7 +419,7 @@ pub struct Order {
     pub quote_asset_amount_filled: u64,
     pub fee: i64,
     pub trigger_price: u64,
-    pub oracle_price_offset: i64,
+    pub oracle_price_offset: i64, // i32
     pub auction_start_price: u64,
     pub auction_end_price: u64,
     pub order_id: u32,
@@ -428,11 +428,11 @@ pub struct Order {
     pub order_type: OrderType,
     pub market_type: MarketType,
     pub user_order_id: u8,
-    pub existing_position_direction: PositionDirection,
+    pub existing_position_direction: PositionDirection, // OrderRecord
     pub direction: PositionDirection,
-    pub reduce_only: bool,
+    pub reduce_only: bool, // OrderRecord
     pub post_only: bool,
-    pub immediate_or_cancel: bool,
+    pub immediate_or_cancel: bool, // OrderRecord
     pub trigger_condition: OrderTriggerCondition,
     pub triggered: bool,
     pub auction_duration: u8,
@@ -456,7 +456,7 @@ impl Order {
         valid_oracle_price: Option<i128>,
         slot: u64,
         tick_size: u64,
-        amm: Option<&AMM>,
+        amm: Option<&AMM>, // remove but pass in max slippage
     ) -> ClearingHouseResult<u128> {
         // the limit price can be hardcoded on order or derived based on oracle/slot
         let price = if self.has_oracle_price_offset() {
@@ -486,6 +486,7 @@ impl Order {
                 self.price as u128
             } else {
                 match amm {
+                    // remove this
                     Some(amm) => match self.direction {
                         PositionDirection::Long => {
                             let ask_price = amm.ask_price(amm.reserve_price()?)?;
@@ -658,6 +659,7 @@ pub struct UserStats {
     pub referrer: Pubkey,
     pub fees: UserFees,
 
+    // Add to UserFees or delete UserFees
     pub total_referrer_reward: u64,
     pub current_epoch_referrer_reward: u64,
     pub next_epoch_ts: i64,
@@ -670,8 +672,8 @@ pub struct UserStats {
     pub last_taker_volume_30d_ts: i64,
     pub last_filler_volume_30d_ts: i64,
 
-    pub staked_quote_asset_amount: u64,
-    pub number_of_users: u8,
+    pub staked_quote_asset_amount: u64, // if_staked_quote_asset_amount
+    pub number_of_users: u8,            // number_of_subaccounts
     pub is_referrer: bool,
     pub padding: [u8; 6],
 }

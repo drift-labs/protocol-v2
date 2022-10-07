@@ -10,12 +10,12 @@ use switchboard_v2::decimal::SwitchboardDecimal;
 #[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
 pub struct HistoricalOracleData {
     // use u64?
-    pub last_oracle_price: i128,
-    pub last_oracle_conf: u128,
+    pub last_oracle_price: i128, // i64
+    pub last_oracle_conf: u128,  // u64
     pub last_oracle_delay: i64,
-    pub last_oracle_price_twap: i128,
-    pub last_oracle_price_twap_5min: i128,
-    pub last_oracle_price_twap_ts: i64,
+    pub last_oracle_price_twap: i128,      // i64
+    pub last_oracle_price_twap_5min: i128, // i64
+    pub last_oracle_price_twap_ts: i64,    // i64
 }
 
 impl HistoricalOracleData {
@@ -56,10 +56,10 @@ impl HistoricalOracleData {
 #[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
 pub struct HistoricalIndexData {
     // use u64?
-    pub last_index_bid_price: u128,
-    pub last_index_ask_price: u128,
-    pub last_index_price_twap: u128,
-    pub last_index_price_twap_5min: u128,
+    pub last_index_bid_price: u128,       // u64
+    pub last_index_ask_price: u128,       // u64
+    pub last_index_price_twap: u128,      // u64
+    pub last_index_price_twap_5min: u128, // u64
     pub last_index_price_twap_ts: i64,
 }
 
