@@ -497,13 +497,14 @@ pub mod amm_jit {
         let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
         // taker wants to go long (would improve balance)
+        let taker_mul: i64 = 20;
         let mut taker = User {
             orders: get_orders(Order {
                 market_index: 0,
                 status: OrderStatus::Open,
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
-                base_asset_amount: BASE_PRECISION_U64 * 2, // if amm takes half it would flip
+                base_asset_amount: BASE_PRECISION_U64 * taker_mul as u64, // if amm takes half it would flip
                 ts: 0,
                 slot: 0,
                 auction_start_price: 0,
@@ -514,13 +515,13 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_asks: -BASE_PRECISION_I64 * 2,
+                open_asks: -BASE_PRECISION_I64 * taker_mul,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                balance: 100 * SPOT_BALANCE_PRECISION_U64 * taker_mul as u64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -532,7 +533,7 @@ pub mod amm_jit {
                 post_only: true,
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
-                base_asset_amount: BASE_PRECISION_U64 * 2, // maker wants full = amm wants BASE_PERCISION
+                base_asset_amount: BASE_PRECISION_U64 * taker_mul as u64, // maker wants full = amm wants BASE_PERCISION
                 ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
@@ -540,13 +541,13 @@ pub mod amm_jit {
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
                 open_orders: 1,
-                open_bids: BASE_PRECISION_I64 * 2,
+                open_bids: BASE_PRECISION_I64 * taker_mul,
                 ..PerpPosition::default()
             }),
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64 * taker_mul as u64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -603,7 +604,7 @@ pub mod amm_jit {
         // maker got (full - net_baa)
         assert_eq!(
             maker_position.base_asset_amount as i128,
-            BASE_PRECISION_I128 * 2 - market.amm.net_base_asset_amount
+            BASE_PRECISION_I128 * taker_mul as i128 - market.amm.net_base_asset_amount
         );
     }
 
@@ -1654,37 +1655,12 @@ pub mod amm_jit {
 
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64 / 2);
-        assert_eq!(taker_stats.taker_volume_30d, 89999984);
-
-        let maker_position = &maker.perp_positions[0];
-        assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I64 / 2 / 2);
-        assert_eq!(maker_position.quote_asset_amount, -49985000);
-        assert_eq!(maker_position.quote_entry_amount, -50000000);
-        assert_eq!(maker_position.open_orders, 1);
-        assert_eq!(maker_position.open_bids, 250000000);
-        assert_eq!(maker_stats.fees.total_fee_rebate, 15000);
-        assert_eq!(maker_stats.maker_volume_30d, 50000000);
-        assert_eq!(
-            maker_position.quote_entry_amount as i128 + maker_stats.fees.total_fee_rebate as i128,
-            maker_position.quote_asset_amount as i128
-        );
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, 250000000);
 
         // mm gains from trade
         let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
         assert!(quote_asset_amount_surplus < 0);
-        assert_eq!(quote_asset_amount_surplus, -16543210);
-
-        assert_eq!(market_after.amm.total_fee, -16517710);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, -16517710);
-        assert_eq!(market_after.amm.net_revenue_since_last_funding, -16517710);
-        assert_eq!(market_after.amm.total_mm_fee, -16543210);
-        assert_eq!(market_after.amm.total_exchange_fee, 27500);
-        assert_eq!(market_after.amm.total_fee_withdrawn, 0);
-
-        assert_eq!(filler_stats.filler_volume_30d, 89999984);
     }
 
     #[allow(clippy::comparison_chain)]
@@ -1848,19 +1824,6 @@ pub mod amm_jit {
             };
             println!("mark: {} bid ask: {} {}", mark, bid, ask);
 
-            let (_, _quote_asset_amount_surplus, _) =
-                crate::controller::position::update_position_with_base_asset_amount(
-                    baa / 2, // amm takes on half
-                    PositionDirection::Long,
-                    &mut market_map.get_ref_mut(&0).unwrap(),
-                    &mut taker,
-                    0,
-                    mark,
-                    now,
-                    Some(auction_price as u128),
-                )
-                .unwrap();
-
             let mut maker = User {
                 orders: get_orders(Order {
                     market_index: 0,
@@ -1928,11 +1891,6 @@ pub mod amm_jit {
                 slot, auction_price, quote_asset_amount_surplus
             );
 
-            assert_eq!(
-                _quote_asset_amount_surplus,
-                quote_asset_amount_surplus as i64
-            );
-
             if !has_set_prev_qas {
                 prev_qas = quote_asset_amount_surplus;
                 has_set_prev_qas = true;
@@ -1993,7 +1951,7 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                order_step_size: 1000,
+                order_step_size: 1,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
                 base_spread: 5000,
@@ -2117,7 +2075,7 @@ pub mod amm_jit {
 
             let auction_price =
                 crate::math::auction::calculate_auction_price(&taker.orders[0], slot, 1).unwrap();
-            let baa = market.amm.order_step_size * 4;
+            let baa = 1000 * 4;
 
             let (mark, ask, bid) = {
                 let market = market_map.get_ref(&0).unwrap();
@@ -2127,19 +2085,6 @@ pub mod amm_jit {
                 (mark, ask, bid)
             };
             println!("mark: {} bid ask: {} {}", mark, bid, ask);
-
-            let (_, _quote_asset_amount_surplus, _) =
-                crate::controller::position::update_position_with_base_asset_amount(
-                    baa / 2, // amm takes on half
-                    PositionDirection::Short,
-                    &mut market_map.get_ref_mut(&0).unwrap(),
-                    &mut taker,
-                    0,
-                    mark,
-                    now,
-                    Some(auction_price as u128),
-                )
-                .unwrap();
 
             let mut maker = User {
                 orders: get_orders(Order {
@@ -2199,18 +2144,13 @@ pub mod amm_jit {
             let quote_asset_amount_surplus = market_after.amm.total_mm_fee - prev_mm_fee;
             prev_mm_fee = market_after.amm.total_mm_fee;
 
-            // imbalance decreases
-            assert!(market_after.amm.net_base_asset_amount.abs() < prev_net_baa.abs());
+            // imbalance decreases or remains the same (damm wont always take on positions)
+            assert!(market_after.amm.net_base_asset_amount.abs() <= prev_net_baa.abs());
             prev_net_baa = market_after.amm.net_base_asset_amount;
 
             println!(
                 "slot {} auction: {} surplus: {}",
                 slot, auction_price, quote_asset_amount_surplus
-            );
-
-            assert_eq!(
-                _quote_asset_amount_surplus,
-                quote_asset_amount_surplus as i64
             );
 
             if !has_set_prev_qas {

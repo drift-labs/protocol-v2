@@ -10,19 +10,22 @@ use solana_program::msg;
 // assumption: taker_baa will improve market balance (see orders.rs & amm_wants_to_make)
 pub fn calculate_jit_base_asset_amount(
     market: &PerpMarket,
-    taker_base_asset_amount: u64,
+    maker_base_asset_amount: u64,
     auction_price: u128,
     valid_oracle_price: Option<i128>,
     taker_direction: PositionDirection,
 ) -> ClearingHouseResult<u64> {
-    let mut max_jit_amount = taker_base_asset_amount;
+    // only take up to 50% of what the maker is making
+    let mut max_jit_amount = maker_base_asset_amount
+        .checked_div(2)
+        .ok_or_else(math_error!())?;
 
     // check for wash trade
-    // simple impl: half max jit amount when likely to be wash
     if let Some(oracle_price) = valid_oracle_price {
         let oracle_price = cast_to_u128(oracle_price)?;
 
         // maker taking a short below oracle = likely to be a wash
+        // so we want to take less than 50%
         if taker_direction == PositionDirection::Long && auction_price < oracle_price {
             max_jit_amount = max_jit_amount.checked_div(4).ok_or_else(math_error!())?
         } else if taker_direction == PositionDirection::Short && auction_price > oracle_price {
@@ -78,12 +81,11 @@ pub fn calculate_jit_base_asset_amount(
     let amm_is_imbalanced =
         base_reserve < imbalance_lower_bound || base_reserve > imbalance_upper_bound;
 
+    // take more when amm is imbalanced
     let mut jit_base_asset_amount = if amm_is_imbalanced {
-        taker_base_asset_amount
-            .checked_div(2)
-            .ok_or_else(math_error!())?
+        maker_base_asset_amount
     } else {
-        taker_base_asset_amount
+        maker_base_asset_amount
             .checked_div(4)
             .ok_or_else(math_error!())?
     };
@@ -98,10 +100,8 @@ pub fn calculate_jit_base_asset_amount(
     jit_base_asset_amount = jit_base_asset_amount.min(max_jit_amount);
 
     // last step we always standardize
-    jit_base_asset_amount = standardize_base_asset_amount(
-        jit_base_asset_amount,
-        market.amm.order_step_size,
-    )?;
+    jit_base_asset_amount =
+        standardize_base_asset_amount(jit_base_asset_amount, market.amm.order_step_size)?;
 
     Ok(jit_base_asset_amount)
 }
