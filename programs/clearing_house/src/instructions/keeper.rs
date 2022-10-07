@@ -25,47 +25,6 @@ use crate::validate;
 use crate::{controller, math};
 
 #[access_control(
-    funding_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_update_spot_market_cumulative_interest(
-    ctx: Context<UpdateSpotMarketCumulativeInterest>,
-) -> Result<()> {
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    let now = Clock::get()?.unix_timestamp;
-    controller::spot_balance::update_spot_market_cumulative_interest(spot_market, None, now)?;
-    Ok(())
-}
-
-#[access_control(
-    amm_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_settle_lp<'info>(ctx: Context<SettleLP>, market_index: u16) -> Result<()> {
-    let user_key = ctx.accounts.user.key();
-    let user = &mut load_mut!(ctx.accounts.user)?;
-
-    let state = &ctx.accounts.state;
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let _oracle_map = OracleMap::load(
-        remaining_accounts_iter,
-        clock.slot,
-        Some(state.oracle_guard_rails),
-    )?;
-    let _spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-    let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
-
-    let market = &mut market_map.get_ref_mut(&market_index)?;
-
-    controller::funding::settle_funding_payment(user, &user_key, market, now)?;
-
-    controller::lp::settle_lp(user, &user_key, market, now)?;
-
-    Ok(())
-}
-
-#[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_fill_order<'info>(
@@ -138,47 +97,16 @@ pub fn handle_fill_order<'info>(
     Ok(())
 }
 
-#[access_control(
-    exchange_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u32) -> Result<()> {
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
-    let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-    let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
+pub enum SpotFulfillmentType {
+    SerumV3,
+    None,
+}
 
-    let market_type = match load!(ctx.accounts.user)?.get_order(order_id) {
-        Some(order) => order.market_type,
-        None => {
-            msg!("order_id not found {}", order_id);
-            return Ok(());
-        }
-    };
-
-    match market_type {
-        MarketType::Perp => controller::orders::trigger_order(
-            order_id,
-            &ctx.accounts.state,
-            &ctx.accounts.user,
-            &spot_market_map,
-            &perp_market_map,
-            &mut oracle_map,
-            &ctx.accounts.filler,
-            &Clock::get()?,
-        )?,
-        MarketType::Spot => controller::orders::trigger_spot_order(
-            order_id,
-            &ctx.accounts.state,
-            &ctx.accounts.user,
-            &spot_market_map,
-            &perp_market_map,
-            &mut oracle_map,
-            &ctx.accounts.filler,
-            &Clock::get()?,
-        )?,
+impl Default for SpotFulfillmentType {
+    fn default() -> Self {
+        SpotFulfillmentType::SerumV3
     }
-
-    Ok(())
 }
 
 #[access_control(
@@ -255,27 +183,192 @@ pub fn handle_fill_spot_order<'info>(
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_update_amms(ctx: Context<UpdateAMM>, market_indexes: [u16; 5]) -> Result<()> {
-    // up to ~60k compute units (per amm) worst case
-
-    let clock = Clock::get()?;
-
-    let state = &ctx.accounts.state;
-
+pub fn handle_trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u32) -> Result<()> {
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
-    let market_map = &mut PerpMarketMap::load(
-        &get_market_set_from_list(market_indexes),
-        remaining_accounts_iter,
-    )?;
+    let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
+    let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
+    let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
-    controller::repeg::update_amms(market_map, oracle_map, state, &clock)?;
+    let market_type = match load!(ctx.accounts.user)?.get_order(order_id) {
+        Some(order) => order.market_type,
+        None => {
+            msg!("order_id not found {}", order_id);
+            return Ok(());
+        }
+    };
+
+    match market_type {
+        MarketType::Perp => controller::orders::trigger_order(
+            order_id,
+            &ctx.accounts.state,
+            &ctx.accounts.user,
+            &spot_market_map,
+            &perp_market_map,
+            &mut oracle_map,
+            &ctx.accounts.filler,
+            &Clock::get()?,
+        )?,
+        MarketType::Spot => controller::orders::trigger_spot_order(
+            order_id,
+            &ctx.accounts.state,
+            &ctx.accounts.user,
+            &spot_market_map,
+            &perp_market_map,
+            &mut oracle_map,
+            &ctx.accounts.filler,
+            &Clock::get()?,
+        )?,
+    }
 
     Ok(())
 }
 
 #[access_control(
-withdraw_not_paused(&ctx.accounts.state)
+    withdraw_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
+    let clock = Clock::get()?;
+    let state = &ctx.accounts.state;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let mut oracle_map = OracleMap::load(
+        remaining_accounts_iter,
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+    let spot_market_map = SpotMarketMap::load(
+        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
+        remaining_accounts_iter,
+    )?;
+    let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
+
+    controller::repeg::update_amm(
+        market_index,
+        &market_map,
+        &mut oracle_map,
+        state,
+        &Clock::get()?,
+    )?;
+
+    let user_key = ctx.accounts.user.key();
+    let user = &mut load_mut!(ctx.accounts.user)?;
+
+    controller::pnl::settle_pnl(
+        market_index,
+        user,
+        ctx.accounts.authority.key,
+        &user_key,
+        &market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        clock.unix_timestamp,
+        state,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+funding_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_settle_funding_payment(ctx: Context<SettleFunding>) -> Result<()> {
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let user_key = ctx.accounts.user.key();
+    let user = &mut load_mut!(ctx.accounts.user)?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let market_map = PerpMarketMap::load(
+        &get_market_set_for_user_positions(&user.perp_positions),
+        remaining_accounts_iter,
+    )?;
+
+    controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
+    Ok(())
+}
+
+#[access_control(
+    amm_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_settle_lp<'info>(ctx: Context<SettleLP>, market_index: u16) -> Result<()> {
+    let user_key = ctx.accounts.user.key();
+    let user = &mut load_mut!(ctx.accounts.user)?;
+
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let _oracle_map = OracleMap::load(
+        remaining_accounts_iter,
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+    let _spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
+    let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
+
+    let market = &mut market_map.get_ref_mut(&market_index)?;
+
+    controller::funding::settle_funding_payment(user, &user_key, market, now)?;
+
+    controller::lp::settle_lp(user, &user_key, market, now)?;
+
+    Ok(())
+}
+
+#[allow(unused_must_use)]
+#[access_control(
+    withdraw_not_paused(&ctx.accounts.state) &&
+    amm_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_settle_expired_position(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
+    let clock = Clock::get()?;
+    let state = &ctx.accounts.state;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let mut oracle_map = OracleMap::load(
+        remaining_accounts_iter,
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+    let spot_market_map = SpotMarketMap::load(
+        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
+        remaining_accounts_iter,
+    )?;
+    let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
+
+    let user_key = ctx.accounts.user.key();
+    let user = &mut load_mut!(ctx.accounts.user)?;
+
+    math::liquidation::validate_user_not_being_liquidated(
+        user,
+        &market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        state.liquidation_margin_buffer_ratio,
+    )?;
+
+    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+
+    // todo: cancel all user open orders in market
+
+    controller::pnl::settle_expired_position(
+        market_index,
+        user,
+        &user_key,
+        &market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        clock.unix_timestamp,
+        state,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    withdraw_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_settle_expired_market(ctx: Context<UpdateAMM>, market_index: u16) -> Result<()> {
     let clock = Clock::get()?;
@@ -875,26 +968,6 @@ pub fn handle_update_funding_rate(
 }
 
 #[access_control(
-    funding_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_settle_funding_payment(ctx: Context<SettleFunding>) -> Result<()> {
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-
-    let user_key = ctx.accounts.user.key();
-    let user = &mut load_mut!(ctx.accounts.user)?;
-
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let market_map = PerpMarketMap::load(
-        &get_market_set_for_user_positions(&user.perp_positions),
-        remaining_accounts_iter,
-    )?;
-
-    controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
-    Ok(())
-}
-
-#[access_control(
     withdraw_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_settle_revenue_to_insurance_fund(
@@ -951,6 +1024,40 @@ pub fn handle_settle_revenue_to_insurance_fund(
     Ok(())
 }
 
+#[access_control(
+    funding_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_update_spot_market_cumulative_interest(
+    ctx: Context<UpdateSpotMarketCumulativeInterest>,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    let now = Clock::get()?.unix_timestamp;
+    controller::spot_balance::update_spot_market_cumulative_interest(spot_market, None, now)?;
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_update_amms(ctx: Context<UpdateAMM>, market_indexes: [u16; 5]) -> Result<()> {
+    // up to ~60k compute units (per amm) worst case
+
+    let clock = Clock::get()?;
+
+    let state = &ctx.accounts.state;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
+    let market_map = &mut PerpMarketMap::load(
+        &get_market_set_from_list(market_indexes),
+        remaining_accounts_iter,
+    )?;
+
+    controller::repeg::update_amms(market_map, oracle_map, state, &clock)?;
+
+    Ok(())
+}
+
 pub fn handle_update_user_quote_asset_insurance_stake(
     ctx: Context<UpdateUserQuoteAssetInsuranceStake>,
 ) -> Result<()> {
@@ -971,19 +1078,6 @@ pub fn handle_update_user_quote_asset_insurance_stake(
     )?;
 
     Ok(())
-}
-
-#[derive(Accounts)]
-pub struct SettleLP<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    pub user: AccountLoader<'info, User>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateAMM<'info> {
-    pub state: Box<Account<'info, State>>,
-    pub authority: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -1009,18 +1103,6 @@ pub struct FillOrder<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
 }
 
-#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
-pub enum SpotFulfillmentType {
-    SerumV3,
-    None,
-}
-
-impl Default for SpotFulfillmentType {
-    fn default() -> Self {
-        SpotFulfillmentType::SerumV3
-    }
-}
-
 #[derive(Accounts)]
 pub struct TriggerOrder<'info> {
     pub state: Box<Account<'info, State>>,
@@ -1030,6 +1112,28 @@ pub struct TriggerOrder<'info> {
         constraint = can_sign_for_user(&filler, &authority)?
     )]
     pub filler: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct SettlePNL<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct SettleFunding<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct SettleLP<'info> {
+    pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
 }
@@ -1194,10 +1298,45 @@ pub struct ResolvePerpPnlDeficit<'info> {
 }
 
 #[derive(Accounts)]
-pub struct SettleFunding<'info> {
+#[instruction(market_index: u16,)]
+pub struct SettleRevenueToInsuranceFund<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        constraint = state.signer.eq(&clearing_house_signer.key())
+    )]
+    /// CHECK: forced clearing_house_signer
+    pub clearing_house_signer: AccountInfo<'info>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateSpotMarketCumulativeInterest<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
-    pub user: AccountLoader<'info, User>,
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateAMM<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -1231,43 +1370,7 @@ pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
     #[account(
         mut,
         seeds = [b"insurance_fund_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
-    bump,
-    )]
-    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateSpotMarketCumulativeInterest<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    pub spot_market: AccountLoader<'info, SpotMarket>,
-}
-
-#[derive(Accounts)]
-#[instruction(market_index: u16,)]
-pub struct SettleRevenueToInsuranceFund<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
-        bump
-    )]
-    pub spot_market: AccountLoader<'info, SpotMarket>,
-    #[account(
-        mut,
-        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
-    #[account(
-        constraint = state.signer.eq(&clearing_house_signer.key())
-    )]
-    /// CHECK: forced clearing_house_signer
-    pub clearing_house_signer: AccountInfo<'info>,
-    #[account(
-        mut,
-        seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
 }

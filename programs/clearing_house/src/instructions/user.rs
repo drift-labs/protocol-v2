@@ -10,7 +10,6 @@ use crate::instructions::constraints::*;
 use crate::load;
 use crate::load_mut;
 use crate::math::casting::Cast;
-use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::margin::{meets_initial_margin_requirement, meets_withdraw_margin_requirement};
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
@@ -124,47 +123,6 @@ pub fn handle_initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result
 
     let state = &mut ctx.accounts.state;
     checked_increment!(state.number_of_authorities, 1);
-
-    Ok(())
-}
-
-pub fn handle_update_user_name(
-    ctx: Context<UpdateUser>,
-    _user_id: u8,
-    name: [u8; 32],
-) -> Result<()> {
-    let mut user = load_mut!(ctx.accounts.user)?;
-    user.name = name;
-    Ok(())
-}
-
-pub fn handle_update_user_custom_margin_ratio(
-    ctx: Context<UpdateUser>,
-    _user_id: u8,
-    margin_ratio: u32,
-) -> Result<()> {
-    let mut user = load_mut!(ctx.accounts.user)?;
-    user.custom_margin_ratio = margin_ratio;
-    Ok(())
-}
-
-pub fn handle_update_user_delegate(
-    ctx: Context<UpdateUser>,
-    _user_id: u8,
-    delegate: Pubkey,
-) -> Result<()> {
-    let mut user = load_mut!(ctx.accounts.user)?;
-    user.delegate = delegate;
-    Ok(())
-}
-
-pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
-    let user = &load!(ctx.accounts.user)?;
-    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
-
-    validate_user_deletion(user, user_stats)?;
-
-    checked_decrement!(user_stats.number_of_users, 1);
 
     Ok(())
 }
@@ -538,180 +496,24 @@ pub fn handle_transfer_deposit(
     Ok(())
 }
 
-#[access_control(
-    amm_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_remove_liquidity<'info>(
-    ctx: Context<AddRemoveLiquidity>,
-    shares_to_burn: u64,
-    market_index: u16,
-) -> Result<()> {
-    let user_key = ctx.accounts.user.key();
-    let user = &mut load_mut!(ctx.accounts.user)?;
-
-    let state = &ctx.accounts.state;
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
-        clock.slot,
-        Some(state.oracle_guard_rails),
-    )?;
-    let _spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-    let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
-    {
-        let mut market = market_map.get_ref_mut(&market_index)?;
-        controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
-    }
-
-    // standardize n shares to burn
-    let shares_to_burn: u64 = {
-        let market = market_map.get_ref(&market_index)?;
-        crate::math::orders::standardize_base_asset_amount(
-            shares_to_burn.cast()?,
-            market.amm.base_asset_amount_step_size,
-        )?
-        .cast()?
-    };
-
-    if shares_to_burn == 0 {
-        return Ok(());
-    }
-
-    let mut market = market_map.get_ref_mut(&market_index)?;
-
-    let time_since_last_add_liquidity = now
-        .checked_sub(user.last_lp_add_time)
-        .ok_or_else(math_error!())?;
-
-    validate!(
-        time_since_last_add_liquidity >= market.amm.lp_cooldown_time,
-        ErrorCode::TryingToRemoveLiquidityTooFast
-    )?;
-
-    let position_index = get_position_index(&user.perp_positions, market_index)?;
-    let position = &mut user.perp_positions[position_index];
-
-    validate!(
-        position.lp_shares >= shares_to_burn,
-        ErrorCode::InsufficientLPTokens
-    )?;
-
-    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-    let (position_delta, pnl) =
-        burn_lp_shares(position, &mut market, shares_to_burn, oracle_price)?;
-
-    emit!(LPRecord {
-        ts: now,
-        action: LPAction::RemoveLiquidity,
-        user: user_key,
-        n_shares: shares_to_burn,
-        market_index,
-        delta_base_asset_amount: position_delta.base_asset_amount,
-        delta_quote_asset_amount: position_delta.quote_asset_amount,
-        pnl,
-    });
-
-    Ok(())
-}
-
-#[access_control(
-    amm_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_add_liquidity<'info>(
-    ctx: Context<AddRemoveLiquidity>,
-    n_shares: u64,
-    market_index: u16,
-) -> Result<()> {
-    let user_key = ctx.accounts.user.key();
-    let user = &mut load_mut!(ctx.accounts.user)?;
-    let state = &ctx.accounts.state;
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
-        clock.slot,
-        Some(state.oracle_guard_rails),
-    )?;
-    let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-
-    let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
-
-    {
-        let mut market = market_map.get_ref_mut(&market_index)?;
-        controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
-
-        validate!(
-            matches!(
-                market.status,
-                MarketStatus::Active
-                    | MarketStatus::FundingPaused
-                    | MarketStatus::FillPaused
-                    | MarketStatus::WithdrawPaused
-            ),
-            ErrorCode::DefaultError,
-            "Market Status doesn't allow for new LP liquidity"
-        )?;
-    }
-
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
-    math::liquidation::validate_user_not_being_liquidated(
-        user,
-        &market_map,
-        &spot_market_map,
-        &mut oracle_map,
-        state.liquidation_margin_buffer_ratio,
-    )?;
-
-    {
-        let mut market = market_map.get_ref_mut(&market_index)?;
-
-        validate!(
-            n_shares >= market.amm.base_asset_amount_step_size,
-            ErrorCode::DefaultError,
-            "minting {} shares is less than step size {}",
-            n_shares,
-            market.amm.base_asset_amount_step_size,
-        )?;
-
-        // standardize n shares to mint
-        let n_shares = crate::math::orders::standardize_base_asset_amount(
-            n_shares.cast()?,
-            market.amm.base_asset_amount_step_size,
-        )?
-        .cast::<u64>()?;
-
-        controller::lp::mint_lp_shares(
-            user.force_get_perp_position_mut(market_index)?,
-            &mut market,
-            n_shares,
-        )?;
-
-        user.last_lp_add_time = now;
-    }
-
-    // check margin requirements
-    validate!(
-        meets_initial_margin_requirement(user, &market_map, &spot_market_map, &mut oracle_map)?,
-        ErrorCode::InsufficientCollateral,
-        "User does not meet initial margin requirement"
-    )?;
-
-    emit!(LPRecord {
-        ts: now,
-        action: LPAction::AddLiquidity,
-        user: user_key,
-        n_shares,
-        market_index,
-        ..LPRecord::default()
-    });
-
-    Ok(())
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct OrderParams {
+    pub order_type: OrderType,
+    pub market_type: MarketType,
+    pub direction: PositionDirection,
+    pub user_order_id: u8,
+    pub base_asset_amount: u64,
+    pub price: u64,
+    pub market_index: u16,
+    pub reduce_only: bool,
+    pub post_only: bool,
+    pub immediate_or_cancel: bool,
+    pub trigger_price: Option<u64>,
+    pub trigger_condition: OrderTriggerCondition,
+    pub oracle_price_offset: Option<i64>,
+    pub auction_duration: Option<u8>,
+    pub time_in_force: Option<u8>,
+    pub auction_start_price: Option<u64>,
 }
 
 #[access_control(
@@ -810,7 +612,7 @@ pub fn handle_cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: 
 }
 
 #[access_control(
-fill_not_paused(&ctx.accounts.state)
+    fill_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_place_and_take<'info>(
     ctx: Context<PlaceAndTake>,
@@ -1020,74 +822,47 @@ pub fn handle_place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
 }
 
 #[access_control(
-    withdraw_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
-    let clock = Clock::get()?;
-    let state = &ctx.accounts.state;
-
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
-        clock.slot,
-        Some(state.oracle_guard_rails),
-    )?;
-    let spot_market_map = SpotMarketMap::load(
-        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
-        remaining_accounts_iter,
-    )?;
-    let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
-
-    controller::repeg::update_amm(
-        market_index,
-        &market_map,
-        &mut oracle_map,
-        state,
-        &Clock::get()?,
-    )?;
-
-    let user_key = ctx.accounts.user.key();
-    let user = &mut load_mut!(ctx.accounts.user)?;
-
-    controller::pnl::settle_pnl(
-        market_index,
-        user,
-        ctx.accounts.authority.key,
-        &user_key,
-        &market_map,
-        &spot_market_map,
-        &mut oracle_map,
-        clock.unix_timestamp,
-        state,
-    )?;
-
-    Ok(())
-}
-
-#[allow(unused_must_use)]
-#[access_control(
-    withdraw_not_paused(&ctx.accounts.state) &&
     amm_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_settle_expired_position(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
-    let clock = Clock::get()?;
+pub fn handle_add_liquidity<'info>(
+    ctx: Context<AddRemoveLiquidity>,
+    n_shares: u64,
+    market_index: u16,
+) -> Result<()> {
+    let user_key = ctx.accounts.user.key();
+    let user = &mut load_mut!(ctx.accounts.user)?;
     let state = &ctx.accounts.state;
-
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
     let mut oracle_map = OracleMap::load(
         remaining_accounts_iter,
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-    let spot_market_map = SpotMarketMap::load(
-        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
-        remaining_accounts_iter,
-    )?;
+    let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
+
     let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
 
-    let user_key = ctx.accounts.user.key();
-    let user = &mut load_mut!(ctx.accounts.user)?;
+    {
+        let mut market = market_map.get_ref_mut(&market_index)?;
+        controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
 
+        validate!(
+            matches!(
+                market.status,
+                MarketStatus::Active
+                    | MarketStatus::FundingPaused
+                    | MarketStatus::FillPaused
+                    | MarketStatus::WithdrawPaused
+            ),
+            ErrorCode::DefaultError,
+            "Market Status doesn't allow for new LP liquidity"
+        )?;
+    }
+
+    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
     math::liquidation::validate_user_not_being_liquidated(
         user,
         &market_map,
@@ -1096,41 +871,171 @@ pub fn handle_settle_expired_position(ctx: Context<SettlePNL>, market_index: u16
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+    {
+        let mut market = market_map.get_ref_mut(&market_index)?;
 
-    // todo: cancel all user open orders in market
+        validate!(
+            n_shares >= market.amm.base_asset_amount_step_size,
+            ErrorCode::DefaultError,
+            "minting {} shares is less than step size {}",
+            n_shares,
+            market.amm.base_asset_amount_step_size,
+        )?;
 
-    controller::pnl::settle_expired_position(
-        market_index,
-        user,
-        &user_key,
-        &market_map,
-        &spot_market_map,
-        &mut oracle_map,
-        clock.unix_timestamp,
-        state,
+        // standardize n shares to mint
+        let n_shares = crate::math::orders::standardize_base_asset_amount(
+            n_shares.cast()?,
+            market.amm.base_asset_amount_step_size,
+        )?
+        .cast::<u64>()?;
+
+        controller::lp::mint_lp_shares(
+            user.force_get_perp_position_mut(market_index)?,
+            &mut market,
+            n_shares,
+        )?;
+
+        user.last_lp_add_time = now;
+    }
+
+    // check margin requirements
+    validate!(
+        meets_initial_margin_requirement(user, &market_map, &spot_market_map, &mut oracle_map)?,
+        ErrorCode::InsufficientCollateral,
+        "User does not meet initial margin requirement"
     )?;
+
+    emit!(LPRecord {
+        ts: now,
+        action: LPAction::AddLiquidity,
+        user: user_key,
+        n_shares,
+        market_index,
+        ..LPRecord::default()
+    });
 
     Ok(())
 }
 
-#[derive(Accounts)]
-pub struct InitializeUserStats<'info> {
-    #[account(
-        init,
-        seeds = [b"user_stats", authority.key.as_ref()],
-        space = std::mem::size_of::<UserStats>() + 8,
-        bump,
-        payer = payer
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    #[account(mut)]
-    pub state: Box<Account<'info, State>>,
-    pub authority: Signer<'info>,
-    #[account(mut)]
-    pub payer: Signer<'info>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
+#[access_control(
+    amm_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_remove_liquidity<'info>(
+    ctx: Context<AddRemoveLiquidity>,
+    shares_to_burn: u64,
+    market_index: u16,
+) -> Result<()> {
+    let user_key = ctx.accounts.user.key();
+    let user = &mut load_mut!(ctx.accounts.user)?;
+
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
+    let mut oracle_map = OracleMap::load(
+        remaining_accounts_iter,
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+    let _spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
+    let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
+    {
+        let mut market = market_map.get_ref_mut(&market_index)?;
+        controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
+    }
+
+    // standardize n shares to burn
+    let shares_to_burn: u64 = {
+        let market = market_map.get_ref(&market_index)?;
+        crate::math::orders::standardize_base_asset_amount(
+            shares_to_burn.cast()?,
+            market.amm.base_asset_amount_step_size,
+        )?
+        .cast()?
+    };
+
+    if shares_to_burn == 0 {
+        return Ok(());
+    }
+
+    let mut market = market_map.get_ref_mut(&market_index)?;
+
+    let time_since_last_add_liquidity = now
+        .checked_sub(user.last_lp_add_time)
+        .ok_or_else(math_error!())?;
+
+    validate!(
+        time_since_last_add_liquidity >= market.amm.lp_cooldown_time,
+        ErrorCode::TryingToRemoveLiquidityTooFast
+    )?;
+
+    let position_index = get_position_index(&user.perp_positions, market_index)?;
+    let position = &mut user.perp_positions[position_index];
+
+    validate!(
+        position.lp_shares >= shares_to_burn,
+        ErrorCode::InsufficientLPTokens
+    )?;
+
+    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+    let (position_delta, pnl) =
+        burn_lp_shares(position, &mut market, shares_to_burn, oracle_price)?;
+
+    emit!(LPRecord {
+        ts: now,
+        action: LPAction::RemoveLiquidity,
+        user: user_key,
+        n_shares: shares_to_burn,
+        market_index,
+        delta_base_asset_amount: position_delta.base_asset_amount,
+        delta_quote_asset_amount: position_delta.quote_asset_amount,
+        pnl,
+    });
+
+    Ok(())
+}
+
+pub fn handle_update_user_name(
+    ctx: Context<UpdateUser>,
+    _user_id: u8,
+    name: [u8; 32],
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+    user.name = name;
+    Ok(())
+}
+
+pub fn handle_update_user_custom_margin_ratio(
+    ctx: Context<UpdateUser>,
+    _user_id: u8,
+    margin_ratio: u32,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+    user.custom_margin_ratio = margin_ratio;
+    Ok(())
+}
+
+pub fn handle_update_user_delegate(
+    ctx: Context<UpdateUser>,
+    _user_id: u8,
+    delegate: Pubkey,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+    user.delegate = delegate;
+    Ok(())
+}
+
+pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
+    let user = &load!(ctx.accounts.user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+    validate_user_deletion(user, user_stats)?;
+
+    checked_decrement!(user_stats.number_of_users, 1);
+
+    Ok(())
 }
 
 #[derive(Accounts)]
@@ -1160,34 +1065,22 @@ pub struct InitializeUser<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(
-    user_id: u8,
-)]
-pub struct UpdateUser<'info> {
+pub struct InitializeUserStats<'info> {
     #[account(
-        mut,
-        seeds = [b"user", authority.key.as_ref(), user_id.to_le_bytes().as_ref()],
+        init,
+        seeds = [b"user_stats", authority.key.as_ref()],
+        space = std::mem::size_of::<UserStats>() + 8,
         bump,
-    )]
-    pub user: AccountLoader<'info, User>,
-    pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct DeleteUser<'info> {
-    #[account(
-        mut,
-        has_one = authority,
-        close = authority
-    )]
-    pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        has_one = authority
+        payer = payer
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -1255,14 +1148,6 @@ pub struct Withdraw<'info> {
 }
 
 #[derive(Accounts)]
-pub struct SettlePNL<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    pub user: AccountLoader<'info, User>,
-    pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
 #[instruction(market_index: u16,)]
 pub struct TransferDeposit<'info> {
     #[account(
@@ -1285,17 +1170,6 @@ pub struct TransferDeposit<'info> {
 }
 
 #[derive(Accounts)]
-pub struct AddRemoveLiquidity<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?,
-    )]
-    pub user: AccountLoader<'info, User>,
-    pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
 pub struct PlaceOrder<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
@@ -1306,30 +1180,15 @@ pub struct PlaceOrder<'info> {
     pub authority: Signer<'info>,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
-pub struct OrderParams {
-    pub order_type: OrderType,
-    pub market_type: MarketType,
-    pub direction: PositionDirection,
-    pub user_order_id: u8,
-    pub base_asset_amount: u64,
-    pub price: u64,
-    pub market_index: u16,
-    pub reduce_only: bool,
-    pub post_only: bool,
-    pub immediate_or_cancel: bool,
-    pub trigger_price: Option<u64>,
-    pub trigger_condition: OrderTriggerCondition,
-    pub oracle_price_offset: Option<i64>,
-    pub auction_duration: Option<u8>,
-    pub time_in_force: Option<u8>,
-    pub auction_start_price: Option<u64>,
-}
-
-impl Default for OrderType {
-    fn default() -> Self {
-        OrderType::Limit
-    }
+#[derive(Accounts)]
+pub struct CancelOrder<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -1372,13 +1231,44 @@ pub struct PlaceAndMake<'info> {
 }
 
 #[derive(Accounts)]
-pub struct CancelOrder<'info> {
+pub struct AddRemoveLiquidity<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
-        constraint = can_sign_for_user(&user, &authority)?
+        constraint = can_sign_for_user(&user, &authority)?,
     )]
     pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    user_id: u8,
+)]
+pub struct UpdateUser<'info> {
+    #[account(
+        mut,
+        seeds = [b"user", authority.key.as_ref(), user_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct DeleteUser<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+        close = authority
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
 }
 
@@ -1447,67 +1337,6 @@ pub fn initialize_user(ctx: Context<InitializeUser>, user_id: u8, name: [u8; 32]
         name,
         referrer: user_stats.referrer
     });
-
-    Ok(())
-}
-
-pub fn initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result<()> {
-    let clock = Clock::get()?;
-
-    let mut user_stats = ctx
-        .accounts
-        .user_stats
-        .load_init()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-
-    *user_stats = UserStats {
-        authority: ctx.accounts.authority.key(),
-        number_of_users: 0,
-        last_taker_volume_30d_ts: clock.unix_timestamp,
-        last_maker_volume_30d_ts: clock.unix_timestamp,
-        last_filler_volume_30d_ts: clock.unix_timestamp,
-        ..UserStats::default()
-    };
-
-    let state = &mut ctx.accounts.state;
-    checked_increment!(state.number_of_authorities, 1);
-
-    Ok(())
-}
-
-pub fn update_user_name(ctx: Context<UpdateUser>, _user_id: u8, name: [u8; 32]) -> Result<()> {
-    let mut user = load_mut!(ctx.accounts.user)?;
-    user.name = name;
-    Ok(())
-}
-
-pub fn update_user_custom_margin_ratio(
-    ctx: Context<UpdateUser>,
-    _user_id: u8,
-    margin_ratio: u32,
-) -> Result<()> {
-    let mut user = load_mut!(ctx.accounts.user)?;
-    user.custom_margin_ratio = margin_ratio;
-    Ok(())
-}
-
-pub fn update_user_delegate(
-    ctx: Context<UpdateUser>,
-    _user_id: u8,
-    delegate: Pubkey,
-) -> Result<()> {
-    let mut user = load_mut!(ctx.accounts.user)?;
-    user.delegate = delegate;
-    Ok(())
-}
-
-pub fn delete_user(ctx: Context<DeleteUser>) -> Result<()> {
-    let user = &load!(ctx.accounts.user)?;
-    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
-
-    validate_user_deletion(user, user_stats)?;
-
-    checked_decrement!(user_stats.number_of_users, 1);
 
     Ok(())
 }

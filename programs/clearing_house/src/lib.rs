@@ -39,75 +39,18 @@ pub mod clearing_house {
 
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        handle_initialize(ctx)
-    }
+    /// User Instructions
 
-    pub fn initialize_spot_market(
-        ctx: Context<InitializeSpotMarket>,
-        optimal_utilization: u32,
-        optimal_borrow_rate: u32,
-        max_borrow_rate: u32,
-        oracle_source: OracleSource,
-        initial_asset_weight: u128,
-        maintenance_asset_weight: u128,
-        initial_liability_weight: u128,
-        maintenance_liability_weight: u128,
-        imf_factor: u128,
-        liquidation_fee: u128,
-        active_status: bool,
+    pub fn initialize_user(
+        ctx: Context<InitializeUser>,
+        user_id: u8,
+        name: [u8; 32],
     ) -> Result<()> {
-        handle_initialize_spot_market(
-            ctx,
-            optimal_utilization,
-            optimal_borrow_rate,
-            max_borrow_rate,
-            oracle_source,
-            initial_asset_weight,
-            maintenance_asset_weight,
-            initial_liability_weight,
-            maintenance_liability_weight,
-            imf_factor,
-            liquidation_fee,
-            active_status,
-        )
+        handle_initialize_user(ctx, user_id, name)
     }
 
-    pub fn update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
-        handle_update_serum_vault(ctx)
-    }
-
-    pub fn initialize_serum_fulfillment_config(
-        ctx: Context<InitializeSerumFulfillmentConfig>,
-        market_index: u16,
-    ) -> Result<()> {
-        handle_initialize_serum_fulfillment_config(ctx, market_index)
-    }
-
-    pub fn initialize_market(
-        ctx: Context<InitializeMarket>,
-        amm_base_asset_reserve: u128,
-        amm_quote_asset_reserve: u128,
-        amm_periodicity: i64,
-        amm_peg_multiplier: u128,
-        oracle_source: OracleSource,
-        margin_ratio_initial: u32,
-        margin_ratio_maintenance: u32,
-        liquidation_fee: u128,
-        active_status: bool,
-    ) -> Result<()> {
-        handle_initialize_market(
-            ctx,
-            amm_base_asset_reserve,
-            amm_quote_asset_reserve,
-            amm_periodicity,
-            amm_peg_multiplier,
-            oracle_source,
-            margin_ratio_initial,
-            margin_ratio_maintenance,
-            liquidation_fee,
-            active_status,
-        )
+    pub fn initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result<()> {
+        handle_initialize_user_stats(ctx)
     }
 
     pub fn deposit(
@@ -136,42 +79,6 @@ pub mod clearing_house {
         handle_transfer_deposit(ctx, market_index, amount)
     }
 
-    #[access_control(
-        funding_not_paused(&ctx.accounts.state)
-    )]
-    pub fn update_spot_market_cumulative_interest(
-        ctx: Context<UpdateSpotMarketCumulativeInterest>,
-    ) -> Result<()> {
-        handle_update_spot_market_cumulative_interest(ctx)
-    }
-
-    pub fn update_spot_market_expiry(
-        ctx: Context<AdminUpdateSpotMarket>,
-        expiry_ts: i64,
-    ) -> Result<()> {
-        handle_update_spot_market_expiry(ctx, expiry_ts)
-    }
-
-    pub fn settle_lp(ctx: Context<SettleLP>, market_index: u16) -> Result<()> {
-        handle_settle_lp(ctx, market_index)
-    }
-
-    pub fn remove_liquidity(
-        ctx: Context<AddRemoveLiquidity>,
-        shares_to_burn: u64,
-        market_index: u16,
-    ) -> Result<()> {
-        handle_remove_liquidity(ctx, shares_to_burn, market_index)
-    }
-
-    pub fn add_liquidity(
-        ctx: Context<AddRemoveLiquidity>,
-        n_shares: u64,
-        market_index: u16,
-    ) -> Result<()> {
-        handle_add_liquidity(ctx, n_shares, market_index)
-    }
-
     pub fn place_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
         handle_place_order(ctx, params)
     }
@@ -182,14 +89,6 @@ pub mod clearing_house {
 
     pub fn cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: u8) -> Result<()> {
         handle_cancel_order_by_user_id(ctx, user_order_id)
-    }
-
-    pub fn fill_order(
-        ctx: Context<FillOrder>,
-        order_id: Option<u32>,
-        maker_order_id: Option<u32>,
-    ) -> Result<()> {
-        handle_fill_order(ctx, order_id, maker_order_id)
     }
 
     pub fn place_and_take(
@@ -208,12 +107,58 @@ pub mod clearing_house {
         handle_place_and_make(ctx, params, taker_order_id)
     }
 
-    pub fn trigger_order(ctx: Context<TriggerOrder>, order_id: u32) -> Result<()> {
-        handle_trigger_order(ctx, order_id)
-    }
-
     pub fn place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
         handle_place_spot_order(ctx, params)
+    }
+
+    pub fn add_liquidity(
+        ctx: Context<AddRemoveLiquidity>,
+        n_shares: u64,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_add_liquidity(ctx, n_shares, market_index)
+    }
+
+    pub fn remove_liquidity(
+        ctx: Context<AddRemoveLiquidity>,
+        shares_to_burn: u64,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_remove_liquidity(ctx, shares_to_burn, market_index)
+    }
+
+    pub fn update_user_name(ctx: Context<UpdateUser>, _user_id: u8, name: [u8; 32]) -> Result<()> {
+        handle_update_user_name(ctx, _user_id, name)
+    }
+
+    pub fn update_user_custom_margin_ratio(
+        ctx: Context<UpdateUser>,
+        _user_id: u8,
+        margin_ratio: u32,
+    ) -> Result<()> {
+        handle_update_user_custom_margin_ratio(ctx, _user_id, margin_ratio)
+    }
+
+    pub fn update_user_delegate(
+        ctx: Context<UpdateUser>,
+        _user_id: u8,
+        delegate: Pubkey,
+    ) -> Result<()> {
+        handle_update_user_delegate(ctx, _user_id, delegate)
+    }
+
+    pub fn delete_user(ctx: Context<DeleteUser>) -> Result<()> {
+        handle_delete_user(ctx)
+    }
+
+    /// Keeper Instructions
+
+    pub fn fill_order(
+        ctx: Context<FillOrder>,
+        order_id: Option<u32>,
+        maker_order_id: Option<u32>,
+    ) -> Result<()> {
+        handle_fill_order(ctx, order_id, maker_order_id)
     }
 
     pub fn fill_spot_order(
@@ -225,20 +170,27 @@ pub mod clearing_house {
         handle_fill_spot_order(ctx, order_id, fulfillment_type, maker_order_id)
     }
 
+    pub fn trigger_order(ctx: Context<TriggerOrder>, order_id: u32) -> Result<()> {
+        handle_trigger_order(ctx, order_id)
+    }
+
     pub fn settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
         handle_settle_pnl(ctx, market_index)
     }
-
-    pub fn update_amms(ctx: Context<UpdateAMM>, market_indexes: [u16; 5]) -> Result<()> {
-        handle_update_amms(ctx, market_indexes)
+    pub fn settle_funding_payment(ctx: Context<SettleFunding>) -> Result<()> {
+        handle_settle_funding_payment(ctx)
     }
 
-    pub fn settle_expired_market(ctx: Context<UpdateAMM>, market_index: u16) -> Result<()> {
-        handle_settle_expired_market(ctx, market_index)
+    pub fn settle_lp(ctx: Context<SettleLP>, market_index: u16) -> Result<()> {
+        handle_settle_lp(ctx, market_index)
     }
 
     pub fn settle_expired_position(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
         handle_settle_expired_position(ctx, market_index)
+    }
+
+    pub fn settle_expired_market(ctx: Context<UpdateAMM>, market_index: u16) -> Result<()> {
+        handle_settle_expired_market(ctx, market_index)
     }
 
     pub fn liquidate_perp(
@@ -314,6 +266,152 @@ pub mod clearing_house {
         handle_resolve_spot_bankruptcy(ctx, market_index)
     }
 
+    pub fn settle_revenue_to_insurance_fund(
+        ctx: Context<SettleRevenueToInsuranceFund>,
+        _market_index: u16,
+    ) -> Result<()> {
+        handle_settle_revenue_to_insurance_fund(ctx, _market_index)
+    }
+
+    pub fn update_funding_rate(ctx: Context<UpdateFundingRate>, market_index: u16) -> Result<()> {
+        handle_update_funding_rate(ctx, market_index)
+    }
+
+    pub fn update_spot_market_cumulative_interest(
+        ctx: Context<UpdateSpotMarketCumulativeInterest>,
+    ) -> Result<()> {
+        handle_update_spot_market_cumulative_interest(ctx)
+    }
+
+    pub fn update_amms(ctx: Context<UpdateAMM>, market_indexes: [u16; 5]) -> Result<()> {
+        handle_update_amms(ctx, market_indexes)
+    }
+
+    pub fn update_spot_market_expiry(
+        ctx: Context<AdminUpdateSpotMarket>,
+        expiry_ts: i64,
+    ) -> Result<()> {
+        handle_update_spot_market_expiry(ctx, expiry_ts)
+    }
+
+    pub fn update_user_quote_asset_insurance_stake(
+        ctx: Context<UpdateUserQuoteAssetInsuranceStake>,
+    ) -> Result<()> {
+        handle_update_user_quote_asset_insurance_stake(ctx)
+    }
+
+    /// IF stakers
+
+    pub fn initialize_insurance_fund_stake(
+        ctx: Context<InitializeInsuranceFundStake>,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_initialize_insurance_fund_stake(ctx, market_index)
+    }
+
+    pub fn add_insurance_fund_stake(
+        ctx: Context<AddInsuranceFundStake>,
+        market_index: u16,
+        amount: u64,
+    ) -> Result<()> {
+        handle_add_insurance_fund_stake(ctx, market_index, amount)
+    }
+
+    pub fn request_remove_insurance_fund_stake(
+        ctx: Context<RequestRemoveInsuranceFundStake>,
+        market_index: u16,
+        amount: u64,
+    ) -> Result<()> {
+        handle_request_remove_insurance_fund_stake(ctx, market_index, amount)
+    }
+
+    pub fn cancel_request_remove_insurance_fund_stake(
+        ctx: Context<RequestRemoveInsuranceFundStake>,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_cancel_request_remove_insurance_fund_stake(ctx, market_index)
+    }
+
+    pub fn remove_insurance_fund_stake(
+        ctx: Context<RemoveInsuranceFundStake>,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_remove_insurance_fund_stake(ctx, market_index)
+    }
+
+    /// Admin Instructions
+
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        handle_initialize(ctx)
+    }
+
+    pub fn initialize_spot_market(
+        ctx: Context<InitializeSpotMarket>,
+        optimal_utilization: u32,
+        optimal_borrow_rate: u32,
+        max_borrow_rate: u32,
+        oracle_source: OracleSource,
+        initial_asset_weight: u128,
+        maintenance_asset_weight: u128,
+        initial_liability_weight: u128,
+        maintenance_liability_weight: u128,
+        imf_factor: u128,
+        liquidation_fee: u128,
+        active_status: bool,
+    ) -> Result<()> {
+        handle_initialize_spot_market(
+            ctx,
+            optimal_utilization,
+            optimal_borrow_rate,
+            max_borrow_rate,
+            oracle_source,
+            initial_asset_weight,
+            maintenance_asset_weight,
+            initial_liability_weight,
+            maintenance_liability_weight,
+            imf_factor,
+            liquidation_fee,
+            active_status,
+        )
+    }
+
+    pub fn initialize_serum_fulfillment_config(
+        ctx: Context<InitializeSerumFulfillmentConfig>,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_initialize_serum_fulfillment_config(ctx, market_index)
+    }
+
+    pub fn update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
+        handle_update_serum_vault(ctx)
+    }
+
+    pub fn initialize_market(
+        ctx: Context<InitializeMarket>,
+        amm_base_asset_reserve: u128,
+        amm_quote_asset_reserve: u128,
+        amm_periodicity: i64,
+        amm_peg_multiplier: u128,
+        oracle_source: OracleSource,
+        margin_ratio_initial: u32,
+        margin_ratio_maintenance: u32,
+        liquidation_fee: u128,
+        active_status: bool,
+    ) -> Result<()> {
+        handle_initialize_market(
+            ctx,
+            amm_base_asset_reserve,
+            amm_quote_asset_reserve,
+            amm_periodicity,
+            amm_peg_multiplier,
+            oracle_source,
+            margin_ratio_initial,
+            margin_ratio_maintenance,
+            liquidation_fee,
+            active_status,
+        )
+    }
+
     pub fn move_amm_price(
         ctx: Context<AdminUpdateMarket>,
         base_asset_reserve: u128,
@@ -350,50 +448,6 @@ pub mod clearing_house {
 
     pub fn reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
         handle_reset_amm_oracle_twap(ctx)
-    }
-
-    pub fn initialize_user(
-        ctx: Context<InitializeUser>,
-        user_id: u8,
-        name: [u8; 32],
-    ) -> Result<()> {
-        handle_initialize_user(ctx, user_id, name)
-    }
-
-    pub fn initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result<()> {
-        handle_initialize_user_stats(ctx)
-    }
-
-    pub fn update_user_name(ctx: Context<UpdateUser>, _user_id: u8, name: [u8; 32]) -> Result<()> {
-        handle_update_user_name(ctx, _user_id, name)
-    }
-
-    pub fn update_user_custom_margin_ratio(
-        ctx: Context<UpdateUser>,
-        _user_id: u8,
-        margin_ratio: u32,
-    ) -> Result<()> {
-        handle_update_user_custom_margin_ratio(ctx, _user_id, margin_ratio)
-    }
-
-    pub fn update_user_delegate(
-        ctx: Context<UpdateUser>,
-        _user_id: u8,
-        delegate: Pubkey,
-    ) -> Result<()> {
-        handle_update_user_delegate(ctx, _user_id, delegate)
-    }
-
-    pub fn delete_user(ctx: Context<DeleteUser>) -> Result<()> {
-        handle_delete_user(ctx)
-    }
-
-    pub fn update_funding_rate(ctx: Context<UpdateFundingRate>, market_index: u16) -> Result<()> {
-        handle_update_funding_rate(ctx, market_index)
-    }
-
-    pub fn settle_funding_payment(ctx: Context<SettleFunding>) -> Result<()> {
-        handle_settle_funding_payment(ctx)
     }
 
     pub fn update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
@@ -678,61 +732,11 @@ pub mod clearing_house {
         handle_update_spot_auction_duration(ctx, default_spot_auction_duration)
     }
 
-    pub fn initialize_insurance_fund_stake(
-        ctx: Context<InitializeInsuranceFundStake>,
-        market_index: u16,
-    ) -> Result<()> {
-        handle_initialize_insurance_fund_stake(ctx, market_index)
-    }
-
-    pub fn settle_revenue_to_insurance_fund(
-        ctx: Context<SettleRevenueToInsuranceFund>,
-        _market_index: u16,
-    ) -> Result<()> {
-        handle_settle_revenue_to_insurance_fund(ctx, _market_index)
-    }
-
-    pub fn add_insurance_fund_stake(
-        ctx: Context<AddInsuranceFundStake>,
-        market_index: u16,
-        amount: u64,
-    ) -> Result<()> {
-        handle_add_insurance_fund_stake(ctx, market_index, amount)
-    }
-
-    pub fn request_remove_insurance_fund_stake(
-        ctx: Context<RequestRemoveInsuranceFundStake>,
-        market_index: u16,
-        amount: u64,
-    ) -> Result<()> {
-        handle_request_remove_insurance_fund_stake(ctx, market_index, amount)
-    }
-
-    pub fn cancel_request_remove_insurance_fund_stake(
-        ctx: Context<RequestRemoveInsuranceFundStake>,
-        market_index: u16,
-    ) -> Result<()> {
-        handle_cancel_request_remove_insurance_fund_stake(ctx, market_index)
-    }
-
-    pub fn remove_insurance_fund_stake(
-        ctx: Context<RemoveInsuranceFundStake>,
-        market_index: u16,
-    ) -> Result<()> {
-        handle_remove_insurance_fund_stake(ctx, market_index)
-    }
-
     pub fn admin_remove_insurance_fund_stake(
         ctx: Context<AdminRemoveInsuranceFundStake>,
         market_index: u16,
         amount: u64,
     ) -> Result<()> {
         handle_admin_remove_insurance_fund_stake(ctx, market_index, amount)
-    }
-
-    pub fn update_user_quote_asset_insurance_stake(
-        ctx: Context<UpdateUserQuoteAssetInsuranceStake>,
-    ) -> Result<()> {
-        handle_update_user_quote_asset_insurance_stake(ctx)
     }
 }
