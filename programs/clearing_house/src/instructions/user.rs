@@ -876,6 +876,8 @@ pub fn handle_add_liquidity<'info>(
             market.amm.order_step_size,
         )?;
 
+        controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
+
         // standardize n shares to mint
         let n_shares = crate::math::orders::standardize_base_asset_amount(
             n_shares.cast()?,
