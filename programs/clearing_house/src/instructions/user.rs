@@ -4,7 +4,7 @@ use anchor_spl::token::{Token, TokenAccount};
 use crate::checked_decrement;
 use crate::checked_increment;
 use crate::controller::lp::burn_lp_shares;
-use crate::controller::position::{get_position_index, PositionDirection};
+use crate::controller::position::PositionDirection;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::load;
