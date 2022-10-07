@@ -212,7 +212,7 @@ pub fn apply_cost_to_market(
         // This checks that the total_fee_minus_distributions does not decrease too much after repeg
         if check_lower_bound {
             if new_total_fee_minus_distributions
-                > cast_to_i128(repeg::get_total_fee_lower_bound(market)?)?
+                >= cast_to_i128(repeg::get_total_fee_lower_bound(market)?)?
             {
                 market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
             } else {

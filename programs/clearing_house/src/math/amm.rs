@@ -755,8 +755,9 @@ pub fn calculate_max_base_asset_amount_fillable(
     amm: &AMM,
     order_direction: &PositionDirection,
 ) -> ClearingHouseResult<u64> {
-    let max_fill_size: u64 =
-        (amm.base_asset_reserve / amm.max_base_asset_amount_ratio as u128).cast()?;
+    let max_fill_size: u64 = (amm.base_asset_reserve / amm.max_base_asset_amount_ratio as u128)
+        .min(u64::MAX as u128)
+        .cast()?;
 
     // one fill can only take up to half of side's liquidity
     let max_base_asset_amount_on_side = match order_direction {
