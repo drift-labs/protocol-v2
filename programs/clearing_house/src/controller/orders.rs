@@ -141,15 +141,29 @@ pub fn place_order(
         let market_position = &mut user.perp_positions[position_index];
         market_position.open_orders += 1;
 
+        validate!(
+            params.base_asset_amount >= market.amm.order_step_size,
+            ErrorCode::InvalidOrder,
+            "params.base_asset_amount={} cannot be below market.amm.order_step_size={}",
+            params.base_asset_amount,
+            market.amm.order_step_size
+        )?;
+
         let standardized_base_asset_amount =
             standardize_base_asset_amount(params.base_asset_amount, market.amm.order_step_size)?;
 
         let base_asset_amount = if params.reduce_only || force_reduce_only {
-            calculate_base_asset_amount_for_reduce_only_order(
+            let reduce_only_base_asset_amount = calculate_base_asset_amount_for_reduce_only_order(
                 standardized_base_asset_amount,
                 params.direction,
                 market_position.base_asset_amount,
-            )
+            );
+            validate!(
+                reduce_only_base_asset_amount > 0,
+                ErrorCode::InvalidOrder,
+                "Reduce Only Order must decrease existing position size"
+            )?;
+            reduce_only_base_asset_amount
         } else {
             standardized_base_asset_amount
         };
