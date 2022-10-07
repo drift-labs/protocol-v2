@@ -225,18 +225,18 @@ export class ClearingHouseUser {
 
 		const [standardizedBaa, remainderBaa] = standardize(
 			deltaBaa,
-			market.amm.baseAssetAmountStepSize
+			market.amm.orderStepSize
 		);
 
 		position.remainderBaseAssetAmount += remainderBaa.toNumber();
 
 		if (
 			Math.abs(position.remainderBaseAssetAmount) >
-			market.amm.baseAssetAmountStepSize.toNumber()
+			market.amm.orderStepSize.toNumber()
 		) {
 			const [newStandardizedBaa, newRemainderBaa] = standardize(
 				position.remainderBaseAssetAmount,
-				market.amm.baseAssetAmountStepSize
+				market.amm.orderStepSize
 			);
 			position.baseAssetAmount =
 				position.baseAssetAmount.add(newStandardizedBaa);

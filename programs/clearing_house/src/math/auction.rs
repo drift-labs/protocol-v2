@@ -2,6 +2,7 @@ use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
 use crate::math::casting::{cast, cast_to_u64};
 use crate::math::constants::BID_ASK_SPREAD_PRECISION;
+use crate::math::orders::standardize_price;
 use crate::math_error;
 use crate::state::oracle::OraclePriceData;
 use crate::state::user::Order;
@@ -30,7 +31,11 @@ pub fn calculate_auction_end_price(
     )
 }
 
-pub fn calculate_auction_price(order: &Order, slot: u64) -> ClearingHouseResult<u64> {
+pub fn calculate_auction_price(
+    order: &Order,
+    slot: u64,
+    tick_size: u64,
+) -> ClearingHouseResult<u64> {
     let slots_elapsed = slot.checked_sub(order.slot).ok_or_else(math_error!())?;
 
     let delta_numerator = min(slots_elapsed, cast(order.auction_duration)?);
@@ -70,7 +75,7 @@ pub fn calculate_auction_price(order: &Order, slot: u64) -> ClearingHouseResult<
             .ok_or_else(math_error!())?,
     };
 
-    Ok(price)
+    standardize_price(price, tick_size, order.direction)
 }
 
 pub fn does_auction_satisfy_maker_order(

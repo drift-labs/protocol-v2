@@ -767,8 +767,7 @@ mod test {
         // btc-esque market
         let market = PerpMarket {
             amm: AMM {
-                minimum_quote_asset_trade_size: 10000000,
-                base_asset_amount_step_size: 1000,
+                order_step_size: 1000,
                 base_asset_reserve: 60437939720095,
                 quote_asset_reserve: 60440212459368,
                 terminal_quote_asset_reserve: 60439072663003,

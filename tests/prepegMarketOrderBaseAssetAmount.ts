@@ -125,7 +125,7 @@ describe('prepeg', () => {
 		);
 		await clearingHouse.updateMarketBaseSpread(0, 1000);
 		await clearingHouse.updateCurveUpdateIntensity(0, 100);
-		await clearingHouse.updateMarketBaseAssetAmountStepSize(0, new BN(1));
+		await clearingHouse.updatePerpStepSizeAndTickSize(0, new BN(1), new BN(1));
 
 		for (let i = 1; i <= 4; i++) {
 			// init more markets
@@ -141,7 +141,11 @@ describe('prepeg', () => {
 			);
 			await clearingHouse.updateMarketBaseSpread(i, 2000);
 			await clearingHouse.updateCurveUpdateIntensity(i, 100);
-			await clearingHouse.updateMarketBaseAssetAmountStepSize(i, new BN(1));
+			await clearingHouse.updatePerpStepSizeAndTickSize(
+				i,
+				new BN(1),
+				new BN(1)
+			);
 		}
 
 		[, userAccountPublicKey] =

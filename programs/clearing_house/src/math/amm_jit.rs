@@ -17,17 +17,15 @@ pub fn calculate_jit_base_asset_amount(
         taker_base_asset_amount
             .checked_div(2)
             .ok_or_else(math_error!())?,
-        market.amm.base_asset_amount_step_size,
+        market.amm.order_step_size,
     )?;
 
     if jit_base_asset_amount != 0 {
         jit_base_asset_amount =
             calculate_clampped_jit_base_asset_amount(market, jit_base_asset_amount)?;
 
-        jit_base_asset_amount = standardize_base_asset_amount(
-            jit_base_asset_amount,
-            market.amm.base_asset_amount_step_size,
-        )?;
+        jit_base_asset_amount =
+            standardize_base_asset_amount(jit_base_asset_amount, market.amm.order_step_size)?;
     }
 
     Ok(jit_base_asset_amount)

@@ -74,13 +74,11 @@ pub fn settle_lp_position(
         .checked_add(lp_metrics.remainder_base_asset_amount)
         .ok_or_else(math_error!())?;
 
-    if position.remainder_base_asset_amount.unsigned_abs()
-        >= market.amm.base_asset_amount_step_size.cast()?
-    {
+    if position.remainder_base_asset_amount.unsigned_abs() >= market.amm.order_step_size.cast()? {
         let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
             crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
                 position.remainder_base_asset_amount.cast()?,
-                market.amm.base_asset_amount_step_size.cast()?,
+                market.amm.order_step_size.cast()?,
             )?;
 
         lp_metrics.base_asset_amount = lp_metrics
@@ -178,10 +176,10 @@ pub fn burn_lp_shares(
 
     if shares_to_burn == market.amm.user_lp_shares.cast()? && unsettled_remainder != 0 {
         crate::validate!(
-            unsettled_remainder.unsigned_abs() <= market.amm.base_asset_amount_step_size,
+            unsettled_remainder.unsigned_abs() <= market.amm.order_step_size,
             ErrorCode::DefaultError,
             "unsettled baa on final burn too big rel to stepsize {}: {}",
-            market.amm.base_asset_amount_step_size,
+            market.amm.order_step_size,
             market.amm.net_unsettled_lp_base_asset_amount,
         )?;
 
@@ -271,7 +269,7 @@ mod test {
         };
 
         let amm = AMM {
-            base_asset_amount_step_size: 1,
+            order_step_size: 1,
             ..AMM::default_test()
         };
         let mut market = PerpMarket {
@@ -319,7 +317,7 @@ mod test {
         let amm = AMM {
             peg_multiplier: 1,
             user_lp_shares: 100 * AMM_RESERVE_PRECISION,
-            base_asset_amount_step_size: 1,
+            order_step_size: 1,
             ..AMM::default_test()
         };
 
@@ -351,7 +349,7 @@ mod test {
         };
 
         let amm = AMM {
-            base_asset_amount_step_size: 3,
+            order_step_size: 3,
             ..AMM::default_test()
         };
 
@@ -398,7 +396,7 @@ mod test {
                 quote_asset_amount: 10,
                 ..PerpPosition::default()
             },
-            base_asset_amount_step_size: 3,
+            order_step_size: 3,
             ..AMM::default_test()
         };
 

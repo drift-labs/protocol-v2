@@ -141,10 +141,8 @@ pub fn place_order(
         let market_position = &mut user.perp_positions[position_index];
         market_position.open_orders += 1;
 
-        let standardized_base_asset_amount = standardize_base_asset_amount(
-            params.base_asset_amount,
-            market.amm.base_asset_amount_step_size,
-        )?;
+        let standardized_base_asset_amount =
+            standardize_base_asset_amount(params.base_asset_amount, market.amm.order_step_size)?;
 
         let base_asset_amount = if params.reduce_only || force_reduce_only {
             calculate_base_asset_amount_for_reduce_only_order(
@@ -183,7 +181,19 @@ pub fn place_order(
         } else {
             params.price
         };
-        (auction_start_price, auction_end_price)
+
+        (
+            standardize_price(
+                auction_start_price,
+                market.amm.order_tick_size,
+                params.direction,
+            )?,
+            standardize_price(
+                auction_end_price,
+                market.amm.order_tick_size,
+                params.direction,
+            )?,
+        )
     } else {
         (0_u64, 0_u64)
     };
@@ -214,7 +224,7 @@ pub fn place_order(
         order_id: get_then_update_id!(user, next_order_id),
         user_order_id: params.user_order_id,
         market_index: params.market_index,
-        price: params.price,
+        price: standardize_price(params.price, market.amm.order_tick_size, params.direction)?,
         existing_position_direction,
         base_asset_amount: order_base_asset_amount,
         base_asset_amount_filled: 0,
@@ -242,7 +252,7 @@ pub fn place_order(
         &state.oracle_guard_rails.validity,
     )?;
 
-    validate_order(&new_order, market, state, valid_oracle_price, slot)?;
+    validate_order(&new_order, market, valid_oracle_price, slot)?;
 
     user.orders[new_order_index] = new_order;
 
@@ -638,6 +648,7 @@ pub fn fill_order(
             &user.orders[order_index],
             oracle_price,
             slot,
+            market.amm.order_tick_size,
             market.margin_ratio_initial as u128,
             market.margin_ratio_maintenance as u128,
             Some(&market.amm),
@@ -922,6 +933,7 @@ fn sanitize_maker_order<'a>(
             &maker.orders[maker_order_index],
             oracle_price,
             slot,
+            market.amm.order_tick_size,
             market.margin_ratio_initial as u128,
             market.margin_ratio_maintenance as u128,
             Some(&market.amm),
@@ -1292,6 +1304,7 @@ pub fn fulfill_order_with_amm(
             let limit_price = user.orders[order_index].get_limit_price(
                 valid_oracle_price,
                 slot,
+                market.amm.order_tick_size,
                 Some(&market.amm),
             )?;
             (override_base_asset_amount, limit_price, override_fill_price)
@@ -1556,6 +1569,7 @@ pub fn fulfill_order_with_match(
     let taker_price = taker.orders[taker_order_index].get_limit_price(
         Some(oracle_price),
         slot,
+        market.amm.order_tick_size,
         Some(&market.amm),
     )?;
     let taker_direction = taker.orders[taker_order_index].direction;
@@ -1565,6 +1579,7 @@ pub fn fulfill_order_with_match(
     let maker_price = maker.orders[maker_order_index].get_limit_price(
         Some(oracle_price),
         slot,
+        market.amm.order_tick_size,
         Some(&market.amm),
     )?;
     let maker_direction = maker.orders[maker_order_index].direction;
@@ -2286,7 +2301,18 @@ pub fn place_spot_order(
         } else {
             params.price
         };
-        (auction_start_price, auction_end_price)
+        (
+            standardize_price(
+                auction_start_price,
+                spot_market.order_tick_size,
+                params.direction,
+            )?,
+            standardize_price(
+                auction_end_price,
+                spot_market.order_tick_size,
+                params.direction,
+            )?,
+        )
     } else {
         (0_u64, 0_u64)
     };
@@ -2321,7 +2347,7 @@ pub fn place_spot_order(
         order_id: get_then_update_id!(user, next_order_id),
         user_order_id: params.user_order_id,
         market_index: params.market_index,
-        price: params.price,
+        price: standardize_price(params.price, spot_market.order_tick_size, params.direction)?,
         existing_position_direction,
         base_asset_amount: order_base_asset_amount,
         base_asset_amount_filled: 0,
@@ -2348,10 +2374,10 @@ pub fn place_spot_order(
         valid_oracle_price,
         slot,
         spot_market.order_step_size,
+        spot_market.order_tick_size,
         spot_market.get_margin_ratio(&MarginRequirementType::Initial)?,
         spot_market.get_margin_ratio(&MarginRequirementType::Maintenance)?,
-        state.min_order_quote_asset_amount,
-        spot_market.decimals as u32,
+        spot_market.min_order_size,
     )?;
 
     user.orders[new_order_index] = new_order;
@@ -2680,6 +2706,7 @@ fn sanitize_spot_maker_order<'a>(
             &maker.orders[maker_order_index],
             oracle_price.price,
             slot,
+            spot_market.order_tick_size,
             initial_margin_ratio,
             maintenance_margin_ratio,
             None,
@@ -2936,16 +2963,24 @@ pub fn fulfill_spot_order_with_match(
 
     let market_index = taker.orders[taker_order_index].market_index;
     let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
-    let taker_price =
-        taker.orders[taker_order_index].get_limit_price(Some(oracle_price), slot, None)?;
+    let taker_price = taker.orders[taker_order_index].get_limit_price(
+        Some(oracle_price),
+        slot,
+        base_market.order_tick_size,
+        None,
+    )?;
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
     let taker_order_ts = taker.orders[taker_order_index].ts;
     let taker_spot_position_index = taker.get_spot_position_index(market_index)?;
     let taker_direction = taker.orders[taker_order_index].direction;
 
-    let maker_price =
-        maker.orders[maker_order_index].get_limit_price(Some(oracle_price), slot, None)?;
+    let maker_price = maker.orders[maker_order_index].get_limit_price(
+        Some(oracle_price),
+        slot,
+        base_market.order_tick_size,
+        None,
+    )?;
     let maker_direction = maker.orders[maker_order_index].direction;
     let maker_base_asset_amount =
         maker.orders[maker_order_index].get_base_asset_amount_unfilled()?;
@@ -3201,8 +3236,12 @@ pub fn fulfill_spot_order_with_serum(
     };
 
     let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
-    let taker_price =
-        taker.orders[taker_order_index].get_limit_price(Some(oracle_price), slot, None)?;
+    let taker_price = taker.orders[taker_order_index].get_limit_price(
+        Some(oracle_price),
+        slot,
+        base_market.order_tick_size,
+        None,
+    )?;
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
     let order_direction = taker.orders[taker_order_index].direction;

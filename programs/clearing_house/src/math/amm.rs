@@ -1403,7 +1403,7 @@ pub fn calculate_max_base_asset_amount_fillable(
 
     standardize_base_asset_amount(
         max_fill_size.min(max_base_asset_amount_on_side),
-        amm.base_asset_amount_step_size,
+        amm.order_step_size,
     )
 }
 
@@ -2840,7 +2840,7 @@ mod test {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50_000_000_000,
                 net_base_asset_amount: (AMM_RESERVE_PRECISION / 10) as i128,
-                base_asset_amount_step_size: 3,
+                order_step_size: 3,
                 max_spread: 1000,
                 ..AMM::default_test()
             },

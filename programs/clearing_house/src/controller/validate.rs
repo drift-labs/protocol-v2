@@ -215,7 +215,7 @@ pub fn validate_position_account(
     validate!(
         is_multiple_of_step_size(
             position.base_asset_amount.unsigned_abs().cast()?,
-            market.amm.base_asset_amount_step_size
+            market.amm.order_step_size
         )?,
         ErrorCode::DefaultError,
         "position not multiple of stepsize"
