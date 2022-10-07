@@ -1,10 +1,7 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-
 import { Program } from '@project-serum/anchor';
-
-import { PublicKey } from '@solana/web3.js';
-
+import { PublicKey, Keypair } from '@solana/web3.js';
 import {
 	Wallet,
 	getInsuranceFundStakeAccountPublicKey,
@@ -50,8 +47,6 @@ import {
 	printTxLogs,
 	sleep,
 } from './testHelpers';
-
-import { Keypair } from '@solana/web3.js';
 
 async function depositToFeePoolFromIF(
 	amount: number,
@@ -653,19 +648,19 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		assert(market0.unrealizedMaxImbalance.eq(ZERO));
 
-		await clearingHouse.updatePerpMarketContractTier(new BN(0), ContractTier.A);
-
-		try {
-			const tx1 = await clearingHouse.updateMarketMaxImbalances(
-				marketIndex,
-				new BN(40000).mul(QUOTE_PRECISION),
-				QUOTE_PRECISION,
-				QUOTE_PRECISION
-			);
-			await printTxLogs(connection, tx1);
-		} catch (e) {
-			console.error(e);
-		}
+		await clearingHouse.updatePerpMarketContractTier(0, ContractTier.A);
+		await clearingHouse.fetchAccounts();
+		// try {
+		const tx1 = await clearingHouse.updateMarketMaxImbalances(
+			marketIndex,
+			new BN(40000).mul(QUOTE_PRECISION),
+			QUOTE_PRECISION,
+			QUOTE_PRECISION
+		);
+		await printTxLogs(connection, tx1);
+		// } catch (e) {
+		// 	console.error(e);
+		// }
 
 		await sleep(1000);
 		clearingHouse.fetchAccounts();
@@ -684,13 +679,12 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance:', imbalance.toString());
-		assert(imbalance.eq(new BN(44462178048))); //44k still :o
+		assert(imbalance.eq(new BN(44_462_178_048))); //44k still :o
 
-		assert(market.revenueWithdrawSinceLastSettle, ZERO);
-		assert(
-			market.maxRevenueWithdrawPerPeriod,
-			new BN(40000).mul(QUOTE_PRECISION)
-		);
+		assert(market.revenueWithdrawSinceLastSettle.eq(ZERO));
+		console.log('pnlimbalance:', imbalance.toString());
+
+		assert(market.maxRevenueWithdrawPerPeriod.eq(QUOTE_PRECISION));
 		console.log(
 			'market.lastRevenueWithdrawTs:',
 			market.lastRevenueWithdrawTs.toString(),
@@ -871,24 +865,32 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 
 		console.log('pnlimbalance:', imbalance.toString());
-		// assert(imbalance.lt(new BN(44462175964))); //44k still :o
-		// assert(imbalance.gt(new BN(44462125964))); //44k still :o
+		assert(imbalance.lt(new BN(44461135639 + 1000))); //44k still :o
+		assert(imbalance.gt(new BN(44461135639 - 1000))); //44k still :o
 
-		assert(market.revenueWithdrawSinceLastSettle, ZERO);
-		assert(
-			market.maxRevenueWithdrawPerPeriod,
-			new BN(40000).mul(QUOTE_PRECISION)
+		console.log(
+			'revenueWithdrawSinceLastSettle:',
+			market.revenueWithdrawSinceLastSettle.toString()
 		);
+		assert(market.revenueWithdrawSinceLastSettle.eq(QUOTE_PRECISION));
+		console.log(
+			'market.maxRevenueWithdrawPerPeriod:',
+			market.maxRevenueWithdrawPerPeriod.toString()
+		);
+
+		assert(market.maxRevenueWithdrawPerPeriod.eq(QUOTE_PRECISION));
 		console.log(
 			'market.lastRevenueWithdrawTs:',
 			market.lastRevenueWithdrawTs.toString(),
 			now.toString()
 		);
-		// assert(market.lastRevenueWithdrawTs.gt(market0.lastRevenueWithdrawTs));
-		assert(market.unrealizedMaxImbalance, QUOTE_PRECISION);
+		assert(market.lastRevenueWithdrawTs.gt(market0.lastRevenueWithdrawTs));
+		assert(
+			market.unrealizedMaxImbalance.eq(new BN(40000).mul(QUOTE_PRECISION))
+		);
 
-		assert(market.quoteSettledInsurance, QUOTE_PRECISION);
-		assert(market.quoteMaxInsurance, QUOTE_PRECISION);
+		assert(market.quoteSettledInsurance.eq(QUOTE_PRECISION));
+		assert(market.quoteMaxInsurance.eq(QUOTE_PRECISION));
 		console.log(
 			'market0.pnlPool.balance:',
 
