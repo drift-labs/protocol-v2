@@ -139,7 +139,7 @@ pub fn liquidate_perp(
     let canceled_order_ids = cancel_all_orders(
         user,
         user_key,
-        liquidator_key,
+        Some(liquidator_key),
         perp_market_map,
         spot_market_map,
         oracle_map,
@@ -560,7 +560,7 @@ pub fn liquidate_spot(
     let canceled_order_ids = cancel_all_orders(
         user,
         user_key,
-        liquidator_key,
+        Some(liquidator_key),
         perp_market_map,
         spot_market_map,
         oracle_map,
@@ -934,7 +934,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     let canceled_order_ids = cancel_all_orders(
         user,
         user_key,
-        liquidator_key,
+        Some(liquidator_key),
         perp_market_map,
         spot_market_map,
         oracle_map,
@@ -1283,7 +1283,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     let canceled_order_ids = cancel_all_orders(
         user,
         user_key,
-        liquidator_key,
+        Some(liquidator_key),
         perp_market_map,
         spot_market_map,
         oracle_map,
@@ -1757,7 +1757,7 @@ pub fn resolve_spot_bankruptcy(
 pub fn cancel_all_orders(
     user: &mut User,
     user_key: &Pubkey,
-    liquidator_key: &Pubkey,
+    liquidator_key: Option<&Pubkey>,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -1781,7 +1781,7 @@ pub fn cancel_all_orders(
             now,
             slot,
             OrderActionExplanation::CanceledForLiquidation,
-            Some(liquidator_key),
+            liquidator_key,
             0,
             true,
         )?;

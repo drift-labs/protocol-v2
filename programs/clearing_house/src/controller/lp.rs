@@ -95,7 +95,12 @@ pub fn settle_lp_position(
         quote_asset_amount: lp_metrics.quote_asset_amount.cast()?,
     };
 
-    let pnl = update_position_and_market(position, market, &position_delta)?;
+    let pnl = if position_delta.base_asset_amount != 0 {
+        update_position_and_market(position, market, &position_delta)?
+    } else {
+        update_quote_asset_amount(position, market, position_delta.quote_asset_amount)?;
+        position_delta.quote_asset_amount
+    };
 
     // todo: name for this is confusing, but adding is correct as is
     // definition: net position of users in the market that has the LP as a counterparty (which have NOT settled)

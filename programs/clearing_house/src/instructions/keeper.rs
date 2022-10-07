@@ -322,6 +322,8 @@ pub fn handle_settle_lp<'info>(ctx: Context<SettleLP>, market_index: u16) -> Res
 pub fn handle_settle_expired_position(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
     let clock = Clock::get()?;
     let state = &ctx.accounts.state;
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let mut oracle_map = OracleMap::load(
@@ -348,7 +350,16 @@ pub fn handle_settle_expired_position(ctx: Context<SettlePNL>, market_index: u16
 
     validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
 
-    // todo: cancel all user open orders in market
+    controller::liquidation::cancel_all_orders(
+        user,
+        &user_key,
+        None,
+        &market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        now,
+        slot,
+    );
 
     controller::pnl::settle_expired_position(
         market_index,
