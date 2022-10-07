@@ -486,6 +486,11 @@
       "name": "updateSpotMarketExpiry",
       "accounts": [
         {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
           "name": "state",
           "isMut": false,
           "isSigner": false
@@ -1383,17 +1388,17 @@
       "name": "moveAmmPrice",
       "accounts": [
         {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "admin",
           "isMut": false,
           "isSigner": true
         },
         {
-          "name": "perpMarket",
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
           "isMut": true,
           "isSigner": false
         }
@@ -1417,17 +1422,17 @@
       "name": "updateMarketExpiry",
       "accounts": [
         {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "admin",
           "isMut": false,
           "isSigner": true
         },
         {
-          "name": "perpMarket",
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
           "isMut": true,
           "isSigner": false
         }

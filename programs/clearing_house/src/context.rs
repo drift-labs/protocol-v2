@@ -1,140 +1,14 @@
 use anchor_lang::{prelude::*, AnchorDeserialize, AnchorSerialize};
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token::{Token, TokenAccount};
 
 use crate::controller::position::PositionDirection;
+use crate::instructions::can_sign_for_user;
+use crate::instructions::is_stats_for_user;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::market::PerpMarket;
-use crate::state::spot_market::{SerumV3FulfillmentConfig, SpotMarket};
+use crate::state::spot_market::SpotMarket;
 use crate::state::state::State;
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType, User, UserStats};
-
-#[derive(Accounts)]
-pub struct Initialize<'info> {
-    #[account(mut)]
-    pub admin: Signer<'info>,
-    #[account(
-        init,
-        seeds = [b"clearing_house".as_ref()],
-        space = std::mem::size_of::<State>() + 8,
-        bump,
-        payer = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    pub quote_asset_mint: Box<Account<'info, Mint>>,
-    /// CHECK: checked in `initialize`
-    pub clearing_house_signer: AccountInfo<'info>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, Token>,
-}
-
-#[derive(Accounts)]
-pub struct InitializeSpotMarket<'info> {
-    #[account(
-        init,
-        seeds = [b"spot_market", state.number_of_spot_markets.to_le_bytes().as_ref()],
-        space = std::mem::size_of::<SpotMarket>() + 8,
-        bump,
-        payer = admin
-    )]
-    pub spot_market: AccountLoader<'info, SpotMarket>,
-    pub spot_market_mint: Box<Account<'info, Mint>>,
-    #[account(
-        init,
-        seeds = [b"spot_market_vault".as_ref(), state.number_of_spot_markets.to_le_bytes().as_ref()],
-        bump,
-        payer = admin,
-        token::mint = spot_market_mint,
-        token::authority = clearing_house_signer
-    )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
-    #[account(
-        init,
-        seeds = [b"insurance_fund_vault".as_ref(), state.number_of_spot_markets.to_le_bytes().as_ref()],
-        bump,
-        payer = admin,
-        token::mint = spot_market_mint,
-        token::authority = clearing_house_signer
-    )]
-    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
-    #[account(
-        constraint = state.signer.eq(&clearing_house_signer.key())
-    )]
-    /// CHECK: program signer
-    pub clearing_house_signer: AccountInfo<'info>,
-    #[account(
-        mut,
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    /// CHECK: checked in `initialize_spot_market`
-    pub oracle: AccountInfo<'info>,
-    #[account(mut)]
-    pub admin: Signer<'info>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, Token>,
-}
-
-#[derive(Accounts)]
-#[instruction(market_index: u16)]
-pub struct InitializeSerumFulfillmentConfig<'info> {
-    #[account(
-        seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub base_spot_market: AccountLoader<'info, SpotMarket>,
-    #[account(
-        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub quote_spot_market: AccountLoader<'info, SpotMarket>,
-    #[account(
-        mut,
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    /// CHECK: checked in ix
-    pub serum_program: AccountInfo<'info>,
-    /// CHECK: checked in ix
-    pub serum_market: AccountInfo<'info>,
-    #[account(
-        mut,
-        seeds = [b"serum_open_orders".as_ref(), serum_market.key.as_ref()],
-        bump,
-    )]
-    /// CHECK: checked in ix
-    pub serum_open_orders: AccountInfo<'info>,
-    #[account(
-        constraint = state.signer.eq(&clearing_house_signer.key())
-    )]
-    /// CHECK: program signer
-    pub clearing_house_signer: AccountInfo<'info>,
-    #[account(
-        init,
-        seeds = [b"serum_fulfillment_config".as_ref(), serum_market.key.as_ref()],
-        space = std::mem::size_of::<SerumV3FulfillmentConfig>() + 8,
-        bump,
-        payer = admin,
-    )]
-    pub serum_fulfillment_config: AccountLoader<'info, SerumV3FulfillmentConfig>,
-    #[account(mut)]
-    pub admin: Signer<'info>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateSerumVault<'info> {
-    #[account(
-        mut,
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    pub admin: Signer<'info>,
-    pub srm_vault: Box<Account<'info, TokenAccount>>,
-}
 
 #[derive(Accounts)]
 pub struct InitializeUserStats<'info> {
@@ -210,29 +84,6 @@ pub struct DeleteUser<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct InitializeMarket<'info> {
-    #[account(mut)]
-    pub admin: Signer<'info>,
-    #[account(
-        mut,
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        init,
-        seeds = [b"market", state.number_of_markets.to_le_bytes().as_ref()],
-        space = std::mem::size_of::<PerpMarket>() + 8,
-        bump,
-        payer = admin
-    )]
-    pub market: AccountLoader<'info, PerpMarket>,
-    /// CHECK: checked in `initialize_market`
-    pub oracle: AccountInfo<'info>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -333,65 +184,6 @@ pub struct TransferDeposit<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
     pub state: Box<Account<'info, State>>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateSpotMarketCumulativeInterest<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    pub spot_market: AccountLoader<'info, SpotMarket>,
-}
-
-#[derive(Accounts)]
-pub struct SettleExpiredMarketPoolsToRevenuePool<'info> {
-    #[account(
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    pub admin: Signer<'info>,
-    #[account(
-        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
-        bump,
-        mut
-    )]
-    pub spot_market: AccountLoader<'info, SpotMarket>,
-    #[account(mut)]
-    pub perp_market: AccountLoader<'info, PerpMarket>,
-}
-
-#[derive(Accounts)]
-pub struct DepositIntoMarketFeePool<'info> {
-    #[account(
-        mut,
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    pub market: AccountLoader<'info, PerpMarket>,
-    pub admin: Signer<'info>,
-    #[account(
-        mut,
-        token::authority = admin
-    )]
-    pub source_vault: Box<Account<'info, TokenAccount>>,
-    #[account(
-        constraint = state.signer.eq(&clearing_house_signer.key())
-    )]
-    /// CHECK: withdraw fails if this isn't vault owner
-    pub clearing_house_signer: AccountInfo<'info>,
-    #[account(
-        mut,
-        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub quote_spot_market: AccountLoader<'info, SpotMarket>,
-    #[account(
-        mut,
-        seeds = [b"spot_market_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
@@ -734,75 +526,6 @@ pub struct UpdateFundingRate<'info> {
 }
 
 #[derive(Accounts)]
-pub struct RepegCurve<'info> {
-    #[account(
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    pub market: AccountLoader<'info, PerpMarket>,
-    /// CHECK: checked in `repeg_curve` ix constraint
-    pub oracle: AccountInfo<'info>,
-    pub admin: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct MoveAMMPrice<'info> {
-    #[account(
-        has_one = admin,
-    )]
-    pub state: Box<Account<'info, State>>,
-    pub admin: Signer<'info>,
-    #[account(mut)]
-    pub perp_market: AccountLoader<'info, PerpMarket>,
-}
-
-#[derive(Accounts)]
-pub struct AdminUpdateState<'info> {
-    pub admin: Signer<'info>,
-    #[account(
-        mut,
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-}
-
-#[derive(Accounts)]
-pub struct AdminUpdateK<'info> {
-    pub admin: Signer<'info>,
-    #[account(
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    pub market: AccountLoader<'info, PerpMarket>,
-    /// CHECK: checked in `admin_update_k` ix constraint
-    pub oracle: AccountInfo<'info>,
-}
-
-#[derive(Accounts)]
-pub struct AdminUpdateMarket<'info> {
-    pub admin: Signer<'info>,
-    #[account(
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    pub market: AccountLoader<'info, PerpMarket>,
-}
-
-#[derive(Accounts)]
-pub struct AdminUpdateSpotMarket<'info> {
-    pub admin: Signer<'info>,
-    #[account(
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    pub spot_market: AccountLoader<'info, SpotMarket>,
-}
-
-#[derive(Accounts)]
 #[instruction(
     market_index: u16,
 )]
@@ -977,39 +700,6 @@ pub struct RemoveInsuranceFundStake<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(market_index: u16,)]
-pub struct AdminRemoveInsuranceFundStake<'info> {
-    pub admin: Signer<'info>,
-    #[account(
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
-        bump
-    )]
-    pub spot_market: AccountLoader<'info, SpotMarket>,
-    #[account(
-        mut,
-        seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
-    #[account(
-        constraint = state.signer.eq(&clearing_house_signer.key())
-    )]
-    /// CHECK: forced clearing_house_signer
-    pub clearing_house_signer: AccountInfo<'info>,
-    #[account(
-        mut,
-        token::mint = insurance_fund_vault.mint,
-        token::authority = admin
-    )]
-    pub admin_token_account: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
-}
-
-#[derive(Accounts)]
 pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
@@ -1036,18 +726,9 @@ pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
 }
 
-fn can_sign_for_user(user: &AccountLoader<User>, signer: &Signer) -> Result<bool> {
-    user.load().map(|user| {
-        user.authority.eq(signer.key)
-            || (user.delegate.eq(signer.key) && !user.delegate.eq(&Pubkey::default()))
-    })
-}
-
-fn is_stats_for_user(
-    user: &AccountLoader<User>,
-    user_stats: &AccountLoader<UserStats>,
-) -> Result<bool> {
-    let user = user.load()?;
-    let user_stats = user_stats.load()?;
-    Ok(user_stats.authority.eq(&user.authority))
+#[derive(Accounts)]
+pub struct UpdateSpotMarketCumulativeInterest<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
 }

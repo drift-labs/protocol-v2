@@ -252,7 +252,7 @@ export class Admin extends ClearingHouse {
 				accounts: {
 					state: await this.getStatePublicKey(),
 					admin: this.wallet.publicKey,
-					perpMarket: marketPublicKey,
+					market: marketPublicKey,
 				},
 			}
 		);
@@ -320,7 +320,7 @@ export class Admin extends ClearingHouse {
 				accounts: {
 					state: await this.getStatePublicKey(),
 					admin: this.wallet.publicKey,
-					perpMarket: marketPublicKey,
+					market: marketPublicKey,
 				},
 			}
 		);
@@ -764,7 +764,7 @@ export class Admin extends ClearingHouse {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
-				perpMarket: await getMarketPublicKey(
+				market: await getMarketPublicKey(
 					this.program.programId,
 					perpMarketIndex
 				),
