@@ -8,7 +8,6 @@ use serum_dex::instruction::{NewOrderInstructionV3, SelfTradeBehavior};
 use serum_dex::matching::Side;
 use solana_program::msg;
 
-use crate::context::*;
 use crate::controller;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::position;
@@ -29,6 +28,7 @@ use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::get_struct_values;
 use crate::get_then_update_id;
+use crate::instructions::OrderParams;
 use crate::load_mut;
 use crate::math::auction::{calculate_auction_end_price, is_auction_complete};
 use crate::math::casting::{cast, cast_to_u64, Cast};

@@ -7,12 +7,12 @@ use bytemuck::cast_slice;
 use serum_dex::state::ToAlignedBytes;
 use solana_program::msg;
 
-use crate::context::SpotFulfillmentType;
 use crate::controller;
 use crate::controller::validate::validate_market_account;
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
 use crate::instructions::constraints::*;
+use crate::instructions::keeper::SpotFulfillmentType;
 use crate::load;
 use crate::load_mut;
 use crate::math::amm::get_update_k_result;

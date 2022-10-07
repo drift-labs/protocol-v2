@@ -1,9 +1,10 @@
 use crate::controller::position::get_position_index;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math_error;
+use crate::state::events::{LPAction, LPRecord};
 use crate::state::market::PerpMarket;
+use crate::state::user::PerpPosition;
 use crate::state::user::User;
-use crate::PerpPosition;
 
 use crate::bn::U192;
 use crate::controller::position::PositionDelta;
@@ -132,9 +133,9 @@ pub fn settle_lp(
         if position.lp_shares > 0 {
             let (position_delta, pnl) = settle_lp_position(position, market)?;
 
-            crate::emit!(crate::LPRecord {
+            crate::emit!(LPRecord {
                 ts: now,
-                action: crate::LPAction::SettleLiquidity,
+                action: LPAction::SettleLiquidity,
                 user: *user_key,
                 market_index: market.market_index,
                 delta_base_asset_amount: position_delta.base_asset_amount,
