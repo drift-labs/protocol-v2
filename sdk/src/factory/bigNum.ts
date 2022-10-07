@@ -306,7 +306,11 @@ export class BigNum {
 	 * @param fixedPrecision
 	 * @returns
 	 */
-	public toFixed(fixedPrecision: number): string {
+	public toFixed(fixedPrecision: number, rounded = false): string {
+		if (rounded) {
+			return this.toRounded(fixedPrecision).toFixed(fixedPrecision);
+		}
+
 		const printString = this.print();
 
 		const [leftSide, rightSide] = printString.split(BigNum.delim);
@@ -325,12 +329,57 @@ export class BigNum {
 		return new Array(count).fill('0').join('');
 	}
 
+	public toRounded(roundingPrecision: number) {
+		const printString = this.toString();
+
+		let shouldRoundUp = false;
+
+		const roundingDigitChar = printString[roundingPrecision];
+
+		if (roundingDigitChar) {
+			const roundingDigitVal = Number(roundingDigitChar);
+			if (roundingDigitVal >= 5) shouldRoundUp = true;
+		}
+
+		if (shouldRoundUp) {
+			const valueWithRoundedPrecisionAdded = this.add(
+				BigNum.from(
+					new BN(10).pow(new BN(printString.length - roundingPrecision)),
+					this.precision
+				)
+			);
+
+			const roundedUpPrintString =
+				valueWithRoundedPrecisionAdded.toString().slice(0, roundingPrecision) +
+				this.getZeroes(printString.length - roundingPrecision);
+
+			return BigNum.from(roundedUpPrintString, this.precision);
+		} else {
+			const roundedDownPrintString =
+				printString.slice(0, roundingPrecision) +
+				this.getZeroes(printString.length - roundingPrecision);
+
+			return BigNum.from(roundedDownPrintString, this.precision);
+		}
+	}
+
 	/**
 	 * Pretty print to the specified number of significant figures
 	 * @param fixedPrecision
 	 * @returns
 	 */
-	public toPrecision(fixedPrecision: number, trailingZeroes = false): string {
+	public toPrecision(
+		fixedPrecision: number,
+		trailingZeroes = false,
+		rounded = false
+	): string {
+		if (rounded) {
+			return this.toRounded(fixedPrecision).toPrecision(
+				fixedPrecision,
+				trailingZeroes
+			);
+		}
+
 		const printString = this.print();
 
 		let precisionPrintString = printString.slice(0, fixedPrecision + 1);
@@ -404,8 +453,8 @@ export class BigNum {
 		return precisionPrintString;
 	}
 
-	public toTradePrecision(): string {
-		return this.toPrecision(6, true);
+	public toTradePrecision(rounded = false): string {
+		return this.toPrecision(6, true, rounded);
 	}
 
 	/**
@@ -448,7 +497,11 @@ export class BigNum {
 		return `${prefix}${val.replace('-', '')}`;
 	}
 
-	public toMillified(precision = 3): string {
+	public toMillified(precision = 3, rounded = false): string {
+		if (rounded) {
+			return this.toRounded(precision).toMillified(precision);
+		}
+
 		const stringVal = this.print();
 
 		const [leftSide] = stringVal.split(BigNum.delim);

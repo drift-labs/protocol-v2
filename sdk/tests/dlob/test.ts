@@ -284,6 +284,85 @@ describe('DLOB Tests', () => {
 			expect(foundBids).to.equal(0);
 		}
 	});
+
+	it('Can clear DLOB', () => {
+		const vAsk = new BN(15);
+		const vBid = new BN(10);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const marketIndex = 0;
+
+		const slot = 12;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)),
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		insertOrderToDLOB(
+			dlob,
+			Keypair.generate().publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			0, // orderId
+			marketIndex,
+			new BN(9), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			Keypair.generate().publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			1, // orderId
+			marketIndex,
+			new BN(8), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+		insertOrderToDLOB(
+			dlob,
+			Keypair.generate().publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			2, // orderId
+			marketIndex,
+			new BN(8), // price
+			BASE_PRECISION, // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk
+		);
+
+		const bids = dlob.getBids(
+			marketIndex,
+			undefined,
+			0,
+			MarketType.PERP,
+			oracle
+		);
+		let b = 0;
+		for (const _bid of bids) {
+			b++;
+		}
+		expect(b).to.equal(3);
+
+		dlob.clear();
+		let thrown = false;
+		try {
+			const bids1 = dlob.getBids(marketIndex, vBid, 0, MarketType.PERP, oracle);
+			bids1.next();
+		} catch (e) {
+			console.error(e);
+			thrown = true;
+		}
+		expect(thrown, 'should throw after clearing').to.equal(true);
+	});
 });
 
 describe('DLOB Perp Tests', () => {
@@ -393,7 +472,7 @@ describe('DLOB Perp Tests', () => {
 		const bids = dlob.getBids(marketIndex, vBid, slot, MarketType.PERP, oracle);
 
 		console.log('The Book Bids:');
-		const gotBids = [];
+		const gotBids: Array<DLOBNode> = [];
 		let countBids = 0;
 		for (const bid of bids) {
 			gotBids.push(bid);

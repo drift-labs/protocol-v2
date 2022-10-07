@@ -34,6 +34,12 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 		private sortDirection: SortDirection
 	) {}
 
+	public clear() {
+		this.head = undefined;
+		this.length = 0;
+		this.nodeMap.clear();
+	}
+
 	public insert(
 		order: Order,
 		marketType: MarketTypeStr,

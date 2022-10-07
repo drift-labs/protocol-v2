@@ -135,6 +135,32 @@ export class DLOB {
 		}
 	}
 
+	public clear() {
+		for (const marketType of this.openOrders.keys()) {
+			this.openOrders.get(marketType).clear();
+		}
+		this.openOrders.clear();
+
+		for (const marketType of this.orderLists.keys()) {
+			for (const marketIndex of this.orderLists.get(marketType).keys()) {
+				const marketNodeLists = this.orderLists
+					.get(marketType)
+					.get(marketIndex);
+				for (const side of Object.keys(marketNodeLists)) {
+					for (const orderType of Object.keys(marketNodeLists[side])) {
+						marketNodeLists[side][orderType].clear();
+					}
+				}
+			}
+		}
+		this.orderLists.clear();
+
+		for (const marketType of this.marketIndexToAccount.keys()) {
+			this.marketIndexToAccount.get(marketType).clear();
+		}
+		this.marketIndexToAccount.clear();
+	}
+
 	/**
 	 * initializes a new DLOB instance
 	 *
@@ -516,6 +542,9 @@ export class DLOB {
 		if (marketTypeStr === 'perp' && vAsk) {
 			generatorList.push(getVammNodeGenerator(vAsk));
 		}
+		if (generatorList.length === 0) {
+			throw new Error('No ask generators found');
+		}
 
 		const askGenerators = generatorList.map((generator) => {
 			return {
@@ -588,6 +617,10 @@ export class DLOB {
 		if (marketTypeStr === 'perp' && vBid) {
 			generatorList.push(getVammNodeGenerator(vBid));
 		}
+		if (generatorList.length === 0) {
+			throw new Error('No bid generators found');
+		}
+
 		const bidGenerators = generatorList.map((generator) => {
 			return {
 				next: generator.next(),
