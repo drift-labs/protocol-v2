@@ -1,8 +1,31 @@
 use crate::error::ClearingHouseResult;
-use crate::math::casting::cast_to_i128;
+use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u64};
 use crate::math_error;
 use solana_program::msg;
 use std::cmp::max;
+
+pub fn calculate_rolling_sum(
+    data1: u64,
+    data2: u64,
+    weight1_numer: i128,
+    weight1_denom: i128,
+) -> ClearingHouseResult<u64> {
+    // assumes that missing times are zeros (e.g. handle NaN as 0)
+    let prev_twap_99 = cast_to_u128(data1)?
+        .checked_mul(cast_to_u128(max(
+            0,
+            weight1_denom
+                .checked_sub(weight1_numer)
+                .ok_or_else(math_error!())?,
+        ))?)
+        .ok_or_else(math_error!())?
+        .checked_div(cast_to_u128(weight1_denom)?)
+        .ok_or_else(math_error!())?;
+
+    cast_to_u64(prev_twap_99)?
+        .checked_add(data2)
+        .ok_or_else(math_error!())
+}
 
 pub fn calculate_weighted_average(
     data1: i128,

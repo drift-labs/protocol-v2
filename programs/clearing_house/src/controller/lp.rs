@@ -9,8 +9,8 @@ use crate::bn::U192;
 use crate::controller::position::PositionDelta;
 use crate::controller::position::{update_position_and_market, update_quote_asset_amount};
 use crate::get_struct_values;
-use crate::math::amm::{get_update_k_result, update_k};
 use crate::math::casting::Cast;
+use crate::math::cp_curve::{get_update_k_result, update_k};
 use crate::math::lp::calculate_settle_lp_metrics;
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 

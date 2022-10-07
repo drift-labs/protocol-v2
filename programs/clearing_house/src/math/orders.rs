@@ -75,7 +75,7 @@ pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
     let base_asset_amount_unfilled = order.get_base_asset_amount_unfilled()?;
 
     let (max_trade_base_asset_amount, max_trade_direction) =
-        math::amm::calculate_base_asset_amount_to_trade_to_price(
+        math::amm_spread::calculate_base_asset_amount_to_trade_to_price(
             &market.amm,
             limit_price,
             order.direction,

@@ -1,18 +1,17 @@
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::get_then_update_id;
-use crate::math::amm::{
-    calculate_quote_asset_amount_swapped, calculate_spread_reserves, get_spread_reserves,
-    get_update_k_result,
-};
+use crate::math::amm::calculate_quote_asset_amount_swapped;
+use crate::math::amm_spread::{calculate_spread_reserves, get_spread_reserves};
 use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128, Cast};
 use crate::math::constants::{
     CONCENTRATION_PRECISION, K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE,
     PRICE_TO_PEG_PRECISION_RATIO,
 };
+use crate::math::cp_curve::get_update_k_result;
 use crate::math::repeg::get_total_fee_lower_bound;
 use crate::math::spot_balance::{get_token_amount, validate_spot_balances};
-use crate::math::{amm, bn, quote_asset::*};
+use crate::math::{amm, amm_spread, bn, cp_curve, quote_asset::*};
 use crate::math_error;
 use crate::state::events::CurveRecord;
 use crate::state::market::{PerpMarket, AMM};
@@ -222,7 +221,7 @@ pub fn update_spread_reserves(amm: &mut AMM) -> ClearingHouseResult {
 
 pub fn update_spreads(amm: &mut AMM, reserve_price: u128) -> ClearingHouseResult<(u128, u128)> {
     let (long_spread, short_spread) = if amm.curve_update_intensity > 0 {
-        amm::calculate_spread(
+        amm_spread::calculate_spread(
             amm.base_spread,
             amm.last_oracle_reserve_price_spread_pct,
             amm.last_oracle_conf_pct,
@@ -338,7 +337,7 @@ pub fn formulaic_update_k(
         let k_update_max = K_BPS_UPDATE_SCALE
             + MAX_K_BPS_INCREASE * (market.amm.curve_update_intensity as i128) / 100;
         let (k_scale_numerator, k_scale_denominator) =
-            amm::calculate_budgeted_k_scale(market, cast_to_i128(budget)?, k_update_max)?;
+            cp_curve::calculate_budgeted_k_scale(market, cast_to_i128(budget)?, k_update_max)?;
 
         let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
             .checked_mul(bn::U192::from(k_scale_numerator))
@@ -348,12 +347,12 @@ pub fn formulaic_update_k(
 
         let update_k_result = get_update_k_result(market, new_sqrt_k, true)?;
 
-        let adjustment_cost = amm::adjust_k_cost(market, &update_k_result)?;
+        let adjustment_cost = cp_curve::adjust_k_cost(market, &update_k_result)?;
 
         let cost_applied = apply_cost_to_market(market, adjustment_cost, true)?;
 
         if cost_applied {
-            amm::update_k(market, &update_k_result)?;
+            cp_curve::update_k(market, &update_k_result)?;
 
             let peg_multiplier_after = market.amm.peg_multiplier;
             let base_asset_reserve_after = market.amm.base_asset_reserve;
@@ -774,10 +773,10 @@ mod test {
         let new_sqrt_k = market.amm.sqrt_k * new_scale;
         let update_k_result =
             get_update_k_result(&market, bn::U192::from(new_sqrt_k), false).unwrap();
-        let adjustment_cost = amm::adjust_k_cost(&mut market, &update_k_result).unwrap();
+        let adjustment_cost = cp_curve::adjust_k_cost(&mut market, &update_k_result).unwrap();
         assert_eq!(adjustment_cost, 11_575_563);
 
-        amm::update_k(&mut market, &update_k_result).unwrap();
+        cp_curve::update_k(&mut market, &update_k_result).unwrap();
         assert_eq!(market.amm.sqrt_k, new_sqrt_k);
 
         let (open_bids, open_asks) = amm::calculate_market_open_bids_asks(&market.amm).unwrap();
@@ -814,10 +813,11 @@ mod test {
         let new_sqrt_k = market_balanced.amm.sqrt_k * new_scale;
         let update_k_result =
             get_update_k_result(&market_balanced, bn::U192::from(new_sqrt_k), false).unwrap();
-        let adjustment_cost = amm::adjust_k_cost(&mut market_balanced, &update_k_result).unwrap();
+        let adjustment_cost =
+            cp_curve::adjust_k_cost(&mut market_balanced, &update_k_result).unwrap();
         assert_eq!(adjustment_cost, 0);
 
-        amm::update_k(&mut market_balanced, &update_k_result).unwrap();
+        cp_curve::update_k(&mut market_balanced, &update_k_result).unwrap();
         assert_eq!(market_balanced.amm.sqrt_k, new_sqrt_k);
 
         let (open_bids, open_asks) =

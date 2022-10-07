@@ -1,5 +1,6 @@
 pub mod amm;
 pub mod amm_jit;
+pub mod amm_spread;
 pub mod auction;
 pub mod bankruptcy;
 pub mod base_asset_amount;
@@ -8,6 +9,7 @@ pub mod casting;
 pub mod ceil_div;
 pub mod collateral;
 pub mod constants;
+pub mod cp_curve;
 pub mod fees;
 pub mod fulfillment;
 pub mod funding;

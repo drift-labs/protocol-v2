@@ -15,7 +15,6 @@ use crate::instructions::constraints::*;
 use crate::instructions::keeper::SpotFulfillmentType;
 use crate::load;
 use crate::load_mut;
-use crate::math::amm::get_update_k_result;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
 use crate::math::constants::{
     DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
@@ -25,6 +24,7 @@ use crate::math::constants::{
     SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_UTILIZATION_PRECISION,
     SPOT_UTILIZATION_PRECISION_U32, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
+use crate::math::cp_curve::get_update_k_result;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::repeg::get_total_fee_lower_bound;
 use crate::math::spot_balance::get_token_amount;
@@ -942,9 +942,9 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
 
     let update_k_result = get_update_k_result(market, new_sqrt_k_u192, true)?;
 
-    let adjustment_cost = math::amm::adjust_k_cost(market, &update_k_result)?;
+    let adjustment_cost = math::cp_curve::adjust_k_cost(market, &update_k_result)?;
 
-    math::amm::update_k(market, &update_k_result);
+    math::cp_curve::update_k(market, &update_k_result);
 
     if k_increasing {
         validate!(

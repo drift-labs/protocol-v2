@@ -4,7 +4,6 @@ use solana_program::msg;
 
 use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::amm::calculate_rolling_sum;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::{cast_to_i128, Cast};
 use crate::math::constants::{
@@ -14,6 +13,7 @@ use crate::math::constants::{
 use crate::math::orders::standardize_price;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
+use crate::math::stats::calculate_rolling_sum;
 use crate::math_error;
 use crate::state::market::AMM;
 use crate::state::oracle::OraclePriceData;

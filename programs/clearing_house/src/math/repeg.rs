@@ -8,6 +8,7 @@ use crate::math::constants::{
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
     SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, TWENTY_FOUR_HOUR,
 };
+use crate::math::cp_curve;
 use crate::math::oracle;
 use crate::math::oracle::OracleValidity;
 use crate::math::position::_calculate_base_asset_value_and_pnl;
@@ -381,14 +382,14 @@ pub fn adjust_amm(
                 )
                 .ok_or_else(math_error!())?;
 
-            let update_k_result = amm::UpdateKResult {
+            let update_k_result = cp_curve::UpdateKResult {
                 sqrt_k: new_sqrt_k,
                 base_asset_reserve: new_base_asset_reserve,
                 quote_asset_reserve: new_quote_asset_reserve,
             };
 
             let adjustment_cost =
-                amm::adjust_k_cost_and_update(&mut market_clone, &update_k_result)?;
+                cp_curve::adjust_k_cost_and_update(&mut market_clone, &update_k_result)?;
             per_peg_cost = calculate_per_peg_cost(
                 market_clone.amm.quote_asset_reserve,
                 market_clone.amm.terminal_quote_asset_reserve,
