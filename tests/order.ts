@@ -149,7 +149,11 @@ describe('orders', () => {
 			periodicity
 		);
 
-		await clearingHouse.updateMarketBaseAssetAmountStepSize(0, new BN(1000));
+		await clearingHouse.updatePerpStepSizeAndTickSize(
+			0,
+			new BN(1000),
+			new BN(1)
+		);
 
 		await clearingHouse.initializeMarket(
 			btcUsd,
@@ -159,7 +163,11 @@ describe('orders', () => {
 			new BN(60000 * PEG_PRECISION.toNumber()) // btc-ish price level
 		);
 
-		await clearingHouse.updateMarketBaseAssetAmountStepSize(1, new BN(1000));
+		await clearingHouse.updatePerpStepSizeAndTickSize(
+			1,
+			new BN(1000),
+			new BN(1)
+		);
 
 		await clearingHouse.initializeMarket(
 			ethUsd,
@@ -168,7 +176,11 @@ describe('orders', () => {
 			periodicity
 		);
 
-		await clearingHouse.updateMarketBaseAssetAmountStepSize(2, new BN(1000));
+		await clearingHouse.updatePerpStepSizeAndTickSize(
+			2,
+			new BN(1000),
+			new BN(1)
+		);
 
 		[, userAccountPublicKey] =
 			await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -675,7 +687,9 @@ describe('orders', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		await clearingHouse.fetchAccounts();
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		const limitPrice = calculateReservePrice(market).sub(new BN(1)); // 0 liquidity at current mark price
+		const limitPrice = calculateReservePrice(market).sub(
+			market.amm.orderTickSize
+		); // 0 liquidity at current mark price
 		const [newDirection, amountToPrice, _entryPrice, newMarkPrice] =
 			calculateTargetPriceTrade(market, limitPrice, new BN(1000), 'base');
 		assert(!amountToPrice.eq(ZERO));
@@ -845,8 +859,7 @@ describe('orders', () => {
 
 		const standardizedBaseAssetAmount = standardizeBaseAssetAmount(
 			baseAssetAmount,
-			clearingHouse.getPerpMarketAccount(marketIndex).amm
-				.baseAssetAmountStepSize
+			clearingHouse.getPerpMarketAccount(marketIndex).amm.orderStepSize
 		);
 		assert(
 			clearingHouseUser

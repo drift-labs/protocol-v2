@@ -79,7 +79,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 1000,
+                order_step_size: 1000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 base_spread: 20000,
@@ -281,7 +282,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -464,7 +466,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -643,7 +646,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 base_spread: 20000,
@@ -838,7 +842,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -1059,7 +1064,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 1000,
+                order_step_size: 1000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -1329,7 +1335,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -1538,7 +1545,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
@@ -1742,7 +1750,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 1000,
+                order_step_size: 1000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 base_spread: 5000,
                 max_spread: 1000000,
@@ -1869,8 +1878,8 @@ pub mod amm_jit {
             }
 
             let auction_price =
-                crate::math::auction::calculate_auction_price(&taker.orders[0], slot).unwrap();
-            let baa = market.amm.base_asset_amount_step_size * 4;
+                crate::math::auction::calculate_auction_price(&taker.orders[0], slot, 1).unwrap();
+            let baa = market.amm.order_step_size * 4;
 
             let (mark, ask, bid) = {
                 let market = market_map.get_ref(&0).unwrap();
@@ -2027,7 +2036,8 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_base_asset_amount_ratio: 100,
-                base_asset_amount_step_size: 1000,
+                order_step_size: 1000,
+                order_tick_size: 1,
                 oracle: oracle_price_key,
                 base_spread: 5000,
                 max_spread: 1000000,
@@ -2157,8 +2167,8 @@ pub mod amm_jit {
             }
 
             let auction_price =
-                crate::math::auction::calculate_auction_price(&taker.orders[0], slot).unwrap();
-            let baa = market.amm.base_asset_amount_step_size * 4;
+                crate::math::auction::calculate_auction_price(&taker.orders[0], slot, 1).unwrap();
+            let baa = market.amm.order_step_size * 4;
 
             let (mark, ask, bid) = {
                 let market = market_map.get_ref(&0).unwrap();

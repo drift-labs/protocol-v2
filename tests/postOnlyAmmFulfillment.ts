@@ -206,7 +206,9 @@ describe('post only maker order w/ amm fulfillments', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount: baseAssetAmount.div(new BN(2)),
-			price: reservePrice2.add(new BN(1)),
+			price: reservePrice2.add(
+				clearingHouse.getPerpMarketAccount(marketIndex).amm.orderTickSize
+			),
 			userOrderId: 1,
 			postOnly: true,
 		});
@@ -236,8 +238,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 		console.log(position.quoteAssetAmount.toString());
 		console.log(position.quoteEntryAmount.toString());
 
-		assert(position.quoteAssetAmount.eq(new BN(-32208904)));
-		assert(position.quoteEntryAmount.eq(new BN(-32176726)));
+		assert(position.quoteAssetAmount.eq(new BN(-32208912)));
+		assert(position.quoteEntryAmount.eq(new BN(-32176734)));
 
 		console.log(
 			'clearingHouse.getQuoteAssetTokenAmount:',
@@ -279,7 +281,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 		// assert(orderRecord2.maker == await fillerClearingHouse.getUserAccountPublicKey());
 		// assert(orderRecord2.taker == await clearingHouse.getUserAccountPublicKey());
 		assert(orderRecord2.baseAssetAmountFilled.eq(new BN(1000000000 / 2)));
-		assert(orderRecord2.quoteAssetAmountFilled.eq(new BN(16086352)));
+		console.log(orderRecord2.quoteAssetAmountFilled.toString());
+		assert(orderRecord2.quoteAssetAmountFilled.eq(new BN(16086360)));
 		assert(orderRecord2.quoteAssetAmountSurplus == null);
 		assert(orderRecord2.makerFee.eq(new BN(-3217)));
 		assert(orderRecord2.takerFee.eq(new BN(16087)));
@@ -302,8 +305,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 		assert(positionMaker.baseAssetAmount.eq(new BN(-500000000)));
 		console.log(positionMaker.quoteAssetAmount.toString());
 		console.log(positionMaker.quoteEntryAmount.toString());
-		assert(positionMaker.quoteAssetAmount.eq(new BN(16089569)));
-		assert(positionMaker.quoteEntryAmount.eq(new BN(16086352)));
+		assert(positionMaker.quoteAssetAmount.eq(new BN(16089577)));
+		assert(positionMaker.quoteEntryAmount.eq(new BN(16086360)));
 
 		await fillerClearingHouse.fetchAccounts();
 		const perpMarket = fillerClearingHouse.getPerpMarketAccount(0);

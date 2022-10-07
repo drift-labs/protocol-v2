@@ -29,8 +29,12 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     override_limit_price: Option<u128>,
 ) -> ClearingHouseResult<(u64, u128)> {
     let limit_price = if let Some(override_limit_price) = override_limit_price {
-        let order_limit_price =
-            order.get_limit_price(valid_oracle_price, slot, Some(&market.amm))?;
+        let order_limit_price = order.get_limit_price(
+            valid_oracle_price,
+            slot,
+            market.amm.order_tick_size,
+            Some(&market.amm),
+        )?;
 
         validate!(
             (order_limit_price >= override_limit_price
@@ -43,7 +47,12 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
 
         override_limit_price
     } else {
-        order.get_limit_price(valid_oracle_price, slot, Some(&market.amm))?
+        order.get_limit_price(
+            valid_oracle_price,
+            slot,
+            market.amm.order_tick_size,
+            Some(&market.amm),
+        )?
     };
 
     if order.must_be_triggered() && !order.triggered {
@@ -78,7 +87,7 @@ pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
 
     standardize_base_asset_amount(
         min(base_asset_amount_unfilled, max_trade_base_asset_amount),
-        market.amm.base_asset_amount_step_size,
+        market.amm.order_step_size,
     )
 }
 
@@ -207,6 +216,29 @@ pub fn is_multiple_of_step_size(
     Ok(remainder == 0)
 }
 
+pub fn standardize_price(
+    price: u64,
+    tick_size: u64,
+    direction: PositionDirection,
+) -> ClearingHouseResult<u64> {
+    let remainder = price
+        .checked_rem_euclid(tick_size)
+        .ok_or_else(math_error!())?;
+
+    if remainder == 0 {
+        return Ok(price);
+    }
+
+    match direction {
+        PositionDirection::Long => price.checked_sub(remainder).ok_or_else(math_error!()),
+        PositionDirection::Short => price
+            .checked_add(tick_size)
+            .ok_or_else(math_error!())?
+            .checked_sub(remainder)
+            .ok_or_else(math_error!()),
+    }
+}
+
 pub fn get_position_delta_for_fill(
     base_asset_amount: u64,
     quote_asset_amount: u64,
@@ -261,11 +293,12 @@ pub fn order_breaches_oracle_price_limits(
     order: &Order,
     oracle_price: i128,
     slot: u64,
+    tick_size: u64,
     margin_ratio_initial: u128,
     margin_ratio_maintenance: u128,
     amm: Option<&AMM>,
 ) -> ClearingHouseResult<bool> {
-    let order_limit_price = order.get_limit_price(Some(oracle_price), slot, amm)?;
+    let order_limit_price = order.get_limit_price(Some(oracle_price), slot, tick_size, amm)?;
     let oracle_price = oracle_price.unsigned_abs();
 
     let max_percent_diff = margin_ratio_initial
@@ -694,6 +727,7 @@ mod test {
             let oracle_price = 100 * PRICE_PRECISION_I128;
 
             let slot = 0;
+            let tick_size = 1;
 
             let margin_ratio_initial = MARGIN_PRECISION / 10;
             let margin_ratio_maintenance = MARGIN_PRECISION / 20;
@@ -701,6 +735,7 @@ mod test {
                 &order,
                 oracle_price,
                 slot,
+                tick_size,
                 margin_ratio_initial,
                 margin_ratio_maintenance,
                 None,
@@ -725,6 +760,7 @@ mod test {
             let oracle_price = 100 * PRICE_PRECISION_I128;
 
             let slot = 0;
+            let tick_size = 1;
 
             let margin_ratio_initial = MARGIN_PRECISION / 10;
             let margin_ratio_maintenance = MARGIN_PRECISION / 20;
@@ -732,6 +768,7 @@ mod test {
                 &order,
                 oracle_price,
                 slot,
+                tick_size,
                 margin_ratio_initial,
                 margin_ratio_maintenance,
                 None,
@@ -758,6 +795,7 @@ mod test {
             let oracle_price = 100 * PRICE_PRECISION_I128;
 
             let slot = 0;
+            let tick_size = 1;
 
             let margin_ratio_initial = MARGIN_PRECISION / 10;
             let margin_ratio_maintenance = MARGIN_PRECISION / 20;
@@ -765,6 +803,7 @@ mod test {
                 &order,
                 oracle_price,
                 slot,
+                tick_size,
                 margin_ratio_initial,
                 margin_ratio_maintenance,
                 None,
@@ -791,6 +830,7 @@ mod test {
             let oracle_price = 100 * PRICE_PRECISION_I128;
 
             let slot = 0;
+            let tick_size = 1;
 
             let margin_ratio_initial = MARGIN_PRECISION / 10;
             let margin_ratio_maintenance = MARGIN_PRECISION / 20;
@@ -798,6 +838,7 @@ mod test {
                 &order,
                 oracle_price,
                 slot,
+                tick_size,
                 margin_ratio_initial,
                 margin_ratio_maintenance,
                 None,
@@ -824,6 +865,7 @@ mod test {
             let oracle_price = 100 * PRICE_PRECISION_I128;
 
             let slot = 0;
+            let tick_size = 1;
 
             let margin_ratio_initial = MARGIN_PRECISION / 10;
             let margin_ratio_maintenance = MARGIN_PRECISION / 20;
@@ -831,6 +873,7 @@ mod test {
                 &order,
                 oracle_price,
                 slot,
+                tick_size,
                 margin_ratio_initial,
                 margin_ratio_maintenance,
                 None,
@@ -857,6 +900,7 @@ mod test {
             let oracle_price = 100 * PRICE_PRECISION_I128;
 
             let slot = 0;
+            let tick_size = 1;
 
             let margin_ratio_initial = MARGIN_PRECISION / 10;
             let margin_ratio_maintenance = MARGIN_PRECISION / 20;
@@ -864,6 +908,7 @@ mod test {
                 &order,
                 oracle_price,
                 slot,
+                tick_size,
                 margin_ratio_initial,
                 margin_ratio_maintenance,
                 None,

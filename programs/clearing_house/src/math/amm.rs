@@ -775,7 +775,7 @@ pub fn calculate_max_base_asset_amount_fillable(
 
     standardize_base_asset_amount(
         max_fill_size.min(max_base_asset_amount_on_side),
-        amm.base_asset_amount_step_size,
+        amm.order_step_size,
     )
 }
 

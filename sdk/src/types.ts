@@ -425,7 +425,6 @@ export type StateAccount = {
 	oracleGuardRails: OracleGuardRails;
 	numberOfMarkets: number;
 	numberOfSpotMarkets: number;
-	minOrderQuoteAssetAmount: BN;
 	minPerpAuctionDuration: number;
 	defaultMarketOrderTimeInForce: number;
 	defaultSpotAuctionDuration: number;
@@ -535,6 +534,7 @@ export type SpotMarketAccount = {
 	utilizationTwap: BN;
 
 	orderStepSize: BN;
+	orderTickSize: BN;
 	nextFillRecordId: BN;
 	spotFeePool: PoolBalance;
 	totalSpotFee: BN;
@@ -576,8 +576,8 @@ export type AMM = {
 	cumulativeNetBaseAssetAmountPerLp: BN;
 	userLpShares: BN;
 	netUnsettledLpBaseAssetAmount: BN;
-	minimumQuoteAssetTradeSize: BN;
-	baseAssetAmountStepSize: BN;
+	orderStepSize: BN;
+	orderTickSize: BN;
 	maxBaseAssetAmountRatio: number;
 	maxSlippageRatio: number;
 	baseSpread: number;

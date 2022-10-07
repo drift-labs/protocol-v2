@@ -809,7 +809,7 @@ mod calculate_margin_requirement_and_total_collateral {
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
-                base_asset_amount_step_size: 10000000,
+                order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
             },
