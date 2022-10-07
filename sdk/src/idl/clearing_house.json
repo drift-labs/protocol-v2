@@ -3,27 +3,35 @@
   "name": "clearing_house",
   "instructions": [
     {
-      "name": "initialize",
+      "name": "initializeUser",
+      "docs": [
+        "User Instructions"
+      ],
       "accounts": [
         {
-          "name": "admin",
+          "name": "user",
           "isMut": true,
-          "isSigner": true
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
         },
         {
           "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
           "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "quoteAssetMint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "clearingHouseSigner",
-          "isMut": false,
-          "isSigner": false
+          "isSigner": true
         },
         {
           "name": "rent",
@@ -34,284 +42,59 @@
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "userId",
+          "type": "u8"
         },
         {
-          "name": "tokenProgram",
+          "name": "name",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "initializeUserStats",
+      "accounts": [
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
           "isMut": false,
           "isSigner": false
         }
       ],
       "args": []
-    },
-    {
-      "name": "initializeSpotMarket",
-      "accounts": [
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarketMint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarketVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceFundVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "clearingHouseSigner",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "optimalUtilization",
-          "type": "u32"
-        },
-        {
-          "name": "optimalBorrowRate",
-          "type": "u32"
-        },
-        {
-          "name": "maxBorrowRate",
-          "type": "u32"
-        },
-        {
-          "name": "oracleSource",
-          "type": {
-            "defined": "OracleSource"
-          }
-        },
-        {
-          "name": "initialAssetWeight",
-          "type": "u128"
-        },
-        {
-          "name": "maintenanceAssetWeight",
-          "type": "u128"
-        },
-        {
-          "name": "initialLiabilityWeight",
-          "type": "u128"
-        },
-        {
-          "name": "maintenanceLiabilityWeight",
-          "type": "u128"
-        },
-        {
-          "name": "imfFactor",
-          "type": "u128"
-        },
-        {
-          "name": "liquidationFee",
-          "type": "u128"
-        },
-        {
-          "name": "activeStatus",
-          "type": "bool"
-        }
-      ]
-    },
-    {
-      "name": "updateSerumVault",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "srmVault",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "initializeSerumFulfillmentConfig",
-      "accounts": [
-        {
-          "name": "baseSpotMarket",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "quoteSpotMarket",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "serumProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "serumMarket",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "serumOpenOrders",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "clearingHouseSigner",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "serumFulfillmentConfig",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "initializeMarket",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "market",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "ammBaseAssetReserve",
-          "type": "u128"
-        },
-        {
-          "name": "ammQuoteAssetReserve",
-          "type": "u128"
-        },
-        {
-          "name": "ammPeriodicity",
-          "type": "i64"
-        },
-        {
-          "name": "ammPegMultiplier",
-          "type": "u128"
-        },
-        {
-          "name": "oracleSource",
-          "type": {
-            "defined": "OracleSource"
-          }
-        },
-        {
-          "name": "marginRatioInitial",
-          "type": "u32"
-        },
-        {
-          "name": "marginRatioMaintenance",
-          "type": "u32"
-        },
-        {
-          "name": "liquidationFee",
-          "type": "u128"
-        },
-        {
-          "name": "activeStatus",
-          "type": "bool"
-        }
-      ]
     },
     {
       "name": "deposit",
@@ -467,124 +250,6 @@
       ]
     },
     {
-      "name": "updateSpotMarketCumulativeInterest",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "updateSpotMarketExpiry",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "expiryTs",
-          "type": "i64"
-        }
-      ]
-    },
-    {
-      "name": "settleLp",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "removeLiquidity",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "sharesToBurn",
-          "type": "u64"
-        },
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "addLiquidity",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "nShares",
-          "type": "u64"
-        },
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
-    },
-    {
       "name": "placeOrder",
       "accounts": [
         {
@@ -663,55 +328,6 @@
         {
           "name": "userOrderId",
           "type": "u8"
-        }
-      ]
-    },
-    {
-      "name": "fillOrder",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "filler",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "fillerStats",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userStats",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "orderId",
-          "type": {
-            "option": "u32"
-          }
-        },
-        {
-          "name": "makerOrderId",
-          "type": {
-            "option": "u32"
-          }
         }
       ]
     },
@@ -802,37 +418,6 @@
       ]
     },
     {
-      "name": "triggerOrder",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "filler",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "orderId",
-          "type": "u32"
-        }
-      ]
-    },
-    {
       "name": "placeSpotOrder",
       "accounts": [
         {
@@ -856,6 +441,224 @@
           "name": "params",
           "type": {
             "defined": "OrderParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "addLiquidity",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "nShares",
+          "type": "u64"
+        },
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "removeLiquidity",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "sharesToBurn",
+          "type": "u64"
+        },
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "updateUserName",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "userId",
+          "type": "u8"
+        },
+        {
+          "name": "name",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateUserCustomMarginRatio",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "userId",
+          "type": "u8"
+        },
+        {
+          "name": "marginRatio",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateUserDelegate",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "userId",
+          "type": "u8"
+        },
+        {
+          "name": "delegate",
+          "type": "publicKey"
+        }
+      ]
+    },
+    {
+      "name": "deleteUser",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "fillOrder",
+      "docs": [
+        "Keeper Instructions"
+      ],
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fillerStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderId",
+          "type": {
+            "option": "u32"
+          }
+        },
+        {
+          "name": "makerOrderId",
+          "type": {
+            "option": "u32"
           }
         }
       ]
@@ -918,7 +721,7 @@
       ]
     },
     {
-      "name": "updateAmms",
+      "name": "triggerOrder",
       "accounts": [
         {
           "name": "state",
@@ -929,17 +732,22 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
         }
       ],
       "args": [
         {
-          "name": "marketIndexes",
-          "type": {
-            "array": [
-              "u16",
-              5
-            ]
-          }
+          "name": "orderId",
+          "type": "u32"
         }
       ]
     },
@@ -970,7 +778,7 @@
       ]
     },
     {
-      "name": "settleExpiredMarket",
+      "name": "settleFundingPayment",
       "accounts": [
         {
           "name": "state",
@@ -978,9 +786,25 @@
           "isSigner": false
         },
         {
-          "name": "authority",
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "settleLp",
+      "accounts": [
+        {
+          "name": "state",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
         }
       ],
       "args": [
@@ -1001,6 +825,27 @@
         {
           "name": "user",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "settleExpiredMarket",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -1380,7 +1225,7 @@
       ]
     },
     {
-      "name": "moveAmmPrice",
+      "name": "settleRevenueToInsuranceFund",
       "accounts": [
         {
           "name": "state",
@@ -1388,12 +1233,748 @@
           "isSigner": false
         },
         {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "updateFundingRate",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketCumulativeInterest",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateAmms",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndexes",
+          "type": {
+            "array": [
+              "u16",
+              5
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketExpiry",
+      "accounts": [
+        {
           "name": "admin",
           "isMut": false,
           "isSigner": true
         },
         {
-          "name": "perpMarket",
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "expiryTs",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "updateUserQuoteAssetInsuranceStake",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initializeInsuranceFundStake",
+      "docs": [
+        "IF stakers"
+      ],
+      "accounts": [
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "addInsuranceFundStake",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "requestRemoveInsuranceFundStake",
+      "accounts": [
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "cancelRequestRemoveInsuranceFundStake",
+      "accounts": [
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "removeInsuranceFundStake",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "initialize",
+      "docs": [
+        "Admin Instructions"
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "quoteAssetMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initializeSpotMarket",
+      "accounts": [
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "optimalUtilization",
+          "type": "u32"
+        },
+        {
+          "name": "optimalBorrowRate",
+          "type": "u32"
+        },
+        {
+          "name": "maxBorrowRate",
+          "type": "u32"
+        },
+        {
+          "name": "oracleSource",
+          "type": {
+            "defined": "OracleSource"
+          }
+        },
+        {
+          "name": "initialAssetWeight",
+          "type": "u128"
+        },
+        {
+          "name": "maintenanceAssetWeight",
+          "type": "u128"
+        },
+        {
+          "name": "initialLiabilityWeight",
+          "type": "u128"
+        },
+        {
+          "name": "maintenanceLiabilityWeight",
+          "type": "u128"
+        },
+        {
+          "name": "imfFactor",
+          "type": "u128"
+        },
+        {
+          "name": "liquidationFee",
+          "type": "u128"
+        },
+        {
+          "name": "activeStatus",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "initializeSerumFulfillmentConfig",
+      "accounts": [
+        {
+          "name": "baseSpotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "quoteSpotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "serumProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "serumMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "serumOpenOrders",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clearingHouseSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "serumFulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "updateSerumVault",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "srmVault",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initializeMarket",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "market",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "ammBaseAssetReserve",
+          "type": "u128"
+        },
+        {
+          "name": "ammQuoteAssetReserve",
+          "type": "u128"
+        },
+        {
+          "name": "ammPeriodicity",
+          "type": "i64"
+        },
+        {
+          "name": "ammPegMultiplier",
+          "type": "u128"
+        },
+        {
+          "name": "oracleSource",
+          "type": {
+            "defined": "OracleSource"
+          }
+        },
+        {
+          "name": "marginRatioInitial",
+          "type": "u32"
+        },
+        {
+          "name": "marginRatioMaintenance",
+          "type": "u32"
+        },
+        {
+          "name": "liquidationFee",
+          "type": "u128"
+        },
+        {
+          "name": "activeStatus",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "moveAmmPrice",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
           "isMut": true,
           "isSigner": false
         }
@@ -1417,17 +1998,17 @@
       "name": "updateMarketExpiry",
       "accounts": [
         {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "admin",
           "isMut": false,
           "isSigner": true
         },
         {
-          "name": "perpMarket",
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "market",
           "isMut": true,
           "isSigner": false
         }
@@ -1598,245 +2179,6 @@
         }
       ],
       "args": []
-    },
-    {
-      "name": "initializeUser",
-      "accounts": [
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userStats",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "payer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "userId",
-          "type": "u8"
-        },
-        {
-          "name": "name",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "initializeUserStats",
-      "accounts": [
-        {
-          "name": "userStats",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "payer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "updateUserName",
-      "accounts": [
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "userId",
-          "type": "u8"
-        },
-        {
-          "name": "name",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "updateUserCustomMarginRatio",
-      "accounts": [
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "userId",
-          "type": "u8"
-        },
-        {
-          "name": "marginRatio",
-          "type": "u32"
-        }
-      ]
-    },
-    {
-      "name": "updateUserDelegate",
-      "accounts": [
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "userId",
-          "type": "u8"
-        },
-        {
-          "name": "delegate",
-          "type": "publicKey"
-        }
-      ]
-    },
-    {
-      "name": "deleteUser",
-      "accounts": [
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userStats",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "settleFundingPayment",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "updateFundingRate",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "market",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "oracle",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
     },
     {
       "name": "updateK",
@@ -2835,295 +3177,6 @@
       ]
     },
     {
-      "name": "initializeInsuranceFundStake",
-      "accounts": [
-        {
-          "name": "spotMarket",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceFundStake",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userStats",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "payer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "settleRevenueToInsuranceFund",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarketVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "clearingHouseSigner",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceFundVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "addInsuranceFundStake",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceFundStake",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userStats",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "spotMarketVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceFundVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "clearingHouseSigner",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "userTokenAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        },
-        {
-          "name": "amount",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "requestRemoveInsuranceFundStake",
-      "accounts": [
-        {
-          "name": "spotMarket",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceFundStake",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userStats",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "insuranceFundVault",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        },
-        {
-          "name": "amount",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "cancelRequestRemoveInsuranceFundStake",
-      "accounts": [
-        {
-          "name": "spotMarket",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceFundStake",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userStats",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "insuranceFundVault",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "removeInsuranceFundStake",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceFundStake",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userStats",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "insuranceFundVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "clearingHouseSigner",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "userTokenAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
-    },
-    {
       "name": "adminRemoveInsuranceFundStake",
       "accounts": [
         {
@@ -3172,42 +3225,6 @@
           "type": "u64"
         }
       ]
-    },
-    {
-      "name": "updateUserQuoteAssetInsuranceStake",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceFundStake",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userStats",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "insuranceFundVault",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
     }
   ],
   "accounts": [
@@ -5097,20 +5114,6 @@
       }
     },
     {
-      "name": "SpotFulfillmentType",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "SerumV3"
-          },
-          {
-            "name": "None"
-          }
-        ]
-      }
-    },
-    {
       "name": "SwapDirection",
       "type": {
         "kind": "enum",
@@ -5134,6 +5137,20 @@
           },
           {
             "name": "Short"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SpotFulfillmentType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "SerumV3"
+          },
+          {
+            "name": "None"
           }
         ]
       }

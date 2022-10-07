@@ -20,9 +20,8 @@ use crate::math::position::{
 };
 use crate::math_error;
 use crate::state::market::PerpMarket;
-use crate::state::user::{PerpPositions, User};
+use crate::state::user::{PerpPosition, PerpPositions, User};
 use crate::validate;
-use crate::PerpPosition;
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum PositionDirection {

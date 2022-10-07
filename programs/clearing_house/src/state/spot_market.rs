@@ -4,8 +4,8 @@ use std::fmt::{Display, Formatter};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::context::SpotFulfillmentType;
 use crate::error::ClearingHouseResult;
+use crate::instructions::SpotFulfillmentType;
 #[cfg(test)]
 use crate::math::constants::SPOT_CUMULATIVE_INTEREST_PRECISION;
 use crate::math::constants::{

@@ -620,6 +620,12 @@ pub enum OrderType {
     TriggerLimit,
 }
 
+impl Default for OrderType {
+    fn default() -> Self {
+        OrderType::Limit
+    }
+}
+
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum OrderTriggerCondition {
     Above,
