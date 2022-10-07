@@ -123,6 +123,11 @@ pub fn update_position_and_market(
     market: &mut PerpMarket,
     delta: &PositionDelta,
 ) -> ClearingHouseResult<i64> {
+    if delta.base_asset_amount == 0 {
+        update_quote_asset_amount(position, market, delta.quote_asset_amount)?;
+        return Ok(delta.quote_asset_amount);
+    }
+
     let update_type = get_position_update_type(position, delta);
 
     // Update User
