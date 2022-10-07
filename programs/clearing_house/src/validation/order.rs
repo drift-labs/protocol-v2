@@ -42,7 +42,7 @@ fn validate_market_order(
     step_size: u64,
     min_order_size: u64,
 ) -> ClearingHouseResult {
-    validate_base_asset_amount(order, step_size, min_order_size)?;
+    validate_base_asset_amount(order, step_size, min_order_size, order.reduce_only)?;
 
     match order.direction {
         PositionDirection::Long if order.auction_start_price >= order.auction_end_price => {
@@ -93,7 +93,12 @@ fn validate_limit_order(
     valid_oracle_price: Option<i128>,
     slot: u64,
 ) -> ClearingHouseResult {
-    validate_base_asset_amount(order, market.amm.order_step_size, market.amm.min_order_size)?;
+    validate_base_asset_amount(
+        order,
+        market.amm.order_step_size,
+        market.amm.min_order_size,
+        order.reduce_only,
+    )?;
 
     if order.price == 0 && !order.has_oracle_price_offset() {
         msg!("Limit order price == 0");
@@ -167,7 +172,7 @@ fn validate_trigger_limit_order(
     step_size: u64,
     min_order_size: u64,
 ) -> ClearingHouseResult {
-    validate_base_asset_amount(order, step_size, min_order_size)?;
+    validate_base_asset_amount(order, step_size, min_order_size, order.reduce_only)?;
 
     if order.price == 0 {
         msg!("Trigger limit order price == 0");
@@ -197,7 +202,7 @@ fn validate_trigger_market_order(
     step_size: u64,
     min_order_size: u64,
 ) -> ClearingHouseResult {
-    validate_base_asset_amount(order, step_size, min_order_size)?;
+    validate_base_asset_amount(order, step_size, min_order_size, order.reduce_only)?;
 
     if order.price > 0 {
         msg!("Trigger market order should not have price");
@@ -226,6 +231,7 @@ fn validate_base_asset_amount(
     order: &Order,
     step_size: u64,
     min_order_size: u64,
+    reduce_only: bool,
 ) -> ClearingHouseResult {
     if order.base_asset_amount == 0 {
         msg!("Order base_asset_amount cant be 0");
@@ -241,7 +247,7 @@ fn validate_base_asset_amount(
     )?;
 
     validate!(
-        order.base_asset_amount >= min_order_size,
+        reduce_only || order.base_asset_amount >= min_order_size,
         ErrorCode::InvalidOrder,
         "Order base_asset_amount ({}) < min_order_size ({})",
         order.base_asset_amount,
@@ -292,7 +298,7 @@ fn validate_spot_limit_order(
     margin_ratio_initial: u128,
     margin_ratio_maintenance: u128,
 ) -> ClearingHouseResult {
-    validate_base_asset_amount(order, step_size, min_order_size)?;
+    validate_base_asset_amount(order, step_size, min_order_size, order.reduce_only)?;
 
     if order.price == 0 && !order.has_oracle_price_offset() {
         msg!("Limit order price == 0");
