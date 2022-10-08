@@ -14,7 +14,7 @@ use crate::math::ceil_div::CheckedCeilDiv;
 use crate::math::constants::{BASE_PRECISION, MARGIN_PRECISION};
 use crate::math::position::calculate_entry_price;
 use crate::math_error;
-use crate::state::perp_market::{PerpMarket, AMM};
+use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::user::{Order, OrderStatus, OrderTriggerCondition, OrderType, User};
 use crate::validate;
@@ -30,12 +30,8 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     override_limit_price: Option<u128>,
 ) -> ClearingHouseResult<(u64, u128)> {
     let limit_price = if let Some(override_limit_price) = override_limit_price {
-        let order_limit_price = order.get_limit_price(
-            valid_oracle_price,
-            slot,
-            market.amm.order_tick_size,
-            Some(&market.amm),
-        )?;
+        let order_limit_price =
+            order.get_limit_price(valid_oracle_price, slot, market.amm.order_tick_size)?;
 
         validate!(
             (order_limit_price >= override_limit_price
@@ -50,12 +46,7 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
 
         override_limit_price
     } else {
-        order.get_limit_price(
-            valid_oracle_price,
-            slot,
-            market.amm.order_tick_size,
-            Some(&market.amm),
-        )?
+        order.get_limit_price(valid_oracle_price, slot, market.amm.order_tick_size)?
     };
 
     if order.must_be_triggered() && !order.triggered {
@@ -302,9 +293,8 @@ pub fn order_breaches_oracle_price_limits(
     tick_size: u64,
     margin_ratio_initial: u128,
     margin_ratio_maintenance: u128,
-    amm: Option<&AMM>,
 ) -> ClearingHouseResult<bool> {
-    let order_limit_price = order.get_limit_price(Some(oracle_price), slot, tick_size, amm)?;
+    let order_limit_price = order.get_limit_price(Some(oracle_price), slot, tick_size)?;
     let oracle_price = oracle_price.unsigned_abs();
 
     let max_percent_diff = margin_ratio_initial

@@ -152,6 +152,7 @@ pub mod amm_jit {
                 slot: 0,
                 auction_start_price: 0,
                 auction_end_price: 100 * PRICE_PRECISION_U64,
+                price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
