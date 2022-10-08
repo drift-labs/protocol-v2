@@ -168,7 +168,7 @@ fn calculate_referee_fee_and_referrer_reward(
     let referrer_reward = match referrer_stats {
         Some(referrer_stats) => {
             let max_referrer_reward_in_epoch = referrer_reward_epoch_upper_bound
-                .saturating_sub(referrer_stats.current_epoch_referrer_reward);
+                .saturating_sub(referrer_stats.fees.current_epoch_referrer_reward);
             max_referrer_reward_from_fee.min(max_referrer_reward_in_epoch)
         }
         None => max_referrer_reward_from_fee,

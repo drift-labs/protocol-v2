@@ -207,7 +207,7 @@ describe('referrer', () => {
 
 		await referrerClearingHouse.fetchAccounts();
 		const referrerStats = referrerClearingHouse.getUserStats().getAccount();
-		assert(referrerStats.totalReferrerReward.eq(new BN(15000)));
+		assert(referrerStats.fees.totalReferrerReward.eq(new BN(15000)));
 
 		const referrerPosition = referrerClearingHouse.getUser().getUserAccount()
 			.perpPositions[0];

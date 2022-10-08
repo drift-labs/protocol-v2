@@ -635,10 +635,11 @@ export type UserStatsAccount = {
 		totalFeeRebate: BN;
 		totalTokenDiscount: BN;
 		totalRefereeDiscount: BN;
+		totalReferrerReward: BN;
+		current_epoch_referrer_reward: BN;
 	};
 	referrer: PublicKey;
 	isReferrer: boolean;
-	totalReferrerReward: BN;
 	authority: PublicKey;
 	stakedQuoteAssetAmount: BN;
 };

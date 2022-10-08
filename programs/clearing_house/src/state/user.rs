@@ -152,6 +152,8 @@ pub struct UserFees {
     pub total_fee_rebate: u64,
     pub total_token_discount: u64,
     pub total_referee_discount: u64,
+    pub total_referrer_reward: u64,
+    pub current_epoch_referrer_reward: u64,
 }
 
 #[zero_copy]
@@ -658,8 +660,6 @@ pub struct UserStats {
     pub referrer: Pubkey,
     pub fees: UserFees,
 
-    pub total_referrer_reward: u64,
-    pub current_epoch_referrer_reward: u64,
     pub next_epoch_ts: i64,
 
     // volume track
@@ -769,12 +769,14 @@ impl UserStats {
         reward: u64,
         now: i64,
     ) -> ClearingHouseResult {
-        self.total_referrer_reward = self
+        self.fees.total_referrer_reward = self
+            .fees
             .total_referrer_reward
             .checked_add(reward)
             .ok_or_else(math_error!())?;
 
-        self.current_epoch_referrer_reward = self
+        self.fees.current_epoch_referrer_reward = self
+            .fees
             .current_epoch_referrer_reward
             .checked_add(reward)
             .ok_or_else(math_error!())?;
@@ -797,7 +799,7 @@ impl UserStats {
                 )
                 .ok_or_else(math_error!())?;
 
-            self.current_epoch_referrer_reward = 0;
+            self.fees.current_epoch_referrer_reward = 0;
         }
 
         Ok(())
