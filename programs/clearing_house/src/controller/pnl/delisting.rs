@@ -256,7 +256,7 @@ pub mod delisting_test {
         // expiry time
         assert_eq!(market.expiry_ts < clock.unix_timestamp, true);
         assert_eq!(market.status, MarketStatus::Initialized);
-        assert_eq!(market.settlement_price, 0);
+        assert_eq!(market.expiry_price, 0);
 
         // put in settlement mode
         settle_expired_market(
@@ -270,8 +270,8 @@ pub mod delisting_test {
         .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.settlement_price > 0, true);
-        assert_eq!(market.settlement_price, 98999999);
+        assert_eq!(market.expiry_price > 0, true);
+        assert_eq!(market.expiry_price, 98999999);
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
     }
@@ -369,7 +369,7 @@ pub mod delisting_test {
         // expiry time
         assert_eq!(market.expiry_ts < clock.unix_timestamp, true);
         assert_eq!(market.status, MarketStatus::Initialized);
-        assert_eq!(market.settlement_price, 0);
+        assert_eq!(market.expiry_price, 0);
 
         // put in settlement mode
         settle_expired_market(
@@ -383,12 +383,12 @@ pub mod delisting_test {
         .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.settlement_price > 0, true);
+        assert_eq!(market.expiry_price > 0, true);
         assert_eq!(
-            market.settlement_price < market.amm.historical_oracle_data.last_oracle_price_twap,
+            market.expiry_price < market.amm.historical_oracle_data.last_oracle_price_twap,
             true
         );
-        assert_eq!(market.settlement_price, 19999999); // best can do :/
+        assert_eq!(market.expiry_price, 19999999); // best can do :/
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
     }
@@ -487,7 +487,7 @@ pub mod delisting_test {
         // expiry time
         assert_eq!(market.expiry_ts < clock.unix_timestamp, true);
         assert_eq!(market.status, MarketStatus::Initialized);
-        assert_eq!(market.settlement_price, 0);
+        assert_eq!(market.expiry_price, 0);
 
         // put in settlement mode
         settle_expired_market(
@@ -501,12 +501,12 @@ pub mod delisting_test {
         .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.settlement_price > 0, true);
+        assert_eq!(market.expiry_price > 0, true);
         assert_eq!(
-            market.settlement_price < market.amm.historical_oracle_data.last_oracle_price_twap,
+            market.expiry_price < market.amm.historical_oracle_data.last_oracle_price_twap,
             true
         );
-        assert_eq!(market.settlement_price, 19999999); // best can do :/
+        assert_eq!(market.expiry_price, 19999999); // best can do :/
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
     }
@@ -605,7 +605,7 @@ pub mod delisting_test {
         // expiry time
         assert_eq!(market.expiry_ts < clock.unix_timestamp, true);
         assert_eq!(market.status, MarketStatus::Initialized);
-        assert_eq!(market.settlement_price, 0);
+        assert_eq!(market.expiry_price, 0);
 
         // put in settlement mode
         settle_expired_market(
@@ -619,8 +619,8 @@ pub mod delisting_test {
         .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.settlement_price > 0, true);
-        assert_eq!(market.settlement_price, 99000001); // target
+        assert_eq!(market.expiry_price > 0, true);
+        assert_eq!(market.expiry_price, 99000001); // target
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
     }
@@ -764,7 +764,7 @@ pub mod delisting_test {
         // expiry time
         assert_eq!(market.expiry_ts < clock.unix_timestamp, true);
         assert_eq!(market.status, MarketStatus::Initialized);
-        assert_eq!(market.settlement_price, 0);
+        assert_eq!(market.expiry_price, 0);
 
         let (margin_requirement, total_collateral, _, _) =
             calculate_margin_requirement_and_total_collateral(
@@ -792,8 +792,8 @@ pub mod delisting_test {
         .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.settlement_price > 0, true);
-        assert_eq!(market.settlement_price, 98999999);
+        assert_eq!(market.expiry_price > 0, true);
+        assert_eq!(market.expiry_price, 98999999);
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
@@ -1013,7 +1013,7 @@ pub mod delisting_test {
         // expiry time
         assert_eq!(market.expiry_ts < clock.unix_timestamp, true);
         assert_eq!(market.status, MarketStatus::Initialized);
-        assert_eq!(market.settlement_price, 0);
+        assert_eq!(market.expiry_price, 0);
 
         let (margin_requirement, total_collateral, _, _) =
             calculate_margin_requirement_and_total_collateral(
@@ -1041,8 +1041,8 @@ pub mod delisting_test {
         .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.settlement_price > 0, true);
-        assert_eq!(market.settlement_price, 98999999);
+        assert_eq!(market.expiry_price > 0, true);
+        assert_eq!(market.expiry_price, 98999999);
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
@@ -1124,7 +1124,7 @@ pub mod delisting_test {
     }
 
     #[test]
-    fn delist_market_with_1000_balance_long_negative_settlement_price() {
+    fn delist_market_with_1000_balance_long_negative_expiry_price() {
         // longs have negative cost basis and are up big
         // so settlement price has to be negative
 
@@ -1265,7 +1265,7 @@ pub mod delisting_test {
         // expiry time
         assert_eq!(market.expiry_ts < clock.unix_timestamp, true);
         assert_eq!(market.status, MarketStatus::Initialized);
-        assert_eq!(market.settlement_price, 0);
+        assert_eq!(market.expiry_price, 0);
 
         // put in settlement mode
         settle_expired_market(
@@ -1279,8 +1279,8 @@ pub mod delisting_test {
         .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.settlement_price != 0, true);
-        assert_eq!(market.settlement_price, -19500001);
+        assert_eq!(market.expiry_price != 0, true);
+        assert_eq!(market.expiry_price, -19500001);
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
@@ -1530,7 +1530,7 @@ pub mod delisting_test {
         // expiry time
         assert_eq!(market.expiry_ts < clock.unix_timestamp, true);
         assert_eq!(market.status, MarketStatus::Initialized);
-        assert_eq!(market.settlement_price, 0);
+        assert_eq!(market.expiry_price, 0);
 
         let (margin_requirement, total_collateral, _, _) =
             calculate_margin_requirement_and_total_collateral(
@@ -1558,8 +1558,8 @@ pub mod delisting_test {
         .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.settlement_price != 0, true);
-        assert_eq!(market.settlement_price, 20999999);
+        assert_eq!(market.expiry_price != 0, true);
+        assert_eq!(market.expiry_price, 20999999);
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
@@ -1873,7 +1873,7 @@ pub mod delisting_test {
         // expiry time
         assert_eq!(market.expiry_ts < clock.unix_timestamp, true);
         assert_eq!(market.status, MarketStatus::Initialized);
-        assert_eq!(market.settlement_price, 0);
+        assert_eq!(market.expiry_price, 0);
 
         let (margin_requirement, total_collateral, _, _) =
             calculate_margin_requirement_and_total_collateral(
@@ -1915,8 +1915,8 @@ pub mod delisting_test {
         .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.settlement_price != 0, true);
-        assert_eq!(market.settlement_price, 120250001); //$120.25 (vs $100)
+        assert_eq!(market.expiry_price != 0, true);
+        assert_eq!(market.expiry_price, 120250001); //$120.25 (vs $100)
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 
@@ -2288,8 +2288,8 @@ pub mod delisting_test {
         .unwrap();
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.settlement_price != 0, true);
-        assert_eq!(market.settlement_price, 120250001); //$120.25 (vs $100)
+        assert_eq!(market.expiry_price != 0, true);
+        assert_eq!(market.expiry_price, 120250001); //$120.25 (vs $100)
         assert_eq!(market.status, MarketStatus::Settlement);
         drop(market);
 

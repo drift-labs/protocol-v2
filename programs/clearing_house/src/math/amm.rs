@@ -807,7 +807,7 @@ pub fn calculate_net_user_pnl(amm: &AMM, oracle_price: i128) -> ClearingHouseRes
         .ok_or_else(math_error!())
 }
 
-pub fn calculate_settlement_price(
+pub fn calculate_expiry_price(
     amm: &AMM,
     target_price: i128,
     pnl_pool_amount: u128,
@@ -820,8 +820,8 @@ pub fn calculate_settlement_price(
     // net_quote/net_baa <= -price
 
     // net_user_unrealized_pnl negative = surplus in market
-    // net_user_unrealized_pnl positive = settlement price needs to differ from oracle
-    let best_settlement_price = -(amm
+    // net_user_unrealized_pnl positive = expiry price needs to differ from oracle
+    let best_expiry_price = -(amm
         .quote_asset_amount_long
         .checked_add(amm.quote_asset_amount_short)
         .ok_or_else(math_error!())?
@@ -832,21 +832,21 @@ pub fn calculate_settlement_price(
         .checked_div(amm.net_base_asset_amount)
         .ok_or_else(math_error!())?);
 
-    let settlement_price = if amm.net_base_asset_amount > 0 {
+    let expiry_price = if amm.net_base_asset_amount > 0 {
         // net longs only get as high as oracle_price
-        best_settlement_price
+        best_expiry_price
             .min(target_price)
             .checked_sub(1)
             .ok_or_else(math_error!())?
     } else {
         // net shorts only get as low as oracle price
-        best_settlement_price
+        best_expiry_price
             .max(target_price)
             .checked_add(1)
             .ok_or_else(math_error!())?
     };
 
-    Ok(settlement_price)
+    Ok(expiry_price)
 }
 
 #[cfg(test)]
@@ -911,7 +911,7 @@ mod test {
     }
 
     #[test]
-    fn calculate_settlement_price_long_imbalance_with_loss_test() {
+    fn calculate_expiry_price_long_imbalance_with_loss_test() {
         let prev = 1656682258;
         let _now = prev + 3600;
 
@@ -952,49 +952,49 @@ mod test {
             ..PerpMarket::default()
         };
 
-        let mut settlement_price =
-            calculate_settlement_price(&market.amm, oracle_price_data.price, 0).unwrap();
+        let mut expiry_price =
+            calculate_expiry_price(&market.amm, oracle_price_data.price, 0).unwrap();
 
         let reserve_price = market.amm.reserve_price().unwrap();
         let (terminal_price, _, _) = calculate_terminal_price_and_reserves(&market.amm).unwrap();
         let oracle_price = oracle_price_data.price;
 
-        assert_eq!(settlement_price, 22049999999);
+        assert_eq!(expiry_price, 22049999999);
         assert_eq!(terminal_price, 20076684570);
         assert_eq!(oracle_price, 22050000000);
         assert_eq!(reserve_price, 21051929600);
 
-        settlement_price = calculate_settlement_price(
+        expiry_price = calculate_expiry_price(
             &market.amm,
             oracle_price_data.price,
             111_111_110, // $111
         )
         .unwrap();
 
-        assert_eq!(settlement_price, 22049999999); // same price
+        assert_eq!(expiry_price, 22049999999); // same price
 
-        settlement_price = calculate_settlement_price(
+        expiry_price = calculate_expiry_price(
             &market.amm,
             oracle_price_data.price,
             1_111_111_110, // $1,111
         )
         .unwrap();
 
-        assert_eq!(settlement_price, 22049999999); // same price again
+        assert_eq!(expiry_price, 22049999999); // same price again
 
-        settlement_price = calculate_settlement_price(
+        expiry_price = calculate_expiry_price(
             &market.amm,
             oracle_price_data.price,
             111_111_110 * QUOTE_PRECISION,
         )
         .unwrap();
 
-        assert_eq!(settlement_price, 22049999999);
-        assert_eq!(settlement_price, oracle_price - 1); // more longs than shorts, bias = -1
+        assert_eq!(expiry_price, 22049999999);
+        assert_eq!(expiry_price, oracle_price - 1); // more longs than shorts, bias = -1
     }
 
     #[test]
-    fn calculate_settlement_price_long_imbalance_test() {
+    fn calculate_expiry_price_long_imbalance_test() {
         let prev = 1656682258;
         let _now = prev + 3600;
 
@@ -1035,49 +1035,49 @@ mod test {
             ..PerpMarket::default()
         };
 
-        let mut settlement_price =
-            calculate_settlement_price(&market.amm, oracle_price_data.price, 0).unwrap();
+        let mut expiry_price =
+            calculate_expiry_price(&market.amm, oracle_price_data.price, 0).unwrap();
 
         let reserve_price = market.amm.reserve_price().unwrap();
         let (terminal_price, _, _) = calculate_terminal_price_and_reserves(&market.amm).unwrap();
         let oracle_price = oracle_price_data.price;
 
-        assert_eq!(settlement_price, 16866666665);
+        assert_eq!(expiry_price, 16866666665);
         assert_eq!(terminal_price, 20076684570);
         assert_eq!(oracle_price, 22050000000);
         assert_eq!(reserve_price, 21051929600);
 
-        settlement_price = calculate_settlement_price(
+        expiry_price = calculate_expiry_price(
             &market.amm,
             oracle_price_data.price,
             111_111_110, // $111
         )
         .unwrap();
 
-        assert_eq!(settlement_price, 16875703702); // better price
+        assert_eq!(expiry_price, 16875703702); // better price
 
-        settlement_price = calculate_settlement_price(
+        expiry_price = calculate_expiry_price(
             &market.amm,
             oracle_price_data.price,
             1_111_111_110, // $1,111
         )
         .unwrap();
 
-        assert_eq!(settlement_price, 16957037035); // even better price
+        assert_eq!(expiry_price, 16957037035); // even better price
 
-        settlement_price = calculate_settlement_price(
+        expiry_price = calculate_expiry_price(
             &market.amm,
             oracle_price_data.price,
             111_111_110 * QUOTE_PRECISION,
         )
         .unwrap();
 
-        assert_eq!(settlement_price, 22049999999);
-        assert_eq!(settlement_price, oracle_price - 1); // more longs than shorts, bias = -1
+        assert_eq!(expiry_price, 22049999999);
+        assert_eq!(expiry_price, oracle_price - 1); // more longs than shorts, bias = -1
     }
 
     #[test]
-    fn calculate_settlement_price_test() {
+    fn calculate_expiry_price_test() {
         let prev = 1656682258;
         let _now = prev + 3600;
 
@@ -1106,15 +1106,13 @@ mod test {
             has_sufficient_number_of_data_points: true,
         };
 
-        let mut settlement_price =
-            calculate_settlement_price(&amm, oracle_price_data.price, 0).unwrap();
+        let mut expiry_price = calculate_expiry_price(&amm, oracle_price_data.price, 0).unwrap();
 
-        assert_eq!(settlement_price, oracle_price_data.price);
+        assert_eq!(expiry_price, oracle_price_data.price);
 
-        settlement_price =
-            calculate_settlement_price(&amm, oracle_price_data.price, 111111110).unwrap();
+        expiry_price = calculate_expiry_price(&amm, oracle_price_data.price, 111111110).unwrap();
 
-        assert_eq!(settlement_price, oracle_price_data.price);
+        assert_eq!(expiry_price, oracle_price_data.price);
 
         // imbalanced short, no longs
         // btc
@@ -1153,19 +1151,19 @@ mod test {
             ..PerpMarket::default()
         };
 
-        let mut settlement_price =
-            calculate_settlement_price(&market.amm, oracle_price_data.price, 0).unwrap();
+        let mut expiry_price =
+            calculate_expiry_price(&market.amm, oracle_price_data.price, 0).unwrap();
 
         let reserve_price = market.amm.reserve_price().unwrap();
         let (terminal_price, _, _) = calculate_terminal_price_and_reserves(&market.amm).unwrap();
         let oracle_price = oracle_price_data.price;
 
-        assert_eq!(settlement_price, 25000000001);
+        assert_eq!(expiry_price, 25000000001);
         assert_eq!(terminal_price, 22100000000);
         assert_eq!(oracle_price, 22050000000);
         assert_eq!(reserve_price, 21051929600);
 
-        settlement_price = calculate_settlement_price(
+        expiry_price = calculate_expiry_price(
             &market.amm,
             oracle_price_data.price,
             111_111_110, // $111
@@ -1173,9 +1171,9 @@ mod test {
         .unwrap();
 
         // 250000000000814 - 249909629631346 = 90370369468 (~$9 improved)
-        assert_eq!(settlement_price, 24990962964); // better price
+        assert_eq!(expiry_price, 24990962964); // better price
 
-        settlement_price = calculate_settlement_price(
+        expiry_price = calculate_expiry_price(
             &market.amm,
             oracle_price_data.price,
             1_111_111_110, // $1,111
@@ -1183,17 +1181,17 @@ mod test {
         .unwrap();
 
         // 250000000000814 - 249096296297998 = 903703702816 (~$90 improved)
-        assert_eq!(settlement_price, 24909629630); // even better price
+        assert_eq!(expiry_price, 24909629630); // even better price
 
-        settlement_price = calculate_settlement_price(
+        expiry_price = calculate_expiry_price(
             &market.amm,
             oracle_price_data.price,
             111111110 * QUOTE_PRECISION,
         )
         .unwrap();
 
-        assert_eq!(settlement_price, 22050000001);
-        assert_eq!(settlement_price, oracle_price + 1); // more shorts than longs, bias = +1
+        assert_eq!(expiry_price, 22050000001);
+        assert_eq!(expiry_price, oracle_price + 1); // more shorts than longs, bias = +1
     }
 
     #[test]

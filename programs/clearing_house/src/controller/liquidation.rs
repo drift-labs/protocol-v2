@@ -163,7 +163,7 @@ pub fn liquidate_perp(
     )?;
 
     let oracle_price = if market.status == MarketStatus::Settlement {
-        market.settlement_price
+        market.expiry_price
     } else {
         oracle_price_data.price
     };

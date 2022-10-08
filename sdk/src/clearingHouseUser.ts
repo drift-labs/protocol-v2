@@ -750,7 +750,7 @@ export class ClearingHouseUser {
 				).price;
 
 				if (isVariant(market.status, 'settlement')) {
-					valuationPrice = market.settlementPrice;
+					valuationPrice = market.expiryPrice;
 				}
 
 				const baseAssetAmount = includeOpenOrders

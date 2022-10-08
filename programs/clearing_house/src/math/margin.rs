@@ -200,7 +200,7 @@ pub fn calculate_perp_position_value_and_pnl(
     };
 
     let valuation_price = if market.status == MarketStatus::Settlement {
-        market.settlement_price
+        market.expiry_price
     } else {
         oracle_price_data.price
     };

@@ -441,7 +441,7 @@ export type PerpMarketAccount = {
 	status: MarketStatus;
 	contractType: ContractType;
 	expiryTs: BN;
-	settlementPrice: BN;
+	expiryPrice: BN;
 	marketIndex: number;
 	pubkey: PublicKey;
 	amm: AMM;

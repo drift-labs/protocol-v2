@@ -463,7 +463,7 @@ pub fn handle_initialize_perp_market(
         } else {
             MarketStatus::Initialized
         },
-        settlement_price: 0,
+        expiry_price: 0,
         expiry_ts: 0,
         pubkey: *market_pubkey,
         market_index,

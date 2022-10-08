@@ -353,18 +353,18 @@ pub fn settle_expired_market(
         "Only support bank.decimals == QUOTE_PRECISION"
     )?;
 
-    let target_settlement_price = market.amm.historical_oracle_data.last_oracle_price_twap;
+    let target_expiry_price = market.amm.historical_oracle_data.last_oracle_price_twap;
     validate!(
-        target_settlement_price > 0,
+        target_expiry_price > 0,
         ErrorCode::DefaultError,
-        "target_settlement_price <= 0 {}",
-        target_settlement_price
+        "target_expiry_price <= 0 {}",
+        target_expiry_price
     )?;
 
-    let settlement_price =
-        amm::calculate_settlement_price(&market.amm, target_settlement_price, pnl_pool_amount)?;
+    let expiry_price =
+        amm::calculate_expiry_price(&market.amm, target_expiry_price, pnl_pool_amount)?;
 
-    market.settlement_price = settlement_price;
+    market.expiry_price = expiry_price;
     market.status = MarketStatus::Settlement;
 
     Ok(())

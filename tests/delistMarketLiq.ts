@@ -484,17 +484,14 @@ describe('delist market, liquidation of expired position', () => {
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log(market.status);
 		assert(isVariant(market.status, 'settlement'));
-		console.log(
-			'market.settlementPrice:',
-			convertToNumber(market.settlementPrice)
-		);
+		console.log('market.expiryPrice:', convertToNumber(market.expiryPrice));
 
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solOracle))
 			.price;
 		console.log('new oracle price:', curPrice);
 
-		assert(market.settlementPrice.gt(ZERO));
-		assert(market.settlementPrice.eq(new BN(40499999)));
+		assert(market.expiryPrice.gt(ZERO));
+		assert(market.expiryPrice.eq(new BN(40499999)));
 	});
 
 	it('liq and settle expired market position', async () => {

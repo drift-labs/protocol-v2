@@ -13,7 +13,7 @@ use crate::math::casting::cast_to_i128;
 use crate::math::casting::cast_to_i64;
 use crate::math::casting::{cast, Cast};
 use crate::math::margin::meets_maintenance_margin_requirement;
-use crate::math::position::calculate_base_asset_value_and_pnl_with_settlement_price;
+use crate::math::position::calculate_base_asset_value_and_pnl_with_expiry_price;
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
 use crate::state::events::SettlePnlRecord;
@@ -237,11 +237,10 @@ pub fn settle_expired_position(
         "User must first burn lp shares for expired market"
     )?;
 
-    let (base_asset_value, unrealized_pnl) =
-        calculate_base_asset_value_and_pnl_with_settlement_price(
-            &user.perp_positions[position_index],
-            market.settlement_price,
-        )?;
+    let (base_asset_value, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_expiry_price(
+        &user.perp_positions[position_index],
+        market.expiry_price,
+    )?;
 
     let fee = base_asset_value
         .checked_mul(fee_structure.fee_tiers[0].fee_numerator as u128)
@@ -284,7 +283,7 @@ pub fn settle_expired_position(
         base_asset_amount,
         quote_asset_amount_after,
         quote_entry_amount,
-        settle_price: market.settlement_price,
+        settle_price: market.expiry_price,
     });
 
     validate!(
