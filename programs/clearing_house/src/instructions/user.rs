@@ -510,7 +510,7 @@ pub struct OrderParams {
     pub immediate_or_cancel: bool,
     pub trigger_price: Option<u64>,
     pub trigger_condition: OrderTriggerCondition,
-    pub oracle_price_offset: Option<i64>,
+    pub oracle_price_offset: Option<i32>,
     pub auction_duration: Option<u8>,
     pub time_in_force: Option<u8>,
     pub auction_start_price: Option<u64>,

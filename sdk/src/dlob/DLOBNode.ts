@@ -111,7 +111,7 @@ export class FloatingLimitOrderNode extends OrderNode {
 	previous?: FloatingLimitOrderNode;
 
 	getSortValue(order: Order): BN {
-		return order.oraclePriceOffset;
+		return new BN(order.oraclePriceOffset);
 	}
 }
 

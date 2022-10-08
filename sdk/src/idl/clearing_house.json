@@ -3944,14 +3944,6 @@
             }
           },
           {
-            "name": "totalReferrerReward",
-            "type": "u64"
-          },
-          {
-            "name": "currentEpochReferrerReward",
-            "type": "u64"
-          },
-          {
             "name": "nextEpochTs",
             "type": "i64"
           },
@@ -4071,7 +4063,7 @@
           {
             "name": "oraclePriceOffset",
             "type": {
-              "option": "i64"
+              "option": "i32"
             }
           },
           {
@@ -4860,6 +4852,14 @@
           {
             "name": "totalRefereeDiscount",
             "type": "u64"
+          },
+          {
+            "name": "totalReferrerReward",
+            "type": "u64"
+          },
+          {
+            "name": "currentEpochReferrerReward",
+            "type": "u64"
           }
         ]
       }
@@ -5018,16 +5018,16 @@
             "type": "u64"
           },
           {
-            "name": "oraclePriceOffset",
-            "type": "i64"
-          },
-          {
             "name": "auctionStartPrice",
             "type": "u64"
           },
           {
             "name": "auctionEndPrice",
             "type": "u64"
+          },
+          {
+            "name": "oraclePriceOffset",
+            "type": "i32"
           },
           {
             "name": "orderId",
@@ -5106,7 +5106,7 @@
             "type": {
               "array": [
                 "u8",
-                5
+                1
               ]
             }
           }

@@ -693,7 +693,7 @@ export type Order = {
 	existingPositionDirection: PositionDirection;
 	postOnly: boolean;
 	immediateOrCancel: boolean;
-	oraclePriceOffset: BN;
+	oraclePriceOffset: number;
 	auctionDuration: number;
 	auctionStartPrice: BN;
 	auctionEndPrice: BN;
@@ -714,7 +714,7 @@ export type OrderParams = {
 	triggerPrice: BN | null;
 	triggerCondition: OrderTriggerCondition;
 	positionLimit: BN;
-	oraclePriceOffset: BN | null;
+	oraclePriceOffset: number | null;
 	auctionDuration: number | null;
 	timeInForce: number | null;
 	auctionStartPrice: BN | null;

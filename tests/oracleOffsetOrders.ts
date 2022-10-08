@@ -171,7 +171,7 @@ describe('oracle offset', () => {
 			price,
 			reduceOnly,
 			userOrderId: 1,
-			oraclePriceOffset: priceOffset,
+			oraclePriceOffset: priceOffset.toNumber(),
 		});
 		await clearingHouse.placeOrder(orderParams);
 
@@ -244,7 +244,7 @@ describe('oracle offset', () => {
 			reduceOnly,
 			userOrderId: 1,
 			postOnly: true,
-			oraclePriceOffset: priceOffset,
+			oraclePriceOffset: priceOffset.toNumber(),
 		});
 
 		await clearingHouse.placeOrder(orderParams);
@@ -319,7 +319,7 @@ describe('oracle offset', () => {
 			baseAssetAmount,
 			reduceOnly,
 			userOrderId: 1,
-			oraclePriceOffset: priceOffset,
+			oraclePriceOffset: priceOffset.toNumber(),
 		});
 		await clearingHouse.placeOrder(orderParams);
 
@@ -392,7 +392,7 @@ describe('oracle offset', () => {
 			reduceOnly,
 			userOrderId: 1,
 			postOnly: true,
-			oraclePriceOffset: priceOffset,
+			oraclePriceOffset: priceOffset.toNumber(),
 		});
 		await clearingHouse.placeOrder(orderParams);
 
@@ -466,7 +466,7 @@ describe('oracle offset', () => {
 			baseAssetAmount,
 			reduceOnly,
 			postOnly: true,
-			oraclePriceOffset: priceOffset,
+			oraclePriceOffset: priceOffset.toNumber(),
 		});
 		await clearingHouse.placeOrder(orderParams);
 
@@ -523,7 +523,7 @@ describe('oracle offset', () => {
 			reduceOnly,
 			postOnly: true,
 			userOrderId: 1,
-			oraclePriceOffset: priceOffset,
+			oraclePriceOffset: priceOffset.toNumber(),
 		});
 		await clearingHouse.placeOrder(orderParams);
 

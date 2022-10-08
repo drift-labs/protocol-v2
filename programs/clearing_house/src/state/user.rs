@@ -421,9 +421,9 @@ pub struct Order {
     pub quote_asset_amount_filled: u64,
     pub fee: i64,
     pub trigger_price: u64,
-    pub oracle_price_offset: i64,
     pub auction_start_price: u64,
     pub auction_end_price: u64,
+    pub oracle_price_offset: i32,
     pub order_id: u32,
     pub market_index: u16,
     pub status: OrderStatus,
@@ -439,7 +439,7 @@ pub struct Order {
     pub triggered: bool,
     pub auction_duration: u8,
     pub time_in_force: u8,
-    pub padding: [u8; 5],
+    pub padding: [u8; 1],
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
@@ -464,7 +464,7 @@ impl Order {
         let price = if self.has_oracle_price_offset() {
             if let Some(oracle_price) = valid_oracle_price {
                 let limit_price = oracle_price
-                    .checked_add(self.oracle_price_offset as i128)
+                    .checked_add(self.oracle_price_offset.cast()?)
                     .ok_or_else(math_error!())?;
 
                 if limit_price <= 0 {
@@ -601,7 +601,7 @@ impl Default for Order {
             auction_end_price: 0,
             auction_duration: 0,
             time_in_force: 0,
-            padding: [0; 5],
+            padding: [0; 1],
         }
     }
 }
