@@ -115,7 +115,7 @@ describe('liquidate perp and lp', () => {
 			new BN(0)
 		);
 
-		const txSig = await clearingHouse.addLiquidity(nLpShares, 0);
+		const txSig = await clearingHouse.addPerpLpShares(nLpShares, 0);
 		await printTxLogs(connection, txSig);
 
 		for (let i = 0; i < 32; i++) {
@@ -228,7 +228,7 @@ describe('liquidate perp and lp', () => {
 
 		// try to add liq when being liquidated -- should fail
 		try {
-			await clearingHouse.addLiquidity(nLpShares, 0);
+			await clearingHouse.addPerpLpShares(nLpShares, 0);
 			assert(false);
 		} catch (err) {
 			assert(err.message.includes('0x17d6'));
@@ -275,7 +275,7 @@ describe('liquidate perp and lp', () => {
 
 		// try to add liq when bankrupt -- should fail
 		try {
-			await clearingHouse.addLiquidity(nLpShares, 0);
+			await clearingHouse.addPerpLpShares(nLpShares, 0);
 			assert(false);
 		} catch (err) {
 			// cant add when bankrupt

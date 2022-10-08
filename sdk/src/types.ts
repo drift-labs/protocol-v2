@@ -656,6 +656,7 @@ export type UserAccount = {
 	nextLiquidationId: number;
 	nextOrderId: number;
 	customMarginRatio: number;
+	lastAddPerpLpSharesTs: BN;
 };
 
 export type SpotPosition = {

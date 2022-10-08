@@ -1369,19 +1369,19 @@ export class ClearingHouse {
 		});
 	}
 
-	public async removeLiquidity(
+	public async removePerpLpShares(
 		marketIndex: number,
 		sharesToBurn?: BN
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
-			wrapInTx(await this.getRemoveLiquidityIx(marketIndex, sharesToBurn)),
+			wrapInTx(await this.getRemovePerpLpSharesIx(marketIndex, sharesToBurn)),
 			[],
 			this.opts
 		);
 		return txSig;
 	}
 
-	public async getRemoveLiquidityIx(
+	public async getRemovePerpLpSharesIx(
 		marketIndex: number,
 		sharesToBurn?: BN
 	): Promise<TransactionInstruction> {
@@ -1402,22 +1402,26 @@ export class ClearingHouse {
 			console.log('burning lp shares:', sharesToBurn.toString());
 		}
 
-		return this.program.instruction.removeLiquidity(sharesToBurn, marketIndex, {
-			accounts: {
-				state: await this.getStatePublicKey(),
-				user: userAccountPublicKey,
-				authority: this.wallet.publicKey,
-			},
-			remainingAccounts: remainingAccounts,
-		});
+		return this.program.instruction.removePerpLpShares(
+			sharesToBurn,
+			marketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts: remainingAccounts,
+			}
+		);
 	}
 
-	public async addLiquidity(
+	public async addPerpLpShares(
 		amount: BN,
 		marketIndex: number
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
-			wrapInTx(await this.getAddLiquidityIx(amount, marketIndex)),
+			wrapInTx(await this.getAddPerpLpSharesIx(amount, marketIndex)),
 			[],
 			this.opts
 		);
@@ -1425,7 +1429,7 @@ export class ClearingHouse {
 		return txSig;
 	}
 
-	public async getAddLiquidityIx(
+	public async getAddPerpLpSharesIx(
 		amount: BN,
 		marketIndex: number
 	): Promise<TransactionInstruction> {
@@ -1436,7 +1440,7 @@ export class ClearingHouse {
 			writablePerpMarketIndexes: [marketIndex],
 		});
 
-		return this.program.instruction.addLiquidity(amount, marketIndex, {
+		return this.program.instruction.addPerpLpShares(amount, marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				user: userAccountPublicKey,

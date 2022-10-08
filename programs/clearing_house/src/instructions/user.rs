@@ -824,7 +824,7 @@ pub fn handle_place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
 #[access_control(
     amm_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_add_liquidity<'info>(
+pub fn handle_add_perp_lp_shares<'info>(
     ctx: Context<AddRemoveLiquidity>,
     n_shares: u64,
     market_index: u16,
@@ -891,7 +891,7 @@ pub fn handle_add_liquidity<'info>(
             n_shares,
         )?;
 
-        user.last_lp_add_time = now;
+        user.last_add_perp_lp_shares_ts = now;
     }
 
     // check margin requirements
@@ -916,7 +916,7 @@ pub fn handle_add_liquidity<'info>(
 #[access_control(
     amm_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_remove_liquidity<'info>(
+pub fn handle_remove_perp_lp_shares<'info>(
     ctx: Context<AddRemoveLiquidity>,
     shares_to_burn: u64,
     market_index: u16,
@@ -955,7 +955,7 @@ pub fn handle_remove_liquidity<'info>(
     let mut market = market_map.get_ref_mut(&market_index)?;
 
     let time_since_last_add_liquidity = now
-        .checked_sub(user.last_lp_add_time)
+        .checked_sub(user.last_add_perp_lp_shares_ts)
         .ok_or_else(math_error!())?;
 
     validate!(

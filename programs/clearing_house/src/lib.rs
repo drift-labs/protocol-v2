@@ -110,20 +110,20 @@ pub mod clearing_house {
         handle_place_spot_order(ctx, params)
     }
 
-    pub fn add_liquidity(
+    pub fn add_perp_lp_shares(
         ctx: Context<AddRemoveLiquidity>,
         n_shares: u64,
         market_index: u16,
     ) -> Result<()> {
-        handle_add_liquidity(ctx, n_shares, market_index)
+        handle_add_perp_lp_shares(ctx, n_shares, market_index)
     }
 
-    pub fn remove_liquidity(
+    pub fn remove_perp_lp_shares(
         ctx: Context<AddRemoveLiquidity>,
         shares_to_burn: u64,
         market_index: u16,
     ) -> Result<()> {
-        handle_remove_liquidity(ctx, shares_to_burn, market_index)
+        handle_remove_perp_lp_shares(ctx, shares_to_burn, market_index)
     }
 
     pub fn update_user_name(ctx: Context<UpdateUser>, _user_id: u8, name: [u8; 32]) -> Result<()> {

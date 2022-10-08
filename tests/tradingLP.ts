@@ -177,7 +177,7 @@ describe('liquidity providing', () => {
 		let market = clearingHouse.getPerpMarketAccount(0);
 
 		console.log('adding liquidity...');
-		const _sig = await clearingHouse.addLiquidity(
+		const _sig = await clearingHouse.addPerpLpShares(
 			new BN(100 * 1e13),
 			market.marketIndex
 		);

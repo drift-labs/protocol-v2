@@ -446,7 +446,7 @@
       ]
     },
     {
-      "name": "addLiquidity",
+      "name": "addPerpLpShares",
       "accounts": [
         {
           "name": "state",
@@ -476,7 +476,7 @@
       ]
     },
     {
-      "name": "removeLiquidity",
+      "name": "removePerpLpShares",
       "accounts": [
         {
           "name": "state",
@@ -3885,7 +3885,7 @@
             }
           },
           {
-            "name": "lastLpAddTime",
+            "name": "lastAddPerpLpSharesTs",
             "type": "i64"
           },
           {
