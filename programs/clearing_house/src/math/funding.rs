@@ -181,7 +181,7 @@ pub fn calculate_funding_payment(
     market_position: &PerpPosition,
 ) -> ClearingHouseResult<i64> {
     let funding_rate_delta = amm_cumulative_funding_rate
-        .checked_sub(market_position.last_cumulative_funding_rate)
+        .checked_sub(market_position.last_cumulative_funding_rate.cast()?)
         .ok_or_else(math_error!())?;
 
     if funding_rate_delta == 0 {

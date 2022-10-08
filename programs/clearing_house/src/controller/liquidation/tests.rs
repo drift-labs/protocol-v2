@@ -2387,8 +2387,8 @@ pub mod resolve_perp_bankruptcy {
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
-        FUNDING_RATE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
-        QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64,
+        FUNDING_RATE_PRECISION_I128, FUNDING_RATE_PRECISION_I64, LIQUIDATION_FEE_PRECISION,
+        PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::oracle::OracleSource;
@@ -2536,7 +2536,7 @@ pub mod resolve_perp_bankruptcy {
                 base_asset_amount: 5 * BASE_PRECISION_I64,
                 quote_asset_amount: -500 * QUOTE_PRECISION_I64,
                 open_bids: BASE_PRECISION_I64,
-                last_cumulative_funding_rate: 1000 * FUNDING_RATE_PRECISION_I128,
+                last_cumulative_funding_rate: 1000 * FUNDING_RATE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: [SpotPosition::default(); 8],
@@ -2547,7 +2547,7 @@ pub mod resolve_perp_bankruptcy {
         expected_affected_long_user.perp_positions[0].quote_asset_amount =
             -550 * QUOTE_PRECISION_I64; // loses $50
         expected_affected_long_user.perp_positions[0].last_cumulative_funding_rate =
-            1010 * FUNDING_RATE_PRECISION_I128;
+            1010 * FUNDING_RATE_PRECISION_I64;
 
         {
             let mut market = market_map.get_ref_mut(&0).unwrap();
@@ -2569,7 +2569,7 @@ pub mod resolve_perp_bankruptcy {
                 base_asset_amount: -5 * BASE_PRECISION_I64,
                 quote_asset_amount: 500 * QUOTE_PRECISION_I64,
                 open_bids: BASE_PRECISION_I64,
-                last_cumulative_funding_rate: -1000 * FUNDING_RATE_PRECISION_I128,
+                last_cumulative_funding_rate: -1000 * FUNDING_RATE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             spot_positions: [SpotPosition::default(); 8],
@@ -2580,7 +2580,7 @@ pub mod resolve_perp_bankruptcy {
         expected_affected_short_user.perp_positions[0].quote_asset_amount =
             450 * QUOTE_PRECISION_I64; // loses $50
         expected_affected_short_user.perp_positions[0].last_cumulative_funding_rate =
-            -1010 * FUNDING_RATE_PRECISION_I128;
+            -1010 * FUNDING_RATE_PRECISION_I64;
 
         {
             let mut market = market_map.get_ref_mut(&0).unwrap();

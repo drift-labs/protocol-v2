@@ -4918,7 +4918,7 @@
         "fields": [
           {
             "name": "lastCumulativeFundingRate",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "baseAssetAmount",
@@ -5890,7 +5890,7 @@
         },
         {
           "name": "userLastCumulativeFunding",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {

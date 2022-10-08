@@ -97,9 +97,11 @@ pub fn update_amm_position(
         }
         PositionUpdateType::Open | PositionUpdateType::Flip => {
             if new_base_asset_amount > 0 {
-                position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate_long;
+                position.last_cumulative_funding_rate =
+                    market.amm.cumulative_funding_rate_long.cast()?;
             } else {
-                position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate_short;
+                position.last_cumulative_funding_rate =
+                    market.amm.cumulative_funding_rate_short.cast()?;
             }
         }
         _ => {}
@@ -377,7 +379,7 @@ pub fn update_position_and_market(
     match position.get_direction() {
         PositionDirection::Long if position.base_asset_amount != 0 => {
             validate!(
-                position.last_cumulative_funding_rate == market.amm.cumulative_funding_rate_long,
+                position.last_cumulative_funding_rate == market.amm.cumulative_funding_rate_long.cast()?,
                 ErrorCode::InvalidPositionLastFundingRate,
                 "position.last_cumulative_funding_rate {} market.amm.cumulative_funding_rate_long {}",
                 position.last_cumulative_funding_rate,
@@ -386,7 +388,7 @@ pub fn update_position_and_market(
         }
         PositionDirection::Short => {
             validate!(
-                position.last_cumulative_funding_rate == market.amm.cumulative_funding_rate_short,
+                position.last_cumulative_funding_rate == market.amm.cumulative_funding_rate_short.cast()?,
                 ErrorCode::InvalidPositionLastFundingRate,
                 "position.last_cumulative_funding_rate {} market.amm.cumulative_funding_rate_short {}",
                 position.last_cumulative_funding_rate,
@@ -404,9 +406,11 @@ pub fn update_position_and_market(
         PositionUpdateType::Open | PositionUpdateType::Flip
     ) {
         if new_base_asset_amount > 0 {
-            position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate_long;
+            position.last_cumulative_funding_rate =
+                market.amm.cumulative_funding_rate_long.cast()?;
         } else {
-            position.last_cumulative_funding_rate = market.amm.cumulative_funding_rate_short;
+            position.last_cumulative_funding_rate =
+                market.amm.cumulative_funding_rate_short.cast()?;
         }
     }
 

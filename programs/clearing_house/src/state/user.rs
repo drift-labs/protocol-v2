@@ -260,7 +260,7 @@ impl SpotPosition {
 #[derive(Default, Debug, Eq, PartialEq)]
 #[repr(C)]
 pub struct PerpPosition {
-    pub last_cumulative_funding_rate: i128,
+    pub last_cumulative_funding_rate: i64,
     pub base_asset_amount: i64,
     pub quote_asset_amount: i64,
     pub quote_entry_amount: i64,
