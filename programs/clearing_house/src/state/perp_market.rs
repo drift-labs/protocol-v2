@@ -77,8 +77,6 @@ pub struct PerpMarket {
     pub amm: AMM,
     pub pnl_pool: PoolBalance,
     pub expiry_price: i128, // iff market has expired, price users can settle position
-    pub base_asset_amount_long: i128,
-    pub base_asset_amount_short: i128,
     pub open_interest: u128, // number of users in a position
     pub revenue_withdraw_since_last_settle: u128,
     pub max_revenue_withdraw_per_period: u128,
@@ -293,6 +291,8 @@ pub struct AMM {
     pub sqrt_k: u128,
     pub peg_multiplier: u128,
     pub terminal_quote_asset_reserve: u128,
+    pub base_asset_amount_long: i128,
+    pub base_asset_amount_short: i128,
     pub net_base_asset_amount: i128,
     pub quote_asset_amount_long: i128,
     pub quote_asset_amount_short: i128,

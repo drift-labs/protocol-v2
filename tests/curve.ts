@@ -106,9 +106,9 @@ describe('AMM Curve', () => {
 
 		console.log(
 			'baseAssetAmountShort',
-			convertToNumber(marketData.baseAssetAmountShort, BASE_PRECISION),
+			convertToNumber(marketData.amm.baseAssetAmountShort, BASE_PRECISION),
 			'baseAssetAmountLong',
-			convertToNumber(marketData.baseAssetAmountLong, BASE_PRECISION)
+			convertToNumber(marketData.amm.baseAssetAmountLong, BASE_PRECISION)
 		);
 
 		console.log(

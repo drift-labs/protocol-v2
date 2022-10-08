@@ -663,12 +663,12 @@ mod test {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50_000_000_000,
                 net_base_asset_amount: (AMM_RESERVE_PRECISION / 10) as i128,
+                base_asset_amount_long: (AMM_RESERVE_PRECISION / 10) as i128,
                 order_step_size: 3,
                 max_spread: 1000,
                 ..AMM::default_test()
             },
             margin_ratio_initial: 1000,
-            base_asset_amount_long: (AMM_RESERVE_PRECISION / 10) as i128,
             ..PerpMarket::default()
         };
         // let (t_price, _t_qar, _t_bar) = calculate_terminal_price_and_reserves(&market.amm).unwrap();

@@ -71,6 +71,7 @@ pub mod amm_jit {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 net_base_asset_amount: (AMM_RESERVE_PRECISION / 2) as i128,
+                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 // bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 // bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 // ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
@@ -96,7 +97,6 @@ pub mod amm_jit {
 
                 ..AMM::default()
             },
-            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -278,6 +278,7 @@ pub mod amm_jit {
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 net_base_asset_amount: -((AMM_RESERVE_PRECISION / 2) as i128),
+                base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -297,7 +298,6 @@ pub mod amm_jit {
                 concentration_coef: CONCENTRATION_PRECISION,
                 ..AMM::default()
             },
-            base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -462,6 +462,7 @@ pub mod amm_jit {
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 net_base_asset_amount: (AMM_RESERVE_PRECISION / 2) as i128,
+                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -480,7 +481,6 @@ pub mod amm_jit {
 
                 ..AMM::default()
             },
-            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -642,6 +642,7 @@ pub mod amm_jit {
                 // ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 // ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 net_base_asset_amount: -((AMM_RESERVE_PRECISION / 2) as i128),
+                base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -662,7 +663,6 @@ pub mod amm_jit {
                 },
                 ..AMM::default()
             },
-            base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -838,6 +838,7 @@ pub mod amm_jit {
                 long_spread: 125,
                 short_spread: 125,
                 net_base_asset_amount: (AMM_RESERVE_PRECISION / 2) as i128,
+                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -856,7 +857,6 @@ pub mod amm_jit {
 
                 ..AMM::default()
             },
-            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -1060,6 +1060,7 @@ pub mod amm_jit {
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 net_base_asset_amount: -((AMM_RESERVE_PRECISION / 2) as i128),
+                base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -1078,7 +1079,6 @@ pub mod amm_jit {
 
                 ..AMM::default()
             },
-            base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -1331,6 +1331,7 @@ pub mod amm_jit {
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 net_base_asset_amount: -((AMM_RESERVE_PRECISION / 2) as i128),
+                base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -1349,7 +1350,6 @@ pub mod amm_jit {
 
                 ..AMM::default()
             },
-            base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -1541,6 +1541,7 @@ pub mod amm_jit {
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 net_base_asset_amount: (AMM_RESERVE_PRECISION / 2) as i128,
+                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -1559,7 +1560,6 @@ pub mod amm_jit {
 
                 ..AMM::default()
             },
-            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -1746,6 +1746,7 @@ pub mod amm_jit {
                 base_asset_reserve: reserves,
                 quote_asset_reserve: reserves,
                 net_base_asset_amount: -(100 * AMM_RESERVE_PRECISION as i128),
+                base_asset_amount_short: -(100 * AMM_RESERVE_PRECISION as i128),
                 sqrt_k: reserves,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -1767,7 +1768,6 @@ pub mod amm_jit {
                 },
                 ..AMM::default()
             },
-            base_asset_amount_short: -(100 * AMM_RESERVE_PRECISION as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -2032,6 +2032,7 @@ pub mod amm_jit {
                 base_asset_reserve: reserves,
                 quote_asset_reserve: reserves,
                 net_base_asset_amount: 100 * AMM_RESERVE_PRECISION as i128,
+                base_asset_amount_long: 100 * AMM_RESERVE_PRECISION as i128,
                 sqrt_k: reserves,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -2054,7 +2055,6 @@ pub mod amm_jit {
 
                 ..AMM::default()
             },
-            base_asset_amount_long: 100 * AMM_RESERVE_PRECISION as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,

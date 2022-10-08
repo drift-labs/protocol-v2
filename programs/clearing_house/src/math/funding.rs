@@ -144,9 +144,9 @@ fn calculate_capped_funding_rate(
         let funding_payment_from_users = calculate_funding_payment_in_quote_precision(
             funding_rate,
             if funding_rate > 0 {
-                market.base_asset_amount_long
+                market.amm.base_asset_amount_long
             } else {
-                market.base_asset_amount_short
+                market.amm.base_asset_amount_short
             },
         )?;
 
@@ -160,13 +160,13 @@ fn calculate_capped_funding_rate(
             // longs receive
             calculate_funding_rate_from_pnl_limit(
                 funding_rate_pnl_limit,
-                market.base_asset_amount_long,
+                market.amm.base_asset_amount_long,
             )?
         } else {
             // shorts receive
             calculate_funding_rate_from_pnl_limit(
                 funding_rate_pnl_limit,
-                market.base_asset_amount_short,
+                market.amm.base_asset_amount_short,
             )?
         }
     } else {
@@ -269,14 +269,14 @@ mod test {
     fn capped_sym_funding_test() {
         // more shorts than longs, positive funding, 1/3 of fee pool too small
         let mut market = PerpMarket {
-            base_asset_amount_long: 12295081967,
-            base_asset_amount_short: -12295081967 * 2,
             amm: AMM {
                 base_asset_reserve: 512295081967,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
                 net_base_asset_amount: -12295081967,
+                base_asset_amount_long: 12295081967,
+                base_asset_amount_short: -12295081967 * 2,
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
 
@@ -314,14 +314,14 @@ mod test {
 
         // more longs than shorts, positive funding, amm earns funding
         market = PerpMarket {
-            base_asset_amount_long: 12295081967 * 2,
-            base_asset_amount_short: -12295081967,
             amm: AMM {
                 base_asset_reserve: 512295081967,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
                 net_base_asset_amount: 12295081967,
+                base_asset_amount_long: 12295081967 * 2,
+                base_asset_amount_short: -12295081967,
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
                 last_mark_price_twap: 50 * PRICE_PRECISION,
@@ -359,14 +359,14 @@ mod test {
         // 3) amm takes on the funding revenu/cost of those short LPs
 
         let mut market = PerpMarket {
-            base_asset_amount_long: 12295081967,
-            base_asset_amount_short: -12295081967 * 2,
             amm: AMM {
                 base_asset_reserve: 512295081967,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
                 net_base_asset_amount: -12295081967, //~12
+                base_asset_amount_long: 12295081967,
+                base_asset_amount_short: -12295081967 * 2,
                 net_unsettled_lp_base_asset_amount: (AMM_RESERVE_PRECISION * 500) as i128, //wowsers
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
@@ -426,14 +426,14 @@ mod test {
 
         // more longs than shorts, positive funding, amm earns funding
         market = PerpMarket {
-            base_asset_amount_long: 12295081967 * 2,
-            base_asset_amount_short: -12295081967,
             amm: AMM {
                 base_asset_reserve: 512295081967,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
                 net_base_asset_amount: 12295081967,
+                base_asset_amount_long: 12295081967 * 2,
+                base_asset_amount_short: -12295081967,
                 net_unsettled_lp_base_asset_amount: (AMM_RESERVE_PRECISION * 500) as i128, //wowsers
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
@@ -479,14 +479,14 @@ mod test {
         // 3) amm takes on the funding revenu/cost of those short LPs
 
         let mut market = PerpMarket {
-            base_asset_amount_long: 12295081967,
-            base_asset_amount_short: -12295081967 * 2,
             amm: AMM {
                 base_asset_reserve: 512295081967,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
                 net_base_asset_amount: -12295081967, //~12
+                base_asset_amount_long: 12295081967,
+                base_asset_amount_short: -12295081967 * 2,
                 net_unsettled_lp_base_asset_amount: -((AMM_RESERVE_PRECISION * 500) as i128), //wowsers
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: ((QUOTE_PRECISION * 99999) as i128),
@@ -546,14 +546,14 @@ mod test {
 
         // more longs than shorts, positive funding, amm earns funding
         market = PerpMarket {
-            base_asset_amount_long: 12295081967 * 2,
-            base_asset_amount_short: -12295081967,
             amm: AMM {
                 base_asset_reserve: 512295081967,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
                 net_base_asset_amount: 12295081967,
+                base_asset_amount_long: 12295081967 * 2,
+                base_asset_amount_short: -12295081967,
                 net_unsettled_lp_base_asset_amount: -((AMM_RESERVE_PRECISION * 500) as i128), //wowsers
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,

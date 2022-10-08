@@ -287,7 +287,7 @@ mod test {
             ..PerpPosition::default()
         };
         market.amm.net_unsettled_lp_base_asset_amount = -10;
-        market.base_asset_amount_short = -10;
+        market.amm.base_asset_amount_short = -10;
 
         settle_lp_position(&mut position, &mut market).unwrap();
 
@@ -367,7 +367,7 @@ mod test {
             ..PerpPosition::default()
         };
         market.amm.net_unsettled_lp_base_asset_amount = 10;
-        market.base_asset_amount_long = 10;
+        market.amm.base_asset_amount_long = 10;
 
         settle_lp_position(&mut position, &mut market).unwrap();
 

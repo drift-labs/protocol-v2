@@ -221,7 +221,8 @@ pub fn update_position_and_market(
     match update_type {
         PositionUpdateType::Open | PositionUpdateType::Increase => {
             if new_base_asset_amount > 0 {
-                market.base_asset_amount_long = market
+                market.amm.base_asset_amount_long = market
+                    .amm
                     .base_asset_amount_long
                     .checked_add(delta.base_asset_amount.cast()?)
                     .ok_or_else(math_error!())?;
@@ -236,7 +237,8 @@ pub fn update_position_and_market(
                     .checked_add(delta.quote_asset_amount.cast()?)
                     .ok_or_else(math_error!())?;
             } else {
-                market.base_asset_amount_short = market
+                market.amm.base_asset_amount_short = market
+                    .amm
                     .base_asset_amount_short
                     .checked_add(delta.base_asset_amount.cast()?)
                     .ok_or_else(math_error!())?;
@@ -254,7 +256,8 @@ pub fn update_position_and_market(
         }
         PositionUpdateType::Reduce | PositionUpdateType::Close => {
             if position.base_asset_amount > 0 {
-                market.base_asset_amount_long = market
+                market.amm.base_asset_amount_long = market
+                    .amm
                     .base_asset_amount_long
                     .checked_add(delta.base_asset_amount.cast()?)
                     .ok_or_else(math_error!())?;
@@ -275,7 +278,8 @@ pub fn update_position_and_market(
                     )
                     .ok_or_else(math_error!())?;
             } else {
-                market.base_asset_amount_short = market
+                market.amm.base_asset_amount_short = market
+                    .amm
                     .base_asset_amount_short
                     .checked_add(delta.base_asset_amount.cast()?)
                     .ok_or_else(math_error!())?;
@@ -299,11 +303,13 @@ pub fn update_position_and_market(
         }
         PositionUpdateType::Flip => {
             if new_base_asset_amount > 0 {
-                market.base_asset_amount_short = market
+                market.amm.base_asset_amount_short = market
+                    .amm
                     .base_asset_amount_short
                     .checked_sub(position.base_asset_amount.cast()?)
                     .ok_or_else(math_error!())?;
-                market.base_asset_amount_long = market
+                market.amm.base_asset_amount_long = market
+                    .amm
                     .base_asset_amount_long
                     .checked_add(new_base_asset_amount.cast()?)
                     .ok_or_else(math_error!())?;
@@ -336,11 +342,13 @@ pub fn update_position_and_market(
                     .checked_add(new_quote_entry_amount.cast()?)
                     .ok_or_else(math_error!())?;
             } else {
-                market.base_asset_amount_long = market
+                market.amm.base_asset_amount_long = market
+                    .amm
                     .base_asset_amount_long
                     .checked_sub(position.base_asset_amount.cast()?)
                     .ok_or_else(math_error!())?;
-                market.base_asset_amount_short = market
+                market.amm.base_asset_amount_short = market
+                    .amm
                     .base_asset_amount_short
                     .checked_add(new_base_asset_amount.cast()?)
                     .ok_or_else(math_error!())?;
@@ -883,8 +891,8 @@ mod test {
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 1);
-        assert_eq!(market.base_asset_amount_short, 0);
+        assert_eq!(market.amm.base_asset_amount_long, 1);
+        assert_eq!(market.amm.base_asset_amount_short, 0);
         assert_eq!(market.amm.net_base_asset_amount, 0);
         assert_eq!(market.amm.quote_asset_amount_long, -1);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
@@ -918,8 +926,8 @@ mod test {
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 0);
-        assert_eq!(market.base_asset_amount_short, -1);
+        assert_eq!(market.amm.base_asset_amount_long, 0);
+        assert_eq!(market.amm.base_asset_amount_short, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
         assert_eq!(market.amm.quote_asset_amount_short, 1);
         assert_eq!(market.amm.quote_entry_amount_long, 0);
@@ -942,13 +950,13 @@ mod test {
         let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 1,
+                base_asset_amount_long: 1,
+                base_asset_amount_short: 0,
                 quote_asset_amount_long: -1,
                 quote_entry_amount_long: -1,
                 cumulative_funding_rate_long: 1,
                 ..AMM::default_test()
             },
-            base_asset_amount_long: 1,
-            base_asset_amount_short: 0,
             open_interest: 1,
             ..PerpMarket::default_test()
         };
@@ -963,8 +971,8 @@ mod test {
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 2);
-        assert_eq!(market.base_asset_amount_short, 0);
+        assert_eq!(market.amm.base_asset_amount_long, 2);
+        assert_eq!(market.amm.base_asset_amount_short, 0);
         // assert_eq!(market.amm.net_base_asset_amount, 2);
         assert_eq!(market.amm.quote_asset_amount_long, -2);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
@@ -987,6 +995,8 @@ mod test {
         };
         let mut market = PerpMarket {
             amm: AMM {
+                base_asset_amount_short: -1,
+                base_asset_amount_long: 0,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 1,
                 quote_entry_amount_short: 1,
@@ -994,8 +1004,6 @@ mod test {
                 ..AMM::default_test()
             },
             open_interest: 1,
-            base_asset_amount_short: -1,
-            base_asset_amount_long: 0,
             ..PerpMarket::default_test()
         };
 
@@ -1009,8 +1017,8 @@ mod test {
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 0);
-        assert_eq!(market.base_asset_amount_short, -2);
+        assert_eq!(market.amm.base_asset_amount_long, 0);
+        assert_eq!(market.amm.base_asset_amount_short, -2);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
         assert_eq!(market.amm.quote_asset_amount_short, 2);
         assert_eq!(market.amm.quote_entry_amount_long, 0);
@@ -1033,6 +1041,8 @@ mod test {
         let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 10,
+                base_asset_amount_long: 10,
+                base_asset_amount_short: 0,
                 quote_asset_amount_long: -10,
                 quote_entry_amount_long: -10,
                 quote_asset_amount_short: 0,
@@ -1040,8 +1050,6 @@ mod test {
                 ..AMM::default_test()
             },
             open_interest: 1,
-            base_asset_amount_long: 10,
-            base_asset_amount_short: 0,
             ..PerpMarket::default_test()
         };
 
@@ -1055,8 +1063,8 @@ mod test {
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 9);
-        assert_eq!(market.base_asset_amount_short, 0);
+        assert_eq!(market.amm.base_asset_amount_long, 9);
+        assert_eq!(market.amm.base_asset_amount_short, 0);
         // assert_eq!(market.amm.net_base_asset_amount, 9);
         assert_eq!(market.amm.quote_asset_amount_long, -5);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
@@ -1080,6 +1088,8 @@ mod test {
         let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 10,
+                base_asset_amount_long: 10,
+                base_asset_amount_short: 0,
                 quote_asset_amount_long: -100,
                 quote_entry_amount_long: -100,
                 quote_asset_amount_short: 0,
@@ -1087,8 +1097,6 @@ mod test {
                 ..AMM::default_test()
             },
             open_interest: 1,
-            base_asset_amount_long: 10,
-            base_asset_amount_short: 0,
             ..PerpMarket::default_test()
         };
 
@@ -1102,8 +1110,8 @@ mod test {
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 9);
-        assert_eq!(market.base_asset_amount_short, 0);
+        assert_eq!(market.amm.base_asset_amount_long, 9);
+        assert_eq!(market.amm.base_asset_amount_short, 0);
         // assert_eq!(market.amm.net_base_asset_amount, 9);
         assert_eq!(market.amm.quote_asset_amount_long, -95);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
@@ -1127,6 +1135,8 @@ mod test {
         let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 10,
+                base_asset_amount_long: 10,
+                base_asset_amount_short: 0,
                 quote_asset_amount_long: -10,
                 quote_entry_amount_long: -10,
                 quote_asset_amount_short: 0,
@@ -1135,8 +1145,6 @@ mod test {
                 ..AMM::default_test()
             },
             open_interest: 1,
-            base_asset_amount_long: 10,
-            base_asset_amount_short: 0,
             ..PerpMarket::default_test()
         };
 
@@ -1150,8 +1158,8 @@ mod test {
         assert_eq!(existing_position.last_cumulative_funding_rate, 2);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 0);
-        assert_eq!(market.base_asset_amount_short, -1);
+        assert_eq!(market.amm.base_asset_amount_long, 0);
+        assert_eq!(market.amm.base_asset_amount_short, -1);
         // assert_eq!(market.amm.net_base_asset_amount, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 10);
         assert_eq!(market.amm.quote_asset_amount_short, 2);
@@ -1175,6 +1183,8 @@ mod test {
         let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 10,
+                base_asset_amount_long: 10,
+                base_asset_amount_short: 0,
                 quote_asset_amount_long: -10,
                 quote_entry_amount_long: -10,
                 quote_asset_amount_short: 0,
@@ -1184,8 +1194,6 @@ mod test {
                 ..AMM::default()
             },
             open_interest: 1,
-            base_asset_amount_long: 10,
-            base_asset_amount_short: 0,
             ..PerpMarket::default_test()
         };
 
@@ -1199,8 +1207,8 @@ mod test {
         assert_eq!(existing_position.last_cumulative_funding_rate, 2);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 0);
-        assert_eq!(market.base_asset_amount_short, -1);
+        assert_eq!(market.amm.base_asset_amount_long, 0);
+        assert_eq!(market.amm.base_asset_amount_short, -1);
         // assert_eq!(market.amm.net_base_asset_amount, -1);
         assert_eq!(market.amm.quote_asset_amount_long, -1);
         assert_eq!(market.amm.quote_asset_amount_short, 1);
@@ -1223,6 +1231,8 @@ mod test {
         };
         let mut market = PerpMarket {
             amm: AMM {
+                base_asset_amount_long: 0,
+                base_asset_amount_short: -10,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 100,
                 quote_entry_amount_short: 100,
@@ -1230,8 +1240,6 @@ mod test {
                 ..AMM::default_test()
             },
             open_interest: 1,
-            base_asset_amount_long: 0,
-            base_asset_amount_short: -10,
             ..PerpMarket::default_test()
         };
 
@@ -1245,8 +1253,8 @@ mod test {
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 0);
-        assert_eq!(market.base_asset_amount_short, -9);
+        assert_eq!(market.amm.base_asset_amount_long, 0);
+        assert_eq!(market.amm.base_asset_amount_short, -9);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
         assert_eq!(market.amm.quote_asset_amount_short, 95);
         assert_eq!(market.amm.quote_entry_amount_long, 0);
@@ -1268,6 +1276,8 @@ mod test {
         };
         let mut market = PerpMarket {
             amm: AMM {
+                base_asset_amount_long: 0,
+                base_asset_amount_short: -10,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 100,
                 quote_entry_amount_short: 100,
@@ -1275,8 +1285,6 @@ mod test {
                 ..AMM::default_test()
             },
             open_interest: 1,
-            base_asset_amount_long: 0,
-            base_asset_amount_short: -10,
             ..PerpMarket::default_test()
         };
 
@@ -1290,8 +1298,8 @@ mod test {
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 0);
-        assert_eq!(market.base_asset_amount_short, -9);
+        assert_eq!(market.amm.base_asset_amount_long, 0);
+        assert_eq!(market.amm.base_asset_amount_short, -9);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
         assert_eq!(market.amm.quote_asset_amount_short, 85);
         assert_eq!(market.amm.quote_entry_amount_long, 0);
@@ -1314,6 +1322,8 @@ mod test {
         let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: -10,
+                base_asset_amount_long: 0,
+                base_asset_amount_short: -10,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 100,
                 quote_entry_amount_short: 100,
@@ -1322,8 +1332,6 @@ mod test {
                 ..AMM::default_test()
             },
             open_interest: 1,
-            base_asset_amount_long: 0,
-            base_asset_amount_short: -10,
             ..PerpMarket::default_test()
         };
 
@@ -1337,8 +1345,8 @@ mod test {
         assert_eq!(existing_position.last_cumulative_funding_rate, 2);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 1);
-        assert_eq!(market.base_asset_amount_short, 0);
+        assert_eq!(market.amm.base_asset_amount_long, 1);
+        assert_eq!(market.amm.base_asset_amount_short, 0);
         // assert_eq!(market.amm.net_base_asset_amount, 1);
         assert_eq!(market.amm.quote_asset_amount_long, -6);
         assert_eq!(market.amm.quote_asset_amount_short, 46);
@@ -1362,6 +1370,8 @@ mod test {
         let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: -10,
+                base_asset_amount_long: 0,
+                base_asset_amount_short: -10,
                 quote_asset_amount_long: 0,
                 quote_asset_amount_short: 100,
                 quote_entry_amount_short: 100,
@@ -1370,8 +1380,6 @@ mod test {
                 ..AMM::default_test()
             },
             open_interest: 1,
-            base_asset_amount_long: 0,
-            base_asset_amount_short: -10,
             ..PerpMarket::default_test()
         };
 
@@ -1385,8 +1393,8 @@ mod test {
         assert_eq!(existing_position.last_cumulative_funding_rate, 2);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 1);
-        assert_eq!(market.base_asset_amount_short, 0);
+        assert_eq!(market.amm.base_asset_amount_long, 1);
+        assert_eq!(market.amm.base_asset_amount_short, 0);
         // assert_eq!(market.amm.net_base_asset_amount, 1);
         assert_eq!(market.amm.quote_asset_amount_long, -11);
         assert_eq!(market.amm.quote_asset_amount_short, -9);
@@ -1410,13 +1418,13 @@ mod test {
         let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 11,
+                base_asset_amount_long: 11,
                 quote_asset_amount_long: -11,
                 quote_entry_amount_long: -11,
                 cumulative_funding_rate_long: 1,
                 ..AMM::default_test()
             },
             open_interest: 2,
-            base_asset_amount_long: 11,
             ..PerpMarket::default_test()
         };
 
@@ -1430,8 +1438,8 @@ mod test {
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 1);
-        assert_eq!(market.base_asset_amount_short, 0);
+        assert_eq!(market.amm.base_asset_amount_long, 1);
+        assert_eq!(market.amm.base_asset_amount_short, 0);
         // assert_eq!(market.amm.net_base_asset_amount, 1);
         // not 5 because quote asset amount long was -11 not -10 before
         assert_eq!(market.amm.quote_asset_amount_long, 4);
@@ -1456,13 +1464,13 @@ mod test {
         let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 11,
+                base_asset_amount_long: 11,
                 quote_asset_amount_long: -11,
                 quote_entry_amount_long: -11,
                 cumulative_funding_rate_long: 1,
                 ..AMM::default_test()
             },
             open_interest: 2,
-            base_asset_amount_long: 11,
             ..PerpMarket::default_test()
         };
 
@@ -1476,8 +1484,8 @@ mod test {
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 1);
-        assert_eq!(market.base_asset_amount_short, 0);
+        assert_eq!(market.amm.base_asset_amount_long, 1);
+        assert_eq!(market.amm.base_asset_amount_short, 0);
         // assert_eq!(market.amm.net_base_asset_amount, 1);
         assert_eq!(market.amm.quote_asset_amount_long, -6);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
@@ -1500,13 +1508,13 @@ mod test {
         };
         let mut market = PerpMarket {
             amm: AMM {
+                base_asset_amount_short: -11,
                 quote_asset_amount_short: 11,
                 quote_entry_amount_short: 11,
                 cumulative_funding_rate_short: 1,
                 ..AMM::default_test()
             },
             open_interest: 2,
-            base_asset_amount_short: -11,
             ..PerpMarket::default_test()
         };
 
@@ -1520,8 +1528,8 @@ mod test {
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 0);
-        assert_eq!(market.base_asset_amount_short, -1);
+        assert_eq!(market.amm.base_asset_amount_long, 0);
+        assert_eq!(market.amm.base_asset_amount_short, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
         assert_eq!(market.amm.quote_asset_amount_short, 6);
         assert_eq!(market.amm.quote_entry_amount_long, 0);
@@ -1543,13 +1551,13 @@ mod test {
         };
         let mut market = PerpMarket {
             amm: AMM {
+                base_asset_amount_short: -11,
                 quote_asset_amount_short: 11,
                 quote_entry_amount_short: 11,
                 cumulative_funding_rate_short: 1,
                 ..AMM::default_test()
             },
             open_interest: 2,
-            base_asset_amount_short: -11,
             ..PerpMarket::default_test()
         };
 
@@ -1563,8 +1571,8 @@ mod test {
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 0);
-        assert_eq!(market.base_asset_amount_short, -1);
+        assert_eq!(market.amm.base_asset_amount_long, 0);
+        assert_eq!(market.amm.base_asset_amount_short, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
         assert_eq!(market.amm.quote_asset_amount_short, -4);
         assert_eq!(market.amm.quote_entry_amount_long, 0);
@@ -1587,6 +1595,7 @@ mod test {
         let mut market = PerpMarket {
             amm: AMM {
                 net_base_asset_amount: 11,
+                base_asset_amount_long: 11,
                 quote_asset_amount_long: -11,
                 quote_entry_amount_long: -8,
                 cumulative_funding_rate_long: 1,
@@ -1594,7 +1603,6 @@ mod test {
                 ..AMM::default()
             },
             open_interest: 2,
-            base_asset_amount_long: 11,
             ..PerpMarket::default_test()
         };
 
@@ -1608,8 +1616,8 @@ mod test {
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 1);
-        assert_eq!(market.base_asset_amount_short, 0);
+        assert_eq!(market.amm.base_asset_amount_long, 1);
+        assert_eq!(market.amm.base_asset_amount_short, 0);
         // assert_eq!(market.amm.net_base_asset_amount, 1);
         assert_eq!(market.amm.quote_asset_amount_long, -6);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
@@ -1632,6 +1640,7 @@ mod test {
         };
         let mut market = PerpMarket {
             amm: AMM {
+                base_asset_amount_short: -11,
                 quote_asset_amount_short: 11,
                 quote_entry_amount_short: 15,
                 cumulative_funding_rate_short: 1,
@@ -1639,7 +1648,6 @@ mod test {
                 ..AMM::default()
             },
             open_interest: 2,
-            base_asset_amount_short: -11,
             ..PerpMarket::default_test()
         };
 
@@ -1653,8 +1661,8 @@ mod test {
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
         assert_eq!(market.open_interest, 1);
-        assert_eq!(market.base_asset_amount_long, 0);
-        assert_eq!(market.base_asset_amount_short, -1);
+        assert_eq!(market.amm.base_asset_amount_long, 0);
+        assert_eq!(market.amm.base_asset_amount_short, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
         assert_eq!(market.amm.quote_asset_amount_short, -4);
         assert_eq!(market.amm.quote_entry_amount_long, 0);

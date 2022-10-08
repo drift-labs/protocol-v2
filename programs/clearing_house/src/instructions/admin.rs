@@ -468,8 +468,6 @@ pub fn handle_initialize_perp_market(
         pubkey: *market_pubkey,
         market_index,
         open_interest: 0,
-        base_asset_amount_long: 0,
-        base_asset_amount_short: 0,
         margin_ratio_initial, // unit is 20% (+2 decimal places)
         margin_ratio_maintenance,
         imf_factor: 0,
@@ -547,6 +545,8 @@ pub fn handle_initialize_perp_market(
             last_bid_price_twap: init_reserve_price,
             last_ask_price_twap: init_reserve_price,
             net_base_asset_amount: 0,
+            base_asset_amount_long: 0,
+            base_asset_amount_short: 0,
             quote_asset_amount_long: 0,
             quote_asset_amount_short: 0,
             quote_entry_amount_long: 0,
@@ -674,8 +674,8 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
     )?;
 
     validate!(
-        market.base_asset_amount_long == 0
-            && market.base_asset_amount_short == 0
+        market.amm.base_asset_amount_long == 0
+            && market.amm.base_asset_amount_short == 0
             && market.open_interest == 0,
         ErrorCode::DefaultError,
         "outstanding base_asset_amounts must be balanced"
@@ -851,8 +851,8 @@ pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128)
         base_asset_reserve_after,
         quote_asset_reserve_after,
         sqrt_k_after,
-        base_asset_amount_long: market.base_asset_amount_long.unsigned_abs(),
-        base_asset_amount_short: market.base_asset_amount_short.unsigned_abs(),
+        base_asset_amount_long: market.amm.base_asset_amount_long.unsigned_abs(),
+        base_asset_amount_short: market.amm.base_asset_amount_short.unsigned_abs(),
         net_base_asset_amount: market.amm.net_base_asset_amount,
         open_interest: market.open_interest,
         total_fee: market.amm.total_fee,
@@ -920,8 +920,8 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
 
     let market = &mut load_mut!(ctx.accounts.market)?;
 
-    let base_asset_amount_long = market.base_asset_amount_long.unsigned_abs();
-    let base_asset_amount_short = market.base_asset_amount_short.unsigned_abs();
+    let base_asset_amount_long = market.amm.base_asset_amount_long.unsigned_abs();
+    let base_asset_amount_short = market.amm.base_asset_amount_short.unsigned_abs();
     let net_base_asset_amount = market.amm.net_base_asset_amount;
     let open_interest = market.open_interest;
 

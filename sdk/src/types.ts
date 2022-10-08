@@ -445,9 +445,6 @@ export type PerpMarketAccount = {
 	marketIndex: number;
 	pubkey: PublicKey;
 	amm: AMM;
-	baseAssetAmount: BN;
-	baseAssetAmountLong: BN;
-	baseAssetAmountShort: BN;
 	openInterest: BN;
 	marginRatioInitial: number;
 	marginRatioMaintenance: number;
@@ -583,6 +580,8 @@ export type AMM = {
 	baseSpread: number;
 	curveUpdateIntensity: number;
 	netBaseAssetAmount: BN;
+	baseAssetAmountLong: BN;
+	baseAssetAmountShort: BN;
 	quoteAssetAmountLong: BN;
 	quoteAssetAmountShort: BN;
 	terminalQuoteAssetReserve: BN;

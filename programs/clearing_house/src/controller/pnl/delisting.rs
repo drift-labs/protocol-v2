@@ -86,6 +86,7 @@ pub mod delisting_test {
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 net_base_asset_amount: (AMM_RESERVE_PRECISION / 2) as i128,
+                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -95,7 +96,6 @@ pub mod delisting_test {
                 amm_jit_intensity: 100,
                 ..AMM::default()
             },
-            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -196,6 +196,7 @@ pub mod delisting_test {
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 net_base_asset_amount: (AMM_RESERVE_PRECISION / 2) as i128,
+                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -211,7 +212,6 @@ pub mod delisting_test {
                 quote_asset_amount_short: 0,                           // no shorts
                 ..AMM::default()
             },
-            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -309,6 +309,7 @@ pub mod delisting_test {
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 net_base_asset_amount: (AMM_RESERVE_PRECISION / 2) as i128,
+                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -324,7 +325,6 @@ pub mod delisting_test {
                 quote_asset_amount_short: 0,                           // no shorts
                 ..AMM::default()
             },
-            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -426,6 +426,7 @@ pub mod delisting_test {
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 net_base_asset_amount: (AMM_RESERVE_PRECISION / 2) as i128,
+                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -442,7 +443,6 @@ pub mod delisting_test {
                 quote_asset_amount_short: 0,                           // no shorts
                 ..AMM::default()
             },
-            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -544,6 +544,7 @@ pub mod delisting_test {
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 net_base_asset_amount: -((AMM_RESERVE_PRECISION / 2) as i128),
+                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -560,7 +561,6 @@ pub mod delisting_test {
                 quote_asset_amount_short: (QUOTE_PRECISION_I128 * 10), //shorts have $20 cost basis
                 ..AMM::default()
             },
-            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -658,6 +658,7 @@ pub mod delisting_test {
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 net_base_asset_amount: (AMM_RESERVE_PRECISION / 2) as i128,
+                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -675,7 +676,6 @@ pub mod delisting_test {
                 ..AMM::default()
             },
             open_interest: 1,
-            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -907,6 +907,7 @@ pub mod delisting_test {
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 net_base_asset_amount: (AMM_RESERVE_PRECISION / 2) as i128,
+                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -924,7 +925,6 @@ pub mod delisting_test {
                 ..AMM::default()
             },
             open_interest: 1,
-            base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -1159,6 +1159,7 @@ pub mod delisting_test {
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 net_base_asset_amount: (AMM_RESERVE_PRECISION * 2000) as i128,
+                base_asset_amount_long: (AMM_RESERVE_PRECISION * 2000) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -1176,7 +1177,6 @@ pub mod delisting_test {
                 ..AMM::default()
             },
             open_interest: 1,
-            base_asset_amount_long: (AMM_RESERVE_PRECISION * 2000) as i128,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -1394,6 +1394,8 @@ pub mod delisting_test {
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 net_base_asset_amount: (AMM_RESERVE_PRECISION * 1000) as i128,
+                base_asset_amount_long: (AMM_RESERVE_PRECISION * 2000) as i128,
+                base_asset_amount_short: -((AMM_RESERVE_PRECISION * 1000) as i128),
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -1411,8 +1413,6 @@ pub mod delisting_test {
                 ..AMM::default()
             },
             open_interest: 2,
-            base_asset_amount_long: (AMM_RESERVE_PRECISION * 2000) as i128,
-            base_asset_amount_short: -((AMM_RESERVE_PRECISION * 1000) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -1736,6 +1736,8 @@ pub mod delisting_test {
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 net_base_asset_amount: -((AMM_RESERVE_PRECISION * 800) as i128),
+                base_asset_amount_long: (AMM_RESERVE_PRECISION * 200) as i128,
+                base_asset_amount_short: -((AMM_RESERVE_PRECISION * 1000) as i128),
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -1753,8 +1755,6 @@ pub mod delisting_test {
                 ..AMM::default()
             },
             open_interest: 2,
-            base_asset_amount_long: (AMM_RESERVE_PRECISION * 200) as i128,
-            base_asset_amount_short: -((AMM_RESERVE_PRECISION * 1000) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -2116,6 +2116,8 @@ pub mod delisting_test {
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 net_base_asset_amount: -((AMM_RESERVE_PRECISION * 800) as i128),
+                base_asset_amount_long: (AMM_RESERVE_PRECISION * 200) as i128,
+                base_asset_amount_short: -((AMM_RESERVE_PRECISION * 1000) as i128),
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
@@ -2133,8 +2135,6 @@ pub mod delisting_test {
                 ..AMM::default()
             },
             open_interest: 2,
-            base_asset_amount_long: (AMM_RESERVE_PRECISION * 200) as i128,
-            base_asset_amount_short: -((AMM_RESERVE_PRECISION * 1000) as i128),
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -2364,7 +2364,7 @@ pub mod delisting_test {
             );
 
             assert_eq!(
-                market.base_asset_amount_long + market.base_asset_amount_short,
+                market.amm.base_asset_amount_long + market.amm.base_asset_amount_short,
                 -800000000000
             );
             assert_eq!(
@@ -2429,7 +2429,7 @@ pub mod delisting_test {
                 assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
 
                 assert_eq!(
-                    market.base_asset_amount_long + market.base_asset_amount_short,
+                    market.amm.base_asset_amount_long + market.amm.base_asset_amount_short,
                     -800000000000
                 );
                 assert_eq!(
@@ -2442,7 +2442,7 @@ pub mod delisting_test {
 
                 assert_eq!(
                     liquidator.perp_positions[0].base_asset_amount as i128,
-                    market.base_asset_amount_short
+                    market.amm.base_asset_amount_short
                 );
                 assert_eq!(
                     liquidator.perp_positions[0].quote_asset_amount,
@@ -2452,7 +2452,7 @@ pub mod delisting_test {
 
                 assert_eq!(
                     longer.perp_positions[0].base_asset_amount as i128,
-                    market.base_asset_amount_long
+                    market.amm.base_asset_amount_long
                 );
                 assert_eq!(
                     longer.perp_positions[0].quote_asset_amount as i128,
@@ -2519,7 +2519,7 @@ pub mod delisting_test {
                 assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
 
                 assert_eq!(
-                    market.base_asset_amount_long + market.base_asset_amount_short,
+                    market.amm.base_asset_amount_long + market.amm.base_asset_amount_short,
                     -800000000000
                 );
                 assert_eq!(
@@ -2532,7 +2532,7 @@ pub mod delisting_test {
 
                 assert_eq!(
                     liquidator.perp_positions[0].base_asset_amount as i128,
-                    market.base_asset_amount_short
+                    market.amm.base_asset_amount_short
                 );
                 assert_eq!(market.amm.quote_asset_amount_short, 96999000000);
                 assert_eq!(
@@ -2543,7 +2543,7 @@ pub mod delisting_test {
 
                 assert_eq!(
                     longer.perp_positions[0].base_asset_amount as i128,
-                    market.base_asset_amount_long
+                    market.amm.base_asset_amount_long
                 );
                 assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
 
@@ -2610,7 +2610,7 @@ pub mod delisting_test {
                 assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
 
                 assert_eq!(
-                    market.base_asset_amount_long + market.base_asset_amount_short,
+                    market.amm.base_asset_amount_long + market.amm.base_asset_amount_short,
                     -800000000000
                 );
                 assert_eq!(
@@ -2623,7 +2623,7 @@ pub mod delisting_test {
 
                 assert_eq!(
                     liquidator.perp_positions[0].base_asset_amount as i128,
-                    market.base_asset_amount_short
+                    market.amm.base_asset_amount_short
                 );
                 assert_eq!(market.amm.quote_asset_amount_short, 77199990000);
                 assert_eq!(
@@ -2634,7 +2634,7 @@ pub mod delisting_test {
 
                 assert_eq!(
                     longer.perp_positions[0].base_asset_amount as i128,
-                    market.base_asset_amount_long
+                    market.amm.base_asset_amount_long
                 );
                 assert_eq!(
                     longer.perp_positions[0].quote_asset_amount,
@@ -2712,8 +2712,8 @@ pub mod delisting_test {
 
             let market = market_map.get_ref_mut(&0).unwrap();
             assert_eq!(market.amm.cumulative_social_loss, -3449991000);
-            assert_eq!(market.base_asset_amount_long, 200000000000);
-            assert_eq!(market.base_asset_amount_short, 0);
+            assert_eq!(market.amm.base_asset_amount_long, 200000000000);
+            assert_eq!(market.amm.base_asset_amount_short, 0);
             assert_eq!(market.amm.net_base_asset_amount, 200000000000);
 
             assert_eq!(market.amm.cumulative_funding_rate_long, 17249955000);
@@ -2811,8 +2811,8 @@ pub mod delisting_test {
             assert_eq!(market.amm.fee_pool.balance, 0);
 
             assert_eq!(market.open_interest, 0);
-            assert_eq!(market.base_asset_amount_long, 0);
-            assert_eq!(market.base_asset_amount_short, 0);
+            assert_eq!(market.amm.base_asset_amount_long, 0);
+            assert_eq!(market.amm.base_asset_amount_short, 0);
 
             assert_eq!(market.amm.net_base_asset_amount, 0);
 

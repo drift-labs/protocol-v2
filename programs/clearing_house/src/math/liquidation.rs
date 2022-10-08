@@ -310,9 +310,10 @@ pub fn calculate_funding_rate_deltas_to_resolve_bankruptcy(
     market: &PerpMarket,
 ) -> ClearingHouseResult<i128> {
     let total_base_asset_amount = market
+        .amm
         .base_asset_amount_long
         .abs()
-        .checked_add(market.base_asset_amount_short.abs())
+        .checked_add(market.amm.base_asset_amount_short.abs())
         .ok_or_else(math_error!())?;
 
     if total_base_asset_amount == 0 {

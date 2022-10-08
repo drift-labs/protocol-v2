@@ -263,8 +263,8 @@ describe('prepeg', () => {
 		console.log('sqrtK:', market.amm.sqrtK.toString());
 
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(49745050000)));
-		assert.ok(market.baseAssetAmountLong.eq(new BN(49745050000)));
-		assert.ok(market.baseAssetAmountShort.eq(ZERO));
+		assert.ok(market.amm.baseAssetAmountLong.eq(new BN(49745050000)));
+		assert.ok(market.amm.baseAssetAmountShort.eq(ZERO));
 		assert.ok(market.openInterest.eq(ONE));
 		assert.ok(market.amm.totalFee.gt(new BN(49750)));
 		assert.ok(market.amm.totalFeeMinusDistributions.gt(new BN(49750)));

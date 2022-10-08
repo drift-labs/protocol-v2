@@ -344,19 +344,19 @@ async function cappedSymFundingScenario(
 	);
 	console.log(
 		'baseAssetAmountLong',
-		convertToNumber(marketNew.baseAssetAmountLong, AMM_RESERVE_PRECISION),
+		convertToNumber(marketNew.amm.baseAssetAmountLong, AMM_RESERVE_PRECISION),
 		'baseAssetAmountShort',
-		convertToNumber(marketNew.baseAssetAmountShort, AMM_RESERVE_PRECISION),
+		convertToNumber(marketNew.amm.baseAssetAmountShort, AMM_RESERVE_PRECISION),
 		'totalFee',
 		convertToNumber(marketNew.amm.totalFee, QUOTE_PRECISION),
 		'totalFeeMinusDistributions',
 		convertToNumber(marketNew.amm.totalFeeMinusDistributions, QUOTE_PRECISION)
 	);
 
-	const fundingPnLForLongs = marketNew.baseAssetAmountLong
+	const fundingPnLForLongs = marketNew.amm.baseAssetAmountLong
 		.mul(fundingRateLong)
 		.mul(new BN(-1));
-	const fundingPnLForShorts = marketNew.baseAssetAmountShort
+	const fundingPnLForShorts = marketNew.amm.baseAssetAmountShort
 		.mul(fundingRateShort)
 		.mul(new BN(-1));
 

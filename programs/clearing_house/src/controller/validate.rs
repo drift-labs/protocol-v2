@@ -11,17 +11,17 @@ use solana_program::msg;
 #[allow(clippy::comparison_chain)]
 pub fn validate_market_account(market: &PerpMarket) -> ClearingHouseResult {
     validate!(
-        (market.base_asset_amount_long + market.base_asset_amount_short)
+        (market.amm.base_asset_amount_long + market.amm.base_asset_amount_short)
             == market.amm.net_base_asset_amount + market.amm.net_unsettled_lp_base_asset_amount,
         ErrorCode::DefaultError,
         "Market NET_BAA Error: 
-        market.base_asset_amount_long={}, 
-        + market.base_asset_amount_short={} 
+        market.amm.base_asset_amount_long={}, 
+        + market.amm.base_asset_amount_short={} 
         != 
         market.amm.net_base_asset_amount={}
         +  market.amm.net_unsettled_lp_base_asset_amount={}",
-        market.base_asset_amount_long,
-        market.base_asset_amount_short,
+        market.amm.base_asset_amount_long,
+        market.amm.base_asset_amount_short,
         market.amm.net_base_asset_amount,
         market.amm.net_unsettled_lp_base_asset_amount,
     )?;
