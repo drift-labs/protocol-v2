@@ -651,7 +651,6 @@ pub fn fill_order(
             market.amm.order_tick_size,
             market.margin_ratio_initial as u128,
             market.margin_ratio_maintenance as u128,
-            Some(&market.amm),
         )?
     };
 
@@ -936,7 +935,6 @@ fn sanitize_maker_order<'a>(
             market.amm.order_tick_size,
             market.margin_ratio_initial as u128,
             market.margin_ratio_maintenance as u128,
-            Some(&market.amm),
         )?
     };
 
@@ -1305,7 +1303,6 @@ pub fn fulfill_order_with_amm(
                 valid_oracle_price,
                 slot,
                 market.amm.order_tick_size,
-                Some(&market.amm),
             )?;
             (override_base_asset_amount, limit_price, override_fill_price)
         }
@@ -1570,7 +1567,6 @@ pub fn fulfill_order_with_match(
         Some(oracle_price),
         slot,
         market.amm.order_tick_size,
-        Some(&market.amm),
     )?;
     let taker_direction = taker.orders[taker_order_index].direction;
     let taker_base_asset_amount =
@@ -1580,7 +1576,6 @@ pub fn fulfill_order_with_match(
         Some(oracle_price),
         slot,
         market.amm.order_tick_size,
-        Some(&market.amm),
     )?;
     let maker_direction = maker.orders[maker_order_index].direction;
     let maker_base_asset_amount =
@@ -2709,7 +2704,6 @@ fn sanitize_spot_maker_order<'a>(
             spot_market.order_tick_size,
             initial_margin_ratio,
             maintenance_margin_ratio,
-            None,
         )?
     };
 
@@ -2967,7 +2961,6 @@ pub fn fulfill_spot_order_with_match(
         Some(oracle_price),
         slot,
         base_market.order_tick_size,
-        None,
     )?;
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
@@ -2979,7 +2972,6 @@ pub fn fulfill_spot_order_with_match(
         Some(oracle_price),
         slot,
         base_market.order_tick_size,
-        None,
     )?;
     let maker_direction = maker.orders[maker_order_index].direction;
     let maker_base_asset_amount =
@@ -3240,7 +3232,6 @@ pub fn fulfill_spot_order_with_serum(
         Some(oracle_price),
         slot,
         base_market.order_tick_size,
-        None,
     )?;
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
