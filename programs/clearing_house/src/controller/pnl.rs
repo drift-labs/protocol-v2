@@ -47,7 +47,7 @@ pub fn settle_pnl(
     now: i64,
     state: &State,
 ) -> ClearingHouseResult {
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
 
     {
         let spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;

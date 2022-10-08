@@ -2377,8 +2377,8 @@ pub mod delisting_test {
             let mut shorter_user_stats = UserStats::default();
             let mut liq_user_stats = UserStats::default();
 
-            assert_eq!(shorter.being_liquidated, false);
-            assert_eq!(shorter.bankrupt, false);
+            assert_eq!(shorter.is_being_liquidated, false);
+            assert_eq!(shorter.is_bankrupt, false);
 
             liquidate_perp(
                 0,
@@ -2398,8 +2398,8 @@ pub mod delisting_test {
             )
             .unwrap();
 
-            assert_eq!(shorter.being_liquidated, true);
-            assert_eq!(shorter.bankrupt, false);
+            assert_eq!(shorter.is_being_liquidated, true);
+            assert_eq!(shorter.is_bankrupt, false);
 
             {
                 let market = market_map.get_ref_mut(&0).unwrap();
@@ -2482,8 +2482,8 @@ pub mod delisting_test {
             )
             .unwrap();
 
-            assert_eq!(shorter.being_liquidated, true);
-            assert_eq!(shorter.bankrupt, false);
+            assert_eq!(shorter.is_being_liquidated, true);
+            assert_eq!(shorter.is_bankrupt, false);
 
             {
                 let mut market = market_map.get_ref_mut(&0).unwrap();
@@ -2573,8 +2573,8 @@ pub mod delisting_test {
             )
             .unwrap();
 
-            assert_eq!(shorter.being_liquidated, true);
-            assert_eq!(shorter.bankrupt, true);
+            assert_eq!(shorter.is_being_liquidated, true);
+            assert_eq!(shorter.is_bankrupt, true);
 
             {
                 let market = market_map.get_ref_mut(&0).unwrap();

@@ -81,7 +81,7 @@ pub fn add_insurance_fund_stake(
         .ok_or_else(math_error!())?;
 
     if spot_market.market_index == 0 {
-        user_stats.staked_quote_asset_amount = if_shares_to_vault_amount(
+        user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
             insurance_fund_stake.checked_if_shares(spot_market)?,
             spot_market.total_if_shares,
             insurance_vault_amount
@@ -237,7 +237,7 @@ pub fn request_remove_insurance_fund_stake(
     let if_shares_after = insurance_fund_stake.checked_if_shares(spot_market)?;
 
     if spot_market.market_index == 0 {
-        user_stats.staked_quote_asset_amount = if_shares_to_vault_amount(
+        user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
             insurance_fund_stake.checked_if_shares(spot_market)?,
             spot_market.total_if_shares,
             insurance_vault_amount,
@@ -308,7 +308,7 @@ pub fn cancel_request_remove_insurance_fund_stake(
     let if_shares_after = insurance_fund_stake.checked_if_shares(spot_market)?;
 
     if spot_market.market_index == 0 {
-        user_stats.staked_quote_asset_amount = if_shares_to_vault_amount(
+        user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
             if_shares_after,
             spot_market.total_if_shares,
             insurance_vault_amount,
@@ -409,7 +409,7 @@ pub fn remove_insurance_fund_stake(
     let if_shares_after = insurance_fund_stake.checked_if_shares(spot_market)?;
 
     if spot_market.market_index == 0 {
-        user_stats.staked_quote_asset_amount = if_shares_to_vault_amount(
+        user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
             if_shares_after,
             spot_market.total_if_shares,
             insurance_vault_amount
@@ -826,7 +826,7 @@ mod test {
 
         let mut if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats = UserStats {
-            number_of_users: 0,
+            number_of_sub_accounts: 0,
             ..UserStats::default()
         };
         let amount = QUOTE_PRECISION as u64; // $1
@@ -920,7 +920,7 @@ mod test {
         let mut if_balance = (1000 * QUOTE_PRECISION) as u64;
         let mut if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats = UserStats {
-            number_of_users: 0,
+            number_of_sub_accounts: 0,
             ..UserStats::default()
         };
         let amount = QUOTE_PRECISION as u64; // $1
@@ -1009,7 +1009,7 @@ mod test {
         let mut if_balance = 0;
         let mut if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats = UserStats {
-            number_of_users: 0,
+            number_of_sub_accounts: 0,
             ..UserStats::default()
         };
         let amount = QUOTE_PRECISION as u64; // $1
@@ -1130,7 +1130,7 @@ mod test {
         let mut if_balance = 0;
         let mut if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats = UserStats {
-            number_of_users: 0,
+            number_of_sub_accounts: 0,
             ..UserStats::default()
         };
         let amount = QUOTE_PRECISION as u64; // $1
@@ -1254,7 +1254,7 @@ mod test {
         let mut if_balance = 0;
         let mut if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats = UserStats {
-            number_of_users: 0,
+            number_of_sub_accounts: 0,
             ..UserStats::default()
         };
         let amount = (QUOTE_PRECISION * 100_000) as u64; // $100k
@@ -1343,7 +1343,7 @@ mod test {
         let mut if_balance = 0;
         let mut if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats = UserStats {
-            number_of_users: 0,
+            number_of_sub_accounts: 0,
             ..UserStats::default()
         };
         let amount = 100_000_384_939_u64; // $100k + change
@@ -1453,7 +1453,7 @@ mod test {
         let mut if_balance = 0;
         let mut if_stake = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats = UserStats {
-            number_of_users: 0,
+            number_of_sub_accounts: 0,
             ..UserStats::default()
         };
         let amount = 100_000_384_939_u64; // $100k + change
@@ -1474,8 +1474,8 @@ mod test {
             .update_if_shares(80_000 * QUOTE_PRECISION, &spot_market)
             .unwrap();
         let mut orig_user_stats = UserStats {
-            number_of_users: 0,
-            staked_quote_asset_amount: 80_000 * QUOTE_PRECISION as u64,
+            number_of_sub_accounts: 0,
+            if_staked_quote_asset_amount: 80_000 * QUOTE_PRECISION as u64,
             ..UserStats::default()
         };
 
@@ -1571,8 +1571,8 @@ mod test {
             .update_if_shares(80_000 * QUOTE_PRECISION, &spot_market)
             .unwrap();
         let mut user_stats = UserStats {
-            number_of_users: 0,
-            staked_quote_asset_amount: 80_000 * QUOTE_PRECISION as u64,
+            number_of_sub_accounts: 0,
+            if_staked_quote_asset_amount: 80_000 * QUOTE_PRECISION as u64,
             ..UserStats::default()
         };
 
@@ -1658,8 +1658,8 @@ mod test {
             .update_if_shares(80_000 * QUOTE_PRECISION, &spot_market)
             .unwrap();
         let mut user_stats = UserStats {
-            number_of_users: 0,
-            staked_quote_asset_amount: 80_000 * QUOTE_PRECISION as u64,
+            number_of_sub_accounts: 0,
+            if_staked_quote_asset_amount: 80_000 * QUOTE_PRECISION as u64,
             ..UserStats::default()
         };
 
@@ -1843,13 +1843,13 @@ mod test {
 
         let mut if_stake_1 = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats_1 = UserStats {
-            number_of_users: 0,
+            number_of_sub_accounts: 0,
             ..UserStats::default()
         };
 
         let mut if_stake_2 = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats_2 = UserStats {
-            number_of_users: 0,
+            number_of_sub_accounts: 0,
             ..UserStats::default()
         };
 
@@ -1951,13 +1951,13 @@ mod test {
 
         let mut if_stake_1 = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats_1 = UserStats {
-            number_of_users: 0,
+            number_of_sub_accounts: 0,
             ..UserStats::default()
         };
 
         let mut if_stake_2 = InsuranceFundStake::new(Pubkey::default(), 0, 0);
         let mut user_stats_2 = UserStats {
-            number_of_users: 0,
+            number_of_sub_accounts: 0,
             ..UserStats::default()
         };
 

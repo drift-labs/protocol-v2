@@ -46,7 +46,7 @@
       ],
       "args": [
         {
-          "name": "userId",
+          "name": "subAccountId",
           "type": "u8"
         },
         {
@@ -521,7 +521,7 @@
       ],
       "args": [
         {
-          "name": "userId",
+          "name": "subAccountId",
           "type": "u8"
         },
         {
@@ -551,7 +551,7 @@
       ],
       "args": [
         {
-          "name": "userId",
+          "name": "subAccountId",
           "type": "u8"
         },
         {
@@ -576,7 +576,7 @@
       ],
       "args": [
         {
-          "name": "userId",
+          "name": "subAccountId",
           "type": "u8"
         },
         {
@@ -3893,7 +3893,7 @@
             "type": "u32"
           },
           {
-            "name": "customMarginRatio",
+            "name": "maxMarginRatio",
             "type": "u32"
           },
           {
@@ -3901,15 +3901,15 @@
             "type": "u16"
           },
           {
-            "name": "userId",
+            "name": "subAccountId",
             "type": "u8"
           },
           {
-            "name": "beingLiquidated",
+            "name": "isBeingLiquidated",
             "type": "bool"
           },
           {
-            "name": "bankrupt",
+            "name": "isBankrupt",
             "type": "bool"
           },
           {
@@ -3980,11 +3980,11 @@
             "type": "i64"
           },
           {
-            "name": "stakedQuoteAssetAmount",
+            "name": "ifStakedQuoteAssetAmount",
             "type": "u64"
           },
           {
-            "name": "numberOfUsers",
+            "name": "numberOfSubAccounts",
             "type": "u8"
           },
           {
@@ -5715,7 +5715,7 @@
           "index": false
         },
         {
-          "name": "userId",
+          "name": "subAccountId",
           "type": "u8",
           "index": false
         },

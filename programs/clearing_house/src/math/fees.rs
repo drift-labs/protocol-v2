@@ -376,7 +376,7 @@ fn determine_perp_fee_tier<'a>(
     fee_structure: &'a FeeStructure,
 ) -> ClearingHouseResult<&'a FeeTier> {
     let total_30d_volume = user_stats.get_total_30d_volume()?;
-    let staked_quote_asset_amount = user_stats.staked_quote_asset_amount;
+    let staked_quote_asset_amount = user_stats.if_staked_quote_asset_amount;
 
     if total_30d_volume >= ONE_HUNDRED_MILLION_QUOTE
         || staked_quote_asset_amount >= TWO_HUNDRED_FIFTY_THOUSAND_QUOTE

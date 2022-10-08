@@ -186,7 +186,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [
@@ -244,7 +244,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [

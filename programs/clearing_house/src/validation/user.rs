@@ -5,19 +5,19 @@ use solana_program::msg;
 
 pub fn validate_user_deletion(user: &User, user_stats: &UserStats) -> ClearingHouseResult {
     validate!(
-        !user_stats.is_referrer || user.user_id != 0,
+        !user_stats.is_referrer || user.sub_account_id != 0,
         ErrorCode::UserCantBeDeleted,
         "user id 0 cant be deleted if user is a referrer"
     )?;
 
     validate!(
-        !user.bankrupt,
+        !user.is_bankrupt,
         ErrorCode::UserCantBeDeleted,
         "user bankrupt"
     )?;
 
     validate!(
-        !user.being_liquidated,
+        !user.is_being_liquidated,
         ErrorCode::UserCantBeDeleted,
         "user being liquidated"
     )?;

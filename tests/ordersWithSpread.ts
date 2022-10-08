@@ -84,7 +84,7 @@ describe('amm spread: market order', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,

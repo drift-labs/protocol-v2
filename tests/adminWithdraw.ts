@@ -48,7 +48,7 @@ describe('admin withdraw', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [new BN(0)],
 			spotMarketIndexes: [new BN(0)],
 			userStats: true,

@@ -348,7 +348,7 @@ pub fn handle_settle_expired_position(ctx: Context<SettlePNL>, market_index: u16
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
 
     controller::liquidation::cancel_all_orders(
         user,
@@ -1079,7 +1079,7 @@ pub fn handle_update_user_quote_asset_insurance_stake(
         "insurance_fund_stake is not for quote market"
     )?;
 
-    user_stats.staked_quote_asset_amount = if_shares_to_vault_amount(
+    user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
         insurance_fund_stake.checked_if_shares(quote_spot_market)?,
         quote_spot_market.total_if_shares,
         ctx.accounts.insurance_fund_vault.amount,

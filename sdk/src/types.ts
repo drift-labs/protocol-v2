@@ -169,7 +169,7 @@ export type NewUserRecord = {
 	ts: BN;
 	userAuthority: PublicKey;
 	user: PublicKey;
-	userId: number;
+	subAccount: number;
 	name: number[];
 	referrer: PublicKey;
 };
@@ -623,7 +623,7 @@ export type PerpPosition = {
 };
 
 export type UserStatsAccount = {
-	numberOfUsers: number;
+	numberOfSubAccounts: number;
 	makerVolume30D: BN;
 	takerVolume30D: BN;
 	fillerVolume30D: BN;
@@ -647,15 +647,15 @@ export type UserAccount = {
 	authority: PublicKey;
 	delegate: PublicKey;
 	name: number[];
-	userId: number;
+	subAccountId: number;
 	spotPositions: SpotPosition[];
 	perpPositions: PerpPosition[];
 	orders: Order[];
-	beingLiquidated: boolean;
-	bankrupt: boolean;
+	isBeingLiquidated: boolean;
+	isBankrupt: boolean;
 	nextLiquidationId: number;
 	nextOrderId: number;
-	customMarginRatio: number;
+	maxMarginRatio: number;
 	lastAddPerpLpSharesTs: BN;
 };
 

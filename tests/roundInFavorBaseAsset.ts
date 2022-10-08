@@ -63,7 +63,7 @@ describe('round in favor', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -107,7 +107,7 @@ describe('round in favor', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -165,7 +165,7 @@ describe('round in favor', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,

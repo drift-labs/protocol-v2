@@ -52,7 +52,7 @@ describe('subaccounts', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			userStats: true,
@@ -70,31 +70,31 @@ describe('subaccounts', () => {
 	});
 
 	it('Initialize first account', async () => {
-		const userId = 0;
+		const subAccountId = 0;
 		const name = 'CRISP';
-		await clearingHouse.initializeUserAccount(userId, name);
+		await clearingHouse.initializeUserAccount(subAccountId, name);
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getUserAccount().userId === userId);
+		assert(clearingHouse.getUserAccount().subAccountId === subAccountId);
 		assert(decodeName(clearingHouse.getUserAccount().name) === name);
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 
-		assert(userStats.numberOfUsers === 1);
+		assert(userStats.numberOfSubAccounts === 1);
 	});
 
 	it('Initialize second account', async () => {
-		const userId = 1;
+		const subAccountId = 1;
 		const name = 'LIL PERP';
 		await clearingHouse.initializeUserAccount(1, name);
 		await clearingHouse.addUser(1);
 		await clearingHouse.switchActiveUser(1);
 
-		assert(clearingHouse.getUserAccount().userId === userId);
+		assert(clearingHouse.getUserAccount().subAccountId === subAccountId);
 		assert(decodeName(clearingHouse.getUserAccount().name) === name);
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 
-		assert(userStats.numberOfUsers === 2);
+		assert(userStats.numberOfSubAccounts === 2);
 	});
 
 	it('Fetch all user account', async () => {
@@ -146,23 +146,24 @@ describe('subaccounts', () => {
 	});
 
 	it('Update user name', async () => {
-		const userId = 0;
+		const subAccountId = 0;
 		const name = 'lil perp v2';
-		await clearingHouse.updateUserName(name, userId);
+		await clearingHouse.updateUserName(name, subAccountId);
 
 		await clearingHouse.fetchAccounts();
 		assert(decodeName(clearingHouse.getUserAccount().name) === name);
 	});
 
 	it('Update custom margin ratio', async () => {
-		const userId = 0;
+		const subAccountId = 0;
 		const customMarginRatio = MARGIN_PRECISION.toNumber() * 2;
-		await clearingHouse.updateUserCustomMarginRatio(customMarginRatio, userId);
+		await clearingHouse.updateUserCustomMarginRatio(
+			customMarginRatio,
+			subAccountId
+		);
 
 		await clearingHouse.fetchAccounts();
-		assert(
-			clearingHouse.getUserAccount().customMarginRatio === customMarginRatio
-		);
+		assert(clearingHouse.getUserAccount().maxMarginRatio === customMarginRatio);
 	});
 
 	it('Update delegate', async () => {

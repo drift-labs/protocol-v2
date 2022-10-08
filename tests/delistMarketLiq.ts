@@ -110,7 +110,7 @@ describe('delist market, liquidation of expired position', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [
@@ -165,7 +165,7 @@ describe('delist market, liquidation of expired position', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [
@@ -596,7 +596,7 @@ describe('delist market, liquidation of expired position', () => {
 			loserMaintMarginReq.sub(new BN(453307643)).abs().lt(new BN(13307643))
 		);
 
-		assert(!clearingHouseLoser.getUserAccount().bankrupt);
+		assert(!clearingHouseLoser.getUserAccount().isBankrupt);
 
 		console.log('settle position clearingHouseLoser');
 		const txSig = await clearingHouseLoser.settleExpiredPosition(

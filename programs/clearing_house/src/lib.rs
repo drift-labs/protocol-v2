@@ -42,10 +42,10 @@ pub mod clearing_house {
 
     pub fn initialize_user(
         ctx: Context<InitializeUser>,
-        user_id: u8,
+        sub_account_id: u8,
         name: [u8; 32],
     ) -> Result<()> {
-        handle_initialize_user(ctx, user_id, name)
+        handle_initialize_user(ctx, sub_account_id, name)
     }
 
     pub fn initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result<()> {
@@ -126,24 +126,28 @@ pub mod clearing_house {
         handle_remove_perp_lp_shares(ctx, shares_to_burn, market_index)
     }
 
-    pub fn update_user_name(ctx: Context<UpdateUser>, _user_id: u8, name: [u8; 32]) -> Result<()> {
-        handle_update_user_name(ctx, _user_id, name)
+    pub fn update_user_name(
+        ctx: Context<UpdateUser>,
+        _sub_account_id: u8,
+        name: [u8; 32],
+    ) -> Result<()> {
+        handle_update_user_name(ctx, _sub_account_id, name)
     }
 
     pub fn update_user_custom_margin_ratio(
         ctx: Context<UpdateUser>,
-        _user_id: u8,
+        _sub_account_id: u8,
         margin_ratio: u32,
     ) -> Result<()> {
-        handle_update_user_custom_margin_ratio(ctx, _user_id, margin_ratio)
+        handle_update_user_custom_margin_ratio(ctx, _sub_account_id, margin_ratio)
     }
 
     pub fn update_user_delegate(
         ctx: Context<UpdateUser>,
-        _user_id: u8,
+        _sub_account_id: u8,
         delegate: Pubkey,
     ) -> Result<()> {
-        handle_update_user_delegate(ctx, _user_id, delegate)
+        handle_update_user_delegate(ctx, _sub_account_id, delegate)
     }
 
     pub fn delete_user(ctx: Context<DeleteUser>) -> Result<()> {

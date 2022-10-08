@@ -265,7 +265,7 @@ pub fn validate_user_not_being_liquidated(
     oracle_map: &mut OracleMap,
     liquidation_margin_buffer_ratio: u32,
 ) -> ClearingHouseResult {
-    if !user.being_liquidated {
+    if !user.is_being_liquidated {
         return Ok(());
     }
 
@@ -280,7 +280,7 @@ pub fn validate_user_not_being_liquidated(
     if is_still_being_liquidated {
         return Err(ErrorCode::UserIsBeingLiquidated);
     } else {
-        user.being_liquidated = false;
+        user.is_being_liquidated = false;
     }
 
     Ok(())

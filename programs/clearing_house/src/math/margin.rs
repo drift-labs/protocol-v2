@@ -262,7 +262,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     let mut with_isolated_liability: bool = false;
 
     let user_custom_margin_ratio = if margin_requirement_type == MarginRequirementType::Initial {
-        user.custom_margin_ratio as u128
+        user.max_margin_ratio as u128
     } else {
         0_u128
     };

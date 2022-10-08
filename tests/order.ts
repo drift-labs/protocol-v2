@@ -130,7 +130,7 @@ describe('orders', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: bankIndexes,
 			oracleInfos,
@@ -208,7 +208,7 @@ describe('orders', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: bankIndexes,
 			oracleInfos,

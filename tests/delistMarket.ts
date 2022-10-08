@@ -128,7 +128,7 @@ describe('delist market', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [
@@ -180,7 +180,7 @@ describe('delist market', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [

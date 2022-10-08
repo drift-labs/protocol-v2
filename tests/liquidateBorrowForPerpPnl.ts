@@ -84,7 +84,7 @@ describe('liquidate borrow for perp pnl', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [
@@ -203,7 +203,7 @@ describe('liquidate borrow for perp pnl', () => {
 				.logMessages
 		);
 
-		assert(clearingHouse.getUserAccount().beingLiquidated);
+		assert(clearingHouse.getUserAccount().isBeingLiquidated);
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
 		assert(
 			clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount.eq(ZERO)

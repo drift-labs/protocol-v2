@@ -100,7 +100,7 @@ pub fn place_order(
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
 
     let new_order_index = user
         .orders
@@ -553,7 +553,7 @@ pub fn fill_order(
         "Order must be triggered first"
     )?;
 
-    if user.bankrupt {
+    if user.is_bankrupt {
         msg!("user is bankrupt");
         return Ok((0, false));
     }
@@ -909,7 +909,7 @@ fn sanitize_maker_order<'a>(
             return Ok((None, None, None, None));
         }
 
-        if maker.being_liquidated || maker.bankrupt {
+        if maker.is_being_liquidated || maker.is_bankrupt {
             return Ok((None, None, None, None));
         }
 
@@ -1013,7 +1013,7 @@ fn sanitize_referrer<'a>(
     let referrer = load_mut!(referrer.unwrap())?;
     let referrer_stats = load_mut!(referrer_stats.unwrap())?;
     validate!(
-        referrer.user_id == 0,
+        referrer.sub_account_id == 0,
         ErrorCode::InvalidReferrer,
         "Referrer must be user id 0"
     )?;
@@ -2213,7 +2213,7 @@ pub fn place_spot_order(
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
 
     let new_order_index = user
         .orders
@@ -2503,7 +2503,7 @@ pub fn fill_spot_order(
         "Order must be triggered first"
     )?;
 
-    if user.bankrupt {
+    if user.is_bankrupt {
         msg!("User is bankrupt");
         return Ok(0);
     }
@@ -2679,7 +2679,7 @@ fn sanitize_spot_maker_order<'a>(
             return Ok((None, None, None, None));
         }
 
-        if maker.being_liquidated || maker.bankrupt {
+        if maker.is_being_liquidated || maker.is_bankrupt {
             return Ok((None, None, None, None));
         }
 

@@ -35,11 +35,11 @@ pub struct User {
     pub orders: [Order; 32],
     pub last_add_perp_lp_shares_ts: i64,
     pub next_order_id: u32,
-    pub custom_margin_ratio: u32,
+    pub max_margin_ratio: u32,
     pub next_liquidation_id: u16,
-    pub user_id: u8,
-    pub being_liquidated: bool,
-    pub bankrupt: bool,
+    pub sub_account_id: u8,
+    pub is_being_liquidated: bool,
+    pub is_bankrupt: bool,
     pub padding: [u8; 3],
 }
 
@@ -670,8 +670,8 @@ pub struct UserStats {
     pub last_taker_volume_30d_ts: i64,
     pub last_filler_volume_30d_ts: i64,
 
-    pub staked_quote_asset_amount: u64,
-    pub number_of_users: u8,
+    pub if_staked_quote_asset_amount: u64,
+    pub number_of_sub_accounts: u8,
     pub is_referrer: bool,
     pub padding: [u8; 6],
 }

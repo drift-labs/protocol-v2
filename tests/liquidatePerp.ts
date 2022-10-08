@@ -77,7 +77,7 @@ describe('liquidate perp and lp', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
 			oracleInfos: [
@@ -143,7 +143,7 @@ describe('liquidate perp and lp', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
 			oracleInfos: [
@@ -223,7 +223,7 @@ describe('liquidate perp and lp', () => {
 				.perpPositions[0].baseAssetAmount.eq(new BN(17500000000))
 		);
 
-		assert(clearingHouse.getUserAccount().beingLiquidated);
+		assert(clearingHouse.getUserAccount().isBeingLiquidated);
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
 
 		// try to add liq when being liquidated -- should fail
@@ -263,7 +263,7 @@ describe('liquidate perp and lp', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getUserAccount().bankrupt);
+		assert(clearingHouse.getUserAccount().isBankrupt);
 		console.log(
 			clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount
 		);
@@ -313,8 +313,8 @@ describe('liquidate perp and lp', () => {
 		assert(marketAfterBankruptcy.quoteMaxInsurance.eq(QUOTE_PRECISION));
 		assert(marketAfterBankruptcy.amm.cumulativeSocialLoss.eq(new BN(-5785008)));
 
-		assert(!clearingHouse.getUserAccount().bankrupt);
-		assert(!clearingHouse.getUserAccount().beingLiquidated);
+		assert(!clearingHouse.getUserAccount().isBankrupt);
+		assert(!clearingHouse.getUserAccount().isBeingLiquidated);
 		assert(
 			clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount.eq(ZERO)
 		);

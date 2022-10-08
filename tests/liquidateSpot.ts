@@ -73,7 +73,7 @@ describe('liquidate spot', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [
@@ -155,7 +155,7 @@ describe('liquidate spot', () => {
 				.logMessages
 		);
 
-		assert(!clearingHouse.getUserAccount().beingLiquidated); // out of liq territory
+		assert(!clearingHouse.getUserAccount().isBeingLiquidated); // out of liq territory
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
 		assert(
 			isVariant(

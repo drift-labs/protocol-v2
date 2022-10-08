@@ -53,7 +53,7 @@ async function createNewUser(
 		opts: {
 			commitment: 'confirmed',
 		},
-		activeUserId: 0,
+		activeSubAccountId: 0,
 		perpMarketIndexes: [0, 1],
 		spotMarketIndexes: [0],
 		oracleInfos,

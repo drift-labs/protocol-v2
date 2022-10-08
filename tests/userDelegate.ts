@@ -68,7 +68,7 @@ describe('user delegate', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos: [
@@ -94,9 +94,9 @@ describe('user delegate', () => {
 		);
 		await clearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
-		const userId = 0;
+		const subAccountId = 0;
 		const name = 'CRISP';
-		await clearingHouse.initializeUserAccount(userId, name);
+		await clearingHouse.initializeUserAccount(subAccountId, name);
 
 		delegateKeyPair = await createFundedKeyPair(connection);
 	});
@@ -127,7 +127,7 @@ describe('user delegate', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos: [

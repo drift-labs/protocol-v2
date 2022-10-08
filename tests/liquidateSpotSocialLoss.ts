@@ -73,7 +73,7 @@ describe('liquidate spot w/ social loss', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [
@@ -155,7 +155,7 @@ describe('liquidate spot w/ social loss', () => {
 				.logMessages
 		);
 
-		assert(clearingHouse.getUserAccount().beingLiquidated);
+		assert(clearingHouse.getUserAccount().isBeingLiquidated);
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
 		assert(clearingHouse.getUserAccount().spotPositions[0].balance.eq(ZERO));
 		assert(
@@ -296,8 +296,8 @@ describe('liquidate spot w/ social loss', () => {
 
 		await clearingHouse.fetchAccounts();
 
-		assert(!clearingHouse.getUserAccount().beingLiquidated);
-		assert(!clearingHouse.getUserAccount().bankrupt);
+		assert(!clearingHouse.getUserAccount().isBeingLiquidated);
+		assert(!clearingHouse.getUserAccount().isBankrupt);
 		assert(clearingHouse.getUserAccount().spotPositions[1].balance.eq(ZERO));
 
 		const bankruptcyRecord =

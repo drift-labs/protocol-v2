@@ -2483,8 +2483,8 @@ pub mod resolve_perp_bankruptcy {
                 ..PerpPosition::default()
             }),
             spot_positions: [SpotPosition::default(); 8],
-            bankrupt: true,
-            being_liquidated: false,
+            is_bankrupt: true,
+            is_being_liquidated: false,
             next_liquidation_id: 2,
             ..User::default()
         };
@@ -2503,8 +2503,8 @@ pub mod resolve_perp_bankruptcy {
         let liquidator_key = Pubkey::default();
 
         let mut expected_user = user;
-        expected_user.being_liquidated = false;
-        expected_user.bankrupt = false;
+        expected_user.is_being_liquidated = false;
+        expected_user.is_bankrupt = false;
         expected_user.perp_positions[0].quote_asset_amount = 0;
 
         let mut expected_market = market;
@@ -2702,8 +2702,8 @@ pub mod resolve_spot_bankruptcy {
                 balance_type: SpotBalanceType::Borrow,
                 ..SpotPosition::default()
             }),
-            bankrupt: true,
-            being_liquidated: false,
+            is_bankrupt: true,
+            is_being_liquidated: false,
             next_liquidation_id: 2,
             ..User::default()
         };
@@ -2722,8 +2722,8 @@ pub mod resolve_spot_bankruptcy {
         let liquidator_key = Pubkey::default();
 
         let mut expected_user = user;
-        expected_user.being_liquidated = false;
-        expected_user.bankrupt = false;
+        expected_user.is_being_liquidated = false;
+        expected_user.is_bankrupt = false;
         expected_user.spot_positions[0].balance = 0;
         expected_user.spot_positions[0].cumulative_deposits = 100 * QUOTE_PRECISION_I64;
 

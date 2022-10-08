@@ -84,7 +84,7 @@ describe('insurance fund stake', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [
@@ -116,9 +116,9 @@ describe('insurance fund stake', () => {
 		await clearingHouse.updateMarketBaseSpread(0, 2000);
 		await clearingHouse.updateCurveUpdateIntensity(0, 100);
 
-		const userId = 0;
+		const subAccountId = 0;
 		const name = 'BIGZ';
-		await clearingHouse.initializeUserAccount(userId, name);
+		await clearingHouse.initializeUserAccount(subAccountId, name);
 		await clearingHouse.deposit(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,
@@ -149,7 +149,7 @@ describe('insurance fund stake', () => {
 		assert(ifStakeAccount.authority.equals(provider.wallet.publicKey));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
-		assert(userStats.numberOfUsers === 1);
+		assert(userStats.numberOfSubAccounts === 1);
 		assert(userStats.stakedQuoteAssetAmount.eq(ZERO));
 	});
 
@@ -1038,8 +1038,8 @@ describe('insurance fund stake', () => {
 		// 	secondUserClearingHouse.getUserAccount().spotPositions[1].balanceType
 		// );
 
-		assert(secondUserClearingHouse.getUserAccount().beingLiquidated);
-		assert(!secondUserClearingHouse.getUserAccount().bankrupt);
+		assert(secondUserClearingHouse.getUserAccount().isBeingLiquidated);
+		assert(!secondUserClearingHouse.getUserAccount().isBankrupt);
 
 		const ifPoolBalanceAfter = getTokenAmount(
 			spotMarket.revenuePool.balance,
