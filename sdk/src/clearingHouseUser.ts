@@ -894,25 +894,20 @@ export class ClearingHouseUser {
 	 * calculates current user leverage across all positions
 	 * @returns : Precision TEN_THOUSAND
 	 */
-	public getLeverage(marginCategory?: MarginCategory): BN {
+	public getLeverage(): BN {
 		const totalLiabilityValue = this.getTotalPerpPositionValue(
-			marginCategory,
+			undefined,
 			undefined,
 			true
 		).add(
-			this.getSpotMarketLiabilityValue(
-				undefined,
-				marginCategory,
-				undefined,
-				true
-			)
+			this.getSpotMarketLiabilityValue(undefined, undefined, undefined, true)
 		);
 
 		const totalAssetValue = this.getSpotMarketAssetValue(
 			undefined,
-			marginCategory,
+			undefined,
 			true
-		).add(this.getUnrealizedPNL(true, undefined, marginCategory));
+		).add(this.getUnrealizedPNL(true, undefined, undefined));
 
 		if (totalAssetValue.eq(ZERO) && totalLiabilityValue.eq(ZERO)) {
 			return ZERO;
@@ -948,18 +943,13 @@ export class ClearingHouseUser {
 	 * calculates margin ratio: total collateral / |total position value|
 	 * @returns : Precision TEN_THOUSAND
 	 */
-	public getMarginRatio(marginCategory?: MarginCategory): BN {
+	public getMarginRatio(): BN {
 		const totalLiabilityValue = this.getTotalPerpPositionValue(
-			marginCategory,
+			undefined,
 			undefined,
 			true
 		).add(
-			this.getSpotMarketLiabilityValue(
-				undefined,
-				marginCategory,
-				undefined,
-				true
-			)
+			this.getSpotMarketLiabilityValue(undefined, undefined, undefined, true)
 		);
 
 		if (totalLiabilityValue.eq(ZERO)) {
@@ -968,9 +958,9 @@ export class ClearingHouseUser {
 
 		const totalAssetValue = this.getSpotMarketAssetValue(
 			undefined,
-			marginCategory,
+			undefined,
 			true
-		).add(this.getUnrealizedPNL(true, undefined, marginCategory));
+		).add(this.getUnrealizedPNL(true, undefined, undefined));
 
 		return totalAssetValue.mul(TEN_THOUSAND).div(totalLiabilityValue);
 	}
