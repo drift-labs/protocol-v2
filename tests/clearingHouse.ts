@@ -290,13 +290,6 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(48001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(48001)));
 
-		console.log(market.amm.marketPosition);
-		assert.ok(
-			market.amm.marketPosition.baseAssetAmount.eq(new BN(-48000000000))
-		);
-		console.log(market.amm.marketPosition.quoteAssetAmount.toString());
-		// assert.ok(market.amm.marketPosition.quoteAssetAmount.eq(new BN(48052613)));
-
 		await eventSubscriber.awaitTx(txSig);
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];
@@ -389,13 +382,6 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(72001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(72001)));
 
-		console.log(market.amm.marketPosition);
-		assert.ok(
-			market.amm.marketPosition.baseAssetAmount.eq(new BN(-24000000000))
-		);
-		assert.ok(market.amm.marketPosition.quoteAssetAmount.eq(new BN(24072002)));
-		assert.ok(market.amm.marketPosition.quoteEntryAmount.eq(new BN(24000001)));
-
 		await eventSubscriber.awaitTx(txSig);
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];
@@ -459,12 +445,6 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-24000000000)));
 		assert.ok(market.amm.totalFee.eq(new BN(120001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120001)));
-
-		console.log(market.amm.marketPosition);
-		assert.ok(
-			market.amm.marketPosition.baseAssetAmount.eq(new BN(24000000000))
-		);
-		assert.ok(market.amm.marketPosition.quoteAssetAmount.eq(new BN(-23879998)));
 
 		await eventSubscriber.awaitTx(txSig);
 		const orderActionRecord =

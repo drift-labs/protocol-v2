@@ -287,7 +287,6 @@ impl SpotBalance for PoolBalance {
 pub struct AMM {
     pub oracle: Pubkey,
     pub historical_oracle_data: HistoricalOracleData,
-    pub market_position: PerpPosition,
     pub market_position_per_lp: PerpPosition,
     pub fee_pool: PoolBalance,
     pub last_oracle_normalised_price: i128,

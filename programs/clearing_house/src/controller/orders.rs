@@ -13,7 +13,7 @@ use crate::controller::funding::settle_funding_payment;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
-    update_amm_and_lp_market_position, update_position_and_market, update_quote_asset_amount,
+    update_lp_market_position, update_position_and_market, update_quote_asset_amount,
     PositionDirection,
 };
 use crate::controller::serum::{invoke_new_order, invoke_settle_funds, SerumFulfillmentParams};
@@ -1394,12 +1394,9 @@ pub fn fulfill_order_with_amm(
     let user_position_delta =
         get_position_delta_for_fill(base_asset_amount, quote_asset_amount, order_direction)?;
 
-    update_amm_and_lp_market_position(
-        market,
-        &user_position_delta,
-        fee_to_market_for_lp.cast()?,
-        split_with_lps,
-    )?;
+    if split_with_lps {
+        update_lp_market_position(market, &user_position_delta, fee_to_market_for_lp.cast()?)?;
+    }
 
     if market.amm.user_lp_shares > 0 {
         let (new_terminal_quote_reserve, new_terminal_base_reserve) =
@@ -1762,12 +1759,6 @@ pub fn fulfill_order_with_match(
     )?;
 
     // Increment the markets house's total fee variables
-    market.amm.market_position.quote_asset_amount = market
-        .amm
-        .market_position
-        .quote_asset_amount
-        .checked_add(fee_to_market)
-        .ok_or_else(math_error!())?;
     market.amm.total_fee = market
         .amm
         .total_fee

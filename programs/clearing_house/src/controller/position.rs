@@ -78,44 +78,40 @@ pub struct PositionDelta {
 pub fn update_amm_position(
     market: &mut PerpMarket,
     delta: &PositionDelta,
-    is_per_lp_position: bool,
 ) -> ClearingHouseResult<i128> {
-    let mut position = if is_per_lp_position {
-        market.amm.market_position_per_lp
-    } else {
-        market.amm.market_position
-    };
-
-    let update_type = get_position_update_type(&position, delta);
+    let update_type = get_position_update_type(&market.amm.market_position_per_lp, delta);
     let (new_quote_asset_amount, new_quote_entry_amount, new_base_asset_amount, pnl) =
-        calculate_position_new_quote_base_pnl(&position, delta)?;
+        calculate_position_new_quote_base_pnl(&market.amm.market_position_per_lp, delta)?;
 
     // Update user position
     match update_type {
         PositionUpdateType::Close => {
-            position.last_cumulative_funding_rate = 0;
+            market
+                .amm
+                .market_position_per_lp
+                .last_cumulative_funding_rate = 0;
         }
         PositionUpdateType::Open | PositionUpdateType::Flip => {
             if new_base_asset_amount > 0 {
-                position.last_cumulative_funding_rate =
+                market
+                    .amm
+                    .market_position_per_lp
+                    .last_cumulative_funding_rate =
                     market.amm.cumulative_funding_rate_long.cast()?;
             } else {
-                position.last_cumulative_funding_rate =
+                market
+                    .amm
+                    .market_position_per_lp
+                    .last_cumulative_funding_rate =
                     market.amm.cumulative_funding_rate_short.cast()?;
             }
         }
         _ => {}
     };
 
-    position.quote_asset_amount = new_quote_asset_amount.cast()?;
-    position.quote_entry_amount = new_quote_entry_amount.cast()?;
-    position.base_asset_amount = new_base_asset_amount.cast()?;
-
-    if is_per_lp_position {
-        market.amm.market_position_per_lp = position;
-    } else {
-        market.amm.market_position = position;
-    }
+    market.amm.market_position_per_lp.quote_asset_amount = new_quote_asset_amount.cast()?;
+    market.amm.market_position_per_lp.quote_entry_amount = new_quote_entry_amount.cast()?;
+    market.amm.market_position_per_lp.base_asset_amount = new_base_asset_amount.cast()?;
 
     Ok(pnl)
 }
@@ -475,7 +471,7 @@ pub fn update_lp_market_position(
         quote_asset_amount: -per_lp_delta_quote.cast()?,
     };
 
-    update_amm_position(market, &per_lp_position_delta, true)?;
+    update_amm_position(market, &per_lp_position_delta)?;
 
     // 1/5 of fee auto goes to market
     // the rest goes to lps/market proportional
@@ -520,53 +516,6 @@ pub fn update_lp_market_position(
         .ok_or_else(math_error!())?;
 
     Ok((lp_delta_base, lp_delta_quote, lp_fee))
-}
-
-pub fn update_amm_and_lp_market_position(
-    market: &mut PerpMarket,
-    delta: &PositionDelta,
-    fee_to_market: i128,
-    split_with_lps: bool,
-) -> ClearingHouseResult {
-    // update LP position
-    let (lp_delta_base, lp_delta_quote, lp_fee) = if split_with_lps {
-        update_lp_market_position(market, delta, fee_to_market)?
-    } else {
-        (0, 0, 0)
-    };
-
-    // Update AMM position
-    let amm_fee = fee_to_market
-        .checked_sub(lp_fee)
-        .ok_or_else(math_error!())?;
-
-    let amm_baa = delta
-        .base_asset_amount
-        .checked_sub(lp_delta_base.cast()?)
-        .ok_or_else(math_error!())?;
-
-    let amm_qaa = delta
-        .quote_asset_amount
-        .checked_sub(lp_delta_quote.cast()?)
-        .ok_or_else(math_error!())?;
-
-    crate::controller::position::update_amm_position(
-        market,
-        &PositionDelta {
-            base_asset_amount: -amm_baa,
-            quote_asset_amount: -amm_qaa,
-        },
-        false,
-    )?;
-
-    market.amm.market_position.quote_asset_amount = market
-        .amm
-        .market_position
-        .quote_asset_amount
-        .checked_add(amm_fee.cast()?)
-        .ok_or_else(math_error!())?;
-
-    Ok(())
 }
 
 pub fn update_position_with_base_asset_amount(
@@ -737,7 +686,7 @@ pub fn decrease_open_bids_and_asks(
 #[cfg(test)]
 mod test {
     use crate::controller::position::{
-        update_amm_and_lp_market_position, update_position_and_market, PositionDelta,
+        update_lp_market_position, update_position_and_market, PositionDelta,
     };
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION_I64,
@@ -763,16 +712,8 @@ mod test {
             ..PerpMarket::default_test()
         };
 
-        update_amm_and_lp_market_position(&mut market, &delta, 0, true).unwrap();
+        update_lp_market_position(&mut market, &delta, 0).unwrap();
 
-        assert_eq!(
-            market.amm.market_position.base_asset_amount,
-            -10 * BASE_PRECISION_I64
-        );
-        assert_eq!(
-            market.amm.market_position.quote_asset_amount,
-            10 * BASE_PRECISION_I64
-        );
         assert_eq!(market.amm.net_unsettled_lp_base_asset_amount, 0);
         assert_eq!(
             market.amm.net_base_asset_amount,
@@ -798,7 +739,7 @@ mod test {
             ..PerpMarket::default_test()
         };
 
-        update_amm_and_lp_market_position(&mut market, &delta, 0, true).unwrap();
+        update_lp_market_position(&mut market, &delta, 0).unwrap();
 
         assert_eq!(
             market.amm.market_position_per_lp.base_asset_amount,
@@ -833,25 +774,7 @@ mod test {
             ..PerpMarket::default_test()
         };
 
-        update_amm_and_lp_market_position(&mut market, &delta, 0, true).unwrap();
-
-        assert_eq!(
-            market.amm.market_position_per_lp.base_asset_amount,
-            -5 * BASE_PRECISION_I64 / 100
-        );
-        assert_eq!(
-            market.amm.market_position_per_lp.quote_asset_amount,
-            5 * BASE_PRECISION_I64 / 100
-        );
-
-        assert_eq!(
-            market.amm.market_position.base_asset_amount,
-            -5 * BASE_PRECISION_I64
-        );
-        assert_eq!(
-            market.amm.market_position.quote_asset_amount,
-            5 * BASE_PRECISION_I64
-        );
+        update_lp_market_position(&mut market, &delta, 0).unwrap();
 
         assert_eq!(
             market.amm.net_base_asset_amount,

@@ -95,7 +95,6 @@ export const mockAMM: AMM = {
 	longSpread: new BN(0),
 	shortSpread: new BN(0),
 	maxSpread: 0,
-	marketPosition: mockPerpPosition,
 	marketPositionPerLp: mockPerpPosition,
 	ammJitIntensity: 0,
 	maxBaseAssetReserve: new BN(0),

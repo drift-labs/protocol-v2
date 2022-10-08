@@ -560,10 +560,6 @@ pub fn handle_initialize_perp_market(
                 market_index,
                 ..PerpPosition::default()
             },
-            market_position: PerpPosition {
-                market_index,
-                ..PerpPosition::default()
-            },
             last_update_slot: clock_slot,
 
             // lp stuff

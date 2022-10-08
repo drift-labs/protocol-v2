@@ -598,7 +598,6 @@ export type AMM = {
 	longSpread: BN;
 	shortSpread: BN;
 	maxSpread: number;
-	marketPosition: PerpPosition;
 	marketPositionPerLp: PerpPosition;
 	ammJitIntensity: number;
 	maxBaseAssetReserve: BN;
