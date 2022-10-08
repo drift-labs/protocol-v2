@@ -9,9 +9,9 @@ use crate::math::constants::{
     SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
     SPOT_WEIGHT_PRECISION,
 };
-use crate::state::market::{MarketStatus, PerpMarket, PoolBalance, AMM};
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::{MarketStatus, PerpMarket, PoolBalance, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;

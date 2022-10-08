@@ -62,7 +62,7 @@ describe('admin withdraw', () => {
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

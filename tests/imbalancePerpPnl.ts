@@ -210,7 +210,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		const periodicity = new BN(0);
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

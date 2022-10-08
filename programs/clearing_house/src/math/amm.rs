@@ -12,8 +12,8 @@ use crate::math::orders::standardize_base_asset_amount;
 use crate::math::quote_asset::reserve_to_asset_amount;
 use crate::math::stats::{calculate_new_twap, calculate_rolling_sum, calculate_weighted_average};
 use crate::math_error;
-use crate::state::market::AMM;
 use crate::state::oracle::OraclePriceData;
+use crate::state::perp_market::AMM;
 use crate::state::state::PriceDivergenceGuardRails;
 use crate::validate;
 use solana_program::msg;
@@ -856,8 +856,8 @@ mod test {
         AMM_RESERVE_PRECISION, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128,
         QUOTE_PRECISION, QUOTE_PRECISION_I128,
     };
-    use crate::state::market::PerpMarket;
     use crate::state::oracle::HistoricalOracleData;
+    use crate::state::perp_market::PerpMarket;
     use crate::state::user::PerpPosition;
 
     #[test]

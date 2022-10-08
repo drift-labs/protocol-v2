@@ -133,7 +133,7 @@ describe('liquidity providing', () => {
 			provider.wallet
 		);
 		// used for trading / taking on baa
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solusdc,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -144,7 +144,7 @@ describe('liquidity providing', () => {
 		await clearingHouse.updatePerpStepSizeAndTickSize(0, new BN(1), new BN(1));
 
 		// second market -- used for funding ..
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solusdc2,
 			stableAmmInitialBaseAssetReserve,
 			stableAmmInitialQuoteAssetReserve,

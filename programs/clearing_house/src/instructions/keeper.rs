@@ -11,8 +11,8 @@ use crate::optional_accounts::{
     get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
 };
 use crate::state::insurance_fund_stake::InsuranceFundStake;
-use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
     get_market_set, get_market_set_for_user_positions, get_market_set_from_list, MarketSet,
     PerpMarketMap,

@@ -142,7 +142,7 @@ describe('orders', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -155,7 +155,7 @@ describe('orders', () => {
 			new BN(1)
 		);
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),
@@ -169,7 +169,7 @@ describe('orders', () => {
 			new BN(1)
 		);
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			ethUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

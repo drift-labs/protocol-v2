@@ -104,7 +104,7 @@ describe('liquidate borrow for perp pnl', () => {
 
 		const periodicity = new BN(0);
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

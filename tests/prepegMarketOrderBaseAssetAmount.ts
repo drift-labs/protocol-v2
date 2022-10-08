@@ -114,7 +114,7 @@ describe('prepeg', () => {
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -130,7 +130,7 @@ describe('prepeg', () => {
 		for (let i = 1; i <= 4; i++) {
 			// init more markets
 			const thisUsd = mockOracles[i];
-			await clearingHouse.initializeMarket(
+			await clearingHouse.initializePerpMarket(
 				thisUsd,
 				ammInitialBaseAssetAmount,
 				ammInitialQuoteAssetAmount,

@@ -13,9 +13,9 @@ use crate::math::oracle;
 use crate::math::oracle::OracleValidity;
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::math_error;
-use crate::state::market::{PerpMarket, AMM};
 use crate::state::oracle::get_oracle_price;
 use crate::state::oracle::OraclePriceData;
+use crate::state::perp_market::{PerpMarket, AMM};
 use std::cmp::{max, min};
 
 use crate::state::state::OracleGuardRails;

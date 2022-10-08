@@ -200,7 +200,7 @@ describe('repeg and spread amm', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		// BTC
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			btcUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,

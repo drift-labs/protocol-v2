@@ -355,7 +355,7 @@ mod calculate_asset_transfer_for_liability_transfer {
 mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
     use crate::math::constants::{BASE_PRECISION_I128, QUOTE_PRECISION_I128};
     use crate::math::liquidation::calculate_funding_rate_deltas_to_resolve_bankruptcy;
-    use crate::state::market::PerpMarket;
+    use crate::state::perp_market::PerpMarket;
 
     #[test]
     fn total_base_asset_amount_is_zero() {

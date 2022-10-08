@@ -14,8 +14,8 @@ use crate::math::spot_balance::{get_token_amount, validate_spot_balances};
 use crate::math::{amm, amm_spread, bn, cp_curve, quote_asset::*};
 use crate::math_error;
 use crate::state::events::CurveRecord;
-use crate::state::market::{PerpMarket, AMM};
 use crate::state::oracle::OraclePriceData;
+use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::user::User;
 use crate::validate;
 use anchor_lang::prelude::*;
@@ -729,7 +729,7 @@ mod test {
         AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION, QUOTE_PRECISION,
         QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
     };
-    use crate::state::market::PoolBalance;
+    use crate::state::perp_market::PoolBalance;
 
     #[test]
     fn concentration_coef_tests() {

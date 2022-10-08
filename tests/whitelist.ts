@@ -66,7 +66,7 @@ describe('whitelist', () => {
 		await clearingHouse.subscribe();
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

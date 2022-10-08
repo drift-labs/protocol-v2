@@ -9,7 +9,7 @@ use crate::math::constants::{
 };
 use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
 use crate::math_error;
-use crate::state::market::PerpMarket;
+use crate::state::perp_market::PerpMarket;
 use crate::validate;
 use solana_program::msg;
 
@@ -342,7 +342,7 @@ mod test {
     use crate::math::constants::{
         BASE_PRECISION_U64, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, QUOTE_PRECISION_I64,
     };
-    use crate::state::market::AMM;
+    use crate::state::perp_market::AMM;
     use crate::state::user::PerpPosition;
 
     #[test]

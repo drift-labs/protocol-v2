@@ -37,8 +37,8 @@ use crate::state::events::{
     LiquidateSpotRecord, LiquidationRecord, LiquidationType, OrderActionExplanation,
     PerpBankruptcyRecord, SpotBankruptcyRecord,
 };
-use crate::state::market::MarketStatus;
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::SpotMarketMap;

@@ -7,8 +7,8 @@ use crate::math::constants::AMM_RESERVE_PRECISION_I128;
 use crate::math::helpers;
 use crate::math::orders::standardize_base_asset_amount_with_remainder_i128;
 use crate::math_error;
-use crate::state::market::PerpMarket;
-use crate::state::market::AMM;
+use crate::state::perp_market::PerpMarket;
+use crate::state::perp_market::AMM;
 use crate::state::user::PerpPosition;
 
 #[derive(Debug)]

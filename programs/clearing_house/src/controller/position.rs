@@ -19,7 +19,7 @@ use crate::math::position::{
     calculate_position_new_quote_base_pnl, get_position_update_type, PositionUpdateType,
 };
 use crate::math_error;
-use crate::state::market::PerpMarket;
+use crate::state::perp_market::PerpMarket;
 use crate::state::user::{PerpPosition, PerpPositions, User};
 use crate::validate;
 
@@ -730,7 +730,7 @@ mod test {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION_I64,
     };
-    use crate::state::market::{PerpMarket, AMM};
+    use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::user::PerpPosition;
 
     #[test]

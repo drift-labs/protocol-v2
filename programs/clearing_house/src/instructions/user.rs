@@ -18,8 +18,8 @@ use crate::optional_accounts::{
 };
 use crate::print_error;
 use crate::state::events::{DepositDirection, DepositRecord, LPAction, LPRecord, NewUserRecord};
-use crate::state::market::MarketStatus;
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_market_set, MarketSet, PerpMarketMap};
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::{get_writable_spot_market_set, SpotMarketMap, SpotMarketSet};

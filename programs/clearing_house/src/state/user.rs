@@ -15,8 +15,8 @@ use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
 use crate::math::stats::calculate_rolling_sum;
 use crate::math_error;
-use crate::state::market::AMM;
 use crate::state::oracle::OraclePriceData;
+use crate::state::perp_market::AMM;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use std::cmp::max;
 

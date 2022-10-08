@@ -15,9 +15,9 @@ use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::repeg;
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
-use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::SpotMarketMap;
@@ -381,8 +381,8 @@ mod test {
     use crate::math::repeg::{
         calculate_fee_pool, calculate_peg_from_target_price, calculate_repeg_cost,
     };
-    use crate::state::market::AMM;
     use crate::state::oracle::HistoricalOracleData;
+    use crate::state::perp_market::AMM;
     use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
     #[test]
     pub fn update_amm_test() {

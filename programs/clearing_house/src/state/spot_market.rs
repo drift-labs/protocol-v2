@@ -17,8 +17,8 @@ use crate::math::margin::{
 };
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
-use crate::state::market::{MarketStatus, PoolBalance};
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
+use crate::state::perp_market::{MarketStatus, PoolBalance};
 use solana_program::msg;
 
 #[account(zero_copy)]

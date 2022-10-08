@@ -95,7 +95,7 @@ describe('post only', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await fillerClearingHouse.initializeMarket(
+		await fillerClearingHouse.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

@@ -3,7 +3,7 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::{cast_to_i128, Cast};
 use crate::math::orders::is_multiple_of_step_size;
 use crate::math_error;
-use crate::state::market::{PerpMarket, AMM};
+use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::user::PerpPosition;
 use crate::validate;
 use solana_program::msg;

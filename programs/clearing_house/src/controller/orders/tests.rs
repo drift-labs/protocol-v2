@@ -1,8 +1,8 @@
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
 
-use crate::state::market::MarketStatus;
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::MarketStatus;
 use crate::state::state::{FeeStructure, FeeTier};
 use crate::state::user::{Order, PerpPosition};
 
@@ -36,7 +36,7 @@ pub mod fulfill_order_with_maker_order {
         BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64, PRICE_PRECISION_U64,
         QUOTE_PRECISION_I64, QUOTE_PRECISION_U64,
     };
-    use crate::state::market::PerpMarket;
+    use crate::state::perp_market::PerpMarket;
     use crate::state::user::{Order, OrderType, PerpPosition, User, UserStats};
     use crate::tests::utils::*;
 
@@ -1433,8 +1433,8 @@ pub mod fulfill_order {
         PRICE_PRECISION_U64, QUOTE_PRECISION_I64, QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
-    use crate::state::market::{PerpMarket, AMM};
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
+    use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
@@ -2757,9 +2757,9 @@ pub mod fill_order {
         PRICE_PRECISION_U64, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
         SPOT_WEIGHT_PRECISION,
     };
-    use crate::state::market::{PerpMarket, AMM};
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
+    use crate::state::perp_market::{PerpMarket, AMM};
 
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};

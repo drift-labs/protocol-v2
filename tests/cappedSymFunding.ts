@@ -195,7 +195,7 @@ async function cappedSymFundingScenario(
 	const priceFeedAddress = await mockOracle(priceAction[0], -10);
 	const periodicity = new BN(0);
 
-	await clearingHouse.initializeMarket(
+	await clearingHouse.initializePerpMarket(
 		priceFeedAddress,
 		kSqrt,
 		kSqrt,

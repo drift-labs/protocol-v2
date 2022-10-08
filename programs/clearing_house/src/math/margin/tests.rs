@@ -13,8 +13,8 @@ mod test {
     use crate::math::position::{
         calculate_base_asset_value_and_pnl_with_oracle_price, calculate_position_pnl,
     };
-    use crate::state::market::{PerpMarket, AMM};
     use crate::state::oracle::OraclePriceData;
+    use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::user::{PerpPosition, SpotPosition, User};
     use num_integer::Roots;
@@ -505,9 +505,9 @@ mod calculate_margin_requirement_and_total_collateral {
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
     };
-    use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
+    use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;

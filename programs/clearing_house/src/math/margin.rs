@@ -17,9 +17,9 @@ use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
 use crate::math::spot_balance::{get_balance_value_and_token_amount, get_token_value};
 
-use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;

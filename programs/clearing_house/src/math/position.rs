@@ -13,7 +13,7 @@ use crate::math::constants::{
 use crate::math::helpers::get_proportion_u128;
 use crate::math::pnl::calculate_pnl;
 use crate::math_error;
-use crate::state::market::AMM;
+use crate::state::perp_market::AMM;
 use crate::state::user::PerpPosition;
 
 pub fn calculate_base_asset_value_and_pnl(

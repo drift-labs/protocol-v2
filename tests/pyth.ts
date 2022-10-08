@@ -259,7 +259,7 @@ describe('pyth-oracle', () => {
 		const periodicity = new BN(0); // 1 HOUR
 		const marketIndex = 0;
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			priceFeedAddress,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -281,7 +281,7 @@ describe('pyth-oracle', () => {
 		const periodicity = new BN(0);
 		const marketIndex = 1;
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			priceFeedAddress,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,

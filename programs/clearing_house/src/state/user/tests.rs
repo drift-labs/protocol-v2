@@ -8,8 +8,8 @@ mod get_claimable_pnl {
     };
     use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
     use crate::math::spot_balance::get_token_amount;
-    use crate::state::market::{PerpMarket, PoolBalance, AMM};
     use crate::state::oracle::OracleSource;
+    use crate::state::perp_market::{PerpMarket, PoolBalance, AMM};
     use crate::state::spot_market::{SpotBalance, SpotMarket};
     use crate::state::user::{PerpPosition, User};
     use crate::tests::utils::get_positions;

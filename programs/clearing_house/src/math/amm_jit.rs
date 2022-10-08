@@ -2,7 +2,7 @@ use crate::error::ClearingHouseResult;
 use crate::math::casting::Cast;
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math_error;
-use crate::state::market::PerpMarket;
+use crate::state::perp_market::PerpMarket;
 use solana_program::msg;
 
 // assumption: market.amm.amm_jit_is_active() == true
@@ -61,7 +61,7 @@ pub fn calculate_clampped_jit_base_asset_amount(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::state::market::AMM;
+    use crate::state::perp_market::AMM;
 
     #[test]
     fn balanced_market_zero_jit() {

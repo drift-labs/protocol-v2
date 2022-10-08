@@ -19,7 +19,7 @@ pub mod state;
 mod tests;
 mod validation;
 
-use crate::state::market::{ContractTier, MarketStatus};
+use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::spot_market::AssetTier;
 use crate::state::state::FeeStructure;
 use crate::state::state::*;
@@ -386,8 +386,8 @@ pub mod clearing_house {
         handle_update_serum_vault(ctx)
     }
 
-    pub fn initialize_market(
-        ctx: Context<InitializeMarket>,
+    pub fn initialize_perp_market(
+        ctx: Context<InitializePerpMarket>,
         amm_base_asset_reserve: u128,
         amm_quote_asset_reserve: u128,
         amm_periodicity: i64,
@@ -398,7 +398,7 @@ pub mod clearing_house {
         liquidation_fee: u128,
         active_status: bool,
     ) -> Result<()> {
-        handle_initialize_market(
+        handle_initialize_perp_market(
             ctx,
             amm_base_asset_reserve,
             amm_quote_asset_reserve,

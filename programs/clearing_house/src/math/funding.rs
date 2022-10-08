@@ -7,7 +7,7 @@ use crate::math::constants::{
 };
 use crate::math::repeg::{calculate_fee_pool, get_total_fee_lower_bound};
 use crate::math_error;
-use crate::state::market::PerpMarket;
+use crate::state::perp_market::PerpMarket;
 use crate::state::user::PerpPosition;
 use solana_program::msg;
 use std::cmp::{max, min};
@@ -263,8 +263,8 @@ pub fn calculate_funding_payment_in_quote_precision(
 mod test {
     use super::*;
     use crate::math::constants::{AMM_RESERVE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION};
-    use crate::state::market::{PerpMarket, AMM};
     use crate::state::oracle::HistoricalOracleData;
+    use crate::state::perp_market::{PerpMarket, AMM};
     #[test]
     fn capped_sym_funding_test() {
         // more shorts than longs, positive funding, 1/3 of fee pool too small

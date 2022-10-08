@@ -76,7 +76,7 @@ describe('round in favor', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await primaryClearingHouse.initializeMarket(
+		await primaryClearingHouse.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

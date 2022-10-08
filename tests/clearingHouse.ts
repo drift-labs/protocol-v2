@@ -107,7 +107,7 @@ describe('clearing_house', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		const marketIndex = 0;
-		const txSig = await clearingHouse.initializeMarket(
+		const txSig = await clearingHouse.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,

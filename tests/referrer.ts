@@ -104,7 +104,7 @@ describe('referrer', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await referrerClearingHouse.initializeMarket(
+		await referrerClearingHouse.initializePerpMarket(
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

@@ -96,7 +96,7 @@ describe('liquidate perp and lp', () => {
 
 		const periodicity = new BN(0);
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			oracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

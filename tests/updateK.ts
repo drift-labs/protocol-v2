@@ -85,7 +85,7 @@ describe('update k', () => {
 			initPrice: initialSOLPrice,
 		});
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solUsdOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

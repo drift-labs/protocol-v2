@@ -1,7 +1,7 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math_error;
 use crate::state::events::{LPAction, LPRecord};
-use crate::state::market::PerpMarket;
+use crate::state::perp_market::PerpMarket;
 use crate::state::user::PerpPosition;
 use crate::state::user::User;
 
@@ -260,7 +260,7 @@ pub fn burn_lp_shares(
 mod test {
     use super::*;
     use crate::math::constants::{AMM_RESERVE_PRECISION, BASE_PRECISION_U64};
-    use crate::state::market::AMM;
+    use crate::state::perp_market::AMM;
     use crate::state::user::PerpPosition;
 
     #[test]

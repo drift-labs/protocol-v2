@@ -31,12 +31,12 @@ use crate::math::spot_balance::get_token_amount;
 use crate::math::{amm, bn, oracle};
 use crate::math_error;
 use crate::state::events::CurveRecord;
-use crate::state::market::{
-    ContractTier, ContractType, MarketStatus, PerpMarket, PoolBalance, AMM,
-};
 use crate::state::oracle::{
     get_oracle_price, get_pyth_price, get_switchboard_price, HistoricalIndexData,
     HistoricalOracleData, OraclePriceData, OracleSource,
+};
+use crate::state::perp_market::{
+    ContractTier, ContractType, MarketStatus, PerpMarket, PoolBalance, AMM,
 };
 use crate::state::serum::{load_open_orders, load_serum_market};
 use crate::state::spot_market::{
@@ -375,8 +375,8 @@ pub fn handle_update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
     Ok(())
 }
 
-pub fn handle_initialize_market(
-    ctx: Context<InitializeMarket>,
+pub fn handle_initialize_perp_market(
+    ctx: Context<InitializePerpMarket>,
     amm_base_asset_reserve: u128,
     amm_quote_asset_reserve: u128,
     amm_periodicity: i64,
@@ -1893,7 +1893,7 @@ pub struct UpdateSerumVault<'info> {
 }
 
 #[derive(Accounts)]
-pub struct InitializeMarket<'info> {
+pub struct InitializePerpMarket<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
     #[account(

@@ -17,8 +17,8 @@ use crate::math::position::calculate_base_asset_value_and_pnl_with_settlement_pr
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
 use crate::state::events::SettlePnlRecord;
-use crate::state::market::MarketStatus;
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::spot_market_map::SpotMarketMap;
