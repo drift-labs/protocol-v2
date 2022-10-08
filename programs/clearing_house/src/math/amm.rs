@@ -947,8 +947,8 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unrealized_initial_asset_weight: 100,
-            unrealized_maintenance_asset_weight: 100,
+            unrealized_pnl_initial_asset_weight: 100,
+            unrealized_pnl_maintenance_asset_weight: 100,
             ..PerpMarket::default()
         };
 
@@ -1030,8 +1030,8 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unrealized_initial_asset_weight: 100,
-            unrealized_maintenance_asset_weight: 100,
+            unrealized_pnl_initial_asset_weight: 100,
+            unrealized_pnl_maintenance_asset_weight: 100,
             ..PerpMarket::default()
         };
 
@@ -1146,8 +1146,8 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unrealized_initial_asset_weight: 100,
-            unrealized_maintenance_asset_weight: 100,
+            unrealized_pnl_initial_asset_weight: 100,
+            unrealized_pnl_maintenance_asset_weight: 100,
             ..PerpMarket::default()
         };
 

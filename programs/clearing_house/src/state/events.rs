@@ -106,7 +106,7 @@ pub struct CurveRecord {
     pub base_asset_amount_long: u128,
     pub base_asset_amount_short: u128,
     pub net_base_asset_amount: i128,
-    pub open_interest: u128,
+    pub number_of_users: u128,
     pub total_fee: i128,
     pub total_fee_minus_distributions: i128,
     pub adjustment_cost: i128,

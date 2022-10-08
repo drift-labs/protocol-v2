@@ -294,9 +294,19 @@ describe('liquidate perp and lp', () => {
 		await clearingHouse.fetchAccounts();
 		const marketBeforeBankruptcy =
 			clearingHouse.getPerpMarketAccount(marketIndex);
-		assert(marketBeforeBankruptcy.revenueWithdrawSinceLastSettle.eq(ZERO));
-		assert(marketBeforeBankruptcy.quoteSettledInsurance.eq(ZERO));
-		assert(marketBeforeBankruptcy.quoteMaxInsurance.eq(QUOTE_PRECISION));
+		assert(
+			marketBeforeBankruptcy.insuranceClaim.revenueWithdrawSinceLastSettle.eq(
+				ZERO
+			)
+		);
+		assert(
+			marketBeforeBankruptcy.insuranceClaim.quoteSettledInsurance.eq(ZERO)
+		);
+		assert(
+			marketBeforeBankruptcy.insuranceClaim.quoteMaxInsurance.eq(
+				QUOTE_PRECISION
+			)
+		);
 		assert(marketBeforeBankruptcy.amm.cumulativeSocialLoss.eq(ZERO));
 		await liquidatorClearingHouse.resolvePerpBankruptcy(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -308,9 +318,15 @@ describe('liquidate perp and lp', () => {
 		// all social loss
 		const marketAfterBankruptcy =
 			clearingHouse.getPerpMarketAccount(marketIndex);
-		assert(marketAfterBankruptcy.revenueWithdrawSinceLastSettle.eq(ZERO));
-		assert(marketAfterBankruptcy.quoteSettledInsurance.eq(ZERO));
-		assert(marketAfterBankruptcy.quoteMaxInsurance.eq(QUOTE_PRECISION));
+		assert(
+			marketAfterBankruptcy.insuranceClaim.revenueWithdrawSinceLastSettle.eq(
+				ZERO
+			)
+		);
+		assert(marketAfterBankruptcy.insuranceClaim.quoteSettledInsurance.eq(ZERO));
+		assert(
+			marketAfterBankruptcy.insuranceClaim.quoteMaxInsurance.eq(QUOTE_PRECISION)
+		);
 		assert(marketAfterBankruptcy.amm.cumulativeSocialLoss.eq(new BN(-5785008)));
 
 		assert(!clearingHouse.getUserAccount().isBankrupt);

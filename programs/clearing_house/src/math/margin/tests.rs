@@ -124,8 +124,8 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unrealized_initial_asset_weight: 10000,
-            unrealized_maintenance_asset_weight: 10000,
+            unrealized_pnl_initial_asset_weight: 10000,
+            unrealized_pnl_maintenance_asset_weight: 10000,
             ..PerpMarket::default()
         };
 
@@ -202,8 +202,8 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unrealized_initial_asset_weight: 10000,
-            unrealized_maintenance_asset_weight: 10000,
+            unrealized_pnl_initial_asset_weight: 10000,
+            unrealized_pnl_maintenance_asset_weight: 10000,
             ..PerpMarket::default()
         };
 
@@ -248,7 +248,7 @@ mod test {
         assert_eq!(position_unrealized_pnl, 22699050905);
 
         // sqrt of oracle price = 149
-        market.unrealized_imf_factor = market.imf_factor;
+        market.unrealized_pnl_imf_factor = market.imf_factor;
 
         let uaw = market
             .get_unrealized_asset_weight(position_unrealized_pnl, MarginRequirementType::Initial)
@@ -374,8 +374,8 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unrealized_initial_asset_weight: 10000,
-            unrealized_maintenance_asset_weight: 10000,
+            unrealized_pnl_initial_asset_weight: 10000,
+            unrealized_pnl_maintenance_asset_weight: 10000,
             ..PerpMarket::default()
         };
 
@@ -441,8 +441,8 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unrealized_initial_asset_weight: 10000,
-            unrealized_maintenance_asset_weight: 10000,
+            unrealized_pnl_initial_asset_weight: 10000,
+            unrealized_pnl_maintenance_asset_weight: 10000,
             ..PerpMarket::default()
         };
 

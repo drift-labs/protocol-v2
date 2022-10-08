@@ -1545,8 +1545,9 @@ pub fn resolve_perp_bankruptcy(
     let if_payment = {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
         let max_insurance_withdraw = market
+            .insurance_claim
             .quote_max_insurance
-            .checked_sub(market.quote_settled_insurance)
+            .checked_sub(market.insurance_claim.quote_settled_insurance)
             .ok_or_else(math_error!())?;
 
         let _if_payment = loss
@@ -1556,7 +1557,8 @@ pub fn resolve_perp_bankruptcy(
             )?)
             .min(max_insurance_withdraw);
 
-        market.quote_settled_insurance = market
+        market.insurance_claim.quote_settled_insurance = market
+            .insurance_claim
             .quote_settled_insurance
             .checked_add(_if_payment)
             .ok_or_else(math_error!())?;

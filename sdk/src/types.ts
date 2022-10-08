@@ -457,11 +457,13 @@ export type PerpMarketAccount = {
 	unrealizedMaxImbalance: BN;
 	unrealizedInitialAssetWeight: number;
 	unrealizedMaintenanceAssetWeight: number;
-	revenueWithdrawSinceLastSettle: BN;
-	maxRevenueWithdrawPerPeriod: BN;
-	lastRevenueWithdrawTs: BN;
-	quoteSettledInsurance: BN;
-	quoteMaxInsurance: BN;
+	insuranceClaim: {
+		revenueWithdrawSinceLastSettle: BN;
+		maxRevenueWithdrawPerPeriod: BN;
+		lastRevenueWithdrawTs: BN;
+		quoteSettledInsurance: BN;
+		quoteMaxInsurance: BN;
+	};
 };
 
 export type HistoricalOracleData = {

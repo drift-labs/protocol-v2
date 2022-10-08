@@ -541,7 +541,7 @@ mod test {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            open_interest: 1,
+            number_of_users: 1,
             status: MarketStatus::Active,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
@@ -878,7 +878,7 @@ mod test {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            open_interest: 1,
+            number_of_users: 1,
             status: MarketStatus::Active,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
@@ -1217,7 +1217,7 @@ mod test {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            open_interest: 1,
+            number_of_users: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()

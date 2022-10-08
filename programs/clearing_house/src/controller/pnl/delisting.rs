@@ -675,7 +675,7 @@ pub mod delisting_test {
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
-            open_interest: 1,
+            number_of_users: 1,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -924,7 +924,7 @@ pub mod delisting_test {
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
-            open_interest: 1,
+            number_of_users: 1,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -1176,7 +1176,7 @@ pub mod delisting_test {
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
-            open_interest: 1,
+            number_of_users: 1,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -1412,7 +1412,7 @@ pub mod delisting_test {
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
-            open_interest: 2,
+            number_of_users: 2,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -1754,7 +1754,7 @@ pub mod delisting_test {
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
-            open_interest: 2,
+            number_of_users: 2,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -2134,7 +2134,7 @@ pub mod delisting_test {
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
-            open_interest: 2,
+            number_of_users: 2,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -2810,7 +2810,7 @@ pub mod delisting_test {
             assert_eq!(market.pnl_pool.balance, 144300801000); // fees collected
             assert_eq!(market.amm.fee_pool.balance, 0);
 
-            assert_eq!(market.open_interest, 0);
+            assert_eq!(market.number_of_users, 0);
             assert_eq!(market.amm.base_asset_amount_long, 0);
             assert_eq!(market.amm.base_asset_amount_short, 0);
 

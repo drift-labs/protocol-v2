@@ -695,14 +695,14 @@ pub fn resolve_perp_pnl_deficit(
 
     let total_if_shares_before = spot_market.total_if_shares;
 
-    let excess_user_pnl_imbalance = if market.unrealized_max_imbalance > 0 {
+    let excess_user_pnl_imbalance = if market.unrealized_pnl_max_imbalance > 0 {
         let net_unsettled_pnl = calculate_net_user_pnl(
             &market.amm,
             market.amm.historical_oracle_data.last_oracle_price,
         )?;
 
         net_unsettled_pnl
-            .checked_sub(cast_to_i128(market.unrealized_max_imbalance)?)
+            .checked_sub(cast_to_i128(market.unrealized_pnl_max_imbalance)?)
             .ok_or_else(math_error!())?
     } else {
         0
@@ -717,8 +717,9 @@ pub fn resolve_perp_pnl_deficit(
 
     let max_revenue_withdraw_per_period = cast_to_i128(
         market
+            .insurance_claim
             .max_revenue_withdraw_per_period
-            .checked_sub(market.revenue_withdraw_since_last_settle)
+            .checked_sub(market.insurance_claim.revenue_withdraw_since_last_settle)
             .ok_or_else(math_error!())?,
     )?;
     validate!(
@@ -730,8 +731,9 @@ pub fn resolve_perp_pnl_deficit(
 
     let max_insurance_withdraw = cast_to_i128(
         market
+            .insurance_claim
             .quote_max_insurance
-            .checked_sub(market.quote_settled_insurance)
+            .checked_sub(market.insurance_claim.quote_settled_insurance)
             .ok_or_else(math_error!())?,
     )?;
 
@@ -739,8 +741,8 @@ pub fn resolve_perp_pnl_deficit(
         max_insurance_withdraw > 0,
         ErrorCode::DefaultError,
         "max_insurance_withdraw={}/{} as already been reached",
-        market.quote_settled_insurance,
-        market.quote_max_insurance,
+        market.insurance_claim.quote_settled_insurance,
+        market.insurance_claim.quote_max_insurance,
     )?;
 
     let insurance_withdraw = excess_user_pnl_imbalance
@@ -762,25 +764,28 @@ pub fn resolve_perp_pnl_deficit(
         .checked_add(insurance_withdraw)
         .ok_or_else(math_error!())?;
 
-    market.revenue_withdraw_since_last_settle = market
+    market.insurance_claim.revenue_withdraw_since_last_settle = market
+        .insurance_claim
         .revenue_withdraw_since_last_settle
         .checked_add(insurance_withdraw.unsigned_abs())
         .ok_or_else(math_error!())?;
 
-    market.quote_settled_insurance = market
+    market.insurance_claim.quote_settled_insurance = market
+        .insurance_claim
         .quote_settled_insurance
         .checked_add(insurance_withdraw.unsigned_abs())
         .ok_or_else(math_error!())?;
 
     validate!(
-        market.quote_settled_insurance <= market.quote_max_insurance,
+        market.insurance_claim.quote_settled_insurance
+            <= market.insurance_claim.quote_max_insurance,
         ErrorCode::DefaultError,
         "quote_settled_insurance breached its max {}/{}",
-        market.quote_settled_insurance,
-        market.quote_max_insurance,
+        market.insurance_claim.quote_settled_insurance,
+        market.insurance_claim.quote_max_insurance,
     )?;
 
-    market.last_revenue_withdraw_ts = now;
+    market.insurance_claim.last_revenue_withdraw_ts = now;
 
     update_spot_balances(
         insurance_withdraw.unsigned_abs(),

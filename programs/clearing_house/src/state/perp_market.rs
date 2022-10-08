@@ -77,25 +77,21 @@ pub struct PerpMarket {
     pub amm: AMM,
     pub pnl_pool: PoolBalance,
     pub expiry_price: i128, // iff market has expired, price users can settle position
-    pub open_interest: u128, // number of users in a position
-    pub revenue_withdraw_since_last_settle: u128,
-    pub max_revenue_withdraw_per_period: u128,
+    pub number_of_users: u128, // number of users in a position
     pub imf_factor: u128,
-    pub unrealized_imf_factor: u128,
-    pub unrealized_max_imbalance: u128,
+    pub unrealized_pnl_imf_factor: u128,
+    pub unrealized_pnl_max_imbalance: u128,
     pub liquidator_fee: u128,
     pub if_liquidation_fee: u128,
-    pub quote_max_insurance: u128,
-    pub quote_settled_insurance: u128,
+    pub insurance_claim: InsuranceClaim,
     pub expiry_ts: i64, // iff market in reduce only mode
     pub next_fill_record_id: u64,
     pub next_funding_rate_record_id: u64,
     pub next_curve_record_id: u64,
-    pub last_revenue_withdraw_ts: i64,
     pub margin_ratio_initial: u32,
     pub margin_ratio_maintenance: u32,
-    pub unrealized_initial_asset_weight: u32,
-    pub unrealized_maintenance_asset_weight: u32,
+    pub unrealized_pnl_initial_asset_weight: u32,
+    pub unrealized_pnl_maintenance_asset_weight: u32,
     pub market_index: u16,
     pub status: MarketStatus,
     pub contract_type: ContractType,
@@ -174,18 +170,20 @@ impl PerpMarket {
         margin_type: MarginRequirementType,
     ) -> ClearingHouseResult<u128> {
         let mut margin_asset_weight = match margin_type {
-            MarginRequirementType::Initial => self.unrealized_initial_asset_weight as u128,
-            MarginRequirementType::Maintenance => self.unrealized_maintenance_asset_weight as u128,
+            MarginRequirementType::Initial => self.unrealized_pnl_initial_asset_weight as u128,
+            MarginRequirementType::Maintenance => {
+                self.unrealized_pnl_maintenance_asset_weight as u128
+            }
         };
 
-        if margin_type == MarginRequirementType::Initial && self.unrealized_max_imbalance > 0 {
+        if margin_type == MarginRequirementType::Initial && self.unrealized_pnl_max_imbalance > 0 {
             let net_unsettled_pnl = amm::calculate_net_user_pnl(
                 &self.amm,
                 self.amm.historical_oracle_data.last_oracle_price,
             )?;
-            if net_unsettled_pnl > cast_to_i128(self.unrealized_max_imbalance)? {
+            if net_unsettled_pnl > cast_to_i128(self.unrealized_pnl_max_imbalance)? {
                 margin_asset_weight = margin_asset_weight
-                    .checked_mul(self.unrealized_max_imbalance)
+                    .checked_mul(self.unrealized_pnl_max_imbalance)
                     .ok_or_else(math_error!())?
                     .checked_div(net_unsettled_pnl.unsigned_abs())
                     .ok_or_else(math_error!())?
@@ -205,11 +203,11 @@ impl PerpMarket {
                         .unsigned_abs()
                         .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO)
                         .ok_or_else(math_error!())?,
-                    self.unrealized_imf_factor,
+                    self.unrealized_pnl_imf_factor,
                     margin_asset_weight,
                 )?,
                 MarginRequirementType::Maintenance => {
-                    self.unrealized_maintenance_asset_weight as u128
+                    self.unrealized_pnl_maintenance_asset_weight as u128
                 }
             }
         } else {
@@ -233,6 +231,17 @@ impl PerpMarket {
                 .ok_or_else(math_error!())
         }
     }
+}
+
+#[zero_copy]
+#[derive(Default, Eq, PartialEq, Debug)]
+#[repr(C)]
+pub struct InsuranceClaim {
+    pub revenue_withdraw_since_last_settle: u128,
+    pub max_revenue_withdraw_per_period: u128,
+    pub quote_max_insurance: u128,
+    pub quote_settled_insurance: u128,
+    pub last_revenue_withdraw_ts: i64,
 }
 
 #[zero_copy]

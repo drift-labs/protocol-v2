@@ -207,13 +207,13 @@ pub fn update_position_and_market(
 
     // Update Market open interest
     if let PositionUpdateType::Open = update_type {
-        market.open_interest = market
-            .open_interest
+        market.number_of_users = market
+            .number_of_users
             .checked_add(1)
             .ok_or_else(math_error!())?;
     } else if let PositionUpdateType::Close = update_type {
-        market.open_interest = market
-            .open_interest
+        market.number_of_users = market
+            .number_of_users
             .checked_sub(1)
             .ok_or_else(math_error!())?;
     }
@@ -877,7 +877,7 @@ mod test {
                 order_step_size: 1,
                 ..AMM::default()
             },
-            open_interest: 0,
+            number_of_users: 0,
             ..PerpMarket::default_test()
         };
 
@@ -890,7 +890,7 @@ mod test {
         assert_eq!(pnl, 0);
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
-        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 1);
         assert_eq!(market.amm.base_asset_amount_short, 0);
         assert_eq!(market.amm.net_base_asset_amount, 0);
@@ -912,7 +912,7 @@ mod test {
                 cumulative_funding_rate_short: 1,
                 ..AMM::default_test()
             },
-            open_interest: 0,
+            number_of_users: 0,
             ..PerpMarket::default_test()
         };
 
@@ -925,7 +925,7 @@ mod test {
         assert_eq!(pnl, 0);
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
-        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 0);
         assert_eq!(market.amm.base_asset_amount_short, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
@@ -957,7 +957,7 @@ mod test {
                 cumulative_funding_rate_long: 1,
                 ..AMM::default_test()
             },
-            open_interest: 1,
+            number_of_users: 1,
             ..PerpMarket::default_test()
         };
 
@@ -970,7 +970,7 @@ mod test {
         assert_eq!(pnl, 0);
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
-        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 2);
         assert_eq!(market.amm.base_asset_amount_short, 0);
         // assert_eq!(market.amm.net_base_asset_amount, 2);
@@ -1003,7 +1003,7 @@ mod test {
                 cumulative_funding_rate_short: 1,
                 ..AMM::default_test()
             },
-            open_interest: 1,
+            number_of_users: 1,
             ..PerpMarket::default_test()
         };
 
@@ -1016,7 +1016,7 @@ mod test {
         assert_eq!(pnl, 0);
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
-        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 0);
         assert_eq!(market.amm.base_asset_amount_short, -2);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
@@ -1049,7 +1049,7 @@ mod test {
                 cumulative_funding_rate_long: 1,
                 ..AMM::default_test()
             },
-            open_interest: 1,
+            number_of_users: 1,
             ..PerpMarket::default_test()
         };
 
@@ -1062,7 +1062,7 @@ mod test {
         assert_eq!(pnl, 4);
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
-        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 9);
         assert_eq!(market.amm.base_asset_amount_short, 0);
         // assert_eq!(market.amm.net_base_asset_amount, 9);
@@ -1096,7 +1096,7 @@ mod test {
                 cumulative_funding_rate_long: 1,
                 ..AMM::default_test()
             },
-            open_interest: 1,
+            number_of_users: 1,
             ..PerpMarket::default_test()
         };
 
@@ -1109,7 +1109,7 @@ mod test {
         assert_eq!(pnl, -5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
-        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 9);
         assert_eq!(market.amm.base_asset_amount_short, 0);
         // assert_eq!(market.amm.net_base_asset_amount, 9);
@@ -1144,7 +1144,7 @@ mod test {
                 cumulative_funding_rate_long: 1,
                 ..AMM::default_test()
             },
-            open_interest: 1,
+            number_of_users: 1,
             ..PerpMarket::default_test()
         };
 
@@ -1157,7 +1157,7 @@ mod test {
         assert_eq!(pnl, 10);
         assert_eq!(existing_position.last_cumulative_funding_rate, 2);
 
-        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 0);
         assert_eq!(market.amm.base_asset_amount_short, -1);
         // assert_eq!(market.amm.net_base_asset_amount, -1);
@@ -1193,7 +1193,7 @@ mod test {
                 order_step_size: 1,
                 ..AMM::default()
             },
-            open_interest: 1,
+            number_of_users: 1,
             ..PerpMarket::default_test()
         };
 
@@ -1206,7 +1206,7 @@ mod test {
         assert_eq!(pnl, -1);
         assert_eq!(existing_position.last_cumulative_funding_rate, 2);
 
-        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 0);
         assert_eq!(market.amm.base_asset_amount_short, -1);
         // assert_eq!(market.amm.net_base_asset_amount, -1);
@@ -1239,7 +1239,7 @@ mod test {
                 cumulative_funding_rate_short: 1,
                 ..AMM::default_test()
             },
-            open_interest: 1,
+            number_of_users: 1,
             ..PerpMarket::default_test()
         };
 
@@ -1252,7 +1252,7 @@ mod test {
         assert_eq!(pnl, 5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
-        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 0);
         assert_eq!(market.amm.base_asset_amount_short, -9);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
@@ -1284,7 +1284,7 @@ mod test {
                 cumulative_funding_rate_short: 1,
                 ..AMM::default_test()
             },
-            open_interest: 1,
+            number_of_users: 1,
             ..PerpMarket::default_test()
         };
 
@@ -1297,7 +1297,7 @@ mod test {
         assert_eq!(pnl, -5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
-        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 0);
         assert_eq!(market.amm.base_asset_amount_short, -9);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
@@ -1331,7 +1331,7 @@ mod test {
                 cumulative_funding_rate_short: 1,
                 ..AMM::default_test()
             },
-            open_interest: 1,
+            number_of_users: 1,
             ..PerpMarket::default_test()
         };
 
@@ -1344,7 +1344,7 @@ mod test {
         assert_eq!(pnl, 46);
         assert_eq!(existing_position.last_cumulative_funding_rate, 2);
 
-        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 1);
         assert_eq!(market.amm.base_asset_amount_short, 0);
         // assert_eq!(market.amm.net_base_asset_amount, 1);
@@ -1379,7 +1379,7 @@ mod test {
                 cumulative_funding_rate_short: 1,
                 ..AMM::default_test()
             },
-            open_interest: 1,
+            number_of_users: 1,
             ..PerpMarket::default_test()
         };
 
@@ -1392,7 +1392,7 @@ mod test {
         assert_eq!(pnl, -9);
         assert_eq!(existing_position.last_cumulative_funding_rate, 2);
 
-        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 1);
         assert_eq!(market.amm.base_asset_amount_short, 0);
         // assert_eq!(market.amm.net_base_asset_amount, 1);
@@ -1424,7 +1424,7 @@ mod test {
                 cumulative_funding_rate_long: 1,
                 ..AMM::default_test()
             },
-            open_interest: 2,
+            number_of_users: 2,
             ..PerpMarket::default_test()
         };
 
@@ -1437,7 +1437,7 @@ mod test {
         assert_eq!(pnl, 5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
-        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 1);
         assert_eq!(market.amm.base_asset_amount_short, 0);
         // assert_eq!(market.amm.net_base_asset_amount, 1);
@@ -1470,7 +1470,7 @@ mod test {
                 cumulative_funding_rate_long: 1,
                 ..AMM::default_test()
             },
-            open_interest: 2,
+            number_of_users: 2,
             ..PerpMarket::default_test()
         };
 
@@ -1483,7 +1483,7 @@ mod test {
         assert_eq!(pnl, -5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
-        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 1);
         assert_eq!(market.amm.base_asset_amount_short, 0);
         // assert_eq!(market.amm.net_base_asset_amount, 1);
@@ -1514,7 +1514,7 @@ mod test {
                 cumulative_funding_rate_short: 1,
                 ..AMM::default_test()
             },
-            open_interest: 2,
+            number_of_users: 2,
             ..PerpMarket::default_test()
         };
 
@@ -1527,7 +1527,7 @@ mod test {
         assert_eq!(pnl, 5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
-        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 0);
         assert_eq!(market.amm.base_asset_amount_short, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
@@ -1557,7 +1557,7 @@ mod test {
                 cumulative_funding_rate_short: 1,
                 ..AMM::default_test()
             },
-            open_interest: 2,
+            number_of_users: 2,
             ..PerpMarket::default_test()
         };
 
@@ -1570,7 +1570,7 @@ mod test {
         assert_eq!(pnl, -5);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
-        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 0);
         assert_eq!(market.amm.base_asset_amount_short, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
@@ -1602,7 +1602,7 @@ mod test {
                 order_step_size: 1,
                 ..AMM::default()
             },
-            open_interest: 2,
+            number_of_users: 2,
             ..PerpMarket::default_test()
         };
 
@@ -1615,7 +1615,7 @@ mod test {
         assert_eq!(pnl, -3);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
-        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 1);
         assert_eq!(market.amm.base_asset_amount_short, 0);
         // assert_eq!(market.amm.net_base_asset_amount, 1);
@@ -1647,7 +1647,7 @@ mod test {
                 order_step_size: 1,
                 ..AMM::default()
             },
-            open_interest: 2,
+            number_of_users: 2,
             ..PerpMarket::default_test()
         };
 
@@ -1660,7 +1660,7 @@ mod test {
         assert_eq!(pnl, 0);
         assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
-        assert_eq!(market.open_interest, 1);
+        assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 0);
         assert_eq!(market.amm.base_asset_amount_short, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 0);
