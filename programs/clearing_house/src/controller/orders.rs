@@ -141,6 +141,14 @@ pub fn place_order(
         let market_position = &mut user.perp_positions[position_index];
         market_position.open_orders += 1;
 
+        validate!(
+            params.base_asset_amount >= market.amm.order_step_size,
+            ErrorCode::InvalidOrder,
+            "params.base_asset_amount={} cannot be below market.amm.order_step_size={}",
+            params.base_asset_amount,
+            market.amm.order_step_size
+        )?;
+
         let standardized_base_asset_amount =
             standardize_base_asset_amount(params.base_asset_amount, market.amm.order_step_size)?;
 
@@ -149,7 +157,7 @@ pub fn place_order(
                 standardized_base_asset_amount,
                 params.direction,
                 market_position.base_asset_amount,
-            )
+            )?
         } else {
             standardized_base_asset_amount
         };
@@ -2254,6 +2262,14 @@ pub fn place_spot_order(
         let spot_position = &mut user.spot_positions[spot_position_index];
         spot_position.open_orders += 1;
 
+        validate!(
+            params.base_asset_amount >= spot_market.order_step_size,
+            ErrorCode::InvalidOrder,
+            "params.base_asset_amount={} cannot be below spot_market.order_step_size={}",
+            params.base_asset_amount,
+            spot_market.order_step_size
+        )?;
+
         let standardized_base_asset_amount =
             standardize_base_asset_amount(params.base_asset_amount, spot_market.order_step_size)?;
 
@@ -2262,7 +2278,7 @@ pub fn place_spot_order(
                 standardized_base_asset_amount,
                 params.direction,
                 signed_token_amount,
-            )
+            )?
         } else {
             standardized_base_asset_amount
         };
