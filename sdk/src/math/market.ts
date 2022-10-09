@@ -159,29 +159,29 @@ export function calculateUnrealizedAssetWeight(
 	let assetWeight: BN;
 	switch (marginCategory) {
 		case 'Initial':
-			assetWeight = new BN(market.unrealizedInitialAssetWeight);
+			assetWeight = new BN(market.unrealizedPnlInitialAssetWeight);
 
-			if (market.unrealizedMaxImbalance.gt(ZERO)) {
+			if (market.unrealizedPnlMaxImbalance.gt(ZERO)) {
 				const netUnsettledPnl = calculateNetUserPnlImbalance(
 					market,
 					quoteSpotMarket,
 					oraclePriceData
 				);
-				if (netUnsettledPnl.gt(market.unrealizedMaxImbalance)) {
+				if (netUnsettledPnl.gt(market.unrealizedPnlMaxImbalance)) {
 					assetWeight = assetWeight
-						.mul(market.unrealizedMaxImbalance)
+						.mul(market.unrealizedPnlMaxImbalance)
 						.div(netUnsettledPnl);
 				}
 			}
 
 			assetWeight = calculateSizeDiscountAssetWeight(
 				unrealizedPnl,
-				market.unrealizedImfFactor,
+				market.unrealizedPnlImfFactor,
 				assetWeight
 			);
 			break;
 		case 'Maintenance':
-			assetWeight = new BN(market.unrealizedMaintenanceAssetWeight);
+			assetWeight = new BN(market.unrealizedPnlMaintenanceAssetWeight);
 			break;
 	}
 
@@ -203,7 +203,7 @@ export function calculateNetUserPnl(
 	perpMarket: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
-	const netUserPositionValue = perpMarket.amm.netBaseAssetAmount
+	const netUserPositionValue = perpMarket.amm.baseAssetAmountWithAmm
 		.mul(oraclePriceData.price)
 		.div(BASE_PRECISION)
 		.div(PRICE_TO_QUOTE_PRECISION);

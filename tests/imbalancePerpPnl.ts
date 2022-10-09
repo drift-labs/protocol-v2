@@ -646,7 +646,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		console.log(prepegAMM.pegMultiplier.toString());
 		// assert(prepegAMM.pegMultiplier.eq(new BN(248126)));
 
-		assert(market0.unrealizedMaxImbalance.eq(ZERO));
+		assert(market0.unrealizedPnlMaxImbalance.eq(ZERO));
 
 		await clearingHouse.updatePerpMarketContractTier(0, ContractTier.A);
 		await clearingHouse.fetchAccounts();
@@ -694,7 +694,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 		assert(market.insuranceClaim.lastRevenueWithdrawTs.lt(new BN(now)));
 		assert(
-			market.unrealizedMaxImbalance.eq(new BN(40000).mul(QUOTE_PRECISION))
+			market.unrealizedPnlMaxImbalance.eq(new BN(40000).mul(QUOTE_PRECISION))
 		);
 		assert(market.insuranceClaim.quoteSettledInsurance.eq(ZERO));
 		assert(market.insuranceClaim.quoteMaxInsurance.eq(QUOTE_PRECISION));
@@ -896,7 +896,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			)
 		);
 		assert(
-			market.unrealizedMaxImbalance.eq(new BN(40000).mul(QUOTE_PRECISION))
+			market.unrealizedPnlMaxImbalance.eq(new BN(40000).mul(QUOTE_PRECISION))
 		);
 
 		assert(market.insuranceClaim.quoteSettledInsurance.eq(QUOTE_PRECISION));

@@ -40,7 +40,8 @@ use crate::state::perp_market::{
 };
 use crate::state::serum::{load_open_orders, load_serum_market};
 use crate::state::spot_market::{
-    AssetTier, SerumV3FulfillmentConfig, SpotBalanceType, SpotFulfillmentStatus, SpotMarket,
+    AssetTier, InsuranceFund, SerumV3FulfillmentConfig, SpotBalanceType, SpotFulfillmentStatus,
+    SpotMarket,
 };
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
 use crate::state::user::PerpPosition;
@@ -196,20 +197,11 @@ pub fn handle_initialize_spot_market(
         historical_index_data: historical_index_data_default,
         mint: ctx.accounts.spot_market_mint.key(),
         vault: *ctx.accounts.spot_market_vault.to_account_info().key,
-        insurance_fund_vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
         revenue_pool: PoolBalance {
             balance: 0,
             market_index: spot_market_index,
             ..PoolBalance::default()
         }, // in base asset
-        total_if_factor: 0,
-        user_if_factor: 0,
-        total_if_shares: 0,
-        user_if_shares: 0,
-        if_shares_base: 0,
-        insurance_withdraw_escrow_period: 0,
-        last_revenue_settle_ts: 0,
-        revenue_settle_period: 0, // how often can be settled
         decimals: ctx.accounts.spot_market_mint.decimals,
         optimal_utilization,
         optimal_borrow_rate,
@@ -240,6 +232,10 @@ pub fn handle_initialize_spot_market(
         spot_fee_pool: PoolBalance::default(), // in quote asset
         total_spot_fee: 0,
         padding: [0; 6],
+        insurance_fund: InsuranceFund {
+            vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
+            ..InsuranceFund::default()
+        },
     };
 
     Ok(())
@@ -1209,7 +1205,7 @@ pub fn handle_update_insurance_withdraw_escrow_period(
     insurance_withdraw_escrow_period: i64,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    spot_market.insurance_withdraw_escrow_period = insurance_withdraw_escrow_period;
+    spot_market.insurance_fund.unstaking_period = insurance_withdraw_escrow_period;
     Ok(())
 }
 
@@ -1278,17 +1274,17 @@ pub fn handle_update_spot_market_if_factor(
 
     msg!(
         "spot_market.user_if_factor: {:?} -> {:?}",
-        spot_market.user_if_factor,
+        spot_market.insurance_fund.user_factor,
         user_if_factor
     );
     msg!(
         "spot_market.total_if_factor: {:?} -> {:?}",
-        spot_market.total_if_factor,
+        spot_market.insurance_fund.total_factor,
         total_if_factor
     );
 
-    spot_market.user_if_factor = user_if_factor;
-    spot_market.total_if_factor = total_if_factor;
+    spot_market.insurance_fund.user_factor = user_if_factor;
+    spot_market.insurance_fund.total_factor = total_if_factor;
 
     Ok(())
 }
@@ -1301,10 +1297,10 @@ pub fn handle_update_spot_market_revenue_settle_period(
     validate!(revenue_settle_period > 0, ErrorCode::DefaultError)?;
     msg!(
         "spot_market.revenue_settle_period: {:?} -> {:?}",
-        spot_market.revenue_settle_period,
+        spot_market.insurance_fund.revenue_settle_period,
         revenue_settle_period
     );
-    spot_market.revenue_settle_period = revenue_settle_period;
+    spot_market.insurance_fund.revenue_settle_period = revenue_settle_period;
     Ok(())
 }
 
@@ -1726,7 +1722,7 @@ pub fn handle_admin_remove_insurance_fund_stake(
 
     let n_shares = math::insurance::vault_amount_to_if_shares(
         amount,
-        spot_market.total_if_shares,
+        spot_market.insurance_fund.total_shares,
         ctx.accounts.insurance_fund_vault.amount,
     )?;
 

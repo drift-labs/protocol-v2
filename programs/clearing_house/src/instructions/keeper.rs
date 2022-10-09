@@ -986,7 +986,7 @@ pub fn handle_settle_revenue_to_insurance_fund(
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 
     validate!(
-        spot_market.revenue_settle_period > 0,
+        spot_market.insurance_fund.revenue_settle_period > 0,
         ErrorCode::DefaultError,
         "invalid revenue_settle_period settings on spot market"
     )?;
@@ -999,8 +999,8 @@ pub fn handle_settle_revenue_to_insurance_fund(
 
     let time_until_next_update = math::helpers::on_the_hour_update(
         now,
-        spot_market.last_revenue_settle_ts,
-        spot_market.revenue_settle_period,
+        spot_market.insurance_fund.last_revenue_settle_ts,
+        spot_market.insurance_fund.revenue_settle_period,
     )?;
 
     validate!(
@@ -1027,7 +1027,7 @@ pub fn handle_settle_revenue_to_insurance_fund(
         token_amount as u64,
     )?;
 
-    spot_market.last_revenue_settle_ts = now;
+    spot_market.insurance_fund.last_revenue_settle_ts = now;
 
     Ok(())
 }
@@ -1081,7 +1081,7 @@ pub fn handle_update_user_quote_asset_insurance_stake(
 
     user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
         insurance_fund_stake.checked_if_shares(quote_spot_market)?,
-        quote_spot_market.total_if_shares,
+        quote_spot_market.insurance_fund.total_shares,
         ctx.accounts.insurance_fund_vault.amount,
     )?;
 

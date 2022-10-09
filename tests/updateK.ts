@@ -229,7 +229,7 @@ describe('update k', () => {
 		console.log('$1 position taken');
 		await clearingHouse.fetchAccounts();
 		const marketOld = clearingHouse.getPerpMarketAccount(0);
-		assert(!marketOld.amm.netBaseAssetAmount.eq(ZERO));
+		assert(!marketOld.amm.baseAssetAmountWithAmm.eq(ZERO));
 
 		const oldKPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)

@@ -483,14 +483,15 @@ pub fn update_pool_balances(
 
         if market.amm.total_fee_minus_distributions < 0 {
             // market can perform withdraw from revenue pool
-            if spot_market.last_revenue_settle_ts > market.insurance_claim.last_revenue_withdraw_ts
+            if spot_market.insurance_fund.last_revenue_settle_ts
+                > market.insurance_claim.last_revenue_withdraw_ts
             {
-                validate!(now >= market.insurance_claim.last_revenue_withdraw_ts && now >= spot_market.last_revenue_settle_ts,
+                validate!(now >= market.insurance_claim.last_revenue_withdraw_ts && now >= spot_market.insurance_fund.last_revenue_settle_ts,
                     ErrorCode::DefaultError,
                     "issue with clock unix timestamp {} < market.insurance_claim.last_revenue_withdraw_ts={}/spot_market.last_revenue_settle_ts={}",
                     now,
                     market.insurance_claim.last_revenue_withdraw_ts,
-                    spot_market.last_revenue_settle_ts,
+                    spot_market.insurance_fund.last_revenue_settle_ts,
                 )?;
                 market.insurance_claim.revenue_withdraw_since_last_settle = 0;
             }
@@ -1287,11 +1288,11 @@ mod test {
         assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33928058);
 
         // do a revenue settlement to allow up to max again
-        assert_eq!(spot_market.last_revenue_settle_ts, 0);
+        assert_eq!(spot_market.insurance_fund.last_revenue_settle_ts, 0);
         assert_eq!(spot_market.deposit_balance, 10100000001000);
 
-        spot_market.total_if_factor = 1;
-        spot_market.revenue_settle_period = 1;
+        spot_market.insurance_fund.total_factor = 1;
+        spot_market.insurance_fund.revenue_settle_period = 1;
         let res = settle_revenue_to_insurance_fund(
             spot_market_vault_amount,
             0,
@@ -1313,7 +1314,10 @@ mod test {
         assert_eq!(spot_market_vault_amount, 300000000);
 
         assert_eq!(spot_market.revenue_pool.balance, 0);
-        assert_eq!(spot_market.last_revenue_settle_ts, now + 3600);
+        assert_eq!(
+            spot_market.insurance_fund.last_revenue_settle_ts,
+            now + 3600
+        );
 
         // add deposits and revenue to pool
         spot_market.revenue_pool.balance = 9800000001000;
@@ -1330,13 +1334,16 @@ mod test {
         assert_eq!(market.amm.total_fee_withdrawn, 0);
         assert_eq!(spot_market.revenue_pool.balance, 9800000001000);
         assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33928058);
-        assert_eq!(spot_market.last_revenue_settle_ts, 33928058 + 3600);
+        assert_eq!(
+            spot_market.insurance_fund.last_revenue_settle_ts,
+            33928058 + 3600
+        );
 
         assert!(update_pool_balances(&mut market, &mut spot_market, 0, now).is_err()); // now timestamp passed is wrong
         update_pool_balances(&mut market, &mut spot_market, 0, now + 3600).unwrap();
 
         assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33931658);
-        assert_eq!(spot_market.last_revenue_settle_ts, 33931658);
+        assert_eq!(spot_market.insurance_fund.last_revenue_settle_ts, 33931658);
         assert_eq!(market.amm.fee_pool.balance, 205000000000);
         assert_eq!(market.pnl_pool.balance, 295000000000);
         assert_eq!(market.amm.total_fee_minus_distributions, -9600000000);

@@ -282,10 +282,10 @@ describe('clearing_house', () => {
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(48000000000)));
 
 		const market = clearingHouse.getPerpMarketAccount(0);
-		console.log(market.amm.netBaseAssetAmount.toNumber());
+		console.log(market.amm.baseAssetAmountWithAmm.toNumber());
 		console.log(market);
 
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(48000000000)));
+		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(48000000000)));
 		console.log(market.amm.totalFee.toString());
 		assert.ok(market.amm.totalFee.eq(new BN(48001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(48001)));
@@ -378,7 +378,7 @@ describe('clearing_house', () => {
 		);
 
 		const market = clearingHouse.getPerpMarketAccount(0);
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(24000000000)));
+		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(24000000000)));
 		assert.ok(market.amm.totalFee.eq(new BN(72001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(72001)));
 
@@ -442,7 +442,7 @@ describe('clearing_house', () => {
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(-24000000000)));
 
 		const market = clearingHouse.getPerpMarketAccount(0);
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-24000000000)));
+		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(-24000000000)));
 		assert.ok(market.amm.totalFee.eq(new BN(120001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120001)));
 
@@ -489,7 +489,7 @@ describe('clearing_house', () => {
 		);
 
 		const market = clearingHouse.getPerpMarketAccount(0);
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(0)));
+		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(0)));
 		assert.ok(market.amm.totalFee.eq(new BN(144001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(144001)));
 
@@ -526,7 +526,7 @@ describe('clearing_house', () => {
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(-48000000000)));
 
 		const market = clearingHouse.getPerpMarketAccount(0);
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-48000000000)));
+		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(-48000000000)));
 
 		await eventSubscriber.awaitTx(txSig);
 		const orderActionRecord =

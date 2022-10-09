@@ -348,9 +348,9 @@ describe('AMM Curve', () => {
 		let amm = marketData1.amm;
 
 		// unbalanced but no net position
-		console.log('netBaseAssetAmount:', amm.netBaseAssetAmount.toString());
+		console.log('netBaseAssetAmount:', amm.baseAssetAmountWithAmm.toString());
 		assert(!amm.baseAssetReserve.eq(amm.quoteAssetReserve));
-		assert(amm.netBaseAssetAmount.eq(new BN(0)));
+		assert(amm.baseAssetAmountWithAmm.eq(new BN(0)));
 
 		// check if balanced
 		const candidatePegUp0 = calculateBudgetedPeg(

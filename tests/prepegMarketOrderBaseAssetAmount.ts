@@ -262,7 +262,7 @@ describe('prepeg', () => {
 
 		console.log('sqrtK:', market.amm.sqrtK.toString());
 
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(49745050000)));
+		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(49745050000)));
 		assert.ok(market.amm.baseAssetAmountLong.eq(new BN(49745050000)));
 		assert.ok(market.amm.baseAssetAmountShort.eq(ZERO));
 		assert.ok(market.openInterest.eq(ONE));
@@ -352,12 +352,12 @@ describe('prepeg', () => {
 			newAmm.quoteAssetReserve,
 			newAmm.terminalQuoteAssetReserve,
 			newAmm.pegMultiplier,
-			newAmm.netBaseAssetAmount,
+			newAmm.baseAssetAmountWithAmm,
 			reservePrice,
 			newAmm.totalFeeMinusDistributions
 		);
 		const inventoryScale = calculateInventoryScale(
-			newAmm.netBaseAssetAmount,
+			newAmm.baseAssetAmountWithAmm,
 			newAmm.baseAssetReserve,
 			newAmm.minBaseAssetReserve,
 			newAmm.maxBaseAssetReserve
@@ -600,7 +600,7 @@ describe('prepeg', () => {
 			clearingHouse.getUserAccount().perpPositions[0].baseAssetAmount.toNumber()
 		);
 
-		console.log(market.amm.netBaseAssetAmount.toString());
+		console.log(market.amm.baseAssetAmountWithAmm.toString());
 
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 

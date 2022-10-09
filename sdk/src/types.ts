@@ -266,8 +266,8 @@ export type FundingRateRecord = {
 	oraclePriceTwap: BN;
 	markPriceTwap: BN;
 	periodRevenue: BN;
-	netBaseAssetAmount: BN;
-	netUnsettledLpBaseAssetAmount: BN;
+	baseAssetAmountWithAmm: BN;
+	baseAssetAmountWithUnsettledLp: BN;
 };
 
 export type FundingPaymentRecord = {
@@ -453,10 +453,10 @@ export type PerpMarketAccount = {
 	liquidatorFee: BN;
 	ifLiquidationFee: BN;
 	imfFactor: BN;
-	unrealizedImfFactor: BN;
-	unrealizedMaxImbalance: BN;
-	unrealizedInitialAssetWeight: number;
-	unrealizedMaintenanceAssetWeight: number;
+	unrealizedPnlImfFactor: BN;
+	unrealizedPnlMaxImbalance: BN;
+	unrealizedPnlInitialAssetWeight: number;
+	unrealizedPnlMaintenanceAssetWeight: number;
 	insuranceClaim: {
 		revenueWithdrawSinceLastSettle: BN;
 		maxRevenueWithdrawPerPeriod: BN;
@@ -497,15 +497,20 @@ export type SpotMarketAccount = {
 	historicalOracleData: HistoricalOracleData;
 	historicalIndexData: HistoricalIndexData;
 
-	insuranceFundVault: PublicKey;
-	insuranceWithdrawEscrowPeriod: BN;
+	insuranceFund: {
+		vault: PublicKey;
+		totalShares: BN;
+		userShares: BN;
+		sharesBase: BN;
+		unstakingPeriod: BN;
+		lastRevenueSettleTs: BN;
+		revenueSettlePeriod: BN;
+		totalFactor: number;
+		userFactor: number;
+	};
+
 	revenuePool: PoolBalance;
 
-	totalIfShares: BN;
-	userIfShares: BN;
-
-	userIfFactor: number;
-	totalIfFactor: number;
 	ifLiquidationFee: BN;
 
 	decimals: number;
@@ -581,7 +586,7 @@ export type AMM = {
 	maxSlippageRatio: number;
 	baseSpread: number;
 	curveUpdateIntensity: number;
-	netBaseAssetAmount: BN;
+	baseAssetAmountWithAmm: BN;
 	baseAssetAmountLong: BN;
 	baseAssetAmountShort: BN;
 	quoteAssetAmountLong: BN;

@@ -159,7 +159,7 @@ describe('insurance fund stake', () => {
 		// console.log(spotMarketBefore);
 		console.log(
 			'spotMarketBefore.totalIfShares:',
-			spotMarketBefore.totalIfShares.toString()
+			spotMarketBefore.insuranceFund.totalShares.toString()
 		);
 
 		try {
@@ -179,15 +179,15 @@ describe('insurance fund stake', () => {
 
 		const spotMarket0 = clearingHouse.getSpotMarketAccount(marketIndex);
 		console.log(
-			'spotMarket0.totalIfShares:',
-			spotMarket0.totalIfShares.toString()
+			'spotMarket0.insurance.totalIfShares:',
+			spotMarket0.insuranceFund.totalShares.toString()
 		);
 		// console.log(spotMarket0);
 
 		assert(spotMarket0.revenuePool.balance.eq(ZERO));
-		assert(spotMarket0.totalIfShares.gt(ZERO));
-		assert(spotMarket0.totalIfShares.eq(usdcAmount));
-		assert(spotMarket0.userIfShares.eq(usdcAmount));
+		assert(spotMarket0.insuranceFund.totalShares.gt(ZERO));
+		assert(spotMarket0.insuranceFund.totalShares.eq(usdcAmount));
+		assert(spotMarket0.insuranceFund.userShares.eq(usdcAmount));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 		console.log(userStats);
@@ -202,14 +202,14 @@ describe('insurance fund stake', () => {
 		const insuranceVaultAmountBefore = new BN(
 			(
 				await provider.connection.getTokenAccountBalance(
-					spotMarket0Before.insuranceFundVault
+					spotMarket0Before.insuranceFund.vault
 				)
 			).value.amount
 		);
 
 		const amountFromShare = unstakeSharesToAmount(
 			nShares,
-			spotMarket0Before.totalIfShares,
+			spotMarket0Before.insuranceFund.totalShares,
 			insuranceVaultAmountBefore
 		);
 
@@ -230,9 +230,9 @@ describe('insurance fund stake', () => {
 		}
 
 		const spotMarket0 = clearingHouse.getSpotMarketAccount(marketIndex);
-		assert(spotMarket0.totalIfShares.gt(ZERO));
-		assert(spotMarket0.totalIfShares.eq(usdcAmount));
-		assert(spotMarket0.userIfShares.eq(usdcAmount));
+		assert(spotMarket0.insuranceFund.totalShares.gt(ZERO));
+		assert(spotMarket0.insuranceFund.totalShares.eq(usdcAmount));
+		assert(spotMarket0.insuranceFund.userShares.eq(usdcAmount));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 		assert(userStats.stakedQuoteAssetAmount.eq(usdcAmount));
@@ -269,11 +269,17 @@ describe('insurance fund stake', () => {
 		);
 
 		const spotMarket0 = clearingHouse.getSpotMarketAccount(marketIndex);
-		console.log('totalIfShares:', spotMarket0.totalIfShares.toString());
-		console.log('userIfShares:', spotMarket0.userIfShares.toString());
+		console.log(
+			'totalIfShares:',
+			spotMarket0.insuranceFund.totalShares.toString()
+		);
+		console.log(
+			'userIfShares:',
+			spotMarket0.insuranceFund.userShares.toString()
+		);
 
-		assert(spotMarket0.totalIfShares.eq(usdcAmount.div(new BN(2))));
-		assert(spotMarket0.userIfShares.eq(usdcAmount.div(new BN(2))));
+		assert(spotMarket0.insuranceFund.totalShares.eq(usdcAmount.div(new BN(2))));
+		assert(spotMarket0.insuranceFund.userShares.eq(usdcAmount.div(new BN(2))));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 		assert(userStats.stakedQuoteAssetAmount.eq(usdcAmount.div(new BN(2))));
@@ -337,10 +343,10 @@ describe('insurance fund stake', () => {
 		await clearingHouse.fetchAccounts();
 
 		const spotMarket0 = clearingHouse.getSpotMarketAccount(marketIndex);
-		assert(spotMarket0.insuranceWithdrawEscrowPeriod.eq(new BN(10)));
-		assert(spotMarket0.totalIfShares.gt(ZERO));
-		assert(spotMarket0.totalIfShares.eq(usdcAmount.div(new BN(2))));
-		assert(spotMarket0.userIfShares.eq(usdcAmount.div(new BN(2))));
+		assert(spotMarket0.insurance.ifUnstakingPeriod.eq(new BN(10)));
+		assert(spotMarket0.insuranceFund.totalShares.gt(ZERO));
+		assert(spotMarket0.insuranceFund.totalShares.eq(usdcAmount.div(new BN(2))));
+		assert(spotMarket0.insuranceFund.userShares.eq(usdcAmount.div(new BN(2))));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 		assert(userStats.stakedQuoteAssetAmount.gt(ZERO));
@@ -375,7 +381,7 @@ describe('insurance fund stake', () => {
 		}
 
 		const spotMarket0Pre = clearingHouse.getSpotMarketAccount(marketIndex);
-		assert(spotMarket0Pre.insuranceWithdrawEscrowPeriod.eq(new BN(10)));
+		assert(spotMarket0Pre.insuranceFund.unstakingPeriod.eq(new BN(10)));
 
 		let slot = await connection.getSlot();
 		let now = await connection.getBlockTime(slot);
@@ -393,13 +399,13 @@ describe('insurance fund stake', () => {
 
 		while (
 			ifStakeAccountPre.lastWithdrawRequestTs
-				.add(spotMarket0Pre.insuranceWithdrawEscrowPeriod)
+				.add(spotMarket0Pre.insuranceFund.unstakingPeriod)
 				.gte(new BN(now))
 		) {
 			console.log(
 				ifStakeAccountPre.lastWithdrawRequestTs.toString(),
 				' + ',
-				spotMarket0Pre.insuranceWithdrawEscrowPeriod.toString(),
+				spotMarket0Pre.insuranceFund.unstakingPeriod.toString(),
 				'>',
 				now
 			);
@@ -419,11 +425,17 @@ describe('insurance fund stake', () => {
 				.logMessages
 		);
 		const spotMarket0 = clearingHouse.getSpotMarketAccount(marketIndex);
-		console.log('totalIfShares:', spotMarket0.totalIfShares.toString());
-		console.log('userIfShares:', spotMarket0.userIfShares.toString());
+		console.log(
+			'totalIfShares:',
+			spotMarket0.insuranceFund.totalShares.toString()
+		);
+		console.log(
+			'userIfShares:',
+			spotMarket0.insuranceFund.userShares.toString()
+		);
 
-		assert(spotMarket0.totalIfShares.eq(ZERO));
-		assert(spotMarket0.userIfShares.eq(ZERO));
+		assert(spotMarket0.insuranceFund.totalShares.eq(ZERO));
+		assert(spotMarket0.insuranceFund.userShares.eq(ZERO));
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
 			clearingHouse.program.programId,
@@ -551,7 +563,7 @@ describe('insurance fund stake', () => {
 		let spotMarket = clearingHouse.getSpotMarketAccount(0);
 
 		// await mintToInsuranceFund(
-		// 	spotMarket.insuranceFundVault,
+		// 	spotMarket.insurance.vault,
 		// 	usdcMint,
 		// 	new BN(80085).mul(QUOTE_PRECISION),
 		// 	provider
@@ -591,7 +603,7 @@ describe('insurance fund stake', () => {
 		const insuranceVaultAmountBefore = new BN(
 			(
 				await provider.connection.getTokenAccountBalance(
-					spotMarket.insuranceFundVault
+					spotMarket.insuranceFund.vault
 				)
 			).value.amount
 		);
@@ -614,7 +626,7 @@ describe('insurance fund stake', () => {
 		const insuranceVaultAmount = new BN(
 			(
 				await provider.connection.getTokenAccountBalance(
-					spotMarket.insuranceFundVault
+					spotMarket.insuranceFund.vault
 				)
 			).value.amount
 		);
@@ -642,14 +654,14 @@ describe('insurance fund stake', () => {
 		const insuranceVaultAmountBefore = new BN(
 			(
 				await provider.connection.getTokenAccountBalance(
-					spotMarket0Before.insuranceFundVault
+					spotMarket0Before.insuranceFund.vault
 				)
 			).value.amount
 		);
 		assert(spotMarket0Before.revenuePool.balance.eq(ZERO));
 
-		assert(spotMarket0Before.userIfShares.eq(ZERO));
-		assert(spotMarket0Before.totalIfShares.eq(ZERO));
+		assert(spotMarket0Before.insuranceFund.userShares.eq(ZERO));
+		assert(spotMarket0Before.insuranceFund.totalShares.eq(ZERO));
 
 		const usdcbalance = await connection.getTokenAccountBalance(
 			userUSDCAccount.publicKey
@@ -678,23 +690,25 @@ describe('insurance fund stake', () => {
 		const insuranceVaultAmountAfter = new BN(
 			(
 				await provider.connection.getTokenAccountBalance(
-					spotMarket0Before.insuranceFundVault
+					spotMarket0Before.insuranceFund.vault
 				)
 			).value.amount
 		);
 		assert(insuranceVaultAmountAfter.gt(insuranceVaultAmountBefore));
 		console.log(
 			'userIfShares:',
-			spotMarket0.userIfShares.toString(),
+			spotMarket0.insuranceFund.userShares.toString(),
 			'totalIfShares:',
-			spotMarket0.totalIfShares.toString()
+			spotMarket0.insuranceFund.totalShares.toString()
 		);
-		assert(spotMarket0.totalIfShares.gt(ZERO));
-		assert(spotMarket0.totalIfShares.gt(usdcAmount));
-		assert(spotMarket0.totalIfShares.gt(new BN('1000000004698')));
+		assert(spotMarket0.insuranceFund.totalShares.gt(ZERO));
+		assert(spotMarket0.insuranceFund.totalShares.gt(usdcAmount));
+		assert(spotMarket0.insuranceFund.totalShares.gt(new BN('1000000004698')));
 		// totalIfShares lower bound, kinda random basd on timestamps
 
-		assert(spotMarket0.userIfShares.eq(new BN(usdcbalance.value.amount)));
+		assert(
+			spotMarket0.insuranceFund.userShares.eq(new BN(usdcbalance.value.amount))
+		);
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 		assert(
@@ -708,7 +722,7 @@ describe('insurance fund stake', () => {
 		const insuranceVaultAmountBefore = new BN(
 			(
 				await provider.connection.getTokenAccountBalance(
-					spotMarket0Before.insuranceFundVault
+					spotMarket0Before.insuranceFund.vault
 				)
 			).value.amount
 		);
@@ -736,7 +750,7 @@ describe('insurance fund stake', () => {
 
 		const amountFromShare = unstakeSharesToAmount(
 			ifStakeAccount.ifShares.div(new BN(10)),
-			spotMarket0Before.totalIfShares,
+			spotMarket0Before.insuranceFund.totalShares,
 			insuranceVaultAmountBefore
 		);
 
@@ -781,7 +795,7 @@ describe('insurance fund stake', () => {
 		const insuranceVaultAmountAfter = new BN(
 			(
 				await provider.connection.getTokenAccountBalance(
-					spotMarket0Before.insuranceFundVault
+					spotMarket0Before.insuranceFund.vault
 				)
 			).value.amount
 		);
@@ -1122,7 +1136,7 @@ describe('insurance fund stake', () => {
 	// 	const insuranceVaultAmountBefore = new BN(
 	// 		(
 	// 			await provider.connection.getTokenAccountBalance(
-	// 				spotMarket0Before.insuranceFundVault
+	// 				spotMarket0Before.insurance.vault
 	// 			)
 	// 		).value.amount
 	// 	);
@@ -1132,12 +1146,12 @@ describe('insurance fund stake', () => {
 
 	// 	console.log(
 	// 		'userIfShares:',
-	// 		spotMarket0Before.userIfShares.toString(),
+	// 		spotMarket0Before.insurance.userIfShares.toString(),
 	// 		'totalIfShares:',
-	// 		spotMarket0Before.totalIfShares.toString()
+	// 		spotMarket0Before.insurance.totalIfShares.toString()
 	// 	);
-	// 	assert(spotMarket0Before.userIfShares.eq(ZERO));
-	// 	assert(spotMarket0Before.totalIfShares.eq(ZERO)); // 0_od
+	// 	assert(spotMarket0Before.insurance.userIfShares.eq(ZERO));
+	// 	assert(spotMarket0Before.insurance.totalIfShares.eq(ZERO)); // 0_od
 
 	// 	try {
 	// 		const txSig = await clearingHouse.settleRevenueToInsuranceFund(marketIndex);
@@ -1153,6 +1167,6 @@ describe('insurance fund stake', () => {
 
 	// 	const spotMarket0 = clearingHouse.getspotMarketAccount(marketIndex);
 	// 	assert(spotMarket0.revenuePool.balance.eq(ZERO));
-	// 	assert(spotMarket0.totalIfShares.eq(ZERO));
+	// 	assert(spotMarket0.insurance.totalIfShares.eq(ZERO));
 	// });
 });

@@ -3307,23 +3307,7 @@
             "type": "i128"
           },
           {
-            "name": "baseAssetAmountLong",
-            "type": "i128"
-          },
-          {
-            "name": "baseAssetAmountShort",
-            "type": "i128"
-          },
-          {
-            "name": "openInterest",
-            "type": "u128"
-          },
-          {
-            "name": "revenueWithdrawSinceLastSettle",
-            "type": "u128"
-          },
-          {
-            "name": "maxRevenueWithdrawPerPeriod",
+            "name": "numberOfUsers",
             "type": "u128"
           },
           {
@@ -3331,11 +3315,11 @@
             "type": "u128"
           },
           {
-            "name": "unrealizedImfFactor",
+            "name": "unrealizedPnlImfFactor",
             "type": "u128"
           },
           {
-            "name": "unrealizedMaxImbalance",
+            "name": "unrealizedPnlMaxImbalance",
             "type": "u128"
           },
           {
@@ -3347,12 +3331,10 @@
             "type": "u128"
           },
           {
-            "name": "quoteMaxInsurance",
-            "type": "u128"
-          },
-          {
-            "name": "quoteSettledInsurance",
-            "type": "u128"
+            "name": "insuranceClaim",
+            "type": {
+              "defined": "InsuranceClaim"
+            }
           },
           {
             "name": "expiryTs",
@@ -3371,10 +3353,6 @@
             "type": "u64"
           },
           {
-            "name": "lastRevenueWithdrawTs",
-            "type": "i64"
-          },
-          {
             "name": "marginRatioInitial",
             "type": "u32"
           },
@@ -3383,11 +3361,11 @@
             "type": "u32"
           },
           {
-            "name": "unrealizedInitialAssetWeight",
+            "name": "unrealizedPnlInitialAssetWeight",
             "type": "u32"
           },
           {
-            "name": "unrealizedMaintenanceAssetWeight",
+            "name": "unrealizedPnlMaintenanceAssetWeight",
             "type": "u32"
           },
           {
@@ -3446,10 +3424,6 @@
             "type": "publicKey"
           },
           {
-            "name": "insuranceFundVault",
-            "type": "publicKey"
-          },
-          {
             "name": "historicalOracleData",
             "type": {
               "defined": "HistoricalOracleData"
@@ -3471,6 +3445,12 @@
             "name": "spotFeePool",
             "type": {
               "defined": "PoolBalance"
+            }
+          },
+          {
+            "name": "insuranceFund",
+            "type": {
+              "defined": "InsuranceFund"
             }
           },
           {
@@ -3503,18 +3483,6 @@
           },
           {
             "name": "withdrawGuardThreshold",
-            "type": "u128"
-          },
-          {
-            "name": "totalIfShares",
-            "type": "u128"
-          },
-          {
-            "name": "userIfShares",
-            "type": "u128"
-          },
-          {
-            "name": "ifSharesBase",
             "type": "u128"
           },
           {
@@ -3552,18 +3520,6 @@
           {
             "name": "cumulativeBorrowInterest",
             "type": "u128"
-          },
-          {
-            "name": "insuranceWithdrawEscrowPeriod",
-            "type": "i64"
-          },
-          {
-            "name": "lastRevenueSettleTs",
-            "type": "i64"
-          },
-          {
-            "name": "revenueSettlePeriod",
-            "type": "i64"
           },
           {
             "name": "lastInterestTs",
@@ -3607,14 +3563,6 @@
           },
           {
             "name": "maxBorrowRate",
-            "type": "u32"
-          },
-          {
-            "name": "totalIfFactor",
-            "type": "u32"
-          },
-          {
-            "name": "userIfFactor",
             "type": "u32"
           },
           {
@@ -4340,6 +4288,34 @@
       }
     },
     {
+      "name": "InsuranceClaim",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "revenueWithdrawSinceLastSettle",
+            "type": "u128"
+          },
+          {
+            "name": "maxRevenueWithdrawPerPeriod",
+            "type": "u128"
+          },
+          {
+            "name": "quoteMaxInsurance",
+            "type": "u128"
+          },
+          {
+            "name": "quoteSettledInsurance",
+            "type": "u128"
+          },
+          {
+            "name": "lastRevenueWithdrawTs",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
       "name": "PoolBalance",
       "type": {
         "kind": "struct",
@@ -4377,12 +4353,6 @@
             "name": "historicalOracleData",
             "type": {
               "defined": "HistoricalOracleData"
-            }
-          },
-          {
-            "name": "marketPosition",
-            "type": {
-              "defined": "PerpPosition"
             }
           },
           {
@@ -4438,7 +4408,19 @@
             "type": "u128"
           },
           {
-            "name": "netBaseAssetAmount",
+            "name": "baseAssetAmountLong",
+            "type": "i128"
+          },
+          {
+            "name": "baseAssetAmountShort",
+            "type": "i128"
+          },
+          {
+            "name": "baseAssetAmountWithAmm",
+            "type": "i128"
+          },
+          {
+            "name": "baseAssetAmountWithUnsettledLp",
             "type": "i128"
           },
           {
@@ -4460,10 +4442,6 @@
           {
             "name": "userLpShares",
             "type": "u128"
-          },
-          {
-            "name": "netUnsettledLpBaseAssetAmount",
-            "type": "i128"
           },
           {
             "name": "lastFundingRate",
@@ -4626,7 +4604,7 @@
             "type": "u32"
           },
           {
-            "name": "maxBaseAssetAmountRatio",
+            "name": "maxFillReserveFraction",
             "type": "u16"
           },
           {
@@ -4671,6 +4649,50 @@
                 6
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "InsuranceFund",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "publicKey"
+          },
+          {
+            "name": "totalShares",
+            "type": "u128"
+          },
+          {
+            "name": "userShares",
+            "type": "u128"
+          },
+          {
+            "name": "sharesBase",
+            "type": "u128"
+          },
+          {
+            "name": "unstakingPeriod",
+            "type": "i64"
+          },
+          {
+            "name": "lastRevenueSettleTs",
+            "type": "i64"
+          },
+          {
+            "name": "revenueSettlePeriod",
+            "type": "i64"
+          },
+          {
+            "name": "totalFactor",
+            "type": "u32"
+          },
+          {
+            "name": "userFactor",
+            "type": "u32"
           }
         ]
       }
@@ -5964,12 +5986,12 @@
           "index": false
         },
         {
-          "name": "netBaseAssetAmount",
+          "name": "baseAssetAmountWithAmm",
           "type": "i128",
           "index": false
         },
         {
-          "name": "netUnsettledLpBaseAssetAmount",
+          "name": "baseAssetAmountWithUnsettledLp",
           "type": "i128",
           "index": false
         }
@@ -6044,12 +6066,12 @@
           "index": false
         },
         {
-          "name": "netBaseAssetAmount",
+          "name": "baseAssetAmountWithAmm",
           "type": "i128",
           "index": false
         },
         {
-          "name": "openInterest",
+          "name": "numberOfUsers",
           "type": "u128",
           "index": false
         },

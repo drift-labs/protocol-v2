@@ -399,7 +399,7 @@ describe('delist market', () => {
 
 		assert(market.expiryPrice.gt(ZERO));
 
-		assert(market.amm.netBaseAssetAmount.lt(ZERO));
+		assert(market.amm.baseAssetAmountWithAmm.lt(ZERO));
 		assert(
 			market.amm.historicalOracleData.lastOraclePriceTwap.lt(market.expiryPrice)
 		);

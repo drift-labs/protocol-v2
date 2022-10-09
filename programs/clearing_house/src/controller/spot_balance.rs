@@ -125,7 +125,7 @@ pub fn update_spot_market_cumulative_interest(
     if deposit_interest > 0 && borrow_interest > 1 {
         // borrowers -> lenders IF fee here
         let deposit_interest_for_stakers = deposit_interest
-            .checked_mul(spot_market.total_if_factor as u128)
+            .checked_mul(spot_market.insurance_fund.total_factor as u128)
             .ok_or_else(math_error!())?
             .checked_div(IF_FACTOR_PRECISION)
             .ok_or_else(math_error!())?;
@@ -492,7 +492,7 @@ mod test {
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
-    use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+    use crate::state::spot_market::{InsuranceFund, SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::tests::utils::get_pyth_price;
@@ -921,7 +921,10 @@ mod test {
             deposit_balance: SPOT_BALANCE_PRECISION,
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
-            revenue_settle_period: 1,
+            insurance_fund: InsuranceFund {
+                revenue_settle_period: 1,
+                ..InsuranceFund::default()
+            },
             status: MarketStatus::Active,
             ..SpotMarket::default()
         };
@@ -945,8 +948,8 @@ mod test {
             ..User::default()
         };
 
-        spot_market.user_if_factor = 900;
-        spot_market.total_if_factor = 1000; //1_000_000
+        spot_market.insurance_fund.user_factor = 900;
+        spot_market.insurance_fund.total_factor = 1000; //1_000_000
 
         assert_eq!(spot_market.utilization_twap, 0);
         assert_eq!(spot_market.deposit_balance, 1000000000);
@@ -1084,7 +1087,7 @@ mod test {
         // settle IF pool to 100% utilization boundary
         assert_eq!(spot_market.revenue_pool.balance, 385047);
         assert_eq!(spot_market.utilization_twap, 462003);
-        spot_market.revenue_settle_period = 1;
+        spot_market.insurance_fund.revenue_settle_period = 1;
 
         let settle_amount = settle_revenue_to_insurance_fund(
             deposit_tokens_3 as u64,
@@ -1095,8 +1098,8 @@ mod test {
         .unwrap();
 
         assert_eq!(settle_amount, 626);
-        assert_eq!(spot_market.user_if_shares, 0);
-        assert_eq!(spot_market.total_if_shares, 0);
+        assert_eq!(spot_market.insurance_fund.user_shares, 0);
+        assert_eq!(spot_market.insurance_fund.total_shares, 0);
         assert_eq!(if_tokens_3 - (settle_amount as u128), 1688);
         assert_eq!(spot_market.revenue_pool.balance, 0);
         assert_eq!(spot_market.utilization_twap, 462004);
@@ -1280,8 +1283,8 @@ mod test {
             ..User::default()
         };
 
-        spot_market.user_if_factor = 90_000;
-        spot_market.total_if_factor = 100_000;
+        spot_market.insurance_fund.user_factor = 90_000;
+        spot_market.insurance_fund.total_factor = 100_000;
 
         assert_eq!(spot_market.utilization_twap, 0);
         assert_eq!(
@@ -1428,7 +1431,7 @@ mod test {
         // settle IF pool to 100% utilization boundary
         // only half of depositors available claim was settled (to protect vault)
         assert_eq!(spot_market.revenue_pool.balance, 102149084836788);
-        spot_market.revenue_settle_period = 1;
+        spot_market.insurance_fund.revenue_settle_period = 1;
         let settle_amount = settle_revenue_to_insurance_fund(
             deposit_tokens_3 as u64,
             if_tokens_3 as u64,
@@ -1437,8 +1440,8 @@ mod test {
         )
         .unwrap();
         assert_eq!(settle_amount, 229742506021);
-        assert_eq!(spot_market.user_if_shares, 0);
-        assert_eq!(spot_market.total_if_shares, 0);
+        assert_eq!(spot_market.insurance_fund.user_shares, 0);
+        assert_eq!(spot_market.insurance_fund.total_shares, 0);
         if_balance_2 += settle_amount;
         assert_eq!(if_balance_2, 229742506021);
         assert_eq!(if_tokens_3 - (settle_amount as u128), 996619988392); // w/ update interest for settle_spot_market_to_if
