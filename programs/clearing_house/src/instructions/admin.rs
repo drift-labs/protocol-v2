@@ -532,15 +532,15 @@ pub fn handle_initialize_perp_market(
             order_tick_size: DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE,
             min_order_size: DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE,
             max_position_size: 0,
-            max_slippage_ratio: 50,           // ~2%
-            max_base_asset_amount_ratio: 100, // moves price ~2%
+            max_slippage_ratio: 50,         // ~2%
+            max_fill_reserve_fraction: 100, // moves price ~2%
             base_spread: 0,
             long_spread: 0,
             short_spread: 0,
             max_spread,
             last_bid_price_twap: init_reserve_price,
             last_ask_price_twap: init_reserve_price,
-            net_base_asset_amount: 0,
+            base_asset_amount_with_amm: 0,
             base_asset_amount_long: 0,
             base_asset_amount_short: 0,
             quote_asset_amount_long: 0,
@@ -563,7 +563,7 @@ pub fn handle_initialize_perp_market(
             last_update_slot: clock_slot,
 
             // lp stuff
-            net_unsettled_lp_base_asset_amount: 0,
+            base_asset_amount_with_unsettled_lp: 0,
             user_lp_shares: 0,
             lp_cooldown_time: 1,  // TODO: what should this be?
             amm_jit_intensity: 0, // turn it off at the start
@@ -845,7 +845,7 @@ pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128)
         sqrt_k_after,
         base_asset_amount_long: market.amm.base_asset_amount_long.unsigned_abs(),
         base_asset_amount_short: market.amm.base_asset_amount_short.unsigned_abs(),
-        net_base_asset_amount: market.amm.net_base_asset_amount,
+        base_asset_amount_with_amm: market.amm.base_asset_amount_with_amm,
         number_of_users: market.number_of_users,
         total_fee: market.amm.total_fee,
         total_fee_minus_distributions: market.amm.total_fee_minus_distributions,
@@ -914,7 +914,7 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
 
     let base_asset_amount_long = market.amm.base_asset_amount_long.unsigned_abs();
     let base_asset_amount_short = market.amm.base_asset_amount_short.unsigned_abs();
-    let net_base_asset_amount = market.amm.net_base_asset_amount;
+    let base_asset_amount_with_amm = market.amm.base_asset_amount_with_amm;
     let number_of_users = market.number_of_users;
 
     let price_before = math::amm::calculate_price(
@@ -1043,7 +1043,7 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         sqrt_k_after,
         base_asset_amount_long,
         base_asset_amount_short,
-        net_base_asset_amount,
+        base_asset_amount_with_amm,
         number_of_users,
         adjustment_cost,
         total_fee,
@@ -1659,7 +1659,7 @@ pub fn handle_update_max_base_asset_amount_ratio(
 ) -> Result<()> {
     validate!(max_base_asset_amount_ratio > 0, ErrorCode::DefaultError)?;
     let market = &mut load_mut!(ctx.accounts.market)?;
-    market.amm.max_base_asset_amount_ratio = max_base_asset_amount_ratio;
+    market.amm.max_fill_reserve_fraction = max_base_asset_amount_ratio;
     Ok(())
 }
 

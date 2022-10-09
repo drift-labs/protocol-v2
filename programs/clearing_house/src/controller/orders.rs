@@ -1609,8 +1609,8 @@ pub fn fulfill_order_with_match(
     )?;
 
     let amm_wants_to_make = match taker_direction {
-        PositionDirection::Long => market.amm.net_base_asset_amount < 0,
-        PositionDirection::Short => market.amm.net_base_asset_amount > 0,
+        PositionDirection::Long => market.amm.base_asset_amount_with_amm < 0,
+        PositionDirection::Short => market.amm.base_asset_amount_with_amm > 0,
     };
 
     let mut total_quote_asset_amount = 0_u64;

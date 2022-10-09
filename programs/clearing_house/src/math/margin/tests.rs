@@ -118,7 +118,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 22_100_000,
-                net_base_asset_amount: -(122950819670000_i128),
+                base_asset_amount_with_amm: -(122950819670000_i128),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -195,7 +195,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 22_100_000_000,
-                net_base_asset_amount: -(12295081967_i128),
+                base_asset_amount_with_amm: -(12295081967_i128),
                 max_spread: 1000,
                 ..AMM::default()
             },

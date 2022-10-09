@@ -56,8 +56,8 @@ pub fn calculate_funding_rate_long_short(
     // If the net market position owes funding payment, the clearing house receives payment
     let settled_net_market_position = market
         .amm
-        .net_base_asset_amount
-        .checked_add(market.amm.net_unsettled_lp_base_asset_amount)
+        .base_asset_amount_with_amm
+        .checked_add(market.amm.base_asset_amount_with_unsettled_lp)
         .ok_or_else(math_error!())?;
 
     let net_market_position_funding_payment =
@@ -274,7 +274,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
-                net_base_asset_amount: -12295081967,
+                base_asset_amount_with_amm: -12295081967,
                 base_asset_amount_long: 12295081967,
                 base_asset_amount_short: -12295081967 * 2,
                 total_exchange_fee: QUOTE_PRECISION / 2,
@@ -319,7 +319,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
-                net_base_asset_amount: 12295081967,
+                base_asset_amount_with_amm: 12295081967,
                 base_asset_amount_long: 12295081967 * 2,
                 base_asset_amount_short: -12295081967,
                 total_exchange_fee: QUOTE_PRECISION / 2,
@@ -364,10 +364,10 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
-                net_base_asset_amount: -12295081967, //~12
+                base_asset_amount_with_amm: -12295081967, //~12
                 base_asset_amount_long: 12295081967,
                 base_asset_amount_short: -12295081967 * 2,
-                net_unsettled_lp_base_asset_amount: (AMM_RESERVE_PRECISION * 500) as i128, //wowsers
+                base_asset_amount_with_unsettled_lp: (AMM_RESERVE_PRECISION * 500) as i128, //wowsers
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
 
@@ -399,8 +399,8 @@ mod test {
 
         let settled_net_market_position = market
             .amm
-            .net_base_asset_amount
-            .checked_add(market.amm.net_unsettled_lp_base_asset_amount)
+            .base_asset_amount_with_amm
+            .checked_add(market.amm.base_asset_amount_with_unsettled_lp)
             .unwrap();
 
         let net_market_position_funding_payment = calculate_funding_payment_in_quote_precision(
@@ -410,8 +410,8 @@ mod test {
         .unwrap();
         let uncapped_funding_pnl = -net_market_position_funding_payment;
 
-        assert_eq!(market.amm.net_base_asset_amount, -12295081967);
-        assert_eq!(market.amm.net_unsettled_lp_base_asset_amount, 500000000000);
+        assert_eq!(market.amm.base_asset_amount_with_amm, -12295081967);
+        assert_eq!(market.amm.base_asset_amount_with_unsettled_lp, 500000000000);
         assert_eq!(settled_net_market_position, 487704918033);
         assert_eq!(net_market_position_funding_payment, -20321037);
         assert_eq!(uncapped_funding_pnl, 20321037); //clearing house revenue
@@ -431,10 +431,10 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
-                net_base_asset_amount: 12295081967,
+                base_asset_amount_with_amm: 12295081967,
                 base_asset_amount_long: 12295081967 * 2,
                 base_asset_amount_short: -12295081967,
-                net_unsettled_lp_base_asset_amount: (AMM_RESERVE_PRECISION * 500) as i128, //wowsers
+                base_asset_amount_with_unsettled_lp: (AMM_RESERVE_PRECISION * 500) as i128, //wowsers
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
                 last_mark_price_twap: 50 * PRICE_PRECISION,
@@ -484,10 +484,10 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
-                net_base_asset_amount: -12295081967, //~12
+                base_asset_amount_with_amm: -12295081967, //~12
                 base_asset_amount_long: 12295081967,
                 base_asset_amount_short: -12295081967 * 2,
-                net_unsettled_lp_base_asset_amount: -((AMM_RESERVE_PRECISION * 500) as i128), //wowsers
+                base_asset_amount_with_unsettled_lp: -((AMM_RESERVE_PRECISION * 500) as i128), //wowsers
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: ((QUOTE_PRECISION * 99999) as i128),
 
@@ -519,8 +519,8 @@ mod test {
 
         let settled_net_market_position = market
             .amm
-            .net_base_asset_amount
-            .checked_add(market.amm.net_unsettled_lp_base_asset_amount)
+            .base_asset_amount_with_amm
+            .checked_add(market.amm.base_asset_amount_with_unsettled_lp)
             .unwrap();
 
         let net_market_position_funding_payment = calculate_funding_payment_in_quote_precision(
@@ -530,8 +530,11 @@ mod test {
         .unwrap();
         let uncapped_funding_pnl = -net_market_position_funding_payment;
 
-        assert_eq!(market.amm.net_base_asset_amount, -12295081967);
-        assert_eq!(market.amm.net_unsettled_lp_base_asset_amount, -500000000000);
+        assert_eq!(market.amm.base_asset_amount_with_amm, -12295081967);
+        assert_eq!(
+            market.amm.base_asset_amount_with_unsettled_lp,
+            -500000000000
+        );
         assert_eq!(settled_net_market_position, -512295081967);
         assert_eq!(net_market_position_funding_payment, 21345628);
         assert_eq!(uncapped_funding_pnl, -21345628); //clearing house loses $21
@@ -551,10 +554,10 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
-                net_base_asset_amount: 12295081967,
+                base_asset_amount_with_amm: 12295081967,
                 base_asset_amount_long: 12295081967 * 2,
                 base_asset_amount_short: -12295081967,
-                net_unsettled_lp_base_asset_amount: -((AMM_RESERVE_PRECISION * 500) as i128), //wowsers
+                base_asset_amount_with_unsettled_lp: -((AMM_RESERVE_PRECISION * 500) as i128), //wowsers
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
                 last_mark_price_twap: 50 * PRICE_PRECISION,

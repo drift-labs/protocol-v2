@@ -264,7 +264,7 @@ pub fn settle_expired_market(
     )?;
 
     validate!(
-        market.amm.net_unsettled_lp_base_asset_amount == 0 && market.amm.user_lp_shares == 0,
+        market.amm.base_asset_amount_with_unsettled_lp == 0 && market.amm.user_lp_shares == 0,
         ErrorCode::DefaultError,
         "Outstanding LP in market"
     )?;
@@ -393,7 +393,7 @@ mod test {
                 terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
                 sqrt_k: 64 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 19_400 * PEG_PRECISION,
-                net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
+                base_asset_amount_with_amm: -(AMM_RESERVE_PRECISION as i128),
                 mark_std: PRICE_PRECISION as u64,
                 last_mark_price_twap_ts: 0,
                 historical_oracle_data: HistoricalOracleData {
@@ -522,7 +522,7 @@ mod test {
                 terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
                 sqrt_k: 64 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 19_400_000,
-                net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
+                base_asset_amount_with_amm: -(AMM_RESERVE_PRECISION as i128),
                 mark_std: PRICE_PRECISION as u64,
                 last_mark_price_twap_ts: 0,
                 historical_oracle_data: HistoricalOracleData {
@@ -584,7 +584,7 @@ mod test {
         let slot = 81680085;
 
         let mut market = PerpMarket::default_btc_test();
-        assert_eq!(market.amm.net_base_asset_amount, -1000000000);
+        assert_eq!(market.amm.base_asset_amount_with_amm, -1000000000);
 
         let state = State {
             oracle_guard_rails: OracleGuardRails {
@@ -714,7 +714,7 @@ mod test {
 
         let mut market = PerpMarket::default_btc_test();
         market.amm.total_fee_minus_distributions = -(10000 * QUOTE_PRECISION as i128);
-        assert_eq!(market.amm.net_base_asset_amount, -1000000000);
+        assert_eq!(market.amm.base_asset_amount_with_amm, -1000000000);
 
         let state = State {
             oracle_guard_rails: OracleGuardRails {

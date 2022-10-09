@@ -301,13 +301,13 @@ pub struct AMM {
     pub terminal_quote_asset_reserve: u128,
     pub base_asset_amount_long: i128,
     pub base_asset_amount_short: i128,
-    pub net_base_asset_amount: i128,
+    pub base_asset_amount_with_amm: i128,
+    pub base_asset_amount_with_unsettled_lp: i128,
     pub quote_asset_amount_long: i128,
     pub quote_asset_amount_short: i128,
     pub quote_entry_amount_long: i128,
     pub quote_entry_amount_short: i128,
     pub user_lp_shares: u128,
-    pub net_unsettled_lp_base_asset_amount: i128,
     pub last_funding_rate: i128,
     pub last_funding_rate_long: i128,
     pub last_funding_rate_short: i128,
@@ -348,7 +348,7 @@ pub struct AMM {
     pub mark_std: u64,
     pub last_mark_price_twap_ts: i64,
     pub max_spread: u32,
-    pub max_base_asset_amount_ratio: u16,
+    pub max_fill_reserve_fraction: u16,
     pub max_slippage_ratio: u16,
     pub base_spread: u16,
     pub long_intensity_count: u16,
@@ -398,7 +398,7 @@ impl AMM {
             max_base_asset_reserve: 90 * AMM_RESERVE_PRECISION,
             min_base_asset_reserve: 45 * AMM_RESERVE_PRECISION,
 
-            net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
+            base_asset_amount_with_amm: -(AMM_RESERVE_PRECISION as i128),
             mark_std: PRICE_PRECISION as u64,
 
             quote_asset_amount_long: 0,
@@ -468,7 +468,7 @@ impl AMM {
     }
 
     pub fn can_lower_k(&self) -> ClearingHouseResult<bool> {
-        let can_lower = self.net_base_asset_amount.unsigned_abs() < self.sqrt_k / 4;
+        let can_lower = self.base_asset_amount_with_amm.unsigned_abs() < self.sqrt_k / 4;
         Ok(can_lower)
     }
 

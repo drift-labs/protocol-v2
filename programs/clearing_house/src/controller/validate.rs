@@ -12,7 +12,8 @@ use solana_program::msg;
 pub fn validate_market_account(market: &PerpMarket) -> ClearingHouseResult {
     validate!(
         (market.amm.base_asset_amount_long + market.amm.base_asset_amount_short)
-            == market.amm.net_base_asset_amount + market.amm.net_unsettled_lp_base_asset_amount,
+            == market.amm.base_asset_amount_with_amm
+                + market.amm.base_asset_amount_with_unsettled_lp,
         ErrorCode::DefaultError,
         "Market NET_BAA Error: 
         market.amm.base_asset_amount_long={}, 
@@ -22,8 +23,8 @@ pub fn validate_market_account(market: &PerpMarket) -> ClearingHouseResult {
         +  market.amm.net_unsettled_lp_base_asset_amount={}",
         market.amm.base_asset_amount_long,
         market.amm.base_asset_amount_short,
-        market.amm.net_base_asset_amount,
-        market.amm.net_unsettled_lp_base_asset_amount,
+        market.amm.base_asset_amount_with_amm,
+        market.amm.base_asset_amount_with_unsettled_lp,
     )?;
 
     validate!(
@@ -33,11 +34,11 @@ pub fn validate_market_account(market: &PerpMarket) -> ClearingHouseResult {
     )?;
 
     validate!(
-        market.amm.sqrt_k > market.amm.net_base_asset_amount.unsigned_abs(),
+        market.amm.sqrt_k > market.amm.base_asset_amount_with_amm.unsigned_abs(),
         ErrorCode::DefaultError,
         "k out of wack: k={}, net_baa={}",
         market.amm.sqrt_k,
-        market.amm.net_base_asset_amount
+        market.amm.base_asset_amount_with_amm
     )?;
 
     validate!(
@@ -138,7 +139,7 @@ pub fn validate_market_account(market: &PerpMarket) -> ClearingHouseResult {
             .unsigned_abs()
     )?;
 
-    if market.amm.net_base_asset_amount > 0 {
+    if market.amm.base_asset_amount_with_amm > 0 {
         // users are long = removed base and added quote = qar increased
         // bid quote/base < reserve q/b
         validate!(
@@ -146,7 +147,7 @@ pub fn validate_market_account(market: &PerpMarket) -> ClearingHouseResult {
             ErrorCode::DefaultError,
             "terminal_quote_asset_reserve out of wack"
         )?;
-    } else if market.amm.net_base_asset_amount < 0 {
+    } else if market.amm.base_asset_amount_with_amm < 0 {
         validate!(
             market.amm.terminal_quote_asset_reserve > market.amm.quote_asset_reserve,
             ErrorCode::DefaultError,

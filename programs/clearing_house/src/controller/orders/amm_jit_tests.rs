@@ -70,7 +70,7 @@ pub mod amm_jit {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                net_base_asset_amount: (AMM_RESERVE_PRECISION / 2) as i128,
+                base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 2) as i128,
                 base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 // bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 // bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
@@ -79,7 +79,7 @@ pub mod amm_jit {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
@@ -246,7 +246,7 @@ pub mod amm_jit {
         assert_eq!(maker_stats.maker_volume_30d, 50 * QUOTE_PRECISION_U64);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, 1000000000);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, 1000000000);
         assert_eq!(market_after.amm.total_fee, 1043195);
         assert_eq!(filler_stats.filler_volume_30d, 101263863);
     }
@@ -277,12 +277,12 @@ pub mod amm_jit {
                 bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                net_base_asset_amount: -((AMM_RESERVE_PRECISION / 2) as i128),
+                base_asset_amount_with_amm: -((AMM_RESERVE_PRECISION / 2) as i128),
                 base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
@@ -422,7 +422,7 @@ pub mod amm_jit {
 
         let market_after = market_map.get_ref(&0).unwrap();
         // nets to zero
-        assert_eq!(market_after.amm.net_base_asset_amount, 0);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
 
         // make sure lps didnt get anything
         assert_eq!(market_after.amm.market_position_per_lp.base_asset_amount, 0);
@@ -431,7 +431,7 @@ pub mod amm_jit {
         // maker got (full - net_baa)
         assert_eq!(
             maker_position.base_asset_amount as i128,
-            -BASE_PRECISION_I128 * 2 - market.amm.net_base_asset_amount
+            -BASE_PRECISION_I128 * 2 - market.amm.base_asset_amount_with_amm
         );
     }
 
@@ -461,12 +461,12 @@ pub mod amm_jit {
                 bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                net_base_asset_amount: (AMM_RESERVE_PRECISION / 2) as i128,
+                base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 2) as i128,
                 base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
@@ -605,13 +605,13 @@ pub mod amm_jit {
 
         let market_after = market_map.get_ref(&0).unwrap();
         // nets to zero
-        assert_eq!(market_after.amm.net_base_asset_amount, 0);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
 
         let maker_position = &maker.perp_positions[0];
         // maker got (full - net_baa)
         assert_eq!(
             maker_position.base_asset_amount as i128,
-            BASE_PRECISION_I128 * 2 - market.amm.net_base_asset_amount
+            BASE_PRECISION_I128 * 2 - market.amm.base_asset_amount_with_amm
         );
     }
 
@@ -641,12 +641,12 @@ pub mod amm_jit {
                 // bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 // ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 // ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                net_base_asset_amount: -((AMM_RESERVE_PRECISION / 2) as i128),
+                base_asset_amount_with_amm: -((AMM_RESERVE_PRECISION / 2) as i128),
                 base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
@@ -809,7 +809,7 @@ pub mod amm_jit {
         assert_eq!(maker_position.open_orders, 0);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, -1000000000);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, -1000000000);
     }
 
     #[test]
@@ -837,12 +837,12 @@ pub mod amm_jit {
                 base_spread: 250,
                 long_spread: 125,
                 short_spread: 125,
-                net_base_asset_amount: (AMM_RESERVE_PRECISION / 2) as i128,
+                base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 2) as i128,
                 base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
@@ -1016,7 +1016,7 @@ pub mod amm_jit {
         assert_eq!(maker_stats.maker_volume_30d, 50 / 2 * QUOTE_PRECISION_U64);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, -250000000);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, -250000000);
 
         assert_eq!(market_after.amm.total_fee, 480802);
         assert_eq!(market_after.amm.total_fee_minus_distributions, 480802);
@@ -1059,12 +1059,12 @@ pub mod amm_jit {
                 bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                net_base_asset_amount: -((AMM_RESERVE_PRECISION / 2) as i128),
+                base_asset_amount_with_amm: -((AMM_RESERVE_PRECISION / 2) as i128),
                 base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
@@ -1259,7 +1259,7 @@ pub mod amm_jit {
         assert_eq!(maker_stats.fees.total_fee_rebate, 15000 / 2);
         assert_eq!(maker_stats.maker_volume_30d, 50 / 2 * QUOTE_PRECISION_U64);
 
-        assert_eq!(market_after.amm.net_base_asset_amount, 250000000);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, 250000000);
 
         assert_eq!(market_after.amm.volume_24h, 101_003_510);
         assert_eq!(market_after.amm.long_intensity_count, 1);
@@ -1330,12 +1330,12 @@ pub mod amm_jit {
                 bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                net_base_asset_amount: -((AMM_RESERVE_PRECISION / 2) as i128),
+                base_asset_amount_with_amm: -((AMM_RESERVE_PRECISION / 2) as i128),
                 base_asset_amount_short: -((AMM_RESERVE_PRECISION / 2) as i128),
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
@@ -1496,7 +1496,7 @@ pub mod amm_jit {
         );
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, -250000000);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, -250000000);
 
         // mm gains from trade
         let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
@@ -1540,12 +1540,12 @@ pub mod amm_jit {
                 bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                net_base_asset_amount: (AMM_RESERVE_PRECISION / 2) as i128,
+                base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 2) as i128,
                 base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
@@ -1703,7 +1703,7 @@ pub mod amm_jit {
         );
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, 250000000);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, 250000000);
 
         // mm gains from trade
         let quote_asset_amount_surplus = market_after.amm.total_mm_fee - market.amm.total_mm_fee;
@@ -1745,12 +1745,12 @@ pub mod amm_jit {
             amm: AMM {
                 base_asset_reserve: reserves,
                 quote_asset_reserve: reserves,
-                net_base_asset_amount: -(100 * AMM_RESERVE_PRECISION as i128),
+                base_asset_amount_with_amm: -(100 * AMM_RESERVE_PRECISION as i128),
                 base_asset_amount_short: -(100 * AMM_RESERVE_PRECISION as i128),
                 sqrt_k: reserves,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
@@ -1859,7 +1859,7 @@ pub mod amm_jit {
 
         let (mut neg, mut pos, mut none) = (false, false, false);
         let mut prev_mm_fee = 0;
-        let mut prev_net_baa = market.amm.net_base_asset_amount;
+        let mut prev_net_baa = market.amm.base_asset_amount_with_amm;
         // track scaling
         let mut prev_qas = 0;
         let mut has_set_prev_qas = false;
@@ -1962,8 +1962,8 @@ pub mod amm_jit {
             prev_mm_fee = market_after.amm.total_mm_fee;
 
             // imbalance decreases
-            assert!(market_after.amm.net_base_asset_amount.abs() < prev_net_baa.abs());
-            prev_net_baa = market_after.amm.net_base_asset_amount;
+            assert!(market_after.amm.base_asset_amount_with_amm.abs() < prev_net_baa.abs());
+            prev_net_baa = market_after.amm.base_asset_amount_with_amm;
 
             println!("estim qas: {}", _quote_asset_amount_surplus);
             println!(
@@ -2031,12 +2031,12 @@ pub mod amm_jit {
             amm: AMM {
                 base_asset_reserve: reserves,
                 quote_asset_reserve: reserves,
-                net_base_asset_amount: 100 * AMM_RESERVE_PRECISION as i128,
+                base_asset_amount_with_amm: 100 * AMM_RESERVE_PRECISION as i128,
                 base_asset_amount_long: 100 * AMM_RESERVE_PRECISION as i128,
                 sqrt_k: reserves,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
@@ -2146,7 +2146,7 @@ pub mod amm_jit {
 
         let (mut neg, mut pos, mut none) = (false, false, false);
         let mut prev_mm_fee = 0;
-        let mut prev_net_baa = market.amm.net_base_asset_amount;
+        let mut prev_net_baa = market.amm.base_asset_amount_with_amm;
         // track scaling
         let mut prev_qas = 0;
         let mut has_set_prev_qas = false;
@@ -2251,8 +2251,8 @@ pub mod amm_jit {
             prev_mm_fee = market_after.amm.total_mm_fee;
 
             // imbalance decreases
-            assert!(market_after.amm.net_base_asset_amount.abs() < prev_net_baa.abs());
-            prev_net_baa = market_after.amm.net_base_asset_amount;
+            assert!(market_after.amm.base_asset_amount_with_amm.abs() < prev_net_baa.abs());
+            prev_net_baa = market_after.amm.base_asset_amount_with_amm;
 
             println!("estim qas: {}", _quote_asset_amount_surplus);
             println!(

@@ -503,15 +503,15 @@ pub fn update_lp_market_position(
         .checked_add(per_lp_fee.cast()?)
         .ok_or_else(math_error!())?;
 
-    market.amm.net_base_asset_amount = market
+    market.amm.base_asset_amount_with_amm = market
         .amm
-        .net_base_asset_amount
+        .base_asset_amount_with_amm
         .checked_sub(lp_delta_base)
         .ok_or_else(math_error!())?;
 
-    market.amm.net_unsettled_lp_base_asset_amount = market
+    market.amm.base_asset_amount_with_unsettled_lp = market
         .amm
-        .net_unsettled_lp_base_asset_amount
+        .base_asset_amount_with_unsettled_lp
         .checked_add(lp_delta_base)
         .ok_or_else(math_error!())?;
 
@@ -560,9 +560,9 @@ pub fn update_position_with_base_asset_amount(
         &position_delta,
     )?;
 
-    market.amm.net_base_asset_amount = market
+    market.amm.base_asset_amount_with_amm = market
         .amm
-        .net_base_asset_amount
+        .base_asset_amount_with_amm
         .checked_add(position_delta.base_asset_amount.cast()?)
         .ok_or_else(math_error!())?;
 
@@ -704,7 +704,7 @@ mod test {
         let amm = AMM {
             user_lp_shares: 0,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            net_base_asset_amount: 10 * AMM_RESERVE_PRECISION_I128,
+            base_asset_amount_with_amm: 10 * AMM_RESERVE_PRECISION_I128,
             ..AMM::default_test()
         };
         let mut market = PerpMarket {
@@ -714,9 +714,9 @@ mod test {
 
         update_lp_market_position(&mut market, &delta, 0).unwrap();
 
-        assert_eq!(market.amm.net_unsettled_lp_base_asset_amount, 0);
+        assert_eq!(market.amm.base_asset_amount_with_unsettled_lp, 0);
         assert_eq!(
-            market.amm.net_base_asset_amount,
+            market.amm.base_asset_amount_with_amm,
             10 * AMM_RESERVE_PRECISION_I128
         );
     }
@@ -731,7 +731,7 @@ mod test {
         let amm = AMM {
             user_lp_shares: 100 * AMM_RESERVE_PRECISION,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            net_base_asset_amount: 10 * AMM_RESERVE_PRECISION_I128,
+            base_asset_amount_with_amm: 10 * AMM_RESERVE_PRECISION_I128,
             ..AMM::default_test()
         };
         let mut market = PerpMarket {
@@ -749,9 +749,9 @@ mod test {
             market.amm.market_position_per_lp.quote_asset_amount,
             10 * BASE_PRECISION_I64 / 100
         );
-        assert_eq!(market.amm.net_base_asset_amount, 0);
+        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
         assert_eq!(
-            market.amm.net_unsettled_lp_base_asset_amount,
+            market.amm.base_asset_amount_with_unsettled_lp,
             10 * AMM_RESERVE_PRECISION_I128
         );
     }
@@ -766,7 +766,7 @@ mod test {
         let amm = AMM {
             user_lp_shares: 100 * AMM_RESERVE_PRECISION,
             sqrt_k: 200 * AMM_RESERVE_PRECISION,
-            net_base_asset_amount: 10 * AMM_RESERVE_PRECISION_I128,
+            base_asset_amount_with_amm: 10 * AMM_RESERVE_PRECISION_I128,
             ..AMM::default_test()
         };
         let mut market = PerpMarket {
@@ -777,11 +777,11 @@ mod test {
         update_lp_market_position(&mut market, &delta, 0).unwrap();
 
         assert_eq!(
-            market.amm.net_base_asset_amount,
+            market.amm.base_asset_amount_with_amm,
             5 * AMM_RESERVE_PRECISION_I128
         );
         assert_eq!(
-            market.amm.net_unsettled_lp_base_asset_amount,
+            market.amm.base_asset_amount_with_unsettled_lp,
             5 * AMM_RESERVE_PRECISION_I128
         );
     }
@@ -816,7 +816,7 @@ mod test {
         assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 1);
         assert_eq!(market.amm.base_asset_amount_short, 0);
-        assert_eq!(market.amm.net_base_asset_amount, 0);
+        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
         assert_eq!(market.amm.quote_asset_amount_long, -1);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
         assert_eq!(market.amm.quote_entry_amount_long, -1);
@@ -872,7 +872,7 @@ mod test {
         };
         let mut market = PerpMarket {
             amm: AMM {
-                net_base_asset_amount: 1,
+                base_asset_amount_with_amm: 1,
                 base_asset_amount_long: 1,
                 base_asset_amount_short: 0,
                 quote_asset_amount_long: -1,
@@ -963,7 +963,7 @@ mod test {
         };
         let mut market = PerpMarket {
             amm: AMM {
-                net_base_asset_amount: 10,
+                base_asset_amount_with_amm: 10,
                 base_asset_amount_long: 10,
                 base_asset_amount_short: 0,
                 quote_asset_amount_long: -10,
@@ -1010,7 +1010,7 @@ mod test {
         };
         let mut market = PerpMarket {
             amm: AMM {
-                net_base_asset_amount: 10,
+                base_asset_amount_with_amm: 10,
                 base_asset_amount_long: 10,
                 base_asset_amount_short: 0,
                 quote_asset_amount_long: -100,
@@ -1057,7 +1057,7 @@ mod test {
         };
         let mut market = PerpMarket {
             amm: AMM {
-                net_base_asset_amount: 10,
+                base_asset_amount_with_amm: 10,
                 base_asset_amount_long: 10,
                 base_asset_amount_short: 0,
                 quote_asset_amount_long: -10,
@@ -1105,7 +1105,7 @@ mod test {
         };
         let mut market = PerpMarket {
             amm: AMM {
-                net_base_asset_amount: 10,
+                base_asset_amount_with_amm: 10,
                 base_asset_amount_long: 10,
                 base_asset_amount_short: 0,
                 quote_asset_amount_long: -10,
@@ -1244,7 +1244,7 @@ mod test {
         };
         let mut market = PerpMarket {
             amm: AMM {
-                net_base_asset_amount: -10,
+                base_asset_amount_with_amm: -10,
                 base_asset_amount_long: 0,
                 base_asset_amount_short: -10,
                 quote_asset_amount_long: 0,
@@ -1292,7 +1292,7 @@ mod test {
         };
         let mut market = PerpMarket {
             amm: AMM {
-                net_base_asset_amount: -10,
+                base_asset_amount_with_amm: -10,
                 base_asset_amount_long: 0,
                 base_asset_amount_short: -10,
                 quote_asset_amount_long: 0,
@@ -1340,7 +1340,7 @@ mod test {
         };
         let mut market = PerpMarket {
             amm: AMM {
-                net_base_asset_amount: 11,
+                base_asset_amount_with_amm: 11,
                 base_asset_amount_long: 11,
                 quote_asset_amount_long: -11,
                 quote_entry_amount_long: -11,
@@ -1386,7 +1386,7 @@ mod test {
         };
         let mut market = PerpMarket {
             amm: AMM {
-                net_base_asset_amount: 11,
+                base_asset_amount_with_amm: 11,
                 base_asset_amount_long: 11,
                 quote_asset_amount_long: -11,
                 quote_entry_amount_long: -11,
@@ -1517,7 +1517,7 @@ mod test {
         };
         let mut market = PerpMarket {
             amm: AMM {
-                net_base_asset_amount: 11,
+                base_asset_amount_with_amm: 11,
                 base_asset_amount_long: 11,
                 quote_asset_amount_long: -11,
                 quote_entry_amount_long: -8,

@@ -150,7 +150,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_stats.maker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
-        assert_eq!(market.amm.net_base_asset_amount, 0);
+        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
         assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.amm.quote_asset_amount_long, -100050000);
@@ -268,7 +268,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_stats.maker_volume_30d, 160 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
-        assert_eq!(market.amm.net_base_asset_amount, 0);
+        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
         assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.amm.quote_asset_amount_long, -160080000);
@@ -386,7 +386,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_stats.maker_volume_30d, 180 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
-        assert_eq!(market.amm.net_base_asset_amount, 0);
+        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
         assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.amm.quote_asset_amount_long, -179946000);
@@ -504,7 +504,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_stats.maker_volume_30d, 140 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
-        assert_eq!(market.amm.net_base_asset_amount, 0);
+        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
         assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.amm.quote_asset_amount_long, -139958000);
@@ -955,7 +955,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.quote_entry_amount, 120 * QUOTE_PRECISION_I64);
         assert_eq!(maker_stats.maker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
-        assert_eq!(market.amm.net_base_asset_amount, 0);
+        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
         assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.amm.quote_asset_amount_long, -120120000);
@@ -1060,7 +1060,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.quote_entry_amount, 120 * QUOTE_PRECISION_I64);
         assert_eq!(maker_stats.maker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
-        assert_eq!(market.amm.net_base_asset_amount, 0);
+        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
         assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.amm.quote_asset_amount_long, -120120000);
@@ -1178,7 +1178,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_stats.maker_volume_30d, 150 * QUOTE_PRECISION_U64);
         assert_eq!(maker.orders[0], Order::default());
 
-        assert_eq!(market.amm.net_base_asset_amount, 0);
+        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
         assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.amm.quote_asset_amount_long, -150075000);
@@ -1293,7 +1293,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert_eq!(taker.orders[0], Order::default());
 
-        assert_eq!(market.amm.net_base_asset_amount, 0);
+        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
         assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.amm.quote_asset_amount_long, -100050000);
@@ -1409,7 +1409,7 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert_eq!(taker.orders[0], Order::default());
 
-        assert_eq!(market.amm.net_base_asset_amount, 0);
+        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
         assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
         assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
         assert_eq!(market.amm.quote_asset_amount_long, -99970000);
@@ -1461,7 +1461,7 @@ pub mod fulfill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
@@ -1579,7 +1579,7 @@ pub mod fulfill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
@@ -1736,7 +1736,7 @@ pub mod fulfill_order {
         assert_eq!(filler.perp_positions[0].quote_asset_amount, 5012);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, 500000000);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, 500000000);
         assert_eq!(market_after.amm.base_asset_amount_long, 1000000000);
         assert_eq!(market_after.amm.base_asset_amount_short, -500000000);
         assert_eq!(market_after.amm.quote_asset_amount_long, -100301375);
@@ -1791,7 +1791,7 @@ pub mod fulfill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100_050 * PEG_PRECISION / 1000,
                 max_slippage_ratio: 50,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
@@ -1948,7 +1948,7 @@ pub mod fulfill_order {
         assert_eq!(filler.perp_positions[0].quote_asset_amount, 5013);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, 500000000);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, 500000000);
         assert_eq!(market_after.amm.base_asset_amount_long, 1000000000);
         assert_eq!(market_after.amm.base_asset_amount_short, -500000000);
         assert_eq!(market_after.amm.quote_asset_amount_long, -100326511);
@@ -2134,7 +2134,7 @@ pub mod fulfill_order {
         assert_eq!(maker_stats.maker_volume_30d, 50 * QUOTE_PRECISION_U64);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, 0);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
         assert_eq!(market_after.amm.base_asset_amount_long, 500000000);
         assert_eq!(market_after.amm.base_asset_amount_short, -500000000);
         assert_eq!(market_after.amm.quote_asset_amount_long, -50025000);
@@ -2172,7 +2172,7 @@ pub mod fulfill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 10,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
@@ -2286,7 +2286,7 @@ pub mod fulfill_order {
         assert_eq!(taker.orders[0], Order::default());
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, 1000000000);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, 1000000000);
         assert_eq!(market_after.amm.base_asset_amount_long, 1000000000);
         assert_eq!(market_after.amm.base_asset_amount_short, 0);
         assert_eq!(market_after.amm.quote_asset_amount_long, -104133674);
@@ -2324,7 +2324,7 @@ pub mod fulfill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 10,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
@@ -2467,7 +2467,7 @@ pub mod fulfill_order {
                     ..HistoricalOracleData::default()
                 },
                 max_slippage_ratio: 50,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2493,7 +2493,7 @@ pub mod fulfill_order {
                     ..HistoricalOracleData::default()
                 },
                 max_slippage_ratio: 50,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -2705,7 +2705,7 @@ pub mod fulfill_order {
         assert_eq!(maker.orders[0], maker_before.orders[0]);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.net_base_asset_amount, 0);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
         assert_eq!(market_after.amm.base_asset_amount_long, 500000000);
         assert_eq!(market_after.amm.base_asset_amount_short, -500000000);
         assert_eq!(market_after.amm.quote_asset_amount_long, -50025000);
@@ -2805,7 +2805,7 @@ pub mod fill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 100,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
@@ -2957,7 +2957,7 @@ pub mod fill_order {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 100,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 order_tick_size: 1,
                 max_base_asset_reserve: 200 * AMM_RESERVE_PRECISION,

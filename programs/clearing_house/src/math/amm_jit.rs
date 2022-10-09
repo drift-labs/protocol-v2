@@ -50,7 +50,7 @@ pub fn calculate_clampped_jit_base_asset_amount(
     // bound it; dont flip the net_baa
     let max_amm_base_asset_amount = market
         .amm
-        .net_base_asset_amount
+        .base_asset_amount_with_amm
         .unsigned_abs()
         .cast::<u64>()?;
     let jit_base_asset_amount = jit_base_asset_amount.min(max_amm_base_asset_amount);
@@ -67,7 +67,7 @@ mod test {
     fn balanced_market_zero_jit() {
         let market = PerpMarket {
             amm: AMM {
-                net_base_asset_amount: 0,
+                base_asset_amount_with_amm: 0,
                 amm_jit_intensity: 100,
                 ..AMM::default_test()
             },
@@ -84,7 +84,7 @@ mod test {
     fn balanced_market_zero_intensity() {
         let market = PerpMarket {
             amm: AMM {
-                net_base_asset_amount: 100,
+                base_asset_amount_with_amm: 100,
                 amm_jit_intensity: 0,
                 ..AMM::default_test()
             },
@@ -101,7 +101,7 @@ mod test {
     fn balanced_market_full_intensity() {
         let market = PerpMarket {
             amm: AMM {
-                net_base_asset_amount: 100,
+                base_asset_amount_with_amm: 100,
                 amm_jit_intensity: 100,
                 ..AMM::default_test()
             },
@@ -118,7 +118,7 @@ mod test {
     fn balanced_market_half_intensity() {
         let market = PerpMarket {
             amm: AMM {
-                net_base_asset_amount: 100,
+                base_asset_amount_with_amm: 100,
                 amm_jit_intensity: 50,
                 ..AMM::default_test()
             },

@@ -229,7 +229,7 @@ pub fn update_spreads(amm: &mut AMM, reserve_price: u128) -> ClearingHouseResult
             amm.quote_asset_reserve,
             amm.terminal_quote_asset_reserve,
             amm.peg_multiplier,
-            amm.net_base_asset_amount,
+            amm.base_asset_amount_with_amm,
             reserve_price,
             amm.total_fee_minus_distributions,
             amm.base_asset_reserve,
@@ -287,7 +287,7 @@ pub fn update_concentration_coef(amm: &mut AMM, scale: u128) -> ClearingHouseRes
 
     let (max_bids, max_asks) = amm::calculate_market_open_bids_asks(amm)?;
     validate!(
-        max_bids > amm.net_base_asset_amount && max_asks < amm.net_base_asset_amount,
+        max_bids > amm.base_asset_amount_with_amm && max_asks < amm.base_asset_amount_with_amm,
         ErrorCode::DefaultError,
         "amm.net_base_asset_amount exceeds the unload liquidity available after concentration adjustment"
     )?;
@@ -373,7 +373,7 @@ pub fn formulaic_update_k(
                 sqrt_k_after,
                 base_asset_amount_long: market.amm.base_asset_amount_long.unsigned_abs(),
                 base_asset_amount_short: market.amm.base_asset_amount_short.unsigned_abs(),
-                net_base_asset_amount: market.amm.net_base_asset_amount,
+                base_asset_amount_with_amm: market.amm.base_asset_amount_with_amm,
                 number_of_users: market.number_of_users,
                 adjustment_cost,
                 total_fee: market.amm.total_fee,
@@ -744,7 +744,7 @@ mod test {
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
                 concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-                net_base_asset_amount: -12295081967,
+                base_asset_amount_with_amm: -12295081967,
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
                 curve_update_intensity: 100,
                 ..AMM::default()
@@ -795,7 +795,7 @@ mod test {
         // different default market
 
         let mut market_balanced = PerpMarket::default_test();
-        assert_eq!(market_balanced.amm.net_base_asset_amount, 0);
+        assert_eq!(market_balanced.amm.base_asset_amount_with_amm, 0);
         assert_eq!(market_balanced.amm.sqrt_k, 100000000000);
 
         let new_scale = 20;
@@ -838,7 +838,7 @@ mod test {
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
                 concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-                net_base_asset_amount: -12295081967,
+                base_asset_amount_with_amm: -12295081967,
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
                 curve_update_intensity: 100,
                 ..AMM::default()
@@ -895,7 +895,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
-                net_base_asset_amount: -122950819670000,
+                base_asset_amount_with_amm: -122950819670000,
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
                 curve_update_intensity: 100,
                 ..AMM::default()
@@ -1019,7 +1019,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
-                net_base_asset_amount: -122950819670000,
+                base_asset_amount_with_amm: -122950819670000,
 
                 total_exchange_fee: 10 * QUOTE_PRECISION,
                 total_fee: 10 * QUOTE_PRECISION as i128,
@@ -1099,7 +1099,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000,
-                net_base_asset_amount: -122950819670000,
+                base_asset_amount_with_amm: -122950819670000,
 
                 total_exchange_fee: 10 * QUOTE_PRECISION,
                 total_fee: 10 * QUOTE_PRECISION as i128,

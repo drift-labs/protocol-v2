@@ -86,8 +86,8 @@ pub struct FundingRateRecord {
     pub oracle_price_twap: i128,
     pub mark_price_twap: u128,
     pub period_revenue: i64,
-    pub net_base_asset_amount: i128,
-    pub net_unsettled_lp_base_asset_amount: i128,
+    pub base_asset_amount_with_amm: i128,
+    pub base_asset_amount_with_unsettled_lp: i128,
 }
 
 #[event]
@@ -105,7 +105,7 @@ pub struct CurveRecord {
     pub sqrt_k_after: u128,
     pub base_asset_amount_long: u128,
     pub base_asset_amount_short: u128,
-    pub net_base_asset_amount: i128,
+    pub base_asset_amount_with_amm: i128,
     pub number_of_users: u128,
     pub total_fee: i128,
     pub total_fee_minus_distributions: i128,

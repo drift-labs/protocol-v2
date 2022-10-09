@@ -54,13 +54,13 @@ pub fn calculate_bid_ask_bounds(
 }
 
 pub fn calculate_terminal_price(amm: &mut AMM) -> ClearingHouseResult<u128> {
-    let swap_direction = if amm.net_base_asset_amount > 0 {
+    let swap_direction = if amm.base_asset_amount_with_amm > 0 {
         SwapDirection::Add
     } else {
         SwapDirection::Remove
     };
     let (new_quote_asset_amount, new_base_asset_amount) = calculate_swap_output(
-        amm.net_base_asset_amount.unsigned_abs(),
+        amm.base_asset_amount_with_amm.unsigned_abs(),
         amm.base_asset_reserve,
         swap_direction,
         amm.sqrt_k,
@@ -564,13 +564,13 @@ pub fn calculate_quote_asset_amount_swapped(
 }
 
 pub fn calculate_terminal_reserves(amm: &AMM) -> ClearingHouseResult<(u128, u128)> {
-    let swap_direction = if amm.net_base_asset_amount > 0 {
+    let swap_direction = if amm.base_asset_amount_with_amm > 0 {
         SwapDirection::Add
     } else {
         SwapDirection::Remove
     };
     let (new_quote_asset_amount, new_base_asset_amount) = calculate_swap_output(
-        amm.net_base_asset_amount.unsigned_abs(),
+        amm.base_asset_amount_with_amm.unsigned_abs(),
         amm.base_asset_reserve,
         swap_direction,
         amm.sqrt_k,
@@ -755,7 +755,7 @@ pub fn calculate_max_base_asset_amount_fillable(
     amm: &AMM,
     order_direction: &PositionDirection,
 ) -> ClearingHouseResult<u64> {
-    let max_fill_size: u64 = (amm.base_asset_reserve / amm.max_base_asset_amount_ratio as u128)
+    let max_fill_size: u64 = (amm.base_asset_reserve / amm.max_fill_reserve_fraction as u128)
         .min(u64::MAX as u128)
         .cast()?;
 
@@ -796,7 +796,7 @@ pub fn calculate_net_user_pnl(amm: &AMM, oracle_price: i128) -> ClearingHouseRes
     )?;
 
     let net_user_base_asset_value = amm
-        .net_base_asset_amount
+        .base_asset_amount_with_amm
         .checked_mul(oracle_price)
         .ok_or_else(math_error!())?
         .checked_div(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)
@@ -812,7 +812,7 @@ pub fn calculate_expiry_price(
     target_price: i128,
     pnl_pool_amount: u128,
 ) -> ClearingHouseResult<i128> {
-    if amm.net_base_asset_amount == 0 {
+    if amm.base_asset_amount_with_amm == 0 {
         return Ok(target_price);
     }
 
@@ -829,10 +829,10 @@ pub fn calculate_expiry_price(
         .ok_or_else(math_error!())?
         .checked_mul(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)
         .ok_or_else(math_error!())?
-        .checked_div(amm.net_base_asset_amount)
+        .checked_div(amm.base_asset_amount_with_amm)
         .ok_or_else(math_error!())?);
 
-    let expiry_price = if amm.net_base_asset_amount > 0 {
+    let expiry_price = if amm.base_asset_amount_with_amm > 0 {
         // net longs only get as high as oracle_price
         best_expiry_price
             .min(target_price)
@@ -938,7 +938,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 22_100_000_000,
-                net_base_asset_amount: (12295081967_i128),
+                base_asset_amount_with_amm: (12295081967_i128),
                 max_spread: 1000,
                 quote_asset_amount_long: market_position.quote_asset_amount as i128 * 2,
                 // assume someone else has other half same entry,
@@ -1021,7 +1021,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 22_100_000_000,
-                net_base_asset_amount: (12295081967_i128),
+                base_asset_amount_with_amm: (12295081967_i128),
                 max_spread: 1000,
                 quote_asset_amount_long: market_position.quote_asset_amount as i128 * 2,
                 // assume someone else has other half same entry,
@@ -1137,7 +1137,7 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 22_100_000_000,
-                net_base_asset_amount: -(12295081967_i128),
+                base_asset_amount_with_amm: -(12295081967_i128),
                 max_spread: 1000,
                 quote_asset_amount_short: market_position.quote_asset_amount as i128 * 2,
                 // assume someone else has other half same entry,
