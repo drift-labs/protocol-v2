@@ -503,10 +503,16 @@ export class ClearingHouse {
 		name: string,
 		subAccountId = 0
 	): Promise<TransactionSignature> {
+		const userAccountPublicKey = getUserAccountPublicKeySync(
+			this.program.programId,
+			this.wallet.publicKey,
+			subAccountId
+		);
+
 		const nameBuffer = encodeName(name);
 		return await this.program.rpc.updateUserName(subAccountId, nameBuffer, {
 			accounts: {
-				user: await this.getUserAccountPublicKey(),
+				user: userAccountPublicKey,
 				authority: this.wallet.publicKey,
 			},
 		});
