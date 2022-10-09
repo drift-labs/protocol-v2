@@ -142,15 +142,18 @@ pub fn calculate_base_asset_amount_for_reduce_only_order(
     proposed_base_asset_amount: u64,
     order_direction: PositionDirection,
     existing_position: i64,
-) -> u64 {
+) -> ClearingHouseResult<u64> {
     if proposed_base_asset_amount > 0
         && (order_direction == PositionDirection::Long && existing_position >= 0)
         || (order_direction == PositionDirection::Short && existing_position <= 0)
     {
-        msg!("Reduce only order can not increase position");
-        0
+        msg!("Reduce Only Order must decrease existing position size");
+        Err(ErrorCode::InvalidOrder)
     } else {
-        min(proposed_base_asset_amount, existing_position.unsigned_abs())
+        Ok(min(
+            proposed_base_asset_amount,
+            existing_position.unsigned_abs(),
+        ))
     }
 }
 
