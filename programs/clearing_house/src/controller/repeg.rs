@@ -15,9 +15,9 @@ use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::repeg;
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
-use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::SpotMarketMap;
@@ -264,7 +264,7 @@ pub fn settle_expired_market(
     )?;
 
     validate!(
-        market.amm.net_unsettled_lp_base_asset_amount == 0 && market.amm.user_lp_shares == 0,
+        market.amm.base_asset_amount_with_unsettled_lp == 0 && market.amm.user_lp_shares == 0,
         ErrorCode::DefaultError,
         "Outstanding LP in market"
     )?;
@@ -353,18 +353,18 @@ pub fn settle_expired_market(
         "Only support bank.decimals == QUOTE_PRECISION"
     )?;
 
-    let target_settlement_price = market.amm.historical_oracle_data.last_oracle_price_twap;
+    let target_expiry_price = market.amm.historical_oracle_data.last_oracle_price_twap;
     validate!(
-        target_settlement_price > 0,
+        target_expiry_price > 0,
         ErrorCode::DefaultError,
-        "target_settlement_price <= 0 {}",
-        target_settlement_price
+        "target_expiry_price <= 0 {}",
+        target_expiry_price
     )?;
 
-    let settlement_price =
-        amm::calculate_settlement_price(&market.amm, target_settlement_price, pnl_pool_amount)?;
+    let expiry_price =
+        amm::calculate_expiry_price(&market.amm, target_expiry_price, pnl_pool_amount)?;
 
-    market.settlement_price = settlement_price;
+    market.expiry_price = expiry_price;
     market.status = MarketStatus::Settlement;
 
     Ok(())
@@ -381,8 +381,8 @@ mod test {
     use crate::math::repeg::{
         calculate_fee_pool, calculate_peg_from_target_price, calculate_repeg_cost,
     };
-    use crate::state::market::AMM;
     use crate::state::oracle::HistoricalOracleData;
+    use crate::state::perp_market::AMM;
     use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
     #[test]
     pub fn update_amm_test() {
@@ -393,7 +393,7 @@ mod test {
                 terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
                 sqrt_k: 64 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 19_400 * PEG_PRECISION,
-                net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
+                base_asset_amount_with_amm: -(AMM_RESERVE_PRECISION as i128),
                 mark_std: PRICE_PRECISION as u64,
                 last_mark_price_twap_ts: 0,
                 historical_oracle_data: HistoricalOracleData {
@@ -522,7 +522,7 @@ mod test {
                 terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
                 sqrt_k: 64 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 19_400_000,
-                net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
+                base_asset_amount_with_amm: -(AMM_RESERVE_PRECISION as i128),
                 mark_std: PRICE_PRECISION as u64,
                 last_mark_price_twap_ts: 0,
                 historical_oracle_data: HistoricalOracleData {
@@ -584,7 +584,7 @@ mod test {
         let slot = 81680085;
 
         let mut market = PerpMarket::default_btc_test();
-        assert_eq!(market.amm.net_base_asset_amount, -1000000000);
+        assert_eq!(market.amm.base_asset_amount_with_amm, -1000000000);
 
         let state = State {
             oracle_guard_rails: OracleGuardRails {
@@ -714,7 +714,7 @@ mod test {
 
         let mut market = PerpMarket::default_btc_test();
         market.amm.total_fee_minus_distributions = -(10000 * QUOTE_PRECISION as i128);
-        assert_eq!(market.amm.net_base_asset_amount, -1000000000);
+        assert_eq!(market.amm.base_asset_amount_with_amm, -1000000000);
 
         let state = State {
             oracle_guard_rails: OracleGuardRails {

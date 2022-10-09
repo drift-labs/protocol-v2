@@ -31,16 +31,17 @@ use crate::math::spot_balance::get_token_amount;
 use crate::math::{amm, bn, oracle};
 use crate::math_error;
 use crate::state::events::CurveRecord;
-use crate::state::market::{
-    ContractTier, ContractType, MarketStatus, PerpMarket, PoolBalance, AMM,
-};
 use crate::state::oracle::{
     get_oracle_price, get_pyth_price, get_switchboard_price, HistoricalIndexData,
     HistoricalOracleData, OraclePriceData, OracleSource,
 };
+use crate::state::perp_market::{
+    ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
+};
 use crate::state::serum::{load_open_orders, load_serum_market};
 use crate::state::spot_market::{
-    AssetTier, SerumV3FulfillmentConfig, SpotBalanceType, SpotFulfillmentStatus, SpotMarket,
+    AssetTier, InsuranceFund, SerumV3FulfillmentConfig, SpotBalanceType, SpotFulfillmentStatus,
+    SpotMarket,
 };
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
 use crate::state::user::PerpPosition;
@@ -196,20 +197,11 @@ pub fn handle_initialize_spot_market(
         historical_index_data: historical_index_data_default,
         mint: ctx.accounts.spot_market_mint.key(),
         vault: *ctx.accounts.spot_market_vault.to_account_info().key,
-        insurance_fund_vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
         revenue_pool: PoolBalance {
             balance: 0,
             market_index: spot_market_index,
             ..PoolBalance::default()
         }, // in base asset
-        total_if_factor: 0,
-        user_if_factor: 0,
-        total_if_shares: 0,
-        user_if_shares: 0,
-        if_shares_base: 0,
-        insurance_withdraw_escrow_period: 0,
-        last_revenue_settle_ts: 0,
-        revenue_settle_period: 0, // how often can be settled
         decimals: ctx.accounts.spot_market_mint.decimals,
         optimal_utilization,
         optimal_borrow_rate,
@@ -240,6 +232,10 @@ pub fn handle_initialize_spot_market(
         spot_fee_pool: PoolBalance::default(), // in quote asset
         total_spot_fee: 0,
         padding: [0; 6],
+        insurance_fund: InsuranceFund {
+            vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
+            ..InsuranceFund::default()
+        },
     };
 
     Ok(())
@@ -375,8 +371,8 @@ pub fn handle_update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
     Ok(())
 }
 
-pub fn handle_initialize_market(
-    ctx: Context<InitializeMarket>,
+pub fn handle_initialize_perp_market(
+    ctx: Context<InitializePerpMarket>,
     amm_base_asset_reserve: u128,
     amm_quote_asset_reserve: u128,
     amm_periodicity: i64,
@@ -463,13 +459,11 @@ pub fn handle_initialize_market(
         } else {
             MarketStatus::Initialized
         },
-        settlement_price: 0,
+        expiry_price: 0,
         expiry_ts: 0,
         pubkey: *market_pubkey,
         market_index,
-        open_interest: 0,
-        base_asset_amount_long: 0,
-        base_asset_amount_short: 0,
+        number_of_users: 0,
         margin_ratio_initial, // unit is 20% (+2 decimal places)
         margin_ratio_maintenance,
         imf_factor: 0,
@@ -477,17 +471,13 @@ pub fn handle_initialize_market(
         next_funding_rate_record_id: 1,
         next_curve_record_id: 1,
         pnl_pool: PoolBalance::default(),
-        revenue_withdraw_since_last_settle: 0,
-        max_revenue_withdraw_per_period: 0,
-        last_revenue_withdraw_ts: now,
-        unrealized_initial_asset_weight: cast(SPOT_WEIGHT_PRECISION)?, // 100%
-        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION)?, // 100%
-        unrealized_imf_factor: 0,
-        unrealized_max_imbalance: 0,
+        insurance_claim: InsuranceClaim::default(),
+        unrealized_pnl_initial_asset_weight: cast(SPOT_WEIGHT_PRECISION)?, // 100%
+        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION)?, // 100%
+        unrealized_pnl_imf_factor: 0,
+        unrealized_pnl_max_imbalance: 0,
         liquidator_fee: liquidation_fee,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
-        quote_max_insurance: 0,
-        quote_settled_insurance: 0,
         padding: [0; 3],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
@@ -538,15 +528,17 @@ pub fn handle_initialize_market(
             order_tick_size: DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE,
             min_order_size: DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE,
             max_position_size: 0,
-            max_slippage_ratio: 50,           // ~2%
-            max_base_asset_amount_ratio: 100, // moves price ~2%
+            max_slippage_ratio: 50,         // ~2%
+            max_fill_reserve_fraction: 100, // moves price ~2%
             base_spread: 0,
             long_spread: 0,
             short_spread: 0,
             max_spread,
             last_bid_price_twap: init_reserve_price,
             last_ask_price_twap: init_reserve_price,
-            net_base_asset_amount: 0,
+            base_asset_amount_with_amm: 0,
+            base_asset_amount_long: 0,
+            base_asset_amount_short: 0,
             quote_asset_amount_long: 0,
             quote_asset_amount_short: 0,
             quote_entry_amount_long: 0,
@@ -564,14 +556,10 @@ pub fn handle_initialize_market(
                 market_index,
                 ..PerpPosition::default()
             },
-            market_position: PerpPosition {
-                market_index,
-                ..PerpPosition::default()
-            },
             last_update_slot: clock_slot,
 
             // lp stuff
-            net_unsettled_lp_base_asset_amount: 0,
+            base_asset_amount_with_unsettled_lp: 0,
             user_lp_shares: 0,
             lp_cooldown_time: 1,  // TODO: what should this be?
             amm_jit_intensity: 0, // turn it off at the start
@@ -674,9 +662,9 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
     )?;
 
     validate!(
-        market.base_asset_amount_long == 0
-            && market.base_asset_amount_short == 0
-            && market.open_interest == 0,
+        market.amm.base_asset_amount_long == 0
+            && market.amm.base_asset_amount_short == 0
+            && market.number_of_users == 0,
         ErrorCode::DefaultError,
         "outstanding base_asset_amounts must be balanced"
     )?;
@@ -851,10 +839,10 @@ pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128)
         base_asset_reserve_after,
         quote_asset_reserve_after,
         sqrt_k_after,
-        base_asset_amount_long: market.base_asset_amount_long.unsigned_abs(),
-        base_asset_amount_short: market.base_asset_amount_short.unsigned_abs(),
-        net_base_asset_amount: market.amm.net_base_asset_amount,
-        open_interest: market.open_interest,
+        base_asset_amount_long: market.amm.base_asset_amount_long.unsigned_abs(),
+        base_asset_amount_short: market.amm.base_asset_amount_short.unsigned_abs(),
+        base_asset_amount_with_amm: market.amm.base_asset_amount_with_amm,
+        number_of_users: market.number_of_users,
         total_fee: market.amm.total_fee,
         total_fee_minus_distributions: market.amm.total_fee_minus_distributions,
         adjustment_cost,
@@ -920,10 +908,10 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
 
     let market = &mut load_mut!(ctx.accounts.market)?;
 
-    let base_asset_amount_long = market.base_asset_amount_long.unsigned_abs();
-    let base_asset_amount_short = market.base_asset_amount_short.unsigned_abs();
-    let net_base_asset_amount = market.amm.net_base_asset_amount;
-    let open_interest = market.open_interest;
+    let base_asset_amount_long = market.amm.base_asset_amount_long.unsigned_abs();
+    let base_asset_amount_short = market.amm.base_asset_amount_short.unsigned_abs();
+    let base_asset_amount_with_amm = market.amm.base_asset_amount_with_amm;
+    let number_of_users = market.number_of_users;
 
     let price_before = math::amm::calculate_price(
         market.amm.quote_asset_reserve,
@@ -1051,8 +1039,8 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         sqrt_k_after,
         base_asset_amount_long,
         base_asset_amount_short,
-        net_base_asset_amount,
-        open_interest,
+        base_asset_amount_with_amm,
+        number_of_users,
         adjustment_cost,
         total_fee,
         total_fee_minus_distributions,
@@ -1148,33 +1136,33 @@ pub fn handle_update_market_max_imbalances(
     )?;
 
     validate!(
-        market.quote_settled_insurance <= quote_max_insurance,
+        market.insurance_claim.quote_settled_insurance <= quote_max_insurance,
         ErrorCode::DefaultError,
-        "quote_max_insurance must be above market.quote_settled_insurance={}",
-        market.quote_settled_insurance
+        "quote_max_insurance must be above market.insurance_claim.quote_settled_insurance={}",
+        market.insurance_claim.quote_settled_insurance
     )?;
 
     msg!(
         "market.max_revenue_withdraw_per_period: {:?} -> {:?}",
-        market.max_revenue_withdraw_per_period,
+        market.insurance_claim.max_revenue_withdraw_per_period,
         max_revenue_withdraw_per_period
     );
 
     msg!(
         "market.unrealized_max_imbalance: {:?} -> {:?}",
-        market.unrealized_max_imbalance,
+        market.unrealized_pnl_max_imbalance,
         unrealized_max_imbalance
     );
 
     msg!(
         "market.quote_max_insurance: {:?} -> {:?}",
-        market.quote_max_insurance,
+        market.insurance_claim.quote_max_insurance,
         quote_max_insurance
     );
 
-    market.max_revenue_withdraw_per_period = max_revenue_withdraw_per_period;
-    market.unrealized_max_imbalance = unrealized_max_imbalance;
-    market.quote_max_insurance = quote_max_insurance;
+    market.insurance_claim.max_revenue_withdraw_per_period = max_revenue_withdraw_per_period;
+    market.unrealized_pnl_max_imbalance = unrealized_max_imbalance;
+    market.insurance_claim.quote_max_insurance = quote_max_insurance;
 
     Ok(())
 }
@@ -1217,7 +1205,7 @@ pub fn handle_update_insurance_withdraw_escrow_period(
     insurance_withdraw_escrow_period: i64,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    spot_market.insurance_withdraw_escrow_period = insurance_withdraw_escrow_period;
+    spot_market.insurance_fund.unstaking_period = insurance_withdraw_escrow_period;
     Ok(())
 }
 
@@ -1286,17 +1274,17 @@ pub fn handle_update_spot_market_if_factor(
 
     msg!(
         "spot_market.user_if_factor: {:?} -> {:?}",
-        spot_market.user_if_factor,
+        spot_market.insurance_fund.user_factor,
         user_if_factor
     );
     msg!(
         "spot_market.total_if_factor: {:?} -> {:?}",
-        spot_market.total_if_factor,
+        spot_market.insurance_fund.total_factor,
         total_if_factor
     );
 
-    spot_market.user_if_factor = user_if_factor;
-    spot_market.total_if_factor = total_if_factor;
+    spot_market.insurance_fund.user_factor = user_if_factor;
+    spot_market.insurance_fund.total_factor = total_if_factor;
 
     Ok(())
 }
@@ -1309,10 +1297,10 @@ pub fn handle_update_spot_market_revenue_settle_period(
     validate!(revenue_settle_period > 0, ErrorCode::DefaultError)?;
     msg!(
         "spot_market.revenue_settle_period: {:?} -> {:?}",
-        spot_market.revenue_settle_period,
+        spot_market.insurance_fund.revenue_settle_period,
         revenue_settle_period
     );
-    spot_market.revenue_settle_period = revenue_settle_period;
+    spot_market.insurance_fund.revenue_settle_period = revenue_settle_period;
     Ok(())
 }
 
@@ -1451,8 +1439,8 @@ pub fn handle_update_market_unrealized_asset_weight(
         "must enforce unrealized_initial_asset_weight <= unrealized_maintenance_asset_weight",
     )?;
     let market = &mut load_mut!(ctx.accounts.market)?;
-    market.unrealized_initial_asset_weight = unrealized_initial_asset_weight;
-    market.unrealized_maintenance_asset_weight = unrealized_maintenance_asset_weight;
+    market.unrealized_pnl_initial_asset_weight = unrealized_initial_asset_weight;
+    market.unrealized_pnl_maintenance_asset_weight = unrealized_maintenance_asset_weight;
     Ok(())
 }
 
@@ -1667,7 +1655,7 @@ pub fn handle_update_max_base_asset_amount_ratio(
 ) -> Result<()> {
     validate!(max_base_asset_amount_ratio > 0, ErrorCode::DefaultError)?;
     let market = &mut load_mut!(ctx.accounts.market)?;
-    market.amm.max_base_asset_amount_ratio = max_base_asset_amount_ratio;
+    market.amm.max_fill_reserve_fraction = max_base_asset_amount_ratio;
     Ok(())
 }
 
@@ -1734,7 +1722,7 @@ pub fn handle_admin_remove_insurance_fund_stake(
 
     let n_shares = math::insurance::vault_amount_to_if_shares(
         amount,
-        spot_market.total_if_shares,
+        spot_market.insurance_fund.total_shares,
         ctx.accounts.insurance_fund_vault.amount,
     )?;
 
@@ -1893,7 +1881,7 @@ pub struct UpdateSerumVault<'info> {
 }
 
 #[derive(Accounts)]
-pub struct InitializeMarket<'info> {
+pub struct InitializePerpMarket<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
     #[account(

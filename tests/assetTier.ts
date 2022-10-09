@@ -87,7 +87,7 @@ describe('asset tiers', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [
@@ -111,7 +111,7 @@ describe('asset tiers', () => {
 		);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solOracle,
 			AMM_RESERVE_PRECISION,
 			AMM_RESERVE_PRECISION,
@@ -124,9 +124,9 @@ describe('asset tiers', () => {
 		await clearingHouse.updateMarketBaseSpread(0, 2000);
 		await clearingHouse.updateCurveUpdateIntensity(0, 100);
 
-		const userId = 0;
+		const subAccountId = 0;
 		const name = 'BIGZ';
-		await clearingHouse.initializeUserAccount(userId, name);
+		await clearingHouse.initializeUserAccount(subAccountId, name);
 		await clearingHouse.deposit(
 			// $10k
 			QUOTE_PRECISION.mul(new BN(10000)),

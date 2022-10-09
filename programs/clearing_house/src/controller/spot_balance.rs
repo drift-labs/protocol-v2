@@ -12,8 +12,8 @@ use crate::math::spot_balance::{
 use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
 use crate::math_error;
 use crate::state::events::SpotInterestRecord;
-use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
+use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::user::SpotPosition;
 use crate::validate;
@@ -125,7 +125,7 @@ pub fn update_spot_market_cumulative_interest(
     if deposit_interest > 0 && borrow_interest > 1 {
         // borrowers -> lenders IF fee here
         let deposit_interest_for_stakers = deposit_interest
-            .checked_mul(spot_market.total_if_factor as u128)
+            .checked_mul(spot_market.insurance_fund.total_factor as u128)
             .ok_or_else(math_error!())?
             .checked_div(IF_FACTOR_PRECISION)
             .ok_or_else(math_error!())?;
@@ -488,11 +488,11 @@ mod test {
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_RATE_PRECISION_U32, SPOT_UTILIZATION_PRECISION,
         SPOT_UTILIZATION_PRECISION_U32, SPOT_WEIGHT_PRECISION,
     };
-    use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
+    use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
-    use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+    use crate::state::spot_market::{InsuranceFund, SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::tests::utils::get_pyth_price;
@@ -529,10 +529,10 @@ mod test {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
-                net_base_asset_amount: BASE_PRECISION_I128,
+                base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData::default_price(
                     oracle_price.agg.price as i128,
@@ -541,7 +541,7 @@ mod test {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            open_interest: 1,
+            number_of_users: 1,
             status: MarketStatus::Active,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
@@ -866,10 +866,10 @@ mod test {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
-                net_base_asset_amount: BASE_PRECISION_I128,
+                base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData::default_price(
                     oracle_price.agg.price as i128,
@@ -878,7 +878,7 @@ mod test {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            open_interest: 1,
+            number_of_users: 1,
             status: MarketStatus::Active,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
@@ -921,7 +921,10 @@ mod test {
             deposit_balance: SPOT_BALANCE_PRECISION,
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
-            revenue_settle_period: 1,
+            insurance_fund: InsuranceFund {
+                revenue_settle_period: 1,
+                ..InsuranceFund::default()
+            },
             status: MarketStatus::Active,
             ..SpotMarket::default()
         };
@@ -945,8 +948,8 @@ mod test {
             ..User::default()
         };
 
-        spot_market.user_if_factor = 900;
-        spot_market.total_if_factor = 1000; //1_000_000
+        spot_market.insurance_fund.user_factor = 900;
+        spot_market.insurance_fund.total_factor = 1000; //1_000_000
 
         assert_eq!(spot_market.utilization_twap, 0);
         assert_eq!(spot_market.deposit_balance, 1000000000);
@@ -1084,7 +1087,7 @@ mod test {
         // settle IF pool to 100% utilization boundary
         assert_eq!(spot_market.revenue_pool.balance, 385047);
         assert_eq!(spot_market.utilization_twap, 462003);
-        spot_market.revenue_settle_period = 1;
+        spot_market.insurance_fund.revenue_settle_period = 1;
 
         let settle_amount = settle_revenue_to_insurance_fund(
             deposit_tokens_3 as u64,
@@ -1095,8 +1098,8 @@ mod test {
         .unwrap();
 
         assert_eq!(settle_amount, 626);
-        assert_eq!(spot_market.user_if_shares, 0);
-        assert_eq!(spot_market.total_if_shares, 0);
+        assert_eq!(spot_market.insurance_fund.user_shares, 0);
+        assert_eq!(spot_market.insurance_fund.total_shares, 0);
         assert_eq!(if_tokens_3 - (settle_amount as u128), 1688);
         assert_eq!(spot_market.revenue_pool.balance, 0);
         assert_eq!(spot_market.utilization_twap, 462004);
@@ -1205,10 +1208,10 @@ mod test {
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
-                max_base_asset_amount_ratio: 100,
+                max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
-                net_base_asset_amount: BASE_PRECISION_I128,
+                base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData::default_price(
                     oracle_price.agg.price as i128,
@@ -1217,7 +1220,7 @@ mod test {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            open_interest: 1,
+            number_of_users: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
@@ -1280,8 +1283,8 @@ mod test {
             ..User::default()
         };
 
-        spot_market.user_if_factor = 90_000;
-        spot_market.total_if_factor = 100_000;
+        spot_market.insurance_fund.user_factor = 90_000;
+        spot_market.insurance_fund.total_factor = 100_000;
 
         assert_eq!(spot_market.utilization_twap, 0);
         assert_eq!(
@@ -1428,7 +1431,7 @@ mod test {
         // settle IF pool to 100% utilization boundary
         // only half of depositors available claim was settled (to protect vault)
         assert_eq!(spot_market.revenue_pool.balance, 102149084836788);
-        spot_market.revenue_settle_period = 1;
+        spot_market.insurance_fund.revenue_settle_period = 1;
         let settle_amount = settle_revenue_to_insurance_fund(
             deposit_tokens_3 as u64,
             if_tokens_3 as u64,
@@ -1437,8 +1440,8 @@ mod test {
         )
         .unwrap();
         assert_eq!(settle_amount, 229742506021);
-        assert_eq!(spot_market.user_if_shares, 0);
-        assert_eq!(spot_market.total_if_shares, 0);
+        assert_eq!(spot_market.insurance_fund.user_shares, 0);
+        assert_eq!(spot_market.insurance_fund.total_shares, 0);
         if_balance_2 += settle_amount;
         assert_eq!(if_balance_2, 229742506021);
         assert_eq!(if_tokens_3 - (settle_amount as u128), 996619988392); // w/ update interest for settle_spot_market_to_if

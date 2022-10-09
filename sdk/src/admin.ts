@@ -174,7 +174,7 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
-	public async initializeMarket(
+	public async initializePerpMarket(
 		priceOracle: PublicKey,
 		baseAssetReserve: BN,
 		quoteAssetReserve: BN,
@@ -191,27 +191,28 @@ export class Admin extends ClearingHouse {
 			this.getStateAccount().numberOfMarkets
 		);
 
-		const initializeMarketTx = await this.program.transaction.initializeMarket(
-			baseAssetReserve,
-			quoteAssetReserve,
-			periodicity,
-			pegMultiplier,
-			oracleSource,
-			marginRatioInitial,
-			marginRatioMaintenance,
-			liquidationFee,
-			activeStatus,
-			{
-				accounts: {
-					state: await this.getStatePublicKey(),
-					admin: this.wallet.publicKey,
-					oracle: priceOracle,
-					market: marketPublicKey,
-					rent: SYSVAR_RENT_PUBKEY,
-					systemProgram: anchor.web3.SystemProgram.programId,
-				},
-			}
-		);
+		const initializeMarketTx =
+			await this.program.transaction.initializePerpMarket(
+				baseAssetReserve,
+				quoteAssetReserve,
+				periodicity,
+				pegMultiplier,
+				oracleSource,
+				marginRatioInitial,
+				marginRatioMaintenance,
+				liquidationFee,
+				activeStatus,
+				{
+					accounts: {
+						state: await this.getStatePublicKey(),
+						admin: this.wallet.publicKey,
+						oracle: priceOracle,
+						market: marketPublicKey,
+						rent: SYSVAR_RENT_PUBKEY,
+						systemProgram: anchor.web3.SystemProgram.programId,
+					},
+				}
+			);
 		const { txSig } = await this.txSender.send(
 			initializeMarketTx,
 			[],

@@ -9,7 +9,7 @@ use crate::math::constants::{
 };
 use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
 use crate::math_error;
-use crate::state::market::PerpMarket;
+use crate::state::perp_market::PerpMarket;
 use crate::validate;
 use solana_program::msg;
 
@@ -37,7 +37,7 @@ pub fn calculate_budgeted_k_scale(
         market.amm.quote_asset_reserve,
         budget,
         market.amm.peg_multiplier,
-        market.amm.net_base_asset_amount,
+        market.amm.base_asset_amount_with_amm,
         k_pct_upper_bound,
         k_pct_lower_bound,
     )?;
@@ -200,7 +200,7 @@ pub fn adjust_k_cost(
 
     // Find the net market value before adjusting k
     let (current_net_market_value, _) = _calculate_base_asset_value_and_pnl(
-        market_clone.amm.net_base_asset_amount,
+        market_clone.amm.base_asset_amount_with_amm,
         0,
         &market_clone.amm,
         false,
@@ -209,7 +209,7 @@ pub fn adjust_k_cost(
     update_k(&mut market_clone, update_k_result)?;
 
     let (_new_net_market_value, cost) = _calculate_base_asset_value_and_pnl(
-        market_clone.amm.net_base_asset_amount,
+        market_clone.amm.base_asset_amount_with_amm,
         current_net_market_value,
         &market_clone.amm,
         false,
@@ -227,12 +227,12 @@ pub fn adjust_k_cost_and_update(
 ) -> ClearingHouseResult<i128> {
     // Find the net market value before adjusting k
     let current_net_market_value =
-        calculate_base_asset_value(market.amm.net_base_asset_amount, &market.amm, false)?;
+        calculate_base_asset_value(market.amm.base_asset_amount_with_amm, &market.amm, false)?;
 
     update_k(market, update_k_result)?;
 
     let (_new_net_market_value, cost) = _calculate_base_asset_value_and_pnl(
-        market.amm.net_base_asset_amount,
+        market.amm.base_asset_amount_with_amm,
         current_net_market_value,
         &market.amm,
         false,
@@ -274,7 +274,7 @@ pub fn get_update_k_result(
 
     if bound_update
         && new_sqrt_k < old_sqrt_k
-        && market.amm.net_base_asset_amount.unsigned_abs()
+        && market.amm.base_asset_amount_with_amm.unsigned_abs()
             > sqrt_k.checked_div(3).ok_or_else(math_error!())?
     {
         // todo, check less lp_tokens as well
@@ -282,7 +282,7 @@ pub fn get_update_k_result(
         return Err(ErrorCode::InvalidUpdateK);
     }
 
-    if market.amm.net_base_asset_amount.unsigned_abs() > sqrt_k {
+    if market.amm.base_asset_amount_with_amm.unsigned_abs() > sqrt_k {
         msg!("new_sqrt_k too small relative to market imbalance");
         return Err(ErrorCode::InvalidUpdateK);
     }
@@ -342,7 +342,7 @@ mod test {
     use crate::math::constants::{
         BASE_PRECISION_U64, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, QUOTE_PRECISION_I64,
     };
-    use crate::state::market::AMM;
+    use crate::state::perp_market::AMM;
     use crate::state::user::PerpPosition;
 
     #[test]
@@ -376,7 +376,7 @@ mod test {
                 concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
-                net_base_asset_amount: -12295081967,
+                base_asset_amount_with_amm: -12295081967,
                 ..AMM::default()
             },
             ..PerpMarket::default()
@@ -453,7 +453,7 @@ mod test {
                 concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
                 sqrt_k: 10000000000000000000,
                 peg_multiplier,
-                net_base_asset_amount,
+                base_asset_amount_with_amm: net_base_asset_amount,
                 ..AMM::default()
             },
             ..PerpMarket::default()
@@ -501,7 +501,7 @@ mod test {
                 concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
-                net_base_asset_amount: -12295081967,
+                base_asset_amount_with_amm: -12295081967,
                 ..AMM::default()
             },
             ..PerpMarket::default()
@@ -632,7 +632,7 @@ mod test {
                 quote_asset_reserve: AMM_RESERVE_PRECISION * 55530,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 36365000,
-                net_base_asset_amount: (AMM_RESERVE_PRECISION * 66) as i128,
+                base_asset_amount_with_amm: (AMM_RESERVE_PRECISION * 66) as i128,
                 ..AMM::default()
             },
             ..PerpMarket::default()
@@ -662,13 +662,13 @@ mod test {
                 terminal_quote_asset_reserve: 999900009999000 * AMM_RESERVE_PRECISION,
                 sqrt_k: 100 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50_000_000_000,
-                net_base_asset_amount: (AMM_RESERVE_PRECISION / 10) as i128,
+                base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 10) as i128,
+                base_asset_amount_long: (AMM_RESERVE_PRECISION / 10) as i128,
                 order_step_size: 3,
                 max_spread: 1000,
                 ..AMM::default_test()
             },
             margin_ratio_initial: 1000,
-            base_asset_amount_long: (AMM_RESERVE_PRECISION / 10) as i128,
             ..PerpMarket::default()
         };
         // let (t_price, _t_qar, _t_bar) = calculate_terminal_price_and_reserves(&market.amm).unwrap();
@@ -714,7 +714,7 @@ mod test {
 
         let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
         assert_eq!(
-            market.amm.net_base_asset_amount,
+            market.amm.base_asset_amount_with_amm,
             (AMM_RESERVE_PRECISION / 10) as i128
         );
         assert_eq!(cost, 49400); //0.05
@@ -729,7 +729,7 @@ mod test {
                 .unwrap();
         let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
         assert_eq!(
-            market.amm.net_base_asset_amount,
+            market.amm.base_asset_amount_with_amm,
             (AMM_RESERVE_PRECISION / 10) as i128
         );
         assert_eq!(cost, 49450); //0.05
@@ -749,7 +749,7 @@ mod test {
                 .unwrap();
         let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
         assert_eq!(
-            market.amm.net_base_asset_amount,
+            market.amm.base_asset_amount_with_amm,
             (AMM_RESERVE_PRECISION / 10) as i128 - 1
         );
         assert_eq!(cost, 49450); //0.05
@@ -766,7 +766,7 @@ mod test {
         // cost to increase k is always positive when imbalanced
         let cost = adjust_k_cost(&mut market, &update_k_up).unwrap();
         assert_eq!(
-            market.amm.net_base_asset_amount,
+            market.amm.base_asset_amount_with_amm,
             (AMM_RESERVE_PRECISION / 10) as i128 - 1
         );
         assert_eq!(cost, 187800); //0.19

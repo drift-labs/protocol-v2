@@ -13,9 +13,9 @@ use crate::math::oracle;
 use crate::math::oracle::OracleValidity;
 use crate::math::position::_calculate_base_asset_value_and_pnl;
 use crate::math_error;
-use crate::state::market::{PerpMarket, AMM};
 use crate::state::oracle::get_oracle_price;
 use crate::state::oracle::OraclePriceData;
+use crate::state::perp_market::{PerpMarket, AMM};
 use std::cmp::{max, min};
 
 use crate::state::state::OracleGuardRails;
@@ -236,7 +236,7 @@ pub fn adjust_peg_cost(
     let cost = if new_peg_candidate != market_clone.amm.peg_multiplier {
         // Find the net market value before adjusting peg
         let (current_net_market_value, _) = _calculate_base_asset_value_and_pnl(
-            market_clone.amm.net_base_asset_amount,
+            market_clone.amm.base_asset_amount_with_amm,
             0,
             &market_clone.amm,
             false,
@@ -245,7 +245,7 @@ pub fn adjust_peg_cost(
         market_clone.amm.peg_multiplier = new_peg_candidate;
 
         let (_new_net_market_value, cost) = _calculate_base_asset_value_and_pnl(
-            market_clone.amm.net_base_asset_amount,
+            market_clone.amm.base_asset_amount_with_amm,
             current_net_market_value,
             &market_clone.amm,
             false,
@@ -515,7 +515,7 @@ pub fn calculate_expected_excess_funding_payment(
 
     let base_asset_amount = market
         .amm
-        .net_base_asset_amount
+        .base_asset_amount_with_amm
         .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
         .ok_or_else(math_error!())?;
 
@@ -603,7 +603,7 @@ mod test {
                 terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
                 sqrt_k: 64 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 19_400_000_000,
-                net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
+                base_asset_amount_with_amm: -(AMM_RESERVE_PRECISION as i128),
                 mark_std: PRICE_PRECISION as u64,
                 last_mark_price_twap_ts: 0,
                 base_spread: 250,
@@ -692,15 +692,15 @@ mod test {
         assert_eq!(budget, 39500000);
         assert!(check_lb);
 
-        market.amm.net_base_asset_amount = AMM_RESERVE_PRECISION as i128;
+        market.amm.base_asset_amount_with_amm = AMM_RESERVE_PRECISION as i128;
 
-        let swap_direction = if market.amm.net_base_asset_amount > 0 {
+        let swap_direction = if market.amm.base_asset_amount_with_amm > 0 {
             SwapDirection::Add
         } else {
             SwapDirection::Remove
         };
         let (new_terminal_quote_reserve, _new_terminal_base_reserve) = amm::calculate_swap_output(
-            market.amm.net_base_asset_amount.unsigned_abs(),
+            market.amm.base_asset_amount_with_amm.unsigned_abs(),
             market.amm.base_asset_reserve,
             swap_direction,
             market.amm.sqrt_k,
@@ -734,7 +734,7 @@ mod test {
                 terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
                 sqrt_k: 64 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 19_400_000_000,
-                net_base_asset_amount: AMM_RESERVE_PRECISION as i128,
+                base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
                 mark_std: PRICE_PRECISION as u64,
                 last_mark_price_twap_ts: 0,
                 curve_update_intensity: 100,
@@ -774,7 +774,7 @@ mod test {
                 terminal_quote_asset_reserve: 60439072663003,
                 sqrt_k: 60439076079049,
                 peg_multiplier: 34353000,
-                net_base_asset_amount: AMM_RESERVE_PRECISION as i128,
+                base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
                 last_mark_price_twap: 34128370,
                 last_mark_price_twap_ts: 165705,
                 curve_update_intensity: 100,

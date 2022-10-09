@@ -7,7 +7,7 @@ use crate::math::orders::{
     calculate_base_asset_amount_to_fill_up_to_limit_price, is_multiple_of_step_size,
     order_breaches_oracle_price_limits,
 };
-use crate::state::market::PerpMarket;
+use crate::state::perp_market::PerpMarket;
 use crate::state::user::{Order, OrderType};
 use crate::validate;
 

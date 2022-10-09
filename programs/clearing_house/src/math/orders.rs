@@ -15,7 +15,7 @@ use crate::math::constants::{BASE_PRECISION, MARGIN_PRECISION};
 use crate::math::position::calculate_entry_price;
 
 use crate::math_error;
-use crate::state::market::{PerpMarket, AMM};
+use crate::state::perp_market::{PerpMarket, AMM};
 
 use crate::math::ceil_div::CheckedCeilDiv;
 use crate::state::spot_market::SpotBalanceType;
@@ -712,7 +712,7 @@ mod test {
         use crate::controller::position::PositionDirection;
         use crate::math::constants::{MARGIN_PRECISION, PRICE_PRECISION_I128, PRICE_PRECISION_U64};
         use crate::math::orders::order_breaches_oracle_price_limits;
-        use crate::state::market::PerpMarket;
+        use crate::state::perp_market::PerpMarket;
         use crate::state::user::Order;
 
         #[test]

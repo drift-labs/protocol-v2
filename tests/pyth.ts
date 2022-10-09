@@ -193,7 +193,7 @@ describe('pyth-oracle', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0, 1],
 			spotMarketIndexes: [0],
 		});
@@ -259,7 +259,7 @@ describe('pyth-oracle', () => {
 		const periodicity = new BN(0); // 1 HOUR
 		const marketIndex = 0;
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			priceFeedAddress,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -281,7 +281,7 @@ describe('pyth-oracle', () => {
 		const periodicity = new BN(0);
 		const marketIndex = 1;
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			priceFeedAddress,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,

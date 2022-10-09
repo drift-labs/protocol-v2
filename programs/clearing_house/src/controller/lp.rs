@@ -1,7 +1,7 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math_error;
 use crate::state::events::{LPAction, LPRecord};
-use crate::state::market::PerpMarket;
+use crate::state::perp_market::PerpMarket;
 use crate::state::user::PerpPosition;
 use crate::state::user::User;
 
@@ -99,9 +99,9 @@ pub fn settle_lp_position(
 
     // todo: name for this is confusing, but adding is correct as is
     // definition: net position of users in the market that has the LP as a counterparty (which have NOT settled)
-    market.amm.net_unsettled_lp_base_asset_amount = market
+    market.amm.base_asset_amount_with_unsettled_lp = market
         .amm
-        .net_unsettled_lp_base_asset_amount
+        .base_asset_amount_with_unsettled_lp
         .checked_add(lp_metrics.base_asset_amount)
         .ok_or_else(math_error!())?;
 
@@ -170,7 +170,7 @@ pub fn burn_lp_shares(
     // clean up
     let unsettled_remainder = market
         .amm
-        .net_unsettled_lp_base_asset_amount
+        .base_asset_amount_with_unsettled_lp
         .cast::<i64>()?
         .checked_add(position.remainder_base_asset_amount.cast()?)
         .ok_or_else(math_error!())?;
@@ -181,7 +181,7 @@ pub fn burn_lp_shares(
             ErrorCode::DefaultError,
             "unsettled baa on final burn too big rel to stepsize {}: {}",
             market.amm.order_step_size,
-            market.amm.net_unsettled_lp_base_asset_amount,
+            market.amm.base_asset_amount_with_unsettled_lp,
         )?;
 
         // sub bc lps take the opposite side of the user
@@ -196,15 +196,15 @@ pub fn burn_lp_shares(
         let base_asset_amount = position.remainder_base_asset_amount.cast::<i128>()?;
 
         // user closes the dust
-        market.amm.net_base_asset_amount = market
+        market.amm.base_asset_amount_with_amm = market
             .amm
-            .net_base_asset_amount
+            .base_asset_amount_with_amm
             .checked_sub(base_asset_amount.cast()?)
             .ok_or_else(math_error!())?;
 
-        market.amm.net_unsettled_lp_base_asset_amount = market
+        market.amm.base_asset_amount_with_unsettled_lp = market
             .amm
-            .net_unsettled_lp_base_asset_amount
+            .base_asset_amount_with_unsettled_lp
             .checked_add(base_asset_amount.cast()?)
             .ok_or_else(math_error!())?;
 
@@ -260,7 +260,7 @@ pub fn burn_lp_shares(
 mod test {
     use super::*;
     use crate::math::constants::{AMM_RESERVE_PRECISION, BASE_PRECISION_U64};
-    use crate::state::market::AMM;
+    use crate::state::perp_market::AMM;
     use crate::state::user::PerpPosition;
 
     #[test]
@@ -286,8 +286,8 @@ mod test {
             quote_asset_amount: -10,
             ..PerpPosition::default()
         };
-        market.amm.net_unsettled_lp_base_asset_amount = -10;
-        market.base_asset_amount_short = -10;
+        market.amm.base_asset_amount_with_unsettled_lp = -10;
+        market.amm.base_asset_amount_short = -10;
 
         settle_lp_position(&mut position, &mut market).unwrap();
 
@@ -295,11 +295,11 @@ mod test {
         assert_eq!(position.last_net_quote_asset_amount_per_lp, -10);
         assert_eq!(position.base_asset_amount, 10);
         assert_eq!(position.quote_asset_amount, -10);
-        assert_eq!(market.amm.net_unsettled_lp_base_asset_amount, 0);
+        assert_eq!(market.amm.base_asset_amount_with_unsettled_lp, 0);
         // net baa doesnt change
         assert_eq!(
-            og_market.amm.net_base_asset_amount,
-            market.amm.net_base_asset_amount
+            og_market.amm.base_asset_amount_with_amm,
+            market.amm.base_asset_amount_with_amm
         );
 
         // burn
@@ -366,8 +366,8 @@ mod test {
             quote_asset_amount: 10,
             ..PerpPosition::default()
         };
-        market.amm.net_unsettled_lp_base_asset_amount = 10;
-        market.base_asset_amount_long = 10;
+        market.amm.base_asset_amount_with_unsettled_lp = 10;
+        market.amm.base_asset_amount_long = 10;
 
         settle_lp_position(&mut position, &mut market).unwrap();
 

@@ -7,7 +7,7 @@ use crate::math::constants::{
 };
 use crate::math::repeg::{calculate_fee_pool, get_total_fee_lower_bound};
 use crate::math_error;
-use crate::state::market::PerpMarket;
+use crate::state::perp_market::PerpMarket;
 use crate::state::user::PerpPosition;
 use solana_program::msg;
 use std::cmp::{max, min};
@@ -56,8 +56,8 @@ pub fn calculate_funding_rate_long_short(
     // If the net market position owes funding payment, the clearing house receives payment
     let settled_net_market_position = market
         .amm
-        .net_base_asset_amount
-        .checked_add(market.amm.net_unsettled_lp_base_asset_amount)
+        .base_asset_amount_with_amm
+        .checked_add(market.amm.base_asset_amount_with_unsettled_lp)
         .ok_or_else(math_error!())?;
 
     let net_market_position_funding_payment =
@@ -144,9 +144,9 @@ fn calculate_capped_funding_rate(
         let funding_payment_from_users = calculate_funding_payment_in_quote_precision(
             funding_rate,
             if funding_rate > 0 {
-                market.base_asset_amount_long
+                market.amm.base_asset_amount_long
             } else {
-                market.base_asset_amount_short
+                market.amm.base_asset_amount_short
             },
         )?;
 
@@ -160,13 +160,13 @@ fn calculate_capped_funding_rate(
             // longs receive
             calculate_funding_rate_from_pnl_limit(
                 funding_rate_pnl_limit,
-                market.base_asset_amount_long,
+                market.amm.base_asset_amount_long,
             )?
         } else {
             // shorts receive
             calculate_funding_rate_from_pnl_limit(
                 funding_rate_pnl_limit,
-                market.base_asset_amount_short,
+                market.amm.base_asset_amount_short,
             )?
         }
     } else {
@@ -181,7 +181,7 @@ pub fn calculate_funding_payment(
     market_position: &PerpPosition,
 ) -> ClearingHouseResult<i64> {
     let funding_rate_delta = amm_cumulative_funding_rate
-        .checked_sub(market_position.last_cumulative_funding_rate)
+        .checked_sub(market_position.last_cumulative_funding_rate.cast()?)
         .ok_or_else(math_error!())?;
 
     if funding_rate_delta == 0 {
@@ -263,20 +263,20 @@ pub fn calculate_funding_payment_in_quote_precision(
 mod test {
     use super::*;
     use crate::math::constants::{AMM_RESERVE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION};
-    use crate::state::market::{PerpMarket, AMM};
     use crate::state::oracle::HistoricalOracleData;
+    use crate::state::perp_market::{PerpMarket, AMM};
     #[test]
     fn capped_sym_funding_test() {
         // more shorts than longs, positive funding, 1/3 of fee pool too small
         let mut market = PerpMarket {
-            base_asset_amount_long: 12295081967,
-            base_asset_amount_short: -12295081967 * 2,
             amm: AMM {
                 base_asset_reserve: 512295081967,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
-                net_base_asset_amount: -12295081967,
+                base_asset_amount_with_amm: -12295081967,
+                base_asset_amount_long: 12295081967,
+                base_asset_amount_short: -12295081967 * 2,
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
 
@@ -314,14 +314,14 @@ mod test {
 
         // more longs than shorts, positive funding, amm earns funding
         market = PerpMarket {
-            base_asset_amount_long: 12295081967 * 2,
-            base_asset_amount_short: -12295081967,
             amm: AMM {
                 base_asset_reserve: 512295081967,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
-                net_base_asset_amount: 12295081967,
+                base_asset_amount_with_amm: 12295081967,
+                base_asset_amount_long: 12295081967 * 2,
+                base_asset_amount_short: -12295081967,
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
                 last_mark_price_twap: 50 * PRICE_PRECISION,
@@ -359,15 +359,15 @@ mod test {
         // 3) amm takes on the funding revenu/cost of those short LPs
 
         let mut market = PerpMarket {
-            base_asset_amount_long: 12295081967,
-            base_asset_amount_short: -12295081967 * 2,
             amm: AMM {
                 base_asset_reserve: 512295081967,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
-                net_base_asset_amount: -12295081967, //~12
-                net_unsettled_lp_base_asset_amount: (AMM_RESERVE_PRECISION * 500) as i128, //wowsers
+                base_asset_amount_with_amm: -12295081967, //~12
+                base_asset_amount_long: 12295081967,
+                base_asset_amount_short: -12295081967 * 2,
+                base_asset_amount_with_unsettled_lp: (AMM_RESERVE_PRECISION * 500) as i128, //wowsers
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
 
@@ -399,8 +399,8 @@ mod test {
 
         let settled_net_market_position = market
             .amm
-            .net_base_asset_amount
-            .checked_add(market.amm.net_unsettled_lp_base_asset_amount)
+            .base_asset_amount_with_amm
+            .checked_add(market.amm.base_asset_amount_with_unsettled_lp)
             .unwrap();
 
         let net_market_position_funding_payment = calculate_funding_payment_in_quote_precision(
@@ -410,8 +410,8 @@ mod test {
         .unwrap();
         let uncapped_funding_pnl = -net_market_position_funding_payment;
 
-        assert_eq!(market.amm.net_base_asset_amount, -12295081967);
-        assert_eq!(market.amm.net_unsettled_lp_base_asset_amount, 500000000000);
+        assert_eq!(market.amm.base_asset_amount_with_amm, -12295081967);
+        assert_eq!(market.amm.base_asset_amount_with_unsettled_lp, 500000000000);
         assert_eq!(settled_net_market_position, 487704918033);
         assert_eq!(net_market_position_funding_payment, -20321037);
         assert_eq!(uncapped_funding_pnl, 20321037); //clearing house revenue
@@ -426,15 +426,15 @@ mod test {
 
         // more longs than shorts, positive funding, amm earns funding
         market = PerpMarket {
-            base_asset_amount_long: 12295081967 * 2,
-            base_asset_amount_short: -12295081967,
             amm: AMM {
                 base_asset_reserve: 512295081967,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
-                net_base_asset_amount: 12295081967,
-                net_unsettled_lp_base_asset_amount: (AMM_RESERVE_PRECISION * 500) as i128, //wowsers
+                base_asset_amount_with_amm: 12295081967,
+                base_asset_amount_long: 12295081967 * 2,
+                base_asset_amount_short: -12295081967,
+                base_asset_amount_with_unsettled_lp: (AMM_RESERVE_PRECISION * 500) as i128, //wowsers
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
                 last_mark_price_twap: 50 * PRICE_PRECISION,
@@ -479,15 +479,15 @@ mod test {
         // 3) amm takes on the funding revenu/cost of those short LPs
 
         let mut market = PerpMarket {
-            base_asset_amount_long: 12295081967,
-            base_asset_amount_short: -12295081967 * 2,
             amm: AMM {
                 base_asset_reserve: 512295081967,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
-                net_base_asset_amount: -12295081967, //~12
-                net_unsettled_lp_base_asset_amount: -((AMM_RESERVE_PRECISION * 500) as i128), //wowsers
+                base_asset_amount_with_amm: -12295081967, //~12
+                base_asset_amount_long: 12295081967,
+                base_asset_amount_short: -12295081967 * 2,
+                base_asset_amount_with_unsettled_lp: -((AMM_RESERVE_PRECISION * 500) as i128), //wowsers
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: ((QUOTE_PRECISION * 99999) as i128),
 
@@ -519,8 +519,8 @@ mod test {
 
         let settled_net_market_position = market
             .amm
-            .net_base_asset_amount
-            .checked_add(market.amm.net_unsettled_lp_base_asset_amount)
+            .base_asset_amount_with_amm
+            .checked_add(market.amm.base_asset_amount_with_unsettled_lp)
             .unwrap();
 
         let net_market_position_funding_payment = calculate_funding_payment_in_quote_precision(
@@ -530,8 +530,11 @@ mod test {
         .unwrap();
         let uncapped_funding_pnl = -net_market_position_funding_payment;
 
-        assert_eq!(market.amm.net_base_asset_amount, -12295081967);
-        assert_eq!(market.amm.net_unsettled_lp_base_asset_amount, -500000000000);
+        assert_eq!(market.amm.base_asset_amount_with_amm, -12295081967);
+        assert_eq!(
+            market.amm.base_asset_amount_with_unsettled_lp,
+            -500000000000
+        );
         assert_eq!(settled_net_market_position, -512295081967);
         assert_eq!(net_market_position_funding_payment, 21345628);
         assert_eq!(uncapped_funding_pnl, -21345628); //clearing house loses $21
@@ -546,15 +549,15 @@ mod test {
 
         // more longs than shorts, positive funding, amm earns funding
         market = PerpMarket {
-            base_asset_amount_long: 12295081967 * 2,
-            base_asset_amount_short: -12295081967,
             amm: AMM {
                 base_asset_reserve: 512295081967,
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 50000000,
-                net_base_asset_amount: 12295081967,
-                net_unsettled_lp_base_asset_amount: -((AMM_RESERVE_PRECISION * 500) as i128), //wowsers
+                base_asset_amount_with_amm: 12295081967,
+                base_asset_amount_long: 12295081967 * 2,
+                base_asset_amount_short: -12295081967,
+                base_asset_amount_with_unsettled_lp: -((AMM_RESERVE_PRECISION * 500) as i128), //wowsers
                 total_exchange_fee: QUOTE_PRECISION / 2,
                 total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
                 last_mark_price_twap: 50 * PRICE_PRECISION,

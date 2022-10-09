@@ -84,7 +84,7 @@ describe('amm spread: market order', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -97,7 +97,7 @@ describe('amm spread: market order', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -625,7 +625,7 @@ describe('amm spread: market order', () => {
 			mantissaSqrtScale
 		);
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			btcUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

@@ -10,7 +10,7 @@ use anchor_lang::Discriminator;
 use arrayref::array_ref;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::state::market::PerpMarket;
+use crate::state::perp_market::PerpMarket;
 use crate::state::user::PerpPositions;
 
 use solana_program::msg;

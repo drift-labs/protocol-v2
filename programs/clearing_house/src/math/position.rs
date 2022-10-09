@@ -13,7 +13,7 @@ use crate::math::constants::{
 use crate::math::helpers::get_proportion_u128;
 use crate::math::pnl::calculate_pnl;
 use crate::math_error;
-use crate::state::market::AMM;
+use crate::state::perp_market::AMM;
 use crate::state::user::PerpPosition;
 
 pub fn calculate_base_asset_value_and_pnl(
@@ -158,9 +158,9 @@ pub fn calculate_base_asset_value_and_pnl_with_oracle_price(
     Ok((base_asset_value.unsigned_abs(), pnl))
 }
 
-pub fn calculate_base_asset_value_and_pnl_with_settlement_price(
+pub fn calculate_base_asset_value_and_pnl_with_expiry_price(
     market_position: &PerpPosition,
-    settlement_price: i128,
+    expiry_price: i128,
 ) -> ClearingHouseResult<(u128, i128)> {
     if market_position.base_asset_amount == 0 {
         return Ok((0, market_position.quote_asset_amount.cast()?));
@@ -169,7 +169,7 @@ pub fn calculate_base_asset_value_and_pnl_with_settlement_price(
     let base_asset_value = market_position
         .base_asset_amount
         .cast::<i128>()?
-        .checked_mul(settlement_price)
+        .checked_mul(expiry_price)
         .ok_or_else(math_error!())?
         .checked_div(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)
         .ok_or_else(math_error!())?;

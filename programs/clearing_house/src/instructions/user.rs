@@ -18,8 +18,8 @@ use crate::optional_accounts::{
 };
 use crate::print_error;
 use crate::state::events::{DepositDirection, DepositRecord, LPAction, LPRecord, NewUserRecord};
-use crate::state::market::MarketStatus;
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_market_set, MarketSet, PerpMarketMap};
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::{get_writable_spot_market_set, SpotMarketMap, SpotMarketSet};
@@ -32,7 +32,7 @@ use crate::{controller, math};
 
 pub fn handle_initialize_user(
     ctx: Context<InitializeUser>,
-    user_id: u8,
+    sub_account_id: u8,
     name: [u8; 32],
 ) -> Result<()> {
     let user_key = ctx.accounts.user.key();
@@ -43,7 +43,7 @@ pub fn handle_initialize_user(
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
     *user = User {
         authority: ctx.accounts.authority.key(),
-        user_id,
+        sub_account_id,
         name,
         next_order_id: 1,
         next_liquidation_id: 1,
@@ -53,19 +53,19 @@ pub fn handle_initialize_user(
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
     let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
-    user_stats.number_of_users = user_stats
-        .number_of_users
+    user_stats.number_of_sub_accounts = user_stats
+        .number_of_sub_accounts
         .checked_add(1)
         .ok_or_else(math_error!())?;
 
     // Only try to add referrer if it is the first user
-    if user_stats.number_of_users == 1 {
+    if user_stats.number_of_sub_accounts == 1 {
         let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
         let referrer = if let (Some(referrer), Some(referrer_stats)) = (referrer, referrer_stats) {
             let referrer = load!(referrer)?;
             let mut referrer_stats = load_mut!(referrer_stats)?;
 
-            validate!(referrer.user_id == 0, ErrorCode::InvalidReferrer)?;
+            validate!(referrer.sub_account_id == 0, ErrorCode::InvalidReferrer)?;
 
             validate!(
                 referrer.authority == referrer_stats.authority,
@@ -95,7 +95,7 @@ pub fn handle_initialize_user(
         ts: Clock::get()?.unix_timestamp,
         user_authority: ctx.accounts.authority.key(),
         user: user_key,
-        user_id,
+        sub_account_id,
         name,
         referrer: user_stats.referrer
     });
@@ -114,7 +114,7 @@ pub fn handle_initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result
 
     *user_stats = UserStats {
         authority: ctx.accounts.authority.key(),
-        number_of_users: 0,
+        number_of_sub_accounts: 0,
         last_taker_volume_30d_ts: clock.unix_timestamp,
         last_maker_volume_30d_ts: clock.unix_timestamp,
         last_filler_volume_30d_ts: clock.unix_timestamp,
@@ -140,7 +140,7 @@ pub fn handle_deposit(
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
 
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let mut oracle_map = OracleMap::load(
@@ -159,7 +159,7 @@ pub fn handle_deposit(
         return Err(ErrorCode::InsufficientDeposit.into());
     }
 
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
 
     let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
@@ -266,7 +266,7 @@ pub fn handle_withdraw(
     let now = clock.unix_timestamp;
     let state = &ctx.accounts.state;
 
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let mut oracle_map = OracleMap::load(
@@ -323,7 +323,7 @@ pub fn handle_withdraw(
     let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
     let oracle_price = oracle_price_data.price;
 
-    user.being_liquidated = false;
+    user.is_being_liquidated = false;
 
     controller::token::send_from_program_vault(
         &ctx.accounts.token_program,
@@ -376,12 +376,12 @@ pub fn handle_transfer_deposit(
     let from_user = &mut load_mut!(ctx.accounts.from_user)?;
 
     validate!(
-        !to_user.bankrupt,
+        !to_user.is_bankrupt,
         ErrorCode::UserBankrupt,
         "to_user bankrupt"
     )?;
     validate!(
-        !from_user.bankrupt,
+        !from_user.is_bankrupt,
         ErrorCode::UserBankrupt,
         "from_user bankrupt"
     )?;
@@ -437,7 +437,7 @@ pub fn handle_transfer_deposit(
         "From user does not meet initial margin requirement"
     )?;
 
-    from_user.being_liquidated = false;
+    from_user.is_being_liquidated = false;
 
     let oracle_price = {
         let spot_market = &spot_market_map.get_ref(&market_index)?;
@@ -510,7 +510,7 @@ pub struct OrderParams {
     pub immediate_or_cancel: bool,
     pub trigger_price: Option<u64>,
     pub trigger_condition: OrderTriggerCondition,
-    pub oracle_price_offset: Option<i64>,
+    pub oracle_price_offset: Option<i32>,
     pub auction_duration: Option<u8>,
     pub time_in_force: Option<u8>,
     pub auction_start_price: Option<u64>,
@@ -824,7 +824,7 @@ pub fn handle_place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
 #[access_control(
     amm_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_add_liquidity<'info>(
+pub fn handle_add_perp_lp_shares<'info>(
     ctx: Context<AddRemoveLiquidity>,
     n_shares: u64,
     market_index: u16,
@@ -844,7 +844,7 @@ pub fn handle_add_liquidity<'info>(
     let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
     let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
 
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
     math::liquidation::validate_user_not_being_liquidated(
         user,
         &market_map,
@@ -891,7 +891,7 @@ pub fn handle_add_liquidity<'info>(
             n_shares,
         )?;
 
-        user.last_lp_add_time = now;
+        user.last_add_perp_lp_shares_ts = now;
     }
 
     // check margin requirements
@@ -916,7 +916,7 @@ pub fn handle_add_liquidity<'info>(
 #[access_control(
     amm_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_remove_liquidity<'info>(
+pub fn handle_remove_perp_lp_shares<'info>(
     ctx: Context<AddRemoveLiquidity>,
     shares_to_burn: u64,
     market_index: u16,
@@ -955,7 +955,7 @@ pub fn handle_remove_liquidity<'info>(
     let mut market = market_map.get_ref_mut(&market_index)?;
 
     let time_since_last_add_liquidity = now
-        .checked_sub(user.last_lp_add_time)
+        .checked_sub(user.last_add_perp_lp_shares_ts)
         .ok_or_else(math_error!())?;
 
     validate!(
@@ -992,7 +992,7 @@ pub fn handle_remove_liquidity<'info>(
 
 pub fn handle_update_user_name(
     ctx: Context<UpdateUser>,
-    _user_id: u8,
+    _sub_account_id: u8,
     name: [u8; 32],
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -1002,17 +1002,17 @@ pub fn handle_update_user_name(
 
 pub fn handle_update_user_custom_margin_ratio(
     ctx: Context<UpdateUser>,
-    _user_id: u8,
+    _sub_account_id: u8,
     margin_ratio: u32,
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
-    user.custom_margin_ratio = margin_ratio;
+    user.max_margin_ratio = margin_ratio;
     Ok(())
 }
 
 pub fn handle_update_user_delegate(
     ctx: Context<UpdateUser>,
-    _user_id: u8,
+    _sub_account_id: u8,
     delegate: Pubkey,
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -1026,19 +1026,19 @@ pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
 
     validate_user_deletion(user, user_stats)?;
 
-    checked_decrement!(user_stats.number_of_users, 1);
+    checked_decrement!(user_stats.number_of_sub_accounts, 1);
 
     Ok(())
 }
 
 #[derive(Accounts)]
 #[instruction(
-    user_id: u8,
+    sub_account_id: u8,
 )]
 pub struct InitializeUser<'info> {
     #[account(
         init,
-        seeds = [b"user", authority.key.as_ref(), user_id.to_le_bytes().as_ref()],
+        seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
         space = std::mem::size_of::<User>() + 8,
         bump,
         payer = payer
@@ -1236,12 +1236,12 @@ pub struct AddRemoveLiquidity<'info> {
 
 #[derive(Accounts)]
 #[instruction(
-    user_id: u8,
+    sub_account_id: u8,
 )]
 pub struct UpdateUser<'info> {
     #[account(
         mut,
-        seeds = [b"user", authority.key.as_ref(), user_id.to_le_bytes().as_ref()],
+        seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
         bump,
     )]
     pub user: AccountLoader<'info, User>,
@@ -1265,7 +1265,11 @@ pub struct DeleteUser<'info> {
     pub authority: Signer<'info>,
 }
 
-pub fn initialize_user(ctx: Context<InitializeUser>, user_id: u8, name: [u8; 32]) -> Result<()> {
+pub fn initialize_user(
+    ctx: Context<InitializeUser>,
+    sub_account_id: u8,
+    name: [u8; 32],
+) -> Result<()> {
     let user_key = ctx.accounts.user.key();
     let mut user = ctx
         .accounts
@@ -1274,7 +1278,7 @@ pub fn initialize_user(ctx: Context<InitializeUser>, user_id: u8, name: [u8; 32]
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
     *user = User {
         authority: ctx.accounts.authority.key(),
-        user_id,
+        sub_account_id,
         name,
         next_order_id: 1,
         next_liquidation_id: 1,
@@ -1284,19 +1288,19 @@ pub fn initialize_user(ctx: Context<InitializeUser>, user_id: u8, name: [u8; 32]
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
     let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
-    user_stats.number_of_users = user_stats
-        .number_of_users
+    user_stats.number_of_sub_accounts = user_stats
+        .number_of_sub_accounts
         .checked_add(1)
         .ok_or_else(math_error!())?;
 
     // Only try to add referrer if it is the first user
-    if user_stats.number_of_users == 1 {
+    if user_stats.number_of_sub_accounts == 1 {
         let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
         let referrer = if let (Some(referrer), Some(referrer_stats)) = (referrer, referrer_stats) {
             let referrer = load!(referrer)?;
             let mut referrer_stats = load_mut!(referrer_stats)?;
 
-            validate!(referrer.user_id == 0, ErrorCode::InvalidReferrer)?;
+            validate!(referrer.sub_account_id == 0, ErrorCode::InvalidReferrer)?;
 
             validate!(
                 referrer.authority == referrer_stats.authority,
@@ -1326,7 +1330,7 @@ pub fn initialize_user(ctx: Context<InitializeUser>, user_id: u8, name: [u8; 32]
         ts: Clock::get()?.unix_timestamp,
         user_authority: ctx.accounts.authority.key(),
         user: user_key,
-        user_id,
+        sub_account_id,
         name,
         referrer: user_stats.referrer
     });

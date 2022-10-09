@@ -12,7 +12,6 @@ import {
 	isVariant,
 	getVariant,
 	Order,
-	ZERO,
 	PRICE_PRECISION,
 	SpotMarketAccount,
 	PerpMarketAccount,
@@ -265,7 +264,7 @@ export class DLOB {
 			type = 'trigger';
 		} else if (isOneOfVariant(order.orderType, ['market', 'triggerMarket'])) {
 			type = 'market';
-		} else if (!order.oraclePriceOffset.eq(ZERO)) {
+		} else if (order.oraclePriceOffset !== 0) {
 			type = 'floatingLimit';
 		} else {
 			type = 'limit';

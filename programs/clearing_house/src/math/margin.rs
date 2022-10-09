@@ -17,9 +17,9 @@ use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
 use crate::math::spot_balance::{get_balance_value_and_token_amount, get_token_value};
 
-use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
@@ -200,7 +200,7 @@ pub fn calculate_perp_position_value_and_pnl(
     };
 
     let valuation_price = if market.status == MarketStatus::Settlement {
-        market.settlement_price
+        market.expiry_price
     } else {
         oracle_price_data.price
     };
@@ -262,7 +262,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     let mut with_isolated_liability: bool = false;
 
     let user_custom_margin_ratio = if margin_requirement_type == MarginRequirementType::Initial {
-        user.custom_margin_ratio as u128
+        user.max_margin_ratio as u128
     } else {
         0_u128
     };

@@ -9,7 +9,7 @@ use crate::math::constants::{
     MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128,
 };
 use crate::math_error;
-use crate::state::market::AMM;
+use crate::state::perp_market::AMM;
 use crate::validate;
 use solana_program::msg;
 use std::cmp::{max, min};

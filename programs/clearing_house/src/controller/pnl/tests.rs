@@ -9,9 +9,9 @@ use crate::math::constants::{
     SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
     SPOT_WEIGHT_PRECISION,
 };
-use crate::state::market::{MarketStatus, PerpMarket, PoolBalance, AMM};
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::{MarketStatus, PerpMarket, PoolBalance, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
@@ -68,10 +68,10 @@ pub fn user_no_position() {
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
-            max_base_asset_amount_ratio: 100,
+            max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
             quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
-            net_base_asset_amount: BASE_PRECISION_I128,
+            base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price as i128,
@@ -83,7 +83,7 @@ pub fn user_no_position() {
         },
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
-        open_interest: 1,
+        number_of_users: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
@@ -182,10 +182,10 @@ pub fn user_does_not_meet_maintenance_requirement() {
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
-            max_base_asset_amount_ratio: 100,
+            max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
             quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
-            net_base_asset_amount: BASE_PRECISION_I128,
+            base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price as i128,
@@ -197,7 +197,7 @@ pub fn user_does_not_meet_maintenance_requirement() {
         },
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
-        open_interest: 1,
+        number_of_users: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
@@ -205,7 +205,7 @@ pub fn user_does_not_meet_maintenance_requirement() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -300,10 +300,10 @@ pub fn user_unsettled_negative_pnl() {
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
-            max_base_asset_amount_ratio: 100,
+            max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
             quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
-            net_base_asset_amount: BASE_PRECISION_I128,
+            base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price as i128,
@@ -315,7 +315,7 @@ pub fn user_unsettled_negative_pnl() {
         },
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
-        open_interest: 1,
+        number_of_users: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
@@ -323,7 +323,7 @@ pub fn user_unsettled_negative_pnl() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -430,10 +430,10 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
-            max_base_asset_amount_ratio: 100,
+            max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
             quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
-            net_base_asset_amount: BASE_PRECISION_I128,
+            base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price as i128,
@@ -445,7 +445,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
         },
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
-        open_interest: 1,
+        number_of_users: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
@@ -453,7 +453,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -560,10 +560,10 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
-            max_base_asset_amount_ratio: 100,
+            max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
             quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
-            net_base_asset_amount: BASE_PRECISION_I128,
+            base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price as i128,
@@ -575,7 +575,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
         },
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
-        open_interest: 1,
+        number_of_users: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
@@ -583,7 +583,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -690,10 +690,10 @@ pub fn market_fee_pool_receives_portion() {
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
-            max_base_asset_amount_ratio: 100,
+            max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
             quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
-            net_base_asset_amount: BASE_PRECISION_I128,
+            base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             total_fee_minus_distributions: QUOTE_PRECISION_I128,
             historical_oracle_data: HistoricalOracleData {
@@ -706,7 +706,7 @@ pub fn market_fee_pool_receives_portion() {
         },
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
-        open_interest: 1,
+        number_of_users: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
@@ -714,7 +714,7 @@ pub fn market_fee_pool_receives_portion() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -822,10 +822,10 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
-            max_base_asset_amount_ratio: 100,
+            max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
             quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
-            net_base_asset_amount: BASE_PRECISION_I128,
+            base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             total_fee_minus_distributions: QUOTE_PRECISION_I128,
             fee_pool: PoolBalance {
@@ -843,7 +843,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
         },
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
-        open_interest: 1,
+        number_of_users: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
@@ -851,7 +851,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -959,10 +959,10 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 151 * PEG_PRECISION,
             max_slippage_ratio: 50,
-            max_base_asset_amount_ratio: 100,
+            max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
             quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
-            net_base_asset_amount: BASE_PRECISION_I128,
+            base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price as i128,
@@ -974,7 +974,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
         },
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
-        open_interest: 1,
+        number_of_users: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
@@ -982,7 +982,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1091,10 +1091,10 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 121 * PEG_PRECISION,
             max_slippage_ratio: 50,
-            max_base_asset_amount_ratio: 100,
+            max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
             quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
-            net_base_asset_amount: BASE_PRECISION_I128,
+            base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price as i128,
@@ -1106,7 +1106,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
         },
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
-        open_interest: 1,
+        number_of_users: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
@@ -1114,7 +1114,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1220,10 +1220,10 @@ pub fn user_long_negative_unrealized_pnl() {
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 51 * PEG_PRECISION,
             max_slippage_ratio: 50,
-            max_base_asset_amount_ratio: 100,
+            max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
             quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
-            net_base_asset_amount: BASE_PRECISION_I128,
+            base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price as i128,
@@ -1235,7 +1235,7 @@ pub fn user_long_negative_unrealized_pnl() {
         },
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
-        open_interest: 1,
+        number_of_users: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
@@ -1243,7 +1243,7 @@ pub fn user_long_negative_unrealized_pnl() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1352,10 +1352,10 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 51 * PEG_PRECISION,
             max_slippage_ratio: 50,
-            max_base_asset_amount_ratio: 100,
+            max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
             quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
-            net_base_asset_amount: BASE_PRECISION_I128,
+            base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price as i128,
@@ -1367,7 +1367,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
         },
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
-        open_interest: 1,
+        number_of_users: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
@@ -1375,7 +1375,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1484,10 +1484,10 @@ pub fn user_short_negative_unrealized_pnl() {
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
             max_slippage_ratio: 50,
-            max_base_asset_amount_ratio: 100,
+            max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
             quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
-            net_base_asset_amount: BASE_PRECISION_I128,
+            base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price as i128,
@@ -1499,7 +1499,7 @@ pub fn user_short_negative_unrealized_pnl() {
         },
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
-        open_interest: 1,
+        number_of_users: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
@@ -1507,7 +1507,7 @@ pub fn user_short_negative_unrealized_pnl() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);

@@ -110,7 +110,7 @@ describe('delist market, liquidation of expired position', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [
@@ -130,7 +130,7 @@ describe('delist market, liquidation of expired position', () => {
 
 		const periodicity = new BN(0);
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -165,7 +165,7 @@ describe('delist market, liquidation of expired position', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [
@@ -484,17 +484,14 @@ describe('delist market, liquidation of expired position', () => {
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log(market.status);
 		assert(isVariant(market.status, 'settlement'));
-		console.log(
-			'market.settlementPrice:',
-			convertToNumber(market.settlementPrice)
-		);
+		console.log('market.expiryPrice:', convertToNumber(market.expiryPrice));
 
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solOracle))
 			.price;
 		console.log('new oracle price:', curPrice);
 
-		assert(market.settlementPrice.gt(ZERO));
-		assert(market.settlementPrice.eq(new BN(40499999)));
+		assert(market.expiryPrice.gt(ZERO));
+		assert(market.expiryPrice.eq(new BN(40499999)));
 	});
 
 	it('liq and settle expired market position', async () => {
@@ -596,7 +593,7 @@ describe('delist market, liquidation of expired position', () => {
 			loserMaintMarginReq.sub(new BN(453307643)).abs().lt(new BN(13307643))
 		);
 
-		assert(!clearingHouseLoser.getUserAccount().bankrupt);
+		assert(!clearingHouseLoser.getUserAccount().isBankrupt);
 
 		console.log('settle position clearingHouseLoser');
 		const txSig = await clearingHouseLoser.settleExpiredPosition(

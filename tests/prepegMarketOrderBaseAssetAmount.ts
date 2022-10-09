@@ -101,7 +101,7 @@ describe('prepeg', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -114,7 +114,7 @@ describe('prepeg', () => {
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -130,7 +130,7 @@ describe('prepeg', () => {
 		for (let i = 1; i <= 4; i++) {
 			// init more markets
 			const thisUsd = mockOracles[i];
-			await clearingHouse.initializeMarket(
+			await clearingHouse.initializePerpMarket(
 				thisUsd,
 				ammInitialBaseAssetAmount,
 				ammInitialQuoteAssetAmount,
@@ -262,10 +262,10 @@ describe('prepeg', () => {
 
 		console.log('sqrtK:', market.amm.sqrtK.toString());
 
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(49745050000)));
-		assert.ok(market.baseAssetAmountLong.eq(new BN(49745050000)));
-		assert.ok(market.baseAssetAmountShort.eq(ZERO));
-		assert.ok(market.openInterest.eq(ONE));
+		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(49745050000)));
+		assert.ok(market.amm.baseAssetAmountLong.eq(new BN(49745050000)));
+		assert.ok(market.amm.baseAssetAmountShort.eq(ZERO));
+		assert.ok(market.numberOfUsers.eq(ONE));
 		assert.ok(market.amm.totalFee.gt(new BN(49750)));
 		assert.ok(market.amm.totalFeeMinusDistributions.gt(new BN(49750)));
 		assert.ok(market.amm.totalExchangeFee.eq(new BN(49999 + 1)));
@@ -352,12 +352,12 @@ describe('prepeg', () => {
 			newAmm.quoteAssetReserve,
 			newAmm.terminalQuoteAssetReserve,
 			newAmm.pegMultiplier,
-			newAmm.netBaseAssetAmount,
+			newAmm.baseAssetAmountWithAmm,
 			reservePrice,
 			newAmm.totalFeeMinusDistributions
 		);
 		const inventoryScale = calculateInventoryScale(
-			newAmm.netBaseAssetAmount,
+			newAmm.baseAssetAmountWithAmm,
 			newAmm.baseAssetReserve,
 			newAmm.minBaseAssetReserve,
 			newAmm.maxBaseAssetReserve
@@ -600,7 +600,7 @@ describe('prepeg', () => {
 			clearingHouse.getUserAccount().perpPositions[0].baseAssetAmount.toNumber()
 		);
 
-		console.log(market.amm.netBaseAssetAmount.toString());
+		console.log(market.amm.baseAssetAmountWithAmm.toString());
 
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 

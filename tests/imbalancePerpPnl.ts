@@ -186,7 +186,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [
@@ -210,7 +210,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		const periodicity = new BN(0);
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -244,7 +244,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [
@@ -646,7 +646,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		console.log(prepegAMM.pegMultiplier.toString());
 		// assert(prepegAMM.pegMultiplier.eq(new BN(248126)));
 
-		assert(market0.unrealizedMaxImbalance.eq(ZERO));
+		assert(market0.unrealizedPnlMaxImbalance.eq(ZERO));
 
 		await clearingHouse.updatePerpMarketContractTier(0, ContractTier.A);
 		await clearingHouse.fetchAccounts();
@@ -681,21 +681,23 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		console.log('pnlimbalance:', imbalance.toString());
 		assert(imbalance.eq(new BN(44_462_178_048))); //44k still :o
 
-		assert(market.revenueWithdrawSinceLastSettle.eq(ZERO));
+		assert(market.insuranceClaim.revenueWithdrawSinceLastSettle.eq(ZERO));
 		console.log('pnlimbalance:', imbalance.toString());
 
-		assert(market.maxRevenueWithdrawPerPeriod.eq(QUOTE_PRECISION));
+		assert(
+			market.insuranceClaim.maxRevenueWithdrawPerPeriod.eq(QUOTE_PRECISION)
+		);
 		console.log(
-			'market.lastRevenueWithdrawTs:',
-			market.lastRevenueWithdrawTs.toString(),
+			'market.insuranceClaim.lastRevenueWithdrawTs:',
+			market.insuranceClaim.lastRevenueWithdrawTs.toString(),
 			now.toString()
 		);
-		assert(market.lastRevenueWithdrawTs.lt(new BN(now)));
+		assert(market.insuranceClaim.lastRevenueWithdrawTs.lt(new BN(now)));
 		assert(
-			market.unrealizedMaxImbalance.eq(new BN(40000).mul(QUOTE_PRECISION))
+			market.unrealizedPnlMaxImbalance.eq(new BN(40000).mul(QUOTE_PRECISION))
 		);
-		assert(market.quoteSettledInsurance.eq(ZERO));
-		assert(market.quoteMaxInsurance.eq(QUOTE_PRECISION));
+		assert(market.insuranceClaim.quoteSettledInsurance.eq(ZERO));
+		assert(market.insuranceClaim.quoteMaxInsurance.eq(QUOTE_PRECISION));
 
 		console.log(market.status);
 		assert(isVariant(market.status, 'active'));
@@ -870,27 +872,35 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		console.log(
 			'revenueWithdrawSinceLastSettle:',
-			market.revenueWithdrawSinceLastSettle.toString()
+			market.insuranceClaim.revenueWithdrawSinceLastSettle.toString()
 		);
-		assert(market.revenueWithdrawSinceLastSettle.eq(QUOTE_PRECISION));
+		assert(
+			market.insuranceClaim.revenueWithdrawSinceLastSettle.eq(QUOTE_PRECISION)
+		);
 		console.log(
-			'market.maxRevenueWithdrawPerPeriod:',
-			market.maxRevenueWithdrawPerPeriod.toString()
+			'market.insuranceClaim.maxRevenueWithdrawPerPeriod:',
+			market.insuranceClaim.maxRevenueWithdrawPerPeriod.toString()
 		);
 
-		assert(market.maxRevenueWithdrawPerPeriod.eq(QUOTE_PRECISION));
+		assert(
+			market.insuranceClaim.maxRevenueWithdrawPerPeriod.eq(QUOTE_PRECISION)
+		);
 		console.log(
-			'market.lastRevenueWithdrawTs:',
-			market.lastRevenueWithdrawTs.toString(),
+			'market.insuranceClaim.lastRevenueWithdrawTs:',
+			market.insuranceClaim.lastRevenueWithdrawTs.toString(),
 			now.toString()
 		);
-		assert(market.lastRevenueWithdrawTs.gt(market0.lastRevenueWithdrawTs));
 		assert(
-			market.unrealizedMaxImbalance.eq(new BN(40000).mul(QUOTE_PRECISION))
+			market.insuranceClaim.lastRevenueWithdrawTs.gt(
+				market0.insuranceClaim.lastRevenueWithdrawTs
+			)
+		);
+		assert(
+			market.unrealizedPnlMaxImbalance.eq(new BN(40000).mul(QUOTE_PRECISION))
 		);
 
-		assert(market.quoteSettledInsurance.eq(QUOTE_PRECISION));
-		assert(market.quoteMaxInsurance.eq(QUOTE_PRECISION));
+		assert(market.insuranceClaim.quoteSettledInsurance.eq(QUOTE_PRECISION));
+		assert(market.insuranceClaim.quoteMaxInsurance.eq(QUOTE_PRECISION));
 		console.log(
 			'market0.pnlPool.balance:',
 

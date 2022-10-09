@@ -46,7 +46,7 @@
       ],
       "args": [
         {
-          "name": "userId",
+          "name": "subAccountId",
           "type": "u8"
         },
         {
@@ -446,7 +446,7 @@
       ]
     },
     {
-      "name": "addLiquidity",
+      "name": "addPerpLpShares",
       "accounts": [
         {
           "name": "state",
@@ -476,7 +476,7 @@
       ]
     },
     {
-      "name": "removeLiquidity",
+      "name": "removePerpLpShares",
       "accounts": [
         {
           "name": "state",
@@ -521,7 +521,7 @@
       ],
       "args": [
         {
-          "name": "userId",
+          "name": "subAccountId",
           "type": "u8"
         },
         {
@@ -551,7 +551,7 @@
       ],
       "args": [
         {
-          "name": "userId",
+          "name": "subAccountId",
           "type": "u8"
         },
         {
@@ -576,7 +576,7 @@
       ],
       "args": [
         {
-          "name": "userId",
+          "name": "subAccountId",
           "type": "u8"
         },
         {
@@ -1886,7 +1886,7 @@
       "args": []
     },
     {
-      "name": "initializeMarket",
+      "name": "initializePerpMarket",
       "accounts": [
         {
           "name": "admin",
@@ -3303,27 +3303,11 @@
             }
           },
           {
-            "name": "settlementPrice",
+            "name": "expiryPrice",
             "type": "i128"
           },
           {
-            "name": "baseAssetAmountLong",
-            "type": "i128"
-          },
-          {
-            "name": "baseAssetAmountShort",
-            "type": "i128"
-          },
-          {
-            "name": "openInterest",
-            "type": "u128"
-          },
-          {
-            "name": "revenueWithdrawSinceLastSettle",
-            "type": "u128"
-          },
-          {
-            "name": "maxRevenueWithdrawPerPeriod",
+            "name": "numberOfUsers",
             "type": "u128"
           },
           {
@@ -3331,11 +3315,11 @@
             "type": "u128"
           },
           {
-            "name": "unrealizedImfFactor",
+            "name": "unrealizedPnlImfFactor",
             "type": "u128"
           },
           {
-            "name": "unrealizedMaxImbalance",
+            "name": "unrealizedPnlMaxImbalance",
             "type": "u128"
           },
           {
@@ -3347,12 +3331,10 @@
             "type": "u128"
           },
           {
-            "name": "quoteMaxInsurance",
-            "type": "u128"
-          },
-          {
-            "name": "quoteSettledInsurance",
-            "type": "u128"
+            "name": "insuranceClaim",
+            "type": {
+              "defined": "InsuranceClaim"
+            }
           },
           {
             "name": "expiryTs",
@@ -3371,10 +3353,6 @@
             "type": "u64"
           },
           {
-            "name": "lastRevenueWithdrawTs",
-            "type": "i64"
-          },
-          {
             "name": "marginRatioInitial",
             "type": "u32"
           },
@@ -3383,11 +3361,11 @@
             "type": "u32"
           },
           {
-            "name": "unrealizedInitialAssetWeight",
+            "name": "unrealizedPnlInitialAssetWeight",
             "type": "u32"
           },
           {
-            "name": "unrealizedMaintenanceAssetWeight",
+            "name": "unrealizedPnlMaintenanceAssetWeight",
             "type": "u32"
           },
           {
@@ -3446,10 +3424,6 @@
             "type": "publicKey"
           },
           {
-            "name": "insuranceFundVault",
-            "type": "publicKey"
-          },
-          {
             "name": "historicalOracleData",
             "type": {
               "defined": "HistoricalOracleData"
@@ -3471,6 +3445,12 @@
             "name": "spotFeePool",
             "type": {
               "defined": "PoolBalance"
+            }
+          },
+          {
+            "name": "insuranceFund",
+            "type": {
+              "defined": "InsuranceFund"
             }
           },
           {
@@ -3503,18 +3483,6 @@
           },
           {
             "name": "withdrawGuardThreshold",
-            "type": "u128"
-          },
-          {
-            "name": "totalIfShares",
-            "type": "u128"
-          },
-          {
-            "name": "userIfShares",
-            "type": "u128"
-          },
-          {
-            "name": "ifSharesBase",
             "type": "u128"
           },
           {
@@ -3552,18 +3520,6 @@
           {
             "name": "cumulativeBorrowInterest",
             "type": "u128"
-          },
-          {
-            "name": "insuranceWithdrawEscrowPeriod",
-            "type": "i64"
-          },
-          {
-            "name": "lastRevenueSettleTs",
-            "type": "i64"
-          },
-          {
-            "name": "revenueSettlePeriod",
-            "type": "i64"
           },
           {
             "name": "lastInterestTs",
@@ -3607,14 +3563,6 @@
           },
           {
             "name": "maxBorrowRate",
-            "type": "u32"
-          },
-          {
-            "name": "totalIfFactor",
-            "type": "u32"
-          },
-          {
-            "name": "userIfFactor",
             "type": "u32"
           },
           {
@@ -3885,7 +3833,7 @@
             }
           },
           {
-            "name": "lastLpAddTime",
+            "name": "lastAddPerpLpSharesTs",
             "type": "i64"
           },
           {
@@ -3893,7 +3841,7 @@
             "type": "u32"
           },
           {
-            "name": "customMarginRatio",
+            "name": "maxMarginRatio",
             "type": "u32"
           },
           {
@@ -3901,15 +3849,15 @@
             "type": "u16"
           },
           {
-            "name": "userId",
+            "name": "subAccountId",
             "type": "u8"
           },
           {
-            "name": "beingLiquidated",
+            "name": "isBeingLiquidated",
             "type": "bool"
           },
           {
-            "name": "bankrupt",
+            "name": "isBankrupt",
             "type": "bool"
           },
           {
@@ -3944,14 +3892,6 @@
             }
           },
           {
-            "name": "totalReferrerReward",
-            "type": "u64"
-          },
-          {
-            "name": "currentEpochReferrerReward",
-            "type": "u64"
-          },
-          {
             "name": "nextEpochTs",
             "type": "i64"
           },
@@ -3980,11 +3920,11 @@
             "type": "i64"
           },
           {
-            "name": "stakedQuoteAssetAmount",
+            "name": "ifStakedQuoteAssetAmount",
             "type": "u64"
           },
           {
-            "name": "numberOfUsers",
+            "name": "numberOfSubAccounts",
             "type": "u8"
           },
           {
@@ -4071,7 +4011,7 @@
           {
             "name": "oraclePriceOffset",
             "type": {
-              "option": "i64"
+              "option": "i32"
             }
           },
           {
@@ -4288,6 +4228,94 @@
       }
     },
     {
+      "name": "HistoricalOracleData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lastOraclePrice",
+            "type": "i128"
+          },
+          {
+            "name": "lastOracleConf",
+            "type": "u128"
+          },
+          {
+            "name": "lastOracleDelay",
+            "type": "i64"
+          },
+          {
+            "name": "lastOraclePriceTwap",
+            "type": "i128"
+          },
+          {
+            "name": "lastOraclePriceTwap5min",
+            "type": "i128"
+          },
+          {
+            "name": "lastOraclePriceTwapTs",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "HistoricalIndexData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lastIndexBidPrice",
+            "type": "u128"
+          },
+          {
+            "name": "lastIndexAskPrice",
+            "type": "u128"
+          },
+          {
+            "name": "lastIndexPriceTwap",
+            "type": "u128"
+          },
+          {
+            "name": "lastIndexPriceTwap5min",
+            "type": "u128"
+          },
+          {
+            "name": "lastIndexPriceTwapTs",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InsuranceClaim",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "revenueWithdrawSinceLastSettle",
+            "type": "u128"
+          },
+          {
+            "name": "maxRevenueWithdrawPerPeriod",
+            "type": "u128"
+          },
+          {
+            "name": "quoteMaxInsurance",
+            "type": "u128"
+          },
+          {
+            "name": "quoteSettledInsurance",
+            "type": "u128"
+          },
+          {
+            "name": "lastRevenueWithdrawTs",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
       "name": "PoolBalance",
       "type": {
         "kind": "struct",
@@ -4325,12 +4353,6 @@
             "name": "historicalOracleData",
             "type": {
               "defined": "HistoricalOracleData"
-            }
-          },
-          {
-            "name": "marketPosition",
-            "type": {
-              "defined": "PerpPosition"
             }
           },
           {
@@ -4386,7 +4408,19 @@
             "type": "u128"
           },
           {
-            "name": "netBaseAssetAmount",
+            "name": "baseAssetAmountLong",
+            "type": "i128"
+          },
+          {
+            "name": "baseAssetAmountShort",
+            "type": "i128"
+          },
+          {
+            "name": "baseAssetAmountWithAmm",
+            "type": "i128"
+          },
+          {
+            "name": "baseAssetAmountWithUnsettledLp",
             "type": "i128"
           },
           {
@@ -4408,10 +4442,6 @@
           {
             "name": "userLpShares",
             "type": "u128"
-          },
-          {
-            "name": "netUnsettledLpBaseAssetAmount",
-            "type": "i128"
           },
           {
             "name": "lastFundingRate",
@@ -4574,7 +4604,7 @@
             "type": "u32"
           },
           {
-            "name": "maxBaseAssetAmountRatio",
+            "name": "maxFillReserveFraction",
             "type": "u16"
           },
           {
@@ -4624,61 +4654,45 @@
       }
     },
     {
-      "name": "HistoricalOracleData",
+      "name": "InsuranceFund",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "lastOraclePrice",
-            "type": "i128"
+            "name": "vault",
+            "type": "publicKey"
           },
           {
-            "name": "lastOracleConf",
+            "name": "totalShares",
             "type": "u128"
           },
           {
-            "name": "lastOracleDelay",
+            "name": "userShares",
+            "type": "u128"
+          },
+          {
+            "name": "sharesBase",
+            "type": "u128"
+          },
+          {
+            "name": "unstakingPeriod",
             "type": "i64"
           },
           {
-            "name": "lastOraclePriceTwap",
-            "type": "i128"
-          },
-          {
-            "name": "lastOraclePriceTwap5min",
-            "type": "i128"
-          },
-          {
-            "name": "lastOraclePriceTwapTs",
+            "name": "lastRevenueSettleTs",
             "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "HistoricalIndexData",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "lastIndexBidPrice",
-            "type": "u128"
           },
           {
-            "name": "lastIndexAskPrice",
-            "type": "u128"
-          },
-          {
-            "name": "lastIndexPriceTwap",
-            "type": "u128"
-          },
-          {
-            "name": "lastIndexPriceTwap5min",
-            "type": "u128"
-          },
-          {
-            "name": "lastIndexPriceTwapTs",
+            "name": "revenueSettlePeriod",
             "type": "i64"
+          },
+          {
+            "name": "totalFactor",
+            "type": "u32"
+          },
+          {
+            "name": "userFactor",
+            "type": "u32"
           }
         ]
       }
@@ -4860,6 +4874,14 @@
           {
             "name": "totalRefereeDiscount",
             "type": "u64"
+          },
+          {
+            "name": "totalReferrerReward",
+            "type": "u64"
+          },
+          {
+            "name": "currentEpochReferrerReward",
+            "type": "u64"
           }
         ]
       }
@@ -4918,7 +4940,7 @@
         "fields": [
           {
             "name": "lastCumulativeFundingRate",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "baseAssetAmount",
@@ -5018,16 +5040,16 @@
             "type": "u64"
           },
           {
-            "name": "oraclePriceOffset",
-            "type": "i64"
-          },
-          {
             "name": "auctionStartPrice",
             "type": "u64"
           },
           {
             "name": "auctionEndPrice",
             "type": "u64"
+          },
+          {
+            "name": "oraclePriceOffset",
+            "type": "i32"
           },
           {
             "name": "orderId",
@@ -5106,7 +5128,7 @@
             "type": {
               "array": [
                 "u8",
-                5
+                1
               ]
             }
           }
@@ -5447,6 +5469,23 @@
       }
     },
     {
+      "name": "OracleSource",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Pyth"
+          },
+          {
+            "name": "Switchboard"
+          },
+          {
+            "name": "QuoteAsset"
+          }
+        ]
+      }
+    },
+    {
       "name": "MarketStatus",
       "type": {
         "kind": "enum",
@@ -5511,23 +5550,6 @@
           },
           {
             "name": "Speculative"
-          }
-        ]
-      }
-    },
-    {
-      "name": "OracleSource",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Pyth"
-          },
-          {
-            "name": "Switchboard"
-          },
-          {
-            "name": "QuoteAsset"
           }
         ]
       }
@@ -5715,7 +5737,7 @@
           "index": false
         },
         {
-          "name": "userId",
+          "name": "subAccountId",
           "type": "u8",
           "index": false
         },
@@ -5890,7 +5912,7 @@
         },
         {
           "name": "userLastCumulativeFunding",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
@@ -5964,12 +5986,12 @@
           "index": false
         },
         {
-          "name": "netBaseAssetAmount",
+          "name": "baseAssetAmountWithAmm",
           "type": "i128",
           "index": false
         },
         {
-          "name": "netUnsettledLpBaseAssetAmount",
+          "name": "baseAssetAmountWithUnsettledLp",
           "type": "i128",
           "index": false
         }
@@ -6044,12 +6066,12 @@
           "index": false
         },
         {
-          "name": "netBaseAssetAmount",
+          "name": "baseAssetAmountWithAmm",
           "type": "i128",
           "index": false
         },
         {
-          "name": "openInterest",
+          "name": "numberOfUsers",
           "type": "u128",
           "index": false
         },

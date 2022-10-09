@@ -13,8 +13,8 @@ mod test {
     use crate::math::position::{
         calculate_base_asset_value_and_pnl_with_oracle_price, calculate_position_pnl,
     };
-    use crate::state::market::{PerpMarket, AMM};
     use crate::state::oracle::OraclePriceData;
+    use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::user::{PerpPosition, SpotPosition, User};
     use num_integer::Roots;
@@ -118,14 +118,14 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 22_100_000,
-                net_base_asset_amount: -(122950819670000_i128),
+                base_asset_amount_with_amm: -(122950819670000_i128),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unrealized_initial_asset_weight: 10000,
-            unrealized_maintenance_asset_weight: 10000,
+            unrealized_pnl_initial_asset_weight: 10000,
+            unrealized_pnl_maintenance_asset_weight: 10000,
             ..PerpMarket::default()
         };
 
@@ -195,15 +195,15 @@ mod test {
                 quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
                 sqrt_k: 500 * AMM_RESERVE_PRECISION,
                 peg_multiplier: 22_100_000_000,
-                net_base_asset_amount: -(12295081967_i128),
+                base_asset_amount_with_amm: -(12295081967_i128),
                 max_spread: 1000,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unrealized_initial_asset_weight: 10000,
-            unrealized_maintenance_asset_weight: 10000,
+            unrealized_pnl_initial_asset_weight: 10000,
+            unrealized_pnl_maintenance_asset_weight: 10000,
             ..PerpMarket::default()
         };
 
@@ -248,7 +248,7 @@ mod test {
         assert_eq!(position_unrealized_pnl, 22699050905);
 
         // sqrt of oracle price = 149
-        market.unrealized_imf_factor = market.imf_factor;
+        market.unrealized_pnl_imf_factor = market.imf_factor;
 
         let uaw = market
             .get_unrealized_asset_weight(position_unrealized_pnl, MarginRequirementType::Initial)
@@ -374,8 +374,8 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unrealized_initial_asset_weight: 10000,
-            unrealized_maintenance_asset_weight: 10000,
+            unrealized_pnl_initial_asset_weight: 10000,
+            unrealized_pnl_maintenance_asset_weight: 10000,
             ..PerpMarket::default()
         };
 
@@ -441,8 +441,8 @@ mod test {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unrealized_initial_asset_weight: 10000,
-            unrealized_maintenance_asset_weight: 10000,
+            unrealized_pnl_initial_asset_weight: 10000,
+            unrealized_pnl_maintenance_asset_weight: 10000,
             ..PerpMarket::default()
         };
 
@@ -505,9 +505,9 @@ mod calculate_margin_requirement_and_total_collateral {
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
     };
-    use crate::state::market::{MarketStatus, PerpMarket, AMM};
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
+    use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
@@ -877,7 +877,7 @@ mod calculate_margin_requirement_and_total_collateral {
                 ..PerpPosition::default()
             }),
             spot_positions,
-            custom_margin_ratio: 2 * MARGIN_PRECISION as u32, // .5x leverage
+            max_margin_ratio: 2 * MARGIN_PRECISION as u32, // .5x leverage
             ..User::default()
         };
 
@@ -894,7 +894,7 @@ mod calculate_margin_requirement_and_total_collateral {
         assert_eq!(margin_requirement, 40000000000); // 100 * $100 * 2 + 100 * $100 * 2
 
         let user = User {
-            custom_margin_ratio: MARGIN_PRECISION as u32, // 1x leverage
+            max_margin_ratio: MARGIN_PRECISION as u32, // 1x leverage
             ..user
         };
 
@@ -911,7 +911,7 @@ mod calculate_margin_requirement_and_total_collateral {
         assert_eq!(margin_requirement, 22000000000); // 100 * 100 * 1 + 100 * $100 * 1.2
 
         let user = User {
-            custom_margin_ratio: MARGIN_PRECISION as u32 / 2, // 2x leverage
+            max_margin_ratio: MARGIN_PRECISION as u32 / 2, // 2x leverage
             ..user
         };
 
@@ -928,7 +928,7 @@ mod calculate_margin_requirement_and_total_collateral {
         assert_eq!(margin_requirement, 17000000000); // 100 * 100 * .5 + 100 * $100 * 1.2
 
         let user = User {
-            custom_margin_ratio: 10 * MARGIN_PRECISION as u32, // .1x leverage
+            max_margin_ratio: 10 * MARGIN_PRECISION as u32, // .1x leverage
             ..user
         };
 

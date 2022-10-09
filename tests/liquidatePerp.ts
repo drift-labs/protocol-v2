@@ -77,7 +77,7 @@ describe('liquidate perp and lp', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
 			oracleInfos: [
@@ -96,7 +96,7 @@ describe('liquidate perp and lp', () => {
 
 		const periodicity = new BN(0);
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			oracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -115,7 +115,7 @@ describe('liquidate perp and lp', () => {
 			new BN(0)
 		);
 
-		const txSig = await clearingHouse.addLiquidity(nLpShares, 0);
+		const txSig = await clearingHouse.addPerpLpShares(nLpShares, 0);
 		await printTxLogs(connection, txSig);
 
 		for (let i = 0; i < 32; i++) {
@@ -143,7 +143,7 @@ describe('liquidate perp and lp', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
 			oracleInfos: [
@@ -223,12 +223,12 @@ describe('liquidate perp and lp', () => {
 				.perpPositions[0].baseAssetAmount.eq(new BN(17500000000))
 		);
 
-		assert(clearingHouse.getUserAccount().beingLiquidated);
+		assert(clearingHouse.getUserAccount().isBeingLiquidated);
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
 
 		// try to add liq when being liquidated -- should fail
 		try {
-			await clearingHouse.addLiquidity(nLpShares, 0);
+			await clearingHouse.addPerpLpShares(nLpShares, 0);
 			assert(false);
 		} catch (err) {
 			assert(err.message.includes('0x17d6'));
@@ -263,7 +263,7 @@ describe('liquidate perp and lp', () => {
 		);
 
 		await clearingHouse.fetchAccounts();
-		assert(clearingHouse.getUserAccount().bankrupt);
+		assert(clearingHouse.getUserAccount().isBankrupt);
 		console.log(
 			clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount
 		);
@@ -275,7 +275,7 @@ describe('liquidate perp and lp', () => {
 
 		// try to add liq when bankrupt -- should fail
 		try {
-			await clearingHouse.addLiquidity(nLpShares, 0);
+			await clearingHouse.addPerpLpShares(nLpShares, 0);
 			assert(false);
 		} catch (err) {
 			// cant add when bankrupt
@@ -294,9 +294,19 @@ describe('liquidate perp and lp', () => {
 		await clearingHouse.fetchAccounts();
 		const marketBeforeBankruptcy =
 			clearingHouse.getPerpMarketAccount(marketIndex);
-		assert(marketBeforeBankruptcy.revenueWithdrawSinceLastSettle.eq(ZERO));
-		assert(marketBeforeBankruptcy.quoteSettledInsurance.eq(ZERO));
-		assert(marketBeforeBankruptcy.quoteMaxInsurance.eq(QUOTE_PRECISION));
+		assert(
+			marketBeforeBankruptcy.insuranceClaim.revenueWithdrawSinceLastSettle.eq(
+				ZERO
+			)
+		);
+		assert(
+			marketBeforeBankruptcy.insuranceClaim.quoteSettledInsurance.eq(ZERO)
+		);
+		assert(
+			marketBeforeBankruptcy.insuranceClaim.quoteMaxInsurance.eq(
+				QUOTE_PRECISION
+			)
+		);
 		assert(marketBeforeBankruptcy.amm.cumulativeSocialLoss.eq(ZERO));
 		await liquidatorClearingHouse.resolvePerpBankruptcy(
 			await clearingHouse.getUserAccountPublicKey(),
@@ -308,13 +318,19 @@ describe('liquidate perp and lp', () => {
 		// all social loss
 		const marketAfterBankruptcy =
 			clearingHouse.getPerpMarketAccount(marketIndex);
-		assert(marketAfterBankruptcy.revenueWithdrawSinceLastSettle.eq(ZERO));
-		assert(marketAfterBankruptcy.quoteSettledInsurance.eq(ZERO));
-		assert(marketAfterBankruptcy.quoteMaxInsurance.eq(QUOTE_PRECISION));
+		assert(
+			marketAfterBankruptcy.insuranceClaim.revenueWithdrawSinceLastSettle.eq(
+				ZERO
+			)
+		);
+		assert(marketAfterBankruptcy.insuranceClaim.quoteSettledInsurance.eq(ZERO));
+		assert(
+			marketAfterBankruptcy.insuranceClaim.quoteMaxInsurance.eq(QUOTE_PRECISION)
+		);
 		assert(marketAfterBankruptcy.amm.cumulativeSocialLoss.eq(new BN(-5785008)));
 
-		assert(!clearingHouse.getUserAccount().bankrupt);
-		assert(!clearingHouse.getUserAccount().beingLiquidated);
+		assert(!clearingHouse.getUserAccount().isBankrupt);
+		assert(!clearingHouse.getUserAccount().isBeingLiquidated);
 		assert(
 			clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount.eq(ZERO)
 		);

@@ -137,9 +137,11 @@ export async function calculateAllEstimatedFundingRate(
 	let cappedAltEst: BN;
 	let largerSide: BN;
 	let smallerSide: BN;
-	if (market.baseAssetAmountLong.gt(market.baseAssetAmountShort.abs())) {
-		largerSide = market.baseAssetAmountLong.abs();
-		smallerSide = market.baseAssetAmountShort.abs();
+	if (
+		market.amm.baseAssetAmountLong.gt(market.amm.baseAssetAmountShort.abs())
+	) {
+		largerSide = market.amm.baseAssetAmountLong.abs();
+		smallerSide = market.amm.baseAssetAmountShort.abs();
 		if (twapSpread.gt(new BN(0))) {
 			return [
 				markTwapWithMantissa,
@@ -149,9 +151,11 @@ export async function calculateAllEstimatedFundingRate(
 				interpEst,
 			];
 		}
-	} else if (market.baseAssetAmountLong.lt(market.baseAssetAmountShort.abs())) {
-		largerSide = market.baseAssetAmountShort.abs();
-		smallerSide = market.baseAssetAmountLong.abs();
+	} else if (
+		market.amm.baseAssetAmountLong.lt(market.amm.baseAssetAmountShort.abs())
+	) {
+		largerSide = market.amm.baseAssetAmountShort.abs();
+		smallerSide = market.amm.baseAssetAmountLong.abs();
 		if (twapSpread.lt(new BN(0))) {
 			return [
 				markTwapWithMantissa,
@@ -251,9 +255,11 @@ export async function calculateLongShortFundingRate(
 			periodAdjustment
 		);
 
-	if (market.baseAssetAmountLong.gt(market.baseAssetAmountShort)) {
+	if (market.amm.baseAssetAmountLong.gt(market.amm.baseAssetAmountShort)) {
 		return [cappedAltEst, interpEst];
-	} else if (market.baseAssetAmountLong.lt(market.baseAssetAmountShort)) {
+	} else if (
+		market.amm.baseAssetAmountLong.lt(market.amm.baseAssetAmountShort)
+	) {
 		return [interpEst, cappedAltEst];
 	} else {
 		return [interpEst, interpEst];
@@ -279,9 +285,13 @@ export async function calculateLongShortFundingRateAndLiveTwaps(
 			periodAdjustment
 		);
 
-	if (market.baseAssetAmountLong.gt(market.baseAssetAmountShort.abs())) {
+	if (
+		market.amm.baseAssetAmountLong.gt(market.amm.baseAssetAmountShort.abs())
+	) {
 		return [markTwapLive, oracleTwapLive, cappedAltEst, interpEst];
-	} else if (market.baseAssetAmountLong.lt(market.baseAssetAmountShort.abs())) {
+	} else if (
+		market.amm.baseAssetAmountLong.lt(market.amm.baseAssetAmountShort.abs())
+	) {
 		return [markTwapLive, oracleTwapLive, interpEst, cappedAltEst];
 	} else {
 		return [markTwapLive, oracleTwapLive, interpEst, interpEst];

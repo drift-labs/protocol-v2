@@ -441,7 +441,7 @@ export class ClearingHouseUser {
 						if (marginCategory === 'Initial') {
 							weight = BN.max(
 								weight,
-								new BN(this.getUserAccount().customMarginRatio)
+								new BN(this.getUserAccount().maxMarginRatio)
 							);
 						}
 
@@ -505,7 +505,7 @@ export class ClearingHouseUser {
 					if (marginCategory === 'Initial') {
 						weight = BN.max(
 							weight,
-							new BN(this.getUserAccount().customMarginRatio)
+							new BN(this.getUserAccount().maxMarginRatio)
 						);
 					}
 
@@ -545,10 +545,7 @@ export class ClearingHouseUser {
 			);
 
 			if (marginCategory === 'Initial') {
-				weight = BN.max(
-					weight,
-					new BN(this.getUserAccount().customMarginRatio)
-				);
+				weight = BN.max(weight, new BN(this.getUserAccount().maxMarginRatio));
 			}
 
 			if (liquidationBuffer !== undefined) {
@@ -753,7 +750,7 @@ export class ClearingHouseUser {
 				).price;
 
 				if (isVariant(market.status, 'settlement')) {
-					valuationPrice = market.settlementPrice;
+					valuationPrice = market.expiryPrice;
 				}
 
 				const baseAssetAmount = includeOpenOrders
@@ -777,7 +774,7 @@ export class ClearingHouseUser {
 					if (marginCategory === 'Initial') {
 						marginRatio = BN.max(
 							marginRatio,
-							new BN(this.getUserAccount().customMarginRatio)
+							new BN(this.getUserAccount().maxMarginRatio)
 						);
 					}
 
@@ -970,7 +967,7 @@ export class ClearingHouseUser {
 
 		// if user being liq'd, can continue to be liq'd until total collateral above the margin requirement plus buffer
 		let liquidationBuffer = undefined;
-		if (this.getUserAccount().beingLiquidated) {
+		if (this.getUserAccount().isBeingLiquidated) {
 			liquidationBuffer = new BN(
 				this.clearingHouse.getStateAccount().liquidationMarginBufferRatio
 			);

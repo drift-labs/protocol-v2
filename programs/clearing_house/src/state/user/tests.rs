@@ -8,8 +8,8 @@ mod get_claimable_pnl {
     };
     use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
     use crate::math::spot_balance::get_token_amount;
-    use crate::state::market::{PerpMarket, PoolBalance, AMM};
     use crate::state::oracle::OracleSource;
+    use crate::state::perp_market::{PerpMarket, PoolBalance, AMM};
     use crate::state::spot_market::{SpotBalance, SpotMarket};
     use crate::state::user::{PerpPosition, User};
     use crate::tests::utils::get_positions;
@@ -227,7 +227,7 @@ mod get_claimable_pnl {
                 concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
                 curve_update_intensity: 100,
-                net_base_asset_amount: AMM_RESERVE_PRECISION as i128,
+                base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
                 quote_asset_amount_long: -250 * QUOTE_PRECISION_I128,
                 quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
                 ..AMM::default()
@@ -331,7 +331,7 @@ mod get_claimable_pnl {
                 concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
                 curve_update_intensity: 100,
-                net_base_asset_amount: AMM_RESERVE_PRECISION as i128,
+                base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
                 quote_asset_amount_long: -249 * QUOTE_PRECISION_I128,
                 quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
                 ..AMM::default()
@@ -480,7 +480,7 @@ mod get_claimable_pnl {
                 concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
                 curve_update_intensity: 100,
-                net_base_asset_amount: AMM_RESERVE_PRECISION as i128,
+                base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
                 quote_asset_amount_long: -250 * QUOTE_PRECISION_I128,
                 quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
                 ..AMM::default()

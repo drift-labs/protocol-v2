@@ -15,8 +15,8 @@ use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
 use crate::math::stats::calculate_rolling_sum;
 use crate::math_error;
-use crate::state::market::AMM;
 use crate::state::oracle::OraclePriceData;
+use crate::state::perp_market::AMM;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use std::cmp::max;
 
@@ -33,13 +33,13 @@ pub struct User {
     pub spot_positions: [SpotPosition; 8],
     pub perp_positions: [PerpPosition; 8],
     pub orders: [Order; 32],
-    pub last_lp_add_time: i64,
+    pub last_add_perp_lp_shares_ts: i64,
     pub next_order_id: u32,
-    pub custom_margin_ratio: u32,
+    pub max_margin_ratio: u32,
     pub next_liquidation_id: u16,
-    pub user_id: u8,
-    pub being_liquidated: bool,
-    pub bankrupt: bool,
+    pub sub_account_id: u8,
+    pub is_being_liquidated: bool,
+    pub is_bankrupt: bool,
     pub padding: [u8; 3],
 }
 
@@ -152,6 +152,8 @@ pub struct UserFees {
     pub total_fee_rebate: u64,
     pub total_token_discount: u64,
     pub total_referee_discount: u64,
+    pub total_referrer_reward: u64,
+    pub current_epoch_referrer_reward: u64,
 }
 
 #[zero_copy]
@@ -260,7 +262,7 @@ impl SpotPosition {
 #[derive(Default, Debug, Eq, PartialEq)]
 #[repr(C)]
 pub struct PerpPosition {
-    pub last_cumulative_funding_rate: i128,
+    pub last_cumulative_funding_rate: i64,
     pub base_asset_amount: i64,
     pub quote_asset_amount: i64,
     pub quote_entry_amount: i64,
@@ -419,9 +421,9 @@ pub struct Order {
     pub quote_asset_amount_filled: u64,
     pub fee: i64,
     pub trigger_price: u64,
-    pub oracle_price_offset: i64,
     pub auction_start_price: u64,
     pub auction_end_price: u64,
+    pub oracle_price_offset: i32,
     pub order_id: u32,
     pub market_index: u16,
     pub status: OrderStatus,
@@ -437,7 +439,7 @@ pub struct Order {
     pub triggered: bool,
     pub auction_duration: u8,
     pub time_in_force: u8,
-    pub padding: [u8; 5],
+    pub padding: [u8; 1],
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
@@ -462,7 +464,7 @@ impl Order {
         let price = if self.has_oracle_price_offset() {
             if let Some(oracle_price) = valid_oracle_price {
                 let limit_price = oracle_price
-                    .checked_add(self.oracle_price_offset as i128)
+                    .checked_add(self.oracle_price_offset.cast()?)
                     .ok_or_else(math_error!())?;
 
                 if limit_price <= 0 {
@@ -599,7 +601,7 @@ impl Default for Order {
             auction_end_price: 0,
             auction_duration: 0,
             time_in_force: 0,
-            padding: [0; 5],
+            padding: [0; 1],
         }
     }
 }
@@ -658,8 +660,6 @@ pub struct UserStats {
     pub referrer: Pubkey,
     pub fees: UserFees,
 
-    pub total_referrer_reward: u64,
-    pub current_epoch_referrer_reward: u64,
     pub next_epoch_ts: i64,
 
     // volume track
@@ -670,8 +670,8 @@ pub struct UserStats {
     pub last_taker_volume_30d_ts: i64,
     pub last_filler_volume_30d_ts: i64,
 
-    pub staked_quote_asset_amount: u64,
-    pub number_of_users: u8,
+    pub if_staked_quote_asset_amount: u64,
+    pub number_of_sub_accounts: u8,
     pub is_referrer: bool,
     pub padding: [u8; 6],
 }
@@ -769,12 +769,14 @@ impl UserStats {
         reward: u64,
         now: i64,
     ) -> ClearingHouseResult {
-        self.total_referrer_reward = self
+        self.fees.total_referrer_reward = self
+            .fees
             .total_referrer_reward
             .checked_add(reward)
             .ok_or_else(math_error!())?;
 
-        self.current_epoch_referrer_reward = self
+        self.fees.current_epoch_referrer_reward = self
+            .fees
             .current_epoch_referrer_reward
             .checked_add(reward)
             .ok_or_else(math_error!())?;
@@ -797,7 +799,7 @@ impl UserStats {
                 )
                 .ok_or_else(math_error!())?;
 
-            self.current_epoch_referrer_reward = 0;
+            self.fees.current_epoch_referrer_reward = 0;
         }
 
         Ok(())

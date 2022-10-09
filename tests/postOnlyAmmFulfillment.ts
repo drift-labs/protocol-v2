@@ -83,7 +83,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -95,7 +95,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await fillerClearingHouse.initializeMarket(
+		await fillerClearingHouse.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -151,7 +151,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,

@@ -169,7 +169,7 @@ export type NewUserRecord = {
 	ts: BN;
 	userAuthority: PublicKey;
 	user: PublicKey;
-	userId: number;
+	subAccount: number;
 	name: number[];
 	referrer: PublicKey;
 };
@@ -266,8 +266,8 @@ export type FundingRateRecord = {
 	oraclePriceTwap: BN;
 	markPriceTwap: BN;
 	periodRevenue: BN;
-	netBaseAssetAmount: BN;
-	netUnsettledLpBaseAssetAmount: BN;
+	baseAssetAmountWithAmm: BN;
+	baseAssetAmountWithUnsettledLp: BN;
 };
 
 export type FundingPaymentRecord = {
@@ -441,14 +441,11 @@ export type PerpMarketAccount = {
 	status: MarketStatus;
 	contractType: ContractType;
 	expiryTs: BN;
-	settlementPrice: BN;
+	expiryPrice: BN;
 	marketIndex: number;
 	pubkey: PublicKey;
 	amm: AMM;
-	baseAssetAmount: BN;
-	baseAssetAmountLong: BN;
-	baseAssetAmountShort: BN;
-	openInterest: BN;
+	numberOfUsers: BN;
 	marginRatioInitial: number;
 	marginRatioMaintenance: number;
 	nextFillRecordId: BN;
@@ -456,15 +453,17 @@ export type PerpMarketAccount = {
 	liquidatorFee: BN;
 	ifLiquidationFee: BN;
 	imfFactor: BN;
-	unrealizedImfFactor: BN;
-	unrealizedMaxImbalance: BN;
-	unrealizedInitialAssetWeight: number;
-	unrealizedMaintenanceAssetWeight: number;
-	revenueWithdrawSinceLastSettle: BN;
-	maxRevenueWithdrawPerPeriod: BN;
-	lastRevenueWithdrawTs: BN;
-	quoteSettledInsurance: BN;
-	quoteMaxInsurance: BN;
+	unrealizedPnlImfFactor: BN;
+	unrealizedPnlMaxImbalance: BN;
+	unrealizedPnlInitialAssetWeight: number;
+	unrealizedPnlMaintenanceAssetWeight: number;
+	insuranceClaim: {
+		revenueWithdrawSinceLastSettle: BN;
+		maxRevenueWithdrawPerPeriod: BN;
+		lastRevenueWithdrawTs: BN;
+		quoteSettledInsurance: BN;
+		quoteMaxInsurance: BN;
+	};
 };
 
 export type HistoricalOracleData = {
@@ -498,15 +497,20 @@ export type SpotMarketAccount = {
 	historicalOracleData: HistoricalOracleData;
 	historicalIndexData: HistoricalIndexData;
 
-	insuranceFundVault: PublicKey;
-	insuranceWithdrawEscrowPeriod: BN;
+	insuranceFund: {
+		vault: PublicKey;
+		totalShares: BN;
+		userShares: BN;
+		sharesBase: BN;
+		unstakingPeriod: BN;
+		lastRevenueSettleTs: BN;
+		revenueSettlePeriod: BN;
+		totalFactor: number;
+		userFactor: number;
+	};
+
 	revenuePool: PoolBalance;
 
-	totalIfShares: BN;
-	userIfShares: BN;
-
-	userIfFactor: number;
-	totalIfFactor: number;
 	ifLiquidationFee: BN;
 
 	decimals: number;
@@ -575,14 +579,16 @@ export type AMM = {
 	cumulativeFeePerLp: BN;
 	cumulativeNetBaseAssetAmountPerLp: BN;
 	userLpShares: BN;
-	netUnsettledLpBaseAssetAmount: BN;
+	baseAssetAmountWithUnsettledLp: BN;
 	orderStepSize: BN;
 	orderTickSize: BN;
-	maxBaseAssetAmountRatio: number;
+	maxFillReserveFraction: number;
 	maxSlippageRatio: number;
 	baseSpread: number;
 	curveUpdateIntensity: number;
-	netBaseAssetAmount: BN;
+	baseAssetAmountWithAmm: BN;
+	baseAssetAmountLong: BN;
+	baseAssetAmountShort: BN;
 	quoteAssetAmountLong: BN;
 	quoteAssetAmountShort: BN;
 	terminalQuoteAssetReserve: BN;
@@ -597,7 +603,6 @@ export type AMM = {
 	longSpread: BN;
 	shortSpread: BN;
 	maxSpread: number;
-	marketPosition: PerpPosition;
 	marketPositionPerLp: PerpPosition;
 	ammJitIntensity: number;
 	maxBaseAssetReserve: BN;
@@ -623,7 +628,7 @@ export type PerpPosition = {
 };
 
 export type UserStatsAccount = {
-	numberOfUsers: number;
+	numberOfSubAccounts: number;
 	makerVolume30D: BN;
 	takerVolume30D: BN;
 	fillerVolume30D: BN;
@@ -635,27 +640,29 @@ export type UserStatsAccount = {
 		totalFeeRebate: BN;
 		totalTokenDiscount: BN;
 		totalRefereeDiscount: BN;
+		totalReferrerReward: BN;
+		current_epoch_referrer_reward: BN;
 	};
 	referrer: PublicKey;
 	isReferrer: boolean;
-	totalReferrerReward: BN;
 	authority: PublicKey;
-	stakedQuoteAssetAmount: BN;
+	ifStakedQuoteAssetAmount: BN;
 };
 
 export type UserAccount = {
 	authority: PublicKey;
 	delegate: PublicKey;
 	name: number[];
-	userId: number;
+	subAccountId: number;
 	spotPositions: SpotPosition[];
 	perpPositions: PerpPosition[];
 	orders: Order[];
-	beingLiquidated: boolean;
-	bankrupt: boolean;
+	isBeingLiquidated: boolean;
+	isBankrupt: boolean;
 	nextLiquidationId: number;
 	nextOrderId: number;
-	customMarginRatio: number;
+	maxMarginRatio: number;
+	lastAddPerpLpSharesTs: BN;
 };
 
 export type SpotPosition = {
@@ -691,7 +698,7 @@ export type Order = {
 	existingPositionDirection: PositionDirection;
 	postOnly: boolean;
 	immediateOrCancel: boolean;
-	oraclePriceOffset: BN;
+	oraclePriceOffset: number;
 	auctionDuration: number;
 	auctionStartPrice: BN;
 	auctionEndPrice: BN;
@@ -712,7 +719,7 @@ export type OrderParams = {
 	triggerPrice: BN | null;
 	triggerCondition: OrderTriggerCondition;
 	positionLimit: BN;
-	oraclePriceOffset: BN | null;
+	oraclePriceOffset: number | null;
 	auctionDuration: number | null;
 	timeInForce: number | null;
 	auctionStartPrice: BN | null;
