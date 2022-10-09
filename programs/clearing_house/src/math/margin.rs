@@ -1,6 +1,8 @@
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
-use crate::math::constants::{MARGIN_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION};
+use crate::math::constants::{
+    MARGIN_PRECISION, PRICE_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION,
+};
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
     calculate_base_asset_value_with_oracle_price,
@@ -661,4 +663,36 @@ pub fn calculate_free_collateral(
     total_collateral
         .checked_sub(cast_to_i128(margin_requirement)?)
         .ok_or_else(math_error!())
+}
+
+pub fn calculate_max_withdrawable_amount(
+    market_index: u16,
+    user: &User,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+) -> ClearingHouseResult<u64> {
+    let free_collateral =
+        calculate_free_collateral(user, perp_market_map, spot_market_map, oracle_map)?
+            .max(0)
+            .cast::<u128>()?;
+
+    let spot_market = &mut spot_market_map.get_ref(&market_index)?;
+
+    let precision_increase = 10u128.pow((spot_market.decimals - 6) as u32);
+
+    let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
+
+    free_collateral
+        .checked_mul(MARGIN_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_div(spot_market.initial_asset_weight)
+        .ok_or_else(math_error!())?
+        .checked_mul(PRICE_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_div(oracle_price.unsigned_abs())
+        .ok_or_else(math_error!())?
+        .checked_mul(precision_increase)
+        .ok_or_else(math_error!())?
+        .cast()
 }

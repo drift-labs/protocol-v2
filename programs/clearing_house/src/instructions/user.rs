@@ -10,7 +10,10 @@ use crate::instructions::constraints::*;
 use crate::load;
 use crate::load_mut;
 use crate::math::casting::Cast;
-use crate::math::margin::{meets_initial_margin_requirement, meets_withdraw_margin_requirement};
+use crate::math::margin::{
+    calculate_max_withdrawable_amount, meets_initial_margin_requirement,
+    meets_withdraw_margin_requirement,
+};
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
 use crate::optional_accounts::{
@@ -278,9 +281,9 @@ pub fn handle_withdraw(
         &get_writable_spot_market_set(market_index),
         remaining_accounts_iter,
     )?;
-    let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+    let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
-    let amount = {
+    let spot_market_is_reduce_only = {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
 
@@ -290,22 +293,43 @@ pub fn handle_withdraw(
             now,
         )?;
 
-        let spot_position = user.force_get_spot_position_mut(spot_market.market_index)?;
+        spot_market.is_reduce_only()?
+    };
 
-        let force_reduce_only = spot_market.is_reduce_only()?;
+    let amount = {
+        let reduce_only = reduce_only || spot_market_is_reduce_only;
 
-        // if reduce only, have to compare ix amount to current deposit amount
-        let amount = if (force_reduce_only || reduce_only)
-            && spot_position.balance_type == SpotBalanceType::Deposit
-        {
-            spot_position
+        let position_index = user.get_spot_position_index(market_index)?;
+
+        let amount = if reduce_only {
+            validate!(
+                user.spot_positions[position_index].balance_type == SpotBalanceType::Deposit,
+                ErrorCode::ReduceOnlyWithdrawIncreasedRisk
+            )?;
+
+            let max_withdrawable_amount = calculate_max_withdrawable_amount(
+                market_index,
+                user,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+            )?;
+
+            let spot_market = &spot_market_map.get_ref(&market_index)?;
+            let existing_deposit_amount = user.spot_positions[position_index]
                 .get_token_amount(spot_market)?
-                .cast::<u64>()?
-                .min(amount)
+                .cast::<u64>()?;
+
+            amount
+                .min(max_withdrawable_amount)
+                .min(existing_deposit_amount)
         } else {
             amount
         };
 
+        let spot_position = user.force_get_spot_position_mut(market_index)?;
+
+        let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         // prevents withdraw when limits hit
         controller::spot_balance::update_spot_position_balance_with_limits(
             amount as u128,
@@ -317,7 +341,7 @@ pub fn handle_withdraw(
         amount
     };
 
-    meets_withdraw_margin_requirement(user, &market_map, &spot_market_map, &mut oracle_map)?;
+    meets_withdraw_margin_requirement(user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
 
     let spot_market = spot_market_map.get_ref(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;

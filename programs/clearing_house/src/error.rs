@@ -273,6 +273,8 @@ pub enum ErrorCode {
     AssetTierViolation,
     #[msg("User Cant Be Deleted")]
     UserCantBeDeleted,
+    #[msg("Reduce Only Withdraw Increased Risk")]
+    ReduceOnlyWithdrawIncreasedRisk,
 }
 
 #[macro_export]
