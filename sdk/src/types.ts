@@ -445,7 +445,7 @@ export type PerpMarketAccount = {
 	marketIndex: number;
 	pubkey: PublicKey;
 	amm: AMM;
-	openInterest: BN;
+	numberOfUsers: BN;
 	marginRatioInitial: number;
 	marginRatioMaintenance: number;
 	nextFillRecordId: BN;
@@ -579,10 +579,10 @@ export type AMM = {
 	cumulativeFeePerLp: BN;
 	cumulativeNetBaseAssetAmountPerLp: BN;
 	userLpShares: BN;
-	netUnsettledLpBaseAssetAmount: BN;
+	baseAssetAmountWithUnsettledLp: BN;
 	orderStepSize: BN;
 	orderTickSize: BN;
-	maxBaseAssetAmountRatio: number;
+	maxFillReserveFraction: number;
 	maxSlippageRatio: number;
 	baseSpread: number;
 	curveUpdateIntensity: number;
@@ -646,7 +646,7 @@ export type UserStatsAccount = {
 	referrer: PublicKey;
 	isReferrer: boolean;
 	authority: PublicKey;
-	stakedQuoteAssetAmount: BN;
+	ifStakedQuoteAssetAmount: BN;
 };
 
 export type UserAccount = {

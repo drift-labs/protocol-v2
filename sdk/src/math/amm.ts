@@ -713,7 +713,7 @@ export function calculateMaxBaseAssetAmountFillable(
 	orderDirection: PositionDirection
 ): BN {
 	const maxFillSize = amm.baseAssetReserve.div(
-		new BN(amm.maxBaseAssetAmountRatio)
+		new BN(amm.maxFillReserveFraction)
 	);
 	let maxBaseAssetAmountOnSide: BN;
 	if (isVariant(orderDirection, 'long')) {

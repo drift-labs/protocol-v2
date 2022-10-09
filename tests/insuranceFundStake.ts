@@ -150,7 +150,7 @@ describe('insurance fund stake', () => {
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 		assert(userStats.numberOfSubAccounts === 1);
-		assert(userStats.stakedQuoteAssetAmount.eq(ZERO));
+		assert(userStats.ifStakedQuoteAssetAmount.eq(ZERO));
 	});
 
 	it('user if stake', async () => {
@@ -191,7 +191,7 @@ describe('insurance fund stake', () => {
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 		console.log(userStats);
-		assert(userStats.stakedQuoteAssetAmount.eq(usdcAmount));
+		assert(userStats.ifStakedQuoteAssetAmount.eq(usdcAmount));
 	});
 
 	it('user request if unstake (half)', async () => {
@@ -235,7 +235,7 @@ describe('insurance fund stake', () => {
 		assert(spotMarket0.insuranceFund.userShares.eq(usdcAmount));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
-		assert(userStats.stakedQuoteAssetAmount.eq(usdcAmount));
+		assert(userStats.ifStakedQuoteAssetAmount.eq(usdcAmount));
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
 			clearingHouse.program.programId,
@@ -282,7 +282,7 @@ describe('insurance fund stake', () => {
 		assert(spotMarket0.insuranceFund.userShares.eq(usdcAmount.div(new BN(2))));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
-		assert(userStats.stakedQuoteAssetAmount.eq(usdcAmount.div(new BN(2))));
+		assert(userStats.ifStakedQuoteAssetAmount.eq(usdcAmount.div(new BN(2))));
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
 			clearingHouse.program.programId,
@@ -349,7 +349,7 @@ describe('insurance fund stake', () => {
 		assert(spotMarket0.insuranceFund.userShares.eq(usdcAmount.div(new BN(2))));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
-		assert(userStats.stakedQuoteAssetAmount.gt(ZERO));
+		assert(userStats.ifStakedQuoteAssetAmount.gt(ZERO));
 
 		const ifStakePublicKey = getInsuranceFundStakeAccountPublicKey(
 			clearingHouse.program.programId,
@@ -451,7 +451,7 @@ describe('insurance fund stake', () => {
 		assert(ifStakeAccount.lastWithdrawRequestShares.eq(ZERO));
 
 		const userStats = clearingHouse.getUserStats().getAccount();
-		assert(userStats.stakedQuoteAssetAmount.eq(ZERO));
+		assert(userStats.ifStakedQuoteAssetAmount.eq(ZERO));
 
 		const usdcbalance = await connection.getTokenAccountBalance(
 			userUSDCAccount.publicKey
@@ -712,7 +712,7 @@ describe('insurance fund stake', () => {
 
 		const userStats = clearingHouse.getUserStats().getAccount();
 		assert(
-			userStats.stakedQuoteAssetAmount.eq(new BN(usdcbalance.value.amount))
+			userStats.ifStakedQuoteAssetAmount.eq(new BN(usdcbalance.value.amount))
 		);
 	});
 
@@ -817,7 +817,7 @@ describe('insurance fund stake', () => {
 			'->',
 			ifStakeAccountAfter.ifShares.toString(),
 			'(quoteAssetInsuranceFundStake=',
-			userStats.stakedQuoteAssetAmount.toString(),
+			userStats.ifStakedQuoteAssetAmount.toString(),
 			')'
 		);
 
@@ -826,7 +826,7 @@ describe('insurance fund stake', () => {
 		// the user should have slightly less quote staked than the total quote in if
 		assert(
 			insuranceVaultAmountAfter
-				.sub(userStats.stakedQuoteAssetAmount)
+				.sub(userStats.ifStakedQuoteAssetAmount)
 				.lt(QUOTE_PRECISION)
 		);
 	});

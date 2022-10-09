@@ -380,7 +380,7 @@ describe('liquidity providing', () => {
 
 		const marketAfter = clearingHouse.getPerpMarketAccount(0);
 		assert(
-			marketAfter.amm.netUnsettledLpBaseAssetAmount.eq(new BN('-250000000'))
+			marketAfter.amm.baseAssetAmountWithUnsettledLp.eq(new BN('-250000000'))
 		);
 		assert(marketAfter.amm.baseAssetAmountWithAmm.eq(new BN('-3750000000')));
 

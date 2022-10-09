@@ -131,8 +131,8 @@ describe('clearing_house', () => {
 		)) as PerpMarketAccount;
 
 		assert.ok(JSON.stringify(market.status) === JSON.stringify({ active: {} }));
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(0)));
-		assert.ok(market.openInterest.eq(new BN(0)));
+		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(0)));
+		assert.ok(market.numberOfUsers.eq(new BN(0)));
 
 		const ammD = market.amm;
 		console.log(ammD.oracle.toString());
