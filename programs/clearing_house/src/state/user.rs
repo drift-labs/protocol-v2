@@ -104,6 +104,14 @@ impl User {
             .map(move |market_index| &mut self.spot_positions[market_index])
     }
 
+    pub fn force_get_spot_position_index(
+        &mut self,
+        market_index: u16,
+    ) -> ClearingHouseResult<usize> {
+        self.get_spot_position_index(market_index)
+            .or_else(|_| self.add_spot_position(market_index, SpotBalanceType::Deposit))
+    }
+
     pub fn get_perp_position(&self, market_index: u16) -> ClearingHouseResult<&PerpPosition> {
         Ok(&self.perp_positions[get_position_index(&self.perp_positions, market_index)?])
     }

@@ -302,7 +302,7 @@ pub fn handle_withdraw(
     let amount = {
         let reduce_only = reduce_only || spot_market_is_reduce_only;
 
-        let position_index = user.get_spot_position_index(market_index)?;
+        let position_index = user.force_get_spot_position_index(market_index)?;
 
         let amount = if reduce_only {
             validate!(
