@@ -13,7 +13,7 @@ pub struct NewUserRecord {
     pub ts: i64,
     pub user_authority: Pubkey,
     pub user: Pubkey,
-    pub user_id: u8,
+    pub sub_account_id: u8,
     pub name: [u8; 32],
     pub referrer: Pubkey,
 }
@@ -68,7 +68,7 @@ pub struct FundingPaymentRecord {
     pub market_index: u16,
     pub funding_payment: i64,
     pub base_asset_amount: i64,
-    pub user_last_cumulative_funding: i128,
+    pub user_last_cumulative_funding: i64,
     pub amm_cumulative_funding_long: i128,
     pub amm_cumulative_funding_short: i128,
 }
@@ -86,8 +86,8 @@ pub struct FundingRateRecord {
     pub oracle_price_twap: i128,
     pub mark_price_twap: u128,
     pub period_revenue: i64,
-    pub net_base_asset_amount: i128,
-    pub net_unsettled_lp_base_asset_amount: i128,
+    pub base_asset_amount_with_amm: i128,
+    pub base_asset_amount_with_unsettled_lp: i128,
 }
 
 #[event]
@@ -105,8 +105,8 @@ pub struct CurveRecord {
     pub sqrt_k_after: u128,
     pub base_asset_amount_long: u128,
     pub base_asset_amount_short: u128,
-    pub net_base_asset_amount: i128,
-    pub open_interest: u128,
+    pub base_asset_amount_with_amm: i128,
+    pub number_of_users: u128,
     pub total_fee: i128,
     pub total_fee_minus_distributions: i128,
     pub adjustment_cost: i128,

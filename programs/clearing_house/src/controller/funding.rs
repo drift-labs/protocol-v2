@@ -11,7 +11,7 @@ use crate::controller::position::{
 use crate::error::ClearingHouseResult;
 use crate::get_then_update_id;
 use crate::math::amm;
-use crate::math::casting::{cast, cast_to_i128};
+use crate::math::casting::{cast, cast_to_i128, Cast};
 use crate::math::constants::{FUNDING_RATE_BUFFER, ONE_HOUR, TWENTY_FOUR_HOUR};
 use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
 use crate::math::helpers::on_the_hour_update;
@@ -20,8 +20,8 @@ use crate::math::stats::calculate_new_twap;
 use crate::math::oracle;
 use crate::math_error;
 use crate::state::events::{FundingPaymentRecord, FundingRateRecord};
-use crate::state::market::{PerpMarket, AMM};
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::state::OracleGuardRails;
 use crate::state::user::User;
@@ -51,7 +51,7 @@ pub fn settle_funding_payment(
         amm.cumulative_funding_rate_short
     };
 
-    if amm_cumulative_funding_rate != market_position.last_cumulative_funding_rate {
+    if amm_cumulative_funding_rate != market_position.last_cumulative_funding_rate.cast()? {
         let market_funding_payment =
             calculate_funding_payment(amm_cumulative_funding_rate, market_position)?;
 
@@ -67,7 +67,7 @@ pub fn settle_funding_payment(
             base_asset_amount: market_position.base_asset_amount, //10e13
         });
 
-        market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate;
+        market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate.cast()?;
         update_quote_asset_amount(market_position, market, market_funding_payment)?;
     }
 
@@ -94,7 +94,7 @@ pub fn settle_funding_payments(
             amm.cumulative_funding_rate_short
         };
 
-        if amm_cumulative_funding_rate != market_position.last_cumulative_funding_rate {
+        if amm_cumulative_funding_rate != market_position.last_cumulative_funding_rate.cast()? {
             let market_funding_payment =
                 calculate_funding_payment(amm_cumulative_funding_rate, market_position)?;
 
@@ -110,7 +110,7 @@ pub fn settle_funding_payments(
                 base_asset_amount: market_position.base_asset_amount, //1e9
             });
 
-            market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate;
+            market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate.cast()?;
             update_quote_asset_amount(market_position, market, market_funding_payment)?;
         }
     }
@@ -248,8 +248,8 @@ pub fn update_funding_rate(
             mark_price_twap: mid_price_twap,
             oracle_price_twap,
             period_revenue: market.amm.net_revenue_since_last_funding,
-            net_base_asset_amount: market.amm.net_base_asset_amount,
-            net_unsettled_lp_base_asset_amount: market.amm.net_unsettled_lp_base_asset_amount,
+            base_asset_amount_with_amm: market.amm.base_asset_amount_with_amm,
+            base_asset_amount_with_unsettled_lp: market.amm.base_asset_amount_with_unsettled_lp,
         });
 
         market.amm.net_revenue_since_last_funding = 0;

@@ -13,12 +13,12 @@ use crate::math::casting::cast_to_i128;
 use crate::math::casting::cast_to_i64;
 use crate::math::casting::{cast, Cast};
 use crate::math::margin::meets_maintenance_margin_requirement;
-use crate::math::position::calculate_base_asset_value_and_pnl_with_settlement_price;
+use crate::math::position::calculate_base_asset_value_and_pnl_with_expiry_price;
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
 use crate::state::events::SettlePnlRecord;
-use crate::state::market::MarketStatus;
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::spot_market_map::SpotMarketMap;
@@ -31,9 +31,11 @@ use solana_program::msg;
 use std::ops::DerefMut;
 
 #[cfg(test)]
+#[path = "../../tests/controller/pnl.rs"]
 mod tests;
 
 #[cfg(test)]
+#[path = "../../tests/controller/delisting.rs"]
 mod delisting;
 
 pub fn settle_pnl(
@@ -47,7 +49,7 @@ pub fn settle_pnl(
     now: i64,
     state: &State,
 ) -> ClearingHouseResult {
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
 
     {
         let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
@@ -245,11 +247,10 @@ pub fn settle_expired_position(
         "User must first burn lp shares for expired market"
     )?;
 
-    let (base_asset_value, unrealized_pnl) =
-        calculate_base_asset_value_and_pnl_with_settlement_price(
-            &user.perp_positions[position_index],
-            market.settlement_price,
-        )?;
+    let (base_asset_value, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_expiry_price(
+        &user.perp_positions[position_index],
+        market.expiry_price,
+    )?;
 
     let fee = base_asset_value
         .checked_mul(fee_structure.fee_tiers[0].fee_numerator as u128)
@@ -276,9 +277,9 @@ pub fn settle_expired_position(
 
     let _user_pnl = update_position_and_market(user_position, market, &position_delta)?;
 
-    market.amm.net_base_asset_amount = market
+    market.amm.base_asset_amount_with_amm = market
         .amm
-        .net_base_asset_amount
+        .base_asset_amount_with_amm
         .checked_add(position_delta.base_asset_amount.cast()?)
         .ok_or_else(math_error!())?;
 
@@ -292,7 +293,7 @@ pub fn settle_expired_position(
         base_asset_amount,
         quote_asset_amount_after,
         quote_entry_amount,
-        settle_price: market.settlement_price,
+        settle_price: market.expiry_price,
     });
 
     validate!(

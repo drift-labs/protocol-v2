@@ -219,7 +219,7 @@ export async function initializeAndSubscribeClearingHouse(
 		opts: {
 			commitment: 'confirmed',
 		},
-		activeUserId: 0,
+		activeSubAccountId: 0,
 		perpMarketIndexes: marketIndexes,
 		spotMarketIndexes: bankIndexes,
 		oracleInfos,
@@ -393,7 +393,7 @@ export async function initUserAccounts(
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: bankIndexes,
 			oracleInfos,

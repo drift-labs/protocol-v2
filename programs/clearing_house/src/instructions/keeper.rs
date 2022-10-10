@@ -11,8 +11,8 @@ use crate::optional_accounts::{
     get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
 };
 use crate::state::insurance_fund_stake::InsuranceFundStake;
-use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
     get_market_set, get_market_set_for_user_positions, get_market_set_from_list, MarketSet,
     PerpMarketMap,
@@ -322,6 +322,8 @@ pub fn handle_settle_lp<'info>(ctx: Context<SettleLP>, market_index: u16) -> Res
 pub fn handle_settle_expired_position(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
     let clock = Clock::get()?;
     let state = &ctx.accounts.state;
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let mut oracle_map = OracleMap::load(
@@ -346,9 +348,18 @@ pub fn handle_settle_expired_position(ctx: Context<SettlePNL>, market_index: u16
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
 
-    // todo: cancel all user open orders in market
+    controller::liquidation::cancel_all_orders(
+        user,
+        &user_key,
+        None,
+        &market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        now,
+        slot,
+    );
 
     controller::pnl::settle_expired_position(
         market_index,
@@ -975,7 +986,7 @@ pub fn handle_settle_revenue_to_insurance_fund(
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 
     validate!(
-        spot_market.revenue_settle_period > 0,
+        spot_market.insurance_fund.revenue_settle_period > 0,
         ErrorCode::DefaultError,
         "invalid revenue_settle_period settings on spot market"
     )?;
@@ -988,8 +999,8 @@ pub fn handle_settle_revenue_to_insurance_fund(
 
     let time_until_next_update = math::helpers::on_the_hour_update(
         now,
-        spot_market.last_revenue_settle_ts,
-        spot_market.revenue_settle_period,
+        spot_market.insurance_fund.last_revenue_settle_ts,
+        spot_market.insurance_fund.revenue_settle_period,
     )?;
 
     validate!(
@@ -1016,7 +1027,7 @@ pub fn handle_settle_revenue_to_insurance_fund(
         token_amount as u64,
     )?;
 
-    spot_market.last_revenue_settle_ts = now;
+    spot_market.insurance_fund.last_revenue_settle_ts = now;
 
     Ok(())
 }
@@ -1068,9 +1079,9 @@ pub fn handle_update_user_quote_asset_insurance_stake(
         "insurance_fund_stake is not for quote market"
     )?;
 
-    user_stats.staked_quote_asset_amount = if_shares_to_vault_amount(
+    user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
         insurance_fund_stake.checked_if_shares(quote_spot_market)?,
-        quote_spot_market.total_if_shares,
+        quote_spot_market.insurance_fund.total_shares,
         ctx.accounts.insurance_fund_vault.amount,
     )?;
 

@@ -17,8 +17,8 @@ use crate::math::margin::{
 };
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
-use crate::state::market::{MarketStatus, PoolBalance};
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
+use crate::state::perp_market::{MarketStatus, PoolBalance};
 use solana_program::msg;
 
 #[account(zero_copy)]
@@ -29,11 +29,11 @@ pub struct SpotMarket {
     pub oracle: Pubkey,
     pub mint: Pubkey,
     pub vault: Pubkey,
-    pub insurance_fund_vault: Pubkey,
     pub historical_oracle_data: HistoricalOracleData,
     pub historical_index_data: HistoricalIndexData,
     pub revenue_pool: PoolBalance,  // in base asset
     pub spot_fee_pool: PoolBalance, // in quote asset
+    pub insurance_fund: InsuranceFund,
     pub initial_asset_weight: u128,
     pub maintenance_asset_weight: u128,
     pub initial_liability_weight: u128,
@@ -42,9 +42,6 @@ pub struct SpotMarket {
     pub liquidator_fee: u128,
     pub if_liquidation_fee: u128, // percentage of liquidation transfer for total insurance
     pub withdraw_guard_threshold: u128, // no withdraw limits/guards when deposits below this threshold
-    pub total_if_shares: u128,
-    pub user_if_shares: u128,
-    pub if_shares_base: u128, // exponent for lp shares (for rebasing)
     pub total_spot_fee: u128,
     pub deposit_balance: u128,
     pub borrow_balance: u128,
@@ -54,9 +51,6 @@ pub struct SpotMarket {
     pub utilization_twap: u128,   // 24 hour twap
     pub cumulative_deposit_interest: u128,
     pub cumulative_borrow_interest: u128,
-    pub insurance_withdraw_escrow_period: i64,
-    pub last_revenue_settle_ts: i64,
-    pub revenue_settle_period: i64,
     pub last_interest_ts: u64,
     pub last_twap_ts: u64,
     pub expiry_ts: i64, // iff market in reduce only mode
@@ -68,8 +62,6 @@ pub struct SpotMarket {
     pub optimal_utilization: u32,
     pub optimal_borrow_rate: u32,
     pub max_borrow_rate: u32,
-    pub total_if_factor: u32, // percentage of interest for total insurance
-    pub user_if_factor: u32,  // percentage of interest for user staked insurance
     pub market_index: u16,
     pub decimals: u8,
     pub oracle_source: OracleSource,
@@ -298,4 +290,19 @@ impl Default for AssetTier {
     fn default() -> Self {
         AssetTier::Unlisted
     }
+}
+
+#[zero_copy]
+#[derive(Default, Eq, PartialEq, Debug)]
+#[repr(C)]
+pub struct InsuranceFund {
+    pub vault: Pubkey,
+    pub total_shares: u128,
+    pub user_shares: u128,
+    pub shares_base: u128,     // exponent for lp shares (for rebasing)
+    pub unstaking_period: i64, // if_unstaking_period
+    pub last_revenue_settle_ts: i64,
+    pub revenue_settle_period: i64,
+    pub total_factor: u32, // percentage of interest for total insurance
+    pub user_factor: u32,  // percentage of interest for user staked insurance
 }

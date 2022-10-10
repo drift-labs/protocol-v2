@@ -128,7 +128,7 @@ describe('delist market', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [
@@ -148,7 +148,7 @@ describe('delist market', () => {
 
 		const periodicity = new BN(0);
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -180,7 +180,7 @@ describe('delist market', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [
@@ -382,10 +382,7 @@ describe('delist market', () => {
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log(market.status);
 		assert(isVariant(market.status, 'settlement'));
-		console.log(
-			'market.settlementPrice:',
-			convertToNumber(market.settlementPrice)
-		);
+		console.log('market.expirytPrice:', convertToNumber(market.expiryPrice));
 		console.log(
 			'market.amm.historicalOracleData.lastOraclePriceTwap:',
 			convertToNumber(market.amm.historicalOracleData.lastOraclePriceTwap)
@@ -400,15 +397,13 @@ describe('delist market', () => {
 		);
 		assert(Math.abs(convertToNumber(oraclePriceData.price) - curPrice) < 1e-4);
 
-		assert(market.settlementPrice.gt(ZERO));
+		assert(market.expiryPrice.gt(ZERO));
 
-		assert(market.amm.netBaseAssetAmount.lt(ZERO));
+		assert(market.amm.baseAssetAmountWithAmm.lt(ZERO));
 		assert(
-			market.amm.historicalOracleData.lastOraclePriceTwap.lt(
-				market.settlementPrice
-			)
+			market.amm.historicalOracleData.lastOraclePriceTwap.lt(market.expiryPrice)
 		);
-		assert(market.settlementPrice.eq(new BN(28755801)));
+		assert(market.expiryPrice.eq(new BN(28755801)));
 	});
 
 	it('settle expired market position', async () => {

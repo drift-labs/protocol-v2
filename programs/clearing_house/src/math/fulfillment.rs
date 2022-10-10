@@ -2,7 +2,7 @@ use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
 use crate::math::auction::is_auction_complete;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::market::AMM;
+use crate::state::perp_market::AMM;
 use crate::state::user::Order;
 
 pub fn determine_perp_fulfillment_methods(

@@ -53,7 +53,7 @@ async function createNewUser(
 		opts: {
 			commitment: 'confirmed',
 		},
-		activeUserId: 0,
+		activeSubAccountId: 0,
 		perpMarketIndexes: [0, 1],
 		spotMarketIndexes: [0],
 		oracleInfos,
@@ -133,7 +133,7 @@ describe('liquidity providing', () => {
 			provider.wallet
 		);
 		// used for trading / taking on baa
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solusdc,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -144,7 +144,7 @@ describe('liquidity providing', () => {
 		await clearingHouse.updatePerpStepSizeAndTickSize(0, new BN(1), new BN(1));
 
 		// second market -- used for funding ..
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solusdc2,
 			stableAmmInitialBaseAssetReserve,
 			stableAmmInitialQuoteAssetReserve,
@@ -177,7 +177,7 @@ describe('liquidity providing', () => {
 		let market = clearingHouse.getPerpMarketAccount(0);
 
 		console.log('adding liquidity...');
-		const _sig = await clearingHouse.addLiquidity(
+		const _sig = await clearingHouse.addPerpLpShares(
 			new BN(100 * 1e13),
 			market.marketIndex
 		);

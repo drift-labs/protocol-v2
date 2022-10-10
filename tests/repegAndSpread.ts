@@ -186,7 +186,7 @@ describe('repeg and spread amm', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos: oracleInfos,
@@ -200,7 +200,7 @@ describe('repeg and spread amm', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		// BTC
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			btcUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -314,7 +314,7 @@ describe('repeg and spread amm', () => {
 		);
 		console.log(
 			'market0.amm.netBaseAssetAmount:',
-			market0.amm.netBaseAssetAmount.toString(),
+			market0.amm.baseAssetAmountWithAmm.toString(),
 			'terminalQuoteAssetReserve:',
 			market0.amm.terminalQuoteAssetReserve.toString(),
 			'quoteAssetReserve:',
@@ -364,7 +364,7 @@ describe('repeg and spread amm', () => {
 
 		console.log(
 			'prepegAMM.netBaseAssetAmount:',
-			prepegAMM.netBaseAssetAmount.toString(),
+			prepegAMM.baseAssetAmountWithAmm.toString(),
 			'terminalQuoteAssetReserve:',
 			prepegAMM.terminalQuoteAssetReserve.toString(),
 			'quoteAssetReserve:',
@@ -380,7 +380,7 @@ describe('repeg and spread amm', () => {
 			prepegAMM.quoteAssetReserve,
 			prepegAMM.terminalQuoteAssetReserve,
 			prepegAMM.pegMultiplier,
-			prepegAMM.netBaseAssetAmount,
+			prepegAMM.baseAssetAmountWithAmm,
 			reservePrice,
 			prepegAMM.totalFeeMinusDistributions,
 			prepegAMM.baseAssetReserve,
@@ -419,12 +419,12 @@ describe('repeg and spread amm', () => {
 			prepegAMM.quoteAssetReserve,
 			prepegAMM.terminalQuoteAssetReserve,
 			prepegAMM.pegMultiplier,
-			prepegAMM.netBaseAssetAmount,
+			prepegAMM.baseAssetAmountWithAmm,
 			reservePrice,
 			prepegAMM.totalFeeMinusDistributions
 		);
 		const inventoryScale = calculateInventoryScale(
-			prepegAMM.netBaseAssetAmount,
+			prepegAMM.baseAssetAmountWithAmm,
 			prepegAMM.baseAssetReserve,
 			prepegAMM.minBaseAssetReserve,
 			prepegAMM.maxBaseAssetReserve
@@ -936,9 +936,9 @@ describe('repeg and spread amm', () => {
 
 		console.log(
 			'market0.amm.netBaseAssetAmount:',
-			market0.amm.netBaseAssetAmount.toString()
+			market0.amm.baseAssetAmountWithAmm.toString()
 		);
-		assert(market0.amm.netBaseAssetAmount.eq(new BN(0)));
+		assert(market0.amm.baseAssetAmountWithAmm.eq(new BN(0)));
 
 		// console.log(market0);
 

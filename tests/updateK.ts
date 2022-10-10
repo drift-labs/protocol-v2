@@ -68,7 +68,7 @@ describe('update k', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
 		});
@@ -85,7 +85,7 @@ describe('update k', () => {
 			initPrice: initialSOLPrice,
 		});
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solUsdOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -229,7 +229,7 @@ describe('update k', () => {
 		console.log('$1 position taken');
 		await clearingHouse.fetchAccounts();
 		const marketOld = clearingHouse.getPerpMarketAccount(0);
-		assert(!marketOld.amm.netBaseAssetAmount.eq(ZERO));
+		assert(!marketOld.amm.baseAssetAmountWithAmm.eq(ZERO));
 
 		const oldKPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
@@ -327,7 +327,7 @@ describe('update k', () => {
 		console.log('$1000 position taken');
 		await clearingHouse.fetchAccounts();
 		const marketOld = await clearingHouse.getPerpMarketAccount(0);
-		assert(!marketOld.amm.netBaseAssetAmount.eq(ZERO));
+		assert(!marketOld.amm.baseAssetAmountWithAmm.eq(ZERO));
 
 		const oldKPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)
@@ -440,7 +440,7 @@ describe('update k', () => {
 		console.log('$1 position taken');
 		await clearingHouse.fetchAccounts();
 		const marketOld = await clearingHouse.getPerpMarketAccount(0);
-		assert(!marketOld.amm.netBaseAssetAmount.eq(ZERO));
+		assert(!marketOld.amm.baseAssetAmountWithAmm.eq(ZERO));
 
 		const oldKPrice = calculateReservePrice(
 			clearingHouse.getPerpMarketAccount(marketIndex)

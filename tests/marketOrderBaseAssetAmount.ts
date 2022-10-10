@@ -62,7 +62,7 @@ describe('clearing_house', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -77,7 +77,7 @@ describe('clearing_house', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -145,10 +145,10 @@ describe('clearing_house', () => {
 		);
 
 		const market = clearingHouse.getPerpMarketAccount(0);
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(48000000000)));
-		assert.ok(market.baseAssetAmountLong.eq(new BN(48000000000)));
-		assert.ok(market.baseAssetAmountShort.eq(ZERO));
-		assert.ok(market.openInterest.eq(ONE));
+		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(48000000000)));
+		assert.ok(market.amm.baseAssetAmountLong.eq(new BN(48000000000)));
+		assert.ok(market.amm.baseAssetAmountShort.eq(ZERO));
+		assert.ok(market.numberOfUsers.eq(ONE));
 		assert.ok(market.amm.totalFee.eq(new BN(48001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(48001)));
 
@@ -201,11 +201,11 @@ describe('clearing_house', () => {
 		);
 
 		const market = clearingHouse.getPerpMarketAccount(0);
-		console.log(market.amm.netBaseAssetAmount.toString());
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(24000000000)));
-		assert.ok(market.baseAssetAmountLong.eq(new BN(24000000000)));
-		assert.ok(market.baseAssetAmountShort.eq(ZERO));
-		assert.ok(market.openInterest.eq(ONE));
+		console.log(market.amm.baseAssetAmountWithAmm.toString());
+		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(24000000000)));
+		assert.ok(market.amm.baseAssetAmountLong.eq(new BN(24000000000)));
+		assert.ok(market.amm.baseAssetAmountShort.eq(ZERO));
+		assert.ok(market.numberOfUsers.eq(ONE));
 		assert.ok(market.amm.totalFee.eq(new BN(72001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(72001)));
 
@@ -256,10 +256,10 @@ describe('clearing_house', () => {
 		);
 
 		const market = clearingHouse.getPerpMarketAccount(0);
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(-24000000000)));
-		assert.ok(market.baseAssetAmountLong.eq(ZERO));
-		assert.ok(market.baseAssetAmountShort.eq(new BN(-24000000000)));
-		assert.ok(market.openInterest.eq(ONE));
+		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(-24000000000)));
+		assert.ok(market.amm.baseAssetAmountLong.eq(ZERO));
+		assert.ok(market.amm.baseAssetAmountShort.eq(new BN(-24000000000)));
+		assert.ok(market.numberOfUsers.eq(ONE));
 		assert.ok(market.amm.totalFee.eq(new BN(120001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120001)));
 
@@ -311,7 +311,7 @@ describe('clearing_house', () => {
 		);
 
 		const market = clearingHouse.getPerpMarketAccount(0);
-		assert.ok(market.amm.netBaseAssetAmount.eq(new BN(0)));
+		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(0)));
 		assert.ok(market.amm.totalFee.eq(new BN(144001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(144001)));
 

@@ -195,7 +195,7 @@ async function cappedSymFundingScenario(
 	const priceFeedAddress = await mockOracle(priceAction[0], -10);
 	const periodicity = new BN(0);
 
-	await clearingHouse.initializeMarket(
+	await clearingHouse.initializePerpMarket(
 		priceFeedAddress,
 		kSqrt,
 		kSqrt,
@@ -344,19 +344,19 @@ async function cappedSymFundingScenario(
 	);
 	console.log(
 		'baseAssetAmountLong',
-		convertToNumber(marketNew.baseAssetAmountLong, AMM_RESERVE_PRECISION),
+		convertToNumber(marketNew.amm.baseAssetAmountLong, AMM_RESERVE_PRECISION),
 		'baseAssetAmountShort',
-		convertToNumber(marketNew.baseAssetAmountShort, AMM_RESERVE_PRECISION),
+		convertToNumber(marketNew.amm.baseAssetAmountShort, AMM_RESERVE_PRECISION),
 		'totalFee',
 		convertToNumber(marketNew.amm.totalFee, QUOTE_PRECISION),
 		'totalFeeMinusDistributions',
 		convertToNumber(marketNew.amm.totalFeeMinusDistributions, QUOTE_PRECISION)
 	);
 
-	const fundingPnLForLongs = marketNew.baseAssetAmountLong
+	const fundingPnLForLongs = marketNew.amm.baseAssetAmountLong
 		.mul(fundingRateLong)
 		.mul(new BN(-1));
-	const fundingPnLForShorts = marketNew.baseAssetAmountShort
+	const fundingPnLForShorts = marketNew.amm.baseAssetAmountShort
 		.mul(fundingRateShort)
 		.mul(new BN(-1));
 
@@ -476,7 +476,7 @@ describe('capped funding', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 		});

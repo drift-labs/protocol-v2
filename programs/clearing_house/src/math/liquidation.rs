@@ -10,8 +10,8 @@ use crate::math::margin::{
 };
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
-use crate::state::market::PerpMarket;
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
@@ -19,7 +19,8 @@ use crate::state::user::User;
 use solana_program::msg;
 
 #[cfg(test)]
-mod tests;
+#[path = "../../tests/math/liquidation.rs"]
+mod test;
 
 pub fn calculate_base_asset_amount_to_cover_margin_shortage(
     margin_shortage: u128,
@@ -265,7 +266,7 @@ pub fn validate_user_not_being_liquidated(
     oracle_map: &mut OracleMap,
     liquidation_margin_buffer_ratio: u32,
 ) -> ClearingHouseResult {
-    if !user.being_liquidated {
+    if !user.is_being_liquidated {
         return Ok(());
     }
 
@@ -280,7 +281,7 @@ pub fn validate_user_not_being_liquidated(
     if is_still_being_liquidated {
         return Err(ErrorCode::UserIsBeingLiquidated);
     } else {
-        user.being_liquidated = false;
+        user.is_being_liquidated = false;
     }
 
     Ok(())
@@ -310,9 +311,10 @@ pub fn calculate_funding_rate_deltas_to_resolve_bankruptcy(
     market: &PerpMarket,
 ) -> ClearingHouseResult<i128> {
     let total_base_asset_amount = market
+        .amm
         .base_asset_amount_long
         .abs()
-        .checked_add(market.base_asset_amount_short.abs())
+        .checked_add(market.amm.base_asset_amount_short.abs())
         .ok_or_else(math_error!())?;
 
     if total_base_asset_amount == 0 {

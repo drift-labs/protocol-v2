@@ -79,7 +79,7 @@ describe('oracle offset', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -91,7 +91,7 @@ describe('oracle offset', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await fillerClearingHouse.initializeMarket(
+		await fillerClearingHouse.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -142,7 +142,7 @@ describe('oracle offset', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -171,7 +171,7 @@ describe('oracle offset', () => {
 			price,
 			reduceOnly,
 			userOrderId: 1,
-			oraclePriceOffset: priceOffset,
+			oraclePriceOffset: priceOffset.toNumber(),
 		});
 		await clearingHouse.placeOrder(orderParams);
 
@@ -216,7 +216,7 @@ describe('oracle offset', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -244,7 +244,7 @@ describe('oracle offset', () => {
 			reduceOnly,
 			userOrderId: 1,
 			postOnly: true,
-			oraclePriceOffset: priceOffset,
+			oraclePriceOffset: priceOffset.toNumber(),
 		});
 
 		await clearingHouse.placeOrder(orderParams);
@@ -292,7 +292,7 @@ describe('oracle offset', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -319,7 +319,7 @@ describe('oracle offset', () => {
 			baseAssetAmount,
 			reduceOnly,
 			userOrderId: 1,
-			oraclePriceOffset: priceOffset,
+			oraclePriceOffset: priceOffset.toNumber(),
 		});
 		await clearingHouse.placeOrder(orderParams);
 
@@ -364,7 +364,7 @@ describe('oracle offset', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -392,7 +392,7 @@ describe('oracle offset', () => {
 			reduceOnly,
 			userOrderId: 1,
 			postOnly: true,
-			oraclePriceOffset: priceOffset,
+			oraclePriceOffset: priceOffset.toNumber(),
 		});
 		await clearingHouse.placeOrder(orderParams);
 
@@ -439,7 +439,7 @@ describe('oracle offset', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -466,7 +466,7 @@ describe('oracle offset', () => {
 			baseAssetAmount,
 			reduceOnly,
 			postOnly: true,
-			oraclePriceOffset: priceOffset,
+			oraclePriceOffset: priceOffset.toNumber(),
 		});
 		await clearingHouse.placeOrder(orderParams);
 
@@ -495,7 +495,7 @@ describe('oracle offset', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -523,7 +523,7 @@ describe('oracle offset', () => {
 			reduceOnly,
 			postOnly: true,
 			userOrderId: 1,
-			oraclePriceOffset: priceOffset,
+			oraclePriceOffset: priceOffset.toNumber(),
 		});
 		await clearingHouse.placeOrder(orderParams);
 

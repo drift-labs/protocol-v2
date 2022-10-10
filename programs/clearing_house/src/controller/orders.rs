@@ -13,7 +13,7 @@ use crate::controller::funding::settle_funding_payment;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
-    update_amm_and_lp_market_position, update_position_and_market, update_quote_asset_amount,
+    update_lp_market_position, update_position_and_market, update_quote_asset_amount,
     PositionDirection,
 };
 use crate::controller::serum::{invoke_new_order, invoke_settle_funds, SerumFulfillmentParams};
@@ -61,9 +61,9 @@ use crate::print_error;
 use crate::state::events::{get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::serum::{get_best_bid_and_ask, load_open_orders, load_serum_market};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -76,9 +76,11 @@ use crate::validate;
 use crate::validation::order::{validate_order, validate_spot_order};
 
 #[cfg(test)]
+#[path = "../../tests/controller/orders.rs"]
 mod tests;
 
 #[cfg(test)]
+#[path = "../../tests/controller/amm_jit.rs"]
 mod amm_jit_tests;
 
 pub fn place_order(
@@ -103,7 +105,7 @@ pub fn place_order(
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
 
     let new_order_index = user
         .orders
@@ -144,6 +146,14 @@ pub fn place_order(
         let market_position = &mut user.perp_positions[position_index];
         market_position.open_orders += 1;
 
+        validate!(
+            params.base_asset_amount >= market.amm.order_step_size,
+            ErrorCode::InvalidOrder,
+            "params.base_asset_amount={} cannot be below market.amm.order_step_size={}",
+            params.base_asset_amount,
+            market.amm.order_step_size
+        )?;
+
         let standardized_base_asset_amount =
             standardize_base_asset_amount(params.base_asset_amount, market.amm.order_step_size)?;
 
@@ -152,7 +162,7 @@ pub fn place_order(
                 standardized_base_asset_amount,
                 params.direction,
                 market_position.base_asset_amount,
-            )
+            )?
         } else {
             standardized_base_asset_amount
         };
@@ -247,7 +257,7 @@ pub fn place_order(
         auction_end_price,
         auction_duration,
         time_in_force,
-        padding: [0; 5],
+        padding: [0; 1],
     };
 
     let valid_oracle_price = get_valid_oracle_price(
@@ -558,7 +568,7 @@ pub fn fill_order(
         "Order must be triggered first"
     )?;
 
-    if user.bankrupt {
+    if user.is_bankrupt {
         msg!("user is bankrupt");
         return Ok((0, false));
     }
@@ -914,7 +924,7 @@ fn sanitize_maker_order<'a>(
             return Ok((None, None, None, None));
         }
 
-        if maker.being_liquidated || maker.bankrupt {
+        if maker.is_being_liquidated || maker.is_bankrupt {
             return Ok((None, None, None, None));
         }
 
@@ -1018,7 +1028,7 @@ fn sanitize_referrer<'a>(
     let referrer = load_mut!(referrer.unwrap())?;
     let referrer_stats = load_mut!(referrer_stats.unwrap())?;
     validate!(
-        referrer.user_id == 0,
+        referrer.sub_account_id == 0,
         ErrorCode::InvalidReferrer,
         "Referrer must be user id 0"
     )?;
@@ -1406,12 +1416,9 @@ pub fn fulfill_order_with_amm(
     let user_position_delta =
         get_position_delta_for_fill(base_asset_amount, quote_asset_amount, order_direction)?;
 
-    update_amm_and_lp_market_position(
-        market,
-        &user_position_delta,
-        fee_to_market_for_lp.cast()?,
-        split_with_lps,
-    )?;
+    if split_with_lps {
+        update_lp_market_position(market, &user_position_delta, fee_to_market_for_lp.cast()?)?;
+    }
 
     if market.amm.user_lp_shares > 0 {
         let (new_terminal_quote_reserve, new_terminal_base_reserve) =
@@ -1624,8 +1631,8 @@ pub fn fulfill_order_with_match(
     )?;
 
     let amm_wants_to_make = match taker_direction {
-        PositionDirection::Long => market.amm.net_base_asset_amount < 0,
-        PositionDirection::Short => market.amm.net_base_asset_amount > 0,
+        PositionDirection::Long => market.amm.base_asset_amount_with_amm < 0,
+        PositionDirection::Short => market.amm.base_asset_amount_with_amm > 0,
     };
 
     let mut total_quote_asset_amount = 0_u64;
@@ -1774,12 +1781,6 @@ pub fn fulfill_order_with_match(
     )?;
 
     // Increment the markets house's total fee variables
-    market.amm.market_position.quote_asset_amount = market
-        .amm
-        .market_position
-        .quote_asset_amount
-        .checked_add(fee_to_market)
-        .ok_or_else(math_error!())?;
     market.amm.total_fee = market
         .amm
         .total_fee
@@ -2225,7 +2226,7 @@ pub fn place_spot_order(
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
 
     let new_order_index = user
         .orders
@@ -2275,46 +2276,46 @@ pub fn place_spot_order(
 
     // Increment open orders for existing position
     let (existing_position_direction, order_base_asset_amount) = {
-        let base_asset_amount = {
-            let spot_position = &mut user.spot_positions[base_spot_position_index];
-            spot_position.open_orders += 1;
+        let spot_position = &mut user.spot_positions[base_spot_position_index];
+        spot_position.open_orders += 1;
 
-            let standardized_base_asset_amount = standardize_base_asset_amount(
-                params.base_asset_amount,
-                base_spot_market.order_step_size,
-            )?;
+        validate!(
+            params.base_asset_amount >= base_spot_market.order_step_size,
+            ErrorCode::InvalidOrder,
+            "params.base_asset_amount={} cannot be below spot_market.order_step_size={}",
+            params.base_asset_amount,
+            base_spot_market.order_step_size
+        )?;
 
-            let base_asset_amount = if params.reduce_only || force_reduce_only {
-                calculate_base_asset_amount_for_reduce_only_order(
-                    standardized_base_asset_amount,
-                    params.direction,
-                    signed_token_amount,
-                )
-            } else {
-                standardized_base_asset_amount
-            };
+        let standardized_base_asset_amount = standardize_base_asset_amount(
+            params.base_asset_amount,
+            base_spot_market.order_step_size,
+        )?;
 
-            validate!(
-                is_multiple_of_step_size(base_asset_amount, base_spot_market.order_step_size)?,
-                ErrorCode::InvalidOrder,
-                "Order base asset amount ({}), is not a multiple of step size ({})",
-                base_asset_amount,
-                base_spot_market.order_step_size
-            )?;
-
-            if !matches!(
-                &params.order_type,
-                OrderType::TriggerMarket | OrderType::TriggerLimit
-            ) {
-                increase_spot_open_bids_and_asks(
-                    spot_position,
-                    &params.direction,
-                    base_asset_amount,
-                )?;
-            }
-
-            base_asset_amount
+        let base_asset_amount = if params.reduce_only || force_reduce_only {
+            calculate_base_asset_amount_for_reduce_only_order(
+                standardized_base_asset_amount,
+                params.direction,
+                signed_token_amount,
+            )?
+        } else {
+            standardized_base_asset_amount
         };
+
+        validate!(
+            is_multiple_of_step_size(base_asset_amount, base_spot_market.order_step_size)?,
+            ErrorCode::InvalidOrder,
+            "Order base asset amount ({}), is not a multiple of step size ({})",
+            base_asset_amount,
+            base_spot_market.order_step_size
+        )?;
+
+        if !matches!(
+            &params.order_type,
+            OrderType::TriggerMarket | OrderType::TriggerLimit
+        ) {
+            increase_spot_open_bids_and_asks(spot_position, &params.direction, base_asset_amount)?;
+        }
 
         {
             let quote_spot_position_index = user
@@ -2431,7 +2432,7 @@ pub fn place_spot_order(
         auction_end_price,
         auction_duration,
         time_in_force,
-        padding: [0; 5],
+        padding: [0; 1],
     };
 
     let valid_oracle_price = Some(oracle_price_data.price);
@@ -2569,7 +2570,7 @@ pub fn fill_spot_order(
         "Order must be triggered first"
     )?;
 
-    if user.bankrupt {
+    if user.is_bankrupt {
         msg!("User is bankrupt");
         return Ok(0);
     }
@@ -2745,7 +2746,7 @@ fn sanitize_spot_maker_order<'a>(
             return Ok((None, None, None, None));
         }
 
-        if maker.being_liquidated || maker.bankrupt {
+        if maker.is_being_liquidated || maker.is_bankrupt {
             return Ok((None, None, None, None));
         }
 

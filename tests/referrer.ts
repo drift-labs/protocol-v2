@@ -91,7 +91,7 @@ describe('referrer', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -104,7 +104,7 @@ describe('referrer', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await referrerClearingHouse.initializeMarket(
+		await referrerClearingHouse.initializePerpMarket(
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -134,7 +134,7 @@ describe('referrer', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -207,7 +207,7 @@ describe('referrer', () => {
 
 		await referrerClearingHouse.fetchAccounts();
 		const referrerStats = referrerClearingHouse.getUserStats().getAccount();
-		assert(referrerStats.totalReferrerReward.eq(new BN(15000)));
+		assert(referrerStats.fees.totalReferrerReward.eq(new BN(15000)));
 
 		const referrerPosition = referrerClearingHouse.getUser().getUserAccount()
 			.perpPositions[0];
