@@ -209,7 +209,9 @@ describe('liquidate perp pnl for deposit', () => {
 
 		assert(clearingHouse.getUserAccount().isBeingLiquidated);
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
-		assert(clearingHouse.getUserAccount().spotPositions[0].balance.eq(ZERO));
+		assert(
+			clearingHouse.getUserAccount().spotPositions[0].scaledBalance.eq(ZERO)
+		);
 
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];

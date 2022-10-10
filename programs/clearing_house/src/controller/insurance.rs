@@ -592,7 +592,7 @@ pub fn settle_revenue_to_insurance_fund(
     )?)?;
 
     let mut token_amount = get_token_amount(
-        spot_market.revenue_pool.balance,
+        spot_market.revenue_pool.scaled_balance,
         spot_market,
         &SpotBalanceType::Deposit,
     )?;
@@ -699,7 +699,7 @@ pub fn resolve_perp_pnl_deficit(
     )?;
 
     let pnl_pool_token_amount = get_token_amount(
-        market.pnl_pool.balance,
+        market.pnl_pool.scaled_balance,
         spot_market,
         &SpotBalanceType::Deposit,
     )?;

@@ -285,7 +285,7 @@ pub fn settle_expired_market(
         .max(0);
 
     let available_fee_pool = cast_to_i128(get_token_amount(
-        market.amm.fee_pool.balance,
+        market.amm.fee_pool.scaled_balance,
         spot_market,
         &SpotBalanceType::Deposit,
     )?)?
@@ -342,7 +342,7 @@ pub fn settle_expired_market(
     }
 
     let pnl_pool_amount = get_token_amount(
-        market.pnl_pool.balance,
+        market.pnl_pool.scaled_balance,
         spot_market,
         &SpotBalanceType::Deposit,
     )?;

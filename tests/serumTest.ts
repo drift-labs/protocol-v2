@@ -265,7 +265,7 @@ describe('serum spot market', () => {
 		const takerBaseSpotBalance = takerClearingHouse.getSpotPosition(1);
 
 		const quoteTokenAmount = getTokenAmount(
-			takerQuoteSpotBalance.balance,
+			takerQuoteSpotBalance.scaledBalance,
 			takerClearingHouse.getQuoteSpotMarketAccount(),
 			takerQuoteSpotBalance.balanceType
 		);
@@ -273,7 +273,7 @@ describe('serum spot market', () => {
 		assert(quoteTokenAmount.eq(new BN(99900000)));
 
 		const baseTokenAmount = getTokenAmount(
-			takerBaseSpotBalance.balance,
+			takerBaseSpotBalance.scaledBalance,
 			takerClearingHouse.getSpotMarketAccount(1),
 			takerBaseSpotBalance.balanceType
 		);
@@ -296,7 +296,7 @@ describe('serum spot market', () => {
 			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
 		assert(solSpotMarket.totalSpotFee.eq(new BN(58000)));
 		const spotFeePoolAmount = getTokenAmount(
-			solSpotMarket.spotFeePool.balance,
+			solSpotMarket.spotFeePool.scaledBalance,
 			takerClearingHouse.getQuoteSpotMarketAccount(),
 			SpotBalanceType.DEPOSIT
 		);
@@ -374,7 +374,7 @@ describe('serum spot market', () => {
 		const takerBaseSpotBalance = takerClearingHouse.getSpotPosition(1);
 
 		const quoteTokenAmount = getTokenAmount(
-			takerQuoteSpotBalance.balance,
+			takerQuoteSpotBalance.scaledBalance,
 			takerClearingHouse.getQuoteSpotMarketAccount(),
 			takerQuoteSpotBalance.balanceType
 		);
@@ -382,7 +382,7 @@ describe('serum spot market', () => {
 		assert(quoteTokenAmount.eq(new BN(199800000)));
 
 		const baseTokenAmount = getTokenAmount(
-			takerBaseSpotBalance.balance,
+			takerBaseSpotBalance.scaledBalance,
 			takerClearingHouse.getSpotMarketAccount(1),
 			takerBaseSpotBalance.balanceType
 		);
@@ -405,7 +405,7 @@ describe('serum spot market', () => {
 			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
 		assert(solSpotMarket.totalSpotFee.eq(new BN(116000)));
 		const spotFeePoolAmount = getTokenAmount(
-			solSpotMarket.spotFeePool.balance,
+			solSpotMarket.spotFeePool.scaledBalance,
 			takerClearingHouse.getQuoteSpotMarketAccount(),
 			SpotBalanceType.DEPOSIT
 		);
@@ -486,7 +486,7 @@ describe('serum spot market', () => {
 		const takerBaseSpotBalance = takerClearingHouse.getSpotPosition(1);
 
 		const quoteTokenAmount = getTokenAmount(
-			takerQuoteSpotBalance.balance,
+			takerQuoteSpotBalance.scaledBalance,
 			takerClearingHouse.getQuoteSpotMarketAccount(),
 			takerQuoteSpotBalance.balanceType
 		);
@@ -494,7 +494,7 @@ describe('serum spot market', () => {
 		assert(quoteTokenAmount.eq(new BN(99700000))); // paid ~$.30
 
 		const baseTokenAmount = getTokenAmount(
-			takerBaseSpotBalance.balance,
+			takerBaseSpotBalance.scaledBalance,
 			takerClearingHouse.getSpotMarketAccount(1),
 			takerBaseSpotBalance.balanceType
 		);
@@ -515,7 +515,7 @@ describe('serum spot market', () => {
 			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
 		assert(solSpotMarket.totalSpotFee.eq(new BN(174000)));
 		const spotFeePoolAmount = getTokenAmount(
-			solSpotMarket.spotFeePool.balance,
+			solSpotMarket.spotFeePool.scaledBalance,
 			takerClearingHouse.getQuoteSpotMarketAccount(),
 			SpotBalanceType.DEPOSIT
 		);

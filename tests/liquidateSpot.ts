@@ -163,9 +163,11 @@ describe('liquidate spot', () => {
 				'deposit'
 			)
 		);
-		assert(clearingHouse.getUserAccount().spotPositions[0].balance.gt(ZERO));
+		assert(
+			clearingHouse.getUserAccount().spotPositions[0].scaledBalance.gt(ZERO)
+		);
 		// assert(
-		// 	clearingHouse.getUserAccount().spotPositions[1].balance.gt(new BN(2))
+		// 	clearingHouse.getUserAccount().spotPositions[1].scaledBalance.gt(new BN(2))
 		// );
 		// assert(
 		// 	isVariant(
@@ -174,7 +176,7 @@ describe('liquidate spot', () => {
 		// 	)
 		// );
 		console.log(
-			clearingHouse.getUserAccount().spotPositions[0].balance.toString()
+			clearingHouse.getUserAccount().spotPositions[0].scaledBalance.toString()
 		);
 
 		const liquidationRecord =

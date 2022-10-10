@@ -5,7 +5,7 @@ pub fn is_user_bankrupt(user: &User) -> bool {
     let mut has_liability = false;
 
     for spot_position in user.spot_positions.iter() {
-        if spot_position.balance > 0 {
+        if spot_position.scaled_balance > 0 {
             match spot_position.balance_type {
                 SpotBalanceType::Deposit => return false,
                 SpotBalanceType::Borrow => has_liability = true,
@@ -66,7 +66,7 @@ mod test {
         let user = User {
             spot_positions: get_spot_positions(SpotPosition {
                 balance_type: SpotBalanceType::Deposit,
-                balance: 1,
+                scaled_balance: 1,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -95,7 +95,7 @@ mod test {
         let user = User {
             spot_positions: get_spot_positions(SpotPosition {
                 balance_type: SpotBalanceType::Borrow,
-                balance: 1,
+                scaled_balance: 1,
                 ..SpotPosition::default()
             }),
             ..User::default()

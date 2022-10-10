@@ -263,7 +263,7 @@ describe('spot deposit and withdraw', () => {
 		const spotPosition =
 			firstUserClearingHouse.getUserAccount().spotPositions[0];
 		assert(isVariant(spotPosition.balanceType, 'deposit'));
-		assert(spotPosition.balance.eq(expectedBalance));
+		assert(spotPosition.scaledBalance.eq(expectedBalance));
 	});
 
 	it('Second User Deposit SOL', async () => {
@@ -308,7 +308,7 @@ describe('spot deposit and withdraw', () => {
 		const spotPosition =
 			secondUserClearingHouse.getUserAccount().spotPositions[1];
 		assert(isVariant(spotPosition.balanceType, 'deposit'));
-		assert(spotPosition.balance.eq(expectedBalance));
+		assert(spotPosition.scaledBalance.eq(expectedBalance));
 	});
 
 	it('Second User Withdraw First half USDC', async () => {
@@ -342,7 +342,7 @@ describe('spot deposit and withdraw', () => {
 		const spotPosition =
 			secondUserClearingHouse.getUserAccount().spotPositions[0];
 		assert(isVariant(spotPosition.balanceType, 'borrow'));
-		assert(spotPosition.balance.eq(expectedBalance));
+		assert(spotPosition.scaledBalance.eq(expectedBalance));
 
 		const actualAmountWithdrawn = new BN(
 			(
@@ -422,7 +422,7 @@ describe('spot deposit and withdraw', () => {
 		);
 
 		const spotPositionBefore =
-			secondUserClearingHouse.getSpotPosition(marketIndex).balance;
+			secondUserClearingHouse.getSpotPosition(marketIndex).scaledBalance;
 
 		const withdrawAmount = spotMarketDepositTokenAmountBefore
 			.sub(spotMarketBorrowTokenAmountBefore)
@@ -448,7 +448,7 @@ describe('spot deposit and withdraw', () => {
 		assert(
 			secondUserClearingHouse
 				.getSpotPosition(marketIndex)
-				.balance.eq(expectedspotPosition)
+				.scaledBalance.eq(expectedspotPosition)
 		);
 
 		const expectedUserUSDCAmount = userUSDCAmountBefore.add(withdrawAmount);
@@ -559,7 +559,7 @@ describe('spot deposit and withdraw', () => {
 		);
 
 		const userBorrowBalanceBefore =
-			secondUserClearingHouse.getSpotPosition(marketIndex).balance;
+			secondUserClearingHouse.getSpotPosition(marketIndex).scaledBalance;
 		const spotMarketDepositBalanceBefore =
 			secondUserClearingHouse.getSpotMarketAccount(marketIndex).depositBalance;
 
@@ -589,7 +589,7 @@ describe('spot deposit and withdraw', () => {
 		const userBalanceAfter =
 			secondUserClearingHouse.getSpotPosition(marketIndex);
 
-		assert(expectedUserBalance.eq(userBalanceAfter.balance));
+		assert(expectedUserBalance.eq(userBalanceAfter.scaledBalance));
 		assert(isVariant(userBalanceAfter.balanceType, 'deposit'));
 
 		const expectedSpotMarketDepositBalance =
@@ -606,7 +606,7 @@ describe('spot deposit and withdraw', () => {
 		const spotMarketAccountBefore =
 			secondUserClearingHouse.getSpotMarketAccount(marketIndex);
 		const userDepositBalanceBefore =
-			secondUserClearingHouse.getSpotPosition(marketIndex).balance;
+			secondUserClearingHouse.getSpotPosition(marketIndex).scaledBalance;
 		const spotMarketDepositBalanceBefore =
 			secondUserClearingHouse.getSpotMarketAccount(marketIndex).depositBalance;
 		const userDepositokenAmountBefore = getTokenAmount(
@@ -641,7 +641,7 @@ describe('spot deposit and withdraw', () => {
 		const userBalanceAfter =
 			secondUserClearingHouse.getSpotPosition(marketIndex);
 
-		assert(expectedUserBalance.eq(userBalanceAfter.balance));
+		assert(expectedUserBalance.eq(userBalanceAfter.scaledBalance));
 		assert(isVariant(userBalanceAfter.balanceType, 'borrow'));
 
 		const expectedSpotMarketDepositBalance = spotMarketDepositBalanceBefore.sub(
@@ -660,7 +660,7 @@ describe('spot deposit and withdraw', () => {
 			secondUserClearingHouseUSDCAccount
 		);
 		const currentUserBorrowBalance =
-			secondUserClearingHouse.getSpotPosition(marketIndex).balance;
+			secondUserClearingHouse.getSpotPosition(marketIndex).scaledBalance;
 		const spotMarketDepositBalanceBefore =
 			secondUserClearingHouse.getSpotMarketAccount(marketIndex).depositBalance;
 
@@ -691,7 +691,7 @@ describe('spot deposit and withdraw', () => {
 
 		const userBalanceAfter =
 			secondUserClearingHouse.getSpotPosition(marketIndex);
-		assert(userBalanceAfter.balance.eq(ZERO));
+		assert(userBalanceAfter.scaledBalance.eq(ZERO));
 
 		assert(spotMarketAccountAfter.borrowBalance.eq(ZERO));
 		assert(
@@ -707,7 +707,7 @@ describe('spot deposit and withdraw', () => {
 		);
 
 		const currentUserDepositBalance =
-			secondUserClearingHouse.getSpotPosition(marketIndex).balance;
+			secondUserClearingHouse.getSpotPosition(marketIndex).scaledBalance;
 
 		const withdrawAmount = new BN(LAMPORTS_PER_SOL * 100);
 		const txSig = await secondUserClearingHouse.withdraw(
@@ -738,7 +738,7 @@ describe('spot deposit and withdraw', () => {
 
 		const userBalanceAfter =
 			secondUserClearingHouse.getSpotPosition(marketIndex);
-		assert(userBalanceAfter.balance.eq(ZERO));
+		assert(userBalanceAfter.scaledBalance.eq(ZERO));
 	});
 
 	it('Third user deposits when cumulative interest off init value', async () => {
@@ -763,7 +763,7 @@ describe('spot deposit and withdraw', () => {
 
 		const spotPosition = thirdUserClearingHouse.getSpotPosition(marketIndex);
 		console.log(spotPosition);
-		assert(spotPosition.balance.eq(ZERO));
+		assert(spotPosition.scaledBalance.eq(ZERO));
 
 		const spotMarket = thirdUserClearingHouse.getSpotMarketAccount(marketIndex);
 
@@ -792,7 +792,7 @@ describe('spot deposit and withdraw', () => {
 		const spotPositionAfter =
 			thirdUserClearingHouse.getSpotPosition(marketIndex);
 		const tokenAmount = getTokenAmount(
-			spotPositionAfter.balance,
+			spotPositionAfter.scaledBalance,
 			spotMarket,
 			spotPositionAfter.balanceType
 		);

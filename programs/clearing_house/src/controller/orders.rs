@@ -3225,7 +3225,7 @@ pub fn fulfill_spot_order_with_match(
     )?;
 
     let fee_pool_amount = get_token_amount(
-        base_market.spot_fee_pool.balance,
+        base_market.spot_fee_pool.scaled_balance,
         quote_market,
         &SpotBalanceType::Deposit,
     )?;
@@ -3557,7 +3557,7 @@ pub fn fulfill_spot_order_with_serum(
     )?;
 
     let fee_pool_amount = get_token_amount(
-        base_market.spot_fee_pool.balance,
+        base_market.spot_fee_pool.scaled_balance,
         quote_market,
         &SpotBalanceType::Deposit,
     )?;

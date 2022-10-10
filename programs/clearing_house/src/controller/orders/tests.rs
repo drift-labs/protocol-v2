@@ -1639,7 +1639,7 @@ pub mod fulfill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1665,7 +1665,7 @@ pub mod fulfill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1851,7 +1851,7 @@ pub mod fulfill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1877,7 +1877,7 @@ pub mod fulfill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2042,7 +2042,7 @@ pub mod fulfill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2068,7 +2068,7 @@ pub mod fulfill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2232,7 +2232,7 @@ pub mod fulfill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2383,7 +2383,7 @@ pub mod fulfill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2572,7 +2572,7 @@ pub mod fulfill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 10_000 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 10_000 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2621,7 +2621,7 @@ pub mod fulfill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 10_000 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 10_000 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2885,7 +2885,7 @@ pub mod fill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -3013,7 +3013,7 @@ pub mod fill_order {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -3099,7 +3099,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -3131,7 +3131,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
@@ -3196,10 +3196,13 @@ pub mod fulfill_spot_order_with_match {
         .unwrap();
 
         let taker_quote_position = taker.spot_positions[0];
-        assert_eq!(taker_quote_position.balance, 950000000);
+        assert_eq!(taker_quote_position.scaled_balance, 950000000);
 
         let taker_base_position = taker.spot_positions[1];
-        assert_eq!(taker_base_position.balance, SPOT_BALANCE_PRECISION_U64);
+        assert_eq!(
+            taker_base_position.scaled_balance,
+            SPOT_BALANCE_PRECISION_U64
+        );
         assert_eq!(taker_base_position.open_bids, 0);
         assert_eq!(taker_base_position.open_orders, 0);
 
@@ -3207,10 +3210,10 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
 
         let maker_quote_position = maker.spot_positions[0];
-        assert_eq!(maker_quote_position.balance, 100030000000);
+        assert_eq!(maker_quote_position.scaled_balance, 100030000000);
 
         let maker_base_position = maker.spot_positions[1];
-        assert_eq!(maker_base_position.balance, 0);
+        assert_eq!(maker_base_position.scaled_balance, 0);
         assert_eq!(maker_base_position.open_bids, 0);
         assert_eq!(maker_base_position.open_orders, 0);
 
@@ -3218,7 +3221,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
         assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.balance, 20000000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
     }
 
     #[test]
@@ -3226,7 +3229,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 161 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 161 * SPOT_BALANCE_PRECISION_U64,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -3258,7 +3261,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
@@ -3323,10 +3326,13 @@ pub mod fulfill_spot_order_with_match {
         .unwrap();
 
         let taker_quote_position = taker.spot_positions[0];
-        assert_eq!(taker_quote_position.balance, 920000000);
+        assert_eq!(taker_quote_position.scaled_balance, 920000000);
 
         let taker_base_position = taker.spot_positions[1];
-        assert_eq!(taker_base_position.balance, SPOT_BALANCE_PRECISION_U64);
+        assert_eq!(
+            taker_base_position.scaled_balance,
+            SPOT_BALANCE_PRECISION_U64
+        );
         assert_eq!(taker_base_position.open_bids, 0);
         assert_eq!(taker_base_position.open_orders, 0);
 
@@ -3334,10 +3340,10 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_stats.fees.total_fee_paid, 80000);
 
         let maker_quote_position = maker.spot_positions[0];
-        assert_eq!(maker_quote_position.balance, 160048000000);
+        assert_eq!(maker_quote_position.scaled_balance, 160048000000);
 
         let maker_base_position = maker.spot_positions[1];
-        assert_eq!(maker_base_position.balance, 0);
+        assert_eq!(maker_base_position.scaled_balance, 0);
         assert_eq!(maker_base_position.open_bids, 0);
         assert_eq!(maker_base_position.open_orders, 0);
 
@@ -3345,7 +3351,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.fees.total_fee_rebate, 48000);
 
         assert_eq!(base_market.total_spot_fee, 32000);
-        assert_eq!(base_market.spot_fee_pool.balance, 32000000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance, 32000000);
     }
 
     #[test]
@@ -3354,7 +3360,7 @@ pub mod fulfill_spot_order_with_match {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
@@ -3380,7 +3386,7 @@ pub mod fulfill_spot_order_with_match {
         let mut maker_spot_positions = [SpotPosition::default(); 8];
         maker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -3450,10 +3456,10 @@ pub mod fulfill_spot_order_with_match {
         .unwrap();
 
         let taker_quote_position = taker.spot_positions[0];
-        assert_eq!(taker_quote_position.balance, 99950000000);
+        assert_eq!(taker_quote_position.scaled_balance, 99950000000);
 
         let taker_base_position = taker.spot_positions[1];
-        assert_eq!(taker_base_position.balance, 0);
+        assert_eq!(taker_base_position.scaled_balance, 0);
         assert_eq!(taker_base_position.open_bids, 0);
         assert_eq!(taker_base_position.open_orders, 0);
 
@@ -3461,10 +3467,13 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
 
         let maker_quote_position = maker.spot_positions[0];
-        assert_eq!(maker_quote_position.balance, 1030000000);
+        assert_eq!(maker_quote_position.scaled_balance, 1030000000);
 
         let maker_base_position = maker.spot_positions[1];
-        assert_eq!(maker_base_position.balance, SPOT_BALANCE_PRECISION_U64);
+        assert_eq!(
+            maker_base_position.scaled_balance,
+            SPOT_BALANCE_PRECISION_U64
+        );
         assert_eq!(maker_base_position.open_bids, 0);
         assert_eq!(maker_base_position.open_orders, 0);
 
@@ -3472,7 +3481,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
         assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.balance, 20000000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
     }
 
     #[test]
@@ -3481,7 +3490,7 @@ pub mod fulfill_spot_order_with_match {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
@@ -3507,7 +3516,7 @@ pub mod fulfill_spot_order_with_match {
         let mut maker_spot_positions = [SpotPosition::default(); 8];
         maker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -3577,10 +3586,10 @@ pub mod fulfill_spot_order_with_match {
         .unwrap();
 
         let taker_quote_position = taker.spot_positions[0];
-        assert_eq!(taker_quote_position.balance, 69965000000);
+        assert_eq!(taker_quote_position.scaled_balance, 69965000000);
 
         let taker_base_position = taker.spot_positions[1];
-        assert_eq!(taker_base_position.balance, 0);
+        assert_eq!(taker_base_position.scaled_balance, 0);
         assert_eq!(taker_base_position.open_bids, 0);
         assert_eq!(taker_base_position.open_orders, 0);
 
@@ -3588,10 +3597,13 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_stats.fees.total_fee_paid, 35000);
 
         let maker_quote_position = maker.spot_positions[0];
-        assert_eq!(maker_quote_position.balance, 31021000000);
+        assert_eq!(maker_quote_position.scaled_balance, 31021000000);
 
         let maker_base_position = maker.spot_positions[1];
-        assert_eq!(maker_base_position.balance, SPOT_BALANCE_PRECISION_U64);
+        assert_eq!(
+            maker_base_position.scaled_balance,
+            SPOT_BALANCE_PRECISION_U64
+        );
         assert_eq!(maker_base_position.open_bids, 0);
         assert_eq!(maker_base_position.open_orders, 0);
 
@@ -3599,7 +3611,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.fees.total_fee_rebate, 21000);
 
         assert_eq!(base_market.total_spot_fee, 14000);
-        assert_eq!(base_market.spot_fee_pool.balance, 14000000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance, 14000000);
     }
 
     #[test]
@@ -3607,7 +3619,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -3639,7 +3651,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
@@ -3712,7 +3724,7 @@ pub mod fulfill_spot_order_with_match {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
@@ -3738,7 +3750,7 @@ pub mod fulfill_spot_order_with_match {
         let mut maker_spot_positions = [SpotPosition::default(); 8];
         maker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -3816,7 +3828,7 @@ pub mod fulfill_spot_order_with_match {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
@@ -3842,7 +3854,7 @@ pub mod fulfill_spot_order_with_match {
         let mut maker_spot_positions = [SpotPosition::default(); 8];
         maker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -3919,7 +3931,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -3951,7 +3963,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
@@ -4023,7 +4035,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -4055,7 +4067,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
@@ -4122,10 +4134,13 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(base_asset_amount, LAMPORTS_PER_SOL_U64);
 
         let taker_quote_position = taker.spot_positions[0];
-        assert_eq!(taker_quote_position.balance, 950000000);
+        assert_eq!(taker_quote_position.scaled_balance, 950000000);
 
         let taker_base_position = taker.spot_positions[1];
-        assert_eq!(taker_base_position.balance, SPOT_BALANCE_PRECISION_U64);
+        assert_eq!(
+            taker_base_position.scaled_balance,
+            SPOT_BALANCE_PRECISION_U64
+        );
         assert_eq!(taker_base_position.open_bids, 99 * LAMPORTS_PER_SOL_I64);
         assert_eq!(taker_base_position.open_orders, 1);
 
@@ -4141,10 +4156,10 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
 
         let maker_quote_position = maker.spot_positions[0];
-        assert_eq!(maker_quote_position.balance, 100030000000);
+        assert_eq!(maker_quote_position.scaled_balance, 100030000000);
 
         let maker_base_position = maker.spot_positions[1];
-        assert_eq!(maker_base_position.balance, 0);
+        assert_eq!(maker_base_position.scaled_balance, 0);
         assert_eq!(maker_base_position.open_asks, 0);
         assert_eq!(maker_base_position.open_orders, 0);
 
@@ -4155,7 +4170,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
         assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.balance, 20000000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
     }
 
     #[test]
@@ -4163,7 +4178,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -4195,7 +4210,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -100 * LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
@@ -4262,10 +4277,13 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(base_asset_amount, LAMPORTS_PER_SOL_U64);
 
         let taker_quote_position = taker.spot_positions[0];
-        assert_eq!(taker_quote_position.balance, 950000000);
+        assert_eq!(taker_quote_position.scaled_balance, 950000000);
 
         let taker_base_position = taker.spot_positions[1];
-        assert_eq!(taker_base_position.balance, SPOT_BALANCE_PRECISION_U64);
+        assert_eq!(
+            taker_base_position.scaled_balance,
+            SPOT_BALANCE_PRECISION_U64
+        );
         assert_eq!(taker_base_position.open_bids, 0);
         assert_eq!(taker_base_position.open_orders, 0);
 
@@ -4276,10 +4294,10 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
 
         let maker_quote_position = maker.spot_positions[0];
-        assert_eq!(maker_quote_position.balance, 100030000000);
+        assert_eq!(maker_quote_position.scaled_balance, 100030000000);
 
         let maker_base_position = maker.spot_positions[1];
-        assert_eq!(maker_base_position.balance, 0);
+        assert_eq!(maker_base_position.scaled_balance, 0);
         assert_eq!(maker_base_position.open_asks, -99 * LAMPORTS_PER_SOL_I64);
         assert_eq!(maker_base_position.open_orders, 1);
 
@@ -4295,7 +4313,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
         assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.balance, 20000000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
     }
 
     #[test]
@@ -4303,7 +4321,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -4335,7 +4353,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
@@ -4402,10 +4420,13 @@ pub mod fulfill_spot_order_with_match {
         .unwrap();
 
         let taker_quote_position = taker.spot_positions[0];
-        assert_eq!(taker_quote_position.balance, 950000000);
+        assert_eq!(taker_quote_position.scaled_balance, 950000000);
 
         let taker_base_position = taker.spot_positions[1];
-        assert_eq!(taker_base_position.balance, SPOT_BALANCE_PRECISION_U64);
+        assert_eq!(
+            taker_base_position.scaled_balance,
+            SPOT_BALANCE_PRECISION_U64
+        );
         assert_eq!(taker_base_position.open_bids, 0);
         assert_eq!(taker_base_position.open_orders, 0);
 
@@ -4413,10 +4434,10 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
 
         let maker_quote_position = maker.spot_positions[0];
-        assert_eq!(maker_quote_position.balance, 100030000000);
+        assert_eq!(maker_quote_position.scaled_balance, 100030000000);
 
         let maker_base_position = maker.spot_positions[1];
-        assert_eq!(maker_base_position.balance, 0);
+        assert_eq!(maker_base_position.scaled_balance, 0);
         assert_eq!(maker_base_position.open_bids, 0);
         assert_eq!(maker_base_position.open_orders, 0);
 
@@ -4424,7 +4445,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
         assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.balance, 20000000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
     }
 
     #[test]
@@ -4432,7 +4453,7 @@ pub mod fulfill_spot_order_with_match {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -4462,7 +4483,7 @@ pub mod fulfill_spot_order_with_match {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
@@ -4527,10 +4548,13 @@ pub mod fulfill_spot_order_with_match {
         .unwrap();
 
         let taker_quote_position = taker.spot_positions[0];
-        assert_eq!(taker_quote_position.balance, 950000000);
+        assert_eq!(taker_quote_position.scaled_balance, 950000000);
 
         let taker_base_position = taker.spot_positions[1];
-        assert_eq!(taker_base_position.balance, SPOT_BALANCE_PRECISION_U64);
+        assert_eq!(
+            taker_base_position.scaled_balance,
+            SPOT_BALANCE_PRECISION_U64
+        );
         assert_eq!(taker_base_position.open_bids, 0);
         assert_eq!(taker_base_position.open_orders, 0);
 
@@ -4538,10 +4562,10 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
 
         let maker_quote_position = maker.spot_positions[0];
-        assert_eq!(maker_quote_position.balance, 100030000000);
+        assert_eq!(maker_quote_position.scaled_balance, 100030000000);
 
         let maker_base_position = maker.spot_positions[1];
-        assert_eq!(maker_base_position.balance, 0);
+        assert_eq!(maker_base_position.scaled_balance, 0);
         assert_eq!(maker_base_position.open_bids, 0);
         assert_eq!(maker_base_position.open_orders, 0);
 
@@ -4549,7 +4573,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
         assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.balance, 20000000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
     }
 
     #[test]
@@ -4558,7 +4582,7 @@ pub mod fulfill_spot_order_with_match {
         taker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
@@ -4582,7 +4606,7 @@ pub mod fulfill_spot_order_with_match {
         let mut maker_spot_positions = [SpotPosition::default(); 8];
         maker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -4652,10 +4676,10 @@ pub mod fulfill_spot_order_with_match {
         .unwrap();
 
         let taker_quote_position = taker.spot_positions[0];
-        assert_eq!(taker_quote_position.balance, 99950000000);
+        assert_eq!(taker_quote_position.scaled_balance, 99950000000);
 
         let taker_base_position = taker.spot_positions[1];
-        assert_eq!(taker_base_position.balance, 0);
+        assert_eq!(taker_base_position.scaled_balance, 0);
         assert_eq!(taker_base_position.open_bids, 0);
         assert_eq!(taker_base_position.open_orders, 0);
 
@@ -4663,10 +4687,13 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
 
         let maker_quote_position = maker.spot_positions[0];
-        assert_eq!(maker_quote_position.balance, 1030000000);
+        assert_eq!(maker_quote_position.scaled_balance, 1030000000);
 
         let maker_base_position = maker.spot_positions[1];
-        assert_eq!(maker_base_position.balance, SPOT_BALANCE_PRECISION_U64);
+        assert_eq!(
+            maker_base_position.scaled_balance,
+            SPOT_BALANCE_PRECISION_U64
+        );
         assert_eq!(maker_base_position.open_bids, 0);
         assert_eq!(maker_base_position.open_orders, 0);
 
@@ -4674,7 +4701,7 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
         assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.balance, 20000000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
     }
 }
 
@@ -4747,7 +4774,7 @@ pub mod fulfill_spot_order {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -4790,7 +4817,7 @@ pub mod fulfill_spot_order {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I64 / 2,
             ..SpotPosition::default()
@@ -4936,7 +4963,7 @@ pub mod fulfill_spot_order {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -5003,7 +5030,7 @@ pub mod fulfill_spot_order {
         maker_spot_positions[1] = SpotPosition {
             market_index: 2,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I64 / 2,
             ..SpotPosition::default()
@@ -5011,7 +5038,7 @@ pub mod fulfill_spot_order {
         maker_spot_positions[2] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I64,
             ..SpotPosition::default()
@@ -5077,14 +5104,14 @@ pub mod fulfill_spot_order {
         expected_taker.spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 900000000,
+            scaled_balance: 900000000,
             cumulative_deposits: -100100000,
             ..SpotPosition::default()
         };
         expected_taker.spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             cumulative_deposits: 1000000000,
             ..SpotPosition::default()
         };
@@ -5094,14 +5121,14 @@ pub mod fulfill_spot_order {
         expected_maker.spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100020000000,
+            scaled_balance: 100020000000,
             cumulative_deposits: 100020000,
             ..SpotPosition::default()
         };
         expected_maker.spot_positions[2] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: 0,
+            scaled_balance: 0,
             cumulative_deposits: -1000000000,
             ..SpotPosition::default()
         };
@@ -5206,7 +5233,7 @@ pub mod fill_spot_order {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -5249,7 +5276,7 @@ pub mod fill_spot_order {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I64 / 2,
             ..SpotPosition::default()
@@ -5364,7 +5391,7 @@ pub mod fill_spot_order {
         let mut taker_spot_positions = [SpotPosition::default(); 8];
         taker_spot_positions[0] = SpotPosition {
             market_index: 0,
-            balance: 101 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 101 * SPOT_BALANCE_PRECISION_U64,
             balance_type: SpotBalanceType::Deposit,
             ..SpotPosition::default()
         };
@@ -5408,7 +5435,7 @@ pub mod fill_spot_order {
         maker_spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -LAMPORTS_PER_SOL_I64 / 2,
             ..SpotPosition::default()

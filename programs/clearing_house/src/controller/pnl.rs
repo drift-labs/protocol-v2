@@ -96,7 +96,7 @@ pub fn settle_pnl(
     let oracle_price = oracle_map.get_price_data(&perp_market.amm.oracle)?.price;
 
     let pnl_pool_token_amount = cast_to_i128(get_token_amount(
-        perp_market.pnl_pool.balance,
+        perp_market.pnl_pool.scaled_balance,
         spot_market,
         perp_market.pnl_pool.balance_type(),
     )?)?;

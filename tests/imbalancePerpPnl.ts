@@ -329,11 +329,11 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	it('put market in big drawdown and net user negative pnl', async () => {
 		const uL = clearingHouseLoserUser.getUserAccount();
 		console.log(
-			'uL.spotPositions[0].balance:',
-			uL.spotPositions[0].balance.toString()
+			'uL.spotPositions[0].scaledBalance:',
+			uL.spotPositions[0].scaledBalance.toString()
 		);
 		assert(
-			uL.spotPositions[0].balance.eq(
+			uL.spotPositions[0].scaledBalance.eq(
 				new BN(1000 * SPOT_MARKET_BALANCE_PRECISION.toNumber())
 			)
 		);
@@ -393,7 +393,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		const bank00 = clearingHouse.getSpotMarketAccount(0);
 		const market00 = clearingHouse.getPerpMarketAccount(0);
-		assert(market00.amm.feePool.balance.eq(new BN(1000000000000)));
+		assert(market00.amm.feePool.scaledBalance.eq(new BN(1000000000000)));
 
 		const oraclePriceData00 = clearingHouse.getOracleDataForMarket(
 			market00.marketIndex
@@ -902,13 +902,13 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		assert(market.insuranceClaim.quoteSettledInsurance.eq(QUOTE_PRECISION));
 		assert(market.insuranceClaim.quoteMaxInsurance.eq(QUOTE_PRECISION));
 		console.log(
-			'market0.pnlPool.balance:',
+			'market0.pnlPool.scaledBalance:',
 
-			market0.pnlPool.balance.toString(),
+			market0.pnlPool.scaledBalance.toString(),
 			'->',
-			market.pnlPool.balance.toString()
+			market.pnlPool.scaledBalance.toString()
 		);
-		assert(market.pnlPool.balance.gt(market0.pnlPool.balance));
+		assert(market.pnlPool.scaledBalance.gt(market0.pnlPool.scaledBalance));
 
 		console.log(market.status);
 		assert(isVariant(market.status, 'active'));
@@ -998,17 +998,17 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	// 	const finalPnlResultMin0 = new BN(1415296436 - 11090);
 	// 	const finalPnlResultMax0 = new BN(1415296436 + 111090);
 
-	// 	console.log(marketAfter0.pnlPool.balance.toString());
-	// 	assert(marketAfter0.pnlPool.balance.gt(finalPnlResultMin0));
-	// 	assert(marketAfter0.pnlPool.balance.lt(finalPnlResultMax0));
+	// 	console.log(marketAfter0.pnlPool.scaledBalance.toString());
+	// 	assert(marketAfter0.pnlPool.scaledBalance.gt(finalPnlResultMin0));
+	// 	assert(marketAfter0.pnlPool.scaledBalance.lt(finalPnlResultMax0));
 
 	// 	// const ammPnlResult = 0;
-	// 	console.log('feePool:', marketAfter0.amm.feePool.balance.toString());
+	// 	console.log('feePool:', marketAfter0.amm.feePool.scaledBalance.toString());
 	// 	console.log(
 	// 		'totalExchangeFee:',
 	// 		marketAfter0.amm.totalExchangeFee.toString()
 	// 	);
-	// 	assert(marketAfter0.amm.feePool.balance.eq(new BN(4356250)));
+	// 	assert(marketAfter0.amm.feePool.scaledBalance.eq(new BN(4356250)));
 	// 	await liquidatorClearingHouseUser.unsubscribe();
 	// });
 });

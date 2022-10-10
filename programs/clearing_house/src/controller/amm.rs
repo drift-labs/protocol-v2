@@ -504,7 +504,7 @@ pub fn update_pool_balances(
 
             if max_revenue_withdraw_allowed > 0 {
                 let spot_market_revenue_pool_amount = get_token_amount(
-                    spot_market.revenue_pool.balance,
+                    spot_market.revenue_pool.scaled_balance,
                     spot_market,
                     &SpotBalanceType::Deposit,
                 )?;
@@ -618,7 +618,7 @@ pub fn update_pnl_pool_and_user_balance(
 ) -> ClearingHouseResult<i128> {
     let pnl_to_settle_with_user = if unrealized_pnl_with_fee > 0 {
         unrealized_pnl_with_fee.min(cast_to_i128(get_token_amount(
-            market.pnl_pool.balance,
+            market.pnl_pool.scaled_balance,
             bank,
             market.pnl_pool.balance_type(),
         )?)?)
@@ -1031,14 +1031,14 @@ mod test {
                 curve_update_intensity: 100,
 
                 fee_pool: PoolBalance {
-                    balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
+                    scaled_balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
                     market_index: QUOTE_SPOT_MARKET_INDEX,
                     ..PoolBalance::default()
                 },
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
-                balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
+                scaled_balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
@@ -1054,9 +1054,9 @@ mod test {
             ..SpotMarket::default()
         };
 
-        let prev_fee_pool = market.amm.fee_pool.balance;
-        let prev_pnl_pool = market.amm.fee_pool.balance;
-        let prev_rev_pool = spot_market.revenue_pool.balance;
+        let prev_fee_pool = market.amm.fee_pool.scaled_balance;
+        let prev_pnl_pool = market.amm.fee_pool.scaled_balance;
+        let prev_rev_pool = spot_market.revenue_pool.scaled_balance;
 
         assert_eq!(market.amm.total_fee_withdrawn, 0);
 
@@ -1082,14 +1082,14 @@ mod test {
 
         update_pool_balances(&mut market, &mut spot_market, 0, now).unwrap();
 
-        assert_eq!(market.amm.fee_pool.balance, 44000000000000000);
-        assert_eq!(market.pnl_pool.balance, 50000000000000000);
-        assert_eq!(spot_market.revenue_pool.balance, 6000000000000000);
+        assert_eq!(market.amm.fee_pool.scaled_balance, 44000000000000000);
+        assert_eq!(market.pnl_pool.scaled_balance, 50000000000000000);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 6000000000000000);
         assert_eq!(market.amm.total_fee_withdrawn, 6000000);
 
-        assert!(market.amm.fee_pool.balance < prev_fee_pool);
-        assert_eq!(market.pnl_pool.balance, prev_pnl_pool);
-        assert!(spot_market.revenue_pool.balance > prev_rev_pool);
+        assert!(market.amm.fee_pool.scaled_balance < prev_fee_pool);
+        assert_eq!(market.pnl_pool.scaled_balance, prev_pnl_pool);
+        assert!(spot_market.revenue_pool.scaled_balance > prev_rev_pool);
     }
 
     #[test]
@@ -1110,14 +1110,14 @@ mod test {
                 curve_update_intensity: 100,
 
                 fee_pool: PoolBalance {
-                    balance: 50 * SPOT_BALANCE_PRECISION,
+                    scaled_balance: 50 * SPOT_BALANCE_PRECISION,
                     market_index: QUOTE_SPOT_MARKET_INDEX,
                     ..PoolBalance::default()
                 },
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
-                balance: 50 * SPOT_BALANCE_PRECISION,
+                scaled_balance: 50 * SPOT_BALANCE_PRECISION,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
@@ -1131,16 +1131,16 @@ mod test {
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             revenue_pool: PoolBalance {
                 market_index: 0,
-                balance: 100 * SPOT_BALANCE_PRECISION,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION,
                 ..PoolBalance::default()
             },
             decimals: 6,
             ..SpotMarket::default()
         };
 
-        let prev_fee_pool = market.amm.fee_pool.balance;
-        let prev_pnl_pool = market.amm.fee_pool.balance;
-        let prev_rev_pool = spot_market.revenue_pool.balance;
+        let prev_fee_pool = market.amm.fee_pool.scaled_balance;
+        let prev_pnl_pool = market.amm.fee_pool.scaled_balance;
+        let prev_rev_pool = spot_market.revenue_pool.scaled_balance;
         let prev_tfmd = market.amm.total_fee_minus_distributions;
 
         assert_eq!(market.amm.total_fee_withdrawn, 0);
@@ -1165,39 +1165,48 @@ mod test {
             200 * QUOTE_PRECISION
         );
         assert_eq!(
-            spot_market.revenue_pool.balance,
+            spot_market.revenue_pool.scaled_balance,
             100 * SPOT_BALANCE_PRECISION
         );
 
         update_pool_balances(&mut market, &mut spot_market, 0, now).unwrap();
 
-        assert_eq!(market.amm.fee_pool.balance, 5 * SPOT_BALANCE_PRECISION);
-        assert_eq!(market.pnl_pool.balance, 95 * SPOT_BALANCE_PRECISION);
         assert_eq!(
-            spot_market.revenue_pool.balance,
+            market.amm.fee_pool.scaled_balance,
+            5 * SPOT_BALANCE_PRECISION
+        );
+        assert_eq!(market.pnl_pool.scaled_balance, 95 * SPOT_BALANCE_PRECISION);
+        assert_eq!(
+            spot_market.revenue_pool.scaled_balance,
             100 * SPOT_BALANCE_PRECISION
         );
         assert_eq!(market.amm.total_fee_withdrawn, 0);
         assert_eq!(market.amm.total_fee_minus_distributions, prev_tfmd);
 
-        assert!(market.amm.fee_pool.balance < prev_fee_pool);
-        assert_eq!(market.pnl_pool.balance > prev_pnl_pool, true);
-        assert_eq!(spot_market.revenue_pool.balance == prev_rev_pool, true);
+        assert!(market.amm.fee_pool.scaled_balance < prev_fee_pool);
+        assert_eq!(market.pnl_pool.scaled_balance > prev_pnl_pool, true);
+        assert_eq!(
+            spot_market.revenue_pool.scaled_balance == prev_rev_pool,
+            true
+        );
         assert_eq!(market.insurance_claim.revenue_withdraw_since_last_settle, 0);
         assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 0);
 
         market.insurance_claim.max_revenue_withdraw_per_period = 100000000 * 2;
         assert_eq!(spot_market.deposit_balance, 200 * SPOT_BALANCE_PRECISION);
         assert_eq!(
-            spot_market.revenue_pool.balance,
+            spot_market.revenue_pool.scaled_balance,
             100 * SPOT_BALANCE_PRECISION
         );
 
         update_pool_balances(&mut market, &mut spot_market, 0, now).unwrap();
 
-        assert_eq!(market.amm.fee_pool.balance, 105 * SPOT_BALANCE_PRECISION);
-        assert_eq!(market.pnl_pool.balance, 95 * SPOT_BALANCE_PRECISION);
-        assert_eq!(spot_market.revenue_pool.balance, 0);
+        assert_eq!(
+            market.amm.fee_pool.scaled_balance,
+            105 * SPOT_BALANCE_PRECISION
+        );
+        assert_eq!(market.pnl_pool.scaled_balance, 95 * SPOT_BALANCE_PRECISION);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 0);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
         assert_eq!(market.amm.total_fee_minus_distributions, -9900000000);
         assert_eq!(
@@ -1216,22 +1225,28 @@ mod test {
 
         // calling multiple times doesnt effect other than fee pool -> pnl pool
         update_pool_balances(&mut market, &mut spot_market, 0, now).unwrap();
-        assert_eq!(market.amm.fee_pool.balance, 5 * SPOT_BALANCE_PRECISION);
-        assert_eq!(market.pnl_pool.balance, 195 * SPOT_BALANCE_PRECISION);
+        assert_eq!(
+            market.amm.fee_pool.scaled_balance,
+            5 * SPOT_BALANCE_PRECISION
+        );
+        assert_eq!(market.pnl_pool.scaled_balance, 195 * SPOT_BALANCE_PRECISION);
         assert_eq!(market.amm.total_fee_minus_distributions, -9900000000);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(spot_market.revenue_pool.balance, 0);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 0);
 
         update_pool_balances(&mut market, &mut spot_market, 0, now).unwrap();
-        assert_eq!(market.amm.fee_pool.balance, 5 * SPOT_BALANCE_PRECISION);
-        assert_eq!(market.pnl_pool.balance, 195 * SPOT_BALANCE_PRECISION);
+        assert_eq!(
+            market.amm.fee_pool.scaled_balance,
+            5 * SPOT_BALANCE_PRECISION
+        );
+        assert_eq!(market.pnl_pool.scaled_balance, 195 * SPOT_BALANCE_PRECISION);
         assert_eq!(market.amm.total_fee_minus_distributions, -9900000000);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(spot_market.revenue_pool.balance, 0);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 0);
 
         // add deposits and revenue to pool
         assert_eq!(spot_market.deposit_balance, 200 * SPOT_BALANCE_PRECISION);
-        spot_market.revenue_pool.balance = 9900000001000;
+        spot_market.revenue_pool.scaled_balance = 9900000001000;
 
         let spot_market_backup = spot_market;
         let market_backup = market;
@@ -1250,9 +1265,9 @@ mod test {
 
         update_pool_balances(&mut market, &mut spot_market, 0, now).unwrap();
         assert_eq!(spot_market.deposit_balance, 10100000001000);
-        assert_eq!(spot_market.revenue_pool.balance, 9800000001000);
-        assert_eq!(market.amm.fee_pool.balance, 105000000000);
-        assert_eq!(market.pnl_pool.balance, 195000000000);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 9800000001000);
+        assert_eq!(market.amm.fee_pool.scaled_balance, 105000000000);
+        assert_eq!(market.pnl_pool.scaled_balance, 195000000000);
         assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
         assert_eq!(
@@ -1263,11 +1278,11 @@ mod test {
 
         // calling again only does fee -> pnl pool
         update_pool_balances(&mut market, &mut spot_market, 0, now).unwrap();
-        assert_eq!(market.amm.fee_pool.balance, 5000000000);
-        assert_eq!(market.pnl_pool.balance, 295000000000);
+        assert_eq!(market.amm.fee_pool.scaled_balance, 5000000000);
+        assert_eq!(market.pnl_pool.scaled_balance, 295000000000);
         assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(spot_market.revenue_pool.balance, 9800000001000);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 9800000001000);
         assert_eq!(
             market.insurance_claim.revenue_withdraw_since_last_settle,
             market.insurance_claim.max_revenue_withdraw_per_period
@@ -1276,11 +1291,11 @@ mod test {
 
         // calling again does nothing
         update_pool_balances(&mut market, &mut spot_market, 0, now).unwrap();
-        assert_eq!(market.amm.fee_pool.balance, 5000000000);
-        assert_eq!(market.pnl_pool.balance, 295000000000);
+        assert_eq!(market.amm.fee_pool.scaled_balance, 5000000000);
+        assert_eq!(market.pnl_pool.scaled_balance, 295000000000);
         assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(spot_market.revenue_pool.balance, 9800000001000);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 9800000001000);
         assert_eq!(
             market.insurance_claim.revenue_withdraw_since_last_settle,
             market.insurance_claim.max_revenue_withdraw_per_period
@@ -1313,14 +1328,14 @@ mod test {
         assert_eq!(spot_market.borrow_balance, 0);
         assert_eq!(spot_market_vault_amount, 300000000);
 
-        assert_eq!(spot_market.revenue_pool.balance, 0);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 0);
         assert_eq!(
             spot_market.insurance_fund.last_revenue_settle_ts,
             now + 3600
         );
 
         // add deposits and revenue to pool
-        spot_market.revenue_pool.balance = 9800000001000;
+        spot_market.revenue_pool.scaled_balance = 9800000001000;
         let market_backup = market;
         let spot_market_backup = spot_market;
         assert!(update_pool_balances(&mut market, &mut spot_market, 0, now + 3600).is_err()); // assert is_err if any way has revenue pool above deposit balances
@@ -1328,11 +1343,11 @@ mod test {
         spot_market = spot_market_backup;
         spot_market.deposit_balance += 9800000000001;
 
-        assert_eq!(market.amm.fee_pool.balance, 5000000000);
-        assert_eq!(market.pnl_pool.balance, 295000000000);
+        assert_eq!(market.amm.fee_pool.scaled_balance, 5000000000);
+        assert_eq!(market.pnl_pool.scaled_balance, 295000000000);
         assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(spot_market.revenue_pool.balance, 9800000001000);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 9800000001000);
         assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33928058);
         assert_eq!(
             spot_market.insurance_fund.last_revenue_settle_ts,
@@ -1344,11 +1359,11 @@ mod test {
 
         assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33931658);
         assert_eq!(spot_market.insurance_fund.last_revenue_settle_ts, 33931658);
-        assert_eq!(market.amm.fee_pool.balance, 205000000000);
-        assert_eq!(market.pnl_pool.balance, 295000000000);
+        assert_eq!(market.amm.fee_pool.scaled_balance, 205000000000);
+        assert_eq!(market.pnl_pool.scaled_balance, 295000000000);
         assert_eq!(market.amm.total_fee_minus_distributions, -9600000000);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(spot_market.revenue_pool.balance, 9600000001000);
+        assert_eq!(spot_market.revenue_pool.scaled_balance, 9600000001000);
         assert_eq!(
             market.insurance_claim.revenue_withdraw_since_last_settle,
             market.insurance_claim.max_revenue_withdraw_per_period

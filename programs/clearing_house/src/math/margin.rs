@@ -270,7 +270,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     };
 
     for spot_position in user.spot_positions.iter() {
-        if spot_position.balance == 0 && spot_position.open_orders == 0 {
+        if spot_position.scaled_balance == 0 && spot_position.open_orders == 0 {
             continue;
         }
 

@@ -4353,7 +4353,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "balance",
+            "name": "scaledBalance",
             "type": "u128"
           },
           {
@@ -4924,7 +4924,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "balance",
+            "name": "scaledBalance",
             "type": "u64"
           },
           {

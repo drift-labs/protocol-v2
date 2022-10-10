@@ -198,7 +198,7 @@ pub fn handle_initialize_spot_market(
         mint: ctx.accounts.spot_market_mint.key(),
         vault: *ctx.accounts.spot_market_vault.to_account_info().key,
         revenue_pool: PoolBalance {
-            balance: 0,
+            scaled_balance: 0,
             market_index: spot_market_index,
             ..PoolBalance::default()
         }, // in base asset
@@ -694,12 +694,12 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
     )?)?;
 
     let fee_pool_token_amount = get_token_amount(
-        market.amm.fee_pool.balance,
+        market.amm.fee_pool.scaled_balance,
         spot_market,
         &SpotBalanceType::Deposit,
     )?;
     let pnl_pool_token_amount = get_token_amount(
-        market.pnl_pool.balance,
+        market.pnl_pool.scaled_balance,
         spot_market,
         &SpotBalanceType::Deposit,
     )?;

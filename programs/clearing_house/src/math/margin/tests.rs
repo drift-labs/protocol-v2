@@ -96,7 +96,7 @@ mod test {
 
         let spot_position = SpotPosition {
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
 
@@ -177,7 +177,7 @@ mod test {
 
         let spot_position = SpotPosition {
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
 
@@ -574,7 +574,7 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 10000 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 10000 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
@@ -662,7 +662,7 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 10000 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 10000 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
@@ -756,7 +756,7 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: 500 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 500 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_asks: -3000 * 10_i64.pow(9),
             ..SpotPosition::default()
@@ -859,13 +859,13 @@ mod calculate_margin_requirement_and_total_collateral {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Borrow,
-            balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
 
@@ -1025,7 +1025,7 @@ mod calculate_max_withdrawable_amount {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 10000 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 10000 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
@@ -1113,13 +1113,13 @@ mod calculate_max_withdrawable_amount {
         spot_positions[0] = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Borrow,
-            balance: 10000 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 10000 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         spot_positions[1] = SpotPosition {
             market_index: 1,
             balance_type: SpotBalanceType::Deposit,
-            balance: 200 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 200 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
         let user = User {

@@ -162,7 +162,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -188,7 +188,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -345,7 +345,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -371,7 +371,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -528,7 +528,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -554,7 +554,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -727,7 +727,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -753,7 +753,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -921,7 +921,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -947,7 +947,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1144,7 +1144,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1170,7 +1170,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1397,7 +1397,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1423,7 +1423,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1607,7 +1607,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1633,7 +1633,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1831,7 +1831,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -1923,7 +1923,7 @@ pub mod amm_jit {
                 spot_positions: get_spot_positions(SpotPosition {
                     market_index: 0,
                     balance_type: SpotBalanceType::Deposit,
-                    balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                    scaled_balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
                     ..SpotPosition::default()
                 }),
                 ..User::default()
@@ -2118,7 +2118,7 @@ pub mod amm_jit {
             spot_positions: get_spot_positions(SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
             ..User::default()
@@ -2212,7 +2212,7 @@ pub mod amm_jit {
                 spot_positions: get_spot_positions(SpotPosition {
                     market_index: 0,
                     balance_type: SpotBalanceType::Deposit,
-                    balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
+                    scaled_balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
                     ..SpotPosition::default()
                 }),
                 ..User::default()

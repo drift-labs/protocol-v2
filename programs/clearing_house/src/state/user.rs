@@ -168,7 +168,7 @@ pub struct UserFees {
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct SpotPosition {
-    pub balance: u64,
+    pub scaled_balance: u64,
     pub open_bids: i64,
     pub open_asks: i64,
     pub cumulative_deposits: i64,
@@ -188,20 +188,20 @@ impl SpotBalance for SpotPosition {
     }
 
     fn balance(&self) -> u128 {
-        self.balance as u128
+        self.scaled_balance as u128
     }
 
     fn increase_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.balance = self
-            .balance
+        self.scaled_balance = self
+            .scaled_balance
             .checked_add(delta.cast()?)
             .ok_or_else(math_error!())?;
         Ok(())
     }
 
     fn decrease_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.balance = self
-            .balance
+        self.scaled_balance = self
+            .scaled_balance
             .checked_sub(delta.cast()?)
             .ok_or_else(math_error!())?;
         Ok(())
@@ -215,16 +215,16 @@ impl SpotBalance for SpotPosition {
 
 impl SpotPosition {
     pub fn is_available(&self) -> bool {
-        self.balance == 0 && self.open_orders == 0
+        self.scaled_balance == 0 && self.open_orders == 0
     }
 
     pub fn get_token_amount(&self, spot_market: &SpotMarket) -> ClearingHouseResult<u128> {
-        get_token_amount(self.balance.cast()?, spot_market, &self.balance_type)
+        get_token_amount(self.scaled_balance.cast()?, spot_market, &self.balance_type)
     }
 
     pub fn get_signed_token_amount(&self, spot_market: &SpotMarket) -> ClearingHouseResult<i128> {
         get_signed_token_amount(
-            get_token_amount(self.balance.cast()?, spot_market, &self.balance_type)?,
+            get_token_amount(self.scaled_balance.cast()?, spot_market, &self.balance_type)?,
             &self.balance_type,
         )
     }

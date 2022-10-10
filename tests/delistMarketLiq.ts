@@ -214,11 +214,11 @@ describe('delist market, liquidation of expired position', () => {
 
 		const uL = clearingHouseLoserUser.getUserAccount();
 		console.log(
-			'uL.spotPositions[0].balance:',
-			uL.spotPositions[0].balance.toString()
+			'uL.spotPositions[0].scaledBalance:',
+			uL.spotPositions[0].scaledBalance.toString()
 		);
 		assert(
-			uL.spotPositions[0].balance.eq(
+			uL.spotPositions[0].scaledBalance.eq(
 				new BN(1000 * SPOT_MARKET_BALANCE_PRECISION.toNumber())
 			)
 		);
@@ -281,7 +281,7 @@ describe('delist market, liquidation of expired position', () => {
 		assert(clearingHouseLoserUserLiqPrice > 40.5);
 
 		const market00 = clearingHouse.getPerpMarketAccount(0);
-		assert(market00.amm.feePool.balance.eq(new BN(1000000000000)));
+		assert(market00.amm.feePool.scaledBalance.eq(new BN(1000000000000)));
 
 		const bank0Value1p5 = clearingHouseLoserUser.getSpotMarketAssetValue(0);
 		console.log('uL.bank0Value1p5:', bank0Value1p5.toString());
@@ -632,17 +632,17 @@ describe('delist market, liquidation of expired position', () => {
 		const finalPnlResultMin0 = new BN(1446637831000 - 11090000);
 		const finalPnlResultMax0 = new BN(1452538063000 + 11109000);
 
-		console.log(marketAfter0.pnlPool.balance.toString());
-		assert(marketAfter0.pnlPool.balance.gt(finalPnlResultMin0));
-		assert(marketAfter0.pnlPool.balance.lt(finalPnlResultMax0));
+		console.log(marketAfter0.pnlPool.scaledBalance.toString());
+		assert(marketAfter0.pnlPool.scaledBalance.gt(finalPnlResultMin0));
+		assert(marketAfter0.pnlPool.scaledBalance.lt(finalPnlResultMax0));
 
 		// const ammPnlResult = new BN(0);
-		console.log('feePool:', marketAfter0.amm.feePool.balance.toString());
+		console.log('feePool:', marketAfter0.amm.feePool.scaledBalance.toString());
 		console.log(
 			'totalExchangeFee:',
 			marketAfter0.amm.totalExchangeFee.toString()
 		);
-		assert(marketAfter0.amm.feePool.balance.eq(new BN(4356250000)));
+		assert(marketAfter0.amm.feePool.scaledBalance.eq(new BN(4356250000)));
 		await liquidatorClearingHouseUser.unsubscribe();
 	});
 });

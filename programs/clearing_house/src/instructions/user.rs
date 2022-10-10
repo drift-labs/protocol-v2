@@ -197,7 +197,7 @@ pub fn handle_deposit(
         false,
     )?;
 
-    if spot_position.balance_type == SpotBalanceType::Deposit && spot_position.balance > 0 {
+    if spot_position.balance_type == SpotBalanceType::Deposit && spot_position.scaled_balance > 0 {
         validate!(
             matches!(
                 spot_market.status,

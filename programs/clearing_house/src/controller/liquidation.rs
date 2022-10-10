@@ -1708,7 +1708,10 @@ pub fn resolve_spot_bankruptcy(
             ErrorCode::UserHasInvalidBorrow
         )?;
 
-        validate!(spot_position.balance > 0, ErrorCode::UserHasInvalidBorrow)?;
+        validate!(
+            spot_position.scaled_balance > 0,
+            ErrorCode::UserHasInvalidBorrow
+        )?;
 
         spot_position.get_token_amount(spot_market_map.get_ref(&market_index)?.deref())?
     };

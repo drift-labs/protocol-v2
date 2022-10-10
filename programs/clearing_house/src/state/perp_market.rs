@@ -248,7 +248,7 @@ pub struct InsuranceClaim {
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct PoolBalance {
-    pub balance: u128,
+    pub scaled_balance: u128,
     pub market_index: u16,
     pub padding: [u8; 6],
 }
@@ -263,16 +263,22 @@ impl SpotBalance for PoolBalance {
     }
 
     fn balance(&self) -> u128 {
-        self.balance
+        self.scaled_balance
     }
 
     fn increase_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.balance = self.balance.checked_add(delta).ok_or_else(math_error!())?;
+        self.scaled_balance = self
+            .scaled_balance
+            .checked_add(delta)
+            .ok_or_else(math_error!())?;
         Ok(())
     }
 
     fn decrease_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.balance = self.balance.checked_sub(delta).ok_or_else(math_error!())?;
+        self.scaled_balance = self
+            .scaled_balance
+            .checked_sub(delta)
+            .ok_or_else(math_error!())?;
         Ok(())
     }
 

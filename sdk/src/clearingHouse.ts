@@ -639,7 +639,7 @@ export class ClearingHouse {
 		const spotMarket = this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX);
 		const spotPosition = this.getSpotPosition(QUOTE_SPOT_MARKET_INDEX);
 		return getTokenAmount(
-			spotPosition.balance,
+			spotPosition.scaledBalance,
 			spotMarket,
 			spotPosition.balanceType
 		);

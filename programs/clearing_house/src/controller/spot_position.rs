@@ -219,7 +219,7 @@ mod test {
             spot_positions[0] = SpotPosition {
                 market_index: 0,
                 balance_type: SpotBalanceType::Deposit,
-                balance: SPOT_BALANCE_PRECISION_U64,
+                scaled_balance: SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             };
 

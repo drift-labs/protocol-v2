@@ -82,7 +82,7 @@ export const mockAMM: AMM = {
 	quoteAssetAmountShort: new BN(0),
 	terminalQuoteAssetReserve: new BN(0),
 	feePool: {
-		balance: new BN(0),
+		scaledBalance: new BN(0),
 		marketIndex: 0,
 	},
 	totalExchangeFee: new BN(0),
@@ -116,7 +116,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		marginRatioMaintenance: 0,
 		nextFillRecordId: new BN(0),
 		pnlPool: {
-			balance: new BN(0),
+			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
 		ifLiquidationFee: new BN(0),
@@ -147,7 +147,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		marginRatioMaintenance: 0,
 		nextFillRecordId: new BN(0),
 		pnlPool: {
-			balance: new BN(0),
+			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
 		ifLiquidationFee: new BN(0),
@@ -178,7 +178,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		marginRatioMaintenance: 0,
 		nextFillRecordId: new BN(0),
 		pnlPool: {
-			balance: new BN(0),
+			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
 		ifLiquidationFee: new BN(0),
@@ -208,7 +208,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		mint: DevnetSpotMarkets[0].mint,
 		vault: PublicKey.default,
 		revenuePool: {
-			balance: new BN(0),
+			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
 		insuranceFund: {
@@ -247,7 +247,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		orderStepSize: new BN(0),
 		nextFillRecordId: new BN(0),
 		spotFeePool: {
-			balance: new BN(0),
+			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
 		totalSpotFee: new BN(0),
@@ -277,7 +277,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		mint: DevnetSpotMarkets[1].mint,
 		vault: PublicKey.default,
 		revenuePool: {
-			balance: new BN(0),
+			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
 		insuranceFund: {
@@ -316,7 +316,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		orderStepSize: new BN(0),
 		nextFillRecordId: new BN(0),
 		spotFeePool: {
-			balance: new BN(0),
+			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
 		totalSpotFee: new BN(0),
@@ -346,7 +346,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		mint: DevnetSpotMarkets[2].mint,
 		vault: PublicKey.default,
 		revenuePool: {
-			balance: new BN(0),
+			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
 		insuranceFund: {
@@ -385,7 +385,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		orderStepSize: new BN(0),
 		nextFillRecordId: new BN(0),
 		spotFeePool: {
-			balance: new BN(0),
+			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
 		totalSpotFee: new BN(0),

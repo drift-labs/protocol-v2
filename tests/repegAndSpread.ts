@@ -576,13 +576,13 @@ describe('repeg and spread amm', () => {
 		const spotMarketAccount0 = clearingHouse.getSpotMarketAccount(0);
 
 		const feePoolBalance0 = getTokenAmount(
-			market.amm.feePool.balance,
+			market.amm.feePool.scaledBalance,
 			spotMarketAccount0,
 			SpotBalanceType.DEPOSIT
 		);
 
 		const pnlPoolBalance0 = getTokenAmount(
-			market.pnlPool.balance,
+			market.pnlPool.scaledBalance,
 			spotMarketAccount0,
 			SpotBalanceType.DEPOSIT
 		);
@@ -634,19 +634,19 @@ describe('repeg and spread amm', () => {
 		const spotMarketAccount = clearingHouse.getSpotMarketAccount(0);
 
 		const revPoolBalance = getTokenAmount(
-			spotMarketAccount.revenuePool.balance,
+			spotMarketAccount.revenuePool.scaledBalance,
 			spotMarketAccount,
 			SpotBalanceType.DEPOSIT
 		);
 
 		const feePoolBalance = getTokenAmount(
-			market1.amm.feePool.balance,
+			market1.amm.feePool.scaledBalance,
 			spotMarketAccount,
 			SpotBalanceType.DEPOSIT
 		);
 
 		const pnlPoolBalance = getTokenAmount(
-			market1.pnlPool.balance,
+			market1.pnlPool.scaledBalance,
 			spotMarketAccount,
 			SpotBalanceType.DEPOSIT
 		);
@@ -843,7 +843,7 @@ describe('repeg and spread amm', () => {
 
 		const revPoolBalance = convertToNumber(
 			getTokenAmount(
-				spotMarketAccount.revenuePool.balance,
+				spotMarketAccount.revenuePool.scaledBalance,
 				spotMarketAccount,
 				SpotBalanceType.DEPOSIT
 			),
@@ -852,7 +852,7 @@ describe('repeg and spread amm', () => {
 
 		const pnlPoolBalance = convertToNumber(
 			getTokenAmount(
-				market0.pnlPool.balance,
+				market0.pnlPool.scaledBalance,
 				spotMarketAccount,
 				SpotBalanceType.DEPOSIT
 			),
@@ -861,7 +861,7 @@ describe('repeg and spread amm', () => {
 
 		const feePoolBalance = convertToNumber(
 			getTokenAmount(
-				market0.amm.feePool.balance,
+				market0.amm.feePool.scaledBalance,
 				spotMarketAccount,
 				SpotBalanceType.DEPOSIT
 			),

@@ -432,7 +432,7 @@ export class ClearingHouseUser {
 				if (spotPosition.marketIndex === QUOTE_SPOT_MARKET_INDEX) {
 					if (isVariant(spotPosition.balanceType, 'borrow')) {
 						const tokenAmount = getTokenAmount(
-							spotPosition.balance,
+							spotPosition.scaledBalance,
 							spotMarketAccount,
 							spotPosition.balanceType
 						);
@@ -462,7 +462,7 @@ export class ClearingHouseUser {
 				if (!includeOpenOrders) {
 					if (isVariant(spotPosition.balanceType, 'borrow')) {
 						const tokenAmount = getTokenAmount(
-							spotPosition.balance,
+							spotPosition.scaledBalance,
 							spotMarketAccount,
 							spotPosition.balanceType
 						);
@@ -582,7 +582,7 @@ export class ClearingHouseUser {
 				if (spotPosition.marketIndex === QUOTE_SPOT_MARKET_INDEX) {
 					if (isVariant(spotPosition.balanceType, 'deposit')) {
 						const tokenAmount = getTokenAmount(
-							spotPosition.balance,
+							spotPosition.scaledBalance,
 							spotMarketAccount,
 							spotPosition.balanceType
 						);
@@ -600,7 +600,7 @@ export class ClearingHouseUser {
 				if (!includeOpenOrders) {
 					if (isVariant(spotPosition.balanceType, 'deposit')) {
 						const tokenAmount = getTokenAmount(
-							spotPosition.balance,
+							spotPosition.scaledBalance,
 							spotMarketAccount,
 							spotPosition.balanceType
 						);

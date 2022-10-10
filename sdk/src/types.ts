@@ -545,7 +545,7 @@ export type SpotMarketAccount = {
 };
 
 export type PoolBalance = {
-	balance: BN;
+	scaledBalance: BN;
 	marketIndex: number;
 };
 
@@ -668,7 +668,7 @@ export type UserAccount = {
 export type SpotPosition = {
 	marketIndex: number;
 	balanceType: SpotBalanceType;
-	balance: BN;
+	scaledBalance: BN;
 	openOrders: number;
 	openBids: BN;
 	openAsks: BN;

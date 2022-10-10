@@ -157,14 +157,16 @@ describe('liquidate spot w/ social loss', () => {
 
 		assert(clearingHouse.getUserAccount().isBeingLiquidated);
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
-		assert(clearingHouse.getUserAccount().spotPositions[0].balance.eq(ZERO));
+		assert(
+			clearingHouse.getUserAccount().spotPositions[0].scaledBalance.eq(ZERO)
+		);
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.spotPositions[1].balance.gt(new BN(5001000)) &&
+				.spotPositions[1].scaledBalance.gt(new BN(5001000)) &&
 				clearingHouse
 					.getUserAccount()
-					.spotPositions[1].balance.lt(new BN(5002000))
+					.spotPositions[1].scaledBalance.lt(new BN(5002000))
 		);
 
 		const liquidationRecord =
@@ -298,7 +300,9 @@ describe('liquidate spot w/ social loss', () => {
 
 		assert(!clearingHouse.getUserAccount().isBeingLiquidated);
 		assert(!clearingHouse.getUserAccount().isBankrupt);
-		assert(clearingHouse.getUserAccount().spotPositions[1].balance.eq(ZERO));
+		assert(
+			clearingHouse.getUserAccount().spotPositions[1].scaledBalance.eq(ZERO)
+		);
 
 		const bankruptcyRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];

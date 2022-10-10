@@ -193,7 +193,7 @@ export function calculateMarketAvailablePNL(
 	spotMarket: SpotMarketAccount
 ): BN {
 	return getTokenAmount(
-		perpMarket.pnlPool.balance,
+		perpMarket.pnlPool.scaledBalance,
 		spotMarket,
 		SpotBalanceType.DEPOSIT
 	);
@@ -225,7 +225,7 @@ export function calculateNetUserPnlImbalance(
 	const netUserPnl = calculateNetUserPnl(perpMarket, oraclePriceData);
 
 	const pnlPool = getTokenAmount(
-		perpMarket.pnlPool.balance,
+		perpMarket.pnlPool.scaledBalance,
 		spotMarket,
 		SpotBalanceType.DEPOSIT
 	);
