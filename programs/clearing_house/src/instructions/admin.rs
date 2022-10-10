@@ -1897,7 +1897,7 @@ pub struct InitializePerpMarket<'info> {
         payer = admin
     )]
     pub market: AccountLoader<'info, PerpMarket>,
-    /// CHECK: checked in `initialize_market`
+    /// CHECK: checked in `initialize_perp_market`
     pub oracle: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,

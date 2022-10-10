@@ -109,7 +109,7 @@ pub fn calculate_spread(
     quote_asset_reserve: u128,
     terminal_quote_asset_reserve: u128,
     peg_multiplier: u128,
-    net_base_asset_amount: i128,
+    base_asset_amount_with_amm: i128,
     reserve_price: u128,
     total_fee_minus_distributions: i128,
     base_asset_reserve: u128,
@@ -149,7 +149,7 @@ pub fn calculate_spread(
     let min_side_liquidity = max_bids.min(max_asks.abs());
 
     // inventory scale
-    let inventory_scale = net_base_asset_amount
+    let inventory_scale = base_asset_amount_with_amm
         .checked_mul(cast_to_i128(DEFAULT_LARGE_BID_ASK_FACTOR)?)
         .ok_or_else(math_error!())?
         .checked_div(min_side_liquidity.max(1))
@@ -163,13 +163,13 @@ pub fn calculate_spread(
             .ok_or_else(math_error!())?,
     );
 
-    if net_base_asset_amount > 0 {
+    if base_asset_amount_with_amm > 0 {
         long_spread = long_spread
             .checked_mul(inventory_scale_capped)
             .ok_or_else(math_error!())?
             .checked_div(BID_ASK_SPREAD_PRECISION)
             .ok_or_else(math_error!())?;
-    } else if net_base_asset_amount < 0 {
+    } else if base_asset_amount_with_amm < 0 {
         short_spread = short_spread
             .checked_mul(inventory_scale_capped)
             .ok_or_else(math_error!())?
@@ -186,7 +186,7 @@ pub fn calculate_spread(
         .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
         .ok_or_else(math_error!())?;
 
-    let local_base_asset_value = net_base_asset_amount
+    let local_base_asset_value = base_asset_amount_with_amm
         .checked_mul(cast_to_i128(reserve_price)?)
         .ok_or_else(math_error!())?
         .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128 * PRICE_PRECISION_I128)
@@ -221,7 +221,7 @@ pub fn calculate_spread(
             .ok_or_else(math_error!())?
             .checked_div(BID_ASK_SPREAD_PRECISION)
             .ok_or_else(math_error!())?;
-    } else if net_base_asset_amount > 0 {
+    } else if base_asset_amount_with_amm > 0 {
         long_spread = long_spread
             .checked_mul(effective_leverage_capped)
             .ok_or_else(math_error!())?
@@ -342,7 +342,7 @@ mod test {
         let quote_asset_reserve = AMM_RESERVE_PRECISION * 10;
         let mut terminal_quote_asset_reserve = AMM_RESERVE_PRECISION * 10;
         let peg_multiplier = 34000000;
-        let mut net_base_asset_amount = 0;
+        let mut base_asset_amount_with_amm = 0;
         let reserve_price = 34562304;
         let mut total_fee_minus_distributions = 0;
 
@@ -361,7 +361,7 @@ mod test {
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
-            net_base_asset_amount,
+            base_asset_amount_with_amm,
             reserve_price,
             total_fee_minus_distributions,
             base_asset_reserve,
@@ -374,7 +374,7 @@ mod test {
 
         // even at imbalance with 0 fee, be max spread
         terminal_quote_asset_reserve -= AMM_RESERVE_PRECISION;
-        net_base_asset_amount += AMM_RESERVE_PRECISION as i128;
+        base_asset_amount_with_amm += AMM_RESERVE_PRECISION as i128;
 
         let (long_spread2, short_spread2) = calculate_spread(
             base_spread,
@@ -384,7 +384,7 @@ mod test {
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
-            net_base_asset_amount,
+            base_asset_amount_with_amm,
             reserve_price,
             total_fee_minus_distributions,
             base_asset_reserve,
@@ -407,7 +407,7 @@ mod test {
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
-            net_base_asset_amount,
+            base_asset_amount_with_amm,
             reserve_price,
             total_fee_minus_distributions,
             base_asset_reserve,
@@ -434,7 +434,7 @@ mod test {
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
-            net_base_asset_amount,
+            base_asset_amount_with_amm,
             reserve_price,
             total_fee_minus_distributions,
             base_asset_reserve,
@@ -457,7 +457,7 @@ mod test {
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
-            net_base_asset_amount,
+            base_asset_amount_with_amm,
             reserve_price,
             total_fee_minus_distributions * 2,
             base_asset_reserve,
@@ -540,7 +540,7 @@ mod test {
         let quote_asset_reserve = AMM_RESERVE_PRECISION * 9;
         let mut terminal_quote_asset_reserve = AMM_RESERVE_PRECISION * 10;
         let peg_multiplier = 34000000;
-        let mut net_base_asset_amount = -(AMM_RESERVE_PRECISION as i128);
+        let mut base_asset_amount_with_amm = -(AMM_RESERVE_PRECISION as i128);
         let reserve_price = 34562304;
         let mut total_fee_minus_distributions = 10000 * QUOTE_PRECISION_I128;
 
@@ -559,7 +559,7 @@ mod test {
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
-            net_base_asset_amount,
+            base_asset_amount_with_amm,
             reserve_price,
             total_fee_minus_distributions,
             base_asset_reserve,
@@ -584,7 +584,7 @@ mod test {
             .unwrap();
         assert_eq!(total_liquidity, 7000000000);
         // inventory scale
-        let inventory_scale = net_base_asset_amount
+        let inventory_scale = base_asset_amount_with_amm
             .checked_mul(BID_ASK_SPREAD_PRECISION_I128 * 5)
             .unwrap()
             .checked_div(total_liquidity)
@@ -595,7 +595,7 @@ mod test {
         assert_eq!(long_spread1, 500);
         assert_eq!(short_spread1, 2166);
 
-        net_base_asset_amount *= 2;
+        base_asset_amount_with_amm *= 2;
         let (long_spread1, short_spread1) = calculate_spread(
             base_spread,
             last_oracle_reserve_price_spread_pct,
@@ -604,7 +604,7 @@ mod test {
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
-            net_base_asset_amount,
+            base_asset_amount_with_amm,
             reserve_price,
             total_fee_minus_distributions,
             base_asset_reserve,
@@ -625,7 +625,7 @@ mod test {
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
-            net_base_asset_amount,
+            base_asset_amount_with_amm,
             reserve_price * 9 / 10,
             total_fee_minus_distributions,
             base_asset_reserve,
@@ -645,7 +645,7 @@ mod test {
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
-            net_base_asset_amount,
+            base_asset_amount_with_amm,
             reserve_price * 9 / 10,
             total_fee_minus_distributions,
             base_asset_reserve,
@@ -665,7 +665,7 @@ mod test {
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
-            -net_base_asset_amount,
+            -base_asset_amount_with_amm,
             reserve_price * 9 / 10,
             total_fee_minus_distributions,
             base_asset_reserve,
@@ -684,7 +684,7 @@ mod test {
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
-            -net_base_asset_amount * 5,
+            -base_asset_amount_with_amm * 5,
             reserve_price * 9 / 10,
             total_fee_minus_distributions,
             base_asset_reserve,
@@ -703,7 +703,7 @@ mod test {
             quote_asset_reserve,
             terminal_quote_asset_reserve,
             peg_multiplier,
-            -net_base_asset_amount,
+            -base_asset_amount_with_amm,
             reserve_price * 9 / 10,
             total_fee_minus_distributions,
             base_asset_reserve,

@@ -442,7 +442,7 @@ mod test {
         let quote_asset_reserve: u128 = 10058320717561858267;
         let budget: i128 = 32195176;
         let peg_multiplier: u128 = 1103;
-        let net_base_asset_amount: i128 = 57982559000000000;
+        let base_asset_amount_with_amm: i128 = 57982559000000000;
         let k_pct_upper_bound = 100000000;
         let k_pct_lower_bound = 1000000;
 
@@ -453,7 +453,7 @@ mod test {
                 concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
                 sqrt_k: 10000000000000000000,
                 peg_multiplier,
-                base_asset_amount_with_amm: net_base_asset_amount,
+                base_asset_amount_with_amm,
                 ..AMM::default()
             },
             ..PerpMarket::default()
@@ -464,7 +464,7 @@ mod test {
             quote_asset_reserve,
             budget,
             peg_multiplier,
-            net_base_asset_amount,
+            base_asset_amount_with_amm,
             k_pct_upper_bound,
             k_pct_lower_bound,
         )
@@ -787,7 +787,7 @@ mod test {
         assert_eq!(cost3, 216450200);
 
         // //  todo: support this
-        // market.amm.net_base_asset_amount = -(AMM_RESERVE_PRECISION as i128);
+        // market.amm.base_asset_amount_with_amm = -(AMM_RESERVE_PRECISION as i128);
         // let cost2 = adjust_k_cost(&mut market, &update_k_up).unwrap();
         // assert!(cost2 > cost);
         // assert_eq!(cost2, 249999999999850000000001);

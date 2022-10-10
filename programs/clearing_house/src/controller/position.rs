@@ -896,11 +896,12 @@ mod test {
         assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 2);
         assert_eq!(market.amm.base_asset_amount_short, 0);
-        // assert_eq!(market.amm.net_base_asset_amount, 2);
         assert_eq!(market.amm.quote_asset_amount_long, -2);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
         assert_eq!(market.amm.quote_entry_amount_long, -2);
         assert_eq!(market.amm.quote_entry_amount_short, 0);
+
+        assert_eq!(market.amm.base_asset_amount_with_amm, 1); // todo: update_position_and_market doesnt modify this properly?
     }
 
     #[test]
@@ -988,7 +989,7 @@ mod test {
         assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 9);
         assert_eq!(market.amm.base_asset_amount_short, 0);
-        // assert_eq!(market.amm.net_base_asset_amount, 9);
+        // assert_eq!(market.amm.base_asset_amount_with_amm, 9);
         assert_eq!(market.amm.quote_asset_amount_long, -5);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
         assert_eq!(market.amm.quote_entry_amount_long, -9);
@@ -1035,7 +1036,7 @@ mod test {
         assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 9);
         assert_eq!(market.amm.base_asset_amount_short, 0);
-        // assert_eq!(market.amm.net_base_asset_amount, 9);
+        // assert_eq!(market.amm.base_asset_amount_with_amm, 9);
         assert_eq!(market.amm.quote_asset_amount_long, -95);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
         assert_eq!(market.amm.quote_entry_amount_long, -90);
@@ -1083,7 +1084,7 @@ mod test {
         assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 0);
         assert_eq!(market.amm.base_asset_amount_short, -1);
-        // assert_eq!(market.amm.net_base_asset_amount, -1);
+        // assert_eq!(market.amm.base_asset_amount_with_amm, -1);
         assert_eq!(market.amm.quote_asset_amount_long, 10);
         assert_eq!(market.amm.quote_asset_amount_short, 2);
         assert_eq!(market.amm.quote_entry_amount_long, 0);
@@ -1132,7 +1133,7 @@ mod test {
         assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 0);
         assert_eq!(market.amm.base_asset_amount_short, -1);
-        // assert_eq!(market.amm.net_base_asset_amount, -1);
+        // assert_eq!(market.amm.base_asset_amount_with_amm, -1);
         assert_eq!(market.amm.quote_asset_amount_long, -1);
         assert_eq!(market.amm.quote_asset_amount_short, 1);
         assert_eq!(market.amm.quote_entry_amount_long, 0);
@@ -1270,7 +1271,7 @@ mod test {
         assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 1);
         assert_eq!(market.amm.base_asset_amount_short, 0);
-        // assert_eq!(market.amm.net_base_asset_amount, 1);
+        // assert_eq!(market.amm.base_asset_amount_with_amm, 1);
         assert_eq!(market.amm.quote_asset_amount_long, -6);
         assert_eq!(market.amm.quote_asset_amount_short, 46);
         assert_eq!(market.amm.quote_entry_amount_long, -6);
@@ -1318,7 +1319,7 @@ mod test {
         assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 1);
         assert_eq!(market.amm.base_asset_amount_short, 0);
-        // assert_eq!(market.amm.net_base_asset_amount, 1);
+        // assert_eq!(market.amm.base_asset_amount_with_amm, 1);
         assert_eq!(market.amm.quote_asset_amount_long, -11);
         assert_eq!(market.amm.quote_asset_amount_short, -9);
         assert_eq!(market.amm.quote_entry_amount_long, -11);
@@ -1363,7 +1364,7 @@ mod test {
         assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 1);
         assert_eq!(market.amm.base_asset_amount_short, 0);
-        // assert_eq!(market.amm.net_base_asset_amount, 1);
+        // assert_eq!(market.amm.base_asset_amount_with_amm, 1);
         // not 5 because quote asset amount long was -11 not -10 before
         assert_eq!(market.amm.quote_asset_amount_long, 4);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
@@ -1409,7 +1410,7 @@ mod test {
         assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 1);
         assert_eq!(market.amm.base_asset_amount_short, 0);
-        // assert_eq!(market.amm.net_base_asset_amount, 1);
+        // assert_eq!(market.amm.base_asset_amount_with_amm, 1);
         assert_eq!(market.amm.quote_asset_amount_long, -6);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
         assert_eq!(market.amm.quote_entry_amount_long, -1);
@@ -1541,7 +1542,7 @@ mod test {
         assert_eq!(market.number_of_users, 1);
         assert_eq!(market.amm.base_asset_amount_long, 1);
         assert_eq!(market.amm.base_asset_amount_short, 0);
-        // assert_eq!(market.amm.net_base_asset_amount, 1);
+        // assert_eq!(market.amm.base_asset_amount_with_amm, 1);
         assert_eq!(market.amm.quote_asset_amount_long, -6);
         assert_eq!(market.amm.quote_asset_amount_short, 0);
         assert_eq!(market.amm.quote_entry_amount_long, 0);

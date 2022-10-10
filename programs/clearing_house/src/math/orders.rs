@@ -42,7 +42,9 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
                 || (order_limit_price <= override_limit_price
                     && order.direction == PositionDirection::Short),
             ErrorCode::DefaultError,
-            "override_limit_price not better than order's limit price"
+            "override_limit_price={} not better than order_limit_price={}",
+            override_limit_price,
+            order_limit_price
         )?;
 
         override_limit_price

@@ -19,8 +19,8 @@ pub fn validate_market_account(market: &PerpMarket) -> ClearingHouseResult {
         market.amm.base_asset_amount_long={}, 
         + market.amm.base_asset_amount_short={} 
         != 
-        market.amm.net_base_asset_amount={}
-        +  market.amm.net_unsettled_lp_base_asset_amount={}",
+        market.amm.base_asset_amount_with_amm={}
+        +  market.amm.base_asset_amount_with_unsettled_lp={}",
         market.amm.base_asset_amount_long,
         market.amm.base_asset_amount_short,
         market.amm.base_asset_amount_with_amm,

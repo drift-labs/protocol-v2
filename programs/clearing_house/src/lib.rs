@@ -40,7 +40,7 @@ declare_id!("DUZwKJKAk2C9S88BYvQzck1M1i5hySQjxB4zW6tJ29Nw");
 pub mod clearing_house {
     use super::*;
 
-    /// User Instructions
+    // User Instructions
 
     pub fn initialize_user(
         ctx: Context<InitializeUser>,
@@ -165,7 +165,7 @@ pub mod clearing_house {
         handle_delete_user(ctx)
     }
 
-    /// Keeper Instructions
+    // Keeper Instructions
 
     pub fn fill_order(
         ctx: Context<FillOrder>,
@@ -315,7 +315,7 @@ pub mod clearing_house {
         handle_update_user_quote_asset_insurance_stake(ctx)
     }
 
-    /// IF stakers
+    // IF stakers
 
     pub fn initialize_insurance_fund_stake(
         ctx: Context<InitializeInsuranceFundStake>,
@@ -354,7 +354,7 @@ pub mod clearing_house {
         handle_remove_insurance_fund_stake(ctx, market_index)
     }
 
-    /// Admin Instructions
+    // Admin Instructions
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         handle_initialize(ctx)

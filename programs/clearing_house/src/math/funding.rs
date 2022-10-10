@@ -353,7 +353,7 @@ mod test {
     fn funding_unsettled_lps_amm_win_test() {
         // more shorts than longs, positive funding
 
-        // positive net_unsettled_lp_base_asset_amount =
+        // positive base_asset_amount_with_unsettled_lp =
         // 1) lots of long users who have lp as counterparty
         // 2) the lps should be short but its unsettled...
         // 3) amm takes on the funding revenu/cost of those short LPs
@@ -473,7 +473,7 @@ mod test {
     fn funding_unsettled_lps_amm_lose_test() {
         // more shorts than longs, positive funding
 
-        // positive net_unsettled_lp_base_asset_amount =
+        // positive base_asset_amount_with_unsettled_lp =
         // 1) lots of long users who have lp as counterparty
         // 2) the lps should be short but its unsettled...
         // 3) amm takes on the funding revenu/cost of those short LPs

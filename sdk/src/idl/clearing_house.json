@@ -4,9 +4,6 @@
   "instructions": [
     {
       "name": "initializeUser",
-      "docs": [
-        "User Instructions"
-      ],
       "accounts": [
         {
           "name": "user",
@@ -657,9 +654,6 @@
     },
     {
       "name": "fillOrder",
-      "docs": [
-        "Keeper Instructions"
-      ],
       "accounts": [
         {
           "name": "state",
@@ -1441,9 +1435,6 @@
     },
     {
       "name": "initializeInsuranceFundStake",
-      "docs": [
-        "IF stakers"
-      ],
       "accounts": [
         {
           "name": "spotMarket",
@@ -1692,9 +1683,6 @@
     },
     {
       "name": "initialize",
-      "docs": [
-        "Admin Instructions"
-      ],
       "accounts": [
         {
           "name": "admin",

@@ -289,7 +289,7 @@ pub fn update_concentration_coef(amm: &mut AMM, scale: u128) -> ClearingHouseRes
     validate!(
         max_bids > amm.base_asset_amount_with_amm && max_asks < amm.base_asset_amount_with_amm,
         ErrorCode::DefaultError,
-        "amm.net_base_asset_amount exceeds the unload liquidity available after concentration adjustment"
+        "amm.base_asset_amount_with_amm exceeds the unload liquidity available after concentration adjustment"
     )?;
 
     Ok(())
@@ -790,7 +790,7 @@ mod test {
         assert_eq!(orig_open_bids - open_bids, -48575526704);
         assert_eq!(orig_open_asks - open_asks, 4074098360);
 
-        let new_scale = 100; // moves boundary to prevent net_base_asset_amount to close
+        let new_scale = 100; // moves boundary to prevent base_asset_amount_with_amm to close
         assert!(update_concentration_coef(&mut market.amm, new_scale).is_err());
 
         // different default market
