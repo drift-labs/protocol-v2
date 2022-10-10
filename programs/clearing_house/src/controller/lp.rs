@@ -1,20 +1,23 @@
+use anchor_lang::prelude::{msg, Pubkey};
+
+use crate::bn::U192;
+use crate::controller::position::PositionDelta;
+use crate::controller::position::{update_position_and_market, update_quote_asset_amount};
 use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::get_struct_values;
+use crate::math::casting::Cast;
+use crate::math::cp_curve::{get_update_k_result, update_k};
+use crate::math::lp::calculate_settle_lp_metrics;
+use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math_error;
 use crate::state::events::{LPAction, LPRecord};
 use crate::state::perp_market::PerpMarket;
 use crate::state::user::PerpPosition;
 use crate::state::user::User;
 
-use crate::bn::U192;
-use crate::controller::position::PositionDelta;
-use crate::controller::position::{update_position_and_market, update_quote_asset_amount};
-use crate::get_struct_values;
-use crate::math::casting::Cast;
-use crate::math::cp_curve::{get_update_k_result, update_k};
-use crate::math::lp::calculate_settle_lp_metrics;
-use crate::math::position::calculate_base_asset_value_with_oracle_price;
-
-use anchor_lang::prelude::{msg, Pubkey};
+#[cfg(test)]
+#[path = "../../tests/controller/lp.rs"]
+mod tests;
 
 pub fn mint_lp_shares(
     position: &mut PerpPosition,
@@ -254,164 +257,4 @@ pub fn burn_lp_shares(
     crate::controller::validate::validate_position_account(position, market)?;
 
     Ok((position_delta, pnl))
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::math::constants::{AMM_RESERVE_PRECISION, BASE_PRECISION_U64};
-    use crate::state::perp_market::AMM;
-    use crate::state::user::PerpPosition;
-
-    #[test]
-    fn test_full_long_settle() {
-        let mut position = PerpPosition {
-            ..PerpPosition::default()
-        };
-
-        let amm = AMM {
-            order_step_size: 1,
-            ..AMM::default_test()
-        };
-        let mut market = PerpMarket {
-            amm,
-            ..PerpMarket::default_test()
-        };
-        let og_market = market;
-
-        mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
-
-        market.amm.market_position_per_lp = PerpPosition {
-            base_asset_amount: 10,
-            quote_asset_amount: -10,
-            ..PerpPosition::default()
-        };
-        market.amm.base_asset_amount_with_unsettled_lp = -10;
-        market.amm.base_asset_amount_short = -10;
-
-        settle_lp_position(&mut position, &mut market).unwrap();
-
-        assert_eq!(position.last_net_base_asset_amount_per_lp, 10);
-        assert_eq!(position.last_net_quote_asset_amount_per_lp, -10);
-        assert_eq!(position.base_asset_amount, 10);
-        assert_eq!(position.quote_asset_amount, -10);
-        assert_eq!(market.amm.base_asset_amount_with_unsettled_lp, 0);
-        // net baa doesnt change
-        assert_eq!(
-            og_market.amm.base_asset_amount_with_amm,
-            market.amm.base_asset_amount_with_amm
-        );
-
-        // burn
-        let lp_shares = position.lp_shares;
-        burn_lp_shares(&mut position, &mut market, lp_shares, 0).unwrap();
-        assert_eq!(position.lp_shares, 0);
-        assert_eq!(og_market.amm.sqrt_k, market.amm.sqrt_k);
-    }
-
-    #[test]
-    fn test_full_short_settle() {
-        let mut position = PerpPosition {
-            ..PerpPosition::default()
-        };
-
-        let amm = AMM {
-            peg_multiplier: 1,
-            user_lp_shares: 100 * AMM_RESERVE_PRECISION,
-            order_step_size: 1,
-            ..AMM::default_test()
-        };
-
-        let mut market = PerpMarket {
-            amm,
-            ..PerpMarket::default_test()
-        };
-
-        mint_lp_shares(&mut position, &mut market, 100 * BASE_PRECISION_U64).unwrap();
-
-        market.amm.market_position_per_lp = PerpPosition {
-            base_asset_amount: -10,
-            quote_asset_amount: 10,
-            ..PerpPosition::default()
-        };
-
-        settle_lp_position(&mut position, &mut market).unwrap();
-
-        assert_eq!(position.last_net_base_asset_amount_per_lp, -10);
-        assert_eq!(position.last_net_quote_asset_amount_per_lp, 10);
-        assert_eq!(position.base_asset_amount, -10 * 100);
-        assert_eq!(position.quote_asset_amount, 10 * 100);
-    }
-
-    #[test]
-    fn test_partial_short_settle() {
-        let mut position = PerpPosition {
-            ..PerpPosition::default()
-        };
-
-        let amm = AMM {
-            order_step_size: 3,
-            ..AMM::default_test()
-        };
-
-        let mut market = PerpMarket {
-            amm,
-            ..PerpMarket::default_test()
-        };
-
-        mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
-
-        market.amm.market_position_per_lp = PerpPosition {
-            base_asset_amount: -10,
-            quote_asset_amount: 10,
-            ..PerpPosition::default()
-        };
-        market.amm.base_asset_amount_with_unsettled_lp = 10;
-        market.amm.base_asset_amount_long = 10;
-
-        settle_lp_position(&mut position, &mut market).unwrap();
-
-        assert_eq!(position.base_asset_amount, -9);
-        assert_eq!(position.quote_asset_amount, 10);
-        assert_eq!(position.remainder_base_asset_amount, -1);
-        assert_eq!(position.last_net_base_asset_amount_per_lp, -10);
-        assert_eq!(position.last_net_quote_asset_amount_per_lp, 10);
-
-        // burn
-        let _position = position;
-        let lp_shares = position.lp_shares;
-        burn_lp_shares(&mut position, &mut market, lp_shares, 0).unwrap();
-        assert_eq!(position.lp_shares, 0);
-    }
-
-    #[test]
-    fn test_partial_long_settle() {
-        let mut position = PerpPosition {
-            lp_shares: BASE_PRECISION_U64,
-            ..PerpPosition::default()
-        };
-
-        let amm = AMM {
-            market_position_per_lp: PerpPosition {
-                base_asset_amount: -10,
-                quote_asset_amount: 10,
-                ..PerpPosition::default()
-            },
-            order_step_size: 3,
-            ..AMM::default_test()
-        };
-
-        let mut market = PerpMarket {
-            amm,
-            ..PerpMarket::default_test()
-        };
-
-        settle_lp_position(&mut position, &mut market).unwrap();
-
-        assert_eq!(position.base_asset_amount, -9);
-        assert_eq!(position.quote_asset_amount, 10);
-        assert_eq!(position.remainder_base_asset_amount, -1);
-        assert_eq!(position.last_net_base_asset_amount_per_lp, -10);
-        assert_eq!(position.last_net_quote_asset_amount_per_lp, 10);
-    }
 }

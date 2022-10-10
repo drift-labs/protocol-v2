@@ -15,19 +15,22 @@ pub mod math;
 pub mod optional_accounts;
 mod signer;
 pub mod state;
-#[cfg(test)]
-mod tests;
 mod validation;
+
+#[cfg(test)]
+#[path = "./../tests/utils/mod.rs"]
+pub mod test_utils;
 
 use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::spot_market::AssetTier;
 use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use instructions::*;
-#[cfg(test)]
-use math::amm;
 use math::{bn, constants::*};
 use state::oracle::OracleSource;
+
+#[cfg(test)]
+use math::amm;
 
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");

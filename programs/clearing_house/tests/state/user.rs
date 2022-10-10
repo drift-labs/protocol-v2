@@ -12,7 +12,7 @@ mod get_claimable_pnl {
     use crate::state::perp_market::{PerpMarket, PoolBalance, AMM};
     use crate::state::spot_market::{SpotBalance, SpotMarket};
     use crate::state::user::{PerpPosition, User};
-    use crate::tests::utils::get_positions;
+    use crate::test_utils::get_positions;
 
     #[test]
     fn long_negative_unrealized_pnl() {

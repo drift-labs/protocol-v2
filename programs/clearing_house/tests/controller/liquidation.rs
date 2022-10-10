@@ -1,4 +1,9 @@
 pub mod liquidate_perp {
+    use std::str::FromStr;
+
+    use anchor_lang::Owner;
+    use solana_program::pubkey::Pubkey;
+
     use crate::controller::liquidation::liquidate_perp;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
@@ -23,11 +28,8 @@ pub mod liquidate_perp {
     use crate::state::user::{
         Order, OrderStatus, OrderType, PerpPosition, SpotPosition, User, UserStats,
     };
-    use crate::tests::utils::get_pyth_price;
-    use crate::tests::utils::*;
-    use anchor_lang::Owner;
-    use solana_program::pubkey::Pubkey;
-    use std::str::FromStr;
+    use crate::test_utils::*;
+    use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
 
     #[test]
     pub fn successful_liquidation_long_perp() {
@@ -934,6 +936,12 @@ pub mod liquidate_perp {
 }
 
 pub mod liquidate_spot {
+    use std::ops::Deref;
+    use std::str::FromStr;
+
+    use anchor_lang::Owner;
+    use solana_program::pubkey::Pubkey;
+
     use crate::controller::liquidation::liquidate_spot;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
@@ -952,12 +960,8 @@ pub mod liquidate_spot {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
-    use crate::tests::utils::get_pyth_price;
-    use crate::tests::utils::*;
-    use anchor_lang::Owner;
-    use solana_program::pubkey::Pubkey;
-    use std::ops::Deref;
-    use std::str::FromStr;
+    use crate::test_utils::*;
+    use crate::test_utils::{get_pyth_price, get_spot_positions};
 
     #[test]
     pub fn successful_liquidation_liability_transfer_implied_by_asset_amount() {
@@ -1406,11 +1410,15 @@ pub mod liquidate_spot {
 }
 
 pub mod liquidate_borrow_for_perp_pnl {
+    use std::ops::Deref;
+    use std::str::FromStr;
+
+    use anchor_lang::Owner;
+    use solana_program::pubkey::Pubkey;
+
     use crate::controller::liquidation::liquidate_borrow_for_perp_pnl;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
-    use crate::state::oracle::HistoricalOracleData;
-
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
         PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION,
@@ -1420,6 +1428,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
     };
     use crate::math::spot_balance::{get_token_amount, get_token_value};
+    use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
@@ -1427,12 +1436,8 @@ pub mod liquidate_borrow_for_perp_pnl {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
-    use crate::tests::utils::get_pyth_price;
-    use crate::tests::utils::*;
-    use anchor_lang::Owner;
-    use solana_program::pubkey::Pubkey;
-    use std::ops::Deref;
-    use std::str::FromStr;
+    use crate::test_utils::*;
+    use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
 
     #[test]
     pub fn successful_liquidation_liquidator_max_liability_transfer() {
@@ -1913,16 +1918,20 @@ pub mod liquidate_borrow_for_perp_pnl {
 }
 
 pub mod liquidate_perp_pnl_for_deposit {
+    use std::str::FromStr;
+
+    use anchor_lang::Owner;
+    use solana_program::pubkey::Pubkey;
+
     use crate::controller::liquidation::liquidate_perp_pnl_for_deposit;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
-    use crate::state::oracle::HistoricalOracleData;
-
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
         PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION,
         SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
+    use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
@@ -1930,11 +1939,8 @@ pub mod liquidate_perp_pnl_for_deposit {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
-    use crate::tests::utils::get_pyth_price;
-    use crate::tests::utils::*;
-    use anchor_lang::Owner;
-    use solana_program::pubkey::Pubkey;
-    use std::str::FromStr;
+    use crate::test_utils::*;
+    use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
 
     #[test]
     pub fn successful_liquidation_liquidator_max_pnl_transfer() {
@@ -2380,6 +2386,11 @@ pub mod liquidate_perp_pnl_for_deposit {
 }
 
 pub mod resolve_perp_bankruptcy {
+    use std::str::FromStr;
+
+    use anchor_lang::Owner;
+    use solana_program::pubkey::Pubkey;
+
     use crate::controller::funding::settle_funding_payment;
     use crate::controller::liquidation::resolve_perp_bankruptcy;
     use crate::controller::position::PositionDirection;
@@ -2398,11 +2409,8 @@ pub mod resolve_perp_bankruptcy {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, OrderStatus, OrderType, PerpPosition, SpotPosition, User};
-    use crate::tests::utils::get_pyth_price;
-    use crate::tests::utils::*;
-    use anchor_lang::Owner;
-    use solana_program::pubkey::Pubkey;
-    use std::str::FromStr;
+    use crate::test_utils::*;
+    use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
 
     #[test]
     pub fn successful_resolve_perp_bankruptcy() {
@@ -2598,6 +2606,11 @@ pub mod resolve_perp_bankruptcy {
 }
 
 pub mod resolve_spot_bankruptcy {
+    use std::str::FromStr;
+
+    use anchor_lang::Owner;
+    use solana_program::pubkey::Pubkey;
+
     use crate::controller::liquidation::resolve_spot_bankruptcy;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
@@ -2616,11 +2629,8 @@ pub mod resolve_spot_bankruptcy {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, OrderStatus, OrderType, PerpPosition, SpotPosition, User};
-    use crate::tests::utils::get_pyth_price;
-    use crate::tests::utils::*;
-    use anchor_lang::Owner;
-    use solana_program::pubkey::Pubkey;
-    use std::str::FromStr;
+    use crate::test_utils::*;
+    use crate::test_utils::{get_orders, get_pyth_price, get_spot_positions};
 
     #[test]
     pub fn successful_resolve_spot_bankruptcy() {
