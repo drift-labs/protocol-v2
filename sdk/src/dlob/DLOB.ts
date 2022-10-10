@@ -894,7 +894,8 @@ export class DLOB {
 			const market = clearingHouse.getPerpMarketAccount(marketIndex);
 
 			const slot = slotSubscriber.getSlot();
-			const oraclePriceData = clearingHouse.getOracleDataForMarket(marketIndex);
+			const oraclePriceData =
+				clearingHouse.getOracleDataForPerpMarket(marketIndex);
 			const vAsk = calculateAskPrice(market, oraclePriceData);
 			const vBid = calculateBidPrice(market, oraclePriceData);
 
@@ -939,7 +940,8 @@ export class DLOB {
 			);
 		} else if (isVariant(marketType, 'spot')) {
 			const slot = slotSubscriber.getSlot();
-			const oraclePriceData = clearingHouse.getOracleDataForMarket(marketIndex);
+			const oraclePriceData =
+				clearingHouse.getOracleDataForPerpMarket(marketIndex);
 
 			const bestAsk = this.getBestAsk(
 				marketIndex,

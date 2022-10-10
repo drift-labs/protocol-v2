@@ -232,7 +232,7 @@ async function cappedSymFundingScenario(
 	}
 	await clearingHouse.fetchAccounts();
 
-	const oracleData = clearingHouse.getOracleDataForMarket(0);
+	const oracleData = clearingHouse.getOracleDataForPerpMarket(0);
 	console.log(
 		'PRICE',
 		convertToNumber(

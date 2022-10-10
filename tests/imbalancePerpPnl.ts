@@ -396,7 +396,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const market00 = clearingHouse.getPerpMarketAccount(0);
 		assert(market00.amm.feePool.scaledBalance.eq(new BN(1000000000000)));
 
-		const oraclePriceData00 = clearingHouse.getOracleDataForMarket(
+		const oraclePriceData00 = clearingHouse.getOracleDataForPerpMarket(
 			market00.marketIndex
 		);
 
@@ -437,7 +437,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		await sleep(1000);
 		await clearingHouse.fetchAccounts();
 
-		const oraclePriceData00Again = clearingHouse.getOracleDataForMarket(
+		const oraclePriceData00Again = clearingHouse.getOracleDataForPerpMarket(
 			market00.marketIndex
 		);
 		const newAmm00 = calculateUpdatedAMM(market00.amm, oraclePriceData00Again);
@@ -547,7 +547,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 				loserUser.perpPositions[0].quoteAssetAmount
 			)
 		);
-		const oraclePriceData0 = clearingHouse.getOracleDataForMarket(
+		const oraclePriceData0 = clearingHouse.getOracleDataForPerpMarket(
 			market0.marketIndex
 		);
 		const [bid1, ask1] = examineSpread(market0, oraclePriceData0);
@@ -592,7 +592,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 			market0 = clearingHouse.getPerpMarketAccount(0);
 		}
-		const oraclePriceData = clearingHouse.getOracleDataForMarket(
+		const oraclePriceData = clearingHouse.getOracleDataForPerpMarket(
 			market0.marketIndex
 		);
 
@@ -640,7 +640,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 		assert(market0.expiryTs.eq(ZERO));
 
-		const oraclePriceData0 = clearingHouse.getOracleDataForMarket(
+		const oraclePriceData0 = clearingHouse.getOracleDataForPerpMarket(
 			market0.marketIndex
 		);
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData0);
@@ -671,7 +671,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			QUOTE_SPOT_MARKET_INDEX
 		);
 
-		const oraclePriceData = clearingHouse.getOracleDataForMarket(
+		const oraclePriceData = clearingHouse.getOracleDataForPerpMarket(
 			market0.marketIndex
 		);
 
@@ -744,7 +744,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		assert(market0.marginRatioInitial == 1000);
 		assert(market0.marginRatioMaintenance == 500);
 
-		const oraclePriceData0 = clearingHouse.getOracleDataForMarket(
+		const oraclePriceData0 = clearingHouse.getOracleDataForPerpMarket(
 			market0.marketIndex
 		);
 		oraclePriceData0.confidence = new BN(0); //oraclePriceData0.price.div(new BN(1000));
@@ -776,7 +776,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		const market1 = clearingHouse.getPerpMarketAccount(0);
 
-		const oraclePriceData1 = clearingHouse.getOracleDataForMarket(
+		const oraclePriceData1 = clearingHouse.getOracleDataForPerpMarket(
 			market1.marketIndex
 		);
 		const prepegAMM1 = calculateUpdatedAMM(market0.amm, oraclePriceData1);
@@ -866,7 +866,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			QUOTE_SPOT_MARKET_INDEX
 		);
 
-		const oraclePriceData = clearingHouse.getOracleDataForMarket(
+		const oraclePriceData = clearingHouse.getOracleDataForPerpMarket(
 			perpMarket.marketIndex
 		);
 

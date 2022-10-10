@@ -45,7 +45,7 @@ async function feePoolInjection(fees, marketIndex, clearingHouse) {
 	while (market0.amm.totalFeeMinusDistributions.lt(fees)) {
 		const reservePrice = calculateReservePrice(
 			market0,
-			clearingHouse.getOracleDataForMarket(marketIndex)
+			clearingHouse.getOracleDataForPerpMarket(marketIndex)
 		);
 		const baseAmountToTrade = new BN(9000)
 			.mul(PRICE_PRECISION)

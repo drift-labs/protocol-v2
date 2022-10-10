@@ -2793,11 +2793,11 @@ export class ClearingHouse {
 	}
 
 	public async updateFundingRate(
-		oracle: PublicKey,
-		marketIndex: number
+		perpMarketIndex: number,
+		oracle: PublicKey
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
-			wrapInTx(await this.getUpdateFundingRateIx(oracle, marketIndex)),
+			wrapInTx(await this.getUpdateFundingRateIx(oracle, perpMarketIndex)),
 			[],
 			this.opts
 		);
@@ -2806,14 +2806,14 @@ export class ClearingHouse {
 
 	public async getUpdateFundingRateIx(
 		oracle: PublicKey,
-		marketIndex: number
+		perpMarketIndex: number
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updateFundingRate(marketIndex, {
+		return await this.program.instruction.updateFundingRate(perpMarketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
-				market: await getPerpMarketPublicKey(
+				perpMarket: await getPerpMarketPublicKey(
 					this.program.programId,
-					marketIndex
+					perpMarketIndex
 				),
 				oracle: oracle,
 			},
@@ -2863,7 +2863,7 @@ export class ClearingHouse {
 		this.eventEmitter.emit(eventName, data);
 	}
 
-	public getOracleDataForMarket(marketIndex: number): OraclePriceData {
+	public getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
 		const oracleKey = this.getPerpMarketAccount(marketIndex).amm.oracle;
 		const oracleData = this.getOraclePriceDataAndSlot(oracleKey).data;
 

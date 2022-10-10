@@ -212,7 +212,7 @@ describe('User Account', () => {
 
 		const market = clearingHouse.getPerpMarketAccount(perpPosition.marketIndex);
 
-		const oraclePrice = clearingHouse.getOracleDataForMarket(
+		const oraclePrice = clearingHouse.getOracleDataForPerpMarket(
 			market.marketIndex
 		).price;
 		const reservePrice = calculatePrice(
@@ -235,7 +235,7 @@ describe('User Account', () => {
 		await clearingHouse.fetchAccounts();
 		const oracleP2 = await getFeedData(anchor.workspace.Pyth, solUsdOracle);
 		console.log('oracleP2:', oracleP2.price);
-		const oraclePrice2 = clearingHouse.getOracleDataForMarket(
+		const oraclePrice2 = clearingHouse.getOracleDataForPerpMarket(
 			market.marketIndex
 		).price;
 		const reservePrice2 = calculateReservePrice(market, oraclePrice);
@@ -290,7 +290,7 @@ describe('User Account', () => {
 
 		const market = clearingHouse.getPerpMarketAccount(perpPosition.marketIndex);
 
-		const oraclePrice = clearingHouse.getOracleDataForMarket(
+		const oraclePrice = clearingHouse.getOracleDataForPerpMarket(
 			market.marketIndex
 		).price;
 		const reservePrice = calculatePrice(
@@ -314,7 +314,7 @@ describe('User Account', () => {
 		await clearingHouse.fetchAccounts();
 		const oracleP2 = await getFeedData(anchor.workspace.Pyth, solUsdOracle);
 		console.log('oracleP2:', oracleP2.price);
-		const oraclePrice2 = clearingHouse.getOracleDataForMarket(
+		const oraclePrice2 = clearingHouse.getOracleDataForPerpMarket(
 			market.marketIndex
 		).price;
 		const reservePrice2 = calculateReservePrice(market, oraclePrice);

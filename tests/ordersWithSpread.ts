@@ -382,7 +382,7 @@ describe('amm spread: market order', () => {
 		const expectedBaseAssetAmount = calculateBaseAssetAmountForAmmToFulfill(
 			unfilledOrder,
 			clearingHouse.getPerpMarketAccount(0),
-			clearingHouse.getOracleDataForMarket(unfilledOrder.marketIndex),
+			clearingHouse.getOracleDataForPerpMarket(unfilledOrder.marketIndex),
 			0
 		);
 		assert(expectedBaseAssetAmount.eq(ZERO));
@@ -426,7 +426,7 @@ describe('amm spread: market order', () => {
 		const expectedBaseAssetAmount = calculateBaseAssetAmountForAmmToFulfill(
 			unfilledOrder,
 			clearingHouse.getPerpMarketAccount(0),
-			clearingHouse.getOracleDataForMarket(unfilledOrder.marketIndex),
+			clearingHouse.getOracleDataForPerpMarket(unfilledOrder.marketIndex),
 			0
 		);
 		assert(expectedBaseAssetAmount.eq(ZERO));
@@ -481,7 +481,7 @@ describe('amm spread: market order', () => {
 		const expectedBaseAssetAmount = calculateBaseAssetAmountForAmmToFulfill(
 			order,
 			clearingHouse.getPerpMarketAccount(0),
-			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			clearingHouse.getOracleDataForPerpMarket(order.marketIndex),
 			0
 		);
 		assert(expectedBaseAssetAmount.eq(AMM_RESERVE_PRECISION));
@@ -567,7 +567,7 @@ describe('amm spread: market order', () => {
 		const expectedBaseAssetAmount = calculateBaseAssetAmountForAmmToFulfill(
 			order,
 			clearingHouse.getPerpMarketAccount(0),
-			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			clearingHouse.getOracleDataForPerpMarket(order.marketIndex),
 			0
 		);
 		assert(expectedBaseAssetAmount.eq(AMM_RESERVE_PRECISION));
