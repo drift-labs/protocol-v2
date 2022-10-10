@@ -1312,7 +1312,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         },
@@ -2006,7 +2006,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2027,7 +2027,7 @@
       ]
     },
     {
-      "name": "updateMarketExpiry",
+      "name": "updatePerpMarketExpiry",
       "accounts": [
         {
           "name": "admin",
@@ -2040,7 +2040,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2079,7 +2079,7 @@
       "args": []
     },
     {
-      "name": "depositIntoMarketFeePool",
+      "name": "depositIntoPerpMarketFeePool",
       "accounts": [
         {
           "name": "state",
@@ -2087,7 +2087,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         },
@@ -2138,7 +2138,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         },
@@ -2169,7 +2169,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         },
@@ -2195,7 +2195,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         },
@@ -2226,7 +2226,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         },
@@ -2257,7 +2257,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2287,7 +2287,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2321,7 +2321,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2338,7 +2338,7 @@
       ]
     },
     {
-      "name": "updateInsuranceWithdrawEscrowPeriod",
+      "name": "updateInsuranceFundUnstakingPeriod",
       "accounts": [
         {
           "name": "admin",
@@ -2358,7 +2358,7 @@
       ],
       "args": [
         {
-          "name": "insuranceWithdrawEscrowPeriod",
+          "name": "insuranceFundUnstakingPeriod",
           "type": "i64"
         }
       ]
@@ -2617,7 +2617,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2645,7 +2645,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2673,7 +2673,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2699,7 +2699,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2729,7 +2729,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2755,7 +2755,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2781,7 +2781,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2876,7 +2876,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2908,7 +2908,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2934,7 +2934,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2960,7 +2960,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2986,7 +2986,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -3016,7 +3016,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -3042,7 +3042,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -3055,7 +3055,7 @@
       ]
     },
     {
-      "name": "updateMaxBaseAssetAmountRatio",
+      "name": "updateMaxFillReserveFraction",
       "accounts": [
         {
           "name": "admin",
@@ -3068,14 +3068,14 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
       ],
       "args": [
         {
-          "name": "maxBaseAssetAmountRatio",
+          "name": "maxFillReserveFraction",
           "type": "u16"
         }
       ]

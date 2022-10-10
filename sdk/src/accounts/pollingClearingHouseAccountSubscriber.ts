@@ -18,7 +18,7 @@ import {
 import {
 	getClearingHouseStateAccountPublicKey,
 	getSpotMarketPublicKey,
-	getMarketPublicKey,
+	getPerpMarketPublicKey,
 } from '../addresses/pda';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';
@@ -133,7 +133,7 @@ export class PollingClearingHouseAccountSubscriber
 	}
 
 	async addMarketAccountToPoll(marketIndex: number): Promise<boolean> {
-		const marketPublicKey = await getMarketPublicKey(
+		const marketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			marketIndex
 		);

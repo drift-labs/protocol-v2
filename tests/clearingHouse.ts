@@ -18,7 +18,7 @@ import {
 	Admin,
 	calculateTradeSlippage,
 	PositionDirection,
-	getMarketPublicKey,
+	getPerpMarketPublicKey,
 	EventSubscriber,
 	QUOTE_SPOT_MARKET_INDEX,
 } from '../sdk/src';
@@ -122,7 +122,7 @@ describe('clearing_house', () => {
 				.logMessages
 		);
 
-		const marketPublicKey = await getMarketPublicKey(
+		const marketPublicKey = await getPerpMarketPublicKey(
 			clearingHouse.program.programId,
 			marketIndex
 		);

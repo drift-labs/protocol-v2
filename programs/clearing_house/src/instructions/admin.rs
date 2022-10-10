@@ -595,11 +595,14 @@ pub fn handle_update_spot_market_expiry(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
-pub fn handle_update_market_expiry(ctx: Context<AdminUpdateMarket>, expiry_ts: i64) -> Result<()> {
+pub fn handle_update_perp_market_expiry(
+    ctx: Context<AdminUpdatePerpMarket>,
+    expiry_ts: i64,
+) -> Result<()> {
     let clock = Clock::get()?;
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     validate!(
         clock.unix_timestamp < expiry_ts,
         ErrorCode::DefaultError,
@@ -607,23 +610,23 @@ pub fn handle_update_market_expiry(ctx: Context<AdminUpdateMarket>, expiry_ts: i
     )?;
 
     // automatically enter reduce only
-    market.status = MarketStatus::ReduceOnly;
-    market.expiry_ts = expiry_ts;
+    perp_market.status = MarketStatus::ReduceOnly;
+    perp_market.expiry_ts = expiry_ts;
 
     Ok(())
 }
 
 #[allow(unused_must_use)]
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_move_amm_price(
-    ctx: Context<AdminUpdateMarket>,
+    ctx: Context<AdminUpdatePerpMarket>,
     base_asset_reserve: u128,
     quote_asset_reserve: u128,
     sqrt_k: u128,
 ) -> Result<()> {
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     controller::amm::move_price(
         &mut market.amm,
         base_asset_reserve,
@@ -755,13 +758,13 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
-pub fn handle_deposit_into_market_fee_pool(
+pub fn handle_deposit_into_perp_market_fee_pool(
     ctx: Context<DepositIntoMarketFeePool>,
     amount: u64,
 ) -> Result<()> {
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
 
     market.amm.total_fee_minus_distributions = market
         .amm
@@ -792,15 +795,15 @@ pub fn handle_deposit_into_market_fee_pool(
 
 #[allow(unused_must_use)]
 #[access_control(
-market_valid(&ctx.accounts.market) &&
-valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
+market_valid(&ctx.accounts.perp_market) &&
+valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128) -> Result<()> {
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
     let clock_slot = clock.slot;
 
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     let price_oracle = &ctx.accounts.oracle;
     let OraclePriceData {
         price: oracle_price,
@@ -855,8 +858,8 @@ pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128)
 
 #[allow(unused_must_use)]
 #[access_control(
-    market_valid(&ctx.accounts.market) &&
-    valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market) &&
+    valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
     // allow update to amm's oracle twap iff price gap is reduced and thus more tame funding
@@ -865,7 +868,7 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
 
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     let price_oracle = &ctx.accounts.oracle;
     let oracle_twap = market.amm.get_oracle_twap(price_oracle)?;
 
@@ -899,14 +902,14 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
 
 #[allow(unused_must_use)]
 #[access_control(
-    market_valid(&ctx.accounts.market) &&
-    valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market) &&
+    valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
 
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
 
     let base_asset_amount_long = market.amm.base_asset_amount_long.unsigned_abs();
     let base_asset_amount_short = market.amm.base_asset_amount_short.unsigned_abs();
@@ -1053,8 +1056,8 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
 
 #[allow(unused_must_use)]
 #[access_control(
-    market_valid(&ctx.accounts.market) &&
-    valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market) &&
+    valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
     // if oracle is invalid, failsafe to reset amm oracle_twap to the mark_twap
@@ -1065,7 +1068,7 @@ pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
     let now = clock.unix_timestamp;
     let clock_slot = clock.slot;
 
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     let price_oracle = &ctx.accounts.oracle;
     let oracle_price_data = &get_oracle_price(&market.amm.oracle_source, price_oracle, clock_slot)?;
 
@@ -1088,14 +1091,14 @@ pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_margin_ratio(
-    ctx: Context<AdminUpdateMarket>,
+    ctx: Context<AdminUpdatePerpMarket>,
     margin_ratio_initial: u32,
     margin_ratio_maintenance: u32,
 ) -> Result<()> {
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     validate_margin(
         margin_ratio_initial,
         margin_ratio_maintenance,
@@ -1109,15 +1112,15 @@ pub fn handle_update_margin_ratio(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_market_max_imbalances(
-    ctx: Context<AdminUpdateMarket>,
+    ctx: Context<AdminUpdatePerpMarket>,
     unrealized_max_imbalance: u128,
     max_revenue_withdraw_per_period: u128,
     quote_max_insurance: u128,
 ) -> Result<()> {
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
 
     let max_insurance_for_tier = match market.contract_tier {
         ContractTier::A => INSURANCE_A_MAX,
@@ -1168,14 +1171,14 @@ pub fn handle_update_market_max_imbalances(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_liquidation_fee(
-    ctx: Context<AdminUpdateMarket>,
+    ctx: Context<AdminUpdatePerpMarket>,
     liquidator_fee: u128,
     if_liquidation_fee: u128,
 ) -> Result<()> {
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     validate!(
         liquidator_fee < LIQUIDATION_FEE_PRECISION,
         ErrorCode::DefaultError,
@@ -1200,12 +1203,12 @@ pub fn handle_update_perp_liquidation_fee(
     Ok(())
 }
 
-pub fn handle_update_insurance_withdraw_escrow_period(
+pub fn handle_update_insurance_fund_unstaking_period(
     ctx: Context<AdminUpdateSpotMarket>,
-    insurance_withdraw_escrow_period: i64,
+    insurance_fund_unstaking_period: i64,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    spot_market.insurance_fund.unstaking_period = insurance_withdraw_escrow_period;
+    spot_market.insurance_fund.unstaking_period = insurance_fund_unstaking_period;
     Ok(())
 }
 
@@ -1369,10 +1372,10 @@ pub fn handle_update_spot_market_max_token_deposits(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_status(
-    ctx: Context<AdminUpdateMarket>,
+    ctx: Context<AdminUpdatePerpMarket>,
     status: MarketStatus,
 ) -> Result<()> {
     validate!(
@@ -1381,28 +1384,28 @@ pub fn handle_update_perp_market_status(
         "must set settlement/delist through another instruction",
     )?;
 
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     market.status = status;
     Ok(())
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_contract_tier(
-    ctx: Context<AdminUpdateMarket>,
+    ctx: Context<AdminUpdatePerpMarket>,
     contract_tier: ContractTier,
 ) -> Result<()> {
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     market.contract_tier = contract_tier;
     Ok(())
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_market_imf_factor(
-    ctx: Context<AdminUpdateMarket>,
+    ctx: Context<AdminUpdatePerpMarket>,
     imf_factor: u128,
 ) -> Result<()> {
     validate!(
@@ -1410,16 +1413,16 @@ pub fn handle_update_market_imf_factor(
         ErrorCode::DefaultError,
         "invalid imf factor",
     )?;
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     market.imf_factor = imf_factor;
     Ok(())
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_market_unrealized_asset_weight(
-    ctx: Context<AdminUpdateMarket>,
+    ctx: Context<AdminUpdatePerpMarket>,
     unrealized_initial_asset_weight: u32,
     unrealized_maintenance_asset_weight: u32,
 ) -> Result<()> {
@@ -1438,17 +1441,17 @@ pub fn handle_update_market_unrealized_asset_weight(
         ErrorCode::DefaultError,
         "must enforce unrealized_initial_asset_weight <= unrealized_maintenance_asset_weight",
     )?;
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     market.unrealized_pnl_initial_asset_weight = unrealized_initial_asset_weight;
     market.unrealized_pnl_maintenance_asset_weight = unrealized_maintenance_asset_weight;
     Ok(())
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_concentration_coef(
-    ctx: Context<AdminUpdateMarket>,
+    ctx: Context<AdminUpdatePerpMarket>,
     concentration_scale: u128,
 ) -> Result<()> {
     validate!(
@@ -1457,7 +1460,7 @@ pub fn handle_update_concentration_coef(
         "invalid concentration_scale",
     )?;
 
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     let prev_concentration_coef = market.amm.concentration_coef;
     controller::amm::update_concentration_coef(&mut market.amm, concentration_scale)?;
     let new_concentration_coef = market.amm.concentration_coef;
@@ -1478,10 +1481,10 @@ pub fn handle_update_concentration_coef(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_curve_update_intensity(
-    ctx: Context<AdminUpdateMarket>,
+    ctx: Context<AdminUpdatePerpMarket>,
     curve_update_intensity: u8,
 ) -> Result<()> {
     validate!(
@@ -1489,19 +1492,19 @@ pub fn handle_update_curve_update_intensity(
         ErrorCode::DefaultError,
         "invalid curve_update_intensity",
     )?;
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     market.amm.curve_update_intensity = curve_update_intensity;
     Ok(())
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_lp_cooldown_time(
-    ctx: Context<AdminUpdateMarket>,
+    ctx: Context<AdminUpdatePerpMarket>,
     lp_cooldown_time: i64,
 ) -> Result<()> {
-    let market = &mut ctx.accounts.market.load_mut()?;
+    let market = &mut ctx.accounts.perp_market.load_mut()?;
     market.amm.lp_cooldown_time = lp_cooldown_time;
     Ok(())
 }
@@ -1534,27 +1537,27 @@ pub fn handle_update_oracle_guard_rails(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_market_oracle(
-    ctx: Context<AdminUpdateMarket>,
+    ctx: Context<AdminUpdatePerpMarket>,
     oracle: Pubkey,
     oracle_source: OracleSource,
 ) -> Result<()> {
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     market.amm.oracle = oracle;
     market.amm.oracle_source = oracle_source;
     Ok(())
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_market_base_spread(
-    ctx: Context<AdminUpdateMarket>,
+    ctx: Context<AdminUpdatePerpMarket>,
     base_spread: u16,
 ) -> Result<()> {
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     market.amm.base_spread = base_spread;
     market.amm.long_spread = (base_spread / 2) as u128;
     market.amm.short_spread = (base_spread / 2) as u128;
@@ -1562,10 +1565,10 @@ pub fn handle_update_market_base_spread(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_amm_jit_intensity(
-    ctx: Context<AdminUpdateMarket>,
+    ctx: Context<AdminUpdatePerpMarket>,
     amm_jit_intensity: u8,
 ) -> Result<()> {
     validate!(
@@ -1574,20 +1577,20 @@ pub fn handle_update_amm_jit_intensity(
         "invalid amm_jit_intensity",
     )?;
 
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     market.amm.amm_jit_intensity = amm_jit_intensity;
 
     Ok(())
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_market_max_spread(
-    ctx: Context<AdminUpdateMarket>,
+    ctx: Context<AdminUpdatePerpMarket>,
     max_spread: u32,
 ) -> Result<()> {
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     validate!(
         (max_spread >= market.amm.base_spread as u32),
         ErrorCode::DefaultError,
@@ -1606,14 +1609,14 @@ pub fn handle_update_market_max_spread(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_step_size_and_tick_size(
-    ctx: Context<AdminUpdateMarket>,
+    ctx: Context<AdminUpdatePerpMarket>,
     step_size: u64,
     tick_size: u64,
 ) -> Result<()> {
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     validate!(step_size > 0 && tick_size > 0, ErrorCode::DefaultError)?;
     market.amm.order_step_size = step_size;
     market.amm.order_tick_size = tick_size;
@@ -1621,41 +1624,41 @@ pub fn handle_update_perp_step_size_and_tick_size(
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_min_order_size(
-    ctx: Context<AdminUpdateMarket>,
+    ctx: Context<AdminUpdatePerpMarket>,
     order_size: u64,
 ) -> Result<()> {
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     validate!(order_size > 0, ErrorCode::DefaultError)?;
     market.amm.min_order_size = order_size;
     Ok(())
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_market_max_slippage_ratio(
-    ctx: Context<AdminUpdateMarket>,
+    ctx: Context<AdminUpdatePerpMarket>,
     max_slippage_ratio: u16,
 ) -> Result<()> {
     validate!(max_slippage_ratio > 0, ErrorCode::DefaultError)?;
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     market.amm.max_slippage_ratio = max_slippage_ratio;
     Ok(())
 }
 
 #[access_control(
-    market_valid(&ctx.accounts.market)
+    market_valid(&ctx.accounts.perp_market)
 )]
-pub fn handle_update_max_base_asset_amount_ratio(
-    ctx: Context<AdminUpdateMarket>,
-    max_base_asset_amount_ratio: u16,
+pub fn handle_update_max_fill_reserve_fraction(
+    ctx: Context<AdminUpdatePerpMarket>,
+    max_fill_reserve_fraction: u16,
 ) -> Result<()> {
-    validate!(max_base_asset_amount_ratio > 0, ErrorCode::DefaultError)?;
-    let market = &mut load_mut!(ctx.accounts.market)?;
-    market.amm.max_fill_reserve_fraction = max_base_asset_amount_ratio;
+    validate!(max_fill_reserve_fraction > 0, ErrorCode::DefaultError)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
+    market.amm.max_fill_reserve_fraction = max_fill_reserve_fraction;
     Ok(())
 }
 
@@ -1891,7 +1894,7 @@ pub struct InitializePerpMarket<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         init,
-        seeds = [b"market", state.number_of_markets.to_le_bytes().as_ref()],
+        seeds = [b"perp_market", state.number_of_markets.to_le_bytes().as_ref()],
         space = std::mem::size_of::<PerpMarket>() + 8,
         bump,
         payer = admin
@@ -1904,14 +1907,14 @@ pub struct InitializePerpMarket<'info> {
 }
 
 #[derive(Accounts)]
-pub struct AdminUpdateMarket<'info> {
+pub struct AdminUpdatePerpMarket<'info> {
     pub admin: Signer<'info>,
     #[account(
     has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
-    pub market: AccountLoader<'info, PerpMarket>,
+    pub perp_market: AccountLoader<'info, PerpMarket>,
 }
 
 #[derive(Accounts)]
@@ -1939,7 +1942,7 @@ pub struct DepositIntoMarketFeePool<'info> {
     )]
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
-    pub market: AccountLoader<'info, PerpMarket>,
+    pub perp_market: AccountLoader<'info, PerpMarket>,
     pub admin: Signer<'info>,
     #[account(
         mut,
@@ -1973,7 +1976,7 @@ pub struct RepegCurve<'info> {
     )]
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
-    pub market: AccountLoader<'info, PerpMarket>,
+    pub perp_market: AccountLoader<'info, PerpMarket>,
     /// CHECK: checked in `repeg_curve` ix constraint
     pub oracle: AccountInfo<'info>,
     pub admin: Signer<'info>,
@@ -1997,7 +2000,7 @@ pub struct AdminUpdateK<'info> {
     )]
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
-    pub market: AccountLoader<'info, PerpMarket>,
+    pub perp_market: AccountLoader<'info, PerpMarket>,
     /// CHECK: checked in `admin_update_k` ix constraint
     pub oracle: AccountInfo<'info>,
 }

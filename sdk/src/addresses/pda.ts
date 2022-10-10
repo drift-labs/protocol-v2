@@ -70,14 +70,14 @@ export function getUserStatsAccountPublicKey(
 	)[0];
 }
 
-export async function getMarketPublicKey(
+export async function getPerpMarketPublicKey(
 	programId: PublicKey,
 	marketIndex: number
 ): Promise<PublicKey> {
 	return (
 		await anchor.web3.PublicKey.findProgramAddress(
 			[
-				Buffer.from(anchor.utils.bytes.utf8.encode('market')),
+				Buffer.from(anchor.utils.bytes.utf8.encode('perp_market')),
 				new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
 			],
 			programId

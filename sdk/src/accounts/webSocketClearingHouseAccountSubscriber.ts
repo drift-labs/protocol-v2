@@ -11,7 +11,7 @@ import { EventEmitter } from 'events';
 import {
 	getClearingHouseStateAccountPublicKey,
 	getSpotMarketPublicKey,
-	getMarketPublicKey,
+	getPerpMarketPublicKey,
 } from '../addresses/pda';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { PublicKey } from '@solana/web3.js';
@@ -116,7 +116,7 @@ export class WebSocketClearingHouseAccountSubscriber
 	}
 
 	async subscribeToMarketAccount(marketIndex: number): Promise<boolean> {
-		const marketPublicKey = await getMarketPublicKey(
+		const marketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			marketIndex
 		);

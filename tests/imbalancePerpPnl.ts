@@ -56,7 +56,7 @@ async function depositToFeePoolFromIF(
 	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
 
 	// // send $50 to market from IF
-	const txSig00 = await clearingHouse.depositIntoMarketFeePool(
+	const txSig00 = await clearingHouse.depositIntoPerpMarketFeePool(
 		0,
 		ifAmount,
 		userUSDCAccount.publicKey

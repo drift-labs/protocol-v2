@@ -957,15 +957,15 @@ pub fn handle_resolve_spot_bankruptcy(
 
 #[allow(unused_must_use)]
 #[access_control(
-    market_valid(&ctx.accounts.market) &&
+    market_valid(&ctx.accounts.perp_market) &&
     funding_not_paused(&ctx.accounts.state) &&
-    valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
+    valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_update_funding_rate(
     ctx: Context<UpdateFundingRate>,
     market_index: u16,
 ) -> Result<()> {
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let market = &mut load_mut!(ctx.accounts.perp_market)?;
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
     let clock_slot = clock.slot;
@@ -1385,7 +1385,7 @@ pub struct UpdateAMM<'info> {
 pub struct UpdateFundingRate<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
-    pub market: AccountLoader<'info, PerpMarket>,
+    pub perp_market: AccountLoader<'info, PerpMarket>,
     /// CHECK: checked in `update_funding_rate` ix constraint
     pub oracle: AccountInfo<'info>,
 }

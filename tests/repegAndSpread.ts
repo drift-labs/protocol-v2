@@ -58,7 +58,7 @@ async function depositToFeePoolFromIF(
 
 	// // send $50 to market from IF
 	try {
-		const txSig00 = await clearingHouse.depositIntoMarketFeePool(
+		const txSig00 = await clearingHouse.depositIntoPerpMarketFeePool(
 			0,
 			ifAmount,
 			userUSDCAccount.publicKey

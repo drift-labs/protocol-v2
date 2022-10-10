@@ -264,7 +264,7 @@ commandWithDefaultOption('increase-k')
 				log.info(`New sqrt k: ${newSqrtK.toString()}`);
 
 				log.info(`Updating K`);
-				await admin.updateK(newSqrtK, market);
+				await admin.updateK(market, newSqrtK);
 				log.info(`Updated K`);
 			}
 		);
@@ -317,7 +317,7 @@ commandWithDefaultOption('decrease-k')
 				log.info(`New sqrt k: ${newSqrtK.toString()}`);
 
 				log.info(`Updating K`);
-				await admin.updateK(newSqrtK, market);
+				await admin.updateK(market, newSqrtK);
 				log.info(`Updated K`);
 			}
 		);

@@ -47,7 +47,7 @@ async function depositToFeePoolFromIF(
 	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
 
 	// // send $50 to market from IF
-	const txSig00 = await clearingHouse.depositIntoMarketFeePool(
+	const txSig00 = await clearingHouse.depositIntoPerpMarketFeePool(
 		0,
 		ifAmount,
 		userUSDCAccount.publicKey
@@ -407,7 +407,7 @@ describe('delist market, liquidation of expired position', () => {
 		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 		assert(market0.expiryTs.eq(ZERO));
 
-		await clearingHouse.updateMarketExpiry(marketIndex, expiryTs);
+		await clearingHouse.updatePerpMarketExpiry(marketIndex, expiryTs);
 		await sleep(1000);
 		clearingHouse.fetchAccounts();
 

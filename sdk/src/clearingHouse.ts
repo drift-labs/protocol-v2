@@ -50,7 +50,7 @@ import {
 	getClearingHouseSignerPublicKey,
 	getClearingHouseStateAccountPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
-	getMarketPublicKey,
+	getPerpMarketPublicKey,
 	getSerumFulfillmentConfigPublicKey,
 	getSerumSignerPublicKey,
 	getUserAccountPublicKey,
@@ -2811,7 +2811,10 @@ export class ClearingHouse {
 		return await this.program.instruction.updateFundingRate(marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
-				market: await getMarketPublicKey(this.program.programId, marketIndex),
+				market: await getPerpMarketPublicKey(
+					this.program.programId,
+					marketIndex
+				),
 				oracle: oracle,
 			},
 		});
