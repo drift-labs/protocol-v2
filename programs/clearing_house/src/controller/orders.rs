@@ -55,7 +55,7 @@ use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::math_error;
 use crate::print_error;
-use crate::state::events::{get_order_action_record, OrderActionRecord, OrderRecord};
+use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::oracle::OraclePriceData;
@@ -319,6 +319,62 @@ pub fn place_order(
     Ok(())
 }
 
+pub fn cancel_orders(
+    user: &mut User,
+    user_key: &Pubkey,
+    filler_key: Option<&Pubkey>,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    now: i64,
+    slot: u64,
+    explanation: OrderActionExplanation,
+    market_type: Option<MarketType>,
+    market_index: Option<u16>,
+    direction: Option<PositionDirection>,
+) -> ClearingHouseResult<Vec<u32>> {
+    let mut canceled_order_ids: Vec<u32> = vec![];
+    for order_index in 0..user.orders.len() {
+        if user.orders[order_index].status != OrderStatus::Open {
+            continue;
+        }
+
+        if let (Some(market_type), Some(market_index)) = (market_type, market_index) {
+            if user.orders[order_index].market_type != market_type {
+                continue;
+            }
+
+            if user.orders[order_index].market_index != market_index {
+                continue;
+            }
+        }
+
+        if let Some(direction) = direction {
+            if user.orders[order_index].direction != direction {
+                continue;
+            }
+        }
+
+        canceled_order_ids.push(user.orders[order_index].order_id);
+        cancel_order(
+            order_index,
+            user,
+            user_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+            explanation,
+            filler_key,
+            0,
+            false,
+        )?;
+    }
+
+    Ok(canceled_order_ids)
+}
+
 pub fn cancel_order_by_order_id(
     order_id: u32,
     user: &AccountLoader<User>,
@@ -451,7 +507,7 @@ pub fn cancel_order(
             maker_order,
             oracle_map.get_price_data(&oracle)?.price,
         )?;
-        emit!(order_action_record);
+        emit_stack::<_, 424>(order_action_record);
     }
 
     if is_perp_order {

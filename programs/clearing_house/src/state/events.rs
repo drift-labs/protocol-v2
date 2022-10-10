@@ -255,6 +255,7 @@ pub enum OrderActionExplanation {
     CanceledForLiquidation,
     OrderFilledWithAMM,
     OrderFilledWithMatch,
+    MarketExpired,
 }
 
 impl Default for OrderAction {

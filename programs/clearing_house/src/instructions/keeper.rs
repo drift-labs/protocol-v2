@@ -3,13 +3,13 @@ use anchor_spl::token::{Token, TokenAccount};
 
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
-use crate::load;
 use crate::load_mut;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::insurance::if_shares_to_vault_amount;
 use crate::optional_accounts::{
     get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
 };
+use crate::state::events::OrderActionExplanation;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
@@ -22,7 +22,7 @@ use crate::state::spot_market_map::{get_writable_spot_market_set, SpotMarketMap,
 use crate::state::state::{ExchangeStatus, State};
 use crate::state::user::{MarketType, User, UserStats};
 use crate::validate;
-use crate::{controller, math};
+use crate::{controller, load, math};
 
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
@@ -350,7 +350,7 @@ pub fn handle_settle_expired_position(ctx: Context<SettlePNL>, market_index: u16
 
     validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
 
-    controller::liquidation::cancel_all_orders(
+    controller::orders::cancel_orders(
         user,
         &user_key,
         None,
@@ -359,6 +359,10 @@ pub fn handle_settle_expired_position(ctx: Context<SettlePNL>, market_index: u16
         &mut oracle_map,
         now,
         slot,
+        OrderActionExplanation::MarketExpired,
+        Some(MarketType::Perp),
+        Some(market_index),
+        None,
     );
 
     controller::pnl::settle_expired_position(

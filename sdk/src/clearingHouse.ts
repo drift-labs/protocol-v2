@@ -1741,6 +1741,48 @@ export class ClearingHouse {
 		});
 	}
 
+	public async cancelOrders(
+		marketType?: MarketType,
+		marketIndex?: number,
+		direction?: PositionDirection
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(
+				await this.getCancelOrdersIx(marketType, marketIndex, direction)
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getCancelOrdersIx(
+		marketType: MarketType | null,
+		marketIndex: number | null,
+		direction: PositionDirection | null
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount()],
+			useMarketLastSlotCache: true,
+		});
+
+		return await this.program.instruction.cancelOrders(
+			marketType ?? null,
+			marketIndex ?? null,
+			direction ?? null,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
 	public async fillOrder(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,

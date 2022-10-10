@@ -4,6 +4,7 @@ use anchor_spl::token::{Token, TokenAccount};
 use crate::checked_decrement;
 use crate::checked_increment;
 use crate::controller::lp::burn_lp_shares;
+use crate::controller::orders::cancel_orders;
 use crate::controller::position::PositionDirection;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
@@ -20,7 +21,9 @@ use crate::optional_accounts::{
     get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_whitelist_token,
 };
 use crate::print_error;
-use crate::state::events::{DepositDirection, DepositRecord, LPAction, LPRecord, NewUserRecord};
+use crate::state::events::{
+    DepositDirection, DepositRecord, LPAction, LPRecord, NewUserRecord, OrderActionExplanation,
+};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_market_set, MarketSet, PerpMarketMap};
@@ -630,6 +633,48 @@ pub fn handle_cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: 
         &spot_market_map,
         &mut oracle_map,
         clock,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_cancel_orders(
+    ctx: Context<CancelOrder>,
+    market_type: Option<MarketType>,
+    market_index: Option<u16>,
+    direction: Option<PositionDirection>,
+) -> Result<()> {
+    let clock = &Clock::get()?;
+    let state = &ctx.accounts.state;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let mut oracle_map = OracleMap::load(
+        remaining_accounts_iter,
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+    let spot_market_map = SpotMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+    let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    cancel_orders(
+        &mut user,
+        &user_key,
+        None,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        clock.unix_timestamp,
+        clock.slot,
+        OrderActionExplanation::None,
+        market_type,
+        market_index,
+        direction,
     )?;
 
     Ok(())

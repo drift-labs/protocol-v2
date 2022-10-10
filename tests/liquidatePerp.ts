@@ -12,7 +12,6 @@ import {
 	Admin,
 	ClearingHouse,
 	EventSubscriber,
-	findComputeUnitConsumption,
 	PRICE_PRECISION,
 	PositionDirection,
 	Wallet,
@@ -198,18 +197,7 @@ describe('liquidate perp and lp', () => {
 			new BN(175).mul(BASE_PRECISION).div(new BN(10))
 		);
 
-		const computeUnits = await findComputeUnitConsumption(
-			clearingHouse.program.programId,
-			connection,
-			txSig,
-			'confirmed'
-		);
-		console.log('compute units', computeUnits);
-		console.log(
-			'tx logs',
-			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
-				.logMessages
-		);
+		await printTxLogs(connection, txSig);
 
 		for (let i = 0; i < 32; i++) {
 			assert(

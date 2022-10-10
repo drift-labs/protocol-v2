@@ -332,6 +332,50 @@
       ]
     },
     {
+      "name": "cancelOrders",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "marketType",
+          "type": {
+            "option": {
+              "defined": "MarketType"
+            }
+          }
+        },
+        {
+          "name": "marketIndex",
+          "type": {
+            "option": "u16"
+          }
+        },
+        {
+          "name": "direction",
+          "type": {
+            "option": {
+              "defined": "PositionDirection"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "placeAndTake",
       "accounts": [
         {
@@ -5368,6 +5412,9 @@
           },
           {
             "name": "OrderFilledWithMatch"
+          },
+          {
+            "name": "MarketExpired"
           }
         ]
       }
@@ -7318,6 +7365,11 @@
       "code": 6133,
       "name": "UserCantBeDeleted",
       "msg": "User Cant Be Deleted"
+    },
+    {
+      "code": 6134,
+      "name": "ReduceOnlyWithdrawIncreasedRisk",
+      "msg": "Reduce Only Withdraw Increased Risk"
     }
   ]
 }

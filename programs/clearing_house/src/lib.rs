@@ -19,10 +19,12 @@ pub mod state;
 mod tests;
 mod validation;
 
+use crate::controller::position::PositionDirection;
 use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::spot_market::AssetTier;
 use crate::state::state::FeeStructure;
 use crate::state::state::*;
+use crate::state::user::MarketType;
 use instructions::*;
 #[cfg(test)]
 use math::amm;
@@ -88,6 +90,15 @@ pub mod clearing_house {
 
     pub fn cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: u8) -> Result<()> {
         handle_cancel_order_by_user_id(ctx, user_order_id)
+    }
+
+    pub fn cancel_orders(
+        ctx: Context<CancelOrder>,
+        market_type: Option<MarketType>,
+        market_index: Option<u16>,
+        direction: Option<PositionDirection>,
+    ) -> Result<()> {
+        handle_cancel_orders(ctx, market_type, market_index, direction)
     }
 
     pub fn place_and_take(

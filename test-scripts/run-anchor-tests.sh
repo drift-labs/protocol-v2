@@ -37,6 +37,7 @@ test_files=(
    updateK.ts curve.ts 
    cappedSymFunding.ts
    maxDeposit.ts
+   cancelAllOrders.ts
 )
 
 for test_file in ${test_files[@]}; do

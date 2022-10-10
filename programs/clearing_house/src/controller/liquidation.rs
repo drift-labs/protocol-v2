@@ -1,6 +1,11 @@
+use std::ops::{Deref, DerefMut};
+
+use anchor_lang::prelude::*;
+use solana_program::msg;
+
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
-use crate::controller::orders::cancel_order;
+use crate::controller::orders;
 use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount,
 };
@@ -42,11 +47,8 @@ use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::SpotMarketMap;
-use crate::state::user::{OrderStatus, User, UserStats};
+use crate::state::user::{User, UserStats};
 use crate::validate;
-use anchor_lang::prelude::*;
-use solana_program::msg;
-use std::ops::{Deref, DerefMut};
 
 #[cfg(test)]
 mod tests;
@@ -137,7 +139,7 @@ pub fn liquidate_perp(
         ErrorCode::PositionDoesntHaveOpenPositionOrOrders
     )?;
 
-    let canceled_order_ids = cancel_all_orders(
+    let canceled_order_ids = orders::cancel_orders(
         user,
         user_key,
         Some(liquidator_key),
@@ -146,6 +148,10 @@ pub fn liquidate_perp(
         oracle_map,
         now,
         slot,
+        OrderActionExplanation::CanceledForLiquidation,
+        None,
+        None,
+        None,
     )?;
 
     let market = perp_market_map.get_ref(&market_index)?;
@@ -559,7 +565,7 @@ pub fn liquidate_spot(
 
     let liquidation_id = set_being_liquidated_and_get_liquidation_id(user)?;
 
-    let canceled_order_ids = cancel_all_orders(
+    let canceled_order_ids = orders::cancel_orders(
         user,
         user_key,
         Some(liquidator_key),
@@ -568,6 +574,10 @@ pub fn liquidate_spot(
         oracle_map,
         now,
         slot,
+        OrderActionExplanation::CanceledForLiquidation,
+        None,
+        None,
+        None,
     )?;
 
     // check if user exited liquidation territory
@@ -934,7 +944,7 @@ pub fn liquidate_borrow_for_perp_pnl(
 
     let liquidation_id = set_being_liquidated_and_get_liquidation_id(user)?;
 
-    let canceled_order_ids = cancel_all_orders(
+    let canceled_order_ids = orders::cancel_orders(
         user,
         user_key,
         Some(liquidator_key),
@@ -943,6 +953,10 @@ pub fn liquidate_borrow_for_perp_pnl(
         oracle_map,
         now,
         slot,
+        OrderActionExplanation::CanceledForLiquidation,
+        None,
+        None,
+        None,
     )?;
 
     // check if user exited liquidation territory
@@ -1284,7 +1298,7 @@ pub fn liquidate_perp_pnl_for_deposit(
 
     let liquidation_id = set_being_liquidated_and_get_liquidation_id(user)?;
 
-    let canceled_order_ids = cancel_all_orders(
+    let canceled_order_ids = orders::cancel_orders(
         user,
         user_key,
         Some(liquidator_key),
@@ -1293,6 +1307,10 @@ pub fn liquidate_perp_pnl_for_deposit(
         oracle_map,
         now,
         slot,
+        OrderActionExplanation::CanceledForLiquidation,
+        None,
+        None,
+        None,
     )?;
 
     // check if user exited liquidation territory
@@ -1758,40 +1776,4 @@ pub fn resolve_spot_bankruptcy(
     });
 
     cast_to_u64(if_payment)
-}
-
-pub fn cancel_all_orders(
-    user: &mut User,
-    user_key: &Pubkey,
-    liquidator_key: Option<&Pubkey>,
-    perp_market_map: &PerpMarketMap,
-    spot_market_map: &SpotMarketMap,
-    oracle_map: &mut OracleMap,
-    now: i64,
-    slot: u64,
-) -> ClearingHouseResult<Vec<u32>> {
-    let mut canceled_order_ids: Vec<u32> = vec![];
-    for order_index in 0..user.orders.len() {
-        if user.orders[order_index].status != OrderStatus::Open {
-            continue;
-        }
-
-        canceled_order_ids.push(user.orders[order_index].order_id);
-        cancel_order(
-            order_index,
-            user,
-            user_key,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            now,
-            slot,
-            OrderActionExplanation::CanceledForLiquidation,
-            liquidator_key,
-            0,
-            true,
-        )?;
-    }
-
-    Ok(canceled_order_ids)
 }
