@@ -45,6 +45,23 @@ pub mod pyth {
         Ok(())
     }
 
+    pub fn set_price_info(ctx: Context<SetPrice>, price: i64, conf: u64, slot: u64) -> Result<()> {
+        let oracle = &ctx.accounts.price;
+        let mut price_oracle = Price::load(oracle).unwrap();
+
+        price_oracle.twap = price_oracle
+            .twap
+            .checked_add(price)
+            .unwrap()
+            .checked_div(2)
+            .unwrap(); //todo
+        price_oracle.agg.price = price as i64;
+        price_oracle.agg.conf = conf;
+        price_oracle.valid_slot = slot;
+
+        Ok(())
+    }
+
     pub fn set_twap(ctx: Context<SetPrice>, twap: i64) -> Result<()> {
         let oracle = &ctx.accounts.price;
         let mut price_oracle = Price::load(oracle).unwrap();
