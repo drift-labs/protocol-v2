@@ -3,6 +3,7 @@ import {
 	Connection,
 	Finality,
 	PublicKey,
+	TransactionResponse,
 	TransactionSignature,
 } from '@solana/web3.js';
 import { WrappedEvents } from './types';
@@ -15,6 +16,14 @@ type FetchLogsResponse = {
 	mostRecentSlot: number;
 	transactionLogs: Log[];
 };
+
+function mapTransactionResponseToLog(transaction: TransactionResponse): Log {
+	return {
+		txSig: transaction.transaction.signatures[0],
+		slot: transaction.slot,
+		logs: transaction.meta.logMessages,
+	};
+}
 
 export async function fetchLogs(
 	connection: Connection,
@@ -57,11 +66,7 @@ export async function fetchLogs(
 				);
 
 				return transactions.map((transaction) => {
-					return {
-						txSig: transaction.transaction.signatures[0],
-						slot: transaction.slot,
-						logs: transaction.meta.logMessages,
-					};
+					return mapTransactionResponseToLog(transaction);
 				});
 			})
 		)
@@ -91,6 +96,14 @@ export class LogParser {
 
 	constructor(program: Program) {
 		this.program = program;
+	}
+
+	public parseEventsFromTransaction(
+		transaction: TransactionResponse
+	): WrappedEvents {
+		const transactionLogObject = mapTransactionResponseToLog(transaction);
+
+		return this.parseEventsFromLogs(transactionLogObject);
 	}
 
 	public parseEventsFromLogs(event: Log): WrappedEvents {
