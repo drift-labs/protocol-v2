@@ -1,3 +1,8 @@
+use std::str::FromStr;
+
+use anchor_lang::Owner;
+use solana_program::pubkey::Pubkey;
+
 use crate::controller::pnl::settle_pnl;
 use crate::create_account_info;
 use crate::create_anchor_account_info;
@@ -17,11 +22,8 @@ use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::{OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails};
 use crate::state::user::{PerpPosition, SpotPosition, User};
-use crate::tests::utils::get_pyth_price;
-use crate::tests::utils::*;
-use anchor_lang::Owner;
-use solana_program::pubkey::Pubkey;
-use std::str::FromStr;
+use crate::test_utils::*;
+use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
 
 #[test]
 pub fn user_no_position() {

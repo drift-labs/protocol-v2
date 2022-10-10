@@ -28,7 +28,7 @@ pub mod math;
 mod signer;
 pub mod state;
 #[cfg(test)]
-mod tests;
+mod test_utils;
 mod validation;
 
 #[cfg(feature = "mainnet-beta")]

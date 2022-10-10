@@ -1,8 +1,9 @@
 #[cfg(test)]
 mod test {
+    use num_integer::Roots;
+
     use crate::amm::calculate_swap_output;
     use crate::controller::amm::SwapDirection;
-    use crate::math::collateral::calculate_updated_collateral;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I64,
         SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
@@ -17,7 +18,6 @@ mod test {
     use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::user::{PerpPosition, SpotPosition, User};
-    use num_integer::Roots;
 
     #[test]
     fn spot_market_asset_weight() {
@@ -160,11 +160,6 @@ mod test {
             MarginRequirementType::Initial,
         )
         .unwrap();
-
-        let total_collateral_updated =
-            calculate_updated_collateral(total_collateral, unrealized_pnl).unwrap();
-
-        assert_eq!(total_collateral_updated, 0);
 
         let total_collateral_i128 = (total_collateral as i128) + unrealized_pnl;
 
@@ -495,6 +490,11 @@ mod test {
 
 #[cfg(test)]
 mod calculate_margin_requirement_and_total_collateral {
+    use std::str::FromStr;
+
+    use anchor_lang::Owner;
+    use solana_program::pubkey::Pubkey;
+
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
@@ -512,11 +512,8 @@ mod calculate_margin_requirement_and_total_collateral {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
-    use crate::tests::utils::get_pyth_price;
-    use crate::tests::utils::*;
-    use anchor_lang::Owner;
-    use solana_program::pubkey::Pubkey;
-    use std::str::FromStr;
+    use crate::test_utils::*;
+    use crate::test_utils::{get_positions, get_pyth_price};
 
     #[test]
     pub fn usdc_deposit_and_5x_sol_bid() {
@@ -950,6 +947,11 @@ mod calculate_margin_requirement_and_total_collateral {
 
 #[cfg(test)]
 mod calculate_max_withdrawable_amount {
+    use std::str::FromStr;
+
+    use anchor_lang::Owner;
+    use solana_program::pubkey::Pubkey;
+
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
@@ -963,11 +965,8 @@ mod calculate_max_withdrawable_amount {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
-    use crate::tests::utils::get_pyth_price;
-    use crate::tests::utils::*;
-    use anchor_lang::Owner;
-    use solana_program::pubkey::Pubkey;
-    use std::str::FromStr;
+    use crate::test_utils::get_pyth_price;
+    use crate::test_utils::*;
 
     #[test]
     pub fn usdc_withdraw() {

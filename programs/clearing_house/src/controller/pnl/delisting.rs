@@ -1,7 +1,8 @@
-use crate::state::oracle_map::OracleMap;
-use crate::state::user::{Order, PerpPosition};
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
+
+use crate::state::oracle_map::OracleMap;
+use crate::state::user::{Order, PerpPosition};
 
 fn get_user_keys() -> (Pubkey, Pubkey, Pubkey) {
     (Pubkey::default(), Pubkey::default(), Pubkey::default())
@@ -9,11 +10,26 @@ fn get_user_keys() -> (Pubkey, Pubkey, Pubkey) {
 
 #[cfg(test)]
 pub mod delisting_test {
-    use super::*;
+    use std::str::FromStr;
+
+    use anchor_lang::prelude::Clock;
+
+    use crate::controller::liquidation::{liquidate_perp, liquidate_perp_pnl_for_deposit};
     // use crate::controller::orders::fill_order;
     use crate::controller::liquidation::resolve_perp_bankruptcy;
-    use crate::controller::liquidation::{liquidate_perp, liquidate_perp_pnl_for_deposit};
-
+    use crate::controller::orders::cancel_order;
+    use crate::controller::pnl::settle_expired_position;
+    use crate::controller::position::PositionDirection;
+    use crate::controller::repeg::settle_expired_market;
+    use crate::create_account_info;
+    use crate::create_anchor_account_info;
+    use crate::math::amm::calculate_net_user_pnl;
+    use crate::math::constants::{
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64, PEG_PRECISION,
+        PRICE_PRECISION, PRICE_PRECISION_I128, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
+        QUOTE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+    };
     use crate::math::funding::calculate_funding_payment;
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral,
@@ -22,35 +38,20 @@ pub mod delisting_test {
         MarginRequirementType,
     };
     use crate::state::events::OrderActionExplanation;
-
-    use crate::controller::position::PositionDirection;
-    use crate::create_account_info;
-    use crate::create_anchor_account_info;
-    use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64, PEG_PRECISION,
-        PRICE_PRECISION, PRICE_PRECISION_I128, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
-        QUOTE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION,
-        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
-    };
+    use crate::state::oracle::HistoricalOracleData;
+    use crate::state::oracle::OracleSource;
     use crate::state::perp_market::{MarketStatus, PerpMarket, PoolBalance, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
-
-    use crate::state::oracle::OracleSource;
-    use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
-    use crate::tests::utils::*;
-
-    use crate::controller::orders::cancel_order;
-    use crate::controller::pnl::settle_expired_position;
-    use crate::controller::repeg::settle_expired_market;
-    use crate::math::amm::calculate_net_user_pnl;
-    use crate::state::oracle::HistoricalOracleData;
     use crate::state::state::{
         OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails,
     };
-    use anchor_lang::prelude::Clock;
-    use std::str::FromStr;
+    use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
+    use crate::test_utils::*;
+    use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
+
+    use super::*;
 
     #[test]
     fn failed_attempt_to_close_healthy_market() {

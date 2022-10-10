@@ -38,7 +38,8 @@ pub mod fulfill_order_with_maker_order {
     };
     use crate::state::perp_market::PerpMarket;
     use crate::state::user::{Order, OrderType, PerpPosition, User, UserStats};
-    use crate::tests::utils::*;
+
+    use crate::test_utils::{get_orders, get_positions};
 
     use super::*;
 
@@ -1442,9 +1443,11 @@ pub mod fulfill_order {
         OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails,
     };
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
-    use crate::tests::utils::*;
+    use crate::test_utils::*;
+    use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
 
     use super::*;
+
     #[test]
     fn validate_market_within_price_band_tests() {
         let oracle_price_key =
@@ -2760,14 +2763,15 @@ pub mod fill_order {
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::perp_market::{PerpMarket, AMM};
-
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User, UserStats};
-    use crate::tests::utils::create_account_info;
-    use crate::tests::utils::*;
+    use crate::test_utils::*;
+    use crate::test_utils::{
+        create_account_info, get_orders, get_positions, get_pyth_price, get_spot_positions,
+    };
 
     use super::*;
 
@@ -3090,7 +3094,7 @@ pub mod fulfill_spot_order_with_match {
     };
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::user::{MarketType, Order, OrderType, SpotPosition, User, UserStats};
-    use crate::tests::utils::*;
+    use crate::test_utils::get_orders;
 
     use super::*;
 
@@ -4723,9 +4727,9 @@ pub mod fulfill_spot_order {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
-
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
-    use crate::tests::utils::*;
+    use crate::test_utils::*;
+    use crate::test_utils::{get_orders, get_pyth_price};
 
     use super::*;
 
@@ -5183,10 +5187,9 @@ pub mod fill_spot_order {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
-
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
-    use crate::tests::utils::create_account_info;
-    use crate::tests::utils::*;
+    use crate::test_utils::*;
+    use crate::test_utils::{create_account_info, get_orders, get_pyth_price};
 
     use super::*;
 
