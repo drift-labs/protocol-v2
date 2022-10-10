@@ -1,13 +1,8 @@
-use solana_program::msg;
-
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::constants::{FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR, QUOTE_PRECISION_U64};
 use crate::state::state::{FeeStructure, FeeTier};
 use crate::validate;
-
-#[cfg(test)]
-#[path = "../../tests/validation/fee_structure.rs"]
-mod tests;
+use solana_program::msg;
 
 pub fn validate_fee_structure(fee_structure: &FeeStructure) -> ClearingHouseResult {
     for (i, fee_tier) in fee_structure.fee_tiers.iter().enumerate() {
@@ -101,4 +96,17 @@ pub fn validate_fee_tier(
     )?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use crate::state::state::FeeStructure;
+    use crate::validation::fee_structure::validate_fee_structure;
+
+    #[test]
+    fn default_fee_structures() {
+        validate_fee_structure(&FeeStructure::perps_default()).unwrap();
+
+        validate_fee_structure(&FeeStructure::spot_default()).unwrap();
+    }
 }

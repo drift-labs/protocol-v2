@@ -1,9 +1,8 @@
+use crate::state::user::{Order, PerpPosition, SpotPosition};
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::{Owner, ZeroCopy};
 use bytes::BytesMut;
 use pyth::pc::Price;
-
-use crate::state::user::{Order, PerpPosition, SpotPosition};
 
 pub fn get_positions(position: PerpPosition) -> [PerpPosition; 8] {
     let mut positions = [PerpPosition::default(); 8];
@@ -48,15 +47,6 @@ pub fn create_account_info<'a>(
     AccountInfo::new(key, false, is_writable, lamports, bytes, owner, false, 0)
 }
 
-pub fn get_pyth_price(price: i64, expo: i32) -> Price {
-    let mut pyth_price = Price::default();
-    let price = price * 10_i64.pow(expo as u32);
-    pyth_price.agg.price = price;
-    pyth_price.twap = price;
-    pyth_price.expo = expo;
-    pyth_price
-}
-
 #[macro_export]
 macro_rules! create_anchor_account_info {
     ($account:expr, $type:ident, $name: ident) => {
@@ -88,4 +78,13 @@ macro_rules! create_account_info {
         let mut data = get_account_bytes(&mut $account);
         let $name = create_account_info($pubkey, true, &mut lamports, &mut data[..], $owner);
     };
+}
+
+pub fn get_pyth_price(price: i64, expo: i32) -> Price {
+    let mut pyth_price = Price::default();
+    let price = price * 10_i64.pow(expo as u32);
+    pyth_price.agg.price = price;
+    pyth_price.twap = price;
+    pyth_price.expo = expo;
+    pyth_price
 }

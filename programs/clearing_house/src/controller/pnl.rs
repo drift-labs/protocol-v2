@@ -31,11 +31,9 @@ use solana_program::msg;
 use std::ops::DerefMut;
 
 #[cfg(test)]
-#[path = "../../tests/controller/pnl.rs"]
 mod tests;
 
 #[cfg(test)]
-#[path = "../../tests/controller/delisting.rs"]
 mod delisting;
 
 pub fn settle_pnl(

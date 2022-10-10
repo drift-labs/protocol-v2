@@ -19,8 +19,7 @@ use crate::state::user::User;
 use solana_program::msg;
 
 #[cfg(test)]
-#[path = "../../tests/math/liquidation.rs"]
-mod test;
+mod tests;
 
 pub fn calculate_base_asset_amount_to_cover_margin_shortage(
     margin_shortage: u128,

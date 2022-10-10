@@ -49,7 +49,6 @@ use solana_program::msg;
 use std::ops::{Deref, DerefMut};
 
 #[cfg(test)]
-#[path = "../../tests/controller/liquidation.rs"]
 mod tests;
 
 pub fn liquidate_perp(

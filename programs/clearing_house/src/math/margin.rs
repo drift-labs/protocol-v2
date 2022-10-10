@@ -31,8 +31,7 @@ use solana_program::msg;
 use std::cmp::{max, min, Ordering};
 
 #[cfg(test)]
-#[path = "../../tests/math/margin.rs"]
-mod test;
+mod tests;
 
 #[derive(Clone, Copy, PartialEq, Debug, Eq)]
 pub enum MarginRequirementType {

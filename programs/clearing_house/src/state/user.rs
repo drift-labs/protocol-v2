@@ -21,7 +21,6 @@ use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use std::cmp::max;
 
 #[cfg(test)]
-#[path = "../../tests/state/user.rs"]
 mod tests;
 
 #[account(zero_copy)]

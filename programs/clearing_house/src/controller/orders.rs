@@ -73,11 +73,9 @@ use crate::validate;
 use crate::validation::order::{validate_order, validate_spot_order};
 
 #[cfg(test)]
-#[path = "../../tests/controller/orders.rs"]
 mod tests;
 
 #[cfg(test)]
-#[path = "../../tests/controller/amm_jit.rs"]
 mod amm_jit_tests;
 
 pub fn place_order(
