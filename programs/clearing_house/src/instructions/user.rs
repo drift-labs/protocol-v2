@@ -28,7 +28,7 @@ use crate::state::events::{
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_market::SpotBalanceType;
-use crate::state::spot_market_map::{get_writable_spot_market_set};
+use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::State;
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType, User, UserStats};
 use crate::validate;
