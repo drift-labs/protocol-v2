@@ -141,10 +141,10 @@ describe('delist market, liquidation of expired position', () => {
 			900 // easy to liq
 		);
 
-		await clearingHouse.updatePerpMinOrderSize(0, new BN(1));
+		await clearingHouse.updatePerpMarketMinOrderSize(0, new BN(1));
 
-		// await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
-		// await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
+		// await clearingHouse.updatePerpMarketBaseSpread(new BN(0), 2000);
+		// await clearingHouse.updatePerpMarketCurveUpdateIntensity(new BN(0), 100);
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,

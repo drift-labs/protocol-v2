@@ -113,8 +113,8 @@ describe('insurance fund stake', () => {
 			1000
 		);
 		await clearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
-		await clearingHouse.updateMarketBaseSpread(0, 2000);
-		await clearingHouse.updateCurveUpdateIntensity(0, 100);
+		await clearingHouse.updatePerpMarketBaseSpread(0, 2000);
+		await clearingHouse.updatePerpMarketCurveUpdateIntensity(0, 100);
 
 		const subAccountId = 0;
 		const name = 'BIGZ';
@@ -307,7 +307,7 @@ describe('insurance fund stake', () => {
 	});
 
 	it('user request if unstake with escrow period (last half)', async () => {
-		const txSig = await clearingHouse.updateInsuranceWithdrawEscrowPeriod(
+		const txSig = await clearingHouse.updateInsuranceFundUnstakingPeriod(
 			0,
 			new BN(10)
 		);

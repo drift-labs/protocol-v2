@@ -460,11 +460,11 @@ pub mod clearing_house {
         handle_repeg_amm_curve(ctx, new_peg_candidate)
     }
 
-    pub fn update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
+    pub fn update_perp_market_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
         handle_update_amm_oracle_twap(ctx)
     }
 
-    pub fn reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
+    pub fn reset_perp_market_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
         handle_reset_amm_oracle_twap(ctx)
     }
 
@@ -472,21 +472,21 @@ pub mod clearing_house {
         handle_update_k(ctx, sqrt_k)
     }
 
-    pub fn update_margin_ratio(
+    pub fn update_perp_market_margin_ratio(
         ctx: Context<AdminUpdatePerpMarket>,
         margin_ratio_initial: u32,
         margin_ratio_maintenance: u32,
     ) -> Result<()> {
-        handle_update_margin_ratio(ctx, margin_ratio_initial, margin_ratio_maintenance)
+        handle_update_perp_market_margin_ratio(ctx, margin_ratio_initial, margin_ratio_maintenance)
     }
 
-    pub fn update_market_max_imbalances(
+    pub fn update_perp_market_max_imbalances(
         ctx: Context<AdminUpdatePerpMarket>,
         unrealized_max_imbalance: u128,
         max_revenue_withdraw_per_period: u128,
         quote_max_insurance: u128,
     ) -> Result<()> {
-        handle_update_market_max_imbalances(
+        handle_update_perp_market_max_imbalances(
             ctx,
             unrealized_max_imbalance,
             max_revenue_withdraw_per_period,
@@ -579,6 +579,14 @@ pub mod clearing_house {
         handle_update_spot_market_max_token_deposits(ctx, max_token_deposits)
     }
 
+    pub fn update_spot_market_oracle(
+        ctx: Context<AdminUpdateSpotMarket>,
+        oracle: Pubkey,
+        oracle_source: OracleSource,
+    ) -> Result<()> {
+        handle_update_spot_market_oracle(ctx, oracle, oracle_source)
+    }
+
     pub fn update_perp_market_status(
         ctx: Context<AdminUpdatePerpMarket>,
         status: MarketStatus,
@@ -593,44 +601,44 @@ pub mod clearing_house {
         handle_update_perp_market_contract_tier(ctx, contract_tier)
     }
 
-    pub fn update_market_imf_factor(
+    pub fn update_perp_market_imf_factor(
         ctx: Context<AdminUpdatePerpMarket>,
         imf_factor: u128,
     ) -> Result<()> {
-        handle_update_market_imf_factor(ctx, imf_factor)
+        handle_update_perp_market_imf_factor(ctx, imf_factor)
     }
 
-    pub fn update_market_unrealized_asset_weight(
+    pub fn update_perp_market_unrealized_asset_weight(
         ctx: Context<AdminUpdatePerpMarket>,
         unrealized_initial_asset_weight: u32,
         unrealized_maintenance_asset_weight: u32,
     ) -> Result<()> {
-        handle_update_market_unrealized_asset_weight(
+        handle_update_perp_market_unrealized_asset_weight(
             ctx,
             unrealized_initial_asset_weight,
             unrealized_maintenance_asset_weight,
         )
     }
 
-    pub fn update_concentration_coef(
+    pub fn update_perp_market_concentration_coef(
         ctx: Context<AdminUpdatePerpMarket>,
         concentration_scale: u128,
     ) -> Result<()> {
-        handle_update_concentration_coef(ctx, concentration_scale)
+        handle_update_perp_market_concentration_coef(ctx, concentration_scale)
     }
 
-    pub fn update_curve_update_intensity(
+    pub fn update_perp_market_curve_update_intensity(
         ctx: Context<AdminUpdatePerpMarket>,
         curve_update_intensity: u8,
     ) -> Result<()> {
-        handle_update_curve_update_intensity(ctx, curve_update_intensity)
+        handle_update_perp_market_curve_update_intensity(ctx, curve_update_intensity)
     }
 
-    pub fn update_lp_cooldown_time(
+    pub fn update_perp_market_lp_cooldown_time(
         ctx: Context<AdminUpdatePerpMarket>,
         lp_cooldown_time: i64,
     ) -> Result<()> {
-        handle_update_lp_cooldown_time(ctx, lp_cooldown_time)
+        handle_update_perp_market_lp_cooldown_time(ctx, lp_cooldown_time)
     }
 
     pub fn update_perp_fee_structure(
@@ -654,19 +662,19 @@ pub mod clearing_house {
         handle_update_oracle_guard_rails(ctx, oracle_guard_rails)
     }
 
-    pub fn update_market_oracle(
+    pub fn update_perp_market_oracle(
         ctx: Context<AdminUpdatePerpMarket>,
         oracle: Pubkey,
         oracle_source: OracleSource,
     ) -> Result<()> {
-        handle_update_market_oracle(ctx, oracle, oracle_source)
+        handle_update_perp_market_oracle(ctx, oracle, oracle_source)
     }
 
-    pub fn update_market_base_spread(
+    pub fn update_perp_market_base_spread(
         ctx: Context<AdminUpdatePerpMarket>,
         base_spread: u16,
     ) -> Result<()> {
-        handle_update_market_base_spread(ctx, base_spread)
+        handle_update_perp_market_base_spread(ctx, base_spread)
     }
 
     pub fn update_amm_jit_intensity(
@@ -676,43 +684,43 @@ pub mod clearing_house {
         handle_update_amm_jit_intensity(ctx, amm_jit_intensity)
     }
 
-    pub fn update_market_max_spread(
+    pub fn update_perp_market_max_spread(
         ctx: Context<AdminUpdatePerpMarket>,
         max_spread: u32,
     ) -> Result<()> {
-        handle_update_market_max_spread(ctx, max_spread)
+        handle_update_perp_market_max_spread(ctx, max_spread)
     }
 
-    pub fn update_perp_step_size_and_tick_size(
+    pub fn update_perp_market_step_size_and_tick_size(
         ctx: Context<AdminUpdatePerpMarket>,
         step_size: u64,
         tick_size: u64,
     ) -> Result<()> {
-        handle_update_perp_step_size_and_tick_size(ctx, step_size, tick_size)
+        handle_update_perp_market_step_size_and_tick_size(ctx, step_size, tick_size)
     }
 
     #[access_control(
         market_valid(&ctx.accounts.perp_market)
     )]
-    pub fn update_perp_min_order_size(
+    pub fn update_perp_market_min_order_size(
         ctx: Context<AdminUpdatePerpMarket>,
         order_size: u64,
     ) -> Result<()> {
-        handle_update_perp_min_order_size(ctx, order_size)
+        handle_update_perp_market_min_order_size(ctx, order_size)
     }
 
-    pub fn update_market_max_slippage_ratio(
+    pub fn update_perp_market_max_slippage_ratio(
         ctx: Context<AdminUpdatePerpMarket>,
         max_slippage_ratio: u16,
     ) -> Result<()> {
-        handle_update_market_max_slippage_ratio(ctx, max_slippage_ratio)
+        handle_update_perp_market_max_slippage_ratio(ctx, max_slippage_ratio)
     }
 
-    pub fn update_max_fill_reserve_fraction(
+    pub fn update_perp_market_max_fill_reserve_fraction(
         ctx: Context<AdminUpdatePerpMarket>,
         max_fill_reserve_fraction: u16,
     ) -> Result<()> {
-        handle_update_max_fill_reserve_fraction(ctx, max_fill_reserve_fraction)
+        handle_update_perp_market_max_fill_reserve_fraction(ctx, max_fill_reserve_fraction)
     }
 
     pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {

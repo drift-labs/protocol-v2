@@ -236,7 +236,10 @@ async function cappedSymFundingScenario(
 	console.log(
 		'PRICE',
 		convertToNumber(
-			calculateReservePrice(clearingHouse.getPerpMarketAccount(marketIndex))
+			calculateReservePrice(
+				clearingHouse.getPerpMarketAccount(marketIndex),
+				undefined
+			)
 		),
 		'oracleData:',
 		convertToNumber(oracleData.price),

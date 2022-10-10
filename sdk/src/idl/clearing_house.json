@@ -1931,7 +1931,7 @@
           "isSigner": false
         },
         {
-          "name": "market",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         },
@@ -2161,7 +2161,7 @@
       ]
     },
     {
-      "name": "updateAmmOracleTwap",
+      "name": "updatePerpMarketAmmOracleTwap",
       "accounts": [
         {
           "name": "state",
@@ -2187,7 +2187,7 @@
       "args": []
     },
     {
-      "name": "resetAmmOracleTwap",
+      "name": "resetPerpMarketAmmOracleTwap",
       "accounts": [
         {
           "name": "state",
@@ -2244,7 +2244,7 @@
       ]
     },
     {
-      "name": "updateMarginRatio",
+      "name": "updatePerpMarketMarginRatio",
       "accounts": [
         {
           "name": "admin",
@@ -2274,7 +2274,7 @@
       ]
     },
     {
-      "name": "updateMarketMaxImbalances",
+      "name": "updatePerpMarketMaxImbalances",
       "accounts": [
         {
           "name": "admin",
@@ -2660,7 +2660,7 @@
       ]
     },
     {
-      "name": "updateMarketImfFactor",
+      "name": "updatePerpMarketImfFactor",
       "accounts": [
         {
           "name": "admin",
@@ -2686,7 +2686,7 @@
       ]
     },
     {
-      "name": "updateMarketUnrealizedAssetWeight",
+      "name": "updatePerpMarketUnrealizedAssetWeight",
       "accounts": [
         {
           "name": "admin",
@@ -2716,7 +2716,7 @@
       ]
     },
     {
-      "name": "updateConcentrationCoef",
+      "name": "updatePerpMarketConcentrationCoef",
       "accounts": [
         {
           "name": "admin",
@@ -2742,7 +2742,7 @@
       ]
     },
     {
-      "name": "updateCurveUpdateIntensity",
+      "name": "updatePerpMarketCurveUpdateIntensity",
       "accounts": [
         {
           "name": "admin",
@@ -2768,7 +2768,7 @@
       ]
     },
     {
-      "name": "updateLpCooldownTime",
+      "name": "updatePerpMarketLpCooldownTime",
       "accounts": [
         {
           "name": "admin",
@@ -2863,7 +2863,7 @@
       ]
     },
     {
-      "name": "updateMarketOracle",
+      "name": "updatePerpMarketOracle",
       "accounts": [
         {
           "name": "admin",
@@ -2895,7 +2895,7 @@
       ]
     },
     {
-      "name": "updateMarketBaseSpread",
+      "name": "updatePerpMarketBaseSpread",
       "accounts": [
         {
           "name": "admin",
@@ -2947,7 +2947,7 @@
       ]
     },
     {
-      "name": "updateMarketMaxSpread",
+      "name": "updatePerpMarketMaxSpread",
       "accounts": [
         {
           "name": "admin",
@@ -2973,7 +2973,7 @@
       ]
     },
     {
-      "name": "updatePerpStepSizeAndTickSize",
+      "name": "updatePerpMarketStepSizeAndTickSize",
       "accounts": [
         {
           "name": "admin",
@@ -3003,7 +3003,7 @@
       ]
     },
     {
-      "name": "updatePerpMinOrderSize",
+      "name": "updatePerpMarketMinOrderSize",
       "accounts": [
         {
           "name": "admin",
@@ -3029,7 +3029,7 @@
       ]
     },
     {
-      "name": "updateMarketMaxSlippageRatio",
+      "name": "updatePerpMarketMaxSlippageRatio",
       "accounts": [
         {
           "name": "admin",
@@ -3055,7 +3055,7 @@
       ]
     },
     {
-      "name": "updateMaxFillReserveFraction",
+      "name": "updatePerpMarketMaxFillReserveFraction",
       "accounts": [
         {
           "name": "admin",
@@ -7359,5 +7359,8 @@
       "name": "ReduceOnlyWithdrawIncreasedRisk",
       "msg": "Reduce Only Withdraw Increased Risk"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "DUZwKJKAk2C9S88BYvQzck1M1i5hySQjxB4zW6tJ29Nw"
+  }
 }

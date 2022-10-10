@@ -104,7 +104,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		);
 		await fillerClearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
-		await fillerClearingHouse.updateMarketBaseSpread(0, 500);
+		await fillerClearingHouse.updatePerpMarketBaseSpread(0, 500);
 
 		await fillerClearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -171,7 +171,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
 		const reservePrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex),
+			undefined
 		);
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
@@ -194,7 +195,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 		await fillerClearingHouse.moveAmmToPrice(marketIndex, newOraclePriceBN);
 
 		const reservePrice2 = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex),
+			undefined
 		);
 		console.log(
 			'new amm prices:',

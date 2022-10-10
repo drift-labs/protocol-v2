@@ -149,7 +149,7 @@ describe('orders', () => {
 			periodicity
 		);
 
-		await clearingHouse.updatePerpStepSizeAndTickSize(
+		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
 			0,
 			new BN(1000),
 			new BN(1)
@@ -163,7 +163,7 @@ describe('orders', () => {
 			new BN(60000 * PEG_PRECISION.toNumber()) // btc-ish price level
 		);
 
-		await clearingHouse.updatePerpStepSizeAndTickSize(
+		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
 			1,
 			new BN(1000),
 			new BN(1)
@@ -176,7 +176,7 @@ describe('orders', () => {
 			periodicity
 		);
 
-		await clearingHouse.updatePerpStepSizeAndTickSize(
+		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
 			2,
 			new BN(1000),
 			new BN(1)

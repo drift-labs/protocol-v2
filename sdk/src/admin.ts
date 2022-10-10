@@ -186,7 +186,7 @@ export class Admin extends ClearingHouse {
 		liquidationFee = ZERO,
 		activeStatus = true
 	): Promise<TransactionSignature> {
-		const marketPublicKey = await getPerpMarketPublicKey(
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			this.getStateAccount().numberOfMarkets
 		);
@@ -207,7 +207,7 @@ export class Admin extends ClearingHouse {
 						state: await this.getStatePublicKey(),
 						admin: this.wallet.publicKey,
 						oracle: priceOracle,
-						market: marketPublicKey,
+						perpMarket: perpMarketPublicKey,
 						rent: SYSVAR_RENT_PUBKEY,
 						systemProgram: anchor.web3.SystemProgram.programId,
 					},
@@ -333,7 +333,7 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
-	public async repegPerpMarketAmmCurve(
+	public async repegAmmCurve(
 		newPeg: BN,
 		perpMarketIndex: number
 	): Promise<TransactionSignature> {
@@ -362,7 +362,7 @@ export class Admin extends ClearingHouse {
 			perpMarketIndex
 		);
 
-		return await this.program.rpc.updateAmmOracleTwap({
+		return await this.program.rpc.updatePerpMarketAmmOracleTwap({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				admin: this.wallet.publicKey,
@@ -381,7 +381,7 @@ export class Admin extends ClearingHouse {
 			perpMarketIndex
 		);
 
-		return await this.program.rpc.resetAmmOracleTwap({
+		return await this.program.rpc.resetPerpMarketAmmOracleTwap({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				admin: this.wallet.publicKey,
@@ -431,7 +431,7 @@ export class Admin extends ClearingHouse {
 		// assert(curveUpdateIntensity >= 0 && curveUpdateIntensity <= 100);
 		// assert(Number.isInteger(curveUpdateIntensity));
 
-		return await this.program.rpc.updateCurveUpdateIntensity(
+		return await this.program.rpc.updatePerpMarketCurveUpdateIntensity(
 			curveUpdateIntensity,
 			{
 				accounts: {
@@ -451,7 +451,7 @@ export class Admin extends ClearingHouse {
 		marginRatioInitial: number,
 		marginRatioMaintenance: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateMarginRatio(
+		return await this.program.rpc.updatePerpMarketMarginRatio(
 			marginRatioInitial,
 			marginRatioMaintenance,
 			{
@@ -471,7 +471,7 @@ export class Admin extends ClearingHouse {
 		perpMarketIndex: number,
 		baseSpread: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateMarketBaseSpread(baseSpread, {
+		return await this.program.rpc.updatePerpMarketBaseSpread(baseSpread, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
@@ -503,7 +503,7 @@ export class Admin extends ClearingHouse {
 		perpMarketIndex: number,
 		maxSpread: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateMarketMaxSpread(maxSpread, {
+		return await this.program.rpc.updatePerpMarketMaxSpread(maxSpread, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
@@ -667,7 +667,7 @@ export class Admin extends ClearingHouse {
 		oracle: PublicKey,
 		oracleSource: OracleSource
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateMarketOracle(oracle, oracleSource, {
+		return await this.program.rpc.updatePerpMarketOracle(oracle, oracleSource, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
@@ -679,12 +679,12 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
-	public async updatePerpStepSizeAndTickSize(
+	public async updatePerpMarketStepSizeAndTickSize(
 		perpMarketIndex: number,
 		stepSize: BN,
 		tickSize: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpStepSizeAndTickSize(
+		return await this.program.rpc.updatePerpMarketStepSizeAndTickSize(
 			stepSize,
 			tickSize,
 			{
@@ -700,11 +700,11 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
-	public async updatePerpMinOrderSize(
+	public async updatePerpMarketMinOrderSize(
 		perpMarketIndex: number,
 		orderSize: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMinOrderSize(orderSize, {
+		return await this.program.rpc.updatePerpMarketMinOrderSize(orderSize, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
@@ -732,6 +732,23 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
+	public async updateSpotMarketOracle(
+		spotMarketIndex: number,
+		oracle: PublicKey,
+		oracleSource: OracleSource
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketOracle(oracle, oracleSource, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				spotMarket: await getSpotMarketPublicKey(
+					this.program.programId,
+					spotMarketIndex
+				),
+			},
+		});
+	}
+
 	public async updateSpotMarketExpiry(
 		spotMarketIndex: number,
 		expiryTs: BN
@@ -740,7 +757,7 @@ export class Admin extends ClearingHouse {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
-				spotMarket: await getPerpMarketPublicKey(
+				spotMarket: await getSpotMarketPublicKey(
 					this.program.programId,
 					spotMarketIndex
 				),

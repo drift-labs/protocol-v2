@@ -34,6 +34,7 @@ import {
 	PerpMarketAccount,
 	OraclePriceData,
 	SPOT_MARKET_BALANCE_PRECISION,
+	QUOTE_SPOT_MARKET_INDEX,
 } from '../sdk/src';
 
 import {
@@ -221,8 +222,8 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			500
 		);
 		await clearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
-		await clearingHouse.updateMarketBaseSpread(0, 250);
-		await clearingHouse.updateCurveUpdateIntensity(0, 100);
+		await clearingHouse.updatePerpMarketBaseSpread(0, 250);
+		await clearingHouse.updatePerpMarketCurveUpdateIntensity(0, 100);
 		await sleep(100);
 		await clearingHouse.fetchAccounts();
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
@@ -665,48 +666,55 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		await sleep(1000);
 		clearingHouse.fetchAccounts();
 
-		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		const bank = clearingHouse.getSpotMarketAccount(marketIndex);
+		const perpMarket = clearingHouse.getPerpMarketAccount(marketIndex);
+		const quoteSpotMarket = clearingHouse.getSpotMarketAccount(
+			QUOTE_SPOT_MARKET_INDEX
+		);
 
 		const oraclePriceData = clearingHouse.getOracleDataForMarket(
 			market0.marketIndex
 		);
 
 		const imbalance = calculateNetUserPnlImbalance(
-			market,
-			bank,
+			perpMarket,
+			quoteSpotMarket,
 			oraclePriceData
 		);
 
 		console.log('pnlimbalance:', imbalance.toString());
 		assert(imbalance.eq(new BN(44_462_178_048))); //44k still :o
 
-		assert(market.insuranceClaim.revenueWithdrawSinceLastSettle.eq(ZERO));
+		assert(perpMarket.insuranceClaim.revenueWithdrawSinceLastSettle.eq(ZERO));
 		console.log('pnlimbalance:', imbalance.toString());
 
 		assert(
-			market.insuranceClaim.maxRevenueWithdrawPerPeriod.eq(QUOTE_PRECISION)
+			perpMarket.insuranceClaim.maxRevenueWithdrawPerPeriod.eq(QUOTE_PRECISION)
 		);
 		console.log(
 			'market.insuranceClaim.lastRevenueWithdrawTs:',
-			market.insuranceClaim.lastRevenueWithdrawTs.toString(),
+			perpMarket.insuranceClaim.lastRevenueWithdrawTs.toString(),
 			now.toString()
 		);
-		assert(market.insuranceClaim.lastRevenueWithdrawTs.lt(new BN(now)));
+		assert(perpMarket.insuranceClaim.lastRevenueWithdrawTs.lt(new BN(now)));
 		assert(
-			market.unrealizedPnlMaxImbalance.eq(new BN(40000).mul(QUOTE_PRECISION))
+			perpMarket.unrealizedPnlMaxImbalance.eq(
+				new BN(40000).mul(QUOTE_PRECISION)
+			)
 		);
-		assert(market.insuranceClaim.quoteSettledInsurance.eq(ZERO));
-		assert(market.insuranceClaim.quoteMaxInsurance.eq(QUOTE_PRECISION));
+		assert(perpMarket.insuranceClaim.quoteSettledInsurance.eq(ZERO));
+		assert(perpMarket.insuranceClaim.quoteMaxInsurance.eq(QUOTE_PRECISION));
 
-		console.log(market.status);
-		assert(isVariant(market.status, 'active'));
-		console.log('totalExchangeFee:', market.amm.totalExchangeFee.toString());
-		console.log('totalFee:', market.amm.totalFee.toString());
-		console.log('totalMMFee:', market.amm.totalMmFee.toString());
+		console.log(perpMarket.status);
+		assert(isVariant(perpMarket.status, 'active'));
+		console.log(
+			'totalExchangeFee:',
+			perpMarket.amm.totalExchangeFee.toString()
+		);
+		console.log('totalFee:', perpMarket.amm.totalFee.toString());
+		console.log('totalMMFee:', perpMarket.amm.totalMmFee.toString());
 		console.log(
 			'totalFeeMinusDistributions:',
-			market.amm.totalFeeMinusDistributions.toString()
+			perpMarket.amm.totalFeeMinusDistributions.toString()
 		);
 
 		await clearingHouseLoserUser.fetchAccounts();
@@ -853,16 +861,18 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		await clearingHouse.fetchAccounts();
 		const slot = await connection.getSlot();
 		const now = await connection.getBlockTime(slot);
-		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		const bank = clearingHouse.getSpotMarketAccount(marketIndex);
+		const perpMarket = clearingHouse.getPerpMarketAccount(marketIndex);
+		const quoteSpotMarket = clearingHouse.getSpotMarketAccount(
+			QUOTE_SPOT_MARKET_INDEX
+		);
 
 		const oraclePriceData = clearingHouse.getOracleDataForMarket(
-			market.marketIndex
+			perpMarket.marketIndex
 		);
 
 		const imbalance = calculateNetUserPnlImbalance(
-			market,
-			bank,
+			perpMarket,
+			quoteSpotMarket,
 			oraclePriceData
 		);
 
@@ -872,52 +882,59 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 
 		console.log(
 			'revenueWithdrawSinceLastSettle:',
-			market.insuranceClaim.revenueWithdrawSinceLastSettle.toString()
+			perpMarket.insuranceClaim.revenueWithdrawSinceLastSettle.toString()
 		);
 		assert(
-			market.insuranceClaim.revenueWithdrawSinceLastSettle.eq(QUOTE_PRECISION)
+			perpMarket.insuranceClaim.revenueWithdrawSinceLastSettle.eq(
+				QUOTE_PRECISION
+			)
 		);
 		console.log(
 			'market.insuranceClaim.maxRevenueWithdrawPerPeriod:',
-			market.insuranceClaim.maxRevenueWithdrawPerPeriod.toString()
+			perpMarket.insuranceClaim.maxRevenueWithdrawPerPeriod.toString()
 		);
 
 		assert(
-			market.insuranceClaim.maxRevenueWithdrawPerPeriod.eq(QUOTE_PRECISION)
+			perpMarket.insuranceClaim.maxRevenueWithdrawPerPeriod.eq(QUOTE_PRECISION)
 		);
 		console.log(
 			'market.insuranceClaim.lastRevenueWithdrawTs:',
-			market.insuranceClaim.lastRevenueWithdrawTs.toString(),
+			perpMarket.insuranceClaim.lastRevenueWithdrawTs.toString(),
 			now.toString()
 		);
 		assert(
-			market.insuranceClaim.lastRevenueWithdrawTs.gt(
+			perpMarket.insuranceClaim.lastRevenueWithdrawTs.gt(
 				market0.insuranceClaim.lastRevenueWithdrawTs
 			)
 		);
 		assert(
-			market.unrealizedPnlMaxImbalance.eq(new BN(40000).mul(QUOTE_PRECISION))
+			perpMarket.unrealizedPnlMaxImbalance.eq(
+				new BN(40000).mul(QUOTE_PRECISION)
+			)
 		);
 
-		assert(market.insuranceClaim.quoteSettledInsurance.eq(QUOTE_PRECISION));
-		assert(market.insuranceClaim.quoteMaxInsurance.eq(QUOTE_PRECISION));
+		assert(perpMarket.insuranceClaim.quoteSettledInsurance.eq(QUOTE_PRECISION));
+		assert(perpMarket.insuranceClaim.quoteMaxInsurance.eq(QUOTE_PRECISION));
 		console.log(
 			'market0.pnlPool.scaledBalance:',
 
 			market0.pnlPool.scaledBalance.toString(),
 			'->',
-			market.pnlPool.scaledBalance.toString()
+			perpMarket.pnlPool.scaledBalance.toString()
 		);
-		assert(market.pnlPool.scaledBalance.gt(market0.pnlPool.scaledBalance));
+		assert(perpMarket.pnlPool.scaledBalance.gt(market0.pnlPool.scaledBalance));
 
-		console.log(market.status);
-		assert(isVariant(market.status, 'active'));
-		console.log('totalExchangeFee:', market.amm.totalExchangeFee.toString());
-		console.log('totalFee:', market.amm.totalFee.toString());
-		console.log('totalMMFee:', market.amm.totalMmFee.toString());
+		console.log(perpMarket.status);
+		assert(isVariant(perpMarket.status, 'active'));
+		console.log(
+			'totalExchangeFee:',
+			perpMarket.amm.totalExchangeFee.toString()
+		);
+		console.log('totalFee:', perpMarket.amm.totalFee.toString());
+		console.log('totalMMFee:', perpMarket.amm.totalMmFee.toString());
 		console.log(
 			'totalFeeMinusDistributions:',
-			market.amm.totalFeeMinusDistributions.toString()
+			perpMarket.amm.totalFeeMinusDistributions.toString()
 		);
 	});
 

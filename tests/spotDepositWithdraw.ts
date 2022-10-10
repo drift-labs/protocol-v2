@@ -742,7 +742,7 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('Third user deposits when cumulative interest off init value', async () => {
-		// rounding on bank balance <-> token conversions can lead to tiny epislon of loss on deposits
+		// rounding on spot market balance <-> token conversions can lead to tiny epislon of loss on deposits
 
 		const [
 			thirdUserClearingHouse,

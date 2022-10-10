@@ -270,7 +270,7 @@ describe('liquidate perp and lp', () => {
 			assert(err.message.includes('0x17de'));
 		}
 
-		await clearingHouse.updatePerpMarketContractTier(new BN(0), ContractTier.A);
+		await clearingHouse.updatePerpMarketContractTier(0, ContractTier.A);
 		const tx1 = await clearingHouse.updateMarketMaxImbalances(
 			marketIndex,
 			new BN(40000).mul(QUOTE_PRECISION),

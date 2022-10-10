@@ -776,7 +776,7 @@ pub fn handle_resolve_perp_pnl_deficit(
         )?;
     }
 
-    // todo: validate amounts transfered and bank before and after are zero-sum
+    // todo: validate amounts transfered and spot_market before and after are zero-sum
 
     Ok(())
 }

@@ -1682,7 +1682,7 @@ pub fn resolve_spot_bankruptcy(
         "liquidator bankrupt",
     )?;
 
-    // validate user and liquidator have bank balances
+    // validate user and liquidator have spot position balances
     user.get_spot_position(market_index).ok_or_else(|| {
         msg!(
             "User does not have a spot balance for market {}",

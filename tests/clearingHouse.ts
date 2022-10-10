@@ -114,7 +114,11 @@ describe('clearing_house', () => {
 			periodicity
 		);
 
-		await clearingHouse.updatePerpStepSizeAndTickSize(0, new BN(1), new BN(1));
+		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
+			0,
+			new BN(1),
+			new BN(1)
+		);
 
 		console.log(
 			'tx logs',
