@@ -343,7 +343,7 @@ describe('insurance fund stake', () => {
 		await clearingHouse.fetchAccounts();
 
 		const spotMarket0 = clearingHouse.getSpotMarketAccount(marketIndex);
-		assert(spotMarket0.insurance.ifUnstakingPeriod.eq(new BN(10)));
+		assert(spotMarket0.insuranceFund.unstakingPeriod.eq(new BN(10)));
 		assert(spotMarket0.insuranceFund.totalShares.gt(ZERO));
 		assert(spotMarket0.insuranceFund.totalShares.eq(usdcAmount.div(new BN(2))));
 		assert(spotMarket0.insuranceFund.userShares.eq(usdcAmount.div(new BN(2))));

@@ -2,8 +2,11 @@ use crate::controller::serum::SerumFulfillmentParams;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::load;
 
+use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market_map::{MarketSet, PerpMarketMap};
 use crate::state::spot_market::{SerumV3FulfillmentConfig, SpotMarket};
-use crate::state::state::State;
+use crate::state::spot_market_map::SpotMarketMap;
+use crate::state::state::{OracleGuardRails, State};
 use crate::state::user::{User, UserStats};
 use crate::validate;
 use anchor_lang::accounts::account::Account;
@@ -16,6 +19,30 @@ use solana_program::account_info::next_account_info;
 use solana_program::msg;
 use std::iter::Peekable;
 use std::slice::Iter;
+
+pub struct AccountMaps<'a> {
+    pub perp_market_map: PerpMarketMap<'a>,
+    pub spot_market_map: SpotMarketMap<'a>,
+    pub oracle_map: OracleMap<'a>,
+}
+
+pub fn load_maps<'a, 'b, 'c>(
+    account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
+    writable_perp_markets: &'b MarketSet,
+    writable_spot_markets: &'b MarketSet,
+    slot: u64,
+    oracle_guard_rails: Option<OracleGuardRails>,
+) -> ClearingHouseResult<AccountMaps<'a>> {
+    let oracle_map = OracleMap::load(account_info_iter, slot, oracle_guard_rails)?;
+    let spot_market_map = SpotMarketMap::load(writable_spot_markets, account_info_iter)?;
+    let perp_market_map = PerpMarketMap::load(writable_perp_markets, account_info_iter)?;
+
+    Ok(AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+    })
+}
 
 pub fn get_maker_and_maker_stats<'a>(
     account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,

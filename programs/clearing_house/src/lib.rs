@@ -6,18 +6,11 @@
 use anchor_lang::prelude::*;
 use borsh::BorshSerialize;
 
-pub mod controller;
-pub mod error;
-pub mod ids;
-pub mod instructions;
-pub mod macros;
-pub mod math;
-pub mod optional_accounts;
-mod signer;
-pub mod state;
+use instructions::*;
 #[cfg(test)]
-mod tests;
-mod validation;
+use math::amm;
+use math::{bn, constants::*};
+use state::oracle::OracleSource;
 
 use crate::controller::position::PositionDirection;
 use crate::state::perp_market::{ContractTier, MarketStatus};
@@ -25,11 +18,18 @@ use crate::state::spot_market::AssetTier;
 use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::user::MarketType;
-use instructions::*;
+
+pub mod controller;
+pub mod error;
+pub mod ids;
+pub mod instructions;
+pub mod macros;
+pub mod math;
+mod signer;
+pub mod state;
 #[cfg(test)]
-use math::amm;
-use math::{bn, constants::*};
-use state::oracle::OracleSource;
+mod tests;
+mod validation;
 
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");

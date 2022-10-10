@@ -3,22 +3,25 @@ use anchor_spl::token::{Token, TokenAccount};
 
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
+use crate::instructions::optional_accounts::{
+    get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
+    load_maps, AccountMaps,
+};
 use crate::load_mut;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::insurance::if_shares_to_vault_amount;
-use crate::optional_accounts::{
-    get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
-};
 use crate::state::events::OrderActionExplanation;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
-    get_market_set, get_market_set_for_user_positions, get_market_set_from_list, MarketSet,
-    PerpMarketMap,
+    get_market_set_for_user_positions, get_market_set_from_list, get_writable_perp_market_set,
+    MarketSet, PerpMarketMap,
 };
 use crate::state::spot_market::SpotMarket;
-use crate::state::spot_market_map::{get_writable_spot_market_set, SpotMarketMap, SpotMarketSet};
+use crate::state::spot_market_map::{
+    get_writable_spot_market_set, get_writable_spot_market_set_from_many,
+};
 use crate::state::state::{ExchangeStatus, State};
 use crate::state::user::{MarketType, User, UserStats};
 use crate::validate;
@@ -50,13 +53,17 @@ pub fn handle_fill_order<'info>(
     };
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
         remaining_accounts_iter,
+        &get_writable_perp_market_set(market_index),
+        &MarketSet::new(),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-    let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-    let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
 
     let (maker, maker_stats) = match maker_order_id {
         Some(_) => {
@@ -70,7 +77,7 @@ pub fn handle_fill_order<'info>(
 
     controller::repeg::update_amm(
         market_index,
-        &market_map,
+        &perp_market_map,
         &mut oracle_map,
         &ctx.accounts.state,
         clock,
@@ -82,7 +89,7 @@ pub fn handle_fill_order<'info>(
         &ctx.accounts.user,
         &ctx.accounts.user_stats,
         &spot_market_map,
-        &market_map,
+        &perp_market_map,
         &mut oracle_map,
         &ctx.accounts.filler,
         &ctx.accounts.filler_stats,
@@ -131,12 +138,17 @@ pub fn handle_fill_spot_order<'info>(
     };
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
-    let mut writable_spot_markets = SpotMarketSet::new();
-    writable_spot_markets.insert(QUOTE_SPOT_MARKET_INDEX);
-    writable_spot_markets.insert(market_index);
-    let spot_market_map = SpotMarketMap::load(&writable_spot_markets, remaining_accounts_iter)?;
-    let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![QUOTE_SPOT_MARKET_INDEX, market_index]),
+        Clock::get()?.slot,
+        None,
+    )?;
 
     let (maker, maker_stats) = match maker_order_id {
         Some(_) => {
@@ -166,7 +178,7 @@ pub fn handle_fill_spot_order<'info>(
         &ctx.accounts.user,
         &ctx.accounts.user_stats,
         &spot_market_map,
-        &market_map,
+        &perp_market_map,
         &mut oracle_map,
         &ctx.accounts.filler,
         &ctx.accounts.filler_stats,
@@ -184,10 +196,17 @@ pub fn handle_fill_spot_order<'info>(
     exchange_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_trigger_order<'info>(ctx: Context<TriggerOrder>, order_id: u32) -> Result<()> {
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
-    let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-    let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
 
     let market_type = match load!(ctx.accounts.user)?.get_order(order_id) {
         Some(order) => order.market_type,
@@ -230,35 +249,35 @@ pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<(
     let clock = Clock::get()?;
     let state = &ctx.accounts.state;
 
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let user_key = ctx.accounts.user.key();
+    let user = &mut load_mut!(ctx.accounts.user)?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_writable_perp_market_set(market_index),
+        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-    let spot_market_map = SpotMarketMap::load(
-        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
-        remaining_accounts_iter,
-    )?;
-    let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
 
     controller::repeg::update_amm(
         market_index,
-        &market_map,
+        &perp_market_map,
         &mut oracle_map,
         state,
         &Clock::get()?,
     )?;
-
-    let user_key = ctx.accounts.user.key();
-    let user = &mut load_mut!(ctx.accounts.user)?;
 
     controller::pnl::settle_pnl(
         market_index,
         user,
         ctx.accounts.authority.key,
         &user_key,
-        &market_map,
+        &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         clock.unix_timestamp,
@@ -278,13 +297,17 @@ pub fn handle_settle_funding_payment(ctx: Context<SettleFunding>) -> Result<()> 
     let user_key = ctx.accounts.user.key();
     let user = &mut load_mut!(ctx.accounts.user)?;
 
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let market_map = PerpMarketMap::load(
+    let AccountMaps {
+        perp_market_map, ..
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
         &get_market_set_for_user_positions(&user.perp_positions),
-        remaining_accounts_iter,
+        &MarketSet::new(),
+        clock.slot,
+        None,
     )?;
 
-    controller::funding::settle_funding_payments(user, &user_key, &market_map, now)?;
+    controller::funding::settle_funding_payments(user, &user_key, &perp_market_map, now)?;
     Ok(())
 }
 
@@ -299,16 +322,17 @@ pub fn handle_settle_lp<'info>(ctx: Context<SettleLP>, market_index: u16) -> Res
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
 
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let _oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map, ..
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_writable_perp_market_set(market_index),
+        &MarketSet::new(),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-    let _spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-    let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
 
-    let market = &mut market_map.get_ref_mut(&market_index)?;
+    let market = &mut perp_market_map.get_ref_mut(&market_index)?;
     controller::lp::settle_funding_payment_then_lp(user, &user_key, market, now)?;
 
     Ok(())
@@ -325,24 +349,24 @@ pub fn handle_settle_expired_position(ctx: Context<SettlePNL>, market_index: u16
     let now = clock.unix_timestamp;
     let slot = clock.slot;
 
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_writable_perp_market_set(market_index),
+        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-    let spot_market_map = SpotMarketMap::load(
-        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
-        remaining_accounts_iter,
-    )?;
-    let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
 
     let user_key = ctx.accounts.user.key();
     let user = &mut load_mut!(ctx.accounts.user)?;
 
     math::liquidation::validate_user_not_being_liquidated(
         user,
-        &market_map,
+        &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         state.liquidation_margin_buffer_ratio,
@@ -354,7 +378,7 @@ pub fn handle_settle_expired_position(ctx: Context<SettlePNL>, market_index: u16
         user,
         &user_key,
         None,
-        &market_map,
+        &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         now,
@@ -369,7 +393,7 @@ pub fn handle_settle_expired_position(ctx: Context<SettlePNL>, market_index: u16
         market_index,
         user,
         &user_key,
-        &market_map,
+        &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         clock.unix_timestamp,
@@ -387,23 +411,29 @@ pub fn handle_settle_expired_market(ctx: Context<UpdateAMM>, market_index: u16) 
     let _now = clock.unix_timestamp;
     let state = &ctx.accounts.state;
 
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_writable_perp_market_set(market_index),
+        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-    let spot_market_map = SpotMarketMap::load(
-        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
-        remaining_accounts_iter,
-    )?;
-    let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
 
-    controller::repeg::update_amm(market_index, &market_map, &mut oracle_map, state, &clock)?;
+    controller::repeg::update_amm(
+        market_index,
+        &perp_market_map,
+        &mut oracle_map,
+        state,
+        &clock,
+    )?;
 
     controller::repeg::settle_expired_market(
         market_index,
-        &market_map,
+        &perp_market_map,
         &mut oracle_map,
         &spot_market_map,
         state,
@@ -439,14 +469,17 @@ pub fn handle_liquidate_perp(
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
     let liquidator_stats = &mut load_mut!(ctx.accounts.liquidator_stats)?;
 
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_writable_perp_market_set(market_index),
+        &MarketSet::new(),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-    let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-    let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
 
     controller::liquidation::liquidate_perp(
         market_index,
@@ -457,7 +490,7 @@ pub fn handle_liquidate_perp(
         liquidator,
         &liquidator_key,
         liquidator_stats,
-        &market_map,
+        &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         slot,
@@ -492,18 +525,17 @@ pub fn handle_liquidate_spot(
     let user = &mut load_mut!(ctx.accounts.user)?;
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![asset_market_index, liability_market_index]),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-
-    let mut writable_spot_markets = SpotMarketSet::new();
-    writable_spot_markets.insert(asset_market_index);
-    writable_spot_markets.insert(liability_market_index);
-    let spot_market_map = SpotMarketMap::load(&writable_spot_markets, remaining_accounts_iter)?;
-    let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
     controller::liquidation::liquidate_spot(
         asset_market_index,
@@ -548,17 +580,17 @@ pub fn handle_liquidate_borrow_for_perp_pnl(
     let user = &mut load_mut!(ctx.accounts.user)?;
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &get_writable_spot_market_set(spot_market_index),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-
-    let mut writable_spot_markets = SpotMarketSet::new();
-    writable_spot_markets.insert(spot_market_index);
-    let spot_market_map = SpotMarketMap::load(&writable_spot_markets, remaining_accounts_iter)?;
-    let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
     controller::liquidation::liquidate_borrow_for_perp_pnl(
         perp_market_index,
@@ -603,17 +635,17 @@ pub fn handle_liquidate_perp_pnl_for_deposit(
     let user = &mut load_mut!(ctx.accounts.user)?;
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &get_writable_spot_market_set(spot_market_index),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-
-    let mut writable_spot_markets = SpotMarketSet::new();
-    writable_spot_markets.insert(spot_market_index);
-    let spot_market_map = SpotMarketMap::load(&writable_spot_markets, remaining_accounts_iter)?;
-    let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
     controller::liquidation::liquidate_perp_pnl_for_deposit(
         perp_market_index,
@@ -623,7 +655,7 @@ pub fn handle_liquidate_perp_pnl_for_deposit(
         &user_key,
         liquidator,
         &liquidator_key,
-        &market_map,
+        &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         now,
@@ -648,22 +680,21 @@ pub fn handle_resolve_perp_pnl_deficit(
     validate!(spot_market_index == 0, ErrorCode::InvalidSpotMarketAccount)?;
     let state = &ctx.accounts.state;
 
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_writable_perp_market_set(perp_market_index),
+        &get_writable_spot_market_set(spot_market_index),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-    let spot_market_map = SpotMarketMap::load(
-        &get_writable_spot_market_set(spot_market_index),
-        remaining_accounts_iter,
-    )?;
-    let market_map =
-        PerpMarketMap::load(&get_market_set(perp_market_index), remaining_accounts_iter)?;
 
     controller::repeg::update_amm(
         perp_market_index,
-        &market_map,
+        &perp_market_map,
         &mut oracle_map,
         state,
         &clock,
@@ -687,7 +718,7 @@ pub fn handle_resolve_perp_pnl_deficit(
 
     let pay_from_insurance = {
         let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
-        let perp_market = &mut market_map.get_ref_mut(&perp_market_index)?;
+        let perp_market = &mut perp_market_map.get_ref_mut(&perp_market_index)?;
 
         if perp_market.amm.curve_update_intensity > 0 {
             validate!(
@@ -778,17 +809,17 @@ pub fn handle_resolve_perp_bankruptcy(
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
     let state = &ctx.accounts.state;
 
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_writable_perp_market_set(market_index),
+        &get_writable_spot_market_set(quote_spot_market_index),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-    let spot_market_map = SpotMarketMap::load(
-        &get_writable_spot_market_set(quote_spot_market_index),
-        remaining_accounts_iter,
-    )?;
-    let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&quote_spot_market_index)?;
@@ -809,7 +840,7 @@ pub fn handle_resolve_perp_bankruptcy(
         &user_key,
         liquidator,
         &liquidator_key,
-        &market_map,
+        &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         now,
@@ -866,15 +897,16 @@ pub fn handle_resolve_spot_bankruptcy(
     let user = &mut load_mut!(ctx.accounts.user)?;
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &get_writable_spot_market_set(market_index),
         clock.slot,
         Some(state.oracle_guard_rails),
-    )?;
-    let spot_market_map = SpotMarketMap::load(
-        &get_writable_spot_market_set(market_index),
-        remaining_accounts_iter,
     )?;
 
     {
@@ -890,15 +922,13 @@ pub fn handle_resolve_spot_bankruptcy(
         )?;
     }
 
-    let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
-
     let pay_from_insurance = controller::liquidation::resolve_spot_bankruptcy(
         market_index,
         user,
         &user_key,
         liquidator,
         &liquidator_key,
-        &market_map,
+        &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         now,

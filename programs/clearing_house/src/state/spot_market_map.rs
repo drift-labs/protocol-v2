@@ -168,3 +168,11 @@ pub fn get_writable_spot_market_set(market_index: u16) -> SpotMarketSet {
     writable_markets.insert(market_index);
     writable_markets
 }
+
+pub fn get_writable_spot_market_set_from_many(market_indexes: Vec<u16>) -> SpotMarketSet {
+    let mut writable_markets = SpotMarketSet::new();
+    for market_index in market_indexes {
+        writable_markets.insert(market_index);
+    }
+    writable_markets
+}

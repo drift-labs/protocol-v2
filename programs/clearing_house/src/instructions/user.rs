@@ -8,6 +8,10 @@ use crate::controller::orders::cancel_orders;
 use crate::controller::position::PositionDirection;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
+use crate::instructions::optional_accounts::{
+    get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_whitelist_token, load_maps,
+    AccountMaps,
+};
 use crate::load;
 use crate::load_mut;
 use crate::math::casting::Cast;
@@ -17,18 +21,14 @@ use crate::math::margin::{
 };
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
-use crate::optional_accounts::{
-    get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_whitelist_token,
-};
 use crate::print_error;
 use crate::state::events::{
     DepositDirection, DepositRecord, LPAction, LPRecord, NewUserRecord, OrderActionExplanation,
 };
-use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
-use crate::state::perp_market_map::{get_market_set, MarketSet, PerpMarketMap};
+use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_market::SpotBalanceType;
-use crate::state::spot_market_map::{get_writable_spot_market_set, SpotMarketMap, SpotMarketSet};
+use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::State;
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType, User, UserStats};
 use crate::validate;
@@ -146,20 +146,17 @@ pub fn handle_deposit(
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
 
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
-
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map: _,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &get_writable_spot_market_set(market_index),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-    let spot_market_map = SpotMarketMap::load(
-        &get_writable_spot_market_set(market_index),
-        remaining_accounts_iter,
-    )?;
-
-    let _market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
     if amount == 0 {
         return Err(ErrorCode::InsufficientDeposit.into());
@@ -272,19 +269,19 @@ pub fn handle_withdraw(
     let now = clock.unix_timestamp;
     let state = &ctx.accounts.state;
 
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
-
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &get_writable_spot_market_set(market_index),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-    let spot_market_map = SpotMarketMap::load(
-        &get_writable_spot_market_set(market_index),
-        remaining_accounts_iter,
-    )?;
-    let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+
+    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
 
     let spot_market_is_reduce_only = {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
@@ -413,17 +410,17 @@ pub fn handle_transfer_deposit(
         "from_user bankrupt"
     )?;
 
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &get_writable_spot_market_set(market_index),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-    let spot_market_map = SpotMarketMap::load(
-        &get_writable_spot_market_set(market_index),
-        remaining_accounts_iter,
-    )?;
-    let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
@@ -456,7 +453,7 @@ pub fn handle_transfer_deposit(
     validate!(
         meets_withdraw_margin_requirement(
             from_user,
-            &market_map,
+            &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
         )?,
@@ -550,14 +547,17 @@ pub fn handle_place_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Resu
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-    let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-    let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
     if params.immediate_or_cancel {
         msg!("immediate_or_cancel order must be in place_and_make or place_and_take");
@@ -567,7 +567,7 @@ pub fn handle_place_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Resu
     controller::orders::place_order(
         &ctx.accounts.state,
         &ctx.accounts.user,
-        &market_map,
+        &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         clock,
@@ -584,14 +584,17 @@ pub fn handle_cancel_order(ctx: Context<CancelOrder>, order_id: Option<u32>) -> 
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-    let spot_market_map = SpotMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
-    let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
     let order_id = match order_id {
         Some(order_id) => order_id,
@@ -601,7 +604,7 @@ pub fn handle_cancel_order(ctx: Context<CancelOrder>, order_id: Option<u32>) -> 
     controller::orders::cancel_order_by_order_id(
         order_id,
         &ctx.accounts.user,
-        &market_map,
+        &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         clock,
@@ -617,19 +620,22 @@ pub fn handle_cancel_order_by_user_id(ctx: Context<CancelOrder>, user_order_id: 
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-    let spot_market_map = SpotMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
-    let market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
     controller::orders::cancel_order_by_user_order_id(
         user_order_id,
         &ctx.accounts.user,
-        &market_map,
+        &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         clock,
@@ -650,14 +656,17 @@ pub fn handle_cancel_orders(
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-    let spot_market_map = SpotMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
-    let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
 
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -692,16 +701,16 @@ pub fn handle_place_and_take<'info>(
     let state = &ctx.accounts.state;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
         remaining_accounts_iter,
+        &get_writable_perp_market_set(params.market_index),
+        &MarketSet::new(),
         clock.slot,
         Some(state.oracle_guard_rails),
-    )?;
-    let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-
-    let market_map = PerpMarketMap::load(
-        &get_market_set(params.market_index),
-        remaining_accounts_iter,
     )?;
 
     if params.post_only {
@@ -723,7 +732,7 @@ pub fn handle_place_and_take<'info>(
 
     controller::repeg::update_amm(
         params.market_index,
-        &market_map,
+        &perp_market_map,
         &mut oracle_map,
         &ctx.accounts.state,
         &Clock::get()?,
@@ -732,7 +741,7 @@ pub fn handle_place_and_take<'info>(
     controller::orders::place_order(
         &ctx.accounts.state,
         &ctx.accounts.user,
-        &market_map,
+        &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         &Clock::get()?,
@@ -748,7 +757,7 @@ pub fn handle_place_and_take<'info>(
         user,
         &ctx.accounts.user_stats,
         &spot_market_map,
-        &market_map,
+        &perp_market_map,
         &mut oracle_map,
         &user.clone(),
         &ctx.accounts.user_stats.clone(),
@@ -769,7 +778,7 @@ pub fn handle_place_and_take<'info>(
         controller::orders::cancel_order_by_order_id(
             order_id,
             &ctx.accounts.user,
-            &market_map,
+            &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
             &Clock::get()?,
@@ -791,15 +800,16 @@ pub fn handle_place_and_make<'info>(
     let state = &ctx.accounts.state;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
         remaining_accounts_iter,
-        clock.slot,
+        &get_writable_perp_market_set(params.market_index),
+        &MarketSet::new(),
+        Clock::get()?.slot,
         Some(state.oracle_guard_rails),
-    )?;
-    let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-    let market_map = PerpMarketMap::load(
-        &get_market_set(params.market_index),
-        remaining_accounts_iter,
     )?;
 
     let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
@@ -811,7 +821,7 @@ pub fn handle_place_and_make<'info>(
 
     controller::repeg::update_amm(
         params.market_index,
-        &market_map,
+        &perp_market_map,
         &mut oracle_map,
         state,
         clock,
@@ -820,7 +830,7 @@ pub fn handle_place_and_make<'info>(
     controller::orders::place_order(
         state,
         &ctx.accounts.user,
-        &market_map,
+        &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         clock,
@@ -835,7 +845,7 @@ pub fn handle_place_and_make<'info>(
         &ctx.accounts.taker,
         &ctx.accounts.taker_stats,
         &spot_market_map,
-        &market_map,
+        &perp_market_map,
         &mut oracle_map,
         &ctx.accounts.user.clone(),
         &ctx.accounts.user_stats.clone(),
@@ -856,7 +866,7 @@ pub fn handle_place_and_make<'info>(
         controller::orders::cancel_order_by_order_id(
             order_id,
             &ctx.accounts.user,
-            &market_map,
+            &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
             clock,
@@ -867,10 +877,17 @@ pub fn handle_place_and_make<'info>(
 }
 
 pub fn handle_place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let mut oracle_map = OracleMap::load(remaining_accounts_iter, Clock::get()?.slot, None)?;
-    let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-    let perp_market_map = PerpMarketMap::load(&MarketSet::new(), remaining_accounts_iter)?;
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
 
     if params.immediate_or_cancel {
         msg!("immediate_or_cancel order must be in place_and_make or place_and_take");
@@ -903,27 +920,30 @@ pub fn handle_add_perp_lp_shares<'info>(
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_writable_perp_market_set(market_index),
+        &MarketSet::new(),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-    let spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-    let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
 
     validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
     math::liquidation::validate_user_not_being_liquidated(
         user,
-        &market_map,
+        &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         state.liquidation_margin_buffer_ratio,
     )?;
 
     {
-        let mut market = market_map.get_ref_mut(&market_index)?;
+        let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
         validate!(
             matches!(
@@ -965,7 +985,12 @@ pub fn handle_add_perp_lp_shares<'info>(
 
     // check margin requirements
     validate!(
-        meets_initial_margin_requirement(user, &market_map, &spot_market_map, &mut oracle_map)?,
+        meets_initial_margin_requirement(
+            user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map
+        )?,
         ErrorCode::InsufficientCollateral,
         "User does not meet initial margin requirement"
     )?;
@@ -997,19 +1022,21 @@ pub fn handle_remove_perp_lp_shares<'info>(
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
 
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
-    let mut oracle_map = OracleMap::load(
-        remaining_accounts_iter,
+    let AccountMaps {
+        perp_market_map,
+        mut oracle_map,
+        ..
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_writable_perp_market_set(market_index),
+        &MarketSet::new(),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
-    let _spot_market_map = SpotMarketMap::load(&SpotMarketSet::new(), remaining_accounts_iter)?;
-    let market_map = PerpMarketMap::load(&get_market_set(market_index), remaining_accounts_iter)?;
 
     // standardize n shares to burn
     let shares_to_burn: u64 = {
-        let market = market_map.get_ref(&market_index)?;
+        let market = perp_market_map.get_ref(&market_index)?;
         crate::math::orders::standardize_base_asset_amount(
             shares_to_burn.cast()?,
             market.amm.order_step_size,
@@ -1021,7 +1048,7 @@ pub fn handle_remove_perp_lp_shares<'info>(
         return Ok(());
     }
 
-    let mut market = market_map.get_ref_mut(&market_index)?;
+    let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
     let time_since_last_add_liquidity = now
         .checked_sub(user.last_add_perp_lp_shares_ts)

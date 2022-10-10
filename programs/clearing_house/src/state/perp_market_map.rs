@@ -167,7 +167,7 @@ impl<'a> PerpMarketMap<'a> {
 
 pub type MarketSet = BTreeSet<u16>;
 
-pub fn get_market_set(market_index: u16) -> MarketSet {
+pub fn get_writable_perp_market_set(market_index: u16) -> MarketSet {
     let mut writable_markets = MarketSet::new();
     writable_markets.insert(market_index);
     writable_markets
