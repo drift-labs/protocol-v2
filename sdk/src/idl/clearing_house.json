@@ -1298,7 +1298,7 @@
       ],
       "args": [
         {
-          "name": "marketIndex",
+          "name": "spotMarketIndex",
           "type": "u16"
         }
       ]
@@ -2600,6 +2600,38 @@
         {
           "name": "maxTokenDeposits",
           "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketOracle",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "oracle",
+          "type": "publicKey"
+        },
+        {
+          "name": "oracleSource",
+          "type": {
+            "defined": "OracleSource"
+          }
         }
       ]
     },
@@ -7359,8 +7391,5 @@
       "name": "ReduceOnlyWithdrawIncreasedRisk",
       "msg": "Reduce Only Withdraw Increased Risk"
     }
-  ],
-  "metadata": {
-    "address": "DUZwKJKAk2C9S88BYvQzck1M1i5hySQjxB4zW6tJ29Nw"
-  }
+  ]
 }

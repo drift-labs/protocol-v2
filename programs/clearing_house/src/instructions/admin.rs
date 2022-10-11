@@ -775,9 +775,9 @@ pub fn handle_deposit_into_perp_market_fee_pool(
     ctx: Context<DepositIntoMarketFeePool>,
     amount: u64,
 ) -> Result<()> {
-    let market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
 
-    market.amm.total_fee_minus_distributions = market
+    perp_market.amm.total_fee_minus_distributions = perp_market
         .amm
         .total_fee_minus_distributions
         .checked_add(cast(amount)?)
@@ -789,7 +789,7 @@ pub fn handle_deposit_into_perp_market_fee_pool(
         cast_to_u128(amount)?,
         &SpotBalanceType::Deposit,
         quote_spot_market,
-        &mut market.amm.fee_pool,
+        &mut perp_market.amm.fee_pool,
         false,
     )?;
 
@@ -814,37 +814,37 @@ pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128)
     let now = clock.unix_timestamp;
     let clock_slot = clock.slot;
 
-    let market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     let price_oracle = &ctx.accounts.oracle;
     let OraclePriceData {
         price: oracle_price,
         ..
-    } = get_oracle_price(&market.amm.oracle_source, price_oracle, clock.slot)?;
+    } = get_oracle_price(&perp_market.amm.oracle_source, price_oracle, clock.slot)?;
 
-    let peg_multiplier_before = market.amm.peg_multiplier;
-    let base_asset_reserve_before = market.amm.base_asset_reserve;
-    let quote_asset_reserve_before = market.amm.quote_asset_reserve;
-    let sqrt_k_before = market.amm.sqrt_k;
+    let peg_multiplier_before = perp_market.amm.peg_multiplier;
+    let base_asset_reserve_before = perp_market.amm.base_asset_reserve;
+    let quote_asset_reserve_before = perp_market.amm.quote_asset_reserve;
+    let sqrt_k_before = perp_market.amm.sqrt_k;
 
     let oracle_validity_rails = &ctx.accounts.state.oracle_guard_rails;
 
     let adjustment_cost = controller::repeg::repeg(
-        market,
+        perp_market,
         price_oracle,
         new_peg_candidate,
         clock_slot,
         oracle_validity_rails,
     )?;
 
-    let peg_multiplier_after = market.amm.peg_multiplier;
-    let base_asset_reserve_after = market.amm.base_asset_reserve;
-    let quote_asset_reserve_after = market.amm.quote_asset_reserve;
-    let sqrt_k_after = market.amm.sqrt_k;
+    let peg_multiplier_after = perp_market.amm.peg_multiplier;
+    let base_asset_reserve_after = perp_market.amm.base_asset_reserve;
+    let quote_asset_reserve_after = perp_market.amm.quote_asset_reserve;
+    let sqrt_k_after = perp_market.amm.sqrt_k;
 
     emit!(CurveRecord {
         ts: now,
-        record_id: get_then_update_id!(market, next_curve_record_id),
-        market_index: market.market_index,
+        record_id: get_then_update_id!(perp_market, next_curve_record_id),
+        market_index: perp_market.market_index,
         peg_multiplier_before,
         base_asset_reserve_before,
         quote_asset_reserve_before,
@@ -853,12 +853,12 @@ pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128)
         base_asset_reserve_after,
         quote_asset_reserve_after,
         sqrt_k_after,
-        base_asset_amount_long: market.amm.base_asset_amount_long.unsigned_abs(),
-        base_asset_amount_short: market.amm.base_asset_amount_short.unsigned_abs(),
-        base_asset_amount_with_amm: market.amm.base_asset_amount_with_amm,
-        number_of_users: market.number_of_users,
-        total_fee: market.amm.total_fee,
-        total_fee_minus_distributions: market.amm.total_fee_minus_distributions,
+        base_asset_amount_long: perp_market.amm.base_asset_amount_long.unsigned_abs(),
+        base_asset_amount_short: perp_market.amm.base_asset_amount_short.unsigned_abs(),
+        base_asset_amount_with_amm: perp_market.amm.base_asset_amount_with_amm,
+        number_of_users: perp_market.number_of_users,
+        total_fee: perp_market.amm.total_fee,
+        total_fee_minus_distributions: perp_market.amm.total_fee_minus_distributions,
         adjustment_cost,
         oracle_price,
         fill_record: 0,
@@ -879,28 +879,44 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
 
-    let market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     let price_oracle = &ctx.accounts.oracle;
-    let oracle_twap = market.amm.get_oracle_twap(price_oracle)?;
+    let oracle_twap = perp_market.amm.get_oracle_twap(price_oracle)?;
 
     if let Some(oracle_twap) = oracle_twap {
-        let oracle_mark_gap_before = cast_to_i128(market.amm.last_mark_price_twap)?
-            .checked_sub(market.amm.historical_oracle_data.last_oracle_price_twap)
+        let oracle_mark_gap_before = cast_to_i128(perp_market.amm.last_mark_price_twap)?
+            .checked_sub(
+                perp_market
+                    .amm
+                    .historical_oracle_data
+                    .last_oracle_price_twap,
+            )
             .ok_or_else(math_error!())?;
 
-        let oracle_mark_gap_after = cast_to_i128(market.amm.last_mark_price_twap)?
+        let oracle_mark_gap_after = cast_to_i128(perp_market.amm.last_mark_price_twap)?
             .checked_sub(oracle_twap)
             .ok_or_else(math_error!())?;
 
         if (oracle_mark_gap_after > 0 && oracle_mark_gap_before < 0)
             || (oracle_mark_gap_after < 0 && oracle_mark_gap_before > 0)
         {
-            market.amm.historical_oracle_data.last_oracle_price_twap =
-                cast_to_i128(market.amm.last_mark_price_twap)?;
-            market.amm.historical_oracle_data.last_oracle_price_twap_ts = now;
+            perp_market
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap = cast_to_i128(perp_market.amm.last_mark_price_twap)?;
+            perp_market
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap_ts = now;
         } else if oracle_mark_gap_after.unsigned_abs() <= oracle_mark_gap_before.unsigned_abs() {
-            market.amm.historical_oracle_data.last_oracle_price_twap = oracle_twap;
-            market.amm.historical_oracle_data.last_oracle_price_twap_ts = now;
+            perp_market
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap = oracle_twap;
+            perp_market
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap_ts = now;
         } else {
             return Err(ErrorCode::PriceBandsBreached.into());
         }

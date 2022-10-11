@@ -81,8 +81,8 @@ async function updateFundingRateHelper(
 			ammAccountState0.cumulativeFundingRateShort;
 		try {
 			const _tx = await clearingHouse.updateFundingRate(
-				priceFeedAddress,
-				marketIndex
+				marketIndex,
+				priceFeedAddress
 			);
 		} catch (e) {
 			console.error(e);

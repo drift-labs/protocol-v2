@@ -283,9 +283,9 @@ pub mod clearing_house {
 
     pub fn settle_revenue_to_insurance_fund(
         ctx: Context<SettleRevenueToInsuranceFund>,
-        _market_index: u16,
+        spot_market_index: u16,
     ) -> Result<()> {
-        handle_settle_revenue_to_insurance_fund(ctx, _market_index)
+        handle_settle_revenue_to_insurance_fund(ctx, spot_market_index)
     }
 
     pub fn update_funding_rate(ctx: Context<UpdateFundingRate>, market_index: u16) -> Result<()> {

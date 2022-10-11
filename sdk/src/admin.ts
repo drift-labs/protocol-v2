@@ -503,14 +503,16 @@ export class Admin extends ClearingHouse {
 		perpMarketIndex: number,
 		maxSpread: number
 	): Promise<TransactionSignature> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
 		return await this.program.rpc.updatePerpMarketMaxSpread(maxSpread, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
-				perpMarket: await getPerpMarketPublicKey(
-					this.program.programId,
-					perpMarketIndex
-				),
+				perpMarket: perpMarketPublicKey,
 			},
 		});
 	}

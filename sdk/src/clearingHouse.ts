@@ -2797,7 +2797,7 @@ export class ClearingHouse {
 		oracle: PublicKey
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
-			wrapInTx(await this.getUpdateFundingRateIx(oracle, perpMarketIndex)),
+			wrapInTx(await this.getUpdateFundingRateIx(perpMarketIndex, oracle)),
 			[],
 			this.opts
 		);
@@ -2805,16 +2805,17 @@ export class ClearingHouse {
 	}
 
 	public async getUpdateFundingRateIx(
-		oracle: PublicKey,
-		perpMarketIndex: number
+		perpMarketIndex: number,
+		oracle: PublicKey
 	): Promise<TransactionInstruction> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
 		return await this.program.instruction.updateFundingRate(perpMarketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
-				perpMarket: await getPerpMarketPublicKey(
-					this.program.programId,
-					perpMarketIndex
-				),
+				perpMarket: perpMarketPublicKey,
 				oracle: oracle,
 			},
 		});

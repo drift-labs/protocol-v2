@@ -1195,7 +1195,7 @@ describe('liquidity providing', () => {
 		}
 
 		console.log('updating funding rates');
-		const _txsig = await clearingHouse.updateFundingRate(solusdc2, marketIndex);
+		const _txsig = await clearingHouse.updateFundingRate(marketIndex, solusdc2);
 
 		console.log('removing liquidity...');
 		try {

@@ -96,7 +96,7 @@ async function updateFundingRateHelper(
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		assert(isVariant(market.status, 'active'));
 
-		await clearingHouse.updateFundingRate(priceFeedAddress, marketIndex);
+		await clearingHouse.updateFundingRate(marketIndex, priceFeedAddress);
 
 		const CONVERSION_SCALE = FUNDING_RATE_BUFFER_PRECISION.mul(PRICE_PRECISION);
 
