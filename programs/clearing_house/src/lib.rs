@@ -121,6 +121,15 @@ pub mod clearing_house {
         handle_place_spot_order(ctx, params)
     }
 
+    pub fn place_and_take_spot_order(
+        ctx: Context<PlaceAndTake>,
+        params: OrderParams,
+        fulfillment_type: Option<SpotFulfillmentType>,
+        maker_order_id: Option<u32>,
+    ) -> Result<()> {
+        handle_place_and_take_spot_order(ctx, params, fulfillment_type, maker_order_id)
+    }
+
     pub fn add_perp_lp_shares(
         ctx: Context<AddRemoveLiquidity>,
         n_shares: u64,
