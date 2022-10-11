@@ -3855,6 +3855,10 @@
             "type": "u64"
           },
           {
+            "name": "lpCooldownTime",
+            "type": "u64"
+          },
+          {
             "name": "liquidationMarginBufferRatio",
             "type": "u32"
           },
@@ -3891,10 +3895,6 @@
             "type": {
               "defined": "ExchangeStatus"
             }
-          },
-          {
-            "name": "lpCooldownTime",
-            "type": "u64"
           },
           {
             "name": "padding",
