@@ -918,7 +918,6 @@ pub fn handle_place_and_take_spot_order<'info>(
     maker_order_id: Option<u32>,
 ) -> Result<()> {
     let clock = Clock::get()?;
-    let state = &ctx.accounts.state;
     let market_index = params.market_index;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
@@ -931,7 +930,7 @@ pub fn handle_place_and_take_spot_order<'info>(
         &get_writable_perp_market_set(params.market_index),
         &MarketSet::new(),
         clock.slot,
-        Some(state.oracle_guard_rails),
+        None,
     )?;
 
     if params.post_only {
@@ -1008,6 +1007,85 @@ pub fn handle_place_and_take_spot_order<'info>(
             &spot_market_map,
             &mut oracle_map,
             &Clock::get()?,
+        )?;
+    }
+
+    Ok(())
+}
+
+#[access_control(
+    fill_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_place_and_make_spot_order<'info>(
+    ctx: Context<PlaceAndMake>,
+    params: OrderParams,
+    taker_order_id: u32,
+) -> Result<()> {
+    let clock = &Clock::get()?;
+    let state = &ctx.accounts.state;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &get_writable_perp_market_set(params.market_index),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+
+    let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+
+    if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit {
+        msg!("place_and_make must use IOC post only limit order");
+        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+    }
+
+    controller::orders::place_spot_order(
+        state,
+        &ctx.accounts.user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        clock,
+        params,
+    )?;
+
+    let order_id = load!(ctx.accounts.user)?.get_last_order_id();
+
+    controller::orders::fill_spot_order(
+        taker_order_id,
+        state,
+        &ctx.accounts.taker,
+        &ctx.accounts.taker_stats,
+        &spot_market_map,
+        &perp_market_map,
+        &mut oracle_map,
+        &ctx.accounts.user.clone(),
+        &ctx.accounts.user_stats.clone(),
+        Some(&ctx.accounts.user),
+        Some(&ctx.accounts.user_stats),
+        Some(order_id),
+        clock,
+        None,
+    )?;
+
+    let order_exists = load!(ctx.accounts.user)?
+        .orders
+        .iter()
+        .any(|order| order.order_id == order_id);
+
+    if order_exists {
+        controller::orders::cancel_order_by_order_id(
+            order_id,
+            &ctx.accounts.user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            clock,
         )?;
     }
 

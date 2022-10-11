@@ -2402,6 +2402,75 @@ export class ClearingHouse {
 		);
 	}
 
+	public async placeAndMakeSpotOrder(
+		orderParams: OptionalOrderParams,
+		takerInfo: TakerInfo,
+		referrerInfo?: ReferrerInfo
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(
+				await this.getPlaceAndMakeSpotOrderIx(
+					orderParams,
+					takerInfo,
+					referrerInfo
+				)
+			),
+			[],
+			this.opts
+		);
+
+		return txSig;
+	}
+
+	public async getPlaceAndMakeSpotOrderIx(
+		orderParams: OptionalOrderParams,
+		takerInfo: TakerInfo,
+		referrerInfo?: ReferrerInfo
+	): Promise<TransactionInstruction> {
+		orderParams = this.getOrderParams(orderParams, MarketType.SPOT);
+		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount(), takerInfo.takerUserAccount],
+			useMarketLastSlotCache: true,
+			writableSpotMarketIndexes: [
+				orderParams.marketIndex,
+				QUOTE_SPOT_MARKET_INDEX,
+			],
+		});
+
+		if (referrerInfo) {
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrer,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrerStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
+		const takerOrderId = takerInfo.order.orderId;
+		return await this.program.instruction.placeAndMakeSpotOrder(
+			orderParams,
+			takerOrderId,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+					userStats: userStatsPublicKey,
+					taker: takerInfo.taker,
+					takerStats: takerInfo.takerStats,
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
 	/**
 	 * Close an entire position. If you want to reduce a position, use the {@link openPosition} method in the opposite direction of the current position.
 	 * @param marketIndex
