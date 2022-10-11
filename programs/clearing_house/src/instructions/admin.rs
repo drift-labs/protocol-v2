@@ -297,6 +297,30 @@ pub fn handle_initialize_serum_fulfillment_config(
     let serum_quote_vault = Pubkey::new(cast_slice(&market_state_pc_vault));
     let serum_signer_nonce = market_state.vault_signer_nonce;
 
+    let market_step_size = market_state.coin_lot_size;
+    let valid_step_size = market_step_size >= base_spot_market.order_step_size
+        && market_step_size.rem_euclid(base_spot_market.order_step_size) == 0;
+
+    validate!(
+        valid_step_size,
+        ErrorCode::InvalidSerumMarket,
+        "serum step size ({}) not a multiple of base market step size ({})",
+        market_step_size,
+        base_spot_market.order_step_size
+    )?;
+
+    let market_tick_size = market_state.pc_lot_size;
+    let valid_tick_size = market_step_size >= base_spot_market.order_tick_size
+        && market_tick_size.rem_euclid(base_spot_market.order_tick_size) == 0;
+
+    validate!(
+        valid_tick_size,
+        ErrorCode::InvalidSerumMarket,
+        "serum tick size ({}) not a multiple of base market tick size ({})",
+        market_tick_size,
+        base_spot_market.order_tick_size
+    )?;
+
     drop(market_state);
 
     let open_orders_seeds: &[&[u8]] = &[b"serum_open_orders", serum_market_key.as_ref()];
