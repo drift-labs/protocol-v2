@@ -21,11 +21,6 @@ fn test_full_long_settle() {
 
     mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
 
-    // market.amm.market_position_per_lp = PerpPosition {
-    //     base_asset_amount: 10,
-    //     quote_asset_amount: -10,
-    //     ..PerpPosition::default()
-    // };
     market.amm.base_asset_amount_per_lp = 10;
     market.amm.quote_asset_amount_per_lp = -10;
     market.amm.base_asset_amount_with_unsettled_lp = -10;
@@ -71,11 +66,6 @@ fn test_full_short_settle() {
 
     mint_lp_shares(&mut position, &mut market, 100 * BASE_PRECISION_U64).unwrap();
 
-    // market.amm.market_position_per_lp = PerpPosition {
-    //     base_asset_amount: -10,
-    //     quote_asset_amount: 10,
-    //     ..PerpPosition::default()
-    // };
     market.amm.base_asset_amount_per_lp = -10;
     market.amm.quote_asset_amount_per_lp = 10;
 
@@ -105,11 +95,6 @@ fn test_partial_short_settle() {
 
     mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
 
-    // market.amm.market_position_per_lp = PerpPosition {
-    //     base_asset_amount: -10,
-    //     quote_asset_amount: 10,
-    //     ..PerpPosition::default()
-    // };
     market.amm.base_asset_amount_per_lp = -10;
     market.amm.quote_asset_amount_per_lp = 10;
 
