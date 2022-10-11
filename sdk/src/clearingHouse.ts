@@ -838,6 +838,13 @@ export class ClearingHouse {
 		reduceOnly = false
 	): Promise<TransactionSignature> {
 		const tx = new Transaction();
+		tx.add(
+			ComputeBudgetProgram.requestUnits({
+				units: 600_000,
+				additionalFee: 0,
+			})
+		);
+
 		const additionalSigners: Array<Signer> = [];
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
@@ -1169,6 +1176,13 @@ export class ClearingHouse {
 		reduceOnly = false
 	): Promise<TransactionSignature> {
 		const tx = new Transaction();
+		tx.add(
+			ComputeBudgetProgram.requestUnits({
+				units: 600_000,
+				additionalFee: 0,
+			})
+		);
+
 		const additionalSigners: Array<Signer> = [];
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
