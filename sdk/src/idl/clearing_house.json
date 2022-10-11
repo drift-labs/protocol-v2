@@ -2884,7 +2884,7 @@
       "args": [
         {
           "name": "lpCooldownTime",
-          "type": "i64"
+          "type": "u64"
         }
       ]
     },
@@ -3894,7 +3894,7 @@
           },
           {
             "name": "lpCooldownTime",
-            "type": "i64"
+            "type": "u64"
           },
           {
             "name": "padding",
