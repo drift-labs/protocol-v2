@@ -910,10 +910,9 @@ pub fn handle_resolve_spot_bankruptcy(
     Ok(())
 }
 
-#[allow(unused_must_use)]
 #[access_control(
-    market_valid(&ctx.accounts.perp_market) &&
-    funding_not_paused(&ctx.accounts.state) &&
+    market_valid(&ctx.accounts.perp_market)
+    funding_not_paused(&ctx.accounts.state)
     valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_update_funding_rate(
