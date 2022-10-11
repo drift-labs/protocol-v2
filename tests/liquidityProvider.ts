@@ -202,8 +202,8 @@ describe('liquidity providing', () => {
 			ammInitialQuoteAssetReserve,
 			new BN(60 * 60)
 		);
-		await clearingHouse.updateLpCooldownTime(0, new BN(0));
-		await clearingHouse.updateMaxFillReserveFraction(0, 1);
+		await clearingHouse.updatePerpMarketLpCooldownTime(new BN(0));
+		await clearingHouse.updatePerpMarketMaxFillReserveFraction(0, 1);
 		// await clearingHouse.updateMarketBaseAssetAmountStepSize(
 		// 	new BN(0),
 		// 	new BN(1)
@@ -216,7 +216,7 @@ describe('liquidity providing', () => {
 			stableAmmInitialQuoteAssetReserve,
 			new BN(0)
 		);
-		await clearingHouse.updateLpCooldownTime(1, new BN(0));
+		await clearingHouse.updatePerpMarketLpCooldownTime(new BN(0));
 		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		[traderClearingHouse, traderClearingHouseUser] = await createNewUser(

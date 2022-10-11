@@ -435,6 +435,7 @@ export type StateAccount = {
 	srmVault: PublicKey;
 	perpFeeStructure: FeeStructure;
 	spotFeeStructure: FeeStructure;
+	lpCooldownTime: BN;
 };
 
 export type PerpMarketAccount = {
