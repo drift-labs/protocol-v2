@@ -25,6 +25,7 @@ test_files=(
    marketOrder.ts 
    triggerOrders.ts 
    stopLimits.ts userOrderId.ts postOnly.ts
+   placeAndMakeSpotOrder.ts
    roundInFavorBaseAsset.ts
    marketOrderBaseAssetAmount.ts oracleOffsetOrders.ts
    userDelegate.ts subaccounts.ts pyth.ts userAccount.ts 

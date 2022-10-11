@@ -157,6 +157,8 @@ pub fn handle_fill_spot_order<'info>(
         None => (None, None),
     };
 
+    let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+
     let serum_fulfillment_params = match fulfillment_type {
         Some(SpotFulfillmentType::SerumV3) => {
             let base_market = spot_market_map.get_ref(&market_index)?;

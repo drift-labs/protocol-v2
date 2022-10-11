@@ -64,7 +64,7 @@ import {
 } from './accounts/types';
 import { TxSender } from './tx/types';
 import { wrapInTx } from './tx/utils';
-import { QUOTE_SPOT_MARKET_INDEX } from './constants/numericConstants';
+import { QUOTE_SPOT_MARKET_INDEX, ZERO } from './constants/numericConstants';
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getTokenAmount } from './math/spotBalance';
 import { DEFAULT_USER_NAME, encodeName } from './userName';
@@ -638,6 +638,19 @@ export class ClearingHouse {
 	public getQuoteAssetTokenAmount(): BN {
 		const spotMarket = this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX);
 		const spotPosition = this.getSpotPosition(QUOTE_SPOT_MARKET_INDEX);
+		return getTokenAmount(
+			spotPosition.scaledBalance,
+			spotMarket,
+			spotPosition.balanceType
+		);
+	}
+
+	public getTokenAmount(marketIndex: number): BN {
+		const spotPosition = this.getSpotPosition(marketIndex);
+		if (spotPosition === undefined) {
+			return ZERO;
+		}
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
 		return getTokenAmount(
 			spotPosition.scaledBalance,
 			spotMarket,
@@ -1998,90 +2011,11 @@ export class ClearingHouse {
 		const makerOrderId = makerInfo ? makerInfo.order.orderId : null;
 
 		if (fulfillmentConfig) {
-			remainingAccounts.push({
-				pubkey: fulfillmentConfig.pubkey,
-				isWritable: false,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: fulfillmentConfig.serumProgramId,
-				isWritable: false,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: fulfillmentConfig.serumMarket,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: fulfillmentConfig.serumRequestQueue,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: fulfillmentConfig.serumEventQueue,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: fulfillmentConfig.serumBids,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: fulfillmentConfig.serumAsks,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: fulfillmentConfig.serumBaseVault,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: fulfillmentConfig.serumQuoteVault,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: fulfillmentConfig.serumOpenOrders,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: getSerumSignerPublicKey(
-					fulfillmentConfig.serumProgramId,
-					fulfillmentConfig.serumMarket,
-					fulfillmentConfig.serumSignerNonce
-				),
-				isWritable: false,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: this.getSignerPublicKey(),
-				isWritable: false,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: TOKEN_PROGRAM_ID,
-				isWritable: false,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: this.getSpotMarketAccount(marketIndex).vault,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: this.getQuoteSpotMarketAccount().vault,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: this.getStateAccount().srmVault,
-				isWritable: false,
-				isSigner: false,
-			});
+			this.addSerumRemainingAccounts(
+				marketIndex,
+				remainingAccounts,
+				fulfillmentConfig
+			);
 		}
 
 		return await this.program.instruction.fillSpotOrder(
@@ -2100,6 +2034,97 @@ export class ClearingHouse {
 				remainingAccounts,
 			}
 		);
+	}
+
+	addSerumRemainingAccounts(
+		marketIndex: number,
+		remainingAccounts: AccountMeta[],
+		fulfillmentConfig: SerumV3FulfillmentConfigAccount
+	) {
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.pubkey,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.serumProgramId,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.serumMarket,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.serumRequestQueue,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.serumEventQueue,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.serumBids,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.serumAsks,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.serumBaseVault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.serumQuoteVault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.serumOpenOrders,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: getSerumSignerPublicKey(
+				fulfillmentConfig.serumProgramId,
+				fulfillmentConfig.serumMarket,
+				fulfillmentConfig.serumSignerNonce
+			),
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getSignerPublicKey(),
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: TOKEN_PROGRAM_ID,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getSpotMarketAccount(marketIndex).vault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getQuoteSpotMarketAccount().vault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getStateAccount().srmVault,
+			isWritable: false,
+			isSigner: false,
+		});
 	}
 
 	public async triggerOrder(
@@ -2277,6 +2302,171 @@ export class ClearingHouse {
 
 		const takerOrderId = takerInfo.order.orderId;
 		return await this.program.instruction.placeAndMake(
+			orderParams,
+			takerOrderId,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+					userStats: userStatsPublicKey,
+					taker: takerInfo.taker,
+					takerStats: takerInfo.takerStats,
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
+	public async placeAndTakeSpotOrder(
+		orderParams: OptionalOrderParams,
+		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
+		makerInfo?: MakerInfo,
+		referrerInfo?: ReferrerInfo
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(
+				await this.getPlaceAndTakeSpotOrderIx(
+					orderParams,
+					fulfillmentConfig,
+					makerInfo,
+					referrerInfo
+				)
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getPlaceAndTakeSpotOrderIx(
+		orderParams: OptionalOrderParams,
+		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
+		makerInfo?: MakerInfo,
+		referrerInfo?: ReferrerInfo
+	): Promise<TransactionInstruction> {
+		orderParams = this.getOrderParams(orderParams, MarketType.SPOT);
+		const userStatsPublicKey = await this.getUserStatsAccountPublicKey();
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const userAccounts = [this.getUserAccount()];
+		if (makerInfo !== undefined) {
+			userAccounts.push(makerInfo.makerUserAccount);
+		}
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts,
+			useMarketLastSlotCache: true,
+			writableSpotMarketIndexes: [
+				orderParams.marketIndex,
+				QUOTE_SPOT_MARKET_INDEX,
+			],
+		});
+
+		let makerOrderId = null;
+		if (makerInfo) {
+			makerOrderId = makerInfo.order.orderId;
+			remainingAccounts.push({
+				pubkey: makerInfo.maker,
+				isSigner: false,
+				isWritable: true,
+			});
+			remainingAccounts.push({
+				pubkey: makerInfo.makerStats,
+				isSigner: false,
+				isWritable: true,
+			});
+		}
+
+		if (referrerInfo) {
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrer,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrerStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
+		if (fulfillmentConfig) {
+			this.addSerumRemainingAccounts(
+				orderParams.marketIndex,
+				remainingAccounts,
+				fulfillmentConfig
+			);
+		}
+
+		return await this.program.instruction.placeAndTakeSpotOrder(
+			orderParams,
+			fulfillmentConfig ? fulfillmentConfig.fulfillmentType : null,
+			makerOrderId,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+					userStats: userStatsPublicKey,
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
+	public async placeAndMakeSpotOrder(
+		orderParams: OptionalOrderParams,
+		takerInfo: TakerInfo,
+		referrerInfo?: ReferrerInfo
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(
+				await this.getPlaceAndMakeSpotOrderIx(
+					orderParams,
+					takerInfo,
+					referrerInfo
+				)
+			),
+			[],
+			this.opts
+		);
+
+		return txSig;
+	}
+
+	public async getPlaceAndMakeSpotOrderIx(
+		orderParams: OptionalOrderParams,
+		takerInfo: TakerInfo,
+		referrerInfo?: ReferrerInfo
+	): Promise<TransactionInstruction> {
+		orderParams = this.getOrderParams(orderParams, MarketType.SPOT);
+		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
+		const userAccountPublicKey = await this.getUserAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount(), takerInfo.takerUserAccount],
+			useMarketLastSlotCache: true,
+			writableSpotMarketIndexes: [
+				orderParams.marketIndex,
+				QUOTE_SPOT_MARKET_INDEX,
+			],
+		});
+
+		if (referrerInfo) {
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrer,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrerStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
+		const takerOrderId = takerInfo.order.orderId;
+		return await this.program.instruction.placeAndMakeSpotOrder(
 			orderParams,
 			takerOrderId,
 			{
