@@ -18,7 +18,7 @@ import {
 	isOrderExpired,
 } from '../../src';
 
-import { mockPerpMarkets, mockSpotMarkets } from './helpers';
+import { mockPerpMarkets, mockSpotMarkets, mockUserMap } from './helpers';
 
 function insertOrderToDLOB(
 	dlob: DLOB,
@@ -221,7 +221,7 @@ function getMockTimestamp(): number {
 
 describe('DLOB Tests', () => {
 	it('Fresh DLOB is empty', () => {
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const vAsk = new BN(11);
 		const vBid = new BN(10);
 		const oracle = {
@@ -288,7 +288,7 @@ describe('DLOB Tests', () => {
 	it('Can clear DLOB', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -369,7 +369,7 @@ describe('DLOB Perp Tests', () => {
 	it('Test proper bids', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -503,7 +503,7 @@ describe('DLOB Perp Tests', () => {
 	it('Test proper bids on multiple markets', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex0 = 0;
 		const marketIndex1 = 1;
 
@@ -646,7 +646,7 @@ describe('DLOB Perp Tests', () => {
 	it('Test proper asks', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -780,7 +780,7 @@ describe('DLOB Perp Tests', () => {
 	it('Test insert market orders', () => {
 		const vAsk = new BN(11);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 		const oracle = {
 			price: vBid.add(vAsk).div(new BN(2)),
@@ -877,7 +877,7 @@ describe('DLOB Perp Tests', () => {
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
 		};
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 		insertOrderToDLOB(
 			dlob,
@@ -1021,7 +1021,7 @@ describe('DLOB Perp Tests', () => {
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
 		};
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		// insert floating bids
@@ -1185,7 +1185,7 @@ describe('DLOB Perp Tests', () => {
 	it('Test multiple market orders fill with multiple limit orders', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		// insert some limit buys above vamm bid, below ask
@@ -1300,7 +1300,7 @@ describe('DLOB Perp Tests', () => {
 	it('Test one market orders fills two limit orders', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		// insert some limit sells below vAMM ask, above bid
@@ -1402,7 +1402,7 @@ describe('DLOB Perp Tests', () => {
 	it('Test two market orders to fill one limit order', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -1524,7 +1524,7 @@ describe('DLOB Perp Tests', () => {
 	it('Test trigger orders', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		const slot = 20;
@@ -1748,7 +1748,7 @@ describe('DLOB Perp Tests', () => {
 	it('Test will return expired market orders to fill', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		const slot = 20;
@@ -1832,7 +1832,7 @@ describe('DLOB Perp Tests', () => {
 	it('Test skips vAMM and fills market buy order with floating limit order during auction', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -1981,7 +1981,7 @@ describe('DLOB Perp Tests', () => {
 	it('Test fills market buy order with better priced vAMM after auction', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -2111,7 +2111,7 @@ describe('DLOB Perp Tests', () => {
 	it('Test skips vAMM and fills market sell order with floating limit buys during auction', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -2264,7 +2264,7 @@ describe('DLOB Perp Tests', () => {
 	it('Test fills market sell order with better priced vAMM after auction', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -2413,7 +2413,7 @@ describe('DLOB Perp Tests', () => {
 	it('Test fills crossing bids with vAMM after auction ends', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -2531,7 +2531,7 @@ describe('DLOB Spot Tests', () => {
 	it('Test proper bids', () => {
 		const vAsk = new BN(115);
 		const vBid = new BN(100);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -2645,7 +2645,7 @@ describe('DLOB Spot Tests', () => {
 	it('Test proper bids on multiple markets', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex0 = 0;
 		const marketIndex1 = 1;
 
@@ -2778,7 +2778,7 @@ describe('DLOB Spot Tests', () => {
 	it('Test proper asks', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -2900,7 +2900,7 @@ describe('DLOB Spot Tests', () => {
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
 		};
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		// 3 mkt buys
@@ -2986,7 +2986,7 @@ describe('DLOB Spot Tests', () => {
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
 		};
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 		insertOrderToDLOB(
 			dlob,
@@ -3122,7 +3122,7 @@ describe('DLOB Spot Tests', () => {
 	it('Test multiple market orders fill with multiple limit orders', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		// insert some limit buys above vamm bid, below ask
@@ -3238,7 +3238,7 @@ describe('DLOB Spot Tests', () => {
 	it('Test one market order fills two limit orders', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		// insert some limit sells below vAMM ask, above bid
@@ -3341,7 +3341,7 @@ describe('DLOB Spot Tests', () => {
 	it('Test two market orders to fill one limit order', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -3464,7 +3464,7 @@ describe('DLOB Spot Tests', () => {
 	it('Test trigger orders', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		const slot = 20;
@@ -3688,7 +3688,7 @@ describe('DLOB Spot Tests', () => {
 	it('Test will return expired market orders to fill', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, mockUserMap, false);
 		const marketIndex = 0;
 
 		const slot = 20;

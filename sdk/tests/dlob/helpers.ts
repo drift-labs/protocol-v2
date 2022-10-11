@@ -1,9 +1,10 @@
-import { PublicKey } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
 	AMM,
 	AssetTier,
 	PerpPosition,
 	BN,
+	ClearingHouse,
 	PerpMarketAccount,
 	SpotMarketAccount,
 	MarketStatus,
@@ -13,6 +14,8 @@ import {
 	BASE_PRECISION,
 	QUOTE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
+	UserMap,
+	Wallet,
 } from '../../src';
 
 export const mockPerpPosition: PerpPosition = {
@@ -411,3 +414,14 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		},
 	},
 ];
+
+export const mockUserMap = new UserMap(
+	new ClearingHouse({
+		connection: new Connection('http://localhost:8899'),
+		wallet: new Wallet(new Keypair()),
+		programID: PublicKey.default,
+	}),
+	{
+		type: 'websocket',
+	}
+);
