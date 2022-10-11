@@ -2311,7 +2311,7 @@ export class ClearingHouse {
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionSignature> {
-		const { txSig, slot } = await this.txSender.send(
+		const { txSig } = await this.txSender.send(
 			wrapInTx(
 				await this.getPlaceAndTakeSpotOrderIx(
 					orderParams,
