@@ -65,6 +65,12 @@ describe('admin', () => {
 		);
 	});
 
+	it('Update lp cooldown time', async () => {
+		await clearingHouse.updatePerpMarketLpCooldownTime(new BN(420));
+		await clearingHouse.fetchAccounts();
+		assert(clearingHouse.getStateAccount().lpCooldownTime.eq(new BN(420)));
+	});
+
 	it('Update Amm Jit', async () => {
 		await clearingHouse.fetchAccounts();
 		assert(clearingHouse.getPerpMarketAccount(0).amm.ammJitIntensity == 0);
