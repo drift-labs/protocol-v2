@@ -891,35 +891,21 @@ export class ClearingHouseUser {
 		return [exitPrice, pnl];
 	}
 
-	/**
-	 * calculates current user leverage across all positions
-	 * @returns : Precision TEN_THOUSAND
-	 */
-	public getLeverage(): BN {
-		const totalLiabilityValue = this.getTotalPerpPositionValue(
-			undefined,
-			undefined,
-			true
-		).add(
+	getTotalLiabilityValue(): BN {
+		return this.getTotalPerpPositionValue(undefined, undefined, true).add(
 			this.getSpotMarketLiabilityValue(undefined, undefined, undefined, true)
 		);
+	}
 
-		const totalAssetValue = this.getSpotMarketAssetValue(
-			undefined,
-			undefined,
-			true
-		).add(this.getUnrealizedPNL(true, undefined, undefined));
-
-		if (totalAssetValue.eq(ZERO) && totalLiabilityValue.eq(ZERO)) {
-			return ZERO;
-		}
-
-		return totalLiabilityValue.mul(TEN_THOUSAND).div(totalAssetValue);
+	getTotalAssetValue(): BN {
+		return this.getSpotMarketAssetValue(undefined, undefined, true).add(
+			this.getUnrealizedPNL(true, undefined, undefined)
+		);
 	}
 
 	/**
 	 * calculates max allowable leverage exceeding hitting requirement category
-	 * @params category {Initial, Partial, Maintenance}
+	 * @params category {Initial, Maintenance}
 	 * @returns : Precision TEN_THOUSAND
 	 */
 	public getMaxLeverage(
@@ -928,16 +914,26 @@ export class ClearingHouseUser {
 	): BN {
 		const market = this.clearingHouse.getPerpMarketAccount(marketIndex);
 
-		const marginRatioCategory = calculateMarketMarginRatio(
+		const getTotalAssetValue = this.getTotalAssetValue();
+		const getTotalLiabilityValue = this.getTotalLiabilityValue();
+
+		const marginRatio = calculateMarketMarginRatio(
 			market,
 			// worstCaseBaseAssetAmount.abs(),
 			ZERO, // todo
 			category
 		);
-		const maxLeverage = TEN_THOUSAND.mul(TEN_THOUSAND).div(
-			new BN(marginRatioCategory)
-		);
-		return maxLeverage;
+		const freeCollateral = this.getFreeCollateral();
+
+		// how much more liabilities can be opened w remaining free collateral
+		const additionalLiabilities = freeCollateral
+			.mul(MARGIN_PRECISION)
+			.div(new BN(marginRatio));
+
+		return getTotalLiabilityValue
+			.add(additionalLiabilities)
+			.mul(TEN_THOUSAND)
+			.div(getTotalAssetValue);
 	}
 
 	/**
@@ -945,23 +941,13 @@ export class ClearingHouseUser {
 	 * @returns : Precision TEN_THOUSAND
 	 */
 	public getMarginRatio(): BN {
-		const totalLiabilityValue = this.getTotalPerpPositionValue(
-			undefined,
-			undefined,
-			true
-		).add(
-			this.getSpotMarketLiabilityValue(undefined, undefined, undefined, true)
-		);
+		const totalLiabilityValue = this.getTotalLiabilityValue();
 
 		if (totalLiabilityValue.eq(ZERO)) {
 			return BN_MAX;
 		}
 
-		const totalAssetValue = this.getSpotMarketAssetValue(
-			undefined,
-			undefined,
-			true
-		).add(this.getUnrealizedPNL(true, undefined, undefined));
+		const totalAssetValue = this.getTotalAssetValue();
 
 		return totalAssetValue.mul(TEN_THOUSAND).div(totalLiabilityValue);
 	}
