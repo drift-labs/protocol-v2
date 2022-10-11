@@ -596,7 +596,7 @@ describe('delist market, liquidation of expired position', () => {
 		assert(!clearingHouseLoser.getUserAccount().isBankrupt);
 
 		console.log('settle position clearingHouseLoser');
-		const txSig = await clearingHouseLoser.settleExpiredPosition(
+		const txSig = await clearingHouseLoser.settlePNL(
 			await clearingHouseLoser.getUserAccountPublicKey(),
 			clearingHouseLoser.getUserAccount(),
 			marketIndex
