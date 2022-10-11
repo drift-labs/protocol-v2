@@ -648,8 +648,8 @@ pub mod clearing_house {
     }
 
     pub fn update_perp_market_lp_cooldown_time(
-        ctx: Context<AdminUpdatePerpMarket>,
-        lp_cooldown_time: i64,
+        ctx: Context<AdminUpdateState>,
+        lp_cooldown_time: u64,
     ) -> Result<()> {
         handle_update_perp_market_lp_cooldown_time(ctx, lp_cooldown_time)
     }

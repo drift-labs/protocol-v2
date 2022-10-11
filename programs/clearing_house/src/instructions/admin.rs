@@ -73,6 +73,7 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         srm_vault: Pubkey::default(),
         perp_fee_structure: FeeStructure::perps_default(),
         spot_fee_structure: FeeStructure::spot_default(),
+        lp_cooldown_time: 0,
         padding: [0; 1],
     };
 
@@ -561,7 +562,6 @@ pub fn handle_initialize_perp_market(
             // lp stuff
             base_asset_amount_with_unsettled_lp: 0,
             user_lp_shares: 0,
-            lp_cooldown_time: 1,  // TODO: what should this be?
             amm_jit_intensity: 0, // turn it off at the start
 
             last_oracle_valid: false,
@@ -1537,15 +1537,11 @@ pub fn handle_update_perp_market_curve_update_intensity(
     Ok(())
 }
 
-#[access_control(
-    market_valid(&ctx.accounts.perp_market)
-)]
 pub fn handle_update_perp_market_lp_cooldown_time(
-    ctx: Context<AdminUpdatePerpMarket>,
-    lp_cooldown_time: i64,
+    ctx: Context<AdminUpdateState>,
+    lp_cooldown_time: u64,
 ) -> Result<()> {
-    let perp_market = &mut ctx.accounts.perp_market.load_mut()?;
-    perp_market.amm.lp_cooldown_time = lp_cooldown_time;
+    ctx.accounts.state.lp_cooldown_time = lp_cooldown_time;
     Ok(())
 }
 

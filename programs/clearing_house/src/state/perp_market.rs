@@ -340,7 +340,6 @@ pub struct AMM {
     pub last_update_slot: u64,
     pub last_oracle_conf_pct: u64,
     pub net_revenue_since_last_funding: i64,
-    pub lp_cooldown_time: i64,
     pub last_funding_rate_ts: i64,
     pub funding_period: i64,
     pub order_step_size: u64,

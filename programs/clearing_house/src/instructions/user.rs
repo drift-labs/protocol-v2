@@ -1240,7 +1240,7 @@ pub fn handle_remove_perp_lp_shares<'info>(
         .ok_or_else(math_error!())?;
 
     validate!(
-        time_since_last_add_liquidity >= market.amm.lp_cooldown_time,
+        time_since_last_add_liquidity >= state.lp_cooldown_time.cast()?,
         ErrorCode::TryingToRemoveLiquidityTooFast
     )?;
 

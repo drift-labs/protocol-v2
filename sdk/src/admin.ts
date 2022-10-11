@@ -648,18 +648,13 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
-	public async updateLpCooldownTime(
-		perpMarketIndex: number,
+	public async updatePerpMarketLpCooldownTime(
 		cooldownTime: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateLpCooldownTime(cooldownTime, {
+		return await this.program.rpc.updatePerpMarketLpCooldownTime(cooldownTime, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
-				perpMarket: await getPerpMarketPublicKey(
-					this.program.programId,
-					perpMarketIndex
-				),
 			},
 		});
 	}
@@ -919,11 +914,11 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
-	public async updateMaxFillReserveFraction(
+	public async updatePerpMarketMaxFillReserveFraction(
 		perpMarketIndex: number,
 		maxBaseAssetAmountRatio: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateMaxFillReserveFraction(
+		return await this.program.rpc.updatePerpMarketMaxFillReserveFraction(
 			maxBaseAssetAmountRatio,
 			{
 				accounts: {

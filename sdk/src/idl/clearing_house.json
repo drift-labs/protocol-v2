@@ -2877,11 +2877,6 @@
         },
         {
           "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2889,7 +2884,7 @@
       "args": [
         {
           "name": "lpCooldownTime",
-          "type": "i64"
+          "type": "u64"
         }
       ]
     },
@@ -3898,6 +3893,10 @@
             }
           },
           {
+            "name": "lpCooldownTime",
+            "type": "u64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
@@ -4677,10 +4676,6 @@
           },
           {
             "name": "netRevenueSinceLastFunding",
-            "type": "i64"
-          },
-          {
-            "name": "lpCooldownTime",
             "type": "i64"
           },
           {
