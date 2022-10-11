@@ -1497,7 +1497,7 @@ describe('DLOB Perp Tests', () => {
 			MarketType.PERP,
 			oracle
 		);
-		const mktNodes = dlob.findExpiredMarketNodesToFill(
+		const mktNodes = dlob.findExpiredNodesToFill(
 			marketIndex,
 			slot,
 			MarketType.PERP
@@ -1950,7 +1950,7 @@ describe('DLOB Perp Tests', () => {
 				hasSufficientNumberOfDataPoints: true,
 			}
 		);
-		const mktNodes = dlob.findExpiredMarketNodesToFill(
+		const mktNodes = dlob.findExpiredNodesToFill(
 			marketIndex,
 			slot,
 			MarketType.PERP
@@ -2215,7 +2215,7 @@ describe('DLOB Perp Tests', () => {
 			MarketType.PERP,
 			oracle
 		);
-		const mktNodes = dlob.findExpiredMarketNodesToFill(
+		const mktNodes = dlob.findExpiredNodesToFill(
 			marketIndex,
 			slot,
 			MarketType.PERP
@@ -2438,7 +2438,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			30
+			200
 		);
 		insertOrderToDLOB(
 			dlob,
@@ -2453,7 +2453,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			30
+			200
 		);
 		insertOrderToDLOB(
 			dlob,
@@ -2468,7 +2468,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			30
+			200
 		);
 		console.log(`Book state before fill:`);
 		printBookState(dlob, marketIndex, vBid, vAsk, slot, oracle);
@@ -3436,7 +3436,7 @@ describe('DLOB Spot Tests', () => {
 			MarketType.SPOT,
 			oracle
 		);
-		const mktNodes = dlob.findExpiredMarketNodesToFill(
+		const mktNodes = dlob.findExpiredNodesToFill(
 			marketIndex,
 			slot,
 			MarketType.SPOT
