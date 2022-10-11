@@ -303,14 +303,14 @@ export class DLOB {
 			);
 
 		// get expired market nodes
-		const marketNodesToFill = this.findExpiredMarketNodesToFill(
+		const expiredNodesToFill = this.findExpiredNodesToFill(
 			marketIndex,
 			slot,
 			marketType
 		);
 		return crossingNodesToFill.concat(
 			vAMMCrossingNodesToFill,
-			marketNodesToFill
+			expiredNodesToFill
 		);
 	}
 
@@ -435,28 +435,48 @@ export class DLOB {
 		return nodesToFill;
 	}
 
-	public findExpiredMarketNodesToFill(
+	public findExpiredNodesToFill(
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
-		// Then see if there are orders to fill against vamm
-		for (const marketBid of this.getMarketBids(marketIndex, marketType)) {
-			if (isOrderExpired(marketBid.order, slot)) {
-				nodesToFill.push({
-					node: marketBid,
-				});
+
+		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
+		const nodeLists = this.orderLists.get(marketTypeStr).get(marketIndex);
+
+		// All bids/asks that can expire
+		const bidGenerators = [
+			nodeLists.limit.bid.getGenerator(),
+			nodeLists.floatingLimit.bid.getGenerator(),
+			nodeLists.market.bid.getGenerator(),
+		];
+		const askGenerators = [
+			nodeLists.limit.ask.getGenerator(),
+			nodeLists.floatingLimit.ask.getGenerator(),
+			nodeLists.market.ask.getGenerator(),
+		];
+
+		for (const bidGenerator of bidGenerators) {
+			for (const bid of bidGenerator) {
+				if (isOrderExpired(bid.order, slot)) {
+					nodesToFill.push({
+						node: bid,
+					});
+				}
 			}
 		}
 
-		for (const marketAsk of this.getMarketAsks(marketIndex, marketType)) {
-			if (isOrderExpired(marketAsk.order, slot)) {
-				nodesToFill.push({
-					node: marketAsk,
-				});
+		for (const askGenerator of askGenerators) {
+			for (const ask of askGenerator) {
+				if (isOrderExpired(ask.order, slot)) {
+					nodesToFill.push({
+						node: ask,
+					});
+				}
 			}
 		}
+
 		return nodesToFill;
 	}
 
