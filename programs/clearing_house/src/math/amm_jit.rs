@@ -1,6 +1,7 @@
 use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
 use crate::math::casting::{cast_to_u128, Cast};
+use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math_error;
 use crate::state::market::PerpMarket;
@@ -40,53 +41,30 @@ pub fn calculate_jit_base_asset_amount(
     }
 
     // check for market imbalance
-    // min/max_baa
-    let base_reserve_length = market
-        .amm
-        .max_base_asset_reserve
-        .checked_sub(market.amm.min_base_asset_reserve)
-        .ok_or_else(math_error!())?;
-
-    let half_base_reserve_length = base_reserve_length
-        .checked_div(2)
-        .ok_or_else(math_error!())?;
-
-    let mid_reserve = market
-        .amm
-        .min_base_asset_reserve
-        .checked_add(half_base_reserve_length)
-        .ok_or_else(math_error!())?;
-
-    let fourth_base_reserve_length = base_reserve_length
-        .checked_div(4)
-        .ok_or_else(math_error!())?;
-
-    let base_reserve = market.amm.base_asset_reserve;
-
-    // min | --|-- mid --|-- | max
-    //       ^             ^
-    // if bar is in these quadrents = imbalanced so we take more baa
-    // simple impl:
-    // if we balanced we take 1/4
-    // if we not balanced we take 1/2
-
-    //     0    2.5    5   7.5   10 
-    // min | -- | -- mid -- |-- | max 
+    // e.g,
+    //     0    2.5    5   7.5   10
+    // min | -- | -- mid -- |-- | max
     //          mim         mam
-    // base @ mid = ratio = 1 
-    // base @ mim = ratio = 2.5 / 7.5 = 3
-    // ratio >= 3 == imbalanced 
+    // base @ mid = ratio = 1
+    // base @ mim = ratio = 2.5 / 7.5 = 3 == imbalanced
+    // ratio >= 3 == imbalanced
 
-    let imbalance_lower_bound = mid_reserve
-        .checked_sub(fourth_base_reserve_length)
+    let (max_bids, max_asks) = crate::math::amm::calculate_market_open_bids_asks(&market.amm)?;
+    let (max_bids, max_asks) = (max_bids.unsigned_abs(), max_asks.unsigned_abs());
+
+    let numerator = max_bids.max(max_asks);
+    let denominator = max_bids.min(max_asks);
+    let ratio = numerator
+        .checked_mul(AMM_RESERVE_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_div(denominator)
         .ok_or_else(math_error!())?;
 
-    let imbalance_upper_bound = mid_reserve
-        .checked_add(fourth_base_reserve_length)
+    let imbalanced_bound = 3_u128
+        .checked_mul(AMM_RESERVE_PRECISION)
         .ok_or_else(math_error!())?;
 
-    let amm_is_imbalanced =
-        base_reserve < imbalance_lower_bound || base_reserve > imbalance_upper_bound;
+    let amm_is_imbalanced = ratio >= imbalanced_bound;
 
     // take more when amm is imbalanced
     let mut jit_base_asset_amount = if amm_is_imbalanced {

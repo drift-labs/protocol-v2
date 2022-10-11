@@ -102,7 +102,7 @@ pub mod amm_jit {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
@@ -295,7 +295,7 @@ pub mod amm_jit {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -478,7 +478,7 @@ pub mod amm_jit {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1061,7 +1061,7 @@ pub mod amm_jit {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
@@ -1324,7 +1324,7 @@ pub mod amm_jit {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1533,7 +1533,7 @@ pub mod amm_jit {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1715,7 +1715,7 @@ pub mod amm_jit {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
@@ -1975,7 +1975,7 @@ pub mod amm_jit {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.max_base_asset_reserve = u64::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
 
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
