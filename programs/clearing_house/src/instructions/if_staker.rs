@@ -114,7 +114,7 @@ pub fn handle_request_remove_insurance_fund_stake(
 
     let n_shares = math::insurance::vault_amount_to_if_shares(
         amount,
-        spot_market.total_if_shares,
+        spot_market.insurance_fund.total_shares,
         ctx.accounts.insurance_fund_vault.amount,
     )?;
 

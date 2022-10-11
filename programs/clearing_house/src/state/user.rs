@@ -4,7 +4,6 @@ use solana_program::msg;
 
 use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::amm::calculate_rolling_sum;
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::{cast_to_i128, Cast};
 use crate::math::constants::{
@@ -14,9 +13,10 @@ use crate::math::constants::{
 use crate::math::orders::standardize_price;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
+use crate::math::stats::calculate_rolling_sum;
 use crate::math_error;
-use crate::state::market::AMM;
 use crate::state::oracle::OraclePriceData;
+use crate::state::perp_market::AMM;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use std::cmp::max;
 
@@ -33,13 +33,13 @@ pub struct User {
     pub spot_positions: [SpotPosition; 8],
     pub perp_positions: [PerpPosition; 8],
     pub orders: [Order; 32],
-    pub last_lp_add_time: i64,
+    pub last_add_perp_lp_shares_ts: i64,
     pub next_order_id: u32,
-    pub custom_margin_ratio: u32,
+    pub max_margin_ratio: u32,
     pub next_liquidation_id: u16,
-    pub user_id: u8,
-    pub being_liquidated: bool,
-    pub bankrupt: bool,
+    pub sub_account_id: u8,
+    pub is_being_liquidated: bool,
+    pub is_bankrupt: bool,
     pub padding: [u8; 3],
 }
 
@@ -104,6 +104,14 @@ impl User {
             .map(move |market_index| &mut self.spot_positions[market_index])
     }
 
+    pub fn force_get_spot_position_index(
+        &mut self,
+        market_index: u16,
+    ) -> ClearingHouseResult<usize> {
+        self.get_spot_position_index(market_index)
+            .or_else(|_| self.add_spot_position(market_index, SpotBalanceType::Deposit))
+    }
+
     pub fn get_perp_position(&self, market_index: u16) -> ClearingHouseResult<&PerpPosition> {
         Ok(&self.perp_positions[get_position_index(&self.perp_positions, market_index)?])
     }
@@ -152,13 +160,15 @@ pub struct UserFees {
     pub total_fee_rebate: u64,
     pub total_token_discount: u64,
     pub total_referee_discount: u64,
+    pub total_referrer_reward: u64,
+    pub current_epoch_referrer_reward: u64,
 }
 
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct SpotPosition {
-    pub balance: u64,
+    pub scaled_balance: u64,
     pub open_bids: i64,
     pub open_asks: i64,
     pub cumulative_deposits: i64,
@@ -178,20 +188,20 @@ impl SpotBalance for SpotPosition {
     }
 
     fn balance(&self) -> u128 {
-        self.balance as u128
+        self.scaled_balance as u128
     }
 
     fn increase_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.balance = self
-            .balance
+        self.scaled_balance = self
+            .scaled_balance
             .checked_add(delta.cast()?)
             .ok_or_else(math_error!())?;
         Ok(())
     }
 
     fn decrease_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.balance = self
-            .balance
+        self.scaled_balance = self
+            .scaled_balance
             .checked_sub(delta.cast()?)
             .ok_or_else(math_error!())?;
         Ok(())
@@ -205,16 +215,16 @@ impl SpotBalance for SpotPosition {
 
 impl SpotPosition {
     pub fn is_available(&self) -> bool {
-        self.balance == 0 && self.open_orders == 0
+        self.scaled_balance == 0 && self.open_orders == 0
     }
 
     pub fn get_token_amount(&self, spot_market: &SpotMarket) -> ClearingHouseResult<u128> {
-        get_token_amount(self.balance.cast()?, spot_market, &self.balance_type)
+        get_token_amount(self.scaled_balance.cast()?, spot_market, &self.balance_type)
     }
 
     pub fn get_signed_token_amount(&self, spot_market: &SpotMarket) -> ClearingHouseResult<i128> {
         get_signed_token_amount(
-            get_token_amount(self.balance.cast()?, spot_market, &self.balance_type)?,
+            get_token_amount(self.scaled_balance.cast()?, spot_market, &self.balance_type)?,
             &self.balance_type,
         )
     }
@@ -260,7 +270,7 @@ impl SpotPosition {
 #[derive(Default, Debug, Eq, PartialEq)]
 #[repr(C)]
 pub struct PerpPosition {
-    pub last_cumulative_funding_rate: i128,
+    pub last_cumulative_funding_rate: i64,
     pub base_asset_amount: i64,
     pub quote_asset_amount: i64,
     pub quote_entry_amount: i64,
@@ -419,9 +429,9 @@ pub struct Order {
     pub quote_asset_amount_filled: u64,
     pub fee: i64,
     pub trigger_price: u64,
-    pub oracle_price_offset: i64,
     pub auction_start_price: u64,
     pub auction_end_price: u64,
+    pub oracle_price_offset: i32,
     pub order_id: u32,
     pub market_index: u16,
     pub status: OrderStatus,
@@ -437,7 +447,7 @@ pub struct Order {
     pub triggered: bool,
     pub auction_duration: u8,
     pub time_in_force: u8,
-    pub padding: [u8; 5],
+    pub padding: [u8; 1],
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
@@ -462,7 +472,7 @@ impl Order {
         let price = if self.has_oracle_price_offset() {
             if let Some(oracle_price) = valid_oracle_price {
                 let limit_price = oracle_price
-                    .checked_add(self.oracle_price_offset as i128)
+                    .checked_add(self.oracle_price_offset.cast()?)
                     .ok_or_else(math_error!())?;
 
                 if limit_price <= 0 {
@@ -599,7 +609,7 @@ impl Default for Order {
             auction_end_price: 0,
             auction_duration: 0,
             time_in_force: 0,
-            padding: [0; 5],
+            padding: [0; 1],
         }
     }
 }
@@ -658,8 +668,6 @@ pub struct UserStats {
     pub referrer: Pubkey,
     pub fees: UserFees,
 
-    pub total_referrer_reward: u64,
-    pub current_epoch_referrer_reward: u64,
     pub next_epoch_ts: i64,
 
     // volume track
@@ -670,8 +678,8 @@ pub struct UserStats {
     pub last_taker_volume_30d_ts: i64,
     pub last_filler_volume_30d_ts: i64,
 
-    pub staked_quote_asset_amount: u64,
-    pub number_of_users: u8,
+    pub if_staked_quote_asset_amount: u64,
+    pub number_of_sub_accounts: u8,
     pub is_referrer: bool,
     pub padding: [u8; 6],
 }
@@ -769,12 +777,14 @@ impl UserStats {
         reward: u64,
         now: i64,
     ) -> ClearingHouseResult {
-        self.total_referrer_reward = self
+        self.fees.total_referrer_reward = self
+            .fees
             .total_referrer_reward
             .checked_add(reward)
             .ok_or_else(math_error!())?;
 
-        self.current_epoch_referrer_reward = self
+        self.fees.current_epoch_referrer_reward = self
+            .fees
             .current_epoch_referrer_reward
             .checked_add(reward)
             .ok_or_else(math_error!())?;
@@ -797,7 +807,7 @@ impl UserStats {
                 )
                 .ok_or_else(math_error!())?;
 
-            self.current_epoch_referrer_reward = 0;
+            self.fees.current_epoch_referrer_reward = 0;
         }
 
         Ok(())

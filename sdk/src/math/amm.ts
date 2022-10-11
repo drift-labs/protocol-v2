@@ -117,7 +117,7 @@ export function calculateNewAmm(
 		newAmm.sqrtK = newAmm.sqrtK.mul(pKNumer).div(pKDenom);
 		const invariant = newAmm.sqrtK.mul(newAmm.sqrtK);
 		newAmm.quoteAssetReserve = invariant.div(newAmm.baseAssetReserve);
-		const directionToClose = amm.netBaseAssetAmount.gt(ZERO)
+		const directionToClose = amm.baseAssetAmountWithAmm.gt(ZERO)
 			? PositionDirection.SHORT
 			: PositionDirection.LONG;
 
@@ -125,7 +125,7 @@ export function calculateNewAmm(
 			calculateAmmReservesAfterSwap(
 				newAmm,
 				'base',
-				amm.netBaseAssetAmount.abs(),
+				amm.baseAssetAmountWithAmm.abs(),
 				getSwapDirection('base', directionToClose)
 			);
 
@@ -157,7 +157,7 @@ export function calculateUpdatedAMM(
 	newAmm.quoteAssetReserve = invariant.div(newAmm.baseAssetReserve);
 	newAmm.pegMultiplier = newPeg;
 
-	const directionToClose = amm.netBaseAssetAmount.gt(ZERO)
+	const directionToClose = amm.baseAssetAmountWithAmm.gt(ZERO)
 		? PositionDirection.SHORT
 		: PositionDirection.LONG;
 
@@ -165,7 +165,7 @@ export function calculateUpdatedAMM(
 		calculateAmmReservesAfterSwap(
 			newAmm,
 			'base',
-			amm.netBaseAssetAmount.abs(),
+			amm.baseAssetAmountWithAmm.abs(),
 			getSwapDirection('base', directionToClose)
 		);
 
@@ -522,7 +522,7 @@ export function calculateSpread(
 		amm.quoteAssetReserve,
 		amm.terminalQuoteAssetReserve,
 		amm.pegMultiplier,
-		amm.netBaseAssetAmount,
+		amm.baseAssetAmountWithAmm,
 		reservePrice,
 		amm.totalFeeMinusDistributions,
 		amm.baseAssetReserve,
@@ -629,7 +629,7 @@ export function getSwapDirection(
  * @returns cost : Precision PRICE_PRECISION
  */
 export function calculateTerminalPrice(market: PerpMarketAccount) {
-	const directionToClose = market.amm.netBaseAssetAmount.gt(ZERO)
+	const directionToClose = market.amm.baseAssetAmountWithAmm.gt(ZERO)
 		? PositionDirection.SHORT
 		: PositionDirection.LONG;
 
@@ -637,7 +637,7 @@ export function calculateTerminalPrice(market: PerpMarketAccount) {
 		calculateAmmReservesAfterSwap(
 			market.amm,
 			'base',
-			market.amm.netBaseAssetAmount.abs(),
+			market.amm.baseAssetAmountWithAmm.abs(),
 			getSwapDirection('base', directionToClose)
 		);
 
@@ -713,7 +713,7 @@ export function calculateMaxBaseAssetAmountFillable(
 	orderDirection: PositionDirection
 ): BN {
 	const maxFillSize = amm.baseAssetReserve.div(
-		new BN(amm.maxBaseAssetAmountRatio)
+		new BN(amm.maxFillReserveFraction)
 	);
 	let maxBaseAssetAmountOnSide: BN;
 	if (isVariant(orderDirection, 'long')) {

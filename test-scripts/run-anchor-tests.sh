@@ -5,8 +5,6 @@ if [ "$1" != "--skip-build" ]
 fi
 
 test_files=(
-  postOnlyAmmFulfillment.ts
-  imbalancePerpPnl.ts
    delistMarket.ts 
    delistMarketLiq.ts
    triggerSpotOrder.ts
@@ -37,6 +35,7 @@ test_files=(
    updateK.ts curve.ts 
    cappedSymFunding.ts
    maxDeposit.ts
+   cancelAllOrders.ts
 )
 
 for test_file in ${test_files[@]}; do

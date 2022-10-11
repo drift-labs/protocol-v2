@@ -364,7 +364,9 @@ export class ClearingHouseUser {
 				const market = this.clearingHouse.getPerpMarketAccount(
 					perpPosition.marketIndex
 				);
-				const oraclePriceData = this.getOracleDataForMarket(market.marketIndex);
+				const oraclePriceData = this.getOracleDataForPerpMarket(
+					market.marketIndex
+				);
 
 				let positionUnrealizedPnl = calculatePositionPNL(
 					market,
@@ -432,7 +434,7 @@ export class ClearingHouseUser {
 				if (spotPosition.marketIndex === QUOTE_SPOT_MARKET_INDEX) {
 					if (isVariant(spotPosition.balanceType, 'borrow')) {
 						const tokenAmount = getTokenAmount(
-							spotPosition.balance,
+							spotPosition.scaledBalance,
 							spotMarketAccount,
 							spotPosition.balanceType
 						);
@@ -441,7 +443,7 @@ export class ClearingHouseUser {
 						if (marginCategory === 'Initial') {
 							weight = BN.max(
 								weight,
-								new BN(this.getUserAccount().customMarginRatio)
+								new BN(this.getUserAccount().maxMarginRatio)
 							);
 						}
 
@@ -462,7 +464,7 @@ export class ClearingHouseUser {
 				if (!includeOpenOrders) {
 					if (isVariant(spotPosition.balanceType, 'borrow')) {
 						const tokenAmount = getTokenAmount(
-							spotPosition.balance,
+							spotPosition.scaledBalance,
 							spotMarketAccount,
 							spotPosition.balanceType
 						);
@@ -505,7 +507,7 @@ export class ClearingHouseUser {
 					if (marginCategory === 'Initial') {
 						weight = BN.max(
 							weight,
-							new BN(this.getUserAccount().customMarginRatio)
+							new BN(this.getUserAccount().maxMarginRatio)
 						);
 					}
 
@@ -545,10 +547,7 @@ export class ClearingHouseUser {
 			);
 
 			if (marginCategory === 'Initial') {
-				weight = BN.max(
-					weight,
-					new BN(this.getUserAccount().customMarginRatio)
-				);
+				weight = BN.max(weight, new BN(this.getUserAccount().maxMarginRatio));
 			}
 
 			if (liquidationBuffer !== undefined) {
@@ -585,7 +584,7 @@ export class ClearingHouseUser {
 				if (spotPosition.marketIndex === QUOTE_SPOT_MARKET_INDEX) {
 					if (isVariant(spotPosition.balanceType, 'deposit')) {
 						const tokenAmount = getTokenAmount(
-							spotPosition.balance,
+							spotPosition.scaledBalance,
 							spotMarketAccount,
 							spotPosition.balanceType
 						);
@@ -603,7 +602,7 @@ export class ClearingHouseUser {
 				if (!includeOpenOrders) {
 					if (isVariant(spotPosition.balanceType, 'deposit')) {
 						const tokenAmount = getTokenAmount(
-							spotPosition.balance,
+							spotPosition.scaledBalance,
 							spotMarketAccount,
 							spotPosition.balanceType
 						);
@@ -748,12 +747,12 @@ export class ClearingHouseUser {
 					perpPosition.openBids = perpPosition.openBids.add(openBids);
 				}
 
-				let valuationPrice = this.getOracleDataForMarket(
+				let valuationPrice = this.getOracleDataForPerpMarket(
 					market.marketIndex
 				).price;
 
 				if (isVariant(market.status, 'settlement')) {
-					valuationPrice = market.settlementPrice;
+					valuationPrice = market.expiryPrice;
 				}
 
 				const baseAssetAmount = includeOpenOrders
@@ -777,7 +776,7 @@ export class ClearingHouseUser {
 					if (marginCategory === 'Initial') {
 						marginRatio = BN.max(
 							marginRatio,
-							new BN(this.getUserAccount().customMarginRatio)
+							new BN(this.getUserAccount().maxMarginRatio)
 						);
 					}
 
@@ -843,7 +842,9 @@ export class ClearingHouseUser {
 
 		const entryPrice = calculateEntryPrice(position);
 
-		const oraclePriceData = this.getOracleDataForMarket(position.marketIndex);
+		const oraclePriceData = this.getOracleDataForPerpMarket(
+			position.marketIndex
+		);
 
 		if (amountToClose) {
 			if (amountToClose.eq(ZERO)) {
@@ -894,25 +895,10 @@ export class ClearingHouseUser {
 	 * calculates current user leverage across all positions
 	 * @returns : Precision TEN_THOUSAND
 	 */
-	public getLeverage(marginCategory?: MarginCategory): BN {
-		const totalLiabilityValue = this.getTotalPerpPositionValue(
-			marginCategory,
-			undefined,
-			true
-		).add(
-			this.getSpotMarketLiabilityValue(
-				undefined,
-				marginCategory,
-				undefined,
-				true
-			)
-		);
+	public getLeverage(): BN {
+		const totalLiabilityValue = this.getTotalLiabilityValue();
 
-		const totalAssetValue = this.getSpotMarketAssetValue(
-			undefined,
-			marginCategory,
-			true
-		).add(this.getUnrealizedPNL(true, undefined, marginCategory));
+		const totalAssetValue = this.getTotalAssetValue();
 
 		if (totalAssetValue.eq(ZERO) && totalLiabilityValue.eq(ZERO)) {
 			return ZERO;
@@ -921,9 +907,21 @@ export class ClearingHouseUser {
 		return totalLiabilityValue.mul(TEN_THOUSAND).div(totalAssetValue);
 	}
 
+	getTotalLiabilityValue(): BN {
+		return this.getTotalPerpPositionValue(undefined, undefined, true).add(
+			this.getSpotMarketLiabilityValue(undefined, undefined, undefined, true)
+		);
+	}
+
+	getTotalAssetValue(): BN {
+		return this.getSpotMarketAssetValue(undefined, undefined, true).add(
+			this.getUnrealizedPNL(true, undefined, undefined)
+		);
+	}
+
 	/**
 	 * calculates max allowable leverage exceeding hitting requirement category
-	 * @params category {Initial, Partial, Maintenance}
+	 * @params category {Initial, Maintenance}
 	 * @returns : Precision TEN_THOUSAND
 	 */
 	public getMaxLeverage(
@@ -932,45 +930,40 @@ export class ClearingHouseUser {
 	): BN {
 		const market = this.clearingHouse.getPerpMarketAccount(marketIndex);
 
-		const marginRatioCategory = calculateMarketMarginRatio(
+		const getTotalAssetValue = this.getTotalAssetValue();
+		const getTotalLiabilityValue = this.getTotalLiabilityValue();
+
+		const marginRatio = calculateMarketMarginRatio(
 			market,
 			// worstCaseBaseAssetAmount.abs(),
 			ZERO, // todo
 			category
 		);
-		const maxLeverage = TEN_THOUSAND.mul(TEN_THOUSAND).div(
-			new BN(marginRatioCategory)
-		);
-		return maxLeverage;
+		const freeCollateral = this.getFreeCollateral();
+
+		// how much more liabilities can be opened w remaining free collateral
+		const additionalLiabilities = freeCollateral
+			.mul(MARGIN_PRECISION)
+			.div(new BN(marginRatio));
+
+		return getTotalLiabilityValue
+			.add(additionalLiabilities)
+			.mul(TEN_THOUSAND)
+			.div(getTotalAssetValue);
 	}
 
 	/**
 	 * calculates margin ratio: total collateral / |total position value|
 	 * @returns : Precision TEN_THOUSAND
 	 */
-	public getMarginRatio(marginCategory?: MarginCategory): BN {
-		const totalLiabilityValue = this.getTotalPerpPositionValue(
-			marginCategory,
-			undefined,
-			true
-		).add(
-			this.getSpotMarketLiabilityValue(
-				undefined,
-				marginCategory,
-				undefined,
-				true
-			)
-		);
+	public getMarginRatio(): BN {
+		const totalLiabilityValue = this.getTotalLiabilityValue();
 
 		if (totalLiabilityValue.eq(ZERO)) {
 			return BN_MAX;
 		}
 
-		const totalAssetValue = this.getSpotMarketAssetValue(
-			undefined,
-			marginCategory,
-			true
-		).add(this.getUnrealizedPNL(true, undefined, marginCategory));
+		const totalAssetValue = this.getTotalAssetValue();
 
 		return totalAssetValue.mul(TEN_THOUSAND).div(totalLiabilityValue);
 	}
@@ -980,7 +973,7 @@ export class ClearingHouseUser {
 
 		// if user being liq'd, can continue to be liq'd until total collateral above the margin requirement plus buffer
 		let liquidationBuffer = undefined;
-		if (this.getUserAccount().beingLiquidated) {
+		if (this.getUserAccount().isBeingLiquidated) {
 			liquidationBuffer = new BN(
 				this.clearingHouse.getStateAccount().liquidationMarginBufferRatio
 			);
@@ -1084,7 +1077,7 @@ export class ClearingHouseUser {
 		const proposedPerpPositionValue = calculateBaseAssetValueWithOracle(
 			market,
 			proposedPerpPosition,
-			this.getOracleDataForMarket(market.marketIndex)
+			this.getOracleDataForPerpMarket(market.marketIndex)
 		);
 
 		// total position value after trade
@@ -1101,7 +1094,7 @@ export class ClearingHouseUser {
 						const positionValue = calculateBaseAssetValueWithOracle(
 							market,
 							position,
-							this.getOracleDataForMarket(market.marketIndex)
+							this.getOracleDataForPerpMarket(market.marketIndex)
 						);
 						const marketMarginRequirement = positionValue
 							.mul(
@@ -1179,7 +1172,7 @@ export class ClearingHouseUser {
 		if (positionBaseSizeChange.eq(ZERO)) {
 			markPriceAfterTrade = calculateReservePrice(
 				this.clearingHouse.getPerpMarketAccount(perpPosition.marketIndex),
-				this.getOracleDataForMarket(perpPosition.marketIndex)
+				this.getOracleDataForPerpMarket(perpPosition.marketIndex)
 			);
 		} else {
 			const direction = positionBaseSizeChange.gt(ZERO)
@@ -1190,7 +1183,7 @@ export class ClearingHouseUser {
 				positionBaseSizeChange.abs(),
 				this.clearingHouse.getPerpMarketAccount(perpPosition.marketIndex),
 				'base',
-				this.getOracleDataForMarket(perpPosition.marketIndex)
+				this.getOracleDataForPerpMarket(perpPosition.marketIndex)
 			)[3]; // newPrice after swap
 		}
 
@@ -1272,7 +1265,7 @@ export class ClearingHouseUser {
 			? true
 			: targetSide === currentPositionSide;
 
-		const oracleData = this.getOracleDataForMarket(targetMarketIndex);
+		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
 
 		// add any position we have on the opposite side of the current trade, because we can "flip" the size of this position without taking any extra leverage.
 		const oppositeSizeValueUSDC = targetingSameSide
@@ -1342,13 +1335,14 @@ export class ClearingHouseUser {
 	public accountLeverageRatioAfterTrade(
 		targetMarketIndex: number,
 		tradeQuoteAmount: BN,
-		tradeSide: PositionDirection
+		tradeSide: PositionDirection,
+		includeOpenOrders = true
 	): BN {
 		const currentPosition =
 			this.getUserPosition(targetMarketIndex) ||
 			this.getEmptyPosition(targetMarketIndex);
 
-		const oracleData = this.getOracleDataForMarket(targetMarketIndex);
+		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
 
 		let currentPositionQuoteAmount = this.getPerpPositionValue(
 			targetMarketIndex,
@@ -1371,19 +1365,32 @@ export class ClearingHouseUser {
 			.abs();
 
 		const totalPositionAfterTradeExcludingTargetMarket =
-			this.getTotalPerpPositionValueExcludingMarket(targetMarketIndex);
+			this.getTotalPerpPositionValueExcludingMarket(
+				targetMarketIndex,
+				undefined,
+				undefined,
+				includeOpenOrders
+			);
 
-		const totalCollateral = this.getTotalCollateral();
-		if (totalCollateral.gt(ZERO)) {
-			const newLeverage = currentPerpPositionAfterTrade
-				.add(totalPositionAfterTradeExcludingTargetMarket)
-				.abs()
-				.mul(TEN_THOUSAND)
-				.div(totalCollateral);
-			return newLeverage;
-		} else {
-			return new BN(0);
+		const totalAssetValue = this.getTotalAssetValue();
+
+		const totalPerpPositionValue = currentPerpPositionAfterTrade
+			.add(totalPositionAfterTradeExcludingTargetMarket)
+			.abs();
+
+		const totalLiabilitiesAfterTrade = totalPerpPositionValue.add(
+			this.getSpotMarketLiabilityValue(undefined, undefined, undefined, false)
+		);
+
+		if (totalAssetValue.eq(ZERO) && totalLiabilitiesAfterTrade.eq(ZERO)) {
+			return ZERO;
 		}
+
+		const newLeverage = totalLiabilitiesAfterTrade
+			.mul(TEN_THOUSAND)
+			.div(totalAssetValue);
+
+		return newLeverage;
 	}
 
 	/**
@@ -1404,12 +1411,17 @@ export class ClearingHouseUser {
 	 * @param marketToIgnore
 	 * @returns positionValue : Precision QUOTE_PRECISION
 	 */
-	private getTotalPerpPositionValueExcludingMarket(marketToIgnore: number): BN {
+	private getTotalPerpPositionValueExcludingMarket(
+		marketToIgnore: number,
+		marginCategory?: MarginCategory,
+		liquidationBuffer?: BN,
+		includeOpenOrders?: boolean
+	): BN {
 		const currentPerpPosition =
 			this.getUserPosition(marketToIgnore) ||
 			this.getEmptyPosition(marketToIgnore);
 
-		const oracleData = this.getOracleDataForMarket(marketToIgnore);
+		const oracleData = this.getOracleDataForPerpMarket(marketToIgnore);
 
 		let currentPerpPositionValueUSDC = ZERO;
 		if (currentPerpPosition) {
@@ -1419,10 +1431,14 @@ export class ClearingHouseUser {
 			);
 		}
 
-		return this.getTotalPerpPositionValue().sub(currentPerpPositionValueUSDC);
+		return this.getTotalPerpPositionValue(
+			marginCategory,
+			liquidationBuffer,
+			includeOpenOrders
+		).sub(currentPerpPositionValueUSDC);
 	}
 
-	private getOracleDataForMarket(marketIndex: number): OraclePriceData {
+	private getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
 		const oracleKey =
 			this.clearingHouse.getPerpMarketAccount(marketIndex).amm.oracle;
 		const oracleData =

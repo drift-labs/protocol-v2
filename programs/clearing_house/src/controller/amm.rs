@@ -1,34 +1,37 @@
-use crate::controller::position::PositionDirection;
-use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::get_then_update_id;
-use crate::math::amm::{
-    calculate_quote_asset_amount_swapped, calculate_spread_reserves, get_spread_reserves,
-    get_update_k_result,
-};
-use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128, Cast};
-use crate::math::constants::{
-    CONCENTRATION_PRECISION, K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE,
-    PRICE_TO_PEG_PRECISION_RATIO,
-};
-use crate::math::repeg::get_total_fee_lower_bound;
-use crate::math::spot_balance::{get_token_amount, validate_spot_balances};
-use crate::math::{amm, bn, quote_asset::*};
-use crate::math_error;
-use crate::state::events::CurveRecord;
-use crate::state::market::{PerpMarket, AMM};
-use crate::state::oracle::OraclePriceData;
-use crate::state::user::User;
-use crate::validate;
-use anchor_lang::prelude::*;
-use solana_program::msg;
 use std::cmp::{max, min};
 
+use anchor_lang::prelude::*;
+use solana_program::msg;
+
+use crate::controller::position::PositionDirection;
 use crate::controller::repeg::apply_cost_to_market;
 use crate::controller::spot_balance::{
     transfer_revenue_pool_to_spot_balance, transfer_spot_balance_to_revenue_pool,
     transfer_spot_balances, update_spot_balances,
 };
+use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::get_then_update_id;
+use crate::math::amm::calculate_quote_asset_amount_swapped;
+use crate::math::amm_spread::{calculate_spread_reserves, get_spread_reserves};
+use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128, Cast};
+use crate::math::constants::{
+    CONCENTRATION_PRECISION, K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE,
+    PRICE_TO_PEG_PRECISION_RATIO,
+};
+use crate::math::cp_curve::get_update_k_result;
+use crate::math::repeg::get_total_fee_lower_bound;
+use crate::math::spot_balance::{get_token_amount, validate_spot_balances};
+use crate::math::{amm, amm_spread, bn, cp_curve, quote_asset::*};
+use crate::math_error;
+use crate::state::events::CurveRecord;
+use crate::state::oracle::OraclePriceData;
+use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
+use crate::state::user::User;
+use crate::validate;
+
+#[cfg(test)]
+mod tests;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SwapDirection {
@@ -222,7 +225,7 @@ pub fn update_spread_reserves(amm: &mut AMM) -> ClearingHouseResult {
 
 pub fn update_spreads(amm: &mut AMM, reserve_price: u128) -> ClearingHouseResult<(u128, u128)> {
     let (long_spread, short_spread) = if amm.curve_update_intensity > 0 {
-        amm::calculate_spread(
+        amm_spread::calculate_spread(
             amm.base_spread,
             amm.last_oracle_reserve_price_spread_pct,
             amm.last_oracle_conf_pct,
@@ -230,7 +233,7 @@ pub fn update_spreads(amm: &mut AMM, reserve_price: u128) -> ClearingHouseResult
             amm.quote_asset_reserve,
             amm.terminal_quote_asset_reserve,
             amm.peg_multiplier,
-            amm.net_base_asset_amount,
+            amm.base_asset_amount_with_amm,
             reserve_price,
             amm.total_fee_minus_distributions,
             amm.base_asset_reserve,
@@ -288,9 +291,9 @@ pub fn update_concentration_coef(amm: &mut AMM, scale: u128) -> ClearingHouseRes
 
     let (max_bids, max_asks) = amm::calculate_market_open_bids_asks(amm)?;
     validate!(
-        max_bids > amm.net_base_asset_amount && max_asks < amm.net_base_asset_amount,
+        max_bids > amm.base_asset_amount_with_amm && max_asks < amm.base_asset_amount_with_amm,
         ErrorCode::DefaultError,
-        "amm.net_base_asset_amount exceeds the unload liquidity available after concentration adjustment"
+        "amm.base_asset_amount_with_amm exceeds the unload liquidity available after concentration adjustment"
     )?;
 
     Ok(())
@@ -338,7 +341,7 @@ pub fn formulaic_update_k(
         let k_update_max = K_BPS_UPDATE_SCALE
             + MAX_K_BPS_INCREASE * (market.amm.curve_update_intensity as i128) / 100;
         let (k_scale_numerator, k_scale_denominator) =
-            amm::calculate_budgeted_k_scale(market, cast_to_i128(budget)?, k_update_max)?;
+            cp_curve::calculate_budgeted_k_scale(market, cast_to_i128(budget)?, k_update_max)?;
 
         let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
             .checked_mul(bn::U192::from(k_scale_numerator))
@@ -348,12 +351,12 @@ pub fn formulaic_update_k(
 
         let update_k_result = get_update_k_result(market, new_sqrt_k, true)?;
 
-        let adjustment_cost = amm::adjust_k_cost(market, &update_k_result)?;
+        let adjustment_cost = cp_curve::adjust_k_cost(market, &update_k_result)?;
 
         let cost_applied = apply_cost_to_market(market, adjustment_cost, true)?;
 
         if cost_applied {
-            amm::update_k(market, &update_k_result)?;
+            cp_curve::update_k(market, &update_k_result)?;
 
             let peg_multiplier_after = market.amm.peg_multiplier;
             let base_asset_reserve_after = market.amm.base_asset_reserve;
@@ -372,10 +375,10 @@ pub fn formulaic_update_k(
                 base_asset_reserve_after,
                 quote_asset_reserve_after,
                 sqrt_k_after,
-                base_asset_amount_long: market.base_asset_amount_long.unsigned_abs(),
-                base_asset_amount_short: market.base_asset_amount_short.unsigned_abs(),
-                net_base_asset_amount: market.amm.net_base_asset_amount,
-                open_interest: market.open_interest,
+                base_asset_amount_long: market.amm.base_asset_amount_long.unsigned_abs(),
+                base_asset_amount_short: market.amm.base_asset_amount_short.unsigned_abs(),
+                base_asset_amount_with_amm: market.amm.base_asset_amount_with_amm,
+                number_of_users: market.number_of_users,
                 adjustment_cost,
                 total_fee: market.amm.total_fee,
                 total_fee_minus_distributions: market.amm.total_fee_minus_distributions,
@@ -484,25 +487,28 @@ pub fn update_pool_balances(
 
         if market.amm.total_fee_minus_distributions < 0 {
             // market can perform withdraw from revenue pool
-            if spot_market.last_revenue_settle_ts > market.last_revenue_withdraw_ts {
-                validate!(now >= market.last_revenue_withdraw_ts && now >= spot_market.last_revenue_settle_ts,
+            if spot_market.insurance_fund.last_revenue_settle_ts
+                > market.insurance_claim.last_revenue_withdraw_ts
+            {
+                validate!(now >= market.insurance_claim.last_revenue_withdraw_ts && now >= spot_market.insurance_fund.last_revenue_settle_ts,
                     ErrorCode::DefaultError,
-                    "issue with clock unix timestamp {} < market.last_revenue_withdraw_ts={}/spot_market.last_revenue_settle_ts={}",
+                    "issue with clock unix timestamp {} < market.insurance_claim.last_revenue_withdraw_ts={}/spot_market.last_revenue_settle_ts={}",
                     now,
-                    market.last_revenue_withdraw_ts,
-                    spot_market.last_revenue_settle_ts,
+                    market.insurance_claim.last_revenue_withdraw_ts,
+                    spot_market.insurance_fund.last_revenue_settle_ts,
                 )?;
-                market.revenue_withdraw_since_last_settle = 0;
+                market.insurance_claim.revenue_withdraw_since_last_settle = 0;
             }
 
             let max_revenue_withdraw_allowed = market
+                .insurance_claim
                 .max_revenue_withdraw_per_period
-                .checked_sub(market.revenue_withdraw_since_last_settle)
+                .checked_sub(market.insurance_claim.revenue_withdraw_since_last_settle)
                 .ok_or_else(math_error!())?;
 
             if max_revenue_withdraw_allowed > 0 {
                 let spot_market_revenue_pool_amount = get_token_amount(
-                    spot_market.revenue_pool.balance,
+                    spot_market.revenue_pool.scaled_balance,
                     spot_market,
                     &SpotBalanceType::Deposit,
                 )?;
@@ -526,12 +532,13 @@ pub fn update_pool_balances(
                     .checked_add(cast_to_i128(revenue_pool_transfer)?)
                     .ok_or_else(math_error!())?;
 
-                market.revenue_withdraw_since_last_settle = market
+                market.insurance_claim.revenue_withdraw_since_last_settle = market
+                    .insurance_claim
                     .revenue_withdraw_since_last_settle
                     .checked_add(revenue_pool_transfer)
                     .ok_or_else(math_error!())?;
 
-                market.last_revenue_withdraw_ts = now;
+                market.insurance_claim.last_revenue_withdraw_ts = now;
             }
         } else {
             let revenue_pool_transfer = cast_to_i128(get_total_fee_lower_bound(market)?)?
@@ -615,7 +622,7 @@ pub fn update_pnl_pool_and_user_balance(
 ) -> ClearingHouseResult<i128> {
     let pnl_to_settle_with_user = if unrealized_pnl_with_fee > 0 {
         unrealized_pnl_with_fee.min(cast_to_i128(get_token_amount(
-            market.pnl_pool.balance,
+            market.pnl_pool.scaled_balance,
             bank,
             market.pnl_pool.balance_type(),
         )?)?)
@@ -720,625 +727,4 @@ pub fn move_to_price(amm: &mut AMM, target_price: u128) -> ClearingHouseResult {
     amm.quote_asset_reserve = new_quote_asset_amount.try_to_u128()?;
 
     Ok(())
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::controller::insurance::settle_revenue_to_insurance_fund;
-    use crate::math::constants::{
-        AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION, QUOTE_PRECISION,
-        QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
-    };
-    use crate::state::market::PoolBalance;
-
-    #[test]
-    fn concentration_coef_tests() {
-        let mut market = PerpMarket {
-            amm: AMM {
-                base_asset_reserve: 512295081967,
-                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-                terminal_quote_asset_reserve: 500 * AMM_RESERVE_PRECISION,
-                sqrt_k: 500 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 50000000,
-                concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-                net_base_asset_amount: -12295081967,
-                total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
-                curve_update_intensity: 100,
-                ..AMM::default()
-            },
-            ..PerpMarket::default()
-        };
-
-        assert!(update_concentration_coef(&mut market.amm, 0).is_err());
-
-        let new_scale = 1;
-        update_concentration_coef(&mut market.amm, new_scale).unwrap();
-        assert_eq!(market.amm.min_base_asset_reserve, 353556781219);
-        assert_eq!(market.amm.max_base_asset_reserve, 707100000000);
-
-        let (orig_open_bids, orig_open_asks) =
-            amm::calculate_market_open_bids_asks(&market.amm).unwrap();
-        assert_eq!(orig_open_bids, 158738300748);
-        assert_eq!(orig_open_asks, -194804918033);
-
-        let new_scale = 2;
-        update_concentration_coef(&mut market.amm, new_scale).unwrap();
-        assert_eq!(market.amm.min_base_asset_reserve, 414215889321);
-        assert_eq!(market.amm.max_base_asset_reserve, 603550000000);
-
-        let new_scale = 5;
-        update_concentration_coef(&mut market.amm, new_scale).unwrap();
-        assert_eq!(market.amm.min_base_asset_reserve, 461748734808);
-        assert_eq!(market.amm.max_base_asset_reserve, 541420000000);
-        let new_sqrt_k = market.amm.sqrt_k * new_scale;
-        let update_k_result =
-            get_update_k_result(&market, bn::U192::from(new_sqrt_k), false).unwrap();
-        let adjustment_cost = amm::adjust_k_cost(&mut market, &update_k_result).unwrap();
-        assert_eq!(adjustment_cost, 11_575_563);
-
-        amm::update_k(&mut market, &update_k_result).unwrap();
-        assert_eq!(market.amm.sqrt_k, new_sqrt_k);
-
-        let (open_bids, open_asks) = amm::calculate_market_open_bids_asks(&market.amm).unwrap();
-        assert_eq!(open_bids, 207313827452);
-        assert_eq!(open_asks, -198879016393);
-
-        assert_eq!(orig_open_bids - open_bids, -48575526704);
-        assert_eq!(orig_open_asks - open_asks, 4074098360);
-
-        let new_scale = 100; // moves boundary to prevent net_base_asset_amount to close
-        assert!(update_concentration_coef(&mut market.amm, new_scale).is_err());
-
-        // different default market
-
-        let mut market_balanced = PerpMarket::default_test();
-        assert_eq!(market_balanced.amm.net_base_asset_amount, 0);
-        assert_eq!(market_balanced.amm.sqrt_k, 100000000000);
-
-        let new_scale = 20;
-        update_concentration_coef(&mut market_balanced.amm, new_scale).unwrap();
-        assert_eq!(market_balanced.amm.min_base_asset_reserve, 97971020172);
-        assert_eq!(market_balanced.amm.max_base_asset_reserve, 102071000000);
-
-        let new_scale = AMM_RESERVE_PRECISION; // too large, err
-        assert!(update_concentration_coef(&mut market_balanced.amm, new_scale).is_err());
-        assert_eq!(market_balanced.amm.min_base_asset_reserve, 97971020172);
-        assert_eq!(market_balanced.amm.max_base_asset_reserve, 102071000000);
-
-        let new_scale = 140000; // near limit, very little liquidity
-        update_concentration_coef(&mut market_balanced.amm, new_scale).unwrap();
-        assert_eq!(market_balanced.amm.min_base_asset_reserve, 99999800000);
-        assert_eq!(market_balanced.amm.max_base_asset_reserve, 100000200000);
-
-        let new_sqrt_k = market_balanced.amm.sqrt_k * new_scale;
-        let update_k_result =
-            get_update_k_result(&market_balanced, bn::U192::from(new_sqrt_k), false).unwrap();
-        let adjustment_cost = amm::adjust_k_cost(&mut market_balanced, &update_k_result).unwrap();
-        assert_eq!(adjustment_cost, 0);
-
-        amm::update_k(&mut market_balanced, &update_k_result).unwrap();
-        assert_eq!(market_balanced.amm.sqrt_k, new_sqrt_k);
-
-        let (open_bids, open_asks) =
-            amm::calculate_market_open_bids_asks(&market_balanced.amm).unwrap();
-        assert_eq!(open_bids, 27999944001);
-        assert_eq!(open_asks, -28000000000);
-    }
-
-    #[test]
-    fn formualic_k_tests() {
-        let mut market = PerpMarket {
-            amm: AMM {
-                base_asset_reserve: 512295081967,
-                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-                sqrt_k: 500 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 50000000,
-                concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-                net_base_asset_amount: -12295081967,
-                total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
-                curve_update_intensity: 100,
-                ..AMM::default()
-            },
-            ..PerpMarket::default()
-        };
-
-        let prev_sqrt_k = market.amm.sqrt_k;
-
-        // let reserve_price = market.amm.reserve_price().unwrap();
-        let now = 10000;
-        let oracle_price_data = OraclePriceData {
-            price: (50 * PRICE_PRECISION) as i128,
-            confidence: 0,
-            delay: 2,
-            has_sufficient_number_of_data_points: true,
-        };
-
-        // zero funding cost
-        let funding_cost: i128 = 0;
-        formulaic_update_k(&mut market, &oracle_price_data, funding_cost, now).unwrap();
-        assert_eq!(prev_sqrt_k, market.amm.sqrt_k);
-
-        // positive means amm supossedly paid $500 in funding payments for interval
-        let funding_cost_2: i128 = (500 * QUOTE_PRECISION) as i128;
-        formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
-
-        assert!(prev_sqrt_k > market.amm.sqrt_k);
-        assert_eq!(market.amm.sqrt_k, 489000000000); // max k decrease (2.2%)
-        assert_eq!(market.amm.total_fee_minus_distributions, 1000332074); //$.33 acquired from slippage increase
-
-        // negative means amm recieved $500 in funding payments for interval
-        let funding_cost_2: i128 = -((500 * QUOTE_PRECISION) as i128);
-        formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
-
-        assert_eq!(market.amm.sqrt_k, 489489000000); // max k increase (.1%)
-        assert_eq!(market.amm.total_fee_minus_distributions, 1000316987); //$.33 acquired from slippage increase
-
-        // negative means amm recieved $.001 in funding payments for interval
-        let funding_cost_2: i128 = -((QUOTE_PRECISION / 1000) as i128);
-        formulaic_update_k(&mut market, &oracle_price_data, funding_cost_2, now).unwrap();
-
-        // new numbers bc of increased sqrt_k precision
-        assert_eq!(market.amm.sqrt_k, 489505153137); // increase k by 1.00003314258x
-        assert_eq!(market.amm.total_fee_minus_distributions, 1000316489); // ~$.005 spent from slippage decrease
-                                                                          // todo: (316988-316491)/1e6 * 2 = 0.000994 < .001
-    }
-
-    #[test]
-    fn update_pool_balances_test() {
-        let mut market = PerpMarket {
-            amm: AMM {
-                base_asset_reserve: 5122950819670000,
-                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-                sqrt_k: 500 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 50000,
-                net_base_asset_amount: -122950819670000,
-                total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
-                curve_update_intensity: 100,
-                ..AMM::default()
-            },
-            ..PerpMarket::default()
-        };
-        let now = 33928058;
-
-        let mut spot_market = SpotMarket {
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            ..SpotMarket::default()
-        };
-        let to_settle_with_user =
-            update_pool_balances(&mut market, &mut spot_market, 100, now).unwrap();
-        assert_eq!(to_settle_with_user, 0);
-
-        let to_settle_with_user =
-            update_pool_balances(&mut market, &mut spot_market, -100, now).unwrap();
-        assert_eq!(to_settle_with_user, -100);
-        assert!(market.amm.fee_pool.balance() > 0);
-
-        let amm_fee_pool_token_amount = get_token_amount(
-            market.amm.fee_pool.balance(),
-            &spot_market,
-            market.amm.fee_pool.balance_type(),
-        )
-        .unwrap();
-        let pnl_pool_token_amount = get_token_amount(
-            market.pnl_pool.balance(),
-            &spot_market,
-            market.pnl_pool.balance_type(),
-        )
-        .unwrap();
-        assert_eq!(pnl_pool_token_amount, 99);
-        assert_eq!(amm_fee_pool_token_amount, 1);
-
-        let to_settle_with_user =
-            update_pool_balances(&mut market, &mut spot_market, 100, now).unwrap();
-        assert_eq!(to_settle_with_user, 99);
-        let amm_fee_pool_token_amount = get_token_amount(
-            market.amm.fee_pool.balance(),
-            &spot_market,
-            market.amm.fee_pool.balance_type(),
-        )
-        .unwrap();
-        let pnl_pool_token_amount = get_token_amount(
-            market.pnl_pool.balance(),
-            &spot_market,
-            market.pnl_pool.balance_type(),
-        )
-        .unwrap();
-        assert_eq!(pnl_pool_token_amount, 0);
-        assert_eq!(amm_fee_pool_token_amount, 1);
-
-        market.amm.total_fee_minus_distributions = 0;
-        update_pool_balances(&mut market, &mut spot_market, -1, now).unwrap();
-        let amm_fee_pool_token_amount = get_token_amount(
-            market.amm.fee_pool.balance(),
-            &spot_market,
-            market.amm.fee_pool.balance_type(),
-        )
-        .unwrap();
-        let pnl_pool_token_amount = get_token_amount(
-            market.pnl_pool.balance(),
-            &spot_market,
-            market.pnl_pool.balance_type(),
-        )
-        .unwrap();
-        assert_eq!(pnl_pool_token_amount, 2);
-        assert_eq!(amm_fee_pool_token_amount, 0);
-
-        market.amm.total_fee_minus_distributions = 90_000 * QUOTE_PRECISION as i128;
-        update_pool_balances(
-            &mut market,
-            &mut spot_market,
-            -(100_000 * QUOTE_PRECISION as i128),
-            now,
-        )
-        .unwrap();
-        let amm_fee_pool_token_amount = get_token_amount(
-            market.amm.fee_pool.balance(),
-            &spot_market,
-            market.amm.fee_pool.balance_type(),
-        )
-        .unwrap();
-        let pnl_pool_token_amount = get_token_amount(
-            market.pnl_pool.balance(),
-            &spot_market,
-            market.pnl_pool.balance_type(),
-        )
-        .unwrap();
-        assert_eq!(pnl_pool_token_amount, 99_000_000_000 + 2);
-        assert_eq!(amm_fee_pool_token_amount, (1_000 * QUOTE_PRECISION));
-
-        // negative fee pool
-        market.amm.total_fee_minus_distributions = -8_008_123_456;
-
-        update_pool_balances(&mut market, &mut spot_market, 1_000_987_789, now).unwrap();
-        let amm_fee_pool_token_amount = get_token_amount(
-            market.amm.fee_pool.balance(),
-            &spot_market,
-            market.amm.fee_pool.balance_type(),
-        )
-        .unwrap();
-        let pnl_pool_token_amount = get_token_amount(
-            market.pnl_pool.balance(),
-            &spot_market,
-            market.pnl_pool.balance_type(),
-        )
-        .unwrap();
-        assert_eq!(pnl_pool_token_amount, 99_000_000_000 + 2 - 987_789);
-        assert_eq!(amm_fee_pool_token_amount, 0);
-    }
-
-    #[test]
-    fn update_pool_balances_fee_to_revenue_test() {
-        let mut market = PerpMarket {
-            amm: AMM {
-                base_asset_reserve: 5122950819670000,
-                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-                sqrt_k: 500 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 50000,
-                net_base_asset_amount: -122950819670000,
-
-                total_exchange_fee: 10 * QUOTE_PRECISION,
-                total_fee: 10 * QUOTE_PRECISION as i128,
-                total_mm_fee: 990 * QUOTE_PRECISION as i128,
-                total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
-                total_liquidation_fee: QUOTE_PRECISION,
-
-                curve_update_intensity: 100,
-
-                fee_pool: PoolBalance {
-                    balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
-                    market_index: QUOTE_SPOT_MARKET_INDEX,
-                    ..PoolBalance::default()
-                },
-                ..AMM::default()
-            },
-            pnl_pool: PoolBalance {
-                balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
-                market_index: QUOTE_SPOT_MARKET_INDEX,
-                ..PoolBalance::default()
-            },
-            ..PerpMarket::default()
-        };
-        let now = 33928058;
-
-        let mut spot_market = SpotMarket {
-            deposit_balance: 100 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            revenue_pool: PoolBalance::default(),
-            ..SpotMarket::default()
-        };
-
-        let prev_fee_pool = market.amm.fee_pool.balance;
-        let prev_pnl_pool = market.amm.fee_pool.balance;
-        let prev_rev_pool = spot_market.revenue_pool.balance;
-
-        assert_eq!(market.amm.total_fee_withdrawn, 0);
-
-        assert_eq!(
-            get_token_amount(
-                market.amm.fee_pool.balance(),
-                &spot_market,
-                &SpotBalanceType::Deposit
-            )
-            .unwrap(),
-            50 * QUOTE_PRECISION
-        );
-
-        assert_eq!(
-            get_token_amount(
-                spot_market.deposit_balance,
-                &spot_market,
-                &SpotBalanceType::Deposit
-            )
-            .unwrap(),
-            100 * QUOTE_PRECISION
-        );
-
-        update_pool_balances(&mut market, &mut spot_market, 0, now).unwrap();
-
-        assert_eq!(market.amm.fee_pool.balance, 44000000000000000);
-        assert_eq!(market.pnl_pool.balance, 50000000000000000);
-        assert_eq!(spot_market.revenue_pool.balance, 6000000000000000);
-        assert_eq!(market.amm.total_fee_withdrawn, 6000000);
-
-        assert!(market.amm.fee_pool.balance < prev_fee_pool);
-        assert_eq!(market.pnl_pool.balance, prev_pnl_pool);
-        assert!(spot_market.revenue_pool.balance > prev_rev_pool);
-    }
-
-    #[test]
-    fn update_pool_balances_revenue_to_fee_test() {
-        let mut market = PerpMarket {
-            amm: AMM {
-                base_asset_reserve: 5122950819670000,
-                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-                sqrt_k: 500 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 50000,
-                net_base_asset_amount: -122950819670000,
-
-                total_exchange_fee: 10 * QUOTE_PRECISION,
-                total_fee: 10 * QUOTE_PRECISION as i128,
-                total_mm_fee: 990 * QUOTE_PRECISION as i128,
-                total_fee_minus_distributions: -(10000 * QUOTE_PRECISION as i128),
-
-                curve_update_intensity: 100,
-
-                fee_pool: PoolBalance {
-                    balance: 50 * SPOT_BALANCE_PRECISION,
-                    market_index: QUOTE_SPOT_MARKET_INDEX,
-                    ..PoolBalance::default()
-                },
-                ..AMM::default()
-            },
-            pnl_pool: PoolBalance {
-                balance: 50 * SPOT_BALANCE_PRECISION,
-                market_index: QUOTE_SPOT_MARKET_INDEX,
-                ..PoolBalance::default()
-            },
-            ..PerpMarket::default()
-        };
-        let now = 33928058;
-
-        let mut spot_market = SpotMarket {
-            deposit_balance: 200 * SPOT_BALANCE_PRECISION,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            revenue_pool: PoolBalance {
-                market_index: 0,
-                balance: 100 * SPOT_BALANCE_PRECISION,
-                ..PoolBalance::default()
-            },
-            decimals: 6,
-            ..SpotMarket::default()
-        };
-
-        let prev_fee_pool = market.amm.fee_pool.balance;
-        let prev_pnl_pool = market.amm.fee_pool.balance;
-        let prev_rev_pool = spot_market.revenue_pool.balance;
-        let prev_tfmd = market.amm.total_fee_minus_distributions;
-
-        assert_eq!(market.amm.total_fee_withdrawn, 0);
-
-        assert_eq!(
-            get_token_amount(
-                market.amm.fee_pool.balance(),
-                &spot_market,
-                &SpotBalanceType::Deposit
-            )
-            .unwrap(),
-            50 * QUOTE_PRECISION
-        );
-
-        assert_eq!(
-            get_token_amount(
-                spot_market.deposit_balance,
-                &spot_market,
-                &SpotBalanceType::Deposit
-            )
-            .unwrap(),
-            200 * QUOTE_PRECISION
-        );
-        assert_eq!(
-            spot_market.revenue_pool.balance,
-            100 * SPOT_BALANCE_PRECISION
-        );
-
-        update_pool_balances(&mut market, &mut spot_market, 0, now).unwrap();
-
-        assert_eq!(market.amm.fee_pool.balance, 5 * SPOT_BALANCE_PRECISION);
-        assert_eq!(market.pnl_pool.balance, 95 * SPOT_BALANCE_PRECISION);
-        assert_eq!(
-            spot_market.revenue_pool.balance,
-            100 * SPOT_BALANCE_PRECISION
-        );
-        assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(market.amm.total_fee_minus_distributions, prev_tfmd);
-
-        assert!(market.amm.fee_pool.balance < prev_fee_pool);
-        assert_eq!(market.pnl_pool.balance > prev_pnl_pool, true);
-        assert_eq!(spot_market.revenue_pool.balance == prev_rev_pool, true);
-        assert_eq!(market.revenue_withdraw_since_last_settle, 0);
-        assert_eq!(market.last_revenue_withdraw_ts, 0);
-
-        market.max_revenue_withdraw_per_period = 100000000 * 2;
-        assert_eq!(spot_market.deposit_balance, 200 * SPOT_BALANCE_PRECISION);
-        assert_eq!(
-            spot_market.revenue_pool.balance,
-            100 * SPOT_BALANCE_PRECISION
-        );
-
-        update_pool_balances(&mut market, &mut spot_market, 0, now).unwrap();
-
-        assert_eq!(market.amm.fee_pool.balance, 105 * SPOT_BALANCE_PRECISION);
-        assert_eq!(market.pnl_pool.balance, 95 * SPOT_BALANCE_PRECISION);
-        assert_eq!(spot_market.revenue_pool.balance, 0);
-        assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(market.amm.total_fee_minus_distributions, -9900000000);
-        assert_eq!(market.revenue_withdraw_since_last_settle, 100000000);
-        assert_eq!(market.last_revenue_withdraw_ts, 33928058);
-
-        let spot_market_vault_amount = get_token_amount(
-            spot_market.deposit_balance,
-            &spot_market,
-            &SpotBalanceType::Deposit,
-        )
-        .unwrap() as u64;
-        assert_eq!(spot_market_vault_amount, 200000000); // total spot_market deposit balance unchanged during transfers
-
-        // calling multiple times doesnt effect other than fee pool -> pnl pool
-        update_pool_balances(&mut market, &mut spot_market, 0, now).unwrap();
-        assert_eq!(market.amm.fee_pool.balance, 5 * SPOT_BALANCE_PRECISION);
-        assert_eq!(market.pnl_pool.balance, 195 * SPOT_BALANCE_PRECISION);
-        assert_eq!(market.amm.total_fee_minus_distributions, -9900000000);
-        assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(spot_market.revenue_pool.balance, 0);
-
-        update_pool_balances(&mut market, &mut spot_market, 0, now).unwrap();
-        assert_eq!(market.amm.fee_pool.balance, 5 * SPOT_BALANCE_PRECISION);
-        assert_eq!(market.pnl_pool.balance, 195 * SPOT_BALANCE_PRECISION);
-        assert_eq!(market.amm.total_fee_minus_distributions, -9900000000);
-        assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(spot_market.revenue_pool.balance, 0);
-
-        // add deposits and revenue to pool
-        assert_eq!(spot_market.deposit_balance, 200 * SPOT_BALANCE_PRECISION);
-        spot_market.revenue_pool.balance = 9900000001000;
-
-        let spot_market_backup = spot_market;
-        let market_backup = market;
-        assert!(update_pool_balances(&mut market, &mut spot_market, 0, now).is_err()); // assert is_err if any way has revenue pool above deposit balances
-        spot_market = spot_market_backup;
-        market = market_backup;
-        spot_market.deposit_balance += 9900000001000;
-        let spot_market_vault_amount = get_token_amount(
-            spot_market.deposit_balance,
-            &spot_market,
-            &SpotBalanceType::Deposit,
-        )
-        .unwrap() as u64;
-        assert_eq!(spot_market.deposit_balance, 10100000001000);
-        assert_eq!(spot_market_vault_amount, 10100000001);
-
-        update_pool_balances(&mut market, &mut spot_market, 0, now).unwrap();
-        assert_eq!(spot_market.deposit_balance, 10100000001000);
-        assert_eq!(spot_market.revenue_pool.balance, 9800000001000);
-        assert_eq!(market.amm.fee_pool.balance, 105000000000);
-        assert_eq!(market.pnl_pool.balance, 195000000000);
-        assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
-        assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(
-            market.revenue_withdraw_since_last_settle,
-            market.max_revenue_withdraw_per_period
-        );
-        assert_eq!(market.last_revenue_withdraw_ts, 33928058);
-
-        // calling again only does fee -> pnl pool
-        update_pool_balances(&mut market, &mut spot_market, 0, now).unwrap();
-        assert_eq!(market.amm.fee_pool.balance, 5000000000);
-        assert_eq!(market.pnl_pool.balance, 295000000000);
-        assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
-        assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(spot_market.revenue_pool.balance, 9800000001000);
-        assert_eq!(
-            market.revenue_withdraw_since_last_settle,
-            market.max_revenue_withdraw_per_period
-        );
-        assert_eq!(market.last_revenue_withdraw_ts, 33928058);
-
-        // calling again does nothing
-        update_pool_balances(&mut market, &mut spot_market, 0, now).unwrap();
-        assert_eq!(market.amm.fee_pool.balance, 5000000000);
-        assert_eq!(market.pnl_pool.balance, 295000000000);
-        assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
-        assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(spot_market.revenue_pool.balance, 9800000001000);
-        assert_eq!(
-            market.revenue_withdraw_since_last_settle,
-            market.max_revenue_withdraw_per_period
-        );
-        assert_eq!(market.last_revenue_withdraw_ts, 33928058);
-
-        // do a revenue settlement to allow up to max again
-        assert_eq!(spot_market.last_revenue_settle_ts, 0);
-        assert_eq!(spot_market.deposit_balance, 10100000001000);
-
-        spot_market.total_if_factor = 1;
-        spot_market.revenue_settle_period = 1;
-        let res = settle_revenue_to_insurance_fund(
-            spot_market_vault_amount,
-            0,
-            &mut spot_market,
-            now + 3600,
-        )
-        .unwrap();
-        assert_eq!(res, 9800000001);
-
-        let spot_market_vault_amount = get_token_amount(
-            spot_market.deposit_balance,
-            &spot_market,
-            &SpotBalanceType::Deposit,
-        )
-        .unwrap() as u64;
-
-        assert_eq!(spot_market.deposit_balance, 300000000000); // 100000000 was added to market fee/pnl pool
-        assert_eq!(spot_market.borrow_balance, 0);
-        assert_eq!(spot_market_vault_amount, 300000000);
-
-        assert_eq!(spot_market.revenue_pool.balance, 0);
-        assert_eq!(spot_market.last_revenue_settle_ts, now + 3600);
-
-        // add deposits and revenue to pool
-        spot_market.revenue_pool.balance = 9800000001000;
-        let market_backup = market;
-        let spot_market_backup = spot_market;
-        assert!(update_pool_balances(&mut market, &mut spot_market, 0, now + 3600).is_err()); // assert is_err if any way has revenue pool above deposit balances
-        market = market_backup;
-        spot_market = spot_market_backup;
-        spot_market.deposit_balance += 9800000000001;
-
-        assert_eq!(market.amm.fee_pool.balance, 5000000000);
-        assert_eq!(market.pnl_pool.balance, 295000000000);
-        assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
-        assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(spot_market.revenue_pool.balance, 9800000001000);
-        assert_eq!(market.last_revenue_withdraw_ts, 33928058);
-        assert_eq!(spot_market.last_revenue_settle_ts, 33928058 + 3600);
-
-        assert!(update_pool_balances(&mut market, &mut spot_market, 0, now).is_err()); // now timestamp passed is wrong
-        update_pool_balances(&mut market, &mut spot_market, 0, now + 3600).unwrap();
-
-        assert_eq!(market.last_revenue_withdraw_ts, 33931658);
-        assert_eq!(spot_market.last_revenue_settle_ts, 33931658);
-        assert_eq!(market.amm.fee_pool.balance, 205000000000);
-        assert_eq!(market.pnl_pool.balance, 295000000000);
-        assert_eq!(market.amm.total_fee_minus_distributions, -9600000000);
-        assert_eq!(market.amm.total_fee_withdrawn, 0);
-        assert_eq!(spot_market.revenue_pool.balance, 9600000001000);
-        assert_eq!(
-            market.revenue_withdraw_since_last_settle,
-            market.max_revenue_withdraw_per_period
-        );
-    }
 }

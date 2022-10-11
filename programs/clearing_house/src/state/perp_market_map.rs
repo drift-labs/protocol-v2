@@ -10,7 +10,7 @@ use anchor_lang::Discriminator;
 use arrayref::array_ref;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::state::market::PerpMarket;
+use crate::state::perp_market::PerpMarket;
 use crate::state::user::PerpPositions;
 
 use solana_program::msg;
@@ -167,7 +167,7 @@ impl<'a> PerpMarketMap<'a> {
 
 pub type MarketSet = BTreeSet<u16>;
 
-pub fn get_market_set(market_index: u16) -> MarketSet {
+pub fn get_writable_perp_market_set(market_index: u16) -> MarketSet {
     let mut writable_markets = MarketSet::new();
     writable_markets.insert(market_index);
     writable_markets

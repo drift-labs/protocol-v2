@@ -130,7 +130,7 @@ describe('orders', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: bankIndexes,
 			oracleInfos,
@@ -142,20 +142,20 @@ describe('orders', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
 
-		await clearingHouse.updatePerpStepSizeAndTickSize(
+		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
 			0,
 			new BN(1000),
 			new BN(1)
 		);
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),
@@ -163,20 +163,20 @@ describe('orders', () => {
 			new BN(60000 * PEG_PRECISION.toNumber()) // btc-ish price level
 		);
 
-		await clearingHouse.updatePerpStepSizeAndTickSize(
+		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
 			1,
 			new BN(1000),
 			new BN(1)
 		);
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			ethUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
 
-		await clearingHouse.updatePerpStepSizeAndTickSize(
+		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
 			2,
 			new BN(1000),
 			new BN(1)
@@ -208,7 +208,7 @@ describe('orders', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: bankIndexes,
 			oracleInfos,
@@ -646,7 +646,7 @@ describe('orders', () => {
 		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
 			order,
 			market,
-			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			clearingHouse.getOracleDataForPerpMarket(order.marketIndex),
 			0
 		);
 
@@ -723,7 +723,7 @@ describe('orders', () => {
 		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
 			order,
 			market,
-			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			clearingHouse.getOracleDataForPerpMarket(order.marketIndex),
 			0
 		);
 
@@ -782,7 +782,7 @@ describe('orders', () => {
 		const amountToFill2 = calculateBaseAssetAmountForAmmToFulfill(
 			order2,
 			market2,
-			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			clearingHouse.getOracleDataForPerpMarket(order.marketIndex),
 			0
 		);
 		assert(amountToFill2.eq(ZERO));
@@ -853,7 +853,7 @@ describe('orders', () => {
 		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
 			order,
 			market,
-			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			clearingHouse.getOracleDataForPerpMarket(order.marketIndex),
 			0
 		);
 
@@ -972,7 +972,7 @@ describe('orders', () => {
 		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
 			order,
 			market,
-			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			clearingHouse.getOracleDataForPerpMarket(order.marketIndex),
 			0
 		);
 		console.log(amountToFill);
@@ -1130,7 +1130,7 @@ describe('orders', () => {
 		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
 			order,
 			market,
-			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			clearingHouse.getOracleDataForPerpMarket(order.marketIndex),
 			0
 		);
 
@@ -1259,7 +1259,7 @@ describe('orders', () => {
 		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
 			order,
 			market,
-			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			clearingHouse.getOracleDataForPerpMarket(order.marketIndex),
 			0
 		);
 		console.log(amountToFill.toString());

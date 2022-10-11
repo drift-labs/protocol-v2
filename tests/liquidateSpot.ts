@@ -73,7 +73,7 @@ describe('liquidate spot', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [
@@ -155,7 +155,7 @@ describe('liquidate spot', () => {
 				.logMessages
 		);
 
-		assert(!clearingHouse.getUserAccount().beingLiquidated); // out of liq territory
+		assert(!clearingHouse.getUserAccount().isBeingLiquidated); // out of liq territory
 		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
 		assert(
 			isVariant(
@@ -163,9 +163,11 @@ describe('liquidate spot', () => {
 				'deposit'
 			)
 		);
-		assert(clearingHouse.getUserAccount().spotPositions[0].balance.gt(ZERO));
+		assert(
+			clearingHouse.getUserAccount().spotPositions[0].scaledBalance.gt(ZERO)
+		);
 		// assert(
-		// 	clearingHouse.getUserAccount().spotPositions[1].balance.gt(new BN(2))
+		// 	clearingHouse.getUserAccount().spotPositions[1].scaledBalance.gt(new BN(2))
 		// );
 		// assert(
 		// 	isVariant(
@@ -174,7 +176,7 @@ describe('liquidate spot', () => {
 		// 	)
 		// );
 		console.log(
-			clearingHouse.getUserAccount().spotPositions[0].balance.toString()
+			clearingHouse.getUserAccount().spotPositions[0].scaledBalance.toString()
 		);
 
 		const liquidationRecord =

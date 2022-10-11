@@ -48,9 +48,9 @@ describe('admin withdraw', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
-			perpMarketIndexes: [new BN(0)],
-			spotMarketIndexes: [new BN(0)],
+			activeSubAccountId: 0,
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0],
 			userStats: true,
 		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);
@@ -62,7 +62,7 @@ describe('admin withdraw', () => {
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,

@@ -4,7 +4,7 @@ use anchor_lang::accounts::signer::Signer;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 
 use crate::error::ErrorCode;
-use crate::state::market::{MarketStatus, PerpMarket};
+use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::state::{ExchangeStatus, State};
 use crate::state::user::{User, UserStats};
 

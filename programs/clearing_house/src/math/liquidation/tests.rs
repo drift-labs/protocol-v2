@@ -355,14 +355,17 @@ mod calculate_asset_transfer_for_liability_transfer {
 mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
     use crate::math::constants::{BASE_PRECISION_I128, QUOTE_PRECISION_I128};
     use crate::math::liquidation::calculate_funding_rate_deltas_to_resolve_bankruptcy;
-    use crate::state::market::PerpMarket;
+    use crate::state::perp_market::{PerpMarket, AMM};
 
     #[test]
     fn total_base_asset_amount_is_zero() {
         let loss = -QUOTE_PRECISION_I128;
         let market = PerpMarket {
-            base_asset_amount_long: 0,
-            base_asset_amount_short: 0,
+            amm: AMM {
+                base_asset_amount_long: 0,
+                base_asset_amount_short: 0,
+                ..AMM::default()
+            },
             ..PerpMarket::default()
         };
 
@@ -376,8 +379,11 @@ mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
     fn total_base_asset_amount_not_zero() {
         let loss = -100 * QUOTE_PRECISION_I128;
         let market = PerpMarket {
-            base_asset_amount_long: 7 * BASE_PRECISION_I128,
-            base_asset_amount_short: -4 * BASE_PRECISION_I128,
+            amm: AMM {
+                base_asset_amount_long: 7 * BASE_PRECISION_I128,
+                base_asset_amount_short: -4 * BASE_PRECISION_I128,
+                ..AMM::default()
+            },
             ..PerpMarket::default()
         };
 

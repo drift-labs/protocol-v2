@@ -136,8 +136,8 @@ export function getLimitPrice(
 	perpMarket?: PerpMarketAccount
 ): BN {
 	let limitPrice;
-	if (!order.oraclePriceOffset.eq(ZERO)) {
-		limitPrice = oraclePriceData.price.add(order.oraclePriceOffset);
+	if (order.oraclePriceOffset !== 0) {
+		limitPrice = oraclePriceData.price.add(new BN(order.oraclePriceOffset));
 	} else if (isOneOfVariant(order.orderType, ['market', 'triggerMarket'])) {
 		if (!isAuctionComplete(order, slot)) {
 			limitPrice = getAuctionPrice(order, slot);

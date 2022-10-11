@@ -12,7 +12,6 @@ import {
 	isVariant,
 	getVariant,
 	Order,
-	ZERO,
 	PRICE_PRECISION,
 	SpotMarketAccount,
 	PerpMarketAccount,
@@ -265,7 +264,7 @@ export class DLOB {
 			type = 'trigger';
 		} else if (isOneOfVariant(order.orderType, ['market', 'triggerMarket'])) {
 			type = 'market';
-		} else if (!order.oraclePriceOffset.eq(ZERO)) {
+		} else if (order.oraclePriceOffset !== 0) {
 			type = 'floatingLimit';
 		} else {
 			type = 'limit';
@@ -895,7 +894,8 @@ export class DLOB {
 			const market = clearingHouse.getPerpMarketAccount(marketIndex);
 
 			const slot = slotSubscriber.getSlot();
-			const oraclePriceData = clearingHouse.getOracleDataForMarket(marketIndex);
+			const oraclePriceData =
+				clearingHouse.getOracleDataForPerpMarket(marketIndex);
 			const vAsk = calculateAskPrice(market, oraclePriceData);
 			const vBid = calculateBidPrice(market, oraclePriceData);
 
@@ -940,7 +940,8 @@ export class DLOB {
 			);
 		} else if (isVariant(marketType, 'spot')) {
 			const slot = slotSubscriber.getSlot();
-			const oraclePriceData = clearingHouse.getOracleDataForMarket(marketIndex);
+			const oraclePriceData =
+				clearingHouse.getOracleDataForPerpMarket(marketIndex);
 
 			const bestAsk = this.getBestAsk(
 				marketIndex,

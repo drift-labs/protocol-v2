@@ -1,5 +1,5 @@
 import { PublicKey } from '@solana/web3.js';
-import { getMarketPublicKey } from './pda';
+import { getPerpMarketPublicKey } from './pda';
 
 const CACHE = new Map<string, PublicKey>();
 export async function getMarketAddress(
@@ -11,7 +11,7 @@ export async function getMarketAddress(
 		return CACHE.get(cacheKey);
 	}
 
-	const publicKey = await getMarketPublicKey(programId, marketIndex);
+	const publicKey = await getPerpMarketPublicKey(programId, marketIndex);
 	CACHE.set(cacheKey, publicKey);
 	return publicKey;
 }

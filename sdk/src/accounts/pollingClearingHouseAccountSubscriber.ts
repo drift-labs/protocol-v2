@@ -18,7 +18,7 @@ import {
 import {
 	getClearingHouseStateAccountPublicKey,
 	getSpotMarketPublicKey,
-	getMarketPublicKey,
+	getPerpMarketPublicKey,
 } from '../addresses/pda';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { capitalize } from './utils';
@@ -121,26 +121,26 @@ export class PollingClearingHouseAccountSubscriber
 			eventType: 'stateAccountUpdate',
 		});
 
-		await this.updateMarketAccountsToPoll();
+		await this.updatePerpMarketAccountsToPoll();
 		await this.updateSpotMarketAccountsToPoll();
 	}
 
-	async updateMarketAccountsToPoll(): Promise<boolean> {
+	async updatePerpMarketAccountsToPoll(): Promise<boolean> {
 		for (const marketIndex of this.perpMarketIndexes) {
-			await this.addMarketAccountToPoll(marketIndex);
+			await this.addPerpMarketAccountToPoll(marketIndex);
 		}
 		return true;
 	}
 
-	async addMarketAccountToPoll(marketIndex: number): Promise<boolean> {
-		const marketPublicKey = await getMarketPublicKey(
+	async addPerpMarketAccountToPoll(marketIndex: number): Promise<boolean> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			marketIndex
 		);
 
-		this.accountsToPoll.set(marketPublicKey.toString(), {
+		this.accountsToPoll.set(perpMarketPublicKey.toString(), {
 			key: 'perpMarket',
-			publicKey: marketPublicKey,
+			publicKey: perpMarketPublicKey,
 			eventType: 'perpMarketAccountUpdate',
 			mapKey: marketIndex,
 		});
@@ -361,7 +361,7 @@ export class PollingClearingHouseAccountSubscriber
 	}
 
 	async addPerpMarket(marketIndex: number): Promise<boolean> {
-		await this.addMarketAccountToPoll(marketIndex);
+		await this.addPerpMarketAccountToPoll(marketIndex);
 		const accountToPoll = this.accountsToPoll.get(marketIndex.toString());
 		this.addAccountToAccountLoader(accountToPoll);
 		return true;

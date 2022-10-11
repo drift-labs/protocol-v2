@@ -9,7 +9,7 @@ import {
 import { OraclePriceData } from '../oracles/types';
 
 export function isSpotPositionAvailable(position: SpotPosition): boolean {
-	return position.balance.eq(ZERO) && position.openOrders === 0;
+	return position.scaledBalance.eq(ZERO) && position.openOrders === 0;
 }
 
 export function getWorstCaseTokenAmounts(
@@ -19,7 +19,7 @@ export function getWorstCaseTokenAmounts(
 ): [BN, BN] {
 	const tokenAmount = getSignedTokenAmount(
 		getTokenAmount(
-			spotPosition.balance,
+			spotPosition.scaledBalance,
 			spotMarketAccount,
 			spotPosition.balanceType
 		),

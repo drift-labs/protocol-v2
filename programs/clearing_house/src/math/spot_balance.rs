@@ -359,7 +359,7 @@ pub fn validate_spot_balances(spot_market: &SpotMarket) -> ClearingHouseResult<u
     )?;
 
     let revenue_amount: u64 = cast(get_token_amount(
-        spot_market.revenue_pool.balance,
+        spot_market.revenue_pool.scaled_balance,
         spot_market,
         &SpotBalanceType::Deposit,
     )?)?;
