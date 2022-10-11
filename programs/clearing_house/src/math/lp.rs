@@ -11,6 +11,9 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market::AMM;
 use crate::state::user::PerpPosition;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug)]
 pub struct LPMetrics {
     pub base_asset_amount: i128,
