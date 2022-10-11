@@ -72,6 +72,7 @@ export const mockAMM: AMM = {
 	userLpShares: new BN(0),
 	baseAssetAmountWithUnsettledLp: new BN(0),
 	orderStepSize: new BN(0),
+	orderTickSize: new BN(1),
 	maxFillReserveFraction: 0,
 	baseSpread: 0,
 	curveUpdateIntensity: 0,
@@ -245,6 +246,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		borrowTokenTwap: new BN(0),
 		utilizationTwap: new BN(0),
 		orderStepSize: new BN(0),
+		orderTickSize: new BN(0),
 		nextFillRecordId: new BN(0),
 		spotFeePool: {
 			scaledBalance: new BN(0),
@@ -314,6 +316,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		borrowTokenTwap: new BN(0),
 		utilizationTwap: new BN(0),
 		orderStepSize: new BN(0),
+		orderTickSize: new BN(0),
 		nextFillRecordId: new BN(0),
 		spotFeePool: {
 			scaledBalance: new BN(0),
@@ -383,6 +386,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		borrowTokenTwap: new BN(0),
 		utilizationTwap: new BN(0),
 		orderStepSize: new BN(0),
+		orderTickSize: new BN(0),
 		nextFillRecordId: new BN(0),
 		spotFeePool: {
 			scaledBalance: new BN(0),
