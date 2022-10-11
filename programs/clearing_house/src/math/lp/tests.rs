@@ -161,11 +161,8 @@ mod calculate_settled_lp_base_quote {
         };
 
         let amm = AMM {
-            market_position_per_lp: PerpPosition {
-                base_asset_amount: 10,
-                quote_asset_amount: -10,
-                ..PerpPosition::default()
-            },
+            base_asset_amount_per_lp: 10, 
+            quote_asset_amount_per_lp: -10,
             ..AMM::default_test()
         };
 
@@ -183,11 +180,8 @@ mod calculate_settled_lp_base_quote {
         };
 
         let amm = AMM {
-            market_position_per_lp: PerpPosition {
-                base_asset_amount: -10,
-                quote_asset_amount: 10,
-                ..PerpPosition::default()
-            },
+            base_asset_amount_per_lp: -10, 
+            quote_asset_amount_per_lp: 10,
             ..AMM::default_test()
         };
 
@@ -211,11 +205,8 @@ mod calculate_settle_lp_metrics {
         };
 
         let amm = AMM {
-            market_position_per_lp: PerpPosition {
-                base_asset_amount: 10,
-                quote_asset_amount: -10,
-                ..PerpPosition::default()
-            },
+            base_asset_amount_per_lp: 10, 
+            quote_asset_amount_per_lp: -10,
             order_step_size: 1,
             ..AMM::default_test()
         };
@@ -235,11 +226,8 @@ mod calculate_settle_lp_metrics {
         };
 
         let amm = AMM {
-            market_position_per_lp: PerpPosition {
-                base_asset_amount: 10,
-                quote_asset_amount: -10,
-                ..PerpPosition::default()
-            },
+            base_asset_amount_per_lp: 10, 
+            quote_asset_amount_per_lp: -10,
             order_step_size: 50 * 100,
             ..AMM::default_test()
         };
@@ -259,11 +247,8 @@ mod calculate_settle_lp_metrics {
         };
 
         let amm = AMM {
-            market_position_per_lp: PerpPosition {
-                base_asset_amount: 10,
-                quote_asset_amount: -10,
-                ..PerpPosition::default()
-            },
+            base_asset_amount_per_lp: 10, 
+            quote_asset_amount_per_lp: -10,
             order_step_size: 3,
             ..AMM::default_test()
         };
