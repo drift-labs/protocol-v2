@@ -200,10 +200,6 @@ pub mod clearing_house {
         handle_settle_lp(ctx, market_index)
     }
 
-    pub fn settle_expired_position(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
-        handle_settle_expired_position(ctx, market_index)
-    }
-
     pub fn settle_expired_market(ctx: Context<UpdateAMM>, market_index: u16) -> Result<()> {
         handle_settle_expired_market(ctx, market_index)
     }

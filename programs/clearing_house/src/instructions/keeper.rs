@@ -10,7 +10,6 @@ use crate::instructions::optional_accounts::{
 use crate::load_mut;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::insurance::if_shares_to_vault_amount;
-use crate::state::events::OrderActionExplanation;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
@@ -264,31 +263,50 @@ pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<(
         Some(state.oracle_guard_rails),
     )?;
 
-    controller::repeg::update_amm(
-        market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        state,
-        &Clock::get()?,
-    )?;
+    let market_in_settlement =
+        perp_market_map.get_ref(&market_index)?.status == MarketStatus::Settlement;
 
-    controller::pnl::settle_pnl(
-        market_index,
-        user,
-        ctx.accounts.authority.key,
-        &user_key,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
-        clock.unix_timestamp,
-        state,
-    )?;
+    if market_in_settlement {
+        amm_not_paused(state)?;
+
+        controller::pnl::settle_expired_position(
+            market_index,
+            user,
+            &user_key,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            clock.unix_timestamp,
+            clock.slot,
+            state,
+        )?;
+    } else {
+        controller::repeg::update_amm(
+            market_index,
+            &perp_market_map,
+            &mut oracle_map,
+            state,
+            &clock,
+        )?;
+
+        controller::pnl::settle_pnl(
+            market_index,
+            user,
+            ctx.accounts.authority.key,
+            &user_key,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            clock.unix_timestamp,
+            state,
+        )?;
+    }
 
     Ok(())
 }
 
 #[access_control(
-funding_not_paused(&ctx.accounts.state)
+    funding_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_settle_funding_payment(ctx: Context<SettleFunding>) -> Result<()> {
     let clock = Clock::get()?;
@@ -334,71 +352,6 @@ pub fn handle_settle_lp<'info>(ctx: Context<SettleLP>, market_index: u16) -> Res
 
     let market = &mut perp_market_map.get_ref_mut(&market_index)?;
     controller::lp::settle_funding_payment_then_lp(user, &user_key, market, now)?;
-
-    Ok(())
-}
-
-#[allow(unused_must_use)]
-#[access_control(
-    withdraw_not_paused(&ctx.accounts.state) &&
-    amm_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_settle_expired_position(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
-    let clock = Clock::get()?;
-    let state = &ctx.accounts.state;
-    let now = clock.unix_timestamp;
-    let slot = clock.slot;
-
-    let AccountMaps {
-        perp_market_map,
-        spot_market_map,
-        mut oracle_map,
-    } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
-        &get_writable_perp_market_set(market_index),
-        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
-        clock.slot,
-        Some(state.oracle_guard_rails),
-    )?;
-
-    let user_key = ctx.accounts.user.key();
-    let user = &mut load_mut!(ctx.accounts.user)?;
-
-    math::liquidation::validate_user_not_being_liquidated(
-        user,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
-        state.liquidation_margin_buffer_ratio,
-    )?;
-
-    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
-
-    controller::orders::cancel_orders(
-        user,
-        &user_key,
-        None,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
-        now,
-        slot,
-        OrderActionExplanation::MarketExpired,
-        Some(MarketType::Perp),
-        Some(market_index),
-        None,
-    );
-
-    controller::pnl::settle_expired_position(
-        market_index,
-        user,
-        &user_key,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
-        clock.unix_timestamp,
-        state,
-    )?;
 
     Ok(())
 }

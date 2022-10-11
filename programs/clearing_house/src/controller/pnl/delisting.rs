@@ -812,38 +812,6 @@ pub mod delisting_test {
         assert_eq!(total_collateral, 100000000);
         assert_eq!(margin_requirement, 7424999);
 
-        // open orders fails
-        assert_eq!(
-            settle_expired_position(
-                0,
-                &mut taker,
-                &taker_key,
-                &market_map,
-                &spot_market_map,
-                &mut oracle_map,
-                clock.unix_timestamp,
-                &state
-            )
-            .is_err(),
-            true
-        );
-
-        cancel_order(
-            0,
-            &mut taker,
-            &taker_key,
-            &market_map,
-            &spot_market_map,
-            &mut oracle_map,
-            clock.unix_timestamp,
-            clock.slot,
-            OrderActionExplanation::None,
-            None,
-            0,
-            true,
-        )
-        .unwrap();
-
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.pnl_pool.scaled_balance, 1000000000000);
         assert_eq!(taker.spot_positions[0].scaled_balance, 100000000000);
@@ -858,6 +826,7 @@ pub mod delisting_test {
             &spot_market_map,
             &mut oracle_map,
             clock.unix_timestamp,
+            clock.slot,
             &state,
         )
         .unwrap();
@@ -1061,38 +1030,6 @@ pub mod delisting_test {
         assert_eq!(total_collateral, 100000000);
         assert_eq!(margin_requirement, 7424999); // settlement in margin now
 
-        // open orders fails
-        assert_eq!(
-            settle_expired_position(
-                0,
-                &mut taker,
-                &taker_key,
-                &market_map,
-                &spot_market_map,
-                &mut oracle_map,
-                clock.unix_timestamp,
-                &state
-            )
-            .is_err(),
-            true
-        );
-
-        cancel_order(
-            0,
-            &mut taker,
-            &taker_key,
-            &market_map,
-            &spot_market_map,
-            &mut oracle_map,
-            clock.unix_timestamp,
-            clock.slot,
-            OrderActionExplanation::None,
-            None,
-            0,
-            true,
-        )
-        .unwrap();
-
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.pnl_pool.scaled_balance, 1000000000000);
         assert_eq!(taker.spot_positions[0].scaled_balance, 100000000000);
@@ -1107,6 +1044,7 @@ pub mod delisting_test {
             &spot_market_map,
             &mut oracle_map,
             clock.unix_timestamp,
+            clock.slot,
             &state,
         )
         .unwrap();
@@ -1299,38 +1237,6 @@ pub mod delisting_test {
         assert_eq!(total_collateral, 100000000);
         assert_eq!(margin_requirement, 0);
 
-        // open orders fails
-        assert_eq!(
-            settle_expired_position(
-                0,
-                &mut taker,
-                &taker_key,
-                &market_map,
-                &spot_market_map,
-                &mut oracle_map,
-                clock.unix_timestamp,
-                &state
-            )
-            .is_err(),
-            true
-        );
-
-        cancel_order(
-            0,
-            &mut taker,
-            &taker_key,
-            &market_map,
-            &spot_market_map,
-            &mut oracle_map,
-            clock.unix_timestamp,
-            clock.slot,
-            OrderActionExplanation::None,
-            None,
-            0,
-            true,
-        )
-        .unwrap();
-
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.pnl_pool.scaled_balance, 1000000000000);
         assert_eq!(taker.spot_positions[0].scaled_balance, 100000000000);
@@ -1345,6 +1251,7 @@ pub mod delisting_test {
             &spot_market_map,
             &mut oracle_map,
             clock.unix_timestamp,
+            clock.slot,
             &state,
         )
         .unwrap();
@@ -1604,6 +1511,7 @@ pub mod delisting_test {
                 &spot_market_map,
                 &mut oracle_map,
                 clock.unix_timestamp,
+                clock.slot,
                 &state,
             )
             .unwrap();
@@ -1643,38 +1551,6 @@ pub mod delisting_test {
         assert_eq!(total_collateral, 20000000000);
         assert_eq!(margin_requirement, 2101049899);
 
-        // open orders fails
-        assert_eq!(
-            settle_expired_position(
-                0,
-                &mut longer,
-                &taker_key,
-                &market_map,
-                &spot_market_map,
-                &mut oracle_map,
-                clock.unix_timestamp,
-                &state
-            )
-            .is_err(),
-            true
-        );
-
-        cancel_order(
-            0,
-            &mut longer,
-            &taker_key,
-            &market_map,
-            &spot_market_map,
-            &mut oracle_map,
-            clock.unix_timestamp,
-            clock.slot,
-            OrderActionExplanation::None,
-            None,
-            0,
-            true,
-        )
-        .unwrap();
-
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.pnl_pool.scaled_balance, 2020998999000);
         assert_eq!(longer.spot_positions[0].scaled_balance, 20000000000000);
@@ -1689,6 +1565,7 @@ pub mod delisting_test {
             &spot_market_map,
             &mut oracle_map,
             clock.unix_timestamp,
+            clock.slot,
             &state,
         )
         .unwrap();
@@ -1940,38 +1817,6 @@ pub mod delisting_test {
             assert_eq!(total_collateral, 20000000000);
             assert_eq!(margin_requirement, 1208512510);
 
-            // open orders fails
-            assert_eq!(
-                settle_expired_position(
-                    0,
-                    &mut longer,
-                    &taker_key,
-                    &market_map,
-                    &spot_market_map,
-                    &mut oracle_map,
-                    clock.unix_timestamp,
-                    &state
-                )
-                .is_err(),
-                true
-            );
-
-            cancel_order(
-                0,
-                &mut longer,
-                &taker_key,
-                &market_map,
-                &spot_market_map,
-                &mut oracle_map,
-                clock.unix_timestamp,
-                clock.slot,
-                OrderActionExplanation::None,
-                None,
-                0,
-                true,
-            )
-            .unwrap();
-
             let market = market_map.get_ref_mut(&0).unwrap();
             assert_eq!(market.pnl_pool.scaled_balance, 1000000000000);
             assert_eq!(longer.spot_positions[0].scaled_balance, 20000000000000);
@@ -1989,6 +1834,7 @@ pub mod delisting_test {
                     &spot_market_map,
                     &mut oracle_map,
                     clock.unix_timestamp,
+                    clock.slot,
                     &state
                 )
                 .is_err(),
@@ -2355,6 +2201,7 @@ pub mod delisting_test {
                 &spot_market_map,
                 &mut oracle_map,
                 clock.unix_timestamp,
+                clock.slot,
                 &state,
             )
             .is_err());
@@ -2680,6 +2527,7 @@ pub mod delisting_test {
                 &spot_market_map,
                 &mut oracle_map,
                 clock.unix_timestamp,
+                clock.slot,
                 &state,
             )
             .unwrap();
@@ -2803,6 +2651,7 @@ pub mod delisting_test {
                 &spot_market_map,
                 &mut oracle_map,
                 clock.unix_timestamp,
+                clock.slot,
                 &state,
             )
             .unwrap();

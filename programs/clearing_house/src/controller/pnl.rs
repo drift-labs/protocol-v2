@@ -1,6 +1,6 @@
 use crate::controller::amm::{update_pnl_pool_and_user_balance, update_pool_balances};
 use crate::controller::funding::settle_funding_payment;
-use crate::controller::orders::validate_market_within_price_band;
+use crate::controller::orders::{cancel_orders, validate_market_within_price_band};
 use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount, update_settled_pnl,
     PositionDelta,
@@ -16,14 +16,14 @@ use crate::math::margin::meets_maintenance_margin_requirement;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_expiry_price;
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
-use crate::state::events::SettlePnlRecord;
+use crate::state::events::{OrderActionExplanation, SettlePnlRecord};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
-use crate::state::user::User;
+use crate::state::user::{MarketType, User};
 use crate::validate;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::prelude::*;
@@ -182,8 +182,11 @@ pub fn settle_expired_position(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     now: i64,
+    slot: u64,
     state: &State,
 ) -> ClearingHouseResult {
+    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
+
     // cannot settle pnl this way on a user who is in liquidation territory
     if !(meets_maintenance_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?)
     {
@@ -202,6 +205,21 @@ pub fn settle_expired_position(
         user_key,
         perp_market_map.get_ref_mut(&perp_market_index)?.deref_mut(),
         now,
+    )?;
+
+    cancel_orders(
+        user,
+        user_key,
+        None,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        now,
+        slot,
+        OrderActionExplanation::MarketExpired,
+        Some(MarketType::Perp),
+        Some(perp_market_index),
+        None,
     )?;
 
     let position_index = get_position_index(&user.perp_positions, perp_market_index)?;

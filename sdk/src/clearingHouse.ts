@@ -2388,46 +2388,6 @@ export class ClearingHouse {
 		});
 	}
 
-	public async settleExpiredPosition(
-		settleeUserAccountPublicKey: PublicKey,
-		settleeUserAccount: UserAccount,
-		marketIndex: number
-	): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(
-			wrapInTx(
-				await this.getSettleExpiredPositionIx(
-					settleeUserAccountPublicKey,
-					settleeUserAccount,
-					marketIndex
-				)
-			),
-			[],
-			this.opts
-		);
-		return txSig;
-	}
-
-	public async getSettleExpiredPositionIx(
-		settleeUserAccountPublicKey: PublicKey,
-		settleeUserAccount: UserAccount,
-		marketIndex: number
-	): Promise<TransactionInstruction> {
-		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [settleeUserAccount],
-			writablePerpMarketIndexes: [marketIndex],
-			writableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
-		});
-
-		return await this.program.instruction.settleExpiredPosition(marketIndex, {
-			accounts: {
-				state: await this.getStatePublicKey(),
-				authority: this.wallet.publicKey,
-				user: settleeUserAccountPublicKey,
-			},
-			remainingAccounts: remainingAccounts,
-		});
-	}
-
 	public async liquidatePerp(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,

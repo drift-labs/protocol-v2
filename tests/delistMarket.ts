@@ -420,25 +420,12 @@ describe('delist market', () => {
 		assert(loserUser0.perpPositions[0].baseAssetAmount.gt(new BN(0)));
 		assert(loserUser0.perpPositions[0].quoteAssetAmount.lt(new BN(0)));
 
-		const txSig = await clearingHouseLoser.settleExpiredPosition(
+		const txSig = await clearingHouseLoser.settlePNL(
 			await clearingHouseLoser.getUserAccountPublicKey(),
 			clearingHouseLoser.getUserAccount(),
 			marketIndex
 		);
 		await printTxLogs(connection, txSig);
-
-		try {
-			await clearingHouse.settlePNL(
-				await clearingHouse.getUserAccountPublicKey(),
-				clearingHouse.getUserAccount(),
-				marketIndex
-			);
-		} catch (e) {
-			// if (!e.toString().search('AnchorError occurred')) {
-			// 	assert(false);
-			// }
-			console.log('Cannot settle pnl under current market status');
-		}
 
 		// const settleRecord = eventSubscriber.getEventsArray('SettlePnlRecord')[0];
 		// console.log(settleRecord);
@@ -457,7 +444,7 @@ describe('delist market', () => {
 			marketAfter0.pnlPool.scaledBalance.lt(new BN(999978435000 + 1000000))
 		);
 
-		const txSig2 = await clearingHouse.settleExpiredPosition(
+		const txSig2 = await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
 			marketIndex
