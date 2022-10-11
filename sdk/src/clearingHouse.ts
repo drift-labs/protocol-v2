@@ -2323,7 +2323,6 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
-		this.marketLastSlotCache.set(orderParams.marketIndex, slot);
 		return txSig;
 	}
 
