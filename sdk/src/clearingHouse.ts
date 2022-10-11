@@ -64,7 +64,7 @@ import {
 } from './accounts/types';
 import { TxSender } from './tx/types';
 import { wrapInTx } from './tx/utils';
-import { QUOTE_SPOT_MARKET_INDEX } from './constants/numericConstants';
+import { QUOTE_SPOT_MARKET_INDEX, ZERO } from './constants/numericConstants';
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getTokenAmount } from './math/spotBalance';
 import { DEFAULT_USER_NAME, encodeName } from './userName';
@@ -638,6 +638,19 @@ export class ClearingHouse {
 	public getQuoteAssetTokenAmount(): BN {
 		const spotMarket = this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX);
 		const spotPosition = this.getSpotPosition(QUOTE_SPOT_MARKET_INDEX);
+		return getTokenAmount(
+			spotPosition.scaledBalance,
+			spotMarket,
+			spotPosition.balanceType
+		);
+	}
+
+	public getTokenAmount(marketIndex: number): BN {
+		const spotPosition = this.getSpotPosition(marketIndex);
+		if (spotPosition === undefined) {
+			return ZERO;
+		}
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
 		return getTokenAmount(
 			spotPosition.scaledBalance,
 			spotMarket,
