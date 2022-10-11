@@ -891,6 +891,22 @@ export class ClearingHouseUser {
 		return [exitPrice, pnl];
 	}
 
+	/**
+	 * calculates current user leverage across all positions
+	 * @returns : Precision TEN_THOUSAND
+	 */
+	public getLeverage(): BN {
+		const totalLiabilityValue = this.getTotalLiabilityValue();
+
+		const totalAssetValue = this.getTotalAssetValue();
+
+		if (totalAssetValue.eq(ZERO) && totalLiabilityValue.eq(ZERO)) {
+			return ZERO;
+		}
+
+		return totalLiabilityValue.mul(TEN_THOUSAND).div(totalAssetValue);
+	}
+
 	getTotalLiabilityValue(): BN {
 		return this.getTotalPerpPositionValue(undefined, undefined, true).add(
 			this.getSpotMarketLiabilityValue(undefined, undefined, undefined, true)
