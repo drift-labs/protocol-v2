@@ -16,7 +16,7 @@ use crate::math::orders::{
     is_multiple_of_step_size,
 };
 use crate::math::position::{
-    calculate_position_new_quote_base_pnl, get_position_update_type, PositionUpdateType,
+    get_position_update_type, PositionUpdateType,
 };
 use crate::math_error;
 use crate::state::perp_market::PerpMarket;

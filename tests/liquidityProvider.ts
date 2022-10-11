@@ -427,15 +427,17 @@ describe('liquidity providing', () => {
 
 		market = await clearingHouse.getPerpMarketAccount(0);
 		console.log(
-			market.amm.marketPositionPerLp.quoteAssetAmount.toString(),
-			market.amm.marketPositionPerLp.baseAssetAmount.toString()
-		);
-		assert(market.amm.marketPositionPerLp.baseAssetAmount.eq(new BN(12500000)));
-		assert(market.amm.marketPositionPerLp.quoteAssetAmount.eq(new BN(-12336)));
+			market.amm.quoteAssetAmountPerLp.toString(),
+			market.amm.baseAssetAmountPerLp.toString()
+		)
+		assert(market.amm.baseAssetAmountPerLp.eq(new BN(12500000)));
+		assert(market.amm.quoteAssetAmountPerLp.eq(new BN(-12336)));
 
 		// remove
 		console.log('removing liquidity...');
 		await clearingHouse.removePerpLpShares(0);
+
+		await clearingHouse.fetchAccounts();
 
 		const removeLiquidityRecord: LPRecord =
 			eventSubscriber.getEventsArray('LPRecord')[0];
