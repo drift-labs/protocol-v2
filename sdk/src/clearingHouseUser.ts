@@ -1335,7 +1335,8 @@ export class ClearingHouseUser {
 	public accountLeverageRatioAfterTrade(
 		targetMarketIndex: number,
 		tradeQuoteAmount: BN,
-		tradeSide: PositionDirection
+		tradeSide: PositionDirection,
+		includeOpenOrders = true
 	): BN {
 		const currentPosition =
 			this.getUserPosition(targetMarketIndex) ||
@@ -1364,19 +1365,32 @@ export class ClearingHouseUser {
 			.abs();
 
 		const totalPositionAfterTradeExcludingTargetMarket =
-			this.getTotalPerpPositionValueExcludingMarket(targetMarketIndex);
+			this.getTotalPerpPositionValueExcludingMarket(
+				targetMarketIndex,
+				undefined,
+				undefined,
+				includeOpenOrders
+			);
 
-		const totalCollateral = this.getTotalCollateral();
-		if (totalCollateral.gt(ZERO)) {
-			const newLeverage = currentPerpPositionAfterTrade
-				.add(totalPositionAfterTradeExcludingTargetMarket)
-				.abs()
-				.mul(TEN_THOUSAND)
-				.div(totalCollateral);
-			return newLeverage;
-		} else {
-			return new BN(0);
+		const totalAssetValue = this.getTotalAssetValue();
+
+		const totalPerpPositionValue = currentPerpPositionAfterTrade
+			.add(totalPositionAfterTradeExcludingTargetMarket)
+			.abs();
+
+		const totalLiabilitiesAfterTrade = totalPerpPositionValue.add(
+			this.getSpotMarketLiabilityValue(undefined, undefined, undefined, false)
+		);
+
+		if (totalAssetValue.eq(ZERO) && totalLiabilitiesAfterTrade.eq(ZERO)) {
+			return ZERO;
 		}
+
+		const newLeverage = totalLiabilitiesAfterTrade
+			.mul(TEN_THOUSAND)
+			.div(totalAssetValue);
+
+		return newLeverage;
 	}
 
 	/**
@@ -1397,7 +1411,12 @@ export class ClearingHouseUser {
 	 * @param marketToIgnore
 	 * @returns positionValue : Precision QUOTE_PRECISION
 	 */
-	private getTotalPerpPositionValueExcludingMarket(marketToIgnore: number): BN {
+	private getTotalPerpPositionValueExcludingMarket(
+		marketToIgnore: number,
+		marginCategory?: MarginCategory,
+		liquidationBuffer?: BN,
+		includeOpenOrders?: boolean
+	): BN {
 		const currentPerpPosition =
 			this.getUserPosition(marketToIgnore) ||
 			this.getEmptyPosition(marketToIgnore);
@@ -1412,7 +1431,11 @@ export class ClearingHouseUser {
 			);
 		}
 
-		return this.getTotalPerpPositionValue().sub(currentPerpPositionValueUSDC);
+		return this.getTotalPerpPositionValue(
+			marginCategory,
+			liquidationBuffer,
+			includeOpenOrders
+		).sub(currentPerpPositionValueUSDC);
 	}
 
 	private getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
