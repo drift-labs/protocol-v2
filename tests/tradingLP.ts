@@ -139,7 +139,7 @@ describe('liquidity providing', () => {
 			ammInitialQuoteAssetReserve,
 			new BN(60 * 60)
 		);
-		await clearingHouse.updatePerpMarketLpCooldownTime(new BN(0));
+		await clearingHouse.updateLpCooldownTime(new BN(0));
 		await clearingHouse.updatePerpMarketMaxFillReserveFraction(0, 1);
 		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
 			0,

@@ -647,11 +647,11 @@ pub mod clearing_house {
         handle_update_perp_market_curve_update_intensity(ctx, curve_update_intensity)
     }
 
-    pub fn update_perp_market_lp_cooldown_time(
+    pub fn update_lp_cooldown_time(
         ctx: Context<AdminUpdateState>,
         lp_cooldown_time: u64,
     ) -> Result<()> {
-        handle_update_perp_market_lp_cooldown_time(ctx, lp_cooldown_time)
+        handle_update_lp_cooldown_time(ctx, lp_cooldown_time)
     }
 
     pub fn update_perp_fee_structure(

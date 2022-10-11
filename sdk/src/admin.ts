@@ -648,10 +648,10 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
-	public async updatePerpMarketLpCooldownTime(
+	public async updateLpCooldownTime(
 		cooldownTime: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketLpCooldownTime(cooldownTime, {
+		return await this.program.rpc.updateLpCooldownTime(cooldownTime, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),

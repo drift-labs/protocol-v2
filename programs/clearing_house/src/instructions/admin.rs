@@ -1534,7 +1534,7 @@ pub fn handle_update_perp_market_curve_update_intensity(
     Ok(())
 }
 
-pub fn handle_update_perp_market_lp_cooldown_time(
+pub fn handle_update_lp_cooldown_time(
     ctx: Context<AdminUpdateState>,
     lp_cooldown_time: u64,
 ) -> Result<()> {
