@@ -1539,14 +1539,8 @@ pub fn handle_update_perp_market_curve_update_intensity(
 
 pub fn handle_update_perp_market_lp_cooldown_time(
     ctx: Context<AdminUpdateState>,
-    lp_cooldown_time: i64,
+    lp_cooldown_time: u64,
 ) -> Result<()> {
-    validate!(
-        lp_cooldown_time >= 0,
-        ErrorCode::DefaultError,
-        "invalid lp_cooldown_time",
-    )?;
-
     ctx.accounts.state.lp_cooldown_time = lp_cooldown_time;
     Ok(())
 }
