@@ -63,6 +63,7 @@ export class DLOB {
 		Map<number, PerpMarketAccount | SpotMarketAccount>
 	>();
 
+	userMap: UserMap;
 	silent = false;
 	initialized = false;
 
@@ -70,13 +71,16 @@ export class DLOB {
 	 *
 	 * @param perpMarkets The perp markets to maintain a DLOB for
 	 * @param spotMarkets The spot markets to maintain a DLOB for
+	 * @param userMap map of all users
 	 * @param silent set to true to prevent logging on inserts and removals
 	 */
 	public constructor(
 		perpMarkets: PerpMarketAccount[],
 		spotMarkets: SpotMarketAccount[],
+		userMap: UserMap,
 		silent?: boolean
 	) {
+		this.userMap = userMap;
 		this.silent = silent;
 
 		this.openOrders.set('perp', new Set<string>());
@@ -163,36 +167,20 @@ export class DLOB {
 	/**
 	 * initializes a new DLOB instance
 	 *
-	 * @param clearingHouse The ClearingHouse instance to use for price data
 	 * @returns a promise that resolves when the DLOB is initialized
 	 */
-	public async init(
-		clearingHouse: ClearingHouse,
-		userMap?: UserMap
-	): Promise<boolean> {
+	public async init(): Promise<boolean> {
 		if (this.initialized) {
 			return false;
 		}
-		if (userMap) {
-			// initialize the dlob with the user map (prevents hitting getProgramAccounts)
-			for (const user of userMap.values()) {
-				const userAccount = user.getUserAccount();
-				const userAccountPubkey = user.getUserAccountPublicKey();
 
-				for (const order of userAccount.orders) {
-					this.insertOrder(order, userAccountPubkey);
-				}
-			}
-		} else {
-			const programAccounts = await clearingHouse.program.account.user.all();
-			for (const programAccount of programAccounts) {
-				// @ts-ignore
-				const userAccount: UserAccount = programAccount.account;
-				const userAccountPublicKey = programAccount.publicKey;
+		// initialize the dlob with the user map (prevents hitting getProgramAccounts)
+		for (const user of this.userMap.values()) {
+			const userAccount = user.getUserAccount();
+			const userAccountPubkey = user.getUserAccountPublicKey();
 
-				for (const order of userAccount.orders) {
-					this.insertOrder(order, userAccountPublicKey);
-				}
+			for (const order of userAccount.orders) {
+				this.insertOrder(order, userAccountPubkey);
 			}
 		}
 
@@ -586,6 +574,20 @@ export class DLOB {
 					continue;
 				}
 
+				// skip order if user is being liquidated/bankrupt
+				if (bestGenerator.next.value.userAccount !== undefined) {
+					const user = this.userMap.get(
+						bestGenerator.next.value.userAccount.toString()
+					);
+					if (
+						user?.getUserAccount().isBeingLiquidated ||
+						user?.getUserAccount().isBankrupt
+					) {
+						bestGenerator.next = bestGenerator.generator.next();
+						continue;
+					}
+				}
+
 				yield bestGenerator.next.value;
 				bestGenerator.next = bestGenerator.generator.next();
 			} else {
@@ -659,6 +661,20 @@ export class DLOB {
 				if (bestGenerator.next.value.isBaseFilled()) {
 					bestGenerator.next = bestGenerator.generator.next();
 					continue;
+				}
+
+				// skip order if user is being liquidated/bankrupt
+				if (bestGenerator.next.value.userAccount !== undefined) {
+					const user = this.userMap.get(
+						bestGenerator.next.value.userAccount.toString()
+					);
+					if (
+						user?.getUserAccount().isBeingLiquidated ||
+						user?.getUserAccount().isBankrupt
+					) {
+						bestGenerator.next = bestGenerator.generator.next();
+						continue;
+					}
 				}
 
 				yield bestGenerator.next.value;
