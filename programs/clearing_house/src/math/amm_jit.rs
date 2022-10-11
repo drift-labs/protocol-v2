@@ -70,6 +70,13 @@ pub fn calculate_jit_base_asset_amount(
     // if we balanced we take 1/4
     // if we not balanced we take 1/2
 
+    //     0    2.5    5   7.5   10 
+    // min | -- | -- mid -- |-- | max 
+    //          mim         mam
+    // base @ mid = ratio = 1 
+    // base @ mim = ratio = 2.5 / 7.5 = 3
+    // ratio >= 3 == imbalanced 
+
     let imbalance_lower_bound = mid_reserve
         .checked_sub(fourth_base_reserve_length)
         .ok_or_else(math_error!())?;
