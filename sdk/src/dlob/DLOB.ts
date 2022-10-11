@@ -19,9 +19,11 @@ import {
 	SlotSubscriber,
 	UserMap,
 	MarketTypeStr,
+	StateAccount,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
+import { ammPaused, exchangePaused, fillPaused } from '../math/exchangeStatus';
 
 export type MarketNodeLists = {
 	limit: {
@@ -58,6 +60,7 @@ type Side = 'ask' | 'bid' | 'both' | 'nocross';
 export class DLOB {
 	openOrders = new Map<MarketTypeStr, Set<string>>();
 	orderLists = new Map<MarketTypeStr, Map<number, MarketNodeLists>>();
+	stateAccount: StateAccount;
 	marketIndexToAccount = new Map<
 		MarketTypeStr,
 		Map<number, PerpMarketAccount | SpotMarketAccount>
@@ -77,9 +80,11 @@ export class DLOB {
 	public constructor(
 		perpMarkets: PerpMarketAccount[],
 		spotMarkets: SpotMarketAccount[],
+		stateAccount: StateAccount,
 		userMap: UserMap,
 		silent?: boolean
 	) {
+		this.stateAccount = stateAccount;
 		this.userMap = userMap;
 		this.silent = silent;
 
@@ -284,6 +289,14 @@ export class DLOB {
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
 	): NodeToFill[] {
+		const marketAccount = this.marketIndexToAccount
+			.get(getVariant(marketType) as MarketTypeStr)
+			.get(marketIndex);
+
+		if (fillPaused(this.stateAccount, marketAccount)) {
+			return [];
+		}
+
 		// Find all the crossing nodes
 		const crossingNodesToFill: Array<NodeToFill> = this.findCrossingNodesToFill(
 			marketIndex,
@@ -292,8 +305,9 @@ export class DLOB {
 			oraclePriceData
 		);
 
-		const vAMMCrossingNodesToFill: Array<NodeToFill> =
-			this.findvAMMCrossingNodesToFill(
+		let vAMMCrossingNodesToFill = new Array<NodeToFill>();
+		if (!ammPaused(this.stateAccount, marketAccount)) {
+			vAMMCrossingNodesToFill = this.findvAMMCrossingNodesToFill(
 				marketIndex,
 				vBid,
 				vAsk,
@@ -301,6 +315,7 @@ export class DLOB {
 				marketType,
 				oraclePriceData
 			);
+		}
 
 		// get expired market nodes
 		const expiredNodesToFill = this.findExpiredNodesToFill(
@@ -884,6 +899,10 @@ export class DLOB {
 		oraclePrice: BN,
 		marketType: MarketType
 	): NodeToTrigger[] {
+		if (exchangePaused(this.stateAccount)) {
+			return [];
+		}
+
 		const nodesToTrigger = [];
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		for (const node of this.orderLists

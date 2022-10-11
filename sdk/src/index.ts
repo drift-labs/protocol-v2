@@ -34,6 +34,7 @@ export * from './events/fetchLogs';
 export * from './math/auction';
 export * from './math/spotMarket';
 export * from './math/conversion';
+export * from './math/exchangeStatus';
 export * from './math/funding';
 export * from './math/market';
 export * from './math/position';
