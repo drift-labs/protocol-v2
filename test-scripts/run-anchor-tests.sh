@@ -5,34 +5,34 @@ if [ "$1" != "--skip-build" ]
 fi
 
 test_files=(
-#    delistMarket.ts 
-#    delistMarketLiq.ts
-#    triggerSpotOrder.ts
-#    serumTest.ts
-#    liquidityProvider.ts
-#    tradingLP.ts
-#    insuranceFundStake.ts
-#    liquidateSpot.ts
-#    liquidateSpotSocialLoss.ts
-#    referrer.ts
-#    liquidatePerpPnlForDeposit.ts liquidateBorrowForPerpPnl.ts
-#    liquidatePerp.ts
-#    order.ts 
-#    spotDepositWithdraw.ts 
-#    prepegMarketOrderBaseAssetAmount.ts updateAMM.ts  repegAndSpread.ts
-#    clearingHouse.ts
-#    ordersWithSpread.ts
-#    marketOrder.ts 
-#    triggerOrders.ts 
-#    stopLimits.ts userOrderId.ts postOnly.ts
-#    roundInFavorBaseAsset.ts
-#    marketOrderBaseAssetAmount.ts oracleOffsetOrders.ts
-#    userDelegate.ts subaccounts.ts pyth.ts userAccount.ts 
-#    admin.ts
-#    assetTier.ts
-#    pauseExchange.ts 
-#    adminWithdraw.ts whitelist.ts
-#    updateK.ts curve.ts 
+   delistMarket.ts 
+   delistMarketLiq.ts
+   triggerSpotOrder.ts
+   serumTest.ts
+   liquidityProvider.ts
+   tradingLP.ts
+   insuranceFundStake.ts
+   liquidateSpot.ts
+   liquidateSpotSocialLoss.ts
+   referrer.ts
+   liquidatePerpPnlForDeposit.ts liquidateBorrowForPerpPnl.ts
+   liquidatePerp.ts
+   order.ts 
+   spotDepositWithdraw.ts 
+   prepegMarketOrderBaseAssetAmount.ts updateAMM.ts  repegAndSpread.ts
+   clearingHouse.ts
+   ordersWithSpread.ts
+   marketOrder.ts 
+   triggerOrders.ts 
+   stopLimits.ts userOrderId.ts postOnly.ts
+   roundInFavorBaseAsset.ts
+   marketOrderBaseAssetAmount.ts oracleOffsetOrders.ts
+   userDelegate.ts subaccounts.ts pyth.ts userAccount.ts 
+   admin.ts
+   assetTier.ts
+   pauseExchange.ts 
+   adminWithdraw.ts whitelist.ts
+   updateK.ts curve.ts 
    cappedSymFunding.ts
    maxDeposit.ts
    cancelAllOrders.ts
