@@ -63,6 +63,7 @@ export class DLOB {
 		Map<number, PerpMarketAccount | SpotMarketAccount>
 	>();
 
+	userMap: UserMap;
 	silent = false;
 	initialized = false;
 
@@ -70,13 +71,16 @@ export class DLOB {
 	 *
 	 * @param perpMarkets The perp markets to maintain a DLOB for
 	 * @param spotMarkets The spot markets to maintain a DLOB for
+	 * @param userMap map of all users
 	 * @param silent set to true to prevent logging on inserts and removals
 	 */
 	public constructor(
 		perpMarkets: PerpMarketAccount[],
 		spotMarkets: SpotMarketAccount[],
+		userMap: UserMap,
 		silent?: boolean
 	) {
+		this.userMap = userMap;
 		this.silent = silent;
 
 		this.openOrders.set('perp', new Set<string>());
@@ -163,36 +167,20 @@ export class DLOB {
 	/**
 	 * initializes a new DLOB instance
 	 *
-	 * @param clearingHouse The ClearingHouse instance to use for price data
 	 * @returns a promise that resolves when the DLOB is initialized
 	 */
-	public async init(
-		clearingHouse: ClearingHouse,
-		userMap?: UserMap
-	): Promise<boolean> {
+	public async init(): Promise<boolean> {
 		if (this.initialized) {
 			return false;
 		}
-		if (userMap) {
-			// initialize the dlob with the user map (prevents hitting getProgramAccounts)
-			for (const user of userMap.values()) {
-				const userAccount = user.getUserAccount();
-				const userAccountPubkey = user.getUserAccountPublicKey();
 
-				for (const order of userAccount.orders) {
-					this.insertOrder(order, userAccountPubkey);
-				}
-			}
-		} else {
-			const programAccounts = await clearingHouse.program.account.user.all();
-			for (const programAccount of programAccounts) {
-				// @ts-ignore
-				const userAccount: UserAccount = programAccount.account;
-				const userAccountPublicKey = programAccount.publicKey;
+		// initialize the dlob with the user map (prevents hitting getProgramAccounts)
+		for (const user of this.userMap.values()) {
+			const userAccount = user.getUserAccount();
+			const userAccountPubkey = user.getUserAccountPublicKey();
 
-				for (const order of userAccount.orders) {
-					this.insertOrder(order, userAccountPublicKey);
-				}
+			for (const order of userAccount.orders) {
+				this.insertOrder(order, userAccountPubkey);
 			}
 		}
 
@@ -315,14 +303,14 @@ export class DLOB {
 			);
 
 		// get expired market nodes
-		const marketNodesToFill = this.findExpiredMarketNodesToFill(
+		const expiredNodesToFill = this.findExpiredNodesToFill(
 			marketIndex,
 			slot,
 			marketType
 		);
 		return crossingNodesToFill.concat(
 			vAMMCrossingNodesToFill,
-			marketNodesToFill
+			expiredNodesToFill
 		);
 	}
 
@@ -447,28 +435,48 @@ export class DLOB {
 		return nodesToFill;
 	}
 
-	public findExpiredMarketNodesToFill(
+	public findExpiredNodesToFill(
 		marketIndex: number,
 		slot: number,
 		marketType: MarketType
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
-		// Then see if there are orders to fill against vamm
-		for (const marketBid of this.getMarketBids(marketIndex, marketType)) {
-			if (isOrderExpired(marketBid.order, slot)) {
-				nodesToFill.push({
-					node: marketBid,
-				});
+
+		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
+		const nodeLists = this.orderLists.get(marketTypeStr).get(marketIndex);
+
+		// All bids/asks that can expire
+		const bidGenerators = [
+			nodeLists.limit.bid.getGenerator(),
+			nodeLists.floatingLimit.bid.getGenerator(),
+			nodeLists.market.bid.getGenerator(),
+		];
+		const askGenerators = [
+			nodeLists.limit.ask.getGenerator(),
+			nodeLists.floatingLimit.ask.getGenerator(),
+			nodeLists.market.ask.getGenerator(),
+		];
+
+		for (const bidGenerator of bidGenerators) {
+			for (const bid of bidGenerator) {
+				if (isOrderExpired(bid.order, slot)) {
+					nodesToFill.push({
+						node: bid,
+					});
+				}
 			}
 		}
 
-		for (const marketAsk of this.getMarketAsks(marketIndex, marketType)) {
-			if (isOrderExpired(marketAsk.order, slot)) {
-				nodesToFill.push({
-					node: marketAsk,
-				});
+		for (const askGenerator of askGenerators) {
+			for (const ask of askGenerator) {
+				if (isOrderExpired(ask.order, slot)) {
+					nodesToFill.push({
+						node: ask,
+					});
+				}
 			}
 		}
+
 		return nodesToFill;
 	}
 
@@ -586,6 +594,20 @@ export class DLOB {
 					continue;
 				}
 
+				// skip order if user is being liquidated/bankrupt
+				if (bestGenerator.next.value.userAccount !== undefined) {
+					const user = this.userMap.get(
+						bestGenerator.next.value.userAccount.toString()
+					);
+					if (
+						user?.getUserAccount().isBeingLiquidated ||
+						user?.getUserAccount().isBankrupt
+					) {
+						bestGenerator.next = bestGenerator.generator.next();
+						continue;
+					}
+				}
+
 				yield bestGenerator.next.value;
 				bestGenerator.next = bestGenerator.generator.next();
 			} else {
@@ -659,6 +681,20 @@ export class DLOB {
 				if (bestGenerator.next.value.isBaseFilled()) {
 					bestGenerator.next = bestGenerator.generator.next();
 					continue;
+				}
+
+				// skip order if user is being liquidated/bankrupt
+				if (bestGenerator.next.value.userAccount !== undefined) {
+					const user = this.userMap.get(
+						bestGenerator.next.value.userAccount.toString()
+					);
+					if (
+						user?.getUserAccount().isBeingLiquidated ||
+						user?.getUserAccount().isBankrupt
+					) {
+						bestGenerator.next = bestGenerator.generator.next();
+						continue;
+					}
 				}
 
 				yield bestGenerator.next.value;

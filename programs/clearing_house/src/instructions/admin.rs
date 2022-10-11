@@ -624,7 +624,6 @@ pub fn handle_update_perp_market_expiry(
     Ok(())
 }
 
-#[allow(unused_must_use)]
 #[access_control(
     market_valid(&ctx.accounts.perp_market)
 )]
@@ -801,10 +800,9 @@ pub fn handle_deposit_into_perp_market_fee_pool(
     Ok(())
 }
 
-#[allow(unused_must_use)]
 #[access_control(
-market_valid(&ctx.accounts.perp_market) &&
-valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
+    market_valid(&ctx.accounts.perp_market)
+    valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128) -> Result<()> {
     let clock = Clock::get()?;
@@ -864,9 +862,8 @@ pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128)
     Ok(())
 }
 
-#[allow(unused_must_use)]
 #[access_control(
-    market_valid(&ctx.accounts.perp_market) &&
+    market_valid(&ctx.accounts.perp_market)
     valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
@@ -924,9 +921,8 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
     Ok(())
 }
 
-#[allow(unused_must_use)]
 #[access_control(
-    market_valid(&ctx.accounts.perp_market) &&
+    market_valid(&ctx.accounts.perp_market)
     valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
@@ -959,7 +955,7 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
 
     let adjustment_cost = math::cp_curve::adjust_k_cost(perp_market, &update_k_result)?;
 
-    math::cp_curve::update_k(perp_market, &update_k_result);
+    math::cp_curve::update_k(perp_market, &update_k_result)?;
 
     if k_increasing {
         validate!(
@@ -1082,9 +1078,8 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
     Ok(())
 }
 
-#[allow(unused_must_use)]
 #[access_control(
-    market_valid(&ctx.accounts.perp_market) &&
+    market_valid(&ctx.accounts.perp_market)
     valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {

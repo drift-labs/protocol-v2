@@ -173,7 +173,7 @@ pub fn handle_cancel_request_remove_insurance_fund_stake(
 }
 
 #[access_control(
-withdraw_not_paused(&ctx.accounts.state)
+    withdraw_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_remove_insurance_fund_stake(
     ctx: Context<RemoveInsuranceFundStake>,
