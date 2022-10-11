@@ -40,7 +40,6 @@ import {
 	BN,
 	SpotMarketAccount,
 	getTokenValue,
-	BigNum,
 } from '.';
 import {
 	getTokenAmount,
