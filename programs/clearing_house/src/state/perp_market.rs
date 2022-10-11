@@ -292,8 +292,8 @@ impl SpotBalance for PoolBalance {
 pub struct AMM {
     pub oracle: Pubkey,
     pub historical_oracle_data: HistoricalOracleData,
-    pub base_asset_amount_per_lp: i128, 
-    pub quote_asset_amount_per_lp: i128, 
+    pub base_asset_amount_per_lp: i128,
+    pub quote_asset_amount_per_lp: i128,
     pub fee_pool: PoolBalance,
     pub last_oracle_normalised_price: i128,
     pub last_oracle_reserve_price_spread_pct: i128,

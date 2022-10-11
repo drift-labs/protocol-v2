@@ -102,10 +102,8 @@ pub fn settle_lp_position(
         .checked_add(lp_metrics.base_asset_amount)
         .ok_or_else(math_error!())?;
 
-    position.last_net_base_asset_amount_per_lp =
-        market.amm.base_asset_amount_per_lp.cast()?;
-    position.last_net_quote_asset_amount_per_lp = 
-        market.amm.quote_asset_amount_per_lp.cast()?;
+    position.last_net_base_asset_amount_per_lp = market.amm.base_asset_amount_per_lp.cast()?;
+    position.last_net_quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp.cast()?;
 
     crate::controller::validate::validate_market_account(market)?;
     crate::controller::validate::validate_position_account(position, market)?;
@@ -213,10 +211,8 @@ pub fn burn_lp_shares(
     }
 
     // update last_ metrics
-    position.last_net_base_asset_amount_per_lp =
-        market.amm.base_asset_amount_per_lp.cast()?;
-    position.last_net_quote_asset_amount_per_lp = 
-        market.amm.quote_asset_amount_per_lp.cast()?;
+    position.last_net_base_asset_amount_per_lp = market.amm.base_asset_amount_per_lp.cast()?;
+    position.last_net_quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp.cast()?;
 
     // burn shares
     position.lp_shares = position

@@ -139,7 +139,7 @@ fn test_partial_long_settle() {
     };
 
     let amm = AMM {
-        base_asset_amount_per_lp: -10, 
+        base_asset_amount_per_lp: -10,
         quote_asset_amount_per_lp: 10,
         order_step_size: 3,
         ..AMM::default_test()

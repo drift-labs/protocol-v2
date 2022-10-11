@@ -429,7 +429,7 @@ describe('liquidity providing', () => {
 		console.log(
 			market.amm.quoteAssetAmountPerLp.toString(),
 			market.amm.baseAssetAmountPerLp.toString()
-		)
+		);
 		assert(market.amm.baseAssetAmountPerLp.eq(new BN(12500000)));
 		assert(market.amm.quoteAssetAmountPerLp.eq(new BN(-12336)));
 
