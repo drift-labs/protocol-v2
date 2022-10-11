@@ -776,7 +776,7 @@ pub fn handle_resolve_perp_pnl_deficit(
         )?;
     }
 
-    // todo: validate amounts transfered and bank before and after are zero-sum
+    // todo: validate amounts transfered and spot_market before and after are zero-sum
 
     Ok(())
 }
@@ -957,15 +957,15 @@ pub fn handle_resolve_spot_bankruptcy(
 
 #[allow(unused_must_use)]
 #[access_control(
-    market_valid(&ctx.accounts.market) &&
+    market_valid(&ctx.accounts.perp_market) &&
     funding_not_paused(&ctx.accounts.state) &&
-    valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.market)
+    valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_update_funding_rate(
     ctx: Context<UpdateFundingRate>,
-    market_index: u16,
+    perp_market_index: u16,
 ) -> Result<()> {
-    let market = &mut load_mut!(ctx.accounts.market)?;
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
     let clock_slot = clock.slot;
@@ -976,25 +976,25 @@ pub fn handle_update_funding_rate(
         Some(state.oracle_guard_rails),
     )?;
 
-    let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-    controller::repeg::_update_amm(market, oracle_price_data, state, now, clock_slot)?;
+    let oracle_price_data = &oracle_map.get_price_data(&perp_market.amm.oracle)?;
+    controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, clock_slot)?;
 
     validate!(
-        matches!(market.status, MarketStatus::Active),
+        matches!(perp_market.status, MarketStatus::Active),
         ErrorCode::MarketActionPaused,
         "Market funding is paused",
     )?;
 
     validate!(
-        ((clock_slot == market.amm.last_update_slot && market.amm.last_oracle_valid)
-            || market.amm.curve_update_intensity == 0),
+        ((clock_slot == perp_market.amm.last_update_slot && perp_market.amm.last_oracle_valid)
+            || perp_market.amm.curve_update_intensity == 0),
         ErrorCode::AMMNotUpdatedInSameSlot,
         "AMM must be updated in a prior instruction within same slot"
     )?;
 
     let is_updated = controller::funding::update_funding_rate(
-        market_index,
-        market,
+        perp_market_index,
+        perp_market,
         &mut oracle_map,
         now,
         &state.oracle_guard_rails,
@@ -1014,10 +1014,16 @@ pub fn handle_update_funding_rate(
 )]
 pub fn handle_settle_revenue_to_insurance_fund(
     ctx: Context<SettleRevenueToInsuranceFund>,
-    _market_index: u16,
+    spot_market_index: u16,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    validate!(
+        spot_market_index == spot_market.market_index,
+        ErrorCode::DefaultError,
+        "invalid spot_market passed"
+    )?;
 
     validate!(
         spot_market.insurance_fund.revenue_settle_period > 0,
@@ -1385,7 +1391,7 @@ pub struct UpdateAMM<'info> {
 pub struct UpdateFundingRate<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
-    pub market: AccountLoader<'info, PerpMarket>,
+    pub perp_market: AccountLoader<'info, PerpMarket>,
     /// CHECK: checked in `update_funding_rate` ix constraint
     pub oracle: AccountInfo<'info>,
 }

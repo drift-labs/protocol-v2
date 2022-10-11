@@ -140,8 +140,12 @@ describe('liquidity providing', () => {
 			new BN(60 * 60)
 		);
 		await clearingHouse.updateLpCooldownTime(0, new BN(0));
-		await clearingHouse.updateMaxBaseAssetAmountRatio(0, 1);
-		await clearingHouse.updatePerpStepSizeAndTickSize(0, new BN(1), new BN(1));
+		await clearingHouse.updateMaxFillReserveFraction(0, 1);
+		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
+			0,
+			new BN(1),
+			new BN(1)
+		);
 
 		// second market -- used for funding ..
 		await clearingHouse.initializePerpMarket(

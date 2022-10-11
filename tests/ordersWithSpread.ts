@@ -104,7 +104,7 @@ describe('amm spread: market order', () => {
 			periodicity
 		);
 
-		await clearingHouse.updateMarketBaseSpread(marketIndex, 500);
+		await clearingHouse.updatePerpMarketBaseSpread(marketIndex, 500);
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -260,6 +260,7 @@ describe('amm spread: market order', () => {
 			baseAssetAmount,
 			clearingHouse.getPerpMarketAccount(0),
 			'base',
+			undefined,
 			false
 		);
 		const tradeAcquiredAmountsWithSpread = calculateTradeAcquiredAmounts(
@@ -267,6 +268,7 @@ describe('amm spread: market order', () => {
 			baseAssetAmount,
 			clearingHouse.getPerpMarketAccount(0),
 			'base',
+			undefined,
 			true
 		);
 		const expectedQuoteAssetAmount = calculateQuoteAssetAmountSwapped(
@@ -359,7 +361,8 @@ describe('amm spread: market order', () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = AMM_RESERVE_PRECISION;
 		const limitPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(0)
+			clearingHouse.getPerpMarketAccount(0),
+			undefined
 		).add(PRICE_PRECISION.div(new BN(10000))); // limit price plus 1bp
 
 		const orderParams = getLimitOrderParams({
@@ -379,7 +382,7 @@ describe('amm spread: market order', () => {
 		const expectedBaseAssetAmount = calculateBaseAssetAmountForAmmToFulfill(
 			unfilledOrder,
 			clearingHouse.getPerpMarketAccount(0),
-			clearingHouse.getOracleDataForMarket(unfilledOrder.marketIndex),
+			clearingHouse.getOracleDataForPerpMarket(unfilledOrder.marketIndex),
 			0
 		);
 		assert(expectedBaseAssetAmount.eq(ZERO));
@@ -403,7 +406,8 @@ describe('amm spread: market order', () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = AMM_RESERVE_PRECISION;
 		const limitPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(0)
+			clearingHouse.getPerpMarketAccount(0),
+			undefined
 		).add(PRICE_PRECISION.sub(new BN(10000))); // limit price plus 1bp
 
 		const orderParams = getLimitOrderParams({
@@ -422,7 +426,7 @@ describe('amm spread: market order', () => {
 		const expectedBaseAssetAmount = calculateBaseAssetAmountForAmmToFulfill(
 			unfilledOrder,
 			clearingHouse.getPerpMarketAccount(0),
-			clearingHouse.getOracleDataForMarket(unfilledOrder.marketIndex),
+			clearingHouse.getOracleDataForPerpMarket(unfilledOrder.marketIndex),
 			0
 		);
 		assert(expectedBaseAssetAmount.eq(ZERO));
@@ -449,7 +453,8 @@ describe('amm spread: market order', () => {
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = AMM_RESERVE_PRECISION;
 		const limitPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(0)
+			clearingHouse.getPerpMarketAccount(0),
+			undefined
 		).add(PRICE_PRECISION.div(new BN(1000))); // limit price plus 10bp
 
 		const orderParams = getLimitOrderParams({
@@ -476,7 +481,7 @@ describe('amm spread: market order', () => {
 		const expectedBaseAssetAmount = calculateBaseAssetAmountForAmmToFulfill(
 			order,
 			clearingHouse.getPerpMarketAccount(0),
-			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			clearingHouse.getOracleDataForPerpMarket(order.marketIndex),
 			0
 		);
 		assert(expectedBaseAssetAmount.eq(AMM_RESERVE_PRECISION));
@@ -486,6 +491,7 @@ describe('amm spread: market order', () => {
 			baseAssetAmount,
 			clearingHouse.getPerpMarketAccount(0),
 			'base',
+			undefined,
 			true
 		);
 
@@ -533,7 +539,8 @@ describe('amm spread: market order', () => {
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = AMM_RESERVE_PRECISION;
 		const limitPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(0)
+			clearingHouse.getPerpMarketAccount(0),
+			undefined
 		).sub(PRICE_PRECISION.div(new BN(1000))); // limit price minus 10bp
 
 		const orderParams = getLimitOrderParams({
@@ -560,7 +567,7 @@ describe('amm spread: market order', () => {
 		const expectedBaseAssetAmount = calculateBaseAssetAmountForAmmToFulfill(
 			order,
 			clearingHouse.getPerpMarketAccount(0),
-			clearingHouse.getOracleDataForMarket(order.marketIndex),
+			clearingHouse.getOracleDataForPerpMarket(order.marketIndex),
 			0
 		);
 		assert(expectedBaseAssetAmount.eq(AMM_RESERVE_PRECISION));
@@ -570,6 +577,7 @@ describe('amm spread: market order', () => {
 			baseAssetAmount,
 			clearingHouse.getPerpMarketAccount(0),
 			'base',
+			undefined,
 			true
 		);
 
@@ -633,7 +641,7 @@ describe('amm spread: market order', () => {
 			new BN(peg * PEG_PRECISION.toNumber())
 		);
 
-		await clearingHouse.updateMarketBaseSpread(marketIndex2, 500);
+		await clearingHouse.updatePerpMarketBaseSpread(marketIndex2, 500);
 		const initialCollateral = clearingHouse.getQuoteAssetTokenAmount();
 		const direction = PositionDirection.LONG;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION.toNumber() / 10000); // ~$4 of btc

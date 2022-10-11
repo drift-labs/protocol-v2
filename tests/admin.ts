@@ -82,7 +82,7 @@ describe('admin', () => {
 		const marginRatioInitial = 3000;
 		const marginRatioMaintenance = 1000;
 
-		await clearingHouse.updateMarginRatio(
+		await clearingHouse.updatePerpMarketMarginRatio(
 			0,
 			marginRatioInitial,
 			marginRatioMaintenance
@@ -175,7 +175,7 @@ describe('admin', () => {
 		const newOracle = PublicKey.default;
 		const newOracleSource = OracleSource.SWITCHBOARD;
 
-		await clearingHouse.updateMarketOracle(0, newOracle, newOracleSource);
+		await clearingHouse.updatePerpMarketOracle(0, newOracle, newOracleSource);
 
 		await clearingHouse.fetchAccounts();
 		const market = clearingHouse.getPerpMarketAccount(0);
@@ -190,7 +190,11 @@ describe('admin', () => {
 		const stepSize = new BN(2);
 		const tickSize = new BN(2);
 
-		await clearingHouse.updatePerpStepSizeAndTickSize(0, stepSize, tickSize);
+		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
+			0,
+			stepSize,
+			tickSize
+		);
 
 		await clearingHouse.fetchAccounts();
 		const market = clearingHouse.getPerpMarketAccount(0);

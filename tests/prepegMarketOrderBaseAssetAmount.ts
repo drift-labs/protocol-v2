@@ -123,9 +123,13 @@ describe('prepeg', () => {
 			undefined,
 			1000
 		);
-		await clearingHouse.updateMarketBaseSpread(0, 1000);
-		await clearingHouse.updateCurveUpdateIntensity(0, 100);
-		await clearingHouse.updatePerpStepSizeAndTickSize(0, new BN(1), new BN(1));
+		await clearingHouse.updatePerpMarketBaseSpread(0, 1000);
+		await clearingHouse.updatePerpMarketCurveUpdateIntensity(0, 100);
+		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
+			0,
+			new BN(1),
+			new BN(1)
+		);
 
 		for (let i = 1; i <= 4; i++) {
 			// init more markets
@@ -139,9 +143,9 @@ describe('prepeg', () => {
 				undefined,
 				1000
 			);
-			await clearingHouse.updateMarketBaseSpread(i, 2000);
-			await clearingHouse.updateCurveUpdateIntensity(i, 100);
-			await clearingHouse.updatePerpStepSizeAndTickSize(
+			await clearingHouse.updatePerpMarketBaseSpread(i, 2000);
+			await clearingHouse.updatePerpMarketCurveUpdateIntensity(i, 100);
+			await clearingHouse.updatePerpMarketStepSizeAndTickSize(
 				i,
 				new BN(1),
 				new BN(1)

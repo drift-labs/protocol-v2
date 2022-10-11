@@ -131,7 +131,7 @@ describe('AMM Curve', () => {
 
 	const showBook = (marketIndex) => {
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		const currentMark = calculateReservePrice(market);
+		const currentMark = calculateReservePrice(market, undefined);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
 			market,
@@ -228,14 +228,16 @@ describe('AMM Curve', () => {
 		// showBook(marketIndex);
 
 		const priceBefore = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex),
+			undefined
 		);
 		await clearingHouse.repegAmmCurve(
 			new BN(150.001 * PEG_PRECISION.toNumber()),
 			marketIndex
 		);
 		const priceAfter = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex),
+			undefined
 		);
 
 		assert(newOraclePriceWithMantissa.gt(priceBefore));

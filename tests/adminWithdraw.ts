@@ -49,8 +49,8 @@ describe('admin withdraw', () => {
 				commitment: 'confirmed',
 			},
 			activeSubAccountId: 0,
-			perpMarketIndexes: [new BN(0)],
-			spotMarketIndexes: [new BN(0)],
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0],
 			userStats: true,
 		});
 		await clearingHouse.initialize(usdcMint.publicKey, true);

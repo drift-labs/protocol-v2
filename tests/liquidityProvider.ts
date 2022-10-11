@@ -203,7 +203,7 @@ describe('liquidity providing', () => {
 			new BN(60 * 60)
 		);
 		await clearingHouse.updateLpCooldownTime(0, new BN(0));
-		await clearingHouse.updateMaxBaseAssetAmountRatio(0, 1);
+		await clearingHouse.updateMaxFillReserveFraction(0, 1);
 		// await clearingHouse.updateMarketBaseAssetAmountStepSize(
 		// 	new BN(0),
 		// 	new BN(1)
@@ -287,7 +287,7 @@ describe('liquidity providing', () => {
 		assert(_position.openBids.eq(ZERO));
 
 		const stepSize = new BN(1 * BASE_PRECISION.toNumber());
-		await clearingHouse.updatePerpStepSizeAndTickSize(
+		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
 			0,
 			stepSize,
 			clearingHouse.getPerpMarketAccount(0).amm.orderTickSize
@@ -483,7 +483,7 @@ describe('liquidity providing', () => {
 		);
 		// await _viewLogs(ttxsig);
 
-		await clearingHouse.updatePerpStepSizeAndTickSize(
+		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
 			0,
 			new BN(1),
 			market.amm.orderTickSize
@@ -1195,7 +1195,7 @@ describe('liquidity providing', () => {
 		}
 
 		console.log('updating funding rates');
-		const _txsig = await clearingHouse.updateFundingRate(solusdc2, marketIndex);
+		const _txsig = await clearingHouse.updateFundingRate(marketIndex, solusdc2);
 
 		console.log('removing liquidity...');
 		try {

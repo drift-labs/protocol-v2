@@ -236,10 +236,12 @@ describe('oracle offset', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
 		const priceOffset = PRICE_PRECISION.div(new BN(20)).neg();
+		const price = ZERO; // oracle offsetoor
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
+			price,
 			baseAssetAmount,
 			reduceOnly,
 			userOrderId: 1,
@@ -312,10 +314,12 @@ describe('oracle offset', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
 		const priceOffset = PRICE_PRECISION.div(new BN(20));
+		const price = ZERO; // oracle offsetoor
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
+			price,
 			baseAssetAmount,
 			reduceOnly,
 			userOrderId: 1,
@@ -384,12 +388,14 @@ describe('oracle offset', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
 		const priceOffset = PRICE_PRECISION.div(new BN(20));
+		const price = ZERO;
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
 			reduceOnly,
+			price,
 			userOrderId: 1,
 			postOnly: true,
 			oraclePriceOffset: priceOffset.toNumber(),
@@ -459,11 +465,13 @@ describe('oracle offset', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
 		const priceOffset = PRICE_PRECISION.div(new BN(20));
+		const price = ZERO;
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
+			price,
 			reduceOnly,
 			postOnly: true,
 			oraclePriceOffset: priceOffset.toNumber(),
@@ -515,11 +523,13 @@ describe('oracle offset', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
 		const reduceOnly = false;
 		const priceOffset = PRICE_PRECISION.div(new BN(20));
+		const price = ZERO;
 
 		const orderParams = getLimitOrderParams({
 			marketIndex,
 			direction,
 			baseAssetAmount,
+			price,
 			reduceOnly,
 			postOnly: true,
 			userOrderId: 1,

@@ -111,15 +111,17 @@ describe('update k', () => {
 		const marketIndex = 0;
 
 		const oldKPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex),
+			undefined
 		);
 		const ammOld = clearingHouse.getPerpMarketAccount(0).amm;
 		const newSqrtK = ammInitialBaseAssetReserve.mul(new BN(10));
-		await clearingHouse.updateK(newSqrtK, marketIndex);
+		await clearingHouse.updateK(marketIndex, newSqrtK);
 
 		await clearingHouse.fetchAccounts();
 		const newKPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex),
+			undefined
 		);
 
 		const amm = clearingHouse.getPerpMarketAccount(0).amm;
@@ -162,7 +164,8 @@ describe('update k', () => {
 		const marketOld = clearingHouse.getPerpMarketAccount(0);
 
 		const oldKPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex),
+			undefined
 		);
 		const ammOld = marketOld.amm;
 
@@ -170,11 +173,12 @@ describe('update k', () => {
 			.mul(new BN(1.000132325235 * PRICE_PRECISION.toNumber()))
 			.div(PRICE_PRECISION);
 
-		await clearingHouse.updateK(newSqrtK, marketIndex);
+		await clearingHouse.updateK(marketIndex, newSqrtK);
 
 		await clearingHouse.fetchAccounts();
 		const newKPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex),
+			undefined
 		);
 
 		const amm = clearingHouse.getPerpMarketAccount(0).amm;
@@ -232,7 +236,8 @@ describe('update k', () => {
 		assert(!marketOld.amm.baseAssetAmountWithAmm.eq(ZERO));
 
 		const oldKPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex),
+			undefined
 		);
 		const ammOld = marketOld.amm;
 		console.log(
@@ -245,7 +250,7 @@ describe('update k', () => {
 			.div(PRICE_PRECISION);
 
 		try {
-			await clearingHouse.updateK(newSqrtK, marketIndex);
+			await clearingHouse.updateK(marketIndex, newSqrtK);
 			assert(false);
 		} catch {
 			await clearingHouse.fetchAccounts();
@@ -253,7 +258,8 @@ describe('update k', () => {
 			const ammKChange = marketKChange.amm;
 
 			const newKPrice = calculateReservePrice(
-				clearingHouse.getPerpMarketAccount(marketIndex)
+				clearingHouse.getPerpMarketAccount(marketIndex),
+				undefined
 			);
 
 			console.log('$1 position closing');
@@ -330,7 +336,8 @@ describe('update k', () => {
 		assert(!marketOld.amm.baseAssetAmountWithAmm.eq(ZERO));
 
 		const oldKPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex),
+			undefined
 		);
 		const ammOld = marketOld.amm;
 		console.log(
@@ -348,7 +355,7 @@ describe('update k', () => {
 		)[0];
 
 		try {
-			await clearingHouse.updateK(newSqrtK, marketIndex);
+			await clearingHouse.updateK(marketIndex, newSqrtK);
 		} catch (e) {
 			console.error(e);
 			assert(false);
@@ -359,7 +366,8 @@ describe('update k', () => {
 		const ammKChange = marketKChange.amm;
 
 		const newKPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex),
+			undefined
 		);
 
 		const smallTradeSlip = calculateTradeSlippage(
@@ -443,7 +451,8 @@ describe('update k', () => {
 		assert(!marketOld.amm.baseAssetAmountWithAmm.eq(ZERO));
 
 		const oldKPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex),
+			undefined
 		);
 		const ammOld = marketOld.amm;
 		console.log(
@@ -460,13 +469,14 @@ describe('update k', () => {
 		const newSqrtK = ammOld.sqrtK
 			.mul(new BN(1.02 * PRICE_PRECISION.toNumber()))
 			.div(PRICE_PRECISION);
-		await clearingHouse.updateK(newSqrtK, marketIndex);
+		await clearingHouse.updateK(marketIndex, newSqrtK);
 
 		await clearingHouse.fetchAccounts();
 		const marketKChange = await clearingHouse.getPerpMarketAccount(0);
 		const ammKChange = marketKChange.amm;
 		const newKPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex),
+			undefined
 		);
 
 		const smallTradeSlip = calculateTradeSlippage(

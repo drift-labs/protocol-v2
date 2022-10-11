@@ -58,7 +58,7 @@ async function depositToFeePoolFromIF(
 
 	// // send $50 to market from IF
 	try {
-		const txSig00 = await clearingHouse.depositIntoMarketFeePool(
+		const txSig00 = await clearingHouse.depositIntoPerpMarketFeePool(
 			0,
 			ifAmount,
 			userUSDCAccount.publicKey
@@ -210,8 +210,8 @@ describe('repeg and spread amm', () => {
 			500,
 			250
 		);
-		await clearingHouse.updateMarketBaseSpread(0, 250);
-		await clearingHouse.updateCurveUpdateIntensity(0, 100);
+		await clearingHouse.updatePerpMarketBaseSpread(0, 250);
+		await clearingHouse.updatePerpMarketCurveUpdateIntensity(0, 100);
 
 		// for (let i = 1; i <= 4; i++) {
 		// 	// init more markets
@@ -226,8 +226,8 @@ describe('repeg and spread amm', () => {
 		// 		1000,
 		// 		201
 		// 	);
-		// 	await clearingHouse.updateMarketBaseSpread(new BN(i), 2000);
-		// 	await clearingHouse.updateCurveUpdateIntensity(new BN(i), 100);
+		// 	await clearingHouse.updatePerpMarketBaseSpread(new BN(i), 2000);
+		// 	await clearingHouse.updatePerpMarketCurveUpdateIntensity(new BN(i), 100);
 		// }
 
 		const [, _userAccountPublicKey] =

@@ -96,7 +96,7 @@ async function updateFundingRateHelper(
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		assert(isVariant(market.status, 'active'));
 
-		await clearingHouse.updateFundingRate(priceFeedAddress, marketIndex);
+		await clearingHouse.updateFundingRate(marketIndex, priceFeedAddress);
 
 		const CONVERSION_SCALE = FUNDING_RATE_BUFFER_PRECISION.mul(PRICE_PRECISION);
 
@@ -232,11 +232,14 @@ async function cappedSymFundingScenario(
 	}
 	await clearingHouse.fetchAccounts();
 
-	const oracleData = clearingHouse.getOracleDataForMarket(0);
+	const oracleData = clearingHouse.getOracleDataForPerpMarket(0);
 	console.log(
 		'PRICE',
 		convertToNumber(
-			calculateReservePrice(clearingHouse.getPerpMarketAccount(marketIndex))
+			calculateReservePrice(
+				clearingHouse.getPerpMarketAccount(marketIndex),
+				undefined
+			)
 		),
 		'oracleData:',
 		convertToNumber(oracleData.price),

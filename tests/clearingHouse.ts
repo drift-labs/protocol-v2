@@ -18,7 +18,7 @@ import {
 	Admin,
 	calculateTradeSlippage,
 	PositionDirection,
-	getMarketPublicKey,
+	getPerpMarketPublicKey,
 	EventSubscriber,
 	QUOTE_SPOT_MARKET_INDEX,
 } from '../sdk/src';
@@ -114,7 +114,11 @@ describe('clearing_house', () => {
 			periodicity
 		);
 
-		await clearingHouse.updatePerpStepSizeAndTickSize(0, new BN(1), new BN(1));
+		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
+			0,
+			new BN(1),
+			new BN(1)
+		);
 
 		console.log(
 			'tx logs',
@@ -122,7 +126,7 @@ describe('clearing_house', () => {
 				.logMessages
 		);
 
-		const marketPublicKey = await getMarketPublicKey(
+		const marketPublicKey = await getPerpMarketPublicKey(
 			clearingHouse.program.programId,
 			marketIndex
 		);
