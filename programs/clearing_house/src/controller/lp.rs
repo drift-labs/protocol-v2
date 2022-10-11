@@ -30,13 +30,8 @@ pub fn mint_lp_shares(
     if position.lp_shares > 0 {
         settle_lp_position(position, market)?;
     } else {
-        let (net_base_asset_amount_per_lp, net_quote_asset_amount_per_lp) = get_struct_values!(
-            amm.market_position_per_lp,
-            base_asset_amount,
-            quote_asset_amount
-        );
-        position.last_net_base_asset_amount_per_lp = net_base_asset_amount_per_lp.cast()?;
-        position.last_net_quote_asset_amount_per_lp = net_quote_asset_amount_per_lp.cast()?;
+        position.last_net_base_asset_amount_per_lp = amm.base_asset_amount_per_lp.cast()?;
+        position.last_net_quote_asset_amount_per_lp = amm.quote_asset_amount_per_lp.cast()?;
     }
 
     // add share balance
@@ -107,13 +102,8 @@ pub fn settle_lp_position(
         .checked_add(lp_metrics.base_asset_amount)
         .ok_or_else(math_error!())?;
 
-    position.last_net_base_asset_amount_per_lp =
-        market.amm.market_position_per_lp.base_asset_amount.cast()?;
-    position.last_net_quote_asset_amount_per_lp = market
-        .amm
-        .market_position_per_lp
-        .quote_asset_amount
-        .cast()?;
+    position.last_net_base_asset_amount_per_lp = market.amm.base_asset_amount_per_lp.cast()?;
+    position.last_net_quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp.cast()?;
 
     crate::controller::validate::validate_market_account(market)?;
     crate::controller::validate::validate_position_account(position, market)?;
@@ -221,13 +211,8 @@ pub fn burn_lp_shares(
     }
 
     // update last_ metrics
-    position.last_net_base_asset_amount_per_lp =
-        market.amm.market_position_per_lp.base_asset_amount.cast()?;
-    position.last_net_quote_asset_amount_per_lp = market
-        .amm
-        .market_position_per_lp
-        .quote_asset_amount
-        .cast()?;
+    position.last_net_base_asset_amount_per_lp = market.amm.base_asset_amount_per_lp.cast()?;
+    position.last_net_quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp.cast()?;
 
     // burn shares
     position.lp_shares = position

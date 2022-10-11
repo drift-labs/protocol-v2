@@ -2868,7 +2868,7 @@
       ]
     },
     {
-      "name": "updatePerpMarketLpCooldownTime",
+      "name": "updateLpCooldownTime",
       "accounts": [
         {
           "name": "admin",
@@ -4487,10 +4487,12 @@
             }
           },
           {
-            "name": "marketPositionPerLp",
-            "type": {
-              "defined": "PerpPosition"
-            }
+            "name": "baseAssetAmountPerLp",
+            "type": "i128"
+          },
+          {
+            "name": "quoteAssetAmountPerLp",
+            "type": "i128"
           },
           {
             "name": "feePool",

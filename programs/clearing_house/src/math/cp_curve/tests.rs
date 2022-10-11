@@ -336,11 +336,8 @@ fn calculate_k_with_lps_tests() {
 
     mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
 
-    market.amm.market_position_per_lp = PerpPosition {
-        base_asset_amount: 1,
-        quote_asset_amount: -QUOTE_PRECISION_I64,
-        ..PerpPosition::default()
-    };
+    market.amm.base_asset_amount_per_lp = 1;
+    market.amm.quote_asset_amount_per_lp = -QUOTE_PRECISION_I64 as i128;
 
     let reserve_price = market.amm.reserve_price().unwrap();
     update_spreads(&mut market.amm, reserve_price).unwrap();

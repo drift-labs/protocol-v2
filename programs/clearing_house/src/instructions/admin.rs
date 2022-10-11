@@ -44,7 +44,6 @@ use crate::state::spot_market::{
     SpotMarket,
 };
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
-use crate::state::user::PerpPosition;
 use crate::validate;
 use crate::validation::fee_structure::validate_fee_structure;
 use crate::validation::margin::{validate_margin, validate_margin_weights};
@@ -553,10 +552,8 @@ pub fn handle_initialize_perp_market(
             last_trade_ts: now,
             curve_update_intensity: 0,
             fee_pool: PoolBalance::default(),
-            market_position_per_lp: PerpPosition {
-                market_index,
-                ..PerpPosition::default()
-            },
+            base_asset_amount_per_lp: 0,
+            quote_asset_amount_per_lp: 0,
             last_update_slot: clock_slot,
 
             // lp stuff
@@ -1532,7 +1529,7 @@ pub fn handle_update_perp_market_curve_update_intensity(
     Ok(())
 }
 
-pub fn handle_update_perp_market_lp_cooldown_time(
+pub fn handle_update_lp_cooldown_time(
     ctx: Context<AdminUpdateState>,
     lp_cooldown_time: u64,
 ) -> Result<()> {

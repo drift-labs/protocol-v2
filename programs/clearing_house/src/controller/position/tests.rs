@@ -55,11 +55,11 @@ fn full_lp_split() {
     update_lp_market_position(&mut market, &delta, 0).unwrap();
 
     assert_eq!(
-        market.amm.market_position_per_lp.base_asset_amount,
+        market.amm.base_asset_amount_per_lp as i64,
         -10 * BASE_PRECISION_I64 / 100
     );
     assert_eq!(
-        market.amm.market_position_per_lp.quote_asset_amount,
+        market.amm.quote_asset_amount_per_lp as i64,
         10 * BASE_PRECISION_I64 / 100
     );
     assert_eq!(market.amm.base_asset_amount_with_amm, 0);

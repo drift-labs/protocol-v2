@@ -17,7 +17,6 @@ use crate::math::stats;
 use crate::math_error;
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
-use crate::state::user::PerpPosition;
 use crate::{
     AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, MARGIN_PRECISION,
     MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION,
@@ -293,7 +292,8 @@ impl SpotBalance for PoolBalance {
 pub struct AMM {
     pub oracle: Pubkey,
     pub historical_oracle_data: HistoricalOracleData,
-    pub market_position_per_lp: PerpPosition,
+    pub base_asset_amount_per_lp: i128,
+    pub quote_asset_amount_per_lp: i128,
     pub fee_pool: PoolBalance,
     pub last_oracle_normalised_price: i128,
     pub last_oracle_reserve_price_spread_pct: i128,

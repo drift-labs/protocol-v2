@@ -202,7 +202,7 @@ describe('liquidity providing', () => {
 			ammInitialQuoteAssetReserve,
 			new BN(60 * 60)
 		);
-		await clearingHouse.updatePerpMarketLpCooldownTime(new BN(0));
+		await clearingHouse.updateLpCooldownTime(new BN(0));
 		await clearingHouse.updatePerpMarketMaxFillReserveFraction(0, 1);
 		// await clearingHouse.updateMarketBaseAssetAmountStepSize(
 		// 	new BN(0),
@@ -216,7 +216,7 @@ describe('liquidity providing', () => {
 			stableAmmInitialQuoteAssetReserve,
 			new BN(0)
 		);
-		await clearingHouse.updatePerpMarketLpCooldownTime(new BN(0));
+		await clearingHouse.updateLpCooldownTime(new BN(0));
 		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		[traderClearingHouse, traderClearingHouseUser] = await createNewUser(
@@ -427,15 +427,17 @@ describe('liquidity providing', () => {
 
 		market = await clearingHouse.getPerpMarketAccount(0);
 		console.log(
-			market.amm.marketPositionPerLp.quoteAssetAmount.toString(),
-			market.amm.marketPositionPerLp.baseAssetAmount.toString()
+			market.amm.quoteAssetAmountPerLp.toString(),
+			market.amm.baseAssetAmountPerLp.toString()
 		);
-		assert(market.amm.marketPositionPerLp.baseAssetAmount.eq(new BN(12500000)));
-		assert(market.amm.marketPositionPerLp.quoteAssetAmount.eq(new BN(-12336)));
+		assert(market.amm.baseAssetAmountPerLp.eq(new BN(12500000)));
+		assert(market.amm.quoteAssetAmountPerLp.eq(new BN(-12336)));
 
 		// remove
 		console.log('removing liquidity...');
 		await clearingHouse.removePerpLpShares(0);
+
+		await clearingHouse.fetchAccounts();
 
 		const removeLiquidityRecord: LPRecord =
 			eventSubscriber.getEventsArray('LPRecord')[0];
