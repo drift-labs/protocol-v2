@@ -82,41 +82,49 @@ pub fn update_amm_position(
     market: &mut PerpMarket,
     delta: &PositionDelta,
 ) -> ClearingHouseResult<i128> {
-    let update_type = get_position_update_type(&market.amm.market_position_per_lp, delta);
-    let (new_quote_asset_amount, new_quote_entry_amount, new_base_asset_amount, pnl) =
-        calculate_position_new_quote_base_pnl(&market.amm.market_position_per_lp, delta)?;
+    market.amm.base_asset_amount_per_lp = market.amm.base_asset_amount_per_lp
+        .checked_add(delta.base_asset_amount.cast()?)
+        .ok_or_else(math_error!())?;
+    
+    market.amm.quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp
+        .checked_add(delta.quote_asset_amount.cast()?)
+        .ok_or_else(math_error!())?;
 
-    // Update user position
-    match update_type {
-        PositionUpdateType::Close => {
-            market
-                .amm
-                .market_position_per_lp
-                .last_cumulative_funding_rate = 0;
-        }
-        PositionUpdateType::Open | PositionUpdateType::Flip => {
-            if new_base_asset_amount > 0 {
-                market
-                    .amm
-                    .market_position_per_lp
-                    .last_cumulative_funding_rate =
-                    market.amm.cumulative_funding_rate_long.cast()?;
-            } else {
-                market
-                    .amm
-                    .market_position_per_lp
-                    .last_cumulative_funding_rate =
-                    market.amm.cumulative_funding_rate_short.cast()?;
-            }
-        }
-        _ => {}
-    };
+    // let update_type = get_position_update_type(&market.amm.market_position_per_lp, delta);
+    // let (new_quote_asset_amount, new_quote_entry_amount, new_base_asset_amount, pnl) =
+    //     calculate_position_new_quote_base_pnl(&market.amm.market_position_per_lp, delta)?;
 
-    market.amm.market_position_per_lp.quote_asset_amount = new_quote_asset_amount.cast()?;
-    market.amm.market_position_per_lp.quote_entry_amount = new_quote_entry_amount.cast()?;
-    market.amm.market_position_per_lp.base_asset_amount = new_base_asset_amount.cast()?;
+    // // Update user position
+    // match update_type {
+    //     PositionUpdateType::Close => {
+    //         market
+    //             .amm
+    //             .market_position_per_lp
+    //             .last_cumulative_funding_rate = 0;
+    //     }
+    //     PositionUpdateType::Open | PositionUpdateType::Flip => {
+    //         if new_base_asset_amount > 0 {
+    //             market
+    //                 .amm
+    //                 .market_position_per_lp
+    //                 .last_cumulative_funding_rate =
+    //                 market.amm.cumulative_funding_rate_long.cast()?;
+    //         } else {
+    //             market
+    //                 .amm
+    //                 .market_position_per_lp
+    //                 .last_cumulative_funding_rate =
+    //                 market.amm.cumulative_funding_rate_short.cast()?;
+    //         }
+    //     }
+    //     _ => {}
+    // };
 
-    Ok(pnl)
+    // market.amm.market_position_per_lp.quote_asset_amount = new_quote_asset_amount.cast()?;
+    // market.amm.market_position_per_lp.quote_entry_amount = new_quote_entry_amount.cast()?;
+    // market.amm.market_position_per_lp.base_asset_amount = new_base_asset_amount.cast()?;
+
+    Ok(0)
 }
 
 pub fn update_position_and_market(
@@ -499,10 +507,9 @@ pub fn update_lp_market_position(
     };
 
     // update per lp position
-    market.amm.market_position_per_lp.quote_asset_amount = market
+    market.amm.quote_asset_amount_per_lp = market
         .amm
-        .market_position_per_lp
-        .quote_asset_amount
+        .quote_asset_amount_per_lp
         .checked_add(per_lp_fee.cast()?)
         .ok_or_else(math_error!())?;
 
