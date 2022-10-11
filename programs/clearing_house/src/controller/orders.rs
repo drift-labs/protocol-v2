@@ -2062,6 +2062,16 @@ pub fn trigger_order(
         "Order must be a perp order"
     )?;
 
+    validate_user_not_being_liquidated(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        state.liquidation_margin_buffer_ratio,
+    )?;
+
+    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
+
     let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = &oracle_map.get_price_data(&perp_market.amm.oracle)?;
 
@@ -3759,6 +3769,16 @@ pub fn trigger_spot_order(
         ErrorCode::InvalidOrder,
         "Order must be a spot order"
     )?;
+
+    validate_user_not_being_liquidated(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        state.liquidation_margin_buffer_ratio,
+    )?;
+
+    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
 
     let spot_market = spot_market_map.get_ref(&market_index)?;
     let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
