@@ -1367,12 +1367,26 @@ export class ClearingHouseUser {
 			this.getTotalPerpPositionValueExcludingMarket(targetMarketIndex);
 
 		const totalCollateral = this.getTotalCollateral();
+
 		if (totalCollateral.gt(ZERO)) {
-			const newLeverage = currentPerpPositionAfterTrade
+			const totalAssetValue = this.getSpotMarketAssetValue(
+				undefined,
+				undefined,
+				true
+			).add(this.getUnrealizedPNL(true));
+
+			const totalPerpPositionValue = currentPerpPositionAfterTrade
 				.add(totalPositionAfterTradeExcludingTargetMarket)
-				.abs()
+				.abs();
+
+			const totalLiabilitiesAfterTrade = totalPerpPositionValue.add(
+				this.getSpotMarketLiabilityValue(undefined, undefined, undefined, true)
+			);
+
+			const newLeverage = totalLiabilitiesAfterTrade
 				.mul(TEN_THOUSAND)
-				.div(totalCollateral);
+				.div(totalAssetValue);
+
 			return newLeverage;
 		} else {
 			return new BN(0);
