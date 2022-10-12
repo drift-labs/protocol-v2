@@ -1548,7 +1548,7 @@ pub mod amm_jit {
                 peg_multiplier: 100 * PEG_PRECISION,
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
-                order_step_size: 10000000,
+                order_step_size: 100,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,

@@ -31,9 +31,9 @@ pub fn calculate_jit_base_asset_amount(
         // maker taking a short below oracle = likely to be a wash
         // so we want to take less than 50%
         if taker_direction == PositionDirection::Long && auction_price < oracle_price {
-            max_jit_amount = max_jit_amount.checked_div(4).ok_or_else(math_error!())?
+            max_jit_amount = max_jit_amount.checked_div(1000).ok_or_else(math_error!())?
         } else if taker_direction == PositionDirection::Short && auction_price > oracle_price {
-            max_jit_amount = max_jit_amount.checked_div(4).ok_or_else(math_error!())?
+            max_jit_amount = max_jit_amount.checked_div(1000).ok_or_else(math_error!())?
         }
     } else {
         max_jit_amount = 0;
@@ -63,8 +63,12 @@ pub fn calculate_jit_base_asset_amount(
         .checked_div(denominator)
         .ok_or_else(math_error!())?;
 
-    let imbalanced_bound = 3_u128
-        .checked_mul(AMM_RESERVE_PRECISION)
+    let imbalanced_bound = 15_u128
+        .checked_mul(
+            AMM_RESERVE_PRECISION
+                .checked_div(10)
+                .ok_or_else(math_error!())?,
+        )
         .ok_or_else(math_error!())?;
 
     let amm_is_imbalanced = ratio >= imbalanced_bound;
@@ -82,8 +86,7 @@ pub fn calculate_jit_base_asset_amount(
         return Ok(0);
     }
 
-    jit_base_asset_amount =
-        calculate_clampped_jit_base_asset_amount(market, jit_base_asset_amount)?;
+    jit_base_asset_amount = calculate_clamped_jit_base_asset_amount(market, jit_base_asset_amount)?;
 
     jit_base_asset_amount = jit_base_asset_amount.min(max_jit_amount);
 
@@ -96,7 +99,7 @@ pub fn calculate_jit_base_asset_amount(
 
 // assumption: taker_baa will improve market balance (see orders.rs & amm_wants_to_make)
 // note: we split it into two (calc and clamp) bc its easier to maintain tests
-pub fn calculate_clampped_jit_base_asset_amount(
+pub fn calculate_clamped_jit_base_asset_amount(
     market: &PerpMarket,
     jit_base_asset_amount: u64,
 ) -> ClearingHouseResult<u64> {
