@@ -435,6 +435,7 @@ export type StateAccount = {
 	srmVault: PublicKey;
 	perpFeeStructure: FeeStructure;
 	spotFeeStructure: FeeStructure;
+	lpCooldownTime: BN;
 };
 
 export type PerpMarketAccount = {
@@ -603,7 +604,10 @@ export type AMM = {
 	longSpread: BN;
 	shortSpread: BN;
 	maxSpread: number;
-	marketPositionPerLp: PerpPosition;
+
+	baseAssetAmountPerLp: BN;
+	quoteAssetAmountPerLp: BN;
+
 	ammJitIntensity: number;
 	maxBaseAssetReserve: BN;
 	minBaseAssetReserve: BN;

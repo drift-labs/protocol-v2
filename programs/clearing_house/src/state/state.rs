@@ -18,6 +18,7 @@ pub struct State {
     pub spot_fee_structure: FeeStructure,
     pub oracle_guard_rails: OracleGuardRails,
     pub number_of_authorities: u64,
+    pub lp_cooldown_time: u64,
     pub liquidation_margin_buffer_ratio: u32,
     pub settlement_duration: u16,
     pub number_of_markets: u16,

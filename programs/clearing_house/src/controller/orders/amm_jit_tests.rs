@@ -427,7 +427,7 @@ pub mod amm_jit {
         assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
 
         // make sure lps didnt get anything
-        assert_eq!(market_after.amm.market_position_per_lp.base_asset_amount, 0);
+        assert_eq!(market_after.amm.base_asset_amount_per_lp, 0);
 
         let maker_position = &maker.perp_positions[0];
         // maker got (full - net_baa)

@@ -121,6 +121,23 @@ pub mod clearing_house {
         handle_place_spot_order(ctx, params)
     }
 
+    pub fn place_and_take_spot_order(
+        ctx: Context<PlaceAndTake>,
+        params: OrderParams,
+        fulfillment_type: Option<SpotFulfillmentType>,
+        maker_order_id: Option<u32>,
+    ) -> Result<()> {
+        handle_place_and_take_spot_order(ctx, params, fulfillment_type, maker_order_id)
+    }
+
+    pub fn place_and_make_spot_order(
+        ctx: Context<PlaceAndMake>,
+        params: OrderParams,
+        taker_order_id: u32,
+    ) -> Result<()> {
+        handle_place_and_make_spot_order(ctx, params, taker_order_id)
+    }
+
     pub fn add_perp_lp_shares(
         ctx: Context<AddRemoveLiquidity>,
         n_shares: u64,
@@ -630,11 +647,11 @@ pub mod clearing_house {
         handle_update_perp_market_curve_update_intensity(ctx, curve_update_intensity)
     }
 
-    pub fn update_perp_market_lp_cooldown_time(
-        ctx: Context<AdminUpdatePerpMarket>,
-        lp_cooldown_time: i64,
+    pub fn update_lp_cooldown_time(
+        ctx: Context<AdminUpdateState>,
+        lp_cooldown_time: u64,
     ) -> Result<()> {
-        handle_update_perp_market_lp_cooldown_time(ctx, lp_cooldown_time)
+        handle_update_lp_cooldown_time(ctx, lp_cooldown_time)
     }
 
     pub fn update_perp_fee_structure(

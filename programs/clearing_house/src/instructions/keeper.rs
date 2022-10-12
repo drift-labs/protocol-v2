@@ -157,6 +157,8 @@ pub fn handle_fill_spot_order<'info>(
         None => (None, None),
     };
 
+    let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
+
     let serum_fulfillment_params = match fulfillment_type {
         Some(SpotFulfillmentType::SerumV3) => {
             let base_market = spot_market_map.get_ref(&market_index)?;
@@ -908,10 +910,9 @@ pub fn handle_resolve_spot_bankruptcy(
     Ok(())
 }
 
-#[allow(unused_must_use)]
 #[access_control(
-    market_valid(&ctx.accounts.perp_market) &&
-    funding_not_paused(&ctx.accounts.state) &&
+    market_valid(&ctx.accounts.perp_market)
+    funding_not_paused(&ctx.accounts.state)
     valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_update_funding_rate(

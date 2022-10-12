@@ -1,9 +1,10 @@
-import { PublicKey } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
 	AMM,
 	AssetTier,
 	PerpPosition,
 	BN,
+	ClearingHouse,
 	PerpMarketAccount,
 	SpotMarketAccount,
 	MarketStatus,
@@ -13,7 +14,11 @@ import {
 	BASE_PRECISION,
 	QUOTE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
+	StateAccount,
+	UserMap,
+	Wallet,
 } from '../../src';
+import { ExchangeStatus } from '../../lib';
 
 export const mockPerpPosition: PerpPosition = {
 	baseAssetAmount: new BN(0),
@@ -72,6 +77,7 @@ export const mockAMM: AMM = {
 	userLpShares: new BN(0),
 	baseAssetAmountWithUnsettledLp: new BN(0),
 	orderStepSize: new BN(0),
+	orderTickSize: new BN(1),
 	maxFillReserveFraction: 0,
 	baseSpread: 0,
 	curveUpdateIntensity: 0,
@@ -245,6 +251,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		borrowTokenTwap: new BN(0),
 		utilizationTwap: new BN(0),
 		orderStepSize: new BN(0),
+		orderTickSize: new BN(0),
 		nextFillRecordId: new BN(0),
 		spotFeePool: {
 			scaledBalance: new BN(0),
@@ -314,6 +321,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		borrowTokenTwap: new BN(0),
 		utilizationTwap: new BN(0),
 		orderStepSize: new BN(0),
+		orderTickSize: new BN(0),
 		nextFillRecordId: new BN(0),
 		spotFeePool: {
 			scaledBalance: new BN(0),
@@ -383,6 +391,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		borrowTokenTwap: new BN(0),
 		utilizationTwap: new BN(0),
 		orderStepSize: new BN(0),
+		orderTickSize: new BN(0),
 		nextFillRecordId: new BN(0),
 		spotFeePool: {
 			scaledBalance: new BN(0),
@@ -407,3 +416,35 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		},
 	},
 ];
+
+export const mockStateAccount: StateAccount = {
+	admin: PublicKey.default,
+	defaultMarketOrderTimeInForce: 0,
+	defaultSpotAuctionDuration: 0,
+	discountMint: PublicKey.default,
+	exchangeStatus: ExchangeStatus.ACTIVE,
+	liquidationMarginBufferRatio: 0,
+	lpCooldownTime: undefined,
+	minPerpAuctionDuration: 0,
+	numberOfMarkets: 0,
+	numberOfSpotMarkets: 0,
+	oracleGuardRails: undefined,
+	perpFeeStructure: undefined,
+	settlementDuration: 0,
+	signer: undefined,
+	signerNonce: 0,
+	spotFeeStructure: undefined,
+	srmVault: PublicKey.default,
+	whitelistMint: PublicKey.default,
+};
+
+export const mockUserMap = new UserMap(
+	new ClearingHouse({
+		connection: new Connection('http://localhost:8899'),
+		wallet: new Wallet(new Keypair()),
+		programID: PublicKey.default,
+	}),
+	{
+		type: 'websocket',
+	}
+);

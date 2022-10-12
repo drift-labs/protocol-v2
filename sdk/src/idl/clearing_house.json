@@ -487,6 +487,100 @@
       ]
     },
     {
+      "name": "placeAndTakeSpotOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "OrderParams"
+          }
+        },
+        {
+          "name": "fulfillmentType",
+          "type": {
+            "option": {
+              "defined": "SpotFulfillmentType"
+            }
+          }
+        },
+        {
+          "name": "makerOrderId",
+          "type": {
+            "option": "u32"
+          }
+        }
+      ]
+    },
+    {
+      "name": "placeAndMakeSpotOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "taker",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "takerStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "OrderParams"
+          }
+        },
+        {
+          "name": "takerOrderId",
+          "type": "u32"
+        }
+      ]
+    },
+    {
       "name": "addPerpLpShares",
       "accounts": [
         {
@@ -2774,7 +2868,7 @@
       ]
     },
     {
-      "name": "updatePerpMarketLpCooldownTime",
+      "name": "updateLpCooldownTime",
       "accounts": [
         {
           "name": "admin",
@@ -2783,11 +2877,6 @@
         },
         {
           "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
@@ -2795,7 +2884,7 @@
       "args": [
         {
           "name": "lpCooldownTime",
-          "type": "i64"
+          "type": "u64"
         }
       ]
     },
@@ -3766,6 +3855,10 @@
             "type": "u64"
           },
           {
+            "name": "lpCooldownTime",
+            "type": "u64"
+          },
+          {
             "name": "liquidationMarginBufferRatio",
             "type": "u32"
           },
@@ -4394,10 +4487,12 @@
             }
           },
           {
-            "name": "marketPositionPerLp",
-            "type": {
-              "defined": "PerpPosition"
-            }
+            "name": "baseAssetAmountPerLp",
+            "type": "i128"
+          },
+          {
+            "name": "quoteAssetAmountPerLp",
+            "type": "i128"
           },
           {
             "name": "feePool",
@@ -4583,10 +4678,6 @@
           },
           {
             "name": "netRevenueSinceLastFunding",
-            "type": "i64"
-          },
-          {
-            "name": "lpCooldownTime",
             "type": "i64"
           },
           {

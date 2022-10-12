@@ -44,7 +44,6 @@ use crate::state::spot_market::{
     SpotMarket,
 };
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
-use crate::state::user::PerpPosition;
 use crate::validate;
 use crate::validation::fee_structure::validate_fee_structure;
 use crate::validation::margin::{validate_margin, validate_margin_weights};
@@ -73,6 +72,7 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         srm_vault: Pubkey::default(),
         perp_fee_structure: FeeStructure::perps_default(),
         spot_fee_structure: FeeStructure::spot_default(),
+        lp_cooldown_time: 0,
         padding: [0; 1],
     };
 
@@ -296,6 +296,30 @@ pub fn handle_initialize_serum_fulfillment_config(
     let market_state_pc_vault = market_state.pc_vault;
     let serum_quote_vault = Pubkey::new(cast_slice(&market_state_pc_vault));
     let serum_signer_nonce = market_state.vault_signer_nonce;
+
+    let market_step_size = market_state.coin_lot_size;
+    let valid_step_size = market_step_size >= base_spot_market.order_step_size
+        && market_step_size.rem_euclid(base_spot_market.order_step_size) == 0;
+
+    validate!(
+        valid_step_size,
+        ErrorCode::InvalidSerumMarket,
+        "serum step size ({}) not a multiple of base market step size ({})",
+        market_step_size,
+        base_spot_market.order_step_size
+    )?;
+
+    let market_tick_size = market_state.pc_lot_size;
+    let valid_tick_size = market_step_size >= base_spot_market.order_tick_size
+        && market_tick_size.rem_euclid(base_spot_market.order_tick_size) == 0;
+
+    validate!(
+        valid_tick_size,
+        ErrorCode::InvalidSerumMarket,
+        "serum tick size ({}) not a multiple of base market tick size ({})",
+        market_tick_size,
+        base_spot_market.order_tick_size
+    )?;
 
     drop(market_state);
 
@@ -552,16 +576,13 @@ pub fn handle_initialize_perp_market(
             last_trade_ts: now,
             curve_update_intensity: 0,
             fee_pool: PoolBalance::default(),
-            market_position_per_lp: PerpPosition {
-                market_index,
-                ..PerpPosition::default()
-            },
+            base_asset_amount_per_lp: 0,
+            quote_asset_amount_per_lp: 0,
             last_update_slot: clock_slot,
 
             // lp stuff
             base_asset_amount_with_unsettled_lp: 0,
             user_lp_shares: 0,
-            lp_cooldown_time: 1,  // TODO: what should this be?
             amm_jit_intensity: 0, // turn it off at the start
 
             last_oracle_valid: false,
@@ -627,7 +648,6 @@ pub fn handle_update_perp_market_expiry(
     Ok(())
 }
 
-#[allow(unused_must_use)]
 #[access_control(
     market_valid(&ctx.accounts.perp_market)
 )]
@@ -804,10 +824,9 @@ pub fn handle_deposit_into_perp_market_fee_pool(
     Ok(())
 }
 
-#[allow(unused_must_use)]
 #[access_control(
-market_valid(&ctx.accounts.perp_market) &&
-valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
+    market_valid(&ctx.accounts.perp_market)
+    valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128) -> Result<()> {
     let clock = Clock::get()?;
@@ -867,9 +886,8 @@ pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128)
     Ok(())
 }
 
-#[allow(unused_must_use)]
 #[access_control(
-    market_valid(&ctx.accounts.perp_market) &&
+    market_valid(&ctx.accounts.perp_market)
     valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
@@ -927,9 +945,8 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
     Ok(())
 }
 
-#[allow(unused_must_use)]
 #[access_control(
-    market_valid(&ctx.accounts.perp_market) &&
+    market_valid(&ctx.accounts.perp_market)
     valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
@@ -962,7 +979,7 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
 
     let adjustment_cost = math::cp_curve::adjust_k_cost(perp_market, &update_k_result)?;
 
-    math::cp_curve::update_k(perp_market, &update_k_result);
+    math::cp_curve::update_k(perp_market, &update_k_result)?;
 
     if k_increasing {
         validate!(
@@ -1085,9 +1102,8 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
     Ok(())
 }
 
-#[allow(unused_must_use)]
 #[access_control(
-    market_valid(&ctx.accounts.perp_market) &&
+    market_valid(&ctx.accounts.perp_market)
     valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
@@ -1537,15 +1553,11 @@ pub fn handle_update_perp_market_curve_update_intensity(
     Ok(())
 }
 
-#[access_control(
-    market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_lp_cooldown_time(
-    ctx: Context<AdminUpdatePerpMarket>,
-    lp_cooldown_time: i64,
+pub fn handle_update_lp_cooldown_time(
+    ctx: Context<AdminUpdateState>,
+    lp_cooldown_time: u64,
 ) -> Result<()> {
-    let perp_market = &mut ctx.accounts.perp_market.load_mut()?;
-    perp_market.amm.lp_cooldown_time = lp_cooldown_time;
+    ctx.accounts.state.lp_cooldown_time = lp_cooldown_time;
     Ok(())
 }
 
