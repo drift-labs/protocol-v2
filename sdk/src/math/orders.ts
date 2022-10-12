@@ -132,8 +132,7 @@ export function standardizeBaseAssetAmount(
 export function getLimitPrice(
 	order: Order,
 	oraclePriceData: OraclePriceData,
-	slot: number,
-	perpMarket?: PerpMarketAccount
+	slot: number
 ): BN {
 	let limitPrice;
 	if (order.oraclePriceOffset !== 0) {
@@ -144,24 +143,12 @@ export function getLimitPrice(
 		} else if (!order.price.eq(ZERO)) {
 			limitPrice = order.price;
 		} else {
-			if (perpMarket) {
-				if (isVariant(order.direction, 'long')) {
-					const askPrice = calculateAskPrice(perpMarket, oraclePriceData);
-					const delta = askPrice.div(new BN(perpMarket.amm.maxSlippageRatio));
-					limitPrice = askPrice.add(delta);
-				} else {
-					const bidPrice = calculateBidPrice(perpMarket, oraclePriceData);
-					const delta = bidPrice.div(new BN(perpMarket.amm.maxSlippageRatio));
-					limitPrice = bidPrice.sub(delta);
-				}
+			// check oracle validity?
+			const oraclePrice1Pct = oraclePriceData.price.div(new BN(100));
+			if (isVariant(order.direction, 'long')) {
+				limitPrice = oraclePriceData.price.add(oraclePrice1Pct);
 			} else {
-				// check oracle validity?
-				const oraclePrice1Pct = oraclePriceData.price.div(new BN(100));
-				if (isVariant(order.direction, 'long')) {
-					limitPrice = oraclePriceData.price.add(oraclePrice1Pct);
-				} else {
-					limitPrice = oraclePriceData.price.sub(oraclePrice1Pct);
-				}
+				limitPrice = oraclePriceData.price.sub(oraclePrice1Pct);
 			}
 		}
 	} else {
@@ -202,7 +189,7 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 		return ZERO;
 	}
 
-	const limitPrice = getLimitPrice(order, oraclePriceData, slot, market);
+	const limitPrice = getLimitPrice(order, oraclePriceData, slot);
 	const baseAssetAmount = calculateBaseAssetAmountToFillUpToLimitPrice(
 		order,
 		market,
