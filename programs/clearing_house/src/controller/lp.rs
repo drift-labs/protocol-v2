@@ -253,7 +253,7 @@ pub fn burn_lp_shares(
 pub fn remove_perp_lp_shares(
     perp_market_map: PerpMarketMap,
     oracle_map: &mut OracleMap,
-    state: &Box<Account<State>>,
+    state: &Account<State>,
     user: &mut std::cell::RefMut<User>,
     user_key: Pubkey,
     shares_to_burn: u64,
