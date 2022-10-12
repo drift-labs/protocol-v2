@@ -445,6 +445,7 @@ export type PerpMarketAccount = {
 	expiryPrice: BN;
 	marketIndex: number;
 	pubkey: PublicKey;
+	name: number[];
 	amm: AMM;
 	numberOfUsers: BN;
 	marginRatioInitial: number;

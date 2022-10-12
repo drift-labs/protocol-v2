@@ -11,6 +11,8 @@ import {
 	BN,
 } from '../sdk/src';
 
+import { decodeName, DEFAULT_MARKET_NAME } from '../sdk/src/userName';
+
 import {
 	mockOracle,
 	mockUSDCMint,
@@ -63,6 +65,19 @@ describe('admin', () => {
 			new BN(1000),
 			periodicity
 		);
+	});
+
+	it('checks market name', async () => {
+		const market = clearingHouse.getPerpMarketAccount(0);
+		const name = decodeName(market.name);
+		assert(name == DEFAULT_MARKET_NAME);
+
+		const newName = 'Glory t0 the DAmm';
+		await clearingHouse.updatePerpMarketName(0, newName);
+
+		await clearingHouse.fetchAccounts();
+		const newMarket = clearingHouse.getPerpMarketAccount(0);
+		assert(decodeName(newMarket.name) == newName);
 	});
 
 	it('Update lp cooldown time', async () => {
