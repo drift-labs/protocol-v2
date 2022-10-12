@@ -33,7 +33,8 @@ use crate::load_mut;
 use crate::math::auction::{calculate_auction_end_price, is_auction_complete};
 use crate::math::casting::{cast, cast_to_u64, Cast};
 use crate::math::constants::{
-    PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX, SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+    BASE_PRECISION_U64, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
+    SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
 };
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
@@ -1421,6 +1422,7 @@ pub fn fulfill_order_with_amm(
     validate_fill_price(
         quote_asset_amount,
         base_asset_amount,
+        BASE_PRECISION_U64,
         order_direction,
         limit_price,
         !order_post_only,
@@ -1733,6 +1735,7 @@ pub fn fulfill_order_with_match(
     validate_fill_price(
         quote_asset_amount,
         base_asset_amount_fulfilled,
+        BASE_PRECISION_U64,
         taker_direction,
         taker_price,
         true,
@@ -1740,6 +1743,7 @@ pub fn fulfill_order_with_match(
     validate_fill_price(
         quote_asset_amount,
         base_asset_amount_fulfilled,
+        BASE_PRECISION_U64,
         maker_direction,
         maker_price,
         false,
@@ -3077,9 +3081,11 @@ pub fn fulfill_spot_order_with_match(
         return Ok(0_u64);
     }
 
+    let base_precision = base_market.get_precision();
     validate_fill_price(
         quote_asset_amount,
         base_asset_amount,
+        base_precision,
         taker_direction,
         taker_price,
         true,
@@ -3087,6 +3093,7 @@ pub fn fulfill_spot_order_with_match(
     validate_fill_price(
         quote_asset_amount,
         base_asset_amount,
+        base_precision,
         maker_direction,
         maker_price,
         false,
@@ -3561,6 +3568,7 @@ pub fn fulfill_spot_order_with_serum(
     validate_fill_price(
         quote_asset_amount_filled,
         base_asset_amount_filled,
+        base_market.get_precision(),
         order_direction,
         taker_price,
         true,
