@@ -1176,7 +1176,7 @@ describe('liquidity providing', () => {
 		const market = clearingHouse.getPerpMarketAccount(0);
 		console.log(market.status);
 
-		await traderClearingHouse.permissionlessRemovePerpLpShares(
+		await traderClearingHouse.removePerpLpSharesInExpiringMarket(
 			0,
 			await clearingHouse.getUserAccountPublicKey()
 		);

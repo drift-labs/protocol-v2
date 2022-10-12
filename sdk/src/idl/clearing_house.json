@@ -641,7 +641,7 @@
       ]
     },
     {
-      "name": "permissionlessRemovePerpLpShares",
+      "name": "removePerpLpSharesInExpiringMarket",
       "accounts": [
         {
           "name": "state",

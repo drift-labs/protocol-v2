@@ -1191,8 +1191,8 @@ pub fn handle_add_perp_lp_shares<'info>(
     Ok(())
 }
 
-pub fn handle_permissionless_remove_perp_lp_shares(
-    ctx: Context<PermissionlessRemoveLiquidity>,
+pub fn handle_remove_perp_lp_shares_in_expiring_market(
+    ctx: Context<RemoveLiquidityInExpiredMarket>,
     shares_to_burn: u64,
     market_index: u16,
 ) -> Result<()> {
@@ -1525,7 +1525,7 @@ pub struct AddRemoveLiquidity<'info> {
 }
 
 #[derive(Accounts)]
-pub struct PermissionlessRemoveLiquidity<'info> {
+pub struct RemoveLiquidityInExpiredMarket<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,

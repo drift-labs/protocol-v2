@@ -1429,14 +1429,14 @@ export class ClearingHouse {
 		return txSig;
 	}
 
-	public async permissionlessRemovePerpLpShares(
+	public async removePerpLpSharesInExpiringMarket(
 		marketIndex: number,
 		userAccountPublicKey: PublicKey,
 		sharesToBurn?: BN
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
 			wrapInTx(
-				await this.getPermissionlessRemovePerpLpSharesIx(
+				await this.getRemovePerpLpSharesInExpiringMarket(
 					marketIndex,
 					userAccountPublicKey,
 					sharesToBurn
@@ -1448,7 +1448,7 @@ export class ClearingHouse {
 		return txSig;
 	}
 
-	public async getPermissionlessRemovePerpLpSharesIx(
+	public async getRemovePerpLpSharesInExpiringMarket(
 		marketIndex: number,
 		userAccountPublicKey: PublicKey,
 		sharesToBurn?: BN
@@ -1471,7 +1471,7 @@ export class ClearingHouse {
 			console.log('burning lp shares:', sharesToBurn.toString());
 		}
 
-		return this.program.instruction.permissionlessRemovePerpLpShares(
+		return this.program.instruction.removePerpLpSharesInExpiringMarket(
 			sharesToBurn,
 			marketIndex,
 			{
