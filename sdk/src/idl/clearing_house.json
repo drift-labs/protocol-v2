@@ -641,6 +641,31 @@
       ]
     },
     {
+      "name": "removePerpLpSharesInExpiringMarket",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "sharesToBurn",
+          "type": "u64"
+        },
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "updateUserName",
       "accounts": [
         {

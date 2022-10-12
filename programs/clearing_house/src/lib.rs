@@ -154,6 +154,14 @@ pub mod clearing_house {
         handle_remove_perp_lp_shares(ctx, shares_to_burn, market_index)
     }
 
+    pub fn remove_perp_lp_shares_in_expiring_market(
+        ctx: Context<RemoveLiquidityInExpiredMarket>,
+        shares_to_burn: u64,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_remove_perp_lp_shares_in_expiring_market(ctx, shares_to_burn, market_index)
+    }
+
     pub fn update_user_name(
         ctx: Context<UpdateUser>,
         _sub_account_id: u8,
