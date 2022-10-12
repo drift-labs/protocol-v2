@@ -414,7 +414,7 @@ export class DLOB {
 		let nextBid = bidGenerator.next();
 
 		// check for asks that cross vBid
-		while (!nextAsk.done) {
+		while (!nextAsk.done && vBid !== undefined) {
 			const askNode = nextAsk.value;
 			const askPrice = askNode.getPrice(oraclePriceData, slot);
 
@@ -434,7 +434,7 @@ export class DLOB {
 		}
 
 		// check for bids that cross vAsk
-		while (!nextBid.done) {
+		while (!nextBid.done && vAsk !== undefined) {
 			const bidNode = nextBid.value;
 			const bidPrice = bidNode.getPrice(oraclePriceData, slot);
 

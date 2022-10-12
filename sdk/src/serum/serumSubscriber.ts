@@ -69,7 +69,7 @@ export class SerumSubscriber {
 	}
 
 	public getBestBid(): BN | undefined {
-		const bestBid = this.bids.getL2(0)[0];
+		const bestBid = this.bids.getL2(1)[0];
 		if (!bestBid) {
 			return undefined;
 		}
@@ -78,7 +78,7 @@ export class SerumSubscriber {
 	}
 
 	public getBestAsk(): BN | undefined {
-		const bestAsk = this.asks.getL2(0)[0];
+		const bestAsk = this.asks.getL2(1)[0];
 		if (!bestAsk) {
 			return undefined;
 		}
