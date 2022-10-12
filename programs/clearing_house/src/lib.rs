@@ -154,6 +154,14 @@ pub mod clearing_house {
         handle_remove_perp_lp_shares(ctx, shares_to_burn, market_index)
     }
 
+    pub fn permissionless_remove_perp_lp_shares(
+        ctx: Context<PermissionlessRemoveLiquidity>,
+        shares_to_burn: u64,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_permissionless_remove_perp_lp_shares(ctx, shares_to_burn, market_index)
+    }
+
     pub fn update_user_name(
         ctx: Context<UpdateUser>,
         _sub_account_id: u8,

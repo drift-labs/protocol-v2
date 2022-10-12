@@ -1429,6 +1429,61 @@ export class ClearingHouse {
 		return txSig;
 	}
 
+	public async permissionlessRemovePerpLpShares(
+		marketIndex: number,
+		userAccountPublicKey: PublicKey,
+		sharesToBurn?: BN
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.txSender.send(
+			wrapInTx(
+				await this.getPermissionlessRemovePerpLpSharesIx(
+					marketIndex,
+					userAccountPublicKey,
+					sharesToBurn
+				)
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getPermissionlessRemovePerpLpSharesIx(
+		marketIndex: number,
+		userAccountPublicKey: PublicKey,
+		sharesToBurn?: BN
+	): Promise<TransactionInstruction> {
+		const userAccount = (await this.program.account.user.fetch(
+			userAccountPublicKey
+		)) as UserAccount;
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [userAccount],
+			useMarketLastSlotCache: true,
+			writablePerpMarketIndexes: [marketIndex],
+		});
+
+		if (sharesToBurn == undefined) {
+			const perpPosition = userAccount.perpPositions.filter(
+				(position) => position.marketIndex === marketIndex
+			)[0];
+			sharesToBurn = perpPosition.lpShares;
+			console.log('burning lp shares:', sharesToBurn.toString());
+		}
+
+		return this.program.instruction.permissionlessRemovePerpLpShares(
+			sharesToBurn,
+			marketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+				},
+				remainingAccounts: remainingAccounts,
+			}
+		);
+	}
+
 	public async getRemovePerpLpSharesIx(
 		marketIndex: number,
 		sharesToBurn?: BN
