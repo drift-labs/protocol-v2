@@ -30,10 +30,15 @@ pub fn calculate_jit_base_asset_amount(
 
         // maker taking a short below oracle = likely to be a wash
         // so we want to take less than 50%
+        let wash_reduction_const = 1000;
         if taker_direction == PositionDirection::Long && auction_price < oracle_price {
-            max_jit_amount = max_jit_amount.checked_div(1000).ok_or_else(math_error!())?
+            max_jit_amount = max_jit_amount
+                .checked_div(wash_reduction_const)
+                .ok_or_else(math_error!())?
         } else if taker_direction == PositionDirection::Short && auction_price > oracle_price {
-            max_jit_amount = max_jit_amount.checked_div(1000).ok_or_else(math_error!())?
+            max_jit_amount = max_jit_amount
+                .checked_div(wash_reduction_const)
+                .ok_or_else(math_error!())?
         }
     } else {
         max_jit_amount = 0;

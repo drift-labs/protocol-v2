@@ -33,6 +33,7 @@ pub mod amm_jit {
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
+    use crate::math::constants::PRICE_PRECISION_I128;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
         PEG_PRECISION, PRICE_PRECISION, QUOTE_PRECISION_I64, QUOTE_PRECISION_U64,
@@ -598,7 +599,7 @@ pub mod amm_jit {
             &mut oracle_map,
             &fee_structure,
             0,
-            Some(200),
+            Some(200 * PRICE_PRECISION as i128),
             now,
             slot,
             false,
@@ -1596,7 +1597,7 @@ pub mod amm_jit {
                 ts: 0,
                 slot: 0,
                 auction_end_price: 0,
-                auction_start_price: 200 * PRICE_PRECISION_U64,
+                auction_start_price: 200 * PRICE_PRECISION as u64,
                 auction_duration: 50, // !! amm will bid before the ask spread price
                 ..Order::default()
             }),
@@ -1677,7 +1678,7 @@ pub mod amm_jit {
             &mut oracle_map,
             &fee_structure,
             0,
-            Some(200),
+            Some(200 * PRICE_PRECISION_I128),
             now,
             slot,
             false,
@@ -2064,6 +2065,8 @@ pub mod amm_jit {
                 ts: 0,
                 slot: 0,
                 auction_duration, // !! amm will bid before the ask spread price
+                auction_end_price: 0,
+                auction_start_price: 200 * PRICE_PRECISION as u64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -2182,7 +2185,7 @@ pub mod amm_jit {
                 &mut oracle_map,
                 &fee_structure,
                 0,
-                Some(200),
+                Some(200 * PRICE_PRECISION as i128),
                 now,
                 slot,
                 false,
