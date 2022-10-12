@@ -283,8 +283,8 @@ export class DLOB {
 
 	public findNodesToFill(
 		marketIndex: number,
-		vBid: BN | undefined,
-		vAsk: BN | undefined,
+		fallbackBid: BN | undefined,
+		fallbackAsk: BN | undefined,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
@@ -305,12 +305,12 @@ export class DLOB {
 			oraclePriceData
 		);
 
-		let vAMMCrossingNodesToFill = new Array<NodeToFill>();
+		let fallbackCrossingNodesToFill = new Array<NodeToFill>();
 		if (!ammPaused(this.stateAccount, marketAccount)) {
-			vAMMCrossingNodesToFill = this.findvAMMCrossingNodesToFill(
+			fallbackCrossingNodesToFill = this.findFallbackCrossingNodesToFill(
 				marketIndex,
-				vBid,
-				vAsk,
+				fallbackBid,
+				fallbackAsk,
 				slot,
 				marketType,
 				oraclePriceData
@@ -324,7 +324,7 @@ export class DLOB {
 			marketType
 		);
 		return crossingNodesToFill.concat(
-			vAMMCrossingNodesToFill,
+			fallbackCrossingNodesToFill,
 			expiredNodesToFill
 		);
 	}
@@ -385,7 +385,7 @@ export class DLOB {
 		return nodesToFill;
 	}
 
-	public findvAMMCrossingNodesToFill(
+	public findFallbackCrossingNodesToFill(
 		marketIndex: number,
 		vBid: BN,
 		vAsk: BN,
@@ -418,13 +418,16 @@ export class DLOB {
 			const askNode = nextAsk.value;
 			const askPrice = askNode.getPrice(oraclePriceData, slot);
 
+			if (isVariant(marketType, 'spot') && askNode.order?.postOnly) {
+				nextAsk = askGenerator.next();
+				continue;
+			}
+
 			if (askPrice.lte(vBid) && isAuctionComplete(askNode.order, slot)) {
 				nodesToFill.push({
 					node: askNode,
 					makerNode: undefined, // filled by vAMM
 				});
-			} else {
-				break;
 			}
 
 			nextAsk = askGenerator.next();
@@ -435,13 +438,16 @@ export class DLOB {
 			const bidNode = nextBid.value;
 			const bidPrice = bidNode.getPrice(oraclePriceData, slot);
 
+			if (isVariant(marketType, 'spot') && bidNode.order?.postOnly) {
+				nextBid = bidGenerator.next();
+				continue;
+			}
+
 			if (bidPrice.gte(vAsk) && isAuctionComplete(bidNode.order, slot)) {
 				nodesToFill.push({
 					node: bidNode,
 					makerNode: undefined, // filled by vAMM
 				});
-			} else {
-				break;
 			}
 
 			nextBid = bidGenerator.next();
