@@ -433,6 +433,7 @@ pub mod clearing_house {
         margin_ratio_maintenance: u32,
         liquidation_fee: u128,
         active_status: bool,
+        name: [u8; 32],
     ) -> Result<()> {
         handle_initialize_perp_market(
             ctx,
@@ -445,6 +446,7 @@ pub mod clearing_house {
             margin_ratio_maintenance,
             liquidation_fee,
             active_status,
+            name,
         )
     }
 
@@ -718,6 +720,13 @@ pub mod clearing_house {
         tick_size: u64,
     ) -> Result<()> {
         handle_update_perp_market_step_size_and_tick_size(ctx, step_size, tick_size)
+    }
+
+    pub fn update_perp_market_name(
+        ctx: Context<AdminUpdatePerpMarket>,
+        name: [u8; 32],
+    ) -> Result<()> {
+        handle_update_perp_market_name(ctx, name)
     }
 
     #[access_control(

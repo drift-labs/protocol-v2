@@ -75,7 +75,8 @@ pub struct PerpMarket {
     pub pubkey: Pubkey,
     pub amm: AMM,
     pub pnl_pool: PoolBalance,
-    pub expiry_price: i128, // iff market has expired, price users can settle position
+    pub name: [u8; 32],        // 256 bits
+    pub expiry_price: i128,    // iff market has expired, price users can settle position
     pub number_of_users: u128, // number of users in a position
     pub imf_factor: u128,
     pub unrealized_pnl_imf_factor: u128,
