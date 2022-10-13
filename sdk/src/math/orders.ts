@@ -10,7 +10,6 @@ import { ZERO, TWO } from '../constants/numericConstants';
 import { BN } from '@project-serum/anchor';
 import { OraclePriceData } from '../oracles/types';
 import { getAuctionPrice, isAuctionComplete } from './auction';
-import { calculateAskPrice, calculateBidPrice } from './market';
 import {
 	calculateMaxBaseAssetAmountFillable,
 	calculateMaxBaseAssetAmountToTrade,

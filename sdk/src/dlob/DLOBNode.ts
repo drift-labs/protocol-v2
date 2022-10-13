@@ -1,5 +1,4 @@
 import {
-	isOneOfVariant,
 	AMM_RESERVE_PRECISION,
 	BN,
 	convertToNumber,

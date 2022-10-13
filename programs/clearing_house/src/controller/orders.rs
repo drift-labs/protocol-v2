@@ -1363,11 +1363,12 @@ pub fn fulfill_order_with_amm(
     // Determine the base asset amount the market can fill
     let (base_asset_amount, limit_price, fill_price) = match override_base_asset_amount {
         Some(override_base_asset_amount) => {
-            let limit_price = user.orders[order_index].get_limit_price(
+            let limit_price = user.orders[order_index].get_optional_limit_price(
                 valid_oracle_price,
                 slot,
                 market.amm.order_tick_size,
             )?;
+
             (override_base_asset_amount, limit_price, override_fill_price)
         }
         None => {
@@ -1380,10 +1381,11 @@ pub fn fulfill_order_with_amm(
             )?;
 
             let fill_price = if user.orders[order_index].post_only {
-                Some(limit_price)
+                limit_price
             } else {
                 None
             };
+
             (base_asset_amount, limit_price, fill_price)
         }
     };
@@ -1415,13 +1417,15 @@ pub fn fulfill_order_with_amm(
             fill_price,
         )?;
 
-    validate_fill_price(
-        quote_asset_amount,
-        base_asset_amount,
-        order_direction,
-        limit_price,
-        !order_post_only,
-    )?;
+    if let Some(limit_price) = limit_price {
+        validate_fill_price(
+            quote_asset_amount,
+            base_asset_amount,
+            order_direction,
+            limit_price,
+            !order_post_only,
+        )?;
+    }
 
     let reward_referrer = referrer.is_some()
         && referrer_stats.is_some()

@@ -930,8 +930,12 @@ export class ClearingHouseUser {
 	): BN {
 		const market = this.clearingHouse.getPerpMarketAccount(marketIndex);
 
-		const getTotalAssetValue = this.getTotalAssetValue();
-		const getTotalLiabilityValue = this.getTotalLiabilityValue();
+		const totalAssetValue = this.getTotalAssetValue();
+		if (totalAssetValue.eq(ZERO)) {
+			return ZERO;
+		}
+
+		const totalLiabilityValue = this.getTotalLiabilityValue();
 
 		const marginRatio = calculateMarketMarginRatio(
 			market,
@@ -946,10 +950,10 @@ export class ClearingHouseUser {
 			.mul(MARGIN_PRECISION)
 			.div(new BN(marginRatio));
 
-		return getTotalLiabilityValue
+		return totalLiabilityValue
 			.add(additionalLiabilities)
 			.mul(TEN_THOUSAND)
-			.div(getTotalAssetValue);
+			.div(totalAssetValue);
 	}
 
 	/**

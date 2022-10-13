@@ -33,13 +33,13 @@ pub mod amm_jit {
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
-    use crate::math::constants::PRICE_PRECISION_I128;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
         PEG_PRECISION, PRICE_PRECISION, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::constants::{CONCENTRATION_PRECISION, PRICE_PRECISION_U64};
+    use crate::math::constants::{PRICE_PRECISION_I128, QUOTE_PRECISION_I64};
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
@@ -787,13 +787,20 @@ pub mod amm_jit {
         )
         .unwrap();
 
-        assert_eq!(base_asset_amount, BASE_PRECISION_U64 / 2);
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64);
+
+        let taker_position = &taker.perp_positions[0];
+        assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64);
+        assert_eq!(taker.orders[0], Order::default());
+
+        let maker_position = &maker.perp_positions[0];
+        assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I64 / 2);
+        assert_eq!(maker_position.quote_asset_amount, -49985000);
+        assert_eq!(maker_position.quote_entry_amount, -50 * QUOTE_PRECISION_I64);
+        assert_eq!(maker_position.open_orders, 0);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(
-            market_after.amm.base_asset_amount_with_amm,
-            market.amm.base_asset_amount_with_amm
-        );
+        assert_eq!(market_after.amm.base_asset_amount_with_amm, -1000000000);
     }
 
     #[test]

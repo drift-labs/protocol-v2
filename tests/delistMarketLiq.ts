@@ -199,19 +199,6 @@ describe('delist market, liquidation of expired position', () => {
 	it('put market in big drawdown and net user negative pnl', async () => {
 		await depositToFeePoolFromIF(1000, clearingHouse, userUSDCAccount);
 
-		try {
-			await clearingHouse.openPosition(
-				PositionDirection.SHORT,
-				BASE_PRECISION,
-				0,
-				new BN(0)
-			);
-		} catch (e) {
-			console.log('clearingHouse.openPosition');
-
-			console.error(e);
-		}
-
 		const uL = clearingHouseLoserUser.getUserAccount();
 		console.log(
 			'uL.spotPositions[0].scaledBalance:',
@@ -222,6 +209,9 @@ describe('delist market, liquidation of expired position', () => {
 				new BN(1000 * SPOT_MARKET_BALANCE_PRECISION.toNumber())
 			)
 		);
+
+		console.log(uL.perpPositions[0].baseAssetAmount.toString());
+		console.log(uL.perpPositions[0].quoteAssetAmount.toString());
 
 		const bank0Value = clearingHouseLoserUser.getSpotMarketAssetValue(0);
 		console.log('uL.bank0Value:', bank0Value.toString());

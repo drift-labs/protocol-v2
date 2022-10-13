@@ -460,6 +460,7 @@ impl Order {
         self.oracle_price_offset != 0
     }
 
+    /// Always returns a price, even if order.price is 0, which can be the case for market orders
     pub fn get_limit_price(
         &self,
         valid_oracle_price: Option<i128>,
@@ -518,6 +519,24 @@ impl Order {
         };
 
         Ok(price)
+    }
+
+    /// Unlike get_limit_price, returns None if order.price is 0, which can be the case for market orders
+    pub fn get_optional_limit_price(
+        &self,
+        valid_oracle_price: Option<i128>,
+        slot: u64,
+        tick_size: u64,
+    ) -> ClearingHouseResult<Option<u128>> {
+        if self.price == 0
+            && !self.has_oracle_price_offset()
+            && is_auction_complete(self.slot, self.auction_duration, slot)?
+        {
+            Ok(None)
+        } else {
+            self.get_limit_price(valid_oracle_price, slot, tick_size)
+                .map(Some)
+        }
     }
 
     pub fn get_base_asset_amount_unfilled(&self) -> ClearingHouseResult<u64> {
