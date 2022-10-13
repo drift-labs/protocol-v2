@@ -11,7 +11,7 @@ use crate::math::amm::calculate_max_base_asset_amount_fillable;
 use crate::math::auction::is_auction_complete;
 use crate::math::casting::Cast;
 use crate::math::ceil_div::CheckedCeilDiv;
-use crate::math::constants::{BASE_PRECISION, MARGIN_PRECISION};
+use crate::math::constants::MARGIN_PRECISION;
 use crate::math::position::calculate_entry_price;
 use crate::math_error;
 use crate::state::perp_market::{PerpMarket, AMM};
@@ -443,6 +443,7 @@ pub fn is_order_risk_increasing(
 pub fn validate_fill_price(
     quote_asset_amount: u64,
     base_asset_amount: u64,
+    base_precision: u64,
     order_direction: PositionDirection,
     order_limit_price: u128,
     is_taker: bool,
@@ -458,7 +459,7 @@ pub fn validate_fill_price(
 
     let fill_price = rounded_quote_asset_amount
         .cast::<u128>()?
-        .checked_mul(BASE_PRECISION)
+        .checked_mul(base_precision as u128)
         .ok_or_else(math_error!())?
         .checked_div(base_asset_amount.cast()?)
         .ok_or_else(math_error!())?;

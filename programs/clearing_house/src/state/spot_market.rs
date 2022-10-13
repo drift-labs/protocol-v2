@@ -176,6 +176,10 @@ impl SpotMarket {
             .checked_sub(borrow_token_amount)
             .ok_or_else(math_error!())
     }
+
+    pub fn get_precision(self) -> u64 {
+        10_u64.pow(self.decimals as u32)
+    }
 }
 
 #[cfg(test)]
