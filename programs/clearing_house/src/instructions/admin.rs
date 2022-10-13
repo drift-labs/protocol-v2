@@ -406,6 +406,7 @@ pub fn handle_initialize_perp_market(
     margin_ratio_maintenance: u32,
     liquidation_fee: u128,
     active_status: bool,
+    name: [u8; 32],
 ) -> Result<()> {
     let perp_market_pubkey = ctx.accounts.perp_market.to_account_info().key;
     let perp_market = &mut ctx.accounts.perp_market.load_init()?;
@@ -483,6 +484,7 @@ pub fn handle_initialize_perp_market(
         } else {
             MarketStatus::Initialized
         },
+        name,
         expiry_price: 0,
         expiry_ts: 0,
         pubkey: *perp_market_pubkey,
@@ -1223,6 +1225,15 @@ pub fn handle_update_perp_market_max_imbalances(
     perp_market.unrealized_pnl_max_imbalance = unrealized_max_imbalance;
     perp_market.insurance_claim.quote_max_insurance = quote_max_insurance;
 
+    Ok(())
+}
+
+pub fn handle_update_perp_market_name(
+    ctx: Context<AdminUpdatePerpMarket>,
+    name: [u8; 32],
+) -> Result<()> {
+    let mut perp_market = load_mut!(ctx.accounts.perp_market)?;
+    perp_market.name = name;
     Ok(())
 }
 

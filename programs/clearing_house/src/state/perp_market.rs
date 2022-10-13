@@ -75,7 +75,8 @@ pub struct PerpMarket {
     pub pubkey: Pubkey,
     pub amm: AMM,
     pub pnl_pool: PoolBalance,
-    pub expiry_price: i128, // iff market has expired, price users can settle position
+    pub name: [u8; 32],        // 256 bits
+    pub expiry_price: i128,    // iff market has expired, price users can settle position
     pub number_of_users: u128, // number of users in a position
     pub imf_factor: u128,
     pub unrealized_pnl_imf_factor: u128,
@@ -100,9 +101,12 @@ pub struct PerpMarket {
 
 impl PerpMarket {
     pub fn is_active(&self, now: i64) -> ClearingHouseResult<bool> {
-        let status_ok = self.status != MarketStatus::Settlement;
-        let is_active = self.expiry_ts == 0 || self.expiry_ts < now;
-        Ok(is_active && status_ok)
+        let status_ok = !matches!(
+            self.status,
+            MarketStatus::Settlement | MarketStatus::Delisted
+        );
+        let not_expired = self.expiry_ts == 0 || now < self.expiry_ts;
+        Ok(status_ok && not_expired)
     }
 
     pub fn is_reduce_only(&self) -> ClearingHouseResult<bool> {
