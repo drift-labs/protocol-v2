@@ -33,7 +33,7 @@ use crate::validate;
 #[cfg(test)]
 mod tests;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SwapDirection {
     Add,
     Remove,

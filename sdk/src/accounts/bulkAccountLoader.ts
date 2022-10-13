@@ -222,7 +222,11 @@ export class BulkAccountLoader {
 			return;
 		}
 
-		this.intervalId = setInterval(this.load.bind(this), this.pollingFrequency);
+		if (this.pollingFrequency !== 0)
+			this.intervalId = setInterval(
+				this.load.bind(this),
+				this.pollingFrequency
+			);
 	}
 
 	public stopPolling(): void {

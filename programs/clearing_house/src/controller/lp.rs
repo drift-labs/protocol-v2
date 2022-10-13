@@ -1,8 +1,10 @@
 use anchor_lang::prelude::{msg, Pubkey};
 
 use crate::bn::U192;
+use crate::controller;
 use crate::controller::position::PositionDelta;
 use crate::controller::position::{update_position_and_market, update_quote_asset_amount};
+use crate::emit;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::get_struct_values;
 use crate::math::casting::Cast;
@@ -11,9 +13,14 @@ use crate::math::lp::calculate_settle_lp_metrics;
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math_error;
 use crate::state::events::{LPAction, LPRecord};
+use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::PerpMarket;
+use crate::state::perp_market_map::PerpMarketMap;
+use crate::state::state::State;
 use crate::state::user::PerpPosition;
 use crate::state::user::User;
+use crate::validate;
+use anchor_lang::prelude::Account;
 
 #[cfg(test)]
 mod tests;
@@ -241,4 +248,66 @@ pub fn burn_lp_shares(
     crate::controller::validate::validate_position_account(position, market)?;
 
     Ok((position_delta, pnl))
+}
+
+pub fn remove_perp_lp_shares(
+    perp_market_map: PerpMarketMap,
+    oracle_map: &mut OracleMap,
+    state: &Account<State>,
+    user: &mut std::cell::RefMut<User>,
+    user_key: Pubkey,
+    shares_to_burn: u64,
+    market_index: u16,
+    now: i64,
+) -> ClearingHouseResult<()> {
+    // standardize n shares to burn
+    let shares_to_burn: u64 = {
+        let market = perp_market_map.get_ref(&market_index)?;
+        crate::math::orders::standardize_base_asset_amount(
+            shares_to_burn.cast()?,
+            market.amm.order_step_size,
+        )?
+        .cast()?
+    };
+
+    if shares_to_burn == 0 {
+        return Ok(());
+    }
+
+    let mut market = perp_market_map.get_ref_mut(&market_index)?;
+
+    let time_since_last_add_liquidity = now
+        .checked_sub(user.last_add_perp_lp_shares_ts)
+        .ok_or_else(math_error!())?;
+
+    validate!(
+        time_since_last_add_liquidity >= state.lp_cooldown_time.cast()?,
+        ErrorCode::TryingToRemoveLiquidityTooFast
+    )?;
+
+    controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
+
+    let position = user.get_perp_position_mut(market_index)?;
+
+    validate!(
+        position.lp_shares >= shares_to_burn,
+        ErrorCode::InsufficientLPTokens
+    )?;
+
+    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+    let (position_delta, pnl) =
+        burn_lp_shares(position, &mut market, shares_to_burn, oracle_price)?;
+
+    emit!(LPRecord {
+        ts: now,
+        action: LPAction::RemoveLiquidity,
+        user: user_key,
+        n_shares: shares_to_burn,
+        market_index,
+        delta_base_asset_amount: position_delta.base_asset_amount,
+        delta_quote_asset_amount: position_delta.quote_asset_amount,
+        pnl,
+    });
+
+    Ok(())
 }

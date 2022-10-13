@@ -3,7 +3,6 @@ use anchor_spl::token::{Token, TokenAccount};
 
 use crate::checked_decrement;
 use crate::checked_increment;
-use crate::controller::lp::burn_lp_shares;
 use crate::controller::orders::cancel_orders;
 use crate::controller::position::PositionDirection;
 use crate::error::ErrorCode;
@@ -1192,10 +1191,58 @@ pub fn handle_add_perp_lp_shares<'info>(
     Ok(())
 }
 
+pub fn handle_remove_perp_lp_shares_in_expiring_market(
+    ctx: Context<RemoveLiquidityInExpiredMarket>,
+    shares_to_burn: u64,
+    market_index: u16,
+) -> Result<()> {
+    let user_key = ctx.accounts.user.key();
+    let user = &mut load_mut!(ctx.accounts.user)?;
+
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let AccountMaps {
+        perp_market_map,
+        mut oracle_map,
+        ..
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_writable_perp_market_set(market_index),
+        &MarketSet::new(),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    // additional validate
+    {
+        let market = perp_market_map.get_ref(&market_index)?;
+        validate!(
+            market.is_reduce_only()?,
+            ErrorCode::DefaultError,
+            "Can only permissionless burn when market is in reduce only"
+        )?;
+    }
+
+    controller::lp::remove_perp_lp_shares(
+        perp_market_map,
+        &mut oracle_map,
+        state,
+        user,
+        user_key,
+        shares_to_burn,
+        market_index,
+        now,
+    )?;
+
+    Ok(())
+}
+
 #[access_control(
     amm_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_remove_perp_lp_shares<'info>(
+pub fn handle_remove_perp_lp_shares(
     ctx: Context<AddRemoveLiquidity>,
     shares_to_burn: u64,
     market_index: u16,
@@ -1219,54 +1266,16 @@ pub fn handle_remove_perp_lp_shares<'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    // standardize n shares to burn
-    let shares_to_burn: u64 = {
-        let market = perp_market_map.get_ref(&market_index)?;
-        crate::math::orders::standardize_base_asset_amount(
-            shares_to_burn.cast()?,
-            market.amm.order_step_size,
-        )?
-        .cast()?
-    };
-
-    if shares_to_burn == 0 {
-        return Ok(());
-    }
-
-    let mut market = perp_market_map.get_ref_mut(&market_index)?;
-
-    let time_since_last_add_liquidity = now
-        .checked_sub(user.last_add_perp_lp_shares_ts)
-        .ok_or_else(math_error!())?;
-
-    validate!(
-        time_since_last_add_liquidity >= state.lp_cooldown_time.cast()?,
-        ErrorCode::TryingToRemoveLiquidityTooFast
-    )?;
-
-    controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
-
-    let position = user.get_perp_position_mut(market_index)?;
-
-    validate!(
-        position.lp_shares >= shares_to_burn,
-        ErrorCode::InsufficientLPTokens
-    )?;
-
-    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
-    let (position_delta, pnl) =
-        burn_lp_shares(position, &mut market, shares_to_burn, oracle_price)?;
-
-    emit!(LPRecord {
-        ts: now,
-        action: LPAction::RemoveLiquidity,
-        user: user_key,
-        n_shares: shares_to_burn,
+    controller::lp::remove_perp_lp_shares(
+        perp_market_map,
+        &mut oracle_map,
+        state,
+        user,
+        user_key,
+        shares_to_burn,
         market_index,
-        delta_base_asset_amount: position_delta.base_asset_amount,
-        delta_quote_asset_amount: position_delta.quote_asset_amount,
-        pnl,
-    });
+        now,
+    )?;
 
     Ok(())
 }
@@ -1513,6 +1522,13 @@ pub struct AddRemoveLiquidity<'info> {
     )]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct RemoveLiquidityInExpiredMarket<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
 }
 
 #[derive(Accounts)]
