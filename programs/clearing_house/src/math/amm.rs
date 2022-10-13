@@ -9,8 +9,8 @@ use crate::math::bn::U192;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64, Cast};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
-    CONCENTRATION_PRECISION, ONE_HOUR_I128, PRICE_TO_PEG_PRECISION_RATIO,
-    PRICE_TO_QUOTE_PRECISION_RATIO,
+    CONCENTRATION_PRECISION, FIVE_MINUTE, MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, ONE_HOUR_I128,
+    PRICE_TO_PEG_PRECISION_RATIO, PRICE_TO_QUOTE_PRECISION_RATIO,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::quote_asset::reserve_to_asset_amount;
@@ -249,7 +249,7 @@ pub fn update_mark_twap(
         now,
         cast(amm.last_mark_price_twap_5min)?,
         amm.last_mark_price_twap_ts,
-        60 * 5,
+        FIVE_MINUTE as i64,
     )?)?;
 
     amm.last_mark_price_twap_ts = now;
@@ -267,22 +267,25 @@ pub fn sanitize_new_price(new_price: i128, last_price_twap: i128) -> ClearingHou
         .checked_sub(last_price_twap)
         .ok_or_else(math_error!())?;
 
-    // cap new oracle update to 33% delta from twap
-    let price_twap_33pct = last_price_twap.checked_div(3).ok_or_else(math_error!())?;
+    // cap new oracle update to 100/MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR% delta from twap
+    let price_twap_price_band = last_price_twap
+        .checked_div(MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR)
+        .ok_or_else(math_error!())?;
 
-    let capped_update_price = if new_price_spread.unsigned_abs() > price_twap_33pct.unsigned_abs() {
-        if new_price > last_price_twap {
-            last_price_twap
-                .checked_add(price_twap_33pct)
-                .ok_or_else(math_error!())?
+    let capped_update_price =
+        if new_price_spread.unsigned_abs() > price_twap_price_band.unsigned_abs() {
+            if new_price > last_price_twap {
+                last_price_twap
+                    .checked_add(price_twap_price_band)
+                    .ok_or_else(math_error!())?
+            } else {
+                last_price_twap
+                    .checked_sub(price_twap_price_band)
+                    .ok_or_else(math_error!())?
+            }
         } else {
-            last_price_twap
-                .checked_sub(price_twap_33pct)
-                .ok_or_else(math_error!())?
-        }
-    } else {
-        new_price
-    };
+            new_price
+        };
 
     Ok(capped_update_price)
 }
@@ -368,7 +371,7 @@ pub fn calculate_new_oracle_price_twap(
 
     let period: i64 = match twap_period {
         TwapPeriod::FundingPeriod => amm.funding_period,
-        TwapPeriod::FiveMin => 60 * 5,
+        TwapPeriod::FiveMin => FIVE_MINUTE as i64,
     };
 
     let since_last = cast_to_i128(max(

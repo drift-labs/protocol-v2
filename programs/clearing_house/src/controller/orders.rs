@@ -33,7 +33,8 @@ use crate::load_mut;
 use crate::math::auction::{calculate_auction_end_price, is_auction_complete};
 use crate::math::casting::{cast, cast_to_u64, Cast};
 use crate::math::constants::{
-    PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX, SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+    FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
+    SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
 };
 use crate::math::fees::{FillFees, SerumFillFees};
 use crate::math::fulfillment::{
@@ -3357,7 +3358,7 @@ pub fn fulfill_spot_order_with_serum(
         now,
         cast(base_market.historical_index_data.last_index_price_twap)?,
         base_market.historical_index_data.last_index_price_twap_ts,
-        60 * 60,
+        ONE_HOUR as i64,
     )?)?;
 
     base_market.historical_index_data.last_index_price_twap_5min = cast(calculate_new_twap(
@@ -3365,7 +3366,7 @@ pub fn fulfill_spot_order_with_serum(
         now,
         cast(base_market.historical_index_data.last_index_price_twap_5min)?,
         base_market.historical_index_data.last_index_price_twap_ts,
-        60 * 5,
+        FIVE_MINUTE as i64,
     )?)?;
 
     let market_state_before = load_serum_market(
