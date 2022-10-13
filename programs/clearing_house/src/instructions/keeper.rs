@@ -691,7 +691,7 @@ pub fn handle_resolve_perp_pnl_deficit(
 
         validate!(
             perp_market.is_active(now)?,
-            ErrorCode::DefaultError,
+            ErrorCode::MarketActionPaused,
             "Market is in settlement mode",
         )?;
 
