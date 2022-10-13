@@ -127,7 +127,7 @@ pub fn place_order(
 
     validate!(
         market.is_active(now)?,
-        ErrorCode::DefaultError,
+        ErrorCode::MarketActionPaused,
         "Market is in settlement mode",
     )?;
 
@@ -651,7 +651,7 @@ pub fn fill_order(
         controller::validate::validate_market_account(market)?;
         validate!(
             market.is_active(now)?,
-            ErrorCode::DefaultError,
+            ErrorCode::MarketActionPaused,
             "Market is in settlement mode",
         )?;
 
