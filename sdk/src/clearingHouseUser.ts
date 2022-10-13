@@ -22,6 +22,7 @@ import {
 	MARGIN_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	QUOTE_SPOT_MARKET_INDEX,
+	TEN,
 } from './constants/numericConstants';
 import {
 	UserAccountSubscriber,
@@ -45,6 +46,7 @@ import {
 	getTokenAmount,
 	calculateAssetWeight,
 	calculateLiabilityWeight,
+	calculateWithdrawLimit,
 } from './math/spotBalance';
 import {
 	calculateBaseAssetValueWithOracle,
@@ -1403,6 +1405,32 @@ export class ClearingHouseUser {
 		return quoteAmount
 			.mul(new BN(feeTier.feeNumerator))
 			.div(new BN(feeTier.feeDenominator));
+	}
+
+	public getWithdrawalLimit(marketIndex: number, reduceOnly?: boolean): BN {
+		const nowTs = new BN(Math.floor(Date.now() / 1000));
+		const spotMarket = this.clearingHouse.getSpotMarketAccount(marketIndex);
+
+		const { borrowLimit, withdrawLimit } = calculateWithdrawLimit(
+			spotMarket,
+			nowTs
+		);
+
+		if (reduceOnly) {
+			const freeCollateral = this.getFreeCollateral();
+			const oracleData = this.getOracleDataForMarket(marketIndex);
+			const precisionIncrease = TEN.pow(new BN(spotMarket.decimals - 6));
+
+			const amountWithdrawable = freeCollateral
+				.mul(MARGIN_PRECISION)
+				.div(spotMarket.initialAssetWeight)
+				.mul(PRICE_PRECISION)
+				.div(oracleData.price)
+				.mul(precisionIncrease);
+
+			return BN.min(amountWithdrawable, withdrawLimit);
+		} else {
+		}
 	}
 
 	/**
