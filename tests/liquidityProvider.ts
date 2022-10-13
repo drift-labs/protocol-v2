@@ -23,6 +23,7 @@ import {
 	isVariant,
 	LPRecord,
 	BASE_PRECISION,
+	OracleGuardRails,
 } from '../sdk/src';
 
 import {
@@ -204,6 +205,22 @@ describe('liquidity providing', () => {
 		);
 		await clearingHouse.updateLpCooldownTime(new BN(0));
 		await clearingHouse.updatePerpMarketMaxFillReserveFraction(0, 1);
+
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(1),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(10),
+				slotsBeforeStaleForMargin: new BN(10),
+				confidenceIntervalMaxSize: new BN(100),
+				tooVolatileRatio: new BN(100),
+			},
+			useForLiquidations: true,
+		};
+		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
+
 		// await clearingHouse.updateMarketBaseAssetAmountStepSize(
 		// 	new BN(0),
 		// 	new BN(1)
@@ -820,7 +837,7 @@ describe('liquidity providing', () => {
 
 		console.log('amm ratio:', ammLpRatio, '(', 40 * ammLpRatio, ')');
 
-		assert(market1.amm.baseAssetAmountWithAmm.eq(new BN('-3042511364')));
+		assert(market1.amm.baseAssetAmountWithAmm.eq(new BN('-30000000000')));
 
 		const traderUserAccount = traderClearingHouse.getUserAccount();
 		// console.log(traderUserAccount);
@@ -865,8 +882,8 @@ describe('liquidity providing', () => {
 		assert(lpTokenAmount.eq(new BN(0)));
 		console.log(user.perpPositions[0].baseAssetAmount.toString());
 		console.log(user.perpPositions[0].quoteAssetAmount.toString());
-		assert(user.perpPositions[0].baseAssetAmount.eq(new BN('1014170400'))); // lp is long
-		assert(user.perpPositions[0].quoteAssetAmount.eq(new BN(-1465572)));
+		assert(user.perpPositions[0].baseAssetAmount.eq(new BN('10000000000'))); // lp is long
+		assert(user.perpPositions[0].quoteAssetAmount.eq(new BN(-9550785)));
 
 		console.log('closing trader ...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
@@ -950,9 +967,9 @@ describe('liquidity providing', () => {
 		);
 
 		assert(lpTokenAmount.eq(ZERO));
-		assert(user.perpPositions[0].baseAssetAmount.eq(new BN('-984322000'))); // lp is short
-		assert(user.perpPositions[0].quoteAssetAmount.eq(new BN('549119')));
-		assert(user.perpPositions[0].quoteEntryAmount.eq(new BN('996400')));
+		assert(user.perpPositions[0].baseAssetAmount.eq(new BN('-10000000000'))); // lp is short
+		assert(user.perpPositions[0].quoteAssetAmount.eq(new BN('11940740')));
+		assert(user.perpPositions[0].quoteEntryAmount.eq(new BN('11139500')));
 
 		console.log('closing trader...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.ADD, market);
@@ -1055,8 +1072,8 @@ describe('liquidity providing', () => {
 
 		const baa = user.perpPositions[0].baseAssetAmount;
 		const qaa = user.perpPositions[0].quoteAssetAmount;
-		assert(baa.eq(new BN(1014170200)));
-		assert(qaa.eq(new BN(-1439402)));
+		assert(baa.eq(new BN(10000000000)));
+		assert(qaa.eq(new BN(-6860362)));
 
 		console.log('removing the other half of liquidity');
 		await clearingHouse.removePerpLpShares(market.marketIndex, otherHalfShares);
