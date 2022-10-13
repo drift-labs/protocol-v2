@@ -2195,6 +2195,7 @@ pub mod delisting_test {
                 oracle_price_data,
                 MarginRequirementType::Initial,
                 0,
+                false,
             )
             .unwrap();
 
@@ -2276,6 +2277,7 @@ pub mod delisting_test {
                         oracle_price_data,
                         MarginRequirementType::Initial,
                         0,
+                        false,
                     )
                     .unwrap();
 
@@ -2366,6 +2368,7 @@ pub mod delisting_test {
                         oracle_price_data,
                         MarginRequirementType::Initial,
                         0,
+                        false,
                     )
                     .unwrap();
 
@@ -2457,6 +2460,7 @@ pub mod delisting_test {
                         oracle_price_data,
                         MarginRequirementType::Initial,
                         0,
+                        false,
                     )
                     .unwrap();
 

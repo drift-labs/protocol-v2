@@ -1,7 +1,8 @@
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::math::constants::{
-    MARGIN_PRECISION, PRICE_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION,
+    MARGIN_PRECISION, MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PRICE_PRECISION, SPOT_IMF_PRECISION,
+    SPOT_WEIGHT_PRECISION,
 };
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
@@ -138,6 +139,7 @@ pub fn calculate_perp_position_value_and_pnl(
     oracle_price_data: &OraclePriceData,
     margin_requirement_type: MarginRequirementType,
     user_custom_margin_ratio: u128,
+    with_bounds: bool,
 ) -> ClearingHouseResult<(u128, i128, u128)> {
     let unrealized_funding = calculate_funding_payment(
         if market_position.base_asset_amount > 0 {
@@ -235,11 +237,16 @@ pub fn calculate_perp_position_value_and_pnl(
     let unrealized_asset_weight =
         market.get_unrealized_asset_weight(total_unrealized_pnl, margin_requirement_type)?;
 
-    let weighted_unrealized_pnl = total_unrealized_pnl
+    let mut weighted_unrealized_pnl = total_unrealized_pnl
         .checked_mul(unrealized_asset_weight as i128)
         .ok_or_else(math_error!())?
         .checked_div(SPOT_WEIGHT_PRECISION as i128)
         .ok_or_else(math_error!())?;
+
+    if with_bounds && margin_requirement_type == MarginRequirementType::Initial {
+        // safety guard for dangerously configured perp market
+        weighted_unrealized_pnl = weighted_unrealized_pnl.min(MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN);
+    }
 
     Ok((
         margin_requirement,
@@ -438,6 +445,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 oracle_price_data,
                 margin_requirement_type,
                 user_custom_margin_ratio,
+                true,
             )?;
 
         margin_requirement = margin_requirement
