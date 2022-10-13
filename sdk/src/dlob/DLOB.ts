@@ -878,6 +878,24 @@ export class DLOB {
 				makerNode: askNode,
 				makerSide: 'ask',
 			};
+		} else if (
+			isOneOfVariant(bidNode.order, ['market', 'triggerMarket']) &&
+			isOneOfVariant(askNode.order, ['limit', 'triggerLimit'])
+		) {
+			return {
+				takerNode: bidNode,
+				makerNode: askNode,
+				makerSide: 'ask',
+			};
+		} else if (
+			isOneOfVariant(askNode.order, ['market', 'triggerMarket']) &&
+			isOneOfVariant(bidNode.order, ['limit', 'triggerLimit'])
+		) {
+			return {
+				takerNode: askNode,
+				makerNode: bidNode,
+				makerSide: 'bid',
+			};
 		} else if (askNode.order.ts.lt(bidNode.order.ts)) {
 			return {
 				takerNode: bidNode,

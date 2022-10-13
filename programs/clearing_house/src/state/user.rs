@@ -578,6 +578,17 @@ impl Order {
             (PositionDirection::Short, AssetType::Quote) => SpotBalanceType::Deposit,
         }
     }
+
+    pub fn is_market_order(&self) -> bool {
+        matches!(
+            self.order_type,
+            OrderType::Market | OrderType::TriggerMarket
+        )
+    }
+
+    pub fn is_limit_order(&self) -> bool {
+        matches!(self.order_type, OrderType::Limit | OrderType::TriggerLimit)
+    }
 }
 
 impl Default for Order {
