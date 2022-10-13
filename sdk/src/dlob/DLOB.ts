@@ -20,6 +20,7 @@ import {
 	UserMap,
 	MarketTypeStr,
 	StateAccount,
+	ZERO,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
@@ -761,6 +762,23 @@ export class DLOB {
 			};
 		}
 
+		const { takerNode, makerNode, makerSide } = this.determineMakerAndTaker(
+			askNode,
+			bidNode
+		);
+
+		// Check if order can't be maker
+		if (
+			isVariant(makerNode.order, 'market') &&
+			isAuctionComplete(makerNode.order, slot) &&
+			makerNode.order.price.eq(ZERO)
+		) {
+			return {
+				crossingNodes: [],
+				exhaustedSide: makerSide,
+			};
+		}
+
 		const bidBaseRemaining = bidOrder.baseAssetAmount.sub(
 			bidOrder.baseAssetAmountFilled
 		);
@@ -833,46 +851,46 @@ export class DLOB {
 			);
 		}
 
-		// Bid is maker
-		if (bidOrder.postOnly) {
-			return {
-				crossingNodes: [
-					{
-						node: askNode,
-						makerNode: bidNode,
-					},
-				],
-				exhaustedSide,
-			};
-		}
-
-		// Ask is maker
-		if (askOrder.postOnly) {
-			return {
-				crossingNodes: [
-					{
-						node: bidNode,
-						makerNode: askNode,
-					},
-				],
-				exhaustedSide,
-			};
-		}
-
-		// Both are takers
-		// older order is maker
-		const [olderNode, newerNode] = askOrder.ts.lt(bidOrder.ts)
-			? [askNode, bidNode]
-			: [bidNode, askNode];
 		return {
 			crossingNodes: [
 				{
-					node: newerNode,
-					makerNode: olderNode,
+					node: takerNode,
+					makerNode: makerNode,
 				},
 			],
 			exhaustedSide,
 		};
+	}
+
+	determineMakerAndTaker(
+		askNode: DLOBNode,
+		bidNode: DLOBNode
+	): { takerNode: DLOBNode; makerNode: DLOBNode; makerSide: Side } {
+		if (bidNode.order.postOnly) {
+			return {
+				takerNode: askNode,
+				makerNode: bidNode,
+				makerSide: 'bid',
+			};
+		} else if (askNode.order.postOnly) {
+			return {
+				takerNode: bidNode,
+				makerNode: askNode,
+				makerSide: 'ask',
+			};
+		} else if (askNode.order.ts.lt(bidNode.order.ts)) {
+			return {
+				takerNode: bidNode,
+				makerNode: askNode,
+				makerSide: 'ask',
+			};
+		} else {
+			return {
+				takerNode: askNode,
+				makerNode: bidNode,
+				makerSide: 'bid',
+			};
+		}
 	}
 
 	public getBestAsk(

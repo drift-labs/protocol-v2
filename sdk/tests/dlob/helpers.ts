@@ -101,11 +101,12 @@ export const mockAMM: AMM = {
 	longSpread: new BN(0),
 	shortSpread: new BN(0),
 	maxSpread: 0,
-	marketPositionPerLp: mockPerpPosition,
 	ammJitIntensity: 0,
 	maxBaseAssetReserve: new BN(0),
 	minBaseAssetReserve: new BN(0),
 	cumulativeSocialLoss: new BN(0),
+	baseAssetAmountPerLp: new BN(0),
+	quoteAssetAmountPerLp: new BN(0),
 };
 
 export const mockPerpMarkets: Array<PerpMarketAccount> = [
