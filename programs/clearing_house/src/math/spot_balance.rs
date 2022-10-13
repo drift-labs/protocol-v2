@@ -333,10 +333,10 @@ pub fn check_withdraw_limits(spot_market: &SpotMarket) -> ClearingHouseResult<bo
             )
             .min(
                 deposit_token_amount
-                    .checked_sub(deposit_token_amount / 10)
+                    .checked_sub(deposit_token_amount / 5)
                     .ok_or_else(math_error!())?,
             ),
-    ); // between ~15-90% utilization with friction on twap
+    ); // between ~15-80% utilization with friction on twap
 
     let min_deposit_token = spot_market
         .deposit_token_twap
