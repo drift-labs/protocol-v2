@@ -1061,6 +1061,8 @@ describe('liquidity providing', () => {
 		console.log('removing the other half of liquidity');
 		await clearingHouse.removePerpLpShares(market.marketIndex, otherHalfShares);
 
+		await clearingHouse.fetchAccounts();
+
 		user = clearingHouse.getUserAccount();
 		console.log(
 			'lp second half burn:',
@@ -1157,6 +1159,31 @@ describe('liquidity providing', () => {
 			sdkPnl.toString()
 		);
 		assert(settleLiquidityRecord.pnl.eq(sdkPnl));
+	});
+
+	it('permissionless lp burn', async () => {
+		const lpAmount = new BN(1 * BASE_PRECISION.toNumber());
+		const _sig = await clearingHouse.addPerpLpShares(lpAmount, 0);
+
+		const slot = await connection.getSlot();
+		const time = await connection.getBlockTime(slot);
+		const _2sig = await clearingHouse.updatePerpMarketExpiry(
+			0,
+			new BN(time + 5)
+		);
+
+		await clearingHouse.fetchAccounts();
+		const market = clearingHouse.getPerpMarketAccount(0);
+		console.log(market.status);
+
+		await traderClearingHouse.removePerpLpSharesInExpiringMarket(
+			0,
+			await clearingHouse.getUserAccountPublicKey()
+		);
+
+		await clearingHouse.fetchAccounts();
+		const position = clearingHouseUser.getUserPosition(0);
+		assert(position.lpShares.eq(ZERO));
 	});
 	return;
 

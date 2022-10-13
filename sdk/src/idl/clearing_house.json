@@ -641,6 +641,31 @@
       ]
     },
     {
+      "name": "removePerpLpSharesInExpiringMarket",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "sharesToBurn",
+          "type": "u64"
+        },
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "updateUserName",
       "accounts": [
         {
@@ -2057,6 +2082,15 @@
         {
           "name": "activeStatus",
           "type": "bool"
+        },
+        {
+          "name": "name",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         }
       ]
     },
@@ -3098,6 +3132,37 @@
       ]
     },
     {
+      "name": "updatePerpMarketName",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketMinOrderSize",
       "accounts": [
         {
@@ -3427,6 +3492,15 @@
             "name": "pnlPool",
             "type": {
               "defined": "PoolBalance"
+            }
+          },
+          {
+            "name": "name",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
             }
           },
           {
