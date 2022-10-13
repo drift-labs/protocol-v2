@@ -3317,7 +3317,7 @@ pub fn fulfill_spot_order_with_serum(
     };
 
     let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
-    let taker_price = taker.orders[taker_order_index].get_limit_price(
+    let taker_price = taker.orders[taker_order_index].get_optional_limit_price(
         Some(oracle_price),
         slot,
         base_market.order_tick_size,
@@ -3370,6 +3370,29 @@ pub fn fulfill_spot_order_with_serum(
         60 * 5,
     )?)?;
 
+    let taker_price = if let Some(price) = taker_price {
+        price
+    } else {
+        match order_direction {
+            PositionDirection::Long => {
+                if let Some(ask) = best_ask {
+                    ask.checked_add(ask / 100).ok_or_else(math_error!())?
+                } else {
+                    msg!("Serum has no ask");
+                    return Ok(0);
+                }
+            }
+            PositionDirection::Short => {
+                if let Some(bid) = best_bid {
+                    bid.checked_sub(bid / 100).ok_or_else(math_error!())?
+                } else {
+                    msg!("Serum has no bid");
+                    return Ok(0);
+                }
+            }
+        }
+    };
+
     let market_state_before = load_serum_market(
         serum_new_order_accounts.serum_market,
         serum_new_order_accounts.serum_program_id.key,
@@ -3382,12 +3405,14 @@ pub fn fulfill_spot_order_with_serum(
 
     let serum_max_coin_qty =
         calculate_serum_max_coin_qty(taker_base_asset_amount, market_state_before.coin_lot_size)?;
+
     let serum_limit_price = calculate_serum_limit_price(
         taker_price,
         market_state_before.pc_lot_size,
         base_market.decimals as u32,
         market_state_before.coin_lot_size,
     )?;
+
     let serum_max_native_pc_qty = calculate_serum_max_native_pc_quantity(
         serum_limit_price,
         serum_max_coin_qty,
