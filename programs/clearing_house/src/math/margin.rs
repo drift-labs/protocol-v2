@@ -18,7 +18,9 @@ use crate::math::funding::calculate_funding_payment;
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
-use crate::math::spot_balance::{get_balance_value_and_token_amount, get_token_value};
+use crate::math::spot_balance::{
+    get_balance_value_and_token_amount, get_strict_token_value, get_token_value,
+};
 
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
@@ -262,6 +264,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     margin_buffer_ratio: Option<u128>,
+    strict: bool,
 ) -> ClearingHouseResult<(u128, i128, u128, bool, u8, bool)> {
     let mut total_collateral: i128 = 0;
     let mut margin_requirement: u128 = 0;
@@ -330,11 +333,20 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     oracle_price_data,
                     None,
                 )?;
-            let worst_case_token_value = get_token_value(
-                worst_case_token_amount,
-                spot_market.decimals,
-                oracle_price_data,
-            )?;
+            let worst_case_token_value = if strict {
+                get_strict_token_value(
+                    worst_case_token_amount,
+                    spot_market.decimals,
+                    oracle_price_data,
+                    spot_market.historical_oracle_data.last_oracle_price_twap,
+                )?
+            } else {
+                get_token_value(
+                    worst_case_token_amount,
+                    spot_market.decimals,
+                    oracle_price_data,
+                )?
+            };
 
             match worst_case_token_amount.cmp(&0) {
                 Ordering::Greater => {
@@ -501,6 +513,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
         spot_market_map,
         oracle_map,
         margin_buffer_ratio,
+        false,
     )?;
 
     Ok((
@@ -517,6 +530,8 @@ pub fn meets_withdraw_margin_requirement(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<bool> {
+    let strict = true;
+
     let (
         initial_margin_requirement,
         total_collateral,
@@ -531,6 +546,7 @@ pub fn meets_withdraw_margin_requirement(
         spot_market_map,
         oracle_map,
         None,
+        strict,
     )?;
 
     if initial_margin_requirement > 0 {
@@ -596,6 +612,7 @@ pub fn meets_place_order_margin_requirement(
         spot_market_map,
         oracle_map,
         None,
+        true,
     )?;
 
     let meets_initial_margin_requirement = total_collateral >= cast_to_i128(margin_requirement)?;

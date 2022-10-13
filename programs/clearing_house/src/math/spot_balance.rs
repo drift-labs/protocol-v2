@@ -254,6 +254,35 @@ pub fn get_balance_value_and_token_amount(
     Ok((value, token_amount))
 }
 
+pub fn get_strict_token_value(
+    token_amount: i128,
+    spot_decimals: u8,
+    oracle_price_data: &OraclePriceData,
+    oracle_price_twap: i128,
+) -> ClearingHouseResult<i128> {
+    if token_amount == 0 {
+        return Ok(0);
+    }
+
+    let precision_decrease = 10_i128.pow(spot_decimals as u32);
+
+    let price = if oracle_price_twap != 0 {
+        if token_amount > 0 {
+            oracle_price_data.price.min(oracle_price_twap)
+        } else {
+            oracle_price_data.price.max(oracle_price_twap)
+        }
+    } else {
+        oracle_price_data.price
+    };
+
+    token_amount
+        .checked_mul(price)
+        .ok_or_else(math_error!())?
+        .checked_div(precision_decrease)
+        .ok_or_else(math_error!())
+}
+
 pub fn get_token_value(
     token_amount: i128,
     spot_decimals: u8,
