@@ -38,6 +38,7 @@ import {
 	sleep,
 } from './testHelpers';
 import { Keypair } from '@solana/web3.js';
+import { calculateReservePrice } from '../sdk';
 
 async function depositToFeePoolFromIF(
 	amount: number,
@@ -198,6 +199,22 @@ describe('delist market, liquidation of expired position', () => {
 
 	it('put market in big drawdown and net user negative pnl', async () => {
 		await depositToFeePoolFromIF(1000, clearingHouse, userUSDCAccount);
+
+		try {
+			await clearingHouse.openPosition(
+				PositionDirection.SHORT,
+				BASE_PRECISION,
+				0,
+				calculateReservePrice(
+					clearingHouse.getPerpMarketAccount(0),
+					clearingHouse.getOracleDataForPerpMarket(0)
+				)
+			);
+		} catch (e) {
+			console.log('clearingHouse.openPosition');
+
+			console.error(e);
+		}
 
 		const uL = clearingHouseLoserUser.getUserAccount();
 		console.log(
