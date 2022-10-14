@@ -20,9 +20,9 @@ import {
 	UserMap,
 	MarketTypeStr,
 	StateAccount,
-	ZERO,
 	isMarketOrder,
 	isLimitOrder,
+	hasLimitPrice,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
@@ -769,12 +769,8 @@ export class DLOB {
 			bidNode
 		);
 
-		// Check if order can't be maker
-		if (
-			isMarketOrder(makerNode.order) &&
-			isAuctionComplete(makerNode.order, slot) &&
-			makerNode.order.price.eq(ZERO)
-		) {
+		// If order doesn't have limit price, cant be maker
+		if (!hasLimitPrice(makerNode.order, slot)) {
 			return {
 				crossingNodes: [],
 				exhaustedSide: makerSide,

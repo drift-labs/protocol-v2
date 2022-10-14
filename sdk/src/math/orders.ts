@@ -157,6 +157,26 @@ export function getLimitPrice(
 	return limitPrice;
 }
 
+export function getOptionalLimitPrice(
+	order: Order,
+	oraclePriceData: OraclePriceData,
+	slot: number
+): BN | undefined {
+	if (hasLimitPrice(order, slot)) {
+		return getLimitPrice(order, oraclePriceData, slot);
+	} else {
+		return undefined;
+	}
+}
+
+export function hasLimitPrice(order: Order, slot: number): boolean {
+	return (
+		order.price.gt(ZERO) ||
+		order.oraclePriceOffset > 0 ||
+		!isAuctionComplete(order, slot)
+	);
+}
+
 export function isFillableByVAMM(
 	order: Order,
 	market: PerpMarketAccount,
