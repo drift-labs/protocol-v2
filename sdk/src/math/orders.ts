@@ -172,7 +172,7 @@ export function getOptionalLimitPrice(
 export function hasLimitPrice(order: Order, slot: number): boolean {
 	return (
 		order.price.gt(ZERO) ||
-		order.oraclePriceOffset > 0 ||
+		order.oraclePriceOffset != 0 ||
 		!isAuctionComplete(order, slot)
 	);
 }
