@@ -1379,6 +1379,7 @@ export class ClearingHouse {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				spotMarket: spotMarket.pubkey,
+				oracle: spotMarket.oracle,
 			},
 		});
 	}

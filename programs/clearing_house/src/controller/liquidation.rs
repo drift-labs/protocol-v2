@@ -776,6 +776,10 @@ pub fn liquidate_borrow_for_perp_pnl(
     slot: u64,
     liquidation_margin_buffer_ratio: u32,
 ) -> ClearingHouseResult {
+    // liquidator takes over a user borrow in exchange for that user's positive perpetual pnl
+    // can only be done once a user's perpetual position size is 0
+    // blocks borrows where oracle is deemed invalid
+
     validate!(!user.is_bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
 
     validate!(
@@ -1138,6 +1142,10 @@ pub fn liquidate_perp_pnl_for_deposit(
     slot: u64,
     liquidation_margin_buffer_ratio: u32,
 ) -> ClearingHouseResult {
+    // liquidator takes over remaining negative perpetual pnl in exchange for a user deposit
+    // can only be done once the perpetual position's size is 0
+    // blocked when the user deposit oracle is deemed invalid
+
     validate!(!user.is_bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
 
     validate!(

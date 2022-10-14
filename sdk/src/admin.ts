@@ -694,6 +694,7 @@ export class Admin extends ClearingHouse {
 					this.program.programId,
 					perpMarketIndex
 				),
+				oracle: oracle,
 			},
 		});
 	}
@@ -764,6 +765,7 @@ export class Admin extends ClearingHouse {
 					this.program.programId,
 					spotMarketIndex
 				),
+				oracle: oracle,
 			},
 		});
 	}

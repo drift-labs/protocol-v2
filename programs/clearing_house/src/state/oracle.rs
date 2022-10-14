@@ -48,6 +48,7 @@ impl HistoricalOracleData {
             last_oracle_delay: oracle_price_data.delay,
             last_oracle_price_twap: oracle_price_data.price,
             last_oracle_price_twap_5min: oracle_price_data.price,
+            // last_oracle_price_twap_ts: now,
             ..HistoricalOracleData::default()
         }
     }

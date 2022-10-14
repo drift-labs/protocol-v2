@@ -122,6 +122,7 @@ pub fn update_spot_market_cumulative_interest(
     now: i64,
 ) -> ClearingHouseResult {
     if spot_market.status == MarketStatus::FundingPaused {
+        update_spot_market_twap_stats(spot_market, oracle_price_data, now)?;
         return Ok(());
     }
 

@@ -338,7 +338,9 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     worst_case_token_amount,
                     spot_market.decimals,
                     oracle_price_data,
-                    spot_market.historical_oracle_data.last_oracle_price_twap,
+                    spot_market
+                        .historical_oracle_data
+                        .last_oracle_price_twap_5min,
                 )?
             } else {
                 get_token_value(

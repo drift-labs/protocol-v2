@@ -162,18 +162,18 @@ impl<'a> OracleMap<'a> {
     ) -> ClearingHouseResult<OracleMap<'a>> {
         let mut oracles: BTreeMap<Pubkey, AccountInfoAndOracleSource<'a>> = BTreeMap::new();
 
-        if account_info.owner != &pyth_program::id() {
+        if account_info.owner == &pyth_program::id() {
+            let pubkey = account_info.key();
+            oracles.insert(
+                pubkey,
+                AccountInfoAndOracleSource {
+                    account_info: account_info.clone(),
+                    oracle_source: OracleSource::Pyth,
+                },
+            );
+        } else if account_info.key() != Pubkey::default() {
             return Err(ErrorCode::InvalidOracle);
         }
-
-        let pubkey = account_info.key();
-        oracles.insert(
-            pubkey,
-            AccountInfoAndOracleSource {
-                account_info: account_info.clone(),
-                oracle_source: OracleSource::Pyth,
-            },
-        );
 
         let ogr: OracleGuardRails = if let Some(o) = oracle_guard_rails {
             o

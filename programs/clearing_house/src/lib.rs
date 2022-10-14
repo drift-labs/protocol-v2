@@ -603,7 +603,7 @@ pub mod clearing_house {
     }
 
     pub fn update_spot_market_oracle(
-        ctx: Context<AdminUpdateSpotMarket>,
+        ctx: Context<AdminUpdateSpotMarketOracle>,
         oracle: Pubkey,
         oracle_source: OracleSource,
     ) -> Result<()> {
@@ -686,7 +686,7 @@ pub mod clearing_house {
     }
 
     pub fn update_perp_market_oracle(
-        ctx: Context<AdminUpdatePerpMarket>,
+        ctx: Context<RepegCurve>,
         oracle: Pubkey,
         oracle_source: OracleSource,
     ) -> Result<()> {
