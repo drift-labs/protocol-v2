@@ -125,7 +125,6 @@ fn validate_limit_order(
             market.amm.order_tick_size,
             market.margin_ratio_initial as u128,
             market.margin_ratio_maintenance as u128,
-            Some(&market.amm),
         )?;
 
         if order_breaches_oracle_price_limits {
@@ -145,12 +144,7 @@ fn validate_post_only_order(
     let base_asset_amount_market_can_fill = calculate_base_asset_amount_to_fill_up_to_limit_price(
         order,
         market,
-        order.get_limit_price(
-            valid_oracle_price,
-            slot,
-            market.amm.order_tick_size,
-            Some(&market.amm),
-        )?,
+        order.get_optional_limit_price(valid_oracle_price, slot, market.amm.order_tick_size)?,
     )?;
 
     if base_asset_amount_market_can_fill != 0 {
@@ -323,7 +317,6 @@ fn validate_spot_limit_order(
             tick_size,
             margin_ratio_initial,
             margin_ratio_maintenance,
-            None,
         )?;
 
         if order_breaches_oracle_price_limits {

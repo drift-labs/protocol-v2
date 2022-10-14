@@ -16,7 +16,6 @@ use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_t
 use crate::math::stats::calculate_rolling_sum;
 use crate::math_error;
 use crate::state::oracle::OraclePriceData;
-use crate::state::perp_market::AMM;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use std::cmp::max;
 
@@ -461,12 +460,12 @@ impl Order {
         self.oracle_price_offset != 0
     }
 
+    /// Always returns a price, even if order.price is 0, which can be the case for market orders
     pub fn get_limit_price(
         &self,
         valid_oracle_price: Option<i128>,
         slot: u64,
         tick_size: u64,
-        amm: Option<&AMM>,
     ) -> ClearingHouseResult<u128> {
         // the limit price can be hardcoded on order or derived based on oracle/slot
         let price = if self.has_oracle_price_offset() {
@@ -495,56 +494,49 @@ impl Order {
             } else if self.price != 0 {
                 self.price as u128
             } else {
-                match amm {
-                    Some(amm) => match self.direction {
-                        PositionDirection::Long => {
-                            let ask_price = amm.ask_price(amm.reserve_price()?)?;
-                            let delta = ask_price
-                                .checked_div(amm.max_slippage_ratio as u128)
-                                .ok_or_else(math_error!())?;
-                            let price = ask_price.checked_add(delta).ok_or_else(math_error!())?;
-                            standardize_price(price.cast()?, tick_size, self.direction)?
-                                .cast::<u128>()?
-                        }
-                        PositionDirection::Short => {
-                            let bid_price = amm.bid_price(amm.reserve_price()?)?;
-                            let delta = bid_price
-                                .checked_div(amm.max_slippage_ratio as u128)
-                                .ok_or_else(math_error!())?;
-                            let price = bid_price.checked_sub(delta).ok_or_else(math_error!())?;
-                            standardize_price(price.cast()?, tick_size, self.direction)?
-                                .cast::<u128>()?
-                        }
-                    },
-                    None => {
-                        let oracle_price = valid_oracle_price
-                            .ok_or_else(|| {
-                                msg!("No oracle found to generate dynamic limit price");
-                                ErrorCode::OracleNotFound
-                            })?
-                            .unsigned_abs();
+                let oracle_price = valid_oracle_price
+                    .ok_or_else(|| {
+                        msg!("No oracle found to generate dynamic limit price");
+                        ErrorCode::OracleNotFound
+                    })?
+                    .unsigned_abs();
 
-                        let oracle_price_1pct = oracle_price / 100;
+                let oracle_price_1pct = oracle_price / 100;
 
-                        let price = match self.direction {
-                            PositionDirection::Long => oracle_price
-                                .checked_add(oracle_price_1pct)
-                                .ok_or_else(math_error!())?,
-                            PositionDirection::Short => oracle_price
-                                .checked_sub(oracle_price_1pct)
-                                .ok_or_else(math_error!())?,
-                        };
+                let price = match self.direction {
+                    PositionDirection::Long => oracle_price
+                        .checked_add(oracle_price_1pct)
+                        .ok_or_else(math_error!())?,
+                    PositionDirection::Short => oracle_price
+                        .checked_sub(oracle_price_1pct)
+                        .ok_or_else(math_error!())?,
+                };
 
-                        standardize_price(price.cast()?, tick_size, self.direction)?
-                            .cast::<u128>()?
-                    }
-                }
+                standardize_price(price.cast()?, tick_size, self.direction)?.cast::<u128>()?
             }
         } else {
             self.price as u128
         };
 
         Ok(price)
+    }
+
+    /// Unlike get_limit_price, returns None if order.price is 0, which can be the case for market orders
+    pub fn get_optional_limit_price(
+        &self,
+        valid_oracle_price: Option<i128>,
+        slot: u64,
+        tick_size: u64,
+    ) -> ClearingHouseResult<Option<u128>> {
+        if self.price == 0
+            && !self.has_oracle_price_offset()
+            && is_auction_complete(self.slot, self.auction_duration, slot)?
+        {
+            Ok(None)
+        } else {
+            self.get_limit_price(valid_oracle_price, slot, tick_size)
+                .map(Some)
+        }
     }
 
     pub fn get_base_asset_amount_unfilled(&self) -> ClearingHouseResult<u64> {

@@ -34,7 +34,7 @@ import {
 } from './testHelpers';
 import { NATIVE_MINT } from '@solana/spl-token';
 import { Market } from '@project-serum/serum';
-import { ZERO } from '../sdk';
+import { getMarketOrderParams, ZERO } from '../sdk';
 
 describe('serum spot market', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -566,12 +566,11 @@ describe('serum spot market', () => {
 			);
 
 		const txSig = await takerClearingHouse.placeAndTakeSpotOrder(
-			getLimitOrderParams({
+			getMarketOrderParams({
 				marketIndex: solSpotMarketIndex,
 				direction: PositionDirection.SHORT,
 				baseAssetAmount,
 				userOrderId: 1,
-				price: new BN(100).mul(PRICE_PRECISION),
 			}),
 			serumFulfillmentConfigAccount
 		);
