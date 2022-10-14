@@ -178,11 +178,14 @@ pub fn _update_amm(
     let reserve_price_after = market.amm.reserve_price()?;
 
     if is_oracle_valid_for_action(oracle_validity, Some(DriftAction::UpdateTwap))? {
+        let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
+
         amm::update_oracle_price_twap(
             &mut market.amm,
             now,
             oracle_price_data,
             Some(reserve_price_after),
+            sanitize_clamp_denominator,
         )?;
     }
 

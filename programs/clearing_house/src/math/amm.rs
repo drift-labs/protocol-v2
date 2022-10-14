@@ -9,8 +9,8 @@ use crate::math::bn::U192;
 use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64, Cast};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
-    CONCENTRATION_PRECISION, FIVE_MINUTE, MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, ONE_HOUR_I128,
-    PRICE_TO_PEG_PRECISION_RATIO, PRICE_TO_QUOTE_PRECISION_RATIO,
+    CONCENTRATION_PRECISION, DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE,
+    ONE_HOUR_I128, PRICE_TO_PEG_PRECISION_RATIO, PRICE_TO_QUOTE_PRECISION_RATIO,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::quote_asset::reserve_to_asset_amount;
@@ -129,6 +129,7 @@ pub fn update_mark_twap(
     now: i64,
     precomputed_trade_price: Option<u128>,
     direction: Option<PositionDirection>,
+    sanitize_clamp: Option<i128>,
 ) -> ClearingHouseResult<u128> {
     let base_spread_u128 = cast_to_u128(amm.base_spread)?;
     let last_oracle_price_u128 = cast_to_u128(amm.historical_oracle_data.last_oracle_price)?;
@@ -200,10 +201,12 @@ pub fn update_mark_twap(
         sanitize_new_price(
             cast_to_i128(bid_price)?,
             cast_to_i128(amm.last_bid_price_twap)?,
+            sanitize_clamp,
         )?,
         sanitize_new_price(
             cast_to_i128(ask_price)?,
             cast_to_i128(amm.last_ask_price_twap)?,
+            sanitize_clamp,
         )?,
     );
 
@@ -257,7 +260,11 @@ pub fn update_mark_twap(
     cast(mid_twap)
 }
 
-pub fn sanitize_new_price(new_price: i128, last_price_twap: i128) -> ClearingHouseResult<i128> {
+pub fn sanitize_new_price(
+    new_price: i128,
+    last_price_twap: i128,
+    sanitize_clamp_denominator: Option<i128>,
+) -> ClearingHouseResult<i128> {
     // when/if twap is 0, dont try to normalize new_price
     if last_price_twap == 0 {
         return Ok(new_price);
@@ -268,8 +275,20 @@ pub fn sanitize_new_price(new_price: i128, last_price_twap: i128) -> ClearingHou
         .ok_or_else(math_error!())?;
 
     // cap new oracle update to 100/MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR% delta from twap
+    let sanitize_clamp_denominator =
+        if let Some(sanitize_clamp_denominator) = sanitize_clamp_denominator {
+            sanitize_clamp_denominator
+        } else {
+            DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR
+        };
+
+    if sanitize_clamp_denominator == 0 {
+        // no need to use price band check
+        return Ok(new_price);
+    }
+
     let price_twap_price_band = last_price_twap
-        .checked_div(MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR)
+        .checked_div(sanitize_clamp_denominator)
         .ok_or_else(math_error!())?;
 
     let capped_update_price =
@@ -295,6 +314,7 @@ pub fn update_oracle_price_twap(
     now: i64,
     oracle_price_data: &OraclePriceData,
     precomputed_reserve_price: Option<u128>,
+    sanitize_clamp: Option<i128>,
 ) -> ClearingHouseResult<i128> {
     let reserve_price = match precomputed_reserve_price {
         Some(reserve_price) => reserve_price,
@@ -306,6 +326,7 @@ pub fn update_oracle_price_twap(
     let capped_oracle_update_price = sanitize_new_price(
         oracle_price,
         amm.historical_oracle_data.last_oracle_price_twap,
+        sanitize_clamp,
     )?;
 
     // sanity check

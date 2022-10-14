@@ -498,7 +498,7 @@ pub fn update_position_with_base_asset_amount(
     };
 
     let (quote_asset_swapped, quote_asset_amount_surplus) = controller::amm::swap_base_asset(
-        &mut market.amm,
+        market,
         base_asset_amount,
         swap_direction,
         now,

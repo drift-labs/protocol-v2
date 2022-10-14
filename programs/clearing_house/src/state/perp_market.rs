@@ -113,6 +113,15 @@ impl PerpMarket {
         Ok(self.status == MarketStatus::ReduceOnly)
     }
 
+    pub fn get_sanitize_clamp_denominator(self) -> ClearingHouseResult<Option<i128>> {
+        Ok(match self.contract_tier {
+            ContractTier::A => Some(10_i128),  // 10%
+            ContractTier::B => Some(5_i128),   // 20%
+            ContractTier::C => Some(2_i128),   // 50%
+            ContractTier::Speculative => None, // DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR
+        })
+    }
+
     pub fn get_margin_ratio(
         &self,
         size: u128,

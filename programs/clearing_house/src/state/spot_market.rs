@@ -84,6 +84,16 @@ impl SpotMarket {
         Ok(self.status == MarketStatus::ReduceOnly)
     }
 
+    pub fn get_sanitize_clamp_denominator(&self) -> ClearingHouseResult<Option<i128>> {
+        Ok(match self.asset_tier {
+            AssetTier::Collateral => Some(10), // 10%
+            AssetTier::Protected => Some(10),  // 10%
+            AssetTier::Cross => Some(5),       // 20%
+            AssetTier::Isolated => Some(3),    // 50%
+            AssetTier::Unlisted => None,       // DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR
+        })
+    }
+
     pub fn get_asset_weight(
         &self,
         size: u128,

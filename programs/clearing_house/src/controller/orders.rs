@@ -1666,11 +1666,13 @@ pub fn fulfill_order_with_match(
         return Ok((0_u64, 0_u64));
     }
 
+    let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
     amm::update_mark_twap(
         &mut market.amm,
         now,
         Some(maker_price),
         Some(taker_direction),
+        sanitize_clamp_denominator,
     )?;
 
     let amm_wants_to_make = match taker_direction {

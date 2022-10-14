@@ -81,7 +81,7 @@ fn calculate_quote_asset_amount_surplus(
 }
 
 pub fn swap_base_asset(
-    amm: &mut AMM,
+    market: &mut PerpMarket,
     base_asset_swap_amount: u64,
     direction: SwapDirection,
     now: i64,
@@ -94,17 +94,21 @@ pub fn swap_base_asset(
 
     let reserve_price = match precomputed_reserve_price {
         Some(reserve_price) => reserve_price,
-        None => amm.reserve_price()?,
+        None => market.amm.reserve_price()?,
     };
 
+    let market_side_price = match position_direction {
+        PositionDirection::Long => market.amm.ask_price(reserve_price)?,
+        PositionDirection::Short => market.amm.bid_price(reserve_price)?,
+    };
+
+    let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
     amm::update_mark_twap(
-        amm,
+        &mut market.amm,
         now,
-        Some(match position_direction {
-            PositionDirection::Long => amm.ask_price(reserve_price)?,
-            PositionDirection::Short => amm.bid_price(reserve_price)?,
-        }),
+        Some(market_side_price),
         Some(position_direction),
+        sanitize_clamp_denominator,
     )?;
 
     let (
@@ -112,10 +116,10 @@ pub fn swap_base_asset(
         new_quote_asset_reserve,
         quote_asset_amount,
         quote_asset_amount_surplus,
-    ) = calculate_base_swap_output_with_spread(amm, base_asset_swap_amount, direction)?;
+    ) = calculate_base_swap_output_with_spread(&market.amm, base_asset_swap_amount, direction)?;
 
-    amm.base_asset_reserve = new_base_asset_reserve;
-    amm.quote_asset_reserve = new_quote_asset_reserve;
+    market.amm.base_asset_reserve = new_base_asset_reserve;
+    market.amm.quote_asset_reserve = new_quote_asset_reserve;
 
     Ok((
         quote_asset_amount,

@@ -377,7 +377,7 @@ fn calc_mark_std_tests() {
         }
         amm.peg_multiplier = px;
         let trade_direction = PositionDirection::Long;
-        update_mark_twap(&mut amm, now, Some(px), Some(trade_direction)).unwrap();
+        update_mark_twap(&mut amm, now, Some(px), Some(trade_direction), None).unwrap();
     }
     assert_eq!(now, 1656689519);
     assert_eq!(px, 39397);
@@ -394,7 +394,7 @@ fn calc_mark_std_tests() {
             amm.peg_multiplier = px;
 
             let trade_direction = PositionDirection::Long;
-            update_mark_twap(&mut amm, now, Some(px), Some(trade_direction)).unwrap();
+            update_mark_twap(&mut amm, now, Some(px), Some(trade_direction), None).unwrap();
         }
         if now % 189 == 0 {
             px = 31_883_651; //31.88
@@ -402,7 +402,7 @@ fn calc_mark_std_tests() {
 
             amm.historical_oracle_data.last_oracle_price = (px + 1000000) as i128;
             let trade_direction = PositionDirection::Short;
-            update_mark_twap(&mut amm, now, Some(px), Some(trade_direction)).unwrap();
+            update_mark_twap(&mut amm, now, Some(px), Some(trade_direction), None).unwrap();
         }
     }
     assert_eq!(now, 1656696720);
@@ -420,7 +420,7 @@ fn calc_mark_std_tests() {
 
             amm.historical_oracle_data.last_oracle_price = (px - 1000000) as i128;
             let trade_direction = PositionDirection::Long;
-            update_mark_twap(&mut amm, now, Some(px), Some(trade_direction)).unwrap();
+            update_mark_twap(&mut amm, now, Some(px), Some(trade_direction), None).unwrap();
         }
         if now % 2 == 0 {
             px = 31_883_651; //31.88
@@ -428,7 +428,7 @@ fn calc_mark_std_tests() {
 
             amm.historical_oracle_data.last_oracle_price = (px + 1000000) as i128;
             let trade_direction = PositionDirection::Short;
-            update_mark_twap(&mut amm, now, Some(px), Some(trade_direction)).unwrap();
+            update_mark_twap(&mut amm, now, Some(px), Some(trade_direction), None).unwrap();
         }
     }
     assert_eq!(now, 1656703921);
@@ -471,7 +471,7 @@ fn update_mark_twap_tests() {
         ..AMM::default()
     };
 
-    update_oracle_price_twap(&mut amm, now, &oracle_price_data, None).unwrap();
+    update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
     assert_eq!(
         amm.historical_oracle_data.last_oracle_price,
         oracle_price_data.price
@@ -485,8 +485,14 @@ fn update_mark_twap_tests() {
     let trade_direction = PositionDirection::Long;
 
     let old_mark_twap = amm.last_mark_price_twap;
-    let new_mark_twap =
-        update_mark_twap(&mut amm, now, Some(trade_price), Some(trade_direction)).unwrap();
+    let new_mark_twap = update_mark_twap(
+        &mut amm,
+        now,
+        Some(trade_price),
+        Some(trade_direction),
+        None,
+    )
+    .unwrap();
     let new_bid_twap = amm.last_bid_price_twap;
     let new_ask_twap = amm.last_ask_price_twap;
 
@@ -498,8 +504,15 @@ fn update_mark_twap_tests() {
 
     while now < 3600 {
         now += 1;
-        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None).unwrap();
-        update_mark_twap(&mut amm, now, Some(trade_price), Some(trade_direction)).unwrap();
+        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+        update_mark_twap(
+            &mut amm,
+            now,
+            Some(trade_price),
+            Some(trade_direction),
+            None,
+        )
+        .unwrap();
     }
 
     let new_oracle_twap = amm.historical_oracle_data.last_oracle_price_twap;
@@ -526,9 +539,16 @@ fn update_mark_twap_tests() {
 
     while now <= 3600 * 2 {
         now += 1;
-        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None).unwrap();
+        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
         if now % 200 == 0 {
-            update_mark_twap(&mut amm, now, Some(trade_price_2), Some(trade_direction_2)).unwrap();
+            update_mark_twap(
+                &mut amm,
+                now,
+                Some(trade_price_2),
+                Some(trade_direction_2),
+                None,
+            )
+            .unwrap();
             // ~2 cents below oracle
         }
     }
@@ -580,7 +600,7 @@ fn calc_oracle_twap_tests() {
     };
 
     let _new_oracle_twap =
-        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None).unwrap();
+        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
     assert_eq!(
         amm.historical_oracle_data.last_oracle_price_twap,
         (34 * PRICE_PRECISION - PRICE_PRECISION / 100) as i128
@@ -598,7 +618,7 @@ fn calc_oracle_twap_tests() {
     };
     // let old_oracle_twap_2 = amm.historical_oracle_data.last_oracle_price_twap;
     let _new_oracle_twap_2 =
-        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None).unwrap();
+        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
     assert_eq!(amm.historical_oracle_data.last_oracle_price_twap, 33940167);
     assert_eq!(
         amm.historical_oracle_data.last_oracle_price_twap_5min,
@@ -606,7 +626,7 @@ fn calc_oracle_twap_tests() {
     );
 
     let _new_oracle_twap_2 =
-        update_oracle_price_twap(&mut amm, now + 60 * 5, &oracle_price_data, None).unwrap();
+        update_oracle_price_twap(&mut amm, now + 60 * 5, &oracle_price_data, None, None).unwrap();
 
     assert_eq!(amm.historical_oracle_data.last_oracle_price_twap, 33695154);
     assert_eq!(
@@ -622,7 +642,8 @@ fn calc_oracle_twap_tests() {
     };
 
     let _new_oracle_twap_2 =
-        update_oracle_price_twap(&mut amm, now + 60 * 5 + 60, &oracle_price_data, None).unwrap();
+        update_oracle_price_twap(&mut amm, now + 60 * 5 + 60, &oracle_price_data, None, None)
+            .unwrap();
     assert_eq!(
         amm.historical_oracle_data.last_oracle_price_twap_5min,
         31200001

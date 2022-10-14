@@ -473,7 +473,7 @@ export type HistoricalOracleData = {
 	lastOracleDelay: BN;
 	lastOracleConf: BN;
 	lastOraclePriceTwap: BN;
-	lastOraclePriceTwap5Min: BN;
+	lastOraclePriceTwap5min: BN;
 	lastOraclePriceTwapTs: BN;
 };
 
@@ -481,7 +481,7 @@ export type HistoricalIndexData = {
 	lastIndexBidPrice: BN;
 	lastIndexAskPrice: BN;
 	lastIndexPriceTwap: BN;
-	lastIndexPriceTwap5Min: BN;
+	lastIndexPriceTwap5min: BN;
 	lastIndexPriceTwapTs: BN;
 };
 
@@ -558,7 +558,7 @@ export type AMM = {
 	lastFundingRate: BN;
 	lastFundingRateTs: BN;
 	lastMarkPriceTwap: BN;
-	lastMarkPriceTwap5Min: BN;
+	lastMarkPriceTwap5min: BN;
 	lastMarkPriceTwapTs: BN;
 
 	oracle: PublicKey;

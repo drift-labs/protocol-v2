@@ -77,9 +77,12 @@ pub fn update_spot_market_twap_stats(
     )?)?;
 
     if let Some(oracle_price_data) = oracle_price_data {
+        let sanitize_clamp_denominator = spot_market.get_sanitize_clamp_denominator()?;
+
         let capped_oracle_update_price: i128 = sanitize_new_price(
             oracle_price_data.price,
             spot_market.historical_oracle_data.last_oracle_price_twap,
+            sanitize_clamp_denominator,
         )?;
 
         let oracle_price_twap = calculate_new_twap(
