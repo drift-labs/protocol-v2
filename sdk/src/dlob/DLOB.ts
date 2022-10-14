@@ -21,6 +21,8 @@ import {
 	MarketTypeStr,
 	StateAccount,
 	ZERO,
+	isMarketOrder,
+	isLimitOrder,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
@@ -769,7 +771,7 @@ export class DLOB {
 
 		// Check if order can't be maker
 		if (
-			isVariant(makerNode.order, 'market') &&
+			isMarketOrder(makerNode.order) &&
 			isAuctionComplete(makerNode.order, slot) &&
 			makerNode.order.price.eq(ZERO)
 		) {
@@ -878,19 +880,13 @@ export class DLOB {
 				makerNode: askNode,
 				makerSide: 'ask',
 			};
-		} else if (
-			isOneOfVariant(bidNode.order, ['market', 'triggerMarket']) &&
-			isOneOfVariant(askNode.order, ['limit', 'triggerLimit'])
-		) {
+		} else if (isMarketOrder(bidNode.order) && isLimitOrder(askNode.order)) {
 			return {
 				takerNode: bidNode,
 				makerNode: askNode,
 				makerSide: 'ask',
 			};
-		} else if (
-			isOneOfVariant(askNode.order, ['market', 'triggerMarket']) &&
-			isOneOfVariant(bidNode.order, ['limit', 'triggerLimit'])
-		) {
+		} else if (isMarketOrder(askNode.order) && isLimitOrder(bidNode.order)) {
 			return {
 				takerNode: askNode,
 				makerNode: bidNode,
