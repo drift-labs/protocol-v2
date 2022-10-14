@@ -227,7 +227,6 @@ mod order_breaches_oracle_price_limits {
             tick_size,
             margin_ratio_initial,
             margin_ratio_maintenance,
-            None,
         )
         .unwrap();
 
@@ -260,7 +259,6 @@ mod order_breaches_oracle_price_limits {
             tick_size,
             margin_ratio_initial,
             margin_ratio_maintenance,
-            None,
         )
         .unwrap();
 
@@ -295,7 +293,6 @@ mod order_breaches_oracle_price_limits {
             tick_size,
             margin_ratio_initial,
             margin_ratio_maintenance,
-            None,
         )
         .unwrap();
 
@@ -330,7 +327,6 @@ mod order_breaches_oracle_price_limits {
             tick_size,
             margin_ratio_initial,
             margin_ratio_maintenance,
-            None,
         )
         .unwrap();
 
@@ -365,7 +361,6 @@ mod order_breaches_oracle_price_limits {
             tick_size,
             margin_ratio_initial,
             margin_ratio_maintenance,
-            None,
         )
         .unwrap();
 
@@ -400,7 +395,6 @@ mod order_breaches_oracle_price_limits {
             tick_size,
             margin_ratio_initial,
             margin_ratio_maintenance,
-            None,
         )
         .unwrap();
 

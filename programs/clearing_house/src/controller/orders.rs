@@ -716,7 +716,6 @@ pub fn fill_order(
             market.amm.order_tick_size,
             market.margin_ratio_initial as u128,
             market.margin_ratio_maintenance as u128,
-            Some(&market.amm),
         )?
     };
 
@@ -1001,7 +1000,6 @@ fn sanitize_maker_order<'a>(
             market.amm.order_tick_size,
             market.margin_ratio_initial as u128,
             market.margin_ratio_maintenance as u128,
-            Some(&market.amm),
         )?
     };
 
@@ -1366,12 +1364,12 @@ pub fn fulfill_order_with_amm(
     // Determine the base asset amount the market can fill
     let (base_asset_amount, limit_price, fill_price) = match override_base_asset_amount {
         Some(override_base_asset_amount) => {
-            let limit_price = user.orders[order_index].get_limit_price(
+            let limit_price = user.orders[order_index].get_optional_limit_price(
                 valid_oracle_price,
                 slot,
                 market.amm.order_tick_size,
-                Some(&market.amm),
             )?;
+
             (override_base_asset_amount, limit_price, override_fill_price)
         }
         None => {
@@ -1384,10 +1382,11 @@ pub fn fulfill_order_with_amm(
             )?;
 
             let fill_price = if user.orders[order_index].post_only {
-                Some(limit_price)
+                limit_price
             } else {
                 None
             };
+
             (base_asset_amount, limit_price, fill_price)
         }
     };
@@ -1419,14 +1418,16 @@ pub fn fulfill_order_with_amm(
             fill_price,
         )?;
 
-    validate_fill_price(
-        quote_asset_amount,
-        base_asset_amount,
-        BASE_PRECISION_U64,
-        order_direction,
-        limit_price,
-        !order_post_only,
-    )?;
+    if let Some(limit_price) = limit_price {
+        validate_fill_price(
+            quote_asset_amount,
+            base_asset_amount,
+            BASE_PRECISION_U64,
+            order_direction,
+            limit_price,
+            !order_post_only,
+        )?;
+    }
 
     let reward_referrer = referrer.is_some()
         && referrer_stats.is_some()
@@ -1633,7 +1634,6 @@ pub fn fulfill_order_with_match(
         Some(oracle_price),
         slot,
         market.amm.order_tick_size,
-        Some(&market.amm),
     )?;
     let taker_direction = taker.orders[taker_order_index].direction;
     let taker_base_asset_amount =
@@ -1643,7 +1643,6 @@ pub fn fulfill_order_with_match(
         Some(oracle_price),
         slot,
         market.amm.order_tick_size,
-        Some(&market.amm),
     )?;
     let maker_direction = maker.orders[maker_order_index].direction;
     let maker_base_asset_amount =
@@ -2791,7 +2790,6 @@ fn sanitize_spot_maker_order<'a>(
             spot_market.order_tick_size,
             initial_margin_ratio,
             maintenance_margin_ratio,
-            None,
         )?
     };
 
@@ -3049,7 +3047,6 @@ pub fn fulfill_spot_order_with_match(
         Some(oracle_price),
         slot,
         base_market.order_tick_size,
-        None,
     )?;
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
@@ -3061,7 +3058,6 @@ pub fn fulfill_spot_order_with_match(
         Some(oracle_price),
         slot,
         base_market.order_tick_size,
-        None,
     )?;
     let maker_direction = maker.orders[maker_order_index].direction;
     let maker_base_asset_amount =
@@ -3321,11 +3317,10 @@ pub fn fulfill_spot_order_with_serum(
     };
 
     let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
-    let taker_price = taker.orders[taker_order_index].get_limit_price(
+    let taker_price = taker.orders[taker_order_index].get_optional_limit_price(
         Some(oracle_price),
         slot,
         base_market.order_tick_size,
-        None,
     )?;
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
@@ -3375,6 +3370,29 @@ pub fn fulfill_spot_order_with_serum(
         60 * 5,
     )?)?;
 
+    let taker_price = if let Some(price) = taker_price {
+        price
+    } else {
+        match order_direction {
+            PositionDirection::Long => {
+                if let Some(ask) = best_ask {
+                    ask.checked_add(ask / 100).ok_or_else(math_error!())?
+                } else {
+                    msg!("Serum has no ask");
+                    return Ok(0);
+                }
+            }
+            PositionDirection::Short => {
+                if let Some(bid) = best_bid {
+                    bid.checked_sub(bid / 100).ok_or_else(math_error!())?
+                } else {
+                    msg!("Serum has no bid");
+                    return Ok(0);
+                }
+            }
+        }
+    };
+
     let market_state_before = load_serum_market(
         serum_new_order_accounts.serum_market,
         serum_new_order_accounts.serum_program_id.key,
@@ -3387,12 +3405,14 @@ pub fn fulfill_spot_order_with_serum(
 
     let serum_max_coin_qty =
         calculate_serum_max_coin_qty(taker_base_asset_amount, market_state_before.coin_lot_size)?;
+
     let serum_limit_price = calculate_serum_limit_price(
         taker_price,
         market_state_before.pc_lot_size,
         base_market.decimals as u32,
         market_state_before.coin_lot_size,
     )?;
+
     let serum_max_native_pc_qty = calculate_serum_max_native_pc_quantity(
         serum_limit_price,
         serum_max_coin_qty,

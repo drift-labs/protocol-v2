@@ -462,7 +462,7 @@ export class Admin extends ClearingHouse {
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
-					perpMarketIndex: await getPerpMarketPublicKey(
+					perpMarket: await getPerpMarketPublicKey(
 						this.program.programId,
 						perpMarketIndex
 					),
@@ -965,13 +965,13 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
-	public async updateMarketMaxImbalances(
+	public async updatePerpMarketMaxImbalances(
 		perpMarketIndex: number,
 		unrealizedMaxImbalance: BN,
 		maxRevenueWithdrawPerPeriod: BN,
 		quoteMaxInsurance: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateMarketMaxImbalances(
+		return await this.program.rpc.updatePerpMarketMaxImbalances(
 			unrealizedMaxImbalance,
 			maxRevenueWithdrawPerPeriod,
 			quoteMaxInsurance,

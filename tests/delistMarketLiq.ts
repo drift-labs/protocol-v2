@@ -38,6 +38,7 @@ import {
 	sleep,
 } from './testHelpers';
 import { Keypair } from '@solana/web3.js';
+import { calculateReservePrice } from '../sdk';
 
 async function depositToFeePoolFromIF(
 	amount: number,
@@ -204,7 +205,10 @@ describe('delist market, liquidation of expired position', () => {
 				PositionDirection.SHORT,
 				BASE_PRECISION,
 				0,
-				new BN(0)
+				calculateReservePrice(
+					clearingHouse.getPerpMarketAccount(0),
+					clearingHouse.getOracleDataForPerpMarket(0)
+				)
 			);
 		} catch (e) {
 			console.log('clearingHouse.openPosition');
@@ -222,6 +226,9 @@ describe('delist market, liquidation of expired position', () => {
 				new BN(1000 * SPOT_MARKET_BALANCE_PRECISION.toNumber())
 			)
 		);
+
+		console.log(uL.perpPositions[0].baseAssetAmount.toString());
+		console.log(uL.perpPositions[0].quoteAssetAmount.toString());
 
 		const bank0Value = clearingHouseLoserUser.getSpotMarketAssetValue(0);
 		console.log('uL.bank0Value:', bank0Value.toString());

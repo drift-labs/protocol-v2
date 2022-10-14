@@ -22,12 +22,8 @@ pub fn determine_perp_fulfillment_methods(
 
     if let Some(maker_order) = maker_order {
         if is_amm_available {
-            let maker_price = maker_order.get_limit_price(
-                valid_oracle_price,
-                slot,
-                amm.order_tick_size,
-                Some(amm),
-            )?;
+            let maker_price =
+                maker_order.get_limit_price(valid_oracle_price, slot, amm.order_tick_size)?;
 
             let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(amm_reserve_price)?;
 

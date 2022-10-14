@@ -652,7 +652,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		await clearingHouse.updatePerpMarketContractTier(0, ContractTier.A);
 		await clearingHouse.fetchAccounts();
 		// try {
-		const tx1 = await clearingHouse.updateMarketMaxImbalances(
+		const tx1 = await clearingHouse.updatePerpMarketMaxImbalances(
 			marketIndex,
 			new BN(40000).mul(QUOTE_PRECISION),
 			QUOTE_PRECISION,
