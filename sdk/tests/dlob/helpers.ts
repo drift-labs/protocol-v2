@@ -112,6 +112,7 @@ export const mockAMM: AMM = {
 export const mockPerpMarkets: Array<PerpMarketAccount> = [
 	{
 		status: MarketStatus.INITIALIZED,
+		name: [],
 		contractType: ContractType.PERPETUAL,
 		expiryTs: new BN(0),
 		expiryPrice: new BN(0),
@@ -143,6 +144,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 	},
 	{
 		status: MarketStatus.INITIALIZED,
+		name: [],
 		contractType: ContractType.PERPETUAL,
 		expiryTs: new BN(0),
 		expiryPrice: new BN(0),
@@ -174,6 +176,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 	},
 	{
 		status: MarketStatus.INITIALIZED,
+		name: [],
 		contractType: ContractType.PERPETUAL,
 		expiryTs: new BN(0),
 		expiryPrice: new BN(0),

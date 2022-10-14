@@ -2906,7 +2906,6 @@ fn fulfill_spot_order(
         &user.orders[user_order_index],
         maker.is_some(),
         serum_fulfillment_params.is_some(),
-        slot,
     )?;
 
     let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;

@@ -23,6 +23,7 @@ import {
 	isMarketOrder,
 	isLimitOrder,
 	hasLimitPrice,
+	getOptionalLimitPrice,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
@@ -419,17 +420,30 @@ export class DLOB {
 		// check for asks that cross fallbackBid
 		while (!nextAsk.done && fallbackBid !== undefined) {
 			const askNode = nextAsk.value;
-			const askPrice = askNode.getPrice(oraclePriceData, slot);
 
 			if (isVariant(marketType, 'spot') && askNode.order?.postOnly) {
 				nextAsk = askGenerator.next();
 				continue;
 			}
 
-			if (askPrice.lte(fallbackBid) && isAuctionComplete(askNode.order, slot)) {
+			const askLimitPrice = getOptionalLimitPrice(
+				askNode.order,
+				oraclePriceData,
+				slot
+			);
+
+			// order crosses if there is no limit price or it crosses fallback price
+			const crosses =
+				askLimitPrice === undefined || askLimitPrice.lte(fallbackBid);
+
+			// fallback is available if auction is complete or it's a spot order
+			const fallbackAvailable =
+				isVariant(marketType, 'spot') || isAuctionComplete(askNode.order, slot);
+
+			if (crosses && fallbackAvailable) {
 				nodesToFill.push({
 					node: askNode,
-					makerNode: undefined, // filled by vAMM
+					makerNode: undefined, // filled by fallback
 				});
 			}
 
@@ -439,17 +453,30 @@ export class DLOB {
 		// check for bids that cross fallbackAsk
 		while (!nextBid.done && fallbackAsk !== undefined) {
 			const bidNode = nextBid.value;
-			const bidPrice = bidNode.getPrice(oraclePriceData, slot);
 
 			if (isVariant(marketType, 'spot') && bidNode.order?.postOnly) {
 				nextBid = bidGenerator.next();
 				continue;
 			}
 
-			if (bidPrice.gte(fallbackAsk) && isAuctionComplete(bidNode.order, slot)) {
+			const bidLimitPrice = getOptionalLimitPrice(
+				bidNode.order,
+				oraclePriceData,
+				slot
+			);
+
+			// order crosses if there is no limit price or it crosses fallback price
+			const crosses =
+				bidLimitPrice === undefined || bidLimitPrice.gte(fallbackAsk);
+
+			// fallback is available if auction is complete or it's a spot order
+			const fallbackAvailable =
+				isVariant(marketType, 'spot') || isAuctionComplete(bidNode.order, slot);
+
+			if (crosses && fallbackAvailable) {
 				nodesToFill.push({
 					node: bidNode,
-					makerNode: undefined, // filled by vAMM
+					makerNode: undefined, // filled by fallback
 				});
 			}
 

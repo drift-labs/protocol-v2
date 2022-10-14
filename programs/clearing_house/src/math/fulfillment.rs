@@ -52,7 +52,6 @@ pub fn determine_spot_fulfillment_methods(
     taker_order: &Order,
     maker_available: bool,
     serum_fulfillment_params_available: bool,
-    slot: u64,
 ) -> ClearingHouseResult<Vec<SpotFulfillmentMethod>> {
     let mut fulfillment_methods = vec![];
 
@@ -60,10 +59,7 @@ pub fn determine_spot_fulfillment_methods(
         fulfillment_methods.push(SpotFulfillmentMethod::Match)
     }
 
-    if !taker_order.post_only
-        && serum_fulfillment_params_available
-        && is_auction_complete(taker_order.slot, taker_order.auction_duration, slot)?
-    {
+    if !taker_order.post_only && serum_fulfillment_params_available {
         fulfillment_methods.push(SpotFulfillmentMethod::SerumV3)
     }
 
