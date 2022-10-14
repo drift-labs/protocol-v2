@@ -158,7 +158,7 @@ pub const MIN_MARGIN_RATIO: u32 = MARGIN_PRECISION as u32 / 50; // 50x leverage
 pub const MAX_BID_ASK_INVENTORY_SKEW_FACTOR: u128 = 10 * BID_ASK_SPREAD_PRECISION;
 
 pub const MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN: i128 = 100 * QUOTE_PRECISION_I128; // max upnl for initial margin calc
-pub const MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR: i128 = 3; // '3' here means clamp new data point to 33% divergence from current twap (if twap > 0)
+pub const MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR: i128 = 3; // '5' here means clamp new data point to 20% (1/5) divergence from current twap (if twap > 0)
 
 // DEFAULTS
 pub const DEFAULT_LARGE_BID_ASK_FACTOR: u128 = 10 * BID_ASK_SPREAD_PRECISION;

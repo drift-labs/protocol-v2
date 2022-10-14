@@ -93,6 +93,22 @@ pub fn update_amm_test() {
 
     let reserve_price_after_prepeg = market.amm.reserve_price().unwrap();
     assert_eq!(reserve_price_after_prepeg, 13088199999);
+    assert_eq!(
+        market.amm.historical_oracle_data.last_oracle_price,
+        12400000000
+    );
+    assert_eq!(market.amm.last_oracle_normalised_price, 12933333334);
+    assert_eq!(
+        market.amm.historical_oracle_data.last_oracle_price_twap,
+        12933333334
+    );
+    assert_eq!(
+        market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        16916223538
+    ); // since manually set higher above
 
     let oracle_reserve_price_spread_pct_before = amm::calculate_oracle_twap_5min_mark_spread_pct(
         &market.amm,

@@ -66,7 +66,7 @@ impl Default for OracleGuardRails {
                 slots_before_stale_for_amm: 10,       // ~5 seconds
                 slots_before_stale_for_margin: 120,   // ~60 seconds
                 confidence_interval_max_size: 20_000, // 2% of price
-                too_volatile_ratio: 2,                // 2x or 50% down
+                too_volatile_ratio: 5,                // 5x or 80% down
             },
             use_for_liquidations: true,
         }
