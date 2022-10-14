@@ -528,15 +528,18 @@ impl Order {
         slot: u64,
         tick_size: u64,
     ) -> ClearingHouseResult<Option<u128>> {
-        if self.price == 0
-            && !self.has_oracle_price_offset()
-            && is_auction_complete(self.slot, self.auction_duration, slot)?
-        {
-            Ok(None)
-        } else {
+        if self.has_limit_price(slot)? {
             self.get_limit_price(valid_oracle_price, slot, tick_size)
                 .map(Some)
+        } else {
+            Ok(None)
         }
+    }
+
+    pub fn has_limit_price(self, slot: u64) -> ClearingHouseResult<bool> {
+        Ok(self.price > 0
+            || self.has_oracle_price_offset()
+            || !is_auction_complete(self.slot, self.auction_duration, slot)?)
     }
 
     pub fn get_base_asset_amount_unfilled(&self) -> ClearingHouseResult<u64> {
