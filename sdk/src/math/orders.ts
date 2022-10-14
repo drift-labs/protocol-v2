@@ -254,3 +254,11 @@ export function isOrderExpired(order: Order, slot: number): boolean {
 
 	return new BN(slot).sub(order.slot).gt(new BN(order.timeInForce));
 }
+
+export function isMarketOrder(order: Order): boolean {
+	return isOneOfVariant(order, ['market', 'triggerMarket']);
+}
+
+export function isLimitOrder(order: Order): boolean {
+	return isOneOfVariant(order, ['limit', 'triggerLimit']);
+}
