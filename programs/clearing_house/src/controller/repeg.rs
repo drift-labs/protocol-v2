@@ -139,7 +139,10 @@ pub fn _update_amm(
     now: i64,
     clock_slot: u64,
 ) -> ClearingHouseResult<i128> {
-    if market.status == MarketStatus::Settlement {
+    if matches!(
+        market.status,
+        MarketStatus::Settlement | MarketStatus::Delisted
+    ) {
         return Ok(0);
     }
 
