@@ -1631,6 +1631,7 @@ pub mod fulfill_order {
                 auction_start_price: 0,
                 auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 0,
+                price: 150 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -1842,6 +1843,7 @@ pub mod fulfill_order {
                 slot: 0,
                 auction_start_price: 0,
                 auction_end_price: 100 * PRICE_PRECISION_U64,
+                price: 150 * PRICE_PRECISION_U64,
                 auction_duration: 0,
                 ..Order::default()
             }),
@@ -2224,6 +2226,7 @@ pub mod fulfill_order {
                 auction_start_price: 0,
                 auction_end_price: 100 * PRICE_PRECISION_U64,
                 auction_duration: 5,
+                price: 150 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {

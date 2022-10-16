@@ -2,6 +2,8 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from '../accounts/bulkAccountLoader';
 import { Market, Orderbook } from '@project-serum/serum';
 import { SerumMarketSubscriberConfig } from './types';
+import { BN } from '@project-serum/anchor';
+import { PRICE_PRECISION } from '../constants/numericConstants';
 
 export class SerumSubscriber {
 	connection: Connection;
@@ -49,7 +51,6 @@ export class SerumSubscriber {
 			(buffer, slot) => {
 				this.lastAsksSlot = slot;
 				this.asks = Orderbook.decode(this.market, buffer);
-				console.log(this.asks.getL2(3));
 			}
 		);
 
@@ -65,6 +66,24 @@ export class SerumSubscriber {
 		);
 
 		this.subscribed = true;
+	}
+
+	public getBestBid(): BN | undefined {
+		const bestBid = this.bids.getL2(1)[0];
+		if (!bestBid) {
+			return undefined;
+		}
+
+		return new BN(bestBid[0] * PRICE_PRECISION.toNumber());
+	}
+
+	public getBestAsk(): BN | undefined {
+		const bestAsk = this.asks.getL2(1)[0];
+		if (!bestAsk) {
+			return undefined;
+		}
+
+		return new BN(bestAsk[0] * PRICE_PRECISION.toNumber());
 	}
 
 	public async unsubscribe(): Promise<void> {
