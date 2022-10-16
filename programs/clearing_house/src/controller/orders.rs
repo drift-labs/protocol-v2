@@ -2561,7 +2561,7 @@ pub fn fill_spot_order(
                     | MarketStatus::ReduceOnly
                     | MarketStatus::WithdrawPaused
             ),
-            ErrorCode::DefaultError,
+            ErrorCode::MarketActionPaused,
             "Market unavailable for fills"
         )?;
     }
