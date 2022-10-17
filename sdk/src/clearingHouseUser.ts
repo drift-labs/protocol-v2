@@ -1422,7 +1422,7 @@ export class ClearingHouseUser {
 		);
 
 		const freeCollateral = this.getFreeCollateral();
-		const oracleData = this.getOracleDataForMarket(marketIndex);
+		const oracleData = this.getOracleDataForSpotMarket(marketIndex);
 		const precisionIncrease = TEN.pow(new BN(spotMarket.decimals - 6));
 
 		const amountWithdrawable = freeCollateral
