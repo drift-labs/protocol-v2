@@ -4,6 +4,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode::DefaultError};
 use crate::math::casting::{cast, cast_to_i64, cast_to_u64};
+use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::state::user::{MarketType, Order};
 use anchor_lang::Discriminator;
 use std::io::Write;
@@ -127,6 +128,7 @@ pub struct OrderActionRecord {
     pub action: OrderAction,
     pub action_explanation: OrderActionExplanation,
     pub market_index: u16,
+    pub quote_spot_market_index: u16,
     pub market_type: MarketType,
 
     pub filler: Option<Pubkey>,
@@ -186,6 +188,7 @@ pub fn get_order_action_record(
         action,
         action_explanation,
         market_index,
+        quote_spot_market_index: QUOTE_SPOT_MARKET_INDEX,
         market_type: if let Some(taker_order) = taker_order {
             taker_order.market_type
         } else if let Some(maker_order) = maker_order {
