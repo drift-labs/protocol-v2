@@ -1413,6 +1413,12 @@ export class ClearingHouseUser {
 			.div(new BN(feeTier.feeDenominator));
 	}
 
+	/**
+	 * Calculates a user's max withdrawal amounts for a spot market. If reduceOnly is true,
+	 * it will return the max withdrawal amount without opening a liability for the user
+	 * @param marketIndex
+	 * @returns withdrawalLimit : Precision is the token precision for the chosen SpotMarket
+	 */
 	public getWithdrawalLimit(marketIndex: number, reduceOnly?: boolean): BN {
 		const nowTs = new BN(Math.floor(Date.now() / 1000));
 		const spotMarket = this.clearingHouse.getSpotMarketAccount(marketIndex);
