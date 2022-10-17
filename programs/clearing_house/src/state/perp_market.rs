@@ -17,7 +17,6 @@ use crate::math::stats;
 use crate::math_error;
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
-use crate::state::user::PerpPosition;
 use crate::{
     AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, MARGIN_PRECISION,
     MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION,
@@ -76,7 +75,8 @@ pub struct PerpMarket {
     pub pubkey: Pubkey,
     pub amm: AMM,
     pub pnl_pool: PoolBalance,
-    pub expiry_price: i128, // iff market has expired, price users can settle position
+    pub name: [u8; 32],        // 256 bits
+    pub expiry_price: i128,    // iff market has expired, price users can settle position
     pub number_of_users: u128, // number of users in a position
     pub imf_factor: u128,
     pub unrealized_pnl_imf_factor: u128,
@@ -101,9 +101,12 @@ pub struct PerpMarket {
 
 impl PerpMarket {
     pub fn is_active(&self, now: i64) -> ClearingHouseResult<bool> {
-        let status_ok = self.status != MarketStatus::Settlement;
-        let is_active = self.expiry_ts == 0 || self.expiry_ts < now;
-        Ok(is_active && status_ok)
+        let status_ok = !matches!(
+            self.status,
+            MarketStatus::Settlement | MarketStatus::Delisted
+        );
+        let not_expired = self.expiry_ts == 0 || now < self.expiry_ts;
+        Ok(status_ok && not_expired)
     }
 
     pub fn is_reduce_only(&self) -> ClearingHouseResult<bool> {
@@ -293,7 +296,8 @@ impl SpotBalance for PoolBalance {
 pub struct AMM {
     pub oracle: Pubkey,
     pub historical_oracle_data: HistoricalOracleData,
-    pub market_position_per_lp: PerpPosition,
+    pub base_asset_amount_per_lp: i128,
+    pub quote_asset_amount_per_lp: i128,
     pub fee_pool: PoolBalance,
     pub last_oracle_normalised_price: i128,
     pub last_oracle_reserve_price_spread_pct: i128,

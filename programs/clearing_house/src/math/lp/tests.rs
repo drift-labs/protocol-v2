@@ -1,9 +1,9 @@
-use clearing_house::math::constants::AMM_RESERVE_PRECISION;
-use clearing_house::math::lp::*;
-use clearing_house::state::user::PerpPosition;
+use crate::math::constants::AMM_RESERVE_PRECISION;
+use crate::math::lp::*;
+use crate::state::user::PerpPosition;
 
 mod calculate_get_proportion_u128 {
-    use clearing_house::math::helpers::get_proportion_u128;
+    use crate::math::helpers::get_proportion_u128;
 
     use super::*;
 
@@ -149,7 +149,7 @@ mod calculate_lp_open_bids_asks {
 }
 
 mod calculate_settled_lp_base_quote {
-    use clearing_house::math::constants::BASE_PRECISION_U64;
+    use crate::math::constants::BASE_PRECISION_U64;
 
     use super::*;
 
@@ -161,11 +161,8 @@ mod calculate_settled_lp_base_quote {
         };
 
         let amm = AMM {
-            market_position_per_lp: PerpPosition {
-                base_asset_amount: 10,
-                quote_asset_amount: -10,
-                ..PerpPosition::default()
-            },
+            base_asset_amount_per_lp: 10,
+            quote_asset_amount_per_lp: -10,
             ..AMM::default_test()
         };
 
@@ -183,11 +180,8 @@ mod calculate_settled_lp_base_quote {
         };
 
         let amm = AMM {
-            market_position_per_lp: PerpPosition {
-                base_asset_amount: -10,
-                quote_asset_amount: 10,
-                ..PerpPosition::default()
-            },
+            base_asset_amount_per_lp: -10,
+            quote_asset_amount_per_lp: 10,
             ..AMM::default_test()
         };
 
@@ -199,7 +193,7 @@ mod calculate_settled_lp_base_quote {
 }
 
 mod calculate_settle_lp_metrics {
-    use clearing_house::math::constants::BASE_PRECISION_U64;
+    use crate::math::constants::BASE_PRECISION_U64;
 
     use super::*;
 
@@ -211,11 +205,8 @@ mod calculate_settle_lp_metrics {
         };
 
         let amm = AMM {
-            market_position_per_lp: PerpPosition {
-                base_asset_amount: 10,
-                quote_asset_amount: -10,
-                ..PerpPosition::default()
-            },
+            base_asset_amount_per_lp: 10,
+            quote_asset_amount_per_lp: -10,
             order_step_size: 1,
             ..AMM::default_test()
         };
@@ -235,11 +226,8 @@ mod calculate_settle_lp_metrics {
         };
 
         let amm = AMM {
-            market_position_per_lp: PerpPosition {
-                base_asset_amount: 10,
-                quote_asset_amount: -10,
-                ..PerpPosition::default()
-            },
+            base_asset_amount_per_lp: 10,
+            quote_asset_amount_per_lp: -10,
             order_step_size: 50 * 100,
             ..AMM::default_test()
         };
@@ -259,11 +247,8 @@ mod calculate_settle_lp_metrics {
         };
 
         let amm = AMM {
-            market_position_per_lp: PerpPosition {
-                base_asset_amount: 10,
-                quote_asset_amount: -10,
-                ..PerpPosition::default()
-            },
+            base_asset_amount_per_lp: 10,
+            quote_asset_amount_per_lp: -10,
             order_step_size: 3,
             ..AMM::default_test()
         };

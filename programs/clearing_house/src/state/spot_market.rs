@@ -72,9 +72,12 @@ pub struct SpotMarket {
 
 impl SpotMarket {
     pub fn is_active(&self, now: i64) -> ClearingHouseResult<bool> {
-        let status_ok = self.status != MarketStatus::Settlement;
-        let is_active = self.expiry_ts == 0 || self.expiry_ts < now;
-        Ok(is_active && status_ok)
+        let status_ok = !matches!(
+            self.status,
+            MarketStatus::Settlement | MarketStatus::Delisted
+        );
+        let not_expired = self.expiry_ts == 0 || now < self.expiry_ts;
+        Ok(status_ok && not_expired)
     }
 
     pub fn is_reduce_only(&self) -> ClearingHouseResult<bool> {
@@ -172,6 +175,10 @@ impl SpotMarket {
         deposit_token_amount
             .checked_sub(borrow_token_amount)
             .ok_or_else(math_error!())
+    }
+
+    pub fn get_precision(self) -> u64 {
+        10_u64.pow(self.decimals as u32)
     }
 }
 

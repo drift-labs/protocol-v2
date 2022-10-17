@@ -445,6 +445,7 @@ export type PerpMarketAccount = {
 	expiryPrice: BN;
 	marketIndex: number;
 	pubkey: PublicKey;
+	name: number[];
 	amm: AMM;
 	numberOfUsers: BN;
 	marginRatioInitial: number;
@@ -604,7 +605,10 @@ export type AMM = {
 	longSpread: BN;
 	shortSpread: BN;
 	maxSpread: number;
-	marketPositionPerLp: PerpPosition;
+
+	baseAssetAmountPerLp: BN;
+	quoteAssetAmountPerLp: BN;
+
 	ammJitIntensity: number;
 	maxBaseAssetReserve: BN;
 	minBaseAssetReserve: BN;

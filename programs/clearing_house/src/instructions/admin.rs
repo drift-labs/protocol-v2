@@ -44,7 +44,6 @@ use crate::state::spot_market::{
     SpotMarket,
 };
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
-use crate::state::user::PerpPosition;
 use crate::validate;
 use crate::validation::fee_structure::validate_fee_structure;
 use crate::validation::margin::{validate_margin, validate_margin_weights};
@@ -298,6 +297,30 @@ pub fn handle_initialize_serum_fulfillment_config(
     let serum_quote_vault = Pubkey::new(cast_slice(&market_state_pc_vault));
     let serum_signer_nonce = market_state.vault_signer_nonce;
 
+    let market_step_size = market_state.coin_lot_size;
+    let valid_step_size = market_step_size >= base_spot_market.order_step_size
+        && market_step_size.rem_euclid(base_spot_market.order_step_size) == 0;
+
+    validate!(
+        valid_step_size,
+        ErrorCode::InvalidSerumMarket,
+        "serum step size ({}) not a multiple of base market step size ({})",
+        market_step_size,
+        base_spot_market.order_step_size
+    )?;
+
+    let market_tick_size = market_state.pc_lot_size;
+    let valid_tick_size = market_step_size >= base_spot_market.order_tick_size
+        && market_tick_size.rem_euclid(base_spot_market.order_tick_size) == 0;
+
+    validate!(
+        valid_tick_size,
+        ErrorCode::InvalidSerumMarket,
+        "serum tick size ({}) not a multiple of base market tick size ({})",
+        market_tick_size,
+        base_spot_market.order_tick_size
+    )?;
+
     drop(market_state);
 
     let open_orders_seeds: &[&[u8]] = &[b"serum_open_orders", serum_market_key.as_ref()];
@@ -383,6 +406,7 @@ pub fn handle_initialize_perp_market(
     margin_ratio_maintenance: u32,
     liquidation_fee: u128,
     active_status: bool,
+    name: [u8; 32],
 ) -> Result<()> {
     let perp_market_pubkey = ctx.accounts.perp_market.to_account_info().key;
     let perp_market = &mut ctx.accounts.perp_market.load_init()?;
@@ -460,6 +484,7 @@ pub fn handle_initialize_perp_market(
         } else {
             MarketStatus::Initialized
         },
+        name,
         expiry_price: 0,
         expiry_ts: 0,
         pubkey: *perp_market_pubkey,
@@ -553,10 +578,8 @@ pub fn handle_initialize_perp_market(
             last_trade_ts: now,
             curve_update_intensity: 0,
             fee_pool: PoolBalance::default(),
-            market_position_per_lp: PerpPosition {
-                market_index,
-                ..PerpPosition::default()
-            },
+            base_asset_amount_per_lp: 0,
+            quote_asset_amount_per_lp: 0,
             last_update_slot: clock_slot,
 
             // lp stuff
@@ -1205,6 +1228,15 @@ pub fn handle_update_perp_market_max_imbalances(
     Ok(())
 }
 
+pub fn handle_update_perp_market_name(
+    ctx: Context<AdminUpdatePerpMarket>,
+    name: [u8; 32],
+) -> Result<()> {
+    let mut perp_market = load_mut!(ctx.accounts.perp_market)?;
+    perp_market.name = name;
+    Ok(())
+}
+
 #[access_control(
     market_valid(&ctx.accounts.perp_market)
 )]
@@ -1532,7 +1564,7 @@ pub fn handle_update_perp_market_curve_update_intensity(
     Ok(())
 }
 
-pub fn handle_update_perp_market_lp_cooldown_time(
+pub fn handle_update_lp_cooldown_time(
     ctx: Context<AdminUpdateState>,
     lp_cooldown_time: u64,
 ) -> Result<()> {

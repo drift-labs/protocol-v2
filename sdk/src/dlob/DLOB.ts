@@ -19,9 +19,15 @@ import {
 	SlotSubscriber,
 	UserMap,
 	MarketTypeStr,
+	StateAccount,
+	isMarketOrder,
+	isLimitOrder,
+	hasLimitPrice,
+	getOptionalLimitPrice,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { DLOBNode, DLOBNodeType, TriggerOrderNode } from '..';
+import { ammPaused, exchangePaused, fillPaused } from '../math/exchangeStatus';
 
 export type MarketNodeLists = {
 	limit: {
@@ -58,6 +64,7 @@ type Side = 'ask' | 'bid' | 'both' | 'nocross';
 export class DLOB {
 	openOrders = new Map<MarketTypeStr, Set<string>>();
 	orderLists = new Map<MarketTypeStr, Map<number, MarketNodeLists>>();
+	stateAccount: StateAccount;
 	marketIndexToAccount = new Map<
 		MarketTypeStr,
 		Map<number, PerpMarketAccount | SpotMarketAccount>
@@ -77,9 +84,11 @@ export class DLOB {
 	public constructor(
 		perpMarkets: PerpMarketAccount[],
 		spotMarkets: SpotMarketAccount[],
+		stateAccount: StateAccount,
 		userMap: UserMap,
 		silent?: boolean
 	) {
+		this.stateAccount = stateAccount;
 		this.userMap = userMap;
 		this.silent = silent;
 
@@ -278,12 +287,20 @@ export class DLOB {
 
 	public findNodesToFill(
 		marketIndex: number,
-		vBid: BN | undefined,
-		vAsk: BN | undefined,
+		fallbackBid: BN | undefined,
+		fallbackAsk: BN | undefined,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
 	): NodeToFill[] {
+		const marketAccount = this.marketIndexToAccount
+			.get(getVariant(marketType) as MarketTypeStr)
+			.get(marketIndex);
+
+		if (fillPaused(this.stateAccount, marketAccount)) {
+			return [];
+		}
+
 		// Find all the crossing nodes
 		const crossingNodesToFill: Array<NodeToFill> = this.findCrossingNodesToFill(
 			marketIndex,
@@ -292,15 +309,17 @@ export class DLOB {
 			oraclePriceData
 		);
 
-		const vAMMCrossingNodesToFill: Array<NodeToFill> =
-			this.findvAMMCrossingNodesToFill(
+		let fallbackCrossingNodesToFill = new Array<NodeToFill>();
+		if (!ammPaused(this.stateAccount, marketAccount)) {
+			fallbackCrossingNodesToFill = this.findFallbackCrossingNodesToFill(
 				marketIndex,
-				vBid,
-				vAsk,
+				fallbackBid,
+				fallbackAsk,
 				slot,
 				marketType,
 				oraclePriceData
 			);
+		}
 
 		// get expired market nodes
 		const expiredNodesToFill = this.findExpiredNodesToFill(
@@ -309,7 +328,7 @@ export class DLOB {
 			marketType
 		);
 		return crossingNodesToFill.concat(
-			vAMMCrossingNodesToFill,
+			fallbackCrossingNodesToFill,
 			expiredNodesToFill
 		);
 	}
@@ -370,10 +389,10 @@ export class DLOB {
 		return nodesToFill;
 	}
 
-	public findvAMMCrossingNodesToFill(
+	public findFallbackCrossingNodesToFill(
 		marketIndex: number,
-		vBid: BN,
-		vAsk: BN,
+		fallbackBid: BN,
+		fallbackAsk: BN,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
@@ -398,35 +417,67 @@ export class DLOB {
 		let nextAsk = askGenerator.next();
 		let nextBid = bidGenerator.next();
 
-		// check for asks that cross vBid
-		while (!nextAsk.done) {
+		// check for asks that cross fallbackBid
+		while (!nextAsk.done && fallbackBid !== undefined) {
 			const askNode = nextAsk.value;
-			const askPrice = askNode.getPrice(oraclePriceData, slot);
 
-			if (askPrice.lte(vBid) && isAuctionComplete(askNode.order, slot)) {
+			if (isVariant(marketType, 'spot') && askNode.order?.postOnly) {
+				nextAsk = askGenerator.next();
+				continue;
+			}
+
+			const askLimitPrice = getOptionalLimitPrice(
+				askNode.order,
+				oraclePriceData,
+				slot
+			);
+
+			// order crosses if there is no limit price or it crosses fallback price
+			const crosses =
+				askLimitPrice === undefined || askLimitPrice.lte(fallbackBid);
+
+			// fallback is available if auction is complete or it's a spot order
+			const fallbackAvailable =
+				isVariant(marketType, 'spot') || isAuctionComplete(askNode.order, slot);
+
+			if (crosses && fallbackAvailable) {
 				nodesToFill.push({
 					node: askNode,
-					makerNode: undefined, // filled by vAMM
+					makerNode: undefined, // filled by fallback
 				});
-			} else {
-				break;
 			}
 
 			nextAsk = askGenerator.next();
 		}
 
-		// check for bids that cross vAsk
-		while (!nextBid.done) {
+		// check for bids that cross fallbackAsk
+		while (!nextBid.done && fallbackAsk !== undefined) {
 			const bidNode = nextBid.value;
-			const bidPrice = bidNode.getPrice(oraclePriceData, slot);
 
-			if (bidPrice.gte(vAsk) && isAuctionComplete(bidNode.order, slot)) {
+			if (isVariant(marketType, 'spot') && bidNode.order?.postOnly) {
+				nextBid = bidGenerator.next();
+				continue;
+			}
+
+			const bidLimitPrice = getOptionalLimitPrice(
+				bidNode.order,
+				oraclePriceData,
+				slot
+			);
+
+			// order crosses if there is no limit price or it crosses fallback price
+			const crosses =
+				bidLimitPrice === undefined || bidLimitPrice.gte(fallbackAsk);
+
+			// fallback is available if auction is complete or it's a spot order
+			const fallbackAvailable =
+				isVariant(marketType, 'spot') || isAuctionComplete(bidNode.order, slot);
+
+			if (crosses && fallbackAvailable) {
 				nodesToFill.push({
 					node: bidNode,
-					makerNode: undefined, // filled by vAMM
+					makerNode: undefined, // filled by fallback
 				});
-			} else {
-				break;
 			}
 
 			nextBid = bidGenerator.next();
@@ -529,7 +580,7 @@ export class DLOB {
 
 	*getAsks(
 		marketIndex: number,
-		vAsk: BN | undefined,
+		fallbackAsk: BN | undefined,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
@@ -546,8 +597,8 @@ export class DLOB {
 			nodeLists.market.ask.getGenerator(),
 		];
 
-		if (marketTypeStr === 'perp' && vAsk) {
-			generatorList.push(getVammNodeGenerator(vAsk));
+		if (marketTypeStr === 'perp' && fallbackAsk) {
+			generatorList.push(getVammNodeGenerator(fallbackAsk));
 		}
 		if (generatorList.length === 0) {
 			throw new Error('No ask generators found');
@@ -618,7 +669,7 @@ export class DLOB {
 
 	*getBids(
 		marketIndex: number,
-		vBid: BN | undefined,
+		fallbackBid: BN | undefined,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
@@ -635,8 +686,8 @@ export class DLOB {
 			nodeLists.floatingLimit.bid.getGenerator(),
 			nodeLists.market.bid.getGenerator(),
 		];
-		if (marketTypeStr === 'perp' && vBid) {
-			generatorList.push(getVammNodeGenerator(vBid));
+		if (marketTypeStr === 'perp' && fallbackBid) {
+			generatorList.push(getVammNodeGenerator(fallbackBid));
 		}
 		if (generatorList.length === 0) {
 			throw new Error('No bid generators found');
@@ -649,7 +700,7 @@ export class DLOB {
 			};
 		});
 
-		let bidsExhausted = false; // there will always be the vBid
+		let bidsExhausted = false; // there will always be the fallbackBid
 		while (!bidsExhausted) {
 			const bestGenerator = bidGenerators.reduce(
 				(bestGenerator, currentGenerator) => {
@@ -740,6 +791,19 @@ export class DLOB {
 			};
 		}
 
+		const { takerNode, makerNode, makerSide } = this.determineMakerAndTaker(
+			askNode,
+			bidNode
+		);
+
+		// If order doesn't have limit price, cant be maker
+		if (!hasLimitPrice(makerNode.order, slot)) {
+			return {
+				crossingNodes: [],
+				exhaustedSide: makerSide,
+			};
+		}
+
 		const bidBaseRemaining = bidOrder.baseAssetAmount.sub(
 			bidOrder.baseAssetAmountFilled
 		);
@@ -812,68 +876,92 @@ export class DLOB {
 			);
 		}
 
-		// Bid is maker
-		if (bidOrder.postOnly) {
-			return {
-				crossingNodes: [
-					{
-						node: askNode,
-						makerNode: bidNode,
-					},
-				],
-				exhaustedSide,
-			};
-		}
-
-		// Ask is maker
-		if (askOrder.postOnly) {
-			return {
-				crossingNodes: [
-					{
-						node: bidNode,
-						makerNode: askNode,
-					},
-				],
-				exhaustedSide,
-			};
-		}
-
-		// Both are takers
-		// older order is maker
-		const [olderNode, newerNode] = askOrder.ts.lt(bidOrder.ts)
-			? [askNode, bidNode]
-			: [bidNode, askNode];
 		return {
 			crossingNodes: [
 				{
-					node: newerNode,
-					makerNode: olderNode,
+					node: takerNode,
+					makerNode: makerNode,
 				},
 			],
 			exhaustedSide,
 		};
 	}
 
+	determineMakerAndTaker(
+		askNode: DLOBNode,
+		bidNode: DLOBNode
+	): { takerNode: DLOBNode; makerNode: DLOBNode; makerSide: Side } {
+		if (bidNode.order.postOnly) {
+			return {
+				takerNode: askNode,
+				makerNode: bidNode,
+				makerSide: 'bid',
+			};
+		} else if (askNode.order.postOnly) {
+			return {
+				takerNode: bidNode,
+				makerNode: askNode,
+				makerSide: 'ask',
+			};
+		} else if (isMarketOrder(bidNode.order) && isLimitOrder(askNode.order)) {
+			return {
+				takerNode: bidNode,
+				makerNode: askNode,
+				makerSide: 'ask',
+			};
+		} else if (isMarketOrder(askNode.order) && isLimitOrder(bidNode.order)) {
+			return {
+				takerNode: askNode,
+				makerNode: bidNode,
+				makerSide: 'bid',
+			};
+		} else if (askNode.order.ts.lt(bidNode.order.ts)) {
+			return {
+				takerNode: bidNode,
+				makerNode: askNode,
+				makerSide: 'ask',
+			};
+		} else {
+			return {
+				takerNode: askNode,
+				makerNode: bidNode,
+				makerSide: 'bid',
+			};
+		}
+	}
+
 	public getBestAsk(
 		marketIndex: number,
-		vAsk: BN | undefined,
+		fallbackAsk: BN | undefined,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
 	): BN {
-		return this.getAsks(marketIndex, vAsk, slot, marketType, oraclePriceData)
+		return this.getAsks(
+			marketIndex,
+			fallbackAsk,
+			slot,
+			marketType,
+			oraclePriceData
+		)
 			.next()
 			.value.getPrice(oraclePriceData, slot);
 	}
 
 	public getBestBid(
 		marketIndex: number,
-		vBid: BN | undefined,
+		fallbackBid: BN | undefined,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
 	): BN {
-		return this.getBids(marketIndex, vBid, slot, marketType, oraclePriceData)
+		return this.getBids(
+			marketIndex,
+			fallbackBid,
+			slot,
+			marketType,
+			oraclePriceData
+		)
 			.next()
 			.value.getPrice(oraclePriceData, slot);
 	}
@@ -884,6 +972,10 @@ export class DLOB {
 		oraclePrice: BN,
 		marketType: MarketType
 	): NodeToTrigger[] {
+		if (exchangePaused(this.stateAccount)) {
+			return [];
+		}
+
 		const nodesToTrigger = [];
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		for (const node of this.orderLists
@@ -932,19 +1024,19 @@ export class DLOB {
 			const slot = slotSubscriber.getSlot();
 			const oraclePriceData =
 				clearingHouse.getOracleDataForPerpMarket(marketIndex);
-			const vAsk = calculateAskPrice(market, oraclePriceData);
-			const vBid = calculateBidPrice(market, oraclePriceData);
+			const fallbackAsk = calculateAskPrice(market, oraclePriceData);
+			const fallbackBid = calculateBidPrice(market, oraclePriceData);
 
 			const bestAsk = this.getBestAsk(
 				marketIndex,
-				vAsk,
+				fallbackAsk,
 				slot,
 				marketType,
 				oraclePriceData
 			);
 			const bestBid = this.getBestBid(
 				marketIndex,
-				vBid,
+				fallbackBid,
 				slot,
 				marketType,
 				oraclePriceData

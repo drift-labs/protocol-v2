@@ -1,5 +1,4 @@
 import {
-	isOneOfVariant,
 	AMM_RESERVE_PRECISION,
 	BN,
 	convertToNumber,
@@ -74,18 +73,7 @@ export abstract class OrderNode implements DLOBNode {
 	}
 
 	getPrice(oraclePriceData: OraclePriceData, slot: number): BN {
-		if (isOneOfVariant(this.order.marketType, ['spot'])) {
-			return getLimitPrice(this.order, oraclePriceData, slot);
-		} else if (isOneOfVariant(this.order.marketType, ['perp'])) {
-			return getLimitPrice(
-				this.order,
-				oraclePriceData,
-				slot,
-				this.market as PerpMarketAccount
-			);
-		} else {
-			console.error(`Unknown market type: ${this.order.marketType}`);
-		}
+		return getLimitPrice(this.order, oraclePriceData, slot);
 	}
 
 	isBaseFilled(): boolean {

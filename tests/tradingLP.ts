@@ -12,6 +12,7 @@ import {
 	PRICE_PRECISION,
 	PositionDirection,
 	ZERO,
+	OracleGuardRails,
 } from '../sdk/src';
 
 import {
@@ -139,13 +140,27 @@ describe('liquidity providing', () => {
 			ammInitialQuoteAssetReserve,
 			new BN(60 * 60)
 		);
-		await clearingHouse.updatePerpMarketLpCooldownTime(new BN(0));
+		await clearingHouse.updateLpCooldownTime(new BN(0));
 		await clearingHouse.updatePerpMarketMaxFillReserveFraction(0, 1);
 		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
 			0,
 			new BN(1),
 			new BN(1)
 		);
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(1),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(10),
+				slotsBeforeStaleForMargin: new BN(10),
+				confidenceIntervalMaxSize: new BN(100),
+				tooVolatileRatio: new BN(100),
+			},
+			useForLiquidations: true,
+		};
+		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
 
 		// second market -- used for funding ..
 		await clearingHouse.initializePerpMarket(

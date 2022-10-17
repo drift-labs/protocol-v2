@@ -15,9 +15,7 @@ use crate::math::orders::{
     calculate_quote_asset_amount_for_maker_order, get_position_delta_for_fill,
     is_multiple_of_step_size,
 };
-use crate::math::position::{
-    calculate_position_new_quote_base_pnl, get_position_update_type, PositionUpdateType,
-};
+use crate::math::position::{get_position_update_type, PositionUpdateType};
 use crate::math_error;
 use crate::state::perp_market::PerpMarket;
 use crate::state::user::{PerpPosition, PerpPositions, User};
@@ -76,47 +74,6 @@ pub fn get_position_index(
 pub struct PositionDelta {
     pub quote_asset_amount: i64,
     pub base_asset_amount: i64,
-}
-
-pub fn update_amm_position(
-    market: &mut PerpMarket,
-    delta: &PositionDelta,
-) -> ClearingHouseResult<i128> {
-    let update_type = get_position_update_type(&market.amm.market_position_per_lp, delta);
-    let (new_quote_asset_amount, new_quote_entry_amount, new_base_asset_amount, pnl) =
-        calculate_position_new_quote_base_pnl(&market.amm.market_position_per_lp, delta)?;
-
-    // Update user position
-    match update_type {
-        PositionUpdateType::Close => {
-            market
-                .amm
-                .market_position_per_lp
-                .last_cumulative_funding_rate = 0;
-        }
-        PositionUpdateType::Open | PositionUpdateType::Flip => {
-            if new_base_asset_amount > 0 {
-                market
-                    .amm
-                    .market_position_per_lp
-                    .last_cumulative_funding_rate =
-                    market.amm.cumulative_funding_rate_long.cast()?;
-            } else {
-                market
-                    .amm
-                    .market_position_per_lp
-                    .last_cumulative_funding_rate =
-                    market.amm.cumulative_funding_rate_short.cast()?;
-            }
-        }
-        _ => {}
-    };
-
-    market.amm.market_position_per_lp.quote_asset_amount = new_quote_asset_amount.cast()?;
-    market.amm.market_position_per_lp.quote_entry_amount = new_quote_entry_amount.cast()?;
-    market.amm.market_position_per_lp.base_asset_amount = new_base_asset_amount.cast()?;
-
-    Ok(pnl)
 }
 
 pub fn update_position_and_market(
@@ -469,12 +426,17 @@ pub fn update_lp_market_position(
     let lp_delta_quote =
         get_proportion_i128(per_lp_delta_quote, user_lp_shares, AMM_RESERVE_PRECISION)?;
 
-    let per_lp_position_delta = PositionDelta {
-        base_asset_amount: -per_lp_delta_base.cast()?,
-        quote_asset_amount: -per_lp_delta_quote.cast()?,
-    };
+    market.amm.base_asset_amount_per_lp = market
+        .amm
+        .base_asset_amount_per_lp
+        .checked_add(-per_lp_delta_base)
+        .ok_or_else(math_error!())?;
 
-    update_amm_position(market, &per_lp_position_delta)?;
+    market.amm.quote_asset_amount_per_lp = market
+        .amm
+        .quote_asset_amount_per_lp
+        .checked_add(-per_lp_delta_quote)
+        .ok_or_else(math_error!())?;
 
     // 1/5 of fee auto goes to market
     // the rest goes to lps/market proportional
@@ -499,10 +461,9 @@ pub fn update_lp_market_position(
     };
 
     // update per lp position
-    market.amm.market_position_per_lp.quote_asset_amount = market
+    market.amm.quote_asset_amount_per_lp = market
         .amm
-        .market_position_per_lp
-        .quote_asset_amount
+        .quote_asset_amount_per_lp
         .checked_add(per_lp_fee.cast()?)
         .ok_or_else(math_error!())?;
 

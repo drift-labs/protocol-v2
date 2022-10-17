@@ -12,6 +12,7 @@ import {
 	ContractTier,
 	AssetTier,
 } from './types';
+import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
 import {
@@ -184,13 +185,15 @@ export class Admin extends ClearingHouse {
 		marginRatioInitial = 2000,
 		marginRatioMaintenance = 500,
 		liquidationFee = ZERO,
-		activeStatus = true
+		activeStatus = true,
+		name = DEFAULT_MARKET_NAME
 	): Promise<TransactionSignature> {
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			this.getStateAccount().numberOfMarkets
 		);
 
+		const nameBuffer = encodeName(name);
 		const initializeMarketTx =
 			await this.program.transaction.initializePerpMarket(
 				baseAssetReserve,
@@ -202,6 +205,7 @@ export class Admin extends ClearingHouse {
 				marginRatioMaintenance,
 				liquidationFee,
 				activeStatus,
+				nameBuffer,
 				{
 					accounts: {
 						state: await this.getStatePublicKey(),
@@ -458,7 +462,7 @@ export class Admin extends ClearingHouse {
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
-					perpMarketIndex: await getPerpMarketPublicKey(
+					perpMarket: await getPerpMarketPublicKey(
 						this.program.programId,
 						perpMarketIndex
 					),
@@ -488,6 +492,24 @@ export class Admin extends ClearingHouse {
 		ammJitIntensity: number
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateAmmJitIntensity(ammJitIntensity, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				perpMarket: await getPerpMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
+	}
+
+	public async updatePerpMarketName(
+		perpMarketIndex: number,
+		name: string
+	): Promise<TransactionSignature> {
+		const nameBuffer = encodeName(name);
+
+		return await this.program.rpc.updatePerpMarketName(nameBuffer, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
@@ -648,10 +670,10 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
-	public async updatePerpMarketLpCooldownTime(
+	public async updateLpCooldownTime(
 		cooldownTime: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketLpCooldownTime(cooldownTime, {
+		return await this.program.rpc.updateLpCooldownTime(cooldownTime, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
@@ -943,13 +965,13 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
-	public async updateMarketMaxImbalances(
+	public async updatePerpMarketMaxImbalances(
 		perpMarketIndex: number,
 		unrealizedMaxImbalance: BN,
 		maxRevenueWithdrawPerPeriod: BN,
 		quoteMaxInsurance: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateMarketMaxImbalances(
+		return await this.program.rpc.updatePerpMarketMaxImbalances(
 			unrealizedMaxImbalance,
 			maxRevenueWithdrawPerPeriod,
 			quoteMaxInsurance,

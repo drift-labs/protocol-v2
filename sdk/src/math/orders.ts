@@ -10,7 +10,6 @@ import { ZERO, TWO } from '../constants/numericConstants';
 import { BN } from '@project-serum/anchor';
 import { OraclePriceData } from '../oracles/types';
 import { getAuctionPrice, isAuctionComplete } from './auction';
-import { calculateAskPrice, calculateBidPrice } from './market';
 import {
 	calculateMaxBaseAssetAmountFillable,
 	calculateMaxBaseAssetAmountToTrade,
@@ -132,8 +131,7 @@ export function standardizeBaseAssetAmount(
 export function getLimitPrice(
 	order: Order,
 	oraclePriceData: OraclePriceData,
-	slot: number,
-	perpMarket?: PerpMarketAccount
+	slot: number
 ): BN {
 	let limitPrice;
 	if (order.oraclePriceOffset !== 0) {
@@ -144,24 +142,12 @@ export function getLimitPrice(
 		} else if (!order.price.eq(ZERO)) {
 			limitPrice = order.price;
 		} else {
-			if (perpMarket) {
-				if (isVariant(order.direction, 'long')) {
-					const askPrice = calculateAskPrice(perpMarket, oraclePriceData);
-					const delta = askPrice.div(new BN(perpMarket.amm.maxSlippageRatio));
-					limitPrice = askPrice.add(delta);
-				} else {
-					const bidPrice = calculateBidPrice(perpMarket, oraclePriceData);
-					const delta = bidPrice.div(new BN(perpMarket.amm.maxSlippageRatio));
-					limitPrice = bidPrice.sub(delta);
-				}
+			// check oracle validity?
+			const oraclePrice1Pct = oraclePriceData.price.div(new BN(100));
+			if (isVariant(order.direction, 'long')) {
+				limitPrice = oraclePriceData.price.add(oraclePrice1Pct);
 			} else {
-				// check oracle validity?
-				const oraclePrice1Pct = oraclePriceData.price.div(new BN(100));
-				if (isVariant(order.direction, 'long')) {
-					limitPrice = oraclePriceData.price.add(oraclePrice1Pct);
-				} else {
-					limitPrice = oraclePriceData.price.sub(oraclePrice1Pct);
-				}
+				limitPrice = oraclePriceData.price.sub(oraclePrice1Pct);
 			}
 		}
 	} else {
@@ -169,6 +155,26 @@ export function getLimitPrice(
 	}
 
 	return limitPrice;
+}
+
+export function getOptionalLimitPrice(
+	order: Order,
+	oraclePriceData: OraclePriceData,
+	slot: number
+): BN | undefined {
+	if (hasLimitPrice(order, slot)) {
+		return getLimitPrice(order, oraclePriceData, slot);
+	} else {
+		return undefined;
+	}
+}
+
+export function hasLimitPrice(order: Order, slot: number): boolean {
+	return (
+		order.price.gt(ZERO) ||
+		order.oraclePriceOffset != 0 ||
+		!isAuctionComplete(order, slot)
+	);
 }
 
 export function isFillableByVAMM(
@@ -202,7 +208,7 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 		return ZERO;
 	}
 
-	const limitPrice = getLimitPrice(order, oraclePriceData, slot, market);
+	const limitPrice = getLimitPrice(order, oraclePriceData, slot);
 	const baseAssetAmount = calculateBaseAssetAmountToFillUpToLimitPrice(
 		order,
 		market,
@@ -267,4 +273,12 @@ export function isOrderExpired(order: Order, slot: number): boolean {
 	}
 
 	return new BN(slot).sub(order.slot).gt(new BN(order.timeInForce));
+}
+
+export function isMarketOrder(order: Order): boolean {
+	return isOneOfVariant(order, ['market', 'triggerMarket']);
+}
+
+export function isLimitOrder(order: Order): boolean {
+	return isOneOfVariant(order, ['limit', 'triggerLimit']);
 }

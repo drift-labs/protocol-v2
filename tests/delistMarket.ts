@@ -18,6 +18,7 @@ import {
 	PositionDirection,
 	EventSubscriber,
 	QUOTE_PRECISION,
+	calculateBaseAssetValueWithOracle,
 } from '../sdk/src';
 
 import {
@@ -374,6 +375,18 @@ describe('delist market', () => {
 			now = await connection.getBlockTime(slot);
 		}
 
+		const winningUserBefore = clearingHouse.getUserAccount();
+		console.log(winningUserBefore.perpPositions[0]);
+		const oraclePriceDataBefore = await getOraclePriceData(
+			anchor.workspace.Pyth,
+			solOracle
+		);
+		const beforeExpiryValue = calculateBaseAssetValueWithOracle(
+			market0,
+			winningUserBefore.perpPositions[0],
+			oraclePriceDataBefore
+		);
+
 		// try {
 		const txSig = await clearingHouse.settleExpiredMarket(marketIndex);
 		// } catch (e) {
@@ -404,10 +417,27 @@ describe('delist market', () => {
 		assert(market.expiryPrice.gt(ZERO));
 
 		assert(market.amm.baseAssetAmountWithAmm.lt(ZERO));
+		assert(oraclePriceData.price.lt(market.expiryPrice));
 		assert(
 			market.amm.historicalOracleData.lastOraclePriceTwap.lt(market.expiryPrice)
 		);
 		assert(market.expiryPrice.eq(new BN(28755801)));
+
+		const winningUser = clearingHouse.getUserAccount();
+		console.log(winningUser.perpPositions[0]);
+		const afterExpiryValue = calculateBaseAssetValueWithOracle(
+			market,
+			winningUser.perpPositions[0],
+			oraclePriceData
+		);
+
+		console.log(
+			'user position value:',
+			beforeExpiryValue.toString(),
+			'->',
+			afterExpiryValue.toString()
+		);
+		assert(beforeExpiryValue.lt(afterExpiryValue));
 	});
 
 	it('settle expired market position', async () => {

@@ -14,9 +14,11 @@ import {
 	BASE_PRECISION,
 	QUOTE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
+	StateAccount,
 	UserMap,
 	Wallet,
 } from '../../src';
+import { ExchangeStatus } from '../../lib';
 
 export const mockPerpPosition: PerpPosition = {
 	baseAssetAmount: new BN(0),
@@ -99,16 +101,18 @@ export const mockAMM: AMM = {
 	longSpread: new BN(0),
 	shortSpread: new BN(0),
 	maxSpread: 0,
-	marketPositionPerLp: mockPerpPosition,
 	ammJitIntensity: 0,
 	maxBaseAssetReserve: new BN(0),
 	minBaseAssetReserve: new BN(0),
 	cumulativeSocialLoss: new BN(0),
+	baseAssetAmountPerLp: new BN(0),
+	quoteAssetAmountPerLp: new BN(0),
 };
 
 export const mockPerpMarkets: Array<PerpMarketAccount> = [
 	{
 		status: MarketStatus.INITIALIZED,
+		name: [],
 		contractType: ContractType.PERPETUAL,
 		expiryTs: new BN(0),
 		expiryPrice: new BN(0),
@@ -140,6 +144,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 	},
 	{
 		status: MarketStatus.INITIALIZED,
+		name: [],
 		contractType: ContractType.PERPETUAL,
 		expiryTs: new BN(0),
 		expiryPrice: new BN(0),
@@ -171,6 +176,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 	},
 	{
 		status: MarketStatus.INITIALIZED,
+		name: [],
 		contractType: ContractType.PERPETUAL,
 		expiryTs: new BN(0),
 		expiryPrice: new BN(0),
@@ -414,6 +420,27 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		},
 	},
 ];
+
+export const mockStateAccount: StateAccount = {
+	admin: PublicKey.default,
+	defaultMarketOrderTimeInForce: 0,
+	defaultSpotAuctionDuration: 0,
+	discountMint: PublicKey.default,
+	exchangeStatus: ExchangeStatus.ACTIVE,
+	liquidationMarginBufferRatio: 0,
+	lpCooldownTime: undefined,
+	minPerpAuctionDuration: 0,
+	numberOfMarkets: 0,
+	numberOfSpotMarkets: 0,
+	oracleGuardRails: undefined,
+	perpFeeStructure: undefined,
+	settlementDuration: 0,
+	signer: undefined,
+	signerNonce: 0,
+	spotFeeStructure: undefined,
+	srmVault: PublicKey.default,
+	whitelistMint: PublicKey.default,
+};
 
 export const mockUserMap = new UserMap(
 	new ClearingHouse({
