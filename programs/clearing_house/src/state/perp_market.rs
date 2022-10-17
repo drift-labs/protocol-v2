@@ -13,10 +13,10 @@ use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
 };
+use crate::math::stats;
 use crate::math_error;
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
-use crate::state::user::PerpPosition;
 use crate::{
     AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, MARGIN_PRECISION,
     MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION,
@@ -75,28 +75,23 @@ pub struct PerpMarket {
     pub pubkey: Pubkey,
     pub amm: AMM,
     pub pnl_pool: PoolBalance,
-    pub settlement_price: i128, // iff market has expired, price users can settle position
-    pub base_asset_amount_long: i128,
-    pub base_asset_amount_short: i128,
-    pub open_interest: u128, // number of users in a position
-    pub revenue_withdraw_since_last_settle: u128,
-    pub max_revenue_withdraw_per_period: u128,
+    pub name: [u8; 32],        // 256 bits
+    pub expiry_price: i128,    // iff market has expired, price users can settle position
+    pub number_of_users: u128, // number of users in a position
     pub imf_factor: u128,
-    pub unrealized_imf_factor: u128,
-    pub unrealized_max_imbalance: u128,
+    pub unrealized_pnl_imf_factor: u128,
+    pub unrealized_pnl_max_imbalance: u128,
     pub liquidator_fee: u128,
     pub if_liquidation_fee: u128,
-    pub quote_max_insurance: u128,
-    pub quote_settled_insurance: u128,
+    pub insurance_claim: InsuranceClaim,
     pub expiry_ts: i64, // iff market in reduce only mode
     pub next_fill_record_id: u64,
     pub next_funding_rate_record_id: u64,
     pub next_curve_record_id: u64,
-    pub last_revenue_withdraw_ts: i64,
     pub margin_ratio_initial: u32,
     pub margin_ratio_maintenance: u32,
-    pub unrealized_initial_asset_weight: u32,
-    pub unrealized_maintenance_asset_weight: u32,
+    pub unrealized_pnl_initial_asset_weight: u32,
+    pub unrealized_pnl_maintenance_asset_weight: u32,
     pub market_index: u16,
     pub status: MarketStatus,
     pub contract_type: ContractType,
@@ -106,9 +101,12 @@ pub struct PerpMarket {
 
 impl PerpMarket {
     pub fn is_active(&self, now: i64) -> ClearingHouseResult<bool> {
-        let status_ok = self.status != MarketStatus::Settlement;
-        let is_active = self.expiry_ts == 0 || self.expiry_ts < now;
-        Ok(is_active && status_ok)
+        let status_ok = !matches!(
+            self.status,
+            MarketStatus::Settlement | MarketStatus::Delisted
+        );
+        let not_expired = self.expiry_ts == 0 || now < self.expiry_ts;
+        Ok(status_ok && not_expired)
     }
 
     pub fn is_reduce_only(&self) -> ClearingHouseResult<bool> {
@@ -175,18 +173,20 @@ impl PerpMarket {
         margin_type: MarginRequirementType,
     ) -> ClearingHouseResult<u128> {
         let mut margin_asset_weight = match margin_type {
-            MarginRequirementType::Initial => self.unrealized_initial_asset_weight as u128,
-            MarginRequirementType::Maintenance => self.unrealized_maintenance_asset_weight as u128,
+            MarginRequirementType::Initial => self.unrealized_pnl_initial_asset_weight as u128,
+            MarginRequirementType::Maintenance => {
+                self.unrealized_pnl_maintenance_asset_weight as u128
+            }
         };
 
-        if margin_type == MarginRequirementType::Initial && self.unrealized_max_imbalance > 0 {
+        if margin_type == MarginRequirementType::Initial && self.unrealized_pnl_max_imbalance > 0 {
             let net_unsettled_pnl = amm::calculate_net_user_pnl(
                 &self.amm,
                 self.amm.historical_oracle_data.last_oracle_price,
             )?;
-            if net_unsettled_pnl > cast_to_i128(self.unrealized_max_imbalance)? {
+            if net_unsettled_pnl > cast_to_i128(self.unrealized_pnl_max_imbalance)? {
                 margin_asset_weight = margin_asset_weight
-                    .checked_mul(self.unrealized_max_imbalance)
+                    .checked_mul(self.unrealized_pnl_max_imbalance)
                     .ok_or_else(math_error!())?
                     .checked_div(net_unsettled_pnl.unsigned_abs())
                     .ok_or_else(math_error!())?
@@ -206,11 +206,11 @@ impl PerpMarket {
                         .unsigned_abs()
                         .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO)
                         .ok_or_else(math_error!())?,
-                    self.unrealized_imf_factor,
+                    self.unrealized_pnl_imf_factor,
                     margin_asset_weight,
                 )?,
                 MarginRequirementType::Maintenance => {
-                    self.unrealized_maintenance_asset_weight as u128
+                    self.unrealized_pnl_maintenance_asset_weight as u128
                 }
             }
         } else {
@@ -239,8 +239,19 @@ impl PerpMarket {
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
+pub struct InsuranceClaim {
+    pub revenue_withdraw_since_last_settle: u128,
+    pub max_revenue_withdraw_per_period: u128,
+    pub quote_max_insurance: u128,
+    pub quote_settled_insurance: u128,
+    pub last_revenue_withdraw_ts: i64,
+}
+
+#[zero_copy]
+#[derive(Default, Eq, PartialEq, Debug)]
+#[repr(C)]
 pub struct PoolBalance {
-    pub balance: u128,
+    pub scaled_balance: u128,
     pub market_index: u16,
     pub padding: [u8; 6],
 }
@@ -255,16 +266,22 @@ impl SpotBalance for PoolBalance {
     }
 
     fn balance(&self) -> u128 {
-        self.balance
+        self.scaled_balance
     }
 
     fn increase_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.balance = self.balance.checked_add(delta).ok_or_else(math_error!())?;
+        self.scaled_balance = self
+            .scaled_balance
+            .checked_add(delta)
+            .ok_or_else(math_error!())?;
         Ok(())
     }
 
     fn decrease_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.balance = self.balance.checked_sub(delta).ok_or_else(math_error!())?;
+        self.scaled_balance = self
+            .scaled_balance
+            .checked_sub(delta)
+            .ok_or_else(math_error!())?;
         Ok(())
     }
 
@@ -279,8 +296,8 @@ impl SpotBalance for PoolBalance {
 pub struct AMM {
     pub oracle: Pubkey,
     pub historical_oracle_data: HistoricalOracleData,
-    pub market_position: PerpPosition,
-    pub market_position_per_lp: PerpPosition,
+    pub base_asset_amount_per_lp: i128,
+    pub quote_asset_amount_per_lp: i128,
     pub fee_pool: PoolBalance,
     pub last_oracle_normalised_price: i128,
     pub last_oracle_reserve_price_spread_pct: i128,
@@ -292,13 +309,15 @@ pub struct AMM {
     pub sqrt_k: u128,
     pub peg_multiplier: u128,
     pub terminal_quote_asset_reserve: u128,
-    pub net_base_asset_amount: i128,
+    pub base_asset_amount_long: i128,
+    pub base_asset_amount_short: i128,
+    pub base_asset_amount_with_amm: i128,
+    pub base_asset_amount_with_unsettled_lp: i128,
     pub quote_asset_amount_long: i128,
     pub quote_asset_amount_short: i128,
     pub quote_entry_amount_long: i128,
     pub quote_entry_amount_short: i128,
     pub user_lp_shares: u128,
-    pub net_unsettled_lp_base_asset_amount: i128,
     pub last_funding_rate: i128,
     pub last_funding_rate_long: i128,
     pub last_funding_rate_short: i128,
@@ -312,7 +331,6 @@ pub struct AMM {
     pub cumulative_funding_rate_long: i128,
     pub cumulative_funding_rate_short: i128,
     pub cumulative_social_loss: i128,
-    pub minimum_quote_asset_trade_size: u128,
     pub long_spread: u128,
     pub short_spread: u128,
     pub ask_base_asset_reserve: u128,
@@ -326,12 +344,11 @@ pub struct AMM {
     pub last_update_slot: u64,
     pub last_oracle_conf_pct: u64,
     pub net_revenue_since_last_funding: i64,
-    pub lp_cooldown_time: i64,
     pub last_funding_rate_ts: i64,
     pub funding_period: i64,
-    pub base_asset_amount_step_size: u64,
+    pub order_step_size: u64,
     pub order_tick_size: u64,
-    pub order_minimum_size: u64,
+    pub min_order_size: u64,
     pub max_position_size: u64,
     pub volume_24h: u64,
     pub long_intensity_volume: u64,
@@ -340,7 +357,7 @@ pub struct AMM {
     pub mark_std: u64,
     pub last_mark_price_twap_ts: i64,
     pub max_spread: u32,
-    pub max_base_asset_amount_ratio: u16,
+    pub max_fill_reserve_fraction: u16,
     pub max_slippage_ratio: u16,
     pub base_spread: u16,
     pub long_intensity_count: u16,
@@ -361,7 +378,8 @@ impl AMM {
             quote_asset_reserve: default_reserves,
             sqrt_k: default_reserves,
             concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-            base_asset_amount_step_size: 1,
+            order_step_size: 1,
+            order_tick_size: 1,
             max_base_asset_reserve: u64::MAX as u128,
             min_base_asset_reserve: 0,
             terminal_quote_asset_reserve: default_reserves,
@@ -389,7 +407,7 @@ impl AMM {
             max_base_asset_reserve: 90 * AMM_RESERVE_PRECISION,
             min_base_asset_reserve: 45 * AMM_RESERVE_PRECISION,
 
-            net_base_asset_amount: -(AMM_RESERVE_PRECISION as i128),
+            base_asset_amount_with_amm: -(AMM_RESERVE_PRECISION as i128),
             mark_std: PRICE_PRECISION as u64,
 
             quote_asset_amount_long: 0,
@@ -459,7 +477,7 @@ impl AMM {
     }
 
     pub fn can_lower_k(&self) -> ClearingHouseResult<bool> {
-        let can_lower = self.net_base_asset_amount.unsigned_abs() < self.sqrt_k / 4;
+        let can_lower = self.base_asset_amount_with_amm.unsigned_abs() < self.sqrt_k / 4;
         Ok(can_lower)
     }
 
@@ -519,7 +537,7 @@ impl AMM {
 
         amm::update_amm_long_short_intensity(self, now, quote_asset_amount, position_direction)?;
 
-        self.volume_24h = amm::calculate_rolling_sum(
+        self.volume_24h = stats::calculate_rolling_sum(
             self.volume_24h,
             quote_asset_amount,
             since_last,

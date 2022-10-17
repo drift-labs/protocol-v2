@@ -41,7 +41,7 @@ describe('AMM Curve', () => {
 		opts: {
 			commitment: 'confirmed',
 		},
-		activeUserId: 0,
+		activeSubAccountId: 0,
 		perpMarketIndexes: [0],
 		spotMarketIndexes: [0],
 	});
@@ -79,7 +79,7 @@ describe('AMM Curve', () => {
 		});
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solUsdOracle,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -106,9 +106,9 @@ describe('AMM Curve', () => {
 
 		console.log(
 			'baseAssetAmountShort',
-			convertToNumber(marketData.baseAssetAmountShort, BASE_PRECISION),
+			convertToNumber(marketData.amm.baseAssetAmountShort, BASE_PRECISION),
 			'baseAssetAmountLong',
-			convertToNumber(marketData.baseAssetAmountLong, BASE_PRECISION)
+			convertToNumber(marketData.amm.baseAssetAmountLong, BASE_PRECISION)
 		);
 
 		console.log(
@@ -131,7 +131,7 @@ describe('AMM Curve', () => {
 
 	const showBook = (marketIndex) => {
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		const currentMark = calculateReservePrice(market);
+		const currentMark = calculateReservePrice(market, undefined);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
 			market,
@@ -228,14 +228,16 @@ describe('AMM Curve', () => {
 		// showBook(marketIndex);
 
 		const priceBefore = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex),
+			undefined
 		);
 		await clearingHouse.repegAmmCurve(
 			new BN(150.001 * PEG_PRECISION.toNumber()),
 			marketIndex
 		);
 		const priceAfter = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex),
+			undefined
 		);
 
 		assert(newOraclePriceWithMantissa.gt(priceBefore));
@@ -348,9 +350,9 @@ describe('AMM Curve', () => {
 		let amm = marketData1.amm;
 
 		// unbalanced but no net position
-		console.log('netBaseAssetAmount:', amm.netBaseAssetAmount.toString());
+		console.log('netBaseAssetAmount:', amm.baseAssetAmountWithAmm.toString());
 		assert(!amm.baseAssetReserve.eq(amm.quoteAssetReserve));
-		assert(amm.netBaseAssetAmount.eq(new BN(0)));
+		assert(amm.baseAssetAmountWithAmm.eq(new BN(0)));
 
 		// check if balanced
 		const candidatePegUp0 = calculateBudgetedPeg(

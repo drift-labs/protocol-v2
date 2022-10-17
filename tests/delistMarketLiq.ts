@@ -38,6 +38,7 @@ import {
 	sleep,
 } from './testHelpers';
 import { Keypair } from '@solana/web3.js';
+import { calculateReservePrice } from '../sdk';
 
 async function depositToFeePoolFromIF(
 	amount: number,
@@ -47,7 +48,7 @@ async function depositToFeePoolFromIF(
 	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
 
 	// // send $50 to market from IF
-	const txSig00 = await clearingHouse.depositIntoMarketFeePool(
+	const txSig00 = await clearingHouse.depositIntoPerpMarketFeePool(
 		0,
 		ifAmount,
 		userUSDCAccount.publicKey
@@ -110,7 +111,7 @@ describe('delist market, liquidation of expired position', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [
@@ -130,7 +131,7 @@ describe('delist market, liquidation of expired position', () => {
 
 		const periodicity = new BN(0);
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -141,8 +142,10 @@ describe('delist market, liquidation of expired position', () => {
 			900 // easy to liq
 		);
 
-		// await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
-		// await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
+		await clearingHouse.updatePerpMarketMinOrderSize(0, new BN(1));
+
+		// await clearingHouse.updatePerpMarketBaseSpread(new BN(0), 2000);
+		// await clearingHouse.updatePerpMarketCurveUpdateIntensity(new BN(0), 100);
 
 		await clearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -163,7 +166,7 @@ describe('delist market, liquidation of expired position', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
 			oracleInfos: [
@@ -202,7 +205,10 @@ describe('delist market, liquidation of expired position', () => {
 				PositionDirection.SHORT,
 				BASE_PRECISION,
 				0,
-				new BN(0)
+				calculateReservePrice(
+					clearingHouse.getPerpMarketAccount(0),
+					clearingHouse.getOracleDataForPerpMarket(0)
+				)
 			);
 		} catch (e) {
 			console.log('clearingHouse.openPosition');
@@ -212,14 +218,17 @@ describe('delist market, liquidation of expired position', () => {
 
 		const uL = clearingHouseLoserUser.getUserAccount();
 		console.log(
-			'uL.spotPositions[0].balance:',
-			uL.spotPositions[0].balance.toString()
+			'uL.spotPositions[0].scaledBalance:',
+			uL.spotPositions[0].scaledBalance.toString()
 		);
 		assert(
-			uL.spotPositions[0].balance.eq(
+			uL.spotPositions[0].scaledBalance.eq(
 				new BN(1000 * SPOT_MARKET_BALANCE_PRECISION.toNumber())
 			)
 		);
+
+		console.log(uL.perpPositions[0].baseAssetAmount.toString());
+		console.log(uL.perpPositions[0].quoteAssetAmount.toString());
 
 		const bank0Value = clearingHouseLoserUser.getSpotMarketAssetValue(0);
 		console.log('uL.bank0Value:', bank0Value.toString());
@@ -279,7 +288,7 @@ describe('delist market, liquidation of expired position', () => {
 		assert(clearingHouseLoserUserLiqPrice > 40.5);
 
 		const market00 = clearingHouse.getPerpMarketAccount(0);
-		assert(market00.amm.feePool.balance.eq(new BN(1000000000000)));
+		assert(market00.amm.feePool.scaledBalance.eq(new BN(1000000000000)));
 
 		const bank0Value1p5 = clearingHouseLoserUser.getSpotMarketAssetValue(0);
 		console.log('uL.bank0Value1p5:', bank0Value1p5.toString());
@@ -405,7 +414,7 @@ describe('delist market, liquidation of expired position', () => {
 		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
 		assert(market0.expiryTs.eq(ZERO));
 
-		await clearingHouse.updateMarketExpiry(marketIndex, expiryTs);
+		await clearingHouse.updatePerpMarketExpiry(marketIndex, expiryTs);
 		await sleep(1000);
 		clearingHouse.fetchAccounts();
 
@@ -482,17 +491,14 @@ describe('delist market, liquidation of expired position', () => {
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log(market.status);
 		assert(isVariant(market.status, 'settlement'));
-		console.log(
-			'market.settlementPrice:',
-			convertToNumber(market.settlementPrice)
-		);
+		console.log('market.expiryPrice:', convertToNumber(market.expiryPrice));
 
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solOracle))
 			.price;
 		console.log('new oracle price:', curPrice);
 
-		assert(market.settlementPrice.gt(ZERO));
-		assert(market.settlementPrice.eq(new BN(40499999)));
+		assert(market.expiryPrice.gt(ZERO));
+		assert(market.expiryPrice.eq(new BN(40499999)));
 	});
 
 	it('liq and settle expired market position', async () => {
@@ -594,10 +600,10 @@ describe('delist market, liquidation of expired position', () => {
 			loserMaintMarginReq.sub(new BN(453307643)).abs().lt(new BN(13307643))
 		);
 
-		assert(!clearingHouseLoser.getUserAccount().bankrupt);
+		assert(!clearingHouseLoser.getUserAccount().isBankrupt);
 
 		console.log('settle position clearingHouseLoser');
-		const txSig = await clearingHouseLoser.settleExpiredPosition(
+		const txSig = await clearingHouseLoser.settlePNL(
 			await clearingHouseLoser.getUserAccountPublicKey(),
 			clearingHouseLoser.getUserAccount(),
 			marketIndex
@@ -633,17 +639,17 @@ describe('delist market, liquidation of expired position', () => {
 		const finalPnlResultMin0 = new BN(1446637831000 - 11090000);
 		const finalPnlResultMax0 = new BN(1452538063000 + 11109000);
 
-		console.log(marketAfter0.pnlPool.balance.toString());
-		assert(marketAfter0.pnlPool.balance.gt(finalPnlResultMin0));
-		assert(marketAfter0.pnlPool.balance.lt(finalPnlResultMax0));
+		console.log(marketAfter0.pnlPool.scaledBalance.toString());
+		assert(marketAfter0.pnlPool.scaledBalance.gt(finalPnlResultMin0));
+		assert(marketAfter0.pnlPool.scaledBalance.lt(finalPnlResultMax0));
 
 		// const ammPnlResult = new BN(0);
-		console.log('feePool:', marketAfter0.amm.feePool.balance.toString());
+		console.log('feePool:', marketAfter0.amm.feePool.scaledBalance.toString());
 		console.log(
 			'totalExchangeFee:',
 			marketAfter0.amm.totalExchangeFee.toString()
 		);
-		assert(marketAfter0.amm.feePool.balance.eq(new BN(4356250000)));
+		assert(marketAfter0.amm.feePool.scaledBalance.eq(new BN(4356250000)));
 		await liquidatorClearingHouseUser.unsubscribe();
 	});
 });

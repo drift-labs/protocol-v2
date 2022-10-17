@@ -12,6 +12,7 @@ import {
 	PRICE_PRECISION,
 	PositionDirection,
 	ZERO,
+	OracleGuardRails,
 } from '../sdk/src';
 
 import {
@@ -53,7 +54,7 @@ async function createNewUser(
 		opts: {
 			commitment: 'confirmed',
 		},
-		activeUserId: 0,
+		activeSubAccountId: 0,
 		perpMarketIndexes: [0, 1],
 		spotMarketIndexes: [0],
 		oracleInfos,
@@ -133,24 +134,41 @@ describe('liquidity providing', () => {
 			provider.wallet
 		);
 		// used for trading / taking on baa
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solusdc,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			new BN(60 * 60)
 		);
-		await clearingHouse.updateLpCooldownTime(0, new BN(0));
-		await clearingHouse.updateMaxBaseAssetAmountRatio(0, 1);
-		await clearingHouse.updateMarketBaseAssetAmountStepSize(0, new BN(1));
+		await clearingHouse.updateLpCooldownTime(new BN(0));
+		await clearingHouse.updatePerpMarketMaxFillReserveFraction(0, 1);
+		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
+			0,
+			new BN(1),
+			new BN(1)
+		);
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(1),
+				markOracleDivergenceDenominator: new BN(1),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(10),
+				slotsBeforeStaleForMargin: new BN(10),
+				confidenceIntervalMaxSize: new BN(100),
+				tooVolatileRatio: new BN(100),
+			},
+			useForLiquidations: true,
+		};
+		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
 
 		// second market -- used for funding ..
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solusdc2,
 			stableAmmInitialBaseAssetReserve,
 			stableAmmInitialQuoteAssetReserve,
 			new BN(0)
 		);
-		await clearingHouse.updateLpCooldownTime(1, new BN(0));
 		await clearingHouse.updatePerpAuctionDuration(new BN(0));
 
 		[traderClearingHouse, traderClearingHouseUser] = await createNewUser(
@@ -177,7 +195,7 @@ describe('liquidity providing', () => {
 		let market = clearingHouse.getPerpMarketAccount(0);
 
 		console.log('adding liquidity...');
-		const _sig = await clearingHouse.addLiquidity(
+		const _sig = await clearingHouse.addPerpLpShares(
 			new BN(100 * 1e13),
 			market.marketIndex
 		);

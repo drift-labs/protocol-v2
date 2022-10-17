@@ -1,6 +1,6 @@
 use crate::controller::amm::{update_pnl_pool_and_user_balance, update_pool_balances};
 use crate::controller::funding::settle_funding_payment;
-use crate::controller::orders::validate_market_within_price_band;
+use crate::controller::orders::{cancel_orders, validate_market_within_price_band};
 use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount, update_settled_pnl,
     PositionDelta,
@@ -13,17 +13,17 @@ use crate::math::casting::cast_to_i128;
 use crate::math::casting::cast_to_i64;
 use crate::math::casting::{cast, Cast};
 use crate::math::margin::meets_maintenance_margin_requirement;
-use crate::math::position::calculate_base_asset_value_and_pnl_with_settlement_price;
+use crate::math::position::calculate_base_asset_value_and_pnl_with_expiry_price;
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
-use crate::state::events::SettlePnlRecord;
-use crate::state::market::MarketStatus;
+use crate::state::events::{OrderActionExplanation, SettlePnlRecord};
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
-use crate::state::user::User;
+use crate::state::user::{MarketType, User};
 use crate::validate;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::prelude::*;
@@ -47,7 +47,7 @@ pub fn settle_pnl(
     now: i64,
     state: &State,
 ) -> ClearingHouseResult {
-    validate!(!user.bankrupt, ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
 
     {
         let spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
@@ -58,8 +58,7 @@ pub fn settle_pnl(
 
     validate_market_within_price_band(&market, state, true, None)?;
 
-    settle_funding_payment(user, user_key, &mut market, now)?;
-    crate::controller::lp::settle_lp(user, user_key, &mut market, now)?;
+    crate::controller::lp::settle_funding_payment_then_lp(user, user_key, &mut market, now)?;
 
     drop(market);
 
@@ -97,7 +96,7 @@ pub fn settle_pnl(
     let oracle_price = oracle_map.get_price_data(&perp_market.amm.oracle)?.price;
 
     let pnl_pool_token_amount = cast_to_i128(get_token_amount(
-        perp_market.pnl_pool.balance,
+        perp_market.pnl_pool.scaled_balance,
         spot_market,
         perp_market.pnl_pool.balance_type(),
     )?)?;
@@ -176,17 +175,21 @@ pub fn settle_pnl(
 }
 
 pub fn settle_expired_position(
-    market_index: u16,
+    perp_market_index: u16,
     user: &mut User,
     user_key: &Pubkey,
-    market_map: &PerpMarketMap,
+    perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     now: i64,
+    slot: u64,
     state: &State,
 ) -> ClearingHouseResult {
+    validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
+
     // cannot settle pnl this way on a user who is in liquidation territory
-    if !(meets_maintenance_margin_requirement(user, market_map, spot_market_map, oracle_map)?) {
+    if !(meets_maintenance_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?)
+    {
         return Err(ErrorCode::InsufficientCollateralForSettlingPNL);
     }
 
@@ -200,21 +203,36 @@ pub fn settle_expired_position(
     settle_funding_payment(
         user,
         user_key,
-        market_map.get_ref_mut(&market_index)?.deref_mut(),
+        perp_market_map.get_ref_mut(&perp_market_index)?.deref_mut(),
         now,
     )?;
 
-    let position_index = get_position_index(&user.perp_positions, market_index)?;
-    let bank = &mut spot_market_map.get_quote_spot_market_mut()?;
-    let market = &mut market_map.get_ref_mut(&market_index)?;
-    validate!(
-        market.status == MarketStatus::Settlement,
-        ErrorCode::DefaultError,
-        "Market isn't in settlement, expiry_ts={}",
-        market.expiry_ts
+    cancel_orders(
+        user,
+        user_key,
+        None,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        now,
+        slot,
+        OrderActionExplanation::MarketExpired,
+        Some(MarketType::Perp),
+        Some(perp_market_index),
+        None,
     )?;
 
-    let position_settlement_ts = market
+    let position_index = get_position_index(&user.perp_positions, perp_market_index)?;
+    let quote_spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
+    let perp_market = &mut perp_market_map.get_ref_mut(&perp_market_index)?;
+    validate!(
+        perp_market.status == MarketStatus::Settlement,
+        ErrorCode::DefaultError,
+        "Perp Market isn't in settlement, expiry_ts={}",
+        perp_market.expiry_ts
+    )?;
+
+    let position_settlement_ts = perp_market
         .expiry_ts
         .checked_add(cast_to_i64(state.settlement_duration)?)
         .ok_or_else(math_error!())?;
@@ -238,11 +256,10 @@ pub fn settle_expired_position(
         "User must first burn lp shares for expired market"
     )?;
 
-    let (base_asset_value, unrealized_pnl) =
-        calculate_base_asset_value_and_pnl_with_settlement_price(
-            &user.perp_positions[position_index],
-            market.settlement_price,
-        )?;
+    let (base_asset_value, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_expiry_price(
+        &user.perp_positions[position_index],
+        perp_market.expiry_price,
+    )?;
 
     let fee = base_asset_value
         .checked_mul(fee_structure.fee_tiers[0].fee_numerator as u128)
@@ -254,8 +271,12 @@ pub fn settle_expired_position(
         .checked_sub(cast_to_i128(fee)?)
         .ok_or_else(math_error!())?;
 
-    let pnl_to_settle_with_user =
-        update_pnl_pool_and_user_balance(market, bank, user, unrealized_pnl_with_fee)?;
+    let pnl_to_settle_with_user = update_pnl_pool_and_user_balance(
+        perp_market,
+        quote_spot_market,
+        user,
+        unrealized_pnl_with_fee,
+    )?;
 
     let user_position = &mut user.perp_positions[position_index];
 
@@ -267,11 +288,11 @@ pub fn settle_expired_position(
         base_asset_amount: -user_position.base_asset_amount.cast()?,
     };
 
-    let _user_pnl = update_position_and_market(user_position, market, &position_delta)?;
+    let _user_pnl = update_position_and_market(user_position, perp_market, &position_delta)?;
 
-    market.amm.net_base_asset_amount = market
+    perp_market.amm.base_asset_amount_with_amm = perp_market
         .amm
-        .net_base_asset_amount
+        .base_asset_amount_with_amm
         .checked_add(position_delta.base_asset_amount.cast()?)
         .ok_or_else(math_error!())?;
 
@@ -280,12 +301,12 @@ pub fn settle_expired_position(
     emit!(SettlePnlRecord {
         ts: now,
         user: *user_key,
-        market_index,
+        market_index: perp_market_index,
         pnl: pnl_to_settle_with_user,
         base_asset_amount,
         quote_asset_amount_after,
         quote_entry_amount,
-        settle_price: market.settlement_price,
+        settle_price: perp_market.expiry_price,
     });
 
     validate!(

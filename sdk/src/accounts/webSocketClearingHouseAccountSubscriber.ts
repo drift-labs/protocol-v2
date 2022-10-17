@@ -11,7 +11,7 @@ import { EventEmitter } from 'events';
 import {
 	getClearingHouseStateAccountPublicKey,
 	getSpotMarketPublicKey,
-	getMarketPublicKey,
+	getPerpMarketPublicKey,
 } from '../addresses/pda';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { PublicKey } from '@solana/web3.js';
@@ -91,7 +91,7 @@ export class WebSocketClearingHouseAccountSubscriber
 		});
 
 		// subscribe to market accounts
-		await this.subscribeToMarketAccounts();
+		await this.subscribeToPerpMarketAccounts();
 
 		// subscribe to spot market accounts
 		await this.subscribeToSpotMarketAccounts();
@@ -108,22 +108,22 @@ export class WebSocketClearingHouseAccountSubscriber
 		return true;
 	}
 
-	async subscribeToMarketAccounts(): Promise<boolean> {
+	async subscribeToPerpMarketAccounts(): Promise<boolean> {
 		for (const marketIndex of this.perpMarketIndexes) {
-			await this.subscribeToMarketAccount(marketIndex);
+			await this.subscribeToPerpMarketAccount(marketIndex);
 		}
 		return true;
 	}
 
-	async subscribeToMarketAccount(marketIndex: number): Promise<boolean> {
-		const marketPublicKey = await getMarketPublicKey(
+	async subscribeToPerpMarketAccount(marketIndex: number): Promise<boolean> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			marketIndex
 		);
 		const accountSubscriber = new WebSocketAccountSubscriber<PerpMarketAccount>(
 			'perpMarket',
 			this.program,
-			marketPublicKey
+			perpMarketPublicKey
 		);
 		await accountSubscriber.subscribe((data: PerpMarketAccount) => {
 			this.eventEmitter.emit('perpMarketAccountUpdate', data);
@@ -257,7 +257,7 @@ export class WebSocketClearingHouseAccountSubscriber
 		if (this.perpMarketAccountSubscribers.has(marketIndex)) {
 			return true;
 		}
-		return this.subscribeToMarketAccount(marketIndex);
+		return this.subscribeToPerpMarketAccount(marketIndex);
 	}
 
 	async addOracle(oracleInfo: OracleInfo): Promise<boolean> {

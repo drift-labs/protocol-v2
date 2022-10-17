@@ -96,7 +96,7 @@ async function updateFundingRateHelper(
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
 		assert(isVariant(market.status, 'active'));
 
-		await clearingHouse.updateFundingRate(priceFeedAddress, marketIndex);
+		await clearingHouse.updateFundingRate(marketIndex, priceFeedAddress);
 
 		const CONVERSION_SCALE = FUNDING_RATE_BUFFER_PRECISION.mul(PRICE_PRECISION);
 
@@ -195,7 +195,7 @@ async function cappedSymFundingScenario(
 	const priceFeedAddress = await mockOracle(priceAction[0], -10);
 	const periodicity = new BN(0);
 
-	await clearingHouse.initializeMarket(
+	await clearingHouse.initializePerpMarket(
 		priceFeedAddress,
 		kSqrt,
 		kSqrt,
@@ -232,11 +232,14 @@ async function cappedSymFundingScenario(
 	}
 	await clearingHouse.fetchAccounts();
 
-	const oracleData = clearingHouse.getOracleDataForMarket(0);
+	const oracleData = clearingHouse.getOracleDataForPerpMarket(0);
 	console.log(
 		'PRICE',
 		convertToNumber(
-			calculateReservePrice(clearingHouse.getPerpMarketAccount(marketIndex))
+			calculateReservePrice(
+				clearingHouse.getPerpMarketAccount(marketIndex),
+				undefined
+			)
 		),
 		'oracleData:',
 		convertToNumber(oracleData.price),
@@ -344,19 +347,19 @@ async function cappedSymFundingScenario(
 	);
 	console.log(
 		'baseAssetAmountLong',
-		convertToNumber(marketNew.baseAssetAmountLong, AMM_RESERVE_PRECISION),
+		convertToNumber(marketNew.amm.baseAssetAmountLong, AMM_RESERVE_PRECISION),
 		'baseAssetAmountShort',
-		convertToNumber(marketNew.baseAssetAmountShort, AMM_RESERVE_PRECISION),
+		convertToNumber(marketNew.amm.baseAssetAmountShort, AMM_RESERVE_PRECISION),
 		'totalFee',
 		convertToNumber(marketNew.amm.totalFee, QUOTE_PRECISION),
 		'totalFeeMinusDistributions',
 		convertToNumber(marketNew.amm.totalFeeMinusDistributions, QUOTE_PRECISION)
 	);
 
-	const fundingPnLForLongs = marketNew.baseAssetAmountLong
+	const fundingPnLForLongs = marketNew.amm.baseAssetAmountLong
 		.mul(fundingRateLong)
 		.mul(new BN(-1));
-	const fundingPnLForShorts = marketNew.baseAssetAmountShort
+	const fundingPnLForShorts = marketNew.amm.baseAssetAmountShort
 		.mul(fundingRateShort)
 		.mul(new BN(-1));
 
@@ -476,7 +479,7 @@ describe('capped funding', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 		});

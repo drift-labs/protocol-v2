@@ -39,13 +39,13 @@ import {
 
 async function feePoolInjection(fees, marketIndex, clearingHouse) {
 	let market0 = clearingHouse.getPerpMarketAccount(marketIndex);
-	await clearingHouse.updateCurveUpdateIntensity(marketIndex, 0);
+	await clearingHouse.updatePerpMarketCurveUpdateIntensity(marketIndex, 0);
 	const connection = anchor.AnchorProvider.local().connection;
 
 	while (market0.amm.totalFeeMinusDistributions.lt(fees)) {
 		const reservePrice = calculateReservePrice(
 			market0,
-			clearingHouse.getOracleDataForMarket(marketIndex)
+			clearingHouse.getOracleDataForPerpMarket(marketIndex)
 		);
 		const baseAmountToTrade = new BN(9000)
 			.mul(PRICE_PRECISION)
@@ -83,7 +83,7 @@ async function feePoolInjection(fees, marketIndex, clearingHouse) {
 		);
 	}
 
-	await clearingHouse.updateCurveUpdateIntensity(marketIndex, 100);
+	await clearingHouse.updatePerpMarketCurveUpdateIntensity(marketIndex, 100);
 }
 
 describe('update amm', () => {
@@ -142,7 +142,7 @@ describe('update amm', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos: oracleInfos,
@@ -155,7 +155,7 @@ describe('update amm', () => {
 		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -164,13 +164,13 @@ describe('update amm', () => {
 			undefined,
 			1000
 		);
-		await clearingHouse.updateMarketBaseSpread(0, 2000);
-		await clearingHouse.updateCurveUpdateIntensity(0, 100);
+		await clearingHouse.updatePerpMarketBaseSpread(0, 2000);
+		await clearingHouse.updatePerpMarketCurveUpdateIntensity(0, 100);
 
 		for (let i = 1; i <= 4; i++) {
 			// init more markets
 			const thisUsd = mockOracles[i];
-			await clearingHouse.initializeMarket(
+			await clearingHouse.initializePerpMarket(
 				thisUsd,
 				ammInitialBaseAssetAmount,
 				ammInitialQuoteAssetAmount,
@@ -179,8 +179,8 @@ describe('update amm', () => {
 				undefined,
 				1000
 			);
-			await clearingHouse.updateMarketBaseSpread(i, 2000);
-			await clearingHouse.updateCurveUpdateIntensity(i, 100);
+			await clearingHouse.updatePerpMarketBaseSpread(i, 2000);
+			await clearingHouse.updatePerpMarketCurveUpdateIntensity(i, 100);
 		}
 
 		const [, _userAccountPublicKey] =

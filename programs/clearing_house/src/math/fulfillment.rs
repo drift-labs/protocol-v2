@@ -2,7 +2,7 @@ use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
 use crate::math::auction::is_auction_complete;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::market::AMM;
+use crate::state::perp_market::AMM;
 use crate::state::user::Order;
 
 pub fn determine_perp_fulfillment_methods(
@@ -22,7 +22,8 @@ pub fn determine_perp_fulfillment_methods(
 
     if let Some(maker_order) = maker_order {
         if is_amm_available {
-            let maker_price = maker_order.get_limit_price(valid_oracle_price, slot, Some(amm))?;
+            let maker_price =
+                maker_order.get_limit_price(valid_oracle_price, slot, amm.order_tick_size)?;
 
             let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(amm_reserve_price)?;
 
@@ -51,7 +52,6 @@ pub fn determine_spot_fulfillment_methods(
     taker_order: &Order,
     maker_available: bool,
     serum_fulfillment_params_available: bool,
-    slot: u64,
 ) -> ClearingHouseResult<Vec<SpotFulfillmentMethod>> {
     let mut fulfillment_methods = vec![];
 
@@ -59,10 +59,7 @@ pub fn determine_spot_fulfillment_methods(
         fulfillment_methods.push(SpotFulfillmentMethod::Match)
     }
 
-    if !taker_order.post_only
-        && serum_fulfillment_params_available
-        && is_auction_complete(taker_order.slot, taker_order.auction_duration, slot)?
-    {
+    if !taker_order.post_only && serum_fulfillment_params_available {
         fulfillment_methods.push(SpotFulfillmentMethod::SerumV3)
     }
 

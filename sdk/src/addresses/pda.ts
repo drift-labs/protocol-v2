@@ -20,13 +20,13 @@ export async function getClearingHouseStateAccountPublicKey(
 export async function getUserAccountPublicKeyAndNonce(
 	programId: PublicKey,
 	authority: PublicKey,
-	userId = 0
+	subAccountId = 0
 ): Promise<[PublicKey, number]> {
 	return anchor.web3.PublicKey.findProgramAddress(
 		[
 			Buffer.from(anchor.utils.bytes.utf8.encode('user')),
 			authority.toBuffer(),
-			Uint8Array.from([userId]),
+			Uint8Array.from([subAccountId]),
 		],
 		programId
 	);
@@ -35,23 +35,23 @@ export async function getUserAccountPublicKeyAndNonce(
 export async function getUserAccountPublicKey(
 	programId: PublicKey,
 	authority: PublicKey,
-	userId = 0
+	subAccountId = 0
 ): Promise<PublicKey> {
 	return (
-		await getUserAccountPublicKeyAndNonce(programId, authority, userId)
+		await getUserAccountPublicKeyAndNonce(programId, authority, subAccountId)
 	)[0];
 }
 
 export function getUserAccountPublicKeySync(
 	programId: PublicKey,
 	authority: PublicKey,
-	userId = 0
+	subAccountId = 0
 ): PublicKey {
 	return anchor.web3.PublicKey.findProgramAddressSync(
 		[
 			Buffer.from(anchor.utils.bytes.utf8.encode('user')),
 			authority.toBuffer(),
-			Uint8Array.from([userId]),
+			Uint8Array.from([subAccountId]),
 		],
 		programId
 	)[0];
@@ -70,14 +70,14 @@ export function getUserStatsAccountPublicKey(
 	)[0];
 }
 
-export async function getMarketPublicKey(
+export async function getPerpMarketPublicKey(
 	programId: PublicKey,
 	marketIndex: number
 ): Promise<PublicKey> {
 	return (
 		await anchor.web3.PublicKey.findProgramAddress(
 			[
-				Buffer.from(anchor.utils.bytes.utf8.encode('market')),
+				Buffer.from(anchor.utils.bytes.utf8.encode('perp_market')),
 				new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
 			],
 			programId
