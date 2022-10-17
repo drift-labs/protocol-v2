@@ -41,6 +41,7 @@ import {
 	BN,
 	SpotMarketAccount,
 	getTokenValue,
+	SpotBalanceType,
 } from '.';
 import {
 	getTokenAmount,
@@ -1420,20 +1421,62 @@ export class ClearingHouseUser {
 			nowTs
 		);
 
-		if (reduceOnly) {
-			const freeCollateral = this.getFreeCollateral();
-			const oracleData = this.getOracleDataForMarket(marketIndex);
-			const precisionIncrease = TEN.pow(new BN(spotMarket.decimals - 6));
+		const freeCollateral = this.getFreeCollateral();
+		const oracleData = this.getOracleDataForMarket(marketIndex);
+		const precisionIncrease = TEN.pow(new BN(spotMarket.decimals - 6));
 
-			const amountWithdrawable = freeCollateral
+		const amountWithdrawable = freeCollateral
+			.mul(MARGIN_PRECISION)
+			.div(spotMarket.initialAssetWeight)
+			.mul(PRICE_PRECISION)
+			.div(oracleData.price)
+			.mul(precisionIncrease);
+
+		const userSpotPosition = this.getUserAccount().spotPositions.find(
+			(spotPosition) =>
+				isVariant(spotPosition.balanceType, 'deposit') &&
+				spotPosition.marketIndex == marketIndex
+		);
+
+		const userSpotBalance = userSpotPosition
+			? getTokenAmount(
+					userSpotPosition.balance,
+					this.clearingHouse.getSpotMarketAccount(marketIndex),
+					SpotBalanceType.DEPOSIT
+			  )
+			: ZERO;
+
+		const maxWithdrawValue = BN.min(
+			BN.min(amountWithdrawable, userSpotBalance),
+			withdrawLimit.abs()
+		);
+
+		if (reduceOnly) {
+			return BN.max(maxWithdrawValue, ZERO);
+		} else {
+			const weightedAssetValue = this.getSpotMarketAssetValue(
+				marketIndex,
+				'Initial',
+				false
+			);
+
+			const freeCollatAfterWithdraw = userSpotBalance.gt(ZERO)
+				? freeCollateral.sub(weightedAssetValue)
+				: freeCollateral;
+
+			const maxLiabilityAllowed = freeCollatAfterWithdraw
 				.mul(MARGIN_PRECISION)
-				.div(spotMarket.initialAssetWeight)
+				.div(spotMarket.initialLiabilityWeight)
 				.mul(PRICE_PRECISION)
 				.div(oracleData.price)
 				.mul(precisionIncrease);
 
-			return BN.min(amountWithdrawable, withdrawLimit);
-		} else {
+			const maxBorrowValue = BN.min(
+				maxWithdrawValue.add(maxLiabilityAllowed),
+				borrowLimit.abs()
+			);
+
+			return BN.max(maxBorrowValue, ZERO);
 		}
 	}
 
