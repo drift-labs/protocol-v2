@@ -94,6 +94,10 @@ export class EventSubscriber {
 		const wrappedEvents = this.parseEventsFromLogs(txSig, slot, logs);
 		for (const wrappedEvent of wrappedEvents) {
 			this.eventListMap.get(wrappedEvent.eventType).insert(wrappedEvent);
+		}
+
+		// dont emit event till we've added all the events to the eventListMap
+		for (const wrappedEvent of wrappedEvents) {
 			this.eventEmitter.emit('newEvent', wrappedEvent);
 		}
 
