@@ -3574,6 +3574,10 @@
             "type": "u16"
           },
           {
+            "name": "quoteSpotMarketIndex",
+            "type": "u16"
+          },
+          {
             "name": "status",
             "type": {
               "defined": "MarketStatus"
@@ -3596,7 +3600,7 @@
             "type": {
               "array": [
                 "u8",
-                3
+                1
               ]
             }
           }
@@ -4187,6 +4191,10 @@
           },
           {
             "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "quoteSpotMarketIndex",
             "type": "u16"
           },
           {
@@ -4827,6 +4835,10 @@
             "type": "u16"
           },
           {
+            "name": "oracleQuoteSpotMarketIndex",
+            "type": "u16"
+          },
+          {
             "name": "curveUpdateIntensity",
             "type": "u8"
           },
@@ -4849,7 +4861,7 @@
             "type": {
               "array": [
                 "u8",
-                6
+                4
               ]
             }
           }
@@ -5260,6 +5272,10 @@
           },
           {
             "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "quoteSpotMarketIndex",
             "type": "u16"
           },
           {

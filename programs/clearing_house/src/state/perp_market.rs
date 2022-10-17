@@ -93,10 +93,11 @@ pub struct PerpMarket {
     pub unrealized_pnl_initial_asset_weight: u32,
     pub unrealized_pnl_maintenance_asset_weight: u32,
     pub market_index: u16,
+    pub quote_spot_market_index: u16,
     pub status: MarketStatus,
     pub contract_type: ContractType,
     pub contract_tier: ContractTier,
-    pub padding: [u8; 3],
+    pub padding: [u8; 1],
 }
 
 impl PerpMarket {
@@ -362,11 +363,12 @@ pub struct AMM {
     pub base_spread: u16,
     pub long_intensity_count: u16,
     pub short_intensity_count: u16,
+    pub oracle_quote_spot_market_index: u16,
     pub curve_update_intensity: u8,
     pub amm_jit_intensity: u8,
     pub oracle_source: OracleSource,
     pub last_oracle_valid: bool,
-    pub padding: [u8; 6],
+    pub padding: [u8; 4],
 }
 
 impl AMM {

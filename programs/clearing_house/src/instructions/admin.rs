@@ -489,6 +489,7 @@ pub fn handle_initialize_perp_market(
         expiry_ts: 0,
         pubkey: *perp_market_pubkey,
         market_index,
+        quote_spot_market_index: QUOTE_SPOT_MARKET_INDEX,
         number_of_users: 0,
         margin_ratio_initial, // unit is 20% (+2 decimal places)
         margin_ratio_maintenance,
@@ -504,9 +505,10 @@ pub fn handle_initialize_perp_market(
         unrealized_pnl_max_imbalance: 0,
         liquidator_fee: liquidation_fee,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
-        padding: [0; 3],
+        padding: [0; 1],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
+            oracle_quote_spot_market_index: QUOTE_SPOT_MARKET_INDEX,
             oracle_source,
             base_asset_reserve: amm_base_asset_reserve,
             quote_asset_reserve: amm_quote_asset_reserve,
@@ -589,7 +591,7 @@ pub fn handle_initialize_perp_market(
 
             last_oracle_valid: false,
 
-            padding: [0; 6],
+            padding: [0; 4],
         },
     };
 

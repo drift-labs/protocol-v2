@@ -1,5 +1,5 @@
 import { PublicKey, Transaction } from '@solana/web3.js';
-import { BN, ZERO } from '.';
+import { BN, ZERO, QUOTE_SPOT_MARKET_INDEX } from '.';
 
 // # Utility Types / Enums / Constants
 
@@ -444,6 +444,7 @@ export type PerpMarketAccount = {
 	expiryTs: BN;
 	expiryPrice: BN;
 	marketIndex: number;
+	quoteSpotMarketIndex: number;
 	pubkey: PublicKey;
 	name: number[];
 	amm: AMM;
@@ -562,6 +563,7 @@ export type AMM = {
 	lastMarkPriceTwapTs: BN;
 
 	oracle: PublicKey;
+	oracleQuoteSpotMarketIndex: number;
 	oracleSource: OracleSource;
 	historicalOracleData: HistoricalOracleData;
 
@@ -689,6 +691,7 @@ export type Order = {
 	orderId: number;
 	userOrderId: number;
 	marketIndex: number;
+	quoteSpotMarketIndex: number;
 	price: BN;
 	baseAssetAmount: BN;
 	baseAssetAmountFilled: BN;
@@ -718,6 +721,7 @@ export type OrderParams = {
 	baseAssetAmount: BN;
 	price: BN;
 	marketIndex: number;
+	quoteSpotMarketIndex: number;
 	reduceOnly: boolean;
 	postOnly: boolean;
 	immediateOrCancel: boolean;
@@ -749,6 +753,7 @@ export const DefaultOrderParams = {
 	baseAssetAmount: ZERO,
 	price: ZERO,
 	marketIndex: 0,
+	quoteSpotMarketIndex: QUOTE_SPOT_MARKET_INDEX,
 	reduceOnly: false,
 	postOnly: false,
 	immediateOrCancel: false,
