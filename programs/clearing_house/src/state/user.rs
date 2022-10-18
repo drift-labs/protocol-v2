@@ -33,6 +33,7 @@ pub struct User {
     pub perp_positions: [PerpPosition; 8],
     pub orders: [Order; 32],
     pub last_add_perp_lp_shares_ts: i64,
+    pub settled_perp_pnl: i64,
     pub next_order_id: u32,
     pub max_margin_ratio: u32,
     pub next_liquidation_id: u16,
