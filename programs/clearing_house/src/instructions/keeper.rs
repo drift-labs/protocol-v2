@@ -48,8 +48,9 @@ pub fn handle_fill_order<'info>(
         (order_id, market_index)
     };
 
+    let user_key = &ctx.accounts.user.key();
     fill_order(ctx, order_id, market_index, maker_order_id).map_err(|e| {
-        msg!("Err filling order id {}", order_id);
+        msg!("Err filling order id {} for user {}", order_id, user_key);
         e
     })?;
 
@@ -150,6 +151,7 @@ pub fn handle_fill_spot_order<'info>(
         (order_id, market_index)
     };
 
+    let user_key = &ctx.accounts.user.key();
     fill_spot_order(
         ctx,
         order_id,
@@ -158,7 +160,7 @@ pub fn handle_fill_spot_order<'info>(
         maker_order_id,
     )
     .map_err(|e| {
-        msg!("Err filling order id {}", order_id);
+        msg!("Err filling order id {} for user {}", order_id, user_key);
         e
     })?;
 
