@@ -786,14 +786,9 @@ export class DLOB {
 			askNode.userAccount.toString()
 		);
 
-		// Can't match two maker orders or if maker and taker are the same
+		// Can't match orders from the same authority
 		const sameAuthority = bidUserAuthority.equals(askUserAuthority);
-		const makerIsTaker = bidNode.userAccount.equals(askNode.userAccount);
-		if (
-			sameAuthority ||
-			makerIsTaker ||
-			(bidOrder.postOnly && askOrder.postOnly)
-		) {
+		if (sameAuthority || (bidOrder.postOnly && askOrder.postOnly)) {
 			// don't have a principle way to pick which one to exhaust,
 			// exhaust each one 50% of the time so we can try each one against other orders
 			const exhaustedSide = Math.random() < 0.5 ? 'bid' : 'ask';
