@@ -10,7 +10,18 @@ import { ProgramAccount } from '@project-serum/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 
-export class UserMap {
+export interface UserMapInterface {
+	fetchAllUsers(): Promise<void>;
+	addPubkey(userAccountPublicKey: PublicKey): Promise<void>;
+	has(key: string): boolean;
+	get(key: string): ClearingHouseUser | undefined;
+	mustGet(key: string): Promise<ClearingHouseUser>;
+	getUserAuthority(key: string): PublicKey | undefined;
+	updateWithOrderRecord(record: OrderRecord): Promise<void>;
+	values(): IterableIterator<ClearingHouseUser>;
+}
+
+export class UserMap implements UserMapInterface {
 	private userMap = new Map<string, ClearingHouseUser>();
 	private clearingHouse: ClearingHouse;
 	private accountSubscription: ClearingHouseUserAccountSubscriptionConfig;
@@ -88,6 +99,19 @@ export class UserMap {
 		const user = this.userMap.get(key);
 		await user.fetchAccounts();
 		return user;
+	}
+
+	/**
+	 * gets the Authority for a particular userAccountPublicKey, if no ClearingHouseUser exists, undefined is returned
+	 * @param key userAccountPublicKey to get ClearngHouseUserFor
+	 * @returns authority PublicKey | undefined
+	 */
+	public getUserAuthority(key: string): PublicKey | undefined {
+		const chUser = this.userMap.get(key);
+		if (!chUser) {
+			return undefined;
+		}
+		return chUser.getUserAccount().authority;
 	}
 
 	public async updateWithOrderRecord(record: OrderRecord) {

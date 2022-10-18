@@ -5,6 +5,7 @@ import {
 	PerpPosition,
 	BN,
 	ClearingHouse,
+	ClearingHouseUser,
 	PerpMarketAccount,
 	SpotMarketAccount,
 	MarketStatus,
@@ -15,8 +16,9 @@ import {
 	QUOTE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	StateAccount,
-	UserMap,
+	UserMapInterface,
 	Wallet,
+	OrderRecord,
 } from '../../src';
 import { ExchangeStatus } from '../../lib';
 
@@ -428,27 +430,139 @@ export const mockStateAccount: StateAccount = {
 	discountMint: PublicKey.default,
 	exchangeStatus: ExchangeStatus.ACTIVE,
 	liquidationMarginBufferRatio: 0,
-	lpCooldownTime: undefined,
+	lpCooldownTime: new BN(0),
 	minPerpAuctionDuration: 0,
 	numberOfMarkets: 0,
 	numberOfSpotMarkets: 0,
-	oracleGuardRails: undefined,
-	perpFeeStructure: undefined,
+	oracleGuardRails: {
+		priceDivergence: {
+			markOracleDivergenceNumerator: new BN(0),
+			markOracleDivergenceDenominator: new BN(0),
+		},
+		validity: {
+			slotsBeforeStaleForAmm: new BN(0),
+			slotsBeforeStaleForMargin: new BN(0),
+			confidenceIntervalMaxSize: new BN(0),
+			tooVolatileRatio: new BN(0),
+		},
+		useForLiquidations: true,
+	},
+	perpFeeStructure: {
+		feeTiers: [
+			{
+				feeNumerator: 0,
+				feeDenominator: 0,
+				makerRebateNumerator: 0,
+				makerRebateDenominator: 0,
+				referrerRewardNumerator: 0,
+				referrerRewardDenominator: 0,
+				refereeFeeNumerator: 0,
+				refereeFeeDenominator: 0,
+			},
+		],
+		makerRebateNumerator: new BN(0),
+		makerRebateDenominator: new BN(0),
+		fillerRewardStructure: {
+			rewardNumerator: new BN(0),
+			rewardDenominator: new BN(0),
+			timeBasedRewardLowerBound: new BN(0),
+		},
+		flatFillerFee: new BN(0),
+		referrerRewardEpochUpperBound: new BN(0),
+	},
 	settlementDuration: 0,
-	signer: undefined,
+	signer: PublicKey.default,
 	signerNonce: 0,
-	spotFeeStructure: undefined,
+	spotFeeStructure: {
+		feeTiers: [
+			{
+				feeNumerator: 0,
+				feeDenominator: 0,
+				makerRebateNumerator: 0,
+				makerRebateDenominator: 0,
+				referrerRewardNumerator: 0,
+				referrerRewardDenominator: 0,
+				refereeFeeNumerator: 0,
+				refereeFeeDenominator: 0,
+			},
+		],
+		makerRebateNumerator: new BN(0),
+		makerRebateDenominator: new BN(0),
+		fillerRewardStructure: {
+			rewardNumerator: new BN(0),
+			rewardDenominator: new BN(0),
+			timeBasedRewardLowerBound: new BN(0),
+		},
+		flatFillerFee: new BN(0),
+		referrerRewardEpochUpperBound: new BN(0),
+	},
 	srmVault: PublicKey.default,
 	whitelistMint: PublicKey.default,
 };
 
-export const mockUserMap = new UserMap(
-	new ClearingHouse({
-		connection: new Connection('http://localhost:8899'),
-		wallet: new Wallet(new Keypair()),
-		programID: PublicKey.default,
-	}),
-	{
-		type: 'websocket',
+export class MockUserMap implements UserMapInterface {
+	private userMap = new Map<string, ClearingHouseUser>();
+	private userAccountToAuthority = new Map<string, string>();
+	private clearingHouse: ClearingHouse;
+
+	constructor() {
+		this.userMap = new Map();
+		this.userAccountToAuthority = new Map();
+		this.clearingHouse = new ClearingHouse({
+			connection: new Connection('http://localhost:8899'),
+			wallet: new Wallet(new Keypair()),
+			programID: PublicKey.default,
+		});
 	}
-);
+
+	public async fetchAllUsers(): Promise<void> {}
+
+	public async addPubkey(userAccountPublicKey: PublicKey): Promise<void> {
+		const user = new ClearingHouseUser({
+			clearingHouse: this.clearingHouse,
+			userAccountPublicKey: userAccountPublicKey,
+		});
+		this.userMap.set(userAccountPublicKey.toBase58(), user);
+	}
+
+	// mock function
+	public addUserAccountAuthority(
+		userAccountPublicKey: PublicKey,
+		authorityPublicKey: PublicKey
+	): void {
+		if (!this.userMap.has(userAccountPublicKey.toBase58())) {
+			this.addPubkey(userAccountPublicKey);
+		}
+		this.userAccountToAuthority.set(
+			userAccountPublicKey.toBase58(),
+			authorityPublicKey.toBase58()
+		);
+	}
+
+	public has(key: string): boolean {
+		return this.userMap.has(key);
+	}
+
+	public get(_key: string): ClearingHouseUser | undefined {
+		return undefined;
+	}
+
+	public async mustGet(_key: string): Promise<ClearingHouseUser> {
+		return new ClearingHouseUser({
+			clearingHouse: this.clearingHouse,
+			userAccountPublicKey: PublicKey.default,
+		});
+	}
+
+	public getUserAuthority(key: string): PublicKey | undefined {
+		return new PublicKey(
+			this.userAccountToAuthority.get(key) || PublicKey.default.toBase58()
+		);
+	}
+
+	public async updateWithOrderRecord(_record: OrderRecord): Promise<void> {}
+
+	public values(): IterableIterator<ClearingHouseUser> {
+		return this.userMap.values();
+	}
+}
