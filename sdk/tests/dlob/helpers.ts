@@ -500,17 +500,6 @@ export const mockStateAccount: StateAccount = {
 	whitelistMint: PublicKey.default,
 };
 
-// export const mockUserMap = new UserMap(
-// 	new ClearingHouse({
-// 		connection: new Connection('http://localhost:8899'),
-// 		wallet: new Wallet(new Keypair()),
-// 		programID: PublicKey.default,
-// 	}),
-// 	{
-// 		type: 'websocket',
-// 	}
-// );
-
 export class MockUserMap implements UserMapInterface {
 	private userMap = new Map<string, ClearingHouseUser>();
 	private userAccountToAuthority = new Map<string, string>();
