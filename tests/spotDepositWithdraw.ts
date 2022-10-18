@@ -41,6 +41,7 @@ import {
 	ZERO,
 	ONE,
 	SPOT_MARKET_BALANCE_PRECISION,
+	PRICE_PRECISION,
 } from '../sdk';
 
 describe('spot deposit and withdraw', () => {
@@ -264,6 +265,10 @@ describe('spot deposit and withdraw', () => {
 			firstUserClearingHouse.getUserAccount().spotPositions[0];
 		assert(isVariant(spotPosition.balanceType, 'deposit'));
 		assert(spotPosition.scaledBalance.eq(expectedBalance));
+
+		assert(
+			firstUserClearingHouse.getUserAccount().totalDeposits.eq(usdcAmount)
+		);
 	});
 
 	it('Second User Deposit SOL', async () => {
@@ -309,6 +314,12 @@ describe('spot deposit and withdraw', () => {
 			secondUserClearingHouse.getUserAccount().spotPositions[1];
 		assert(isVariant(spotPosition.balanceType, 'deposit'));
 		assert(spotPosition.scaledBalance.eq(expectedBalance));
+
+		assert(
+			secondUserClearingHouse
+				.getUserAccount()
+				.totalDeposits.eq(new BN(30).mul(PRICE_PRECISION))
+		);
 	});
 
 	it('Second User Withdraw First half USDC', async () => {
@@ -353,6 +364,10 @@ describe('spot deposit and withdraw', () => {
 		);
 
 		assert(withdrawAmount.eq(actualAmountWithdrawn));
+
+		assert(
+			secondUserClearingHouse.getUserAccount().totalWithdraws.eq(withdrawAmount)
+		);
 	});
 
 	it('Update Cumulative Interest with 50% utilization', async () => {
@@ -460,6 +475,11 @@ describe('spot deposit and withdraw', () => {
 			).value.amount
 		);
 		assert(expectedUserUSDCAmount.eq(userUSDCAmountAfter));
+		assert(
+			secondUserClearingHouse
+				.getUserAccount()
+				.totalWithdraws.eq(userUSDCAmountAfter)
+		);
 
 		const expectedSpotMarketBorrowBalance = spotMarketBorrowBalanceBefore.add(
 			increaseInspotPosition

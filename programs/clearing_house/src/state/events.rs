@@ -3,7 +3,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode::DefaultError};
-use crate::math::casting::{cast, cast_to_i64, cast_to_u64};
+use crate::math::casting::{cast, cast_to_u64};
 use crate::state::user::{MarketType, Order};
 use anchor_lang::Discriminator;
 use std::io::Write;
@@ -31,6 +31,8 @@ pub struct DepositRecord {
     pub market_withdraw_balance: u128,
     pub market_cumulative_deposit_interest: u128,
     pub market_cumulative_borrow_interest: u128,
+    pub total_deposits_after: u64,
+    pub total_withdraws_after: u64,
     pub transfer_user: Option<Pubkey>,
 }
 
@@ -147,7 +149,6 @@ pub struct OrderActionRecord {
     pub taker_order_base_asset_amount: Option<u64>,
     pub taker_order_cumulative_base_asset_amount_filled: Option<u64>,
     pub taker_order_cumulative_quote_asset_amount_filled: Option<u64>,
-    pub taker_order_fee: Option<i64>,
 
     pub maker: Option<Pubkey>,
     pub maker_order_id: Option<u32>,
@@ -155,7 +156,6 @@ pub struct OrderActionRecord {
     pub maker_order_base_asset_amount: Option<u64>,
     pub maker_order_cumulative_base_asset_amount_filled: Option<u64>,
     pub maker_order_cumulative_quote_asset_amount_filled: Option<u64>,
-    pub maker_order_fee: Option<i64>,
 
     pub oracle_price: i128,
 }
@@ -219,10 +219,6 @@ pub fn get_order_action_record(
             Some(order) => Some(cast_to_u64(order.quote_asset_amount_filled)?),
             None => None,
         },
-        taker_order_fee: match &taker_order {
-            Some(order) => Some(cast_to_i64(order.fee)?),
-            None => None,
-        },
         maker,
         maker_order_id: maker_order.map(|order| order.order_id),
         maker_order_direction: maker_order.map(|order| order.direction),
@@ -231,7 +227,6 @@ pub fn get_order_action_record(
             .map(|order| order.base_asset_amount_filled),
         maker_order_cumulative_quote_asset_amount_filled: maker_order
             .map(|order| order.quote_asset_amount_filled),
-        maker_order_fee: maker_order.map(|order| order.fee),
         oracle_price,
     })
 }

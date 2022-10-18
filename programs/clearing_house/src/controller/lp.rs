@@ -170,13 +170,12 @@ pub fn burn_lp_shares(
     let unsettled_remainder = market
         .amm
         .base_asset_amount_with_unsettled_lp
-        .cast::<i64>()?
         .checked_add(position.remainder_base_asset_amount.cast()?)
         .ok_or_else(math_error!())?;
 
-    if shares_to_burn == market.amm.user_lp_shares.cast()? && unsettled_remainder != 0 {
+    if shares_to_burn as u128 == market.amm.user_lp_shares && unsettled_remainder != 0 {
         crate::validate!(
-            unsettled_remainder.unsigned_abs() <= market.amm.order_step_size,
+            unsettled_remainder.unsigned_abs() <= market.amm.order_step_size as u128,
             ErrorCode::DefaultError,
             "unsettled baa on final burn too big rel to stepsize {}: {}",
             market.amm.order_step_size,
@@ -192,25 +191,25 @@ pub fn burn_lp_shares(
 
     // update stats
     if position.remainder_base_asset_amount != 0 {
-        let base_asset_amount = position.remainder_base_asset_amount.cast::<i128>()?;
+        let base_asset_amount = position.remainder_base_asset_amount as i128;
 
         // user closes the dust
         market.amm.base_asset_amount_with_amm = market
             .amm
             .base_asset_amount_with_amm
-            .checked_sub(base_asset_amount.cast()?)
+            .checked_sub(base_asset_amount)
             .ok_or_else(math_error!())?;
 
         market.amm.base_asset_amount_with_unsettled_lp = market
             .amm
             .base_asset_amount_with_unsettled_lp
-            .checked_add(base_asset_amount.cast()?)
+            .checked_add(base_asset_amount)
             .ok_or_else(math_error!())?;
 
         position.remainder_base_asset_amount = 0;
 
         let dust_base_asset_value =
-            calculate_base_asset_value_with_oracle_price(base_asset_amount.cast()?, oracle_price)?
+            calculate_base_asset_value_with_oracle_price(base_asset_amount, oracle_price)?
                 .checked_add(1) // round up
                 .ok_or_else(math_error!())?;
 
