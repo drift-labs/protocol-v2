@@ -53,6 +53,7 @@ import {
 	getPerpMarketPublicKey,
 	getSerumFulfillmentConfigPublicKey,
 	getSerumSignerPublicKey,
+	getSpotMarketPublicKey,
 	getUserAccountPublicKey,
 	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
@@ -1379,6 +1380,7 @@ export class ClearingHouse {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				spotMarket: spotMarket.pubkey,
+				oracle: spotMarket.oracle,
 			},
 		});
 	}
@@ -1757,6 +1759,60 @@ export class ClearingHouse {
 			},
 			remainingAccounts,
 		});
+	}
+
+	public async settleExpiredMarketPoolsToRevenuePool(
+		perpMarketIndex: number
+	): Promise<TransactionSignature> {
+		const marketAccountInfos = [];
+		const oracleAccountInfos = [];
+		const spotMarketAccountInfos = [];
+		const market = this.getPerpMarketAccount(perpMarketIndex);
+		marketAccountInfos.push({
+			pubkey: market.pubkey,
+			isWritable: true,
+			isSigner: false,
+		});
+		oracleAccountInfos.push({
+			pubkey: market.amm.oracle,
+			isWritable: false,
+			isSigner: false,
+		});
+
+		spotMarketAccountInfos.push({
+			pubkey: this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX).pubkey,
+			isSigner: false,
+			isWritable: true,
+		});
+
+		const remainingAccounts = oracleAccountInfos
+			.concat(spotMarketAccountInfos)
+			.concat(marketAccountInfos);
+
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		const spotMarketPublicKey = await getSpotMarketPublicKey(
+			this.program.programId,
+			QUOTE_SPOT_MARKET_INDEX
+		);
+
+		const ix =
+			await this.program.instruction.settleExpiredMarketPoolsToRevenuePool({
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.wallet.publicKey,
+					spotMarket: spotMarketPublicKey,
+					perpMarket: perpMarketPublicKey,
+				},
+				remainingAccounts,
+			});
+
+		const { txSig } = await this.txSender.send(wrapInTx(ix), [], this.opts);
+
+		return txSig;
 	}
 
 	public async cancelOrder(orderId?: number): Promise<TransactionSignature> {

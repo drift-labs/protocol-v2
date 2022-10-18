@@ -572,6 +572,20 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
+	public async updateStateSettlementDuration(
+		settlementDuration: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateStateSettlementDuration(
+			settlementDuration,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
 	public async updateWithdrawGuardThreshold(
 		spotMarketIndex: number,
 		withdrawGuardThreshold: BN

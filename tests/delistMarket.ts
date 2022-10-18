@@ -19,6 +19,7 @@ import {
 	EventSubscriber,
 	QUOTE_PRECISION,
 	calculateBaseAssetValueWithOracle,
+	OracleGuardRails,
 } from '../sdk/src';
 
 import {
@@ -210,8 +211,9 @@ describe('delist market', () => {
 	});
 
 	it('put market in big drawdown and net user positive pnl', async () => {
+		await sleep(1000);
 		await depositToFeePoolFromIF(1000, clearingHouse, userUSDCAccount);
-
+		await clearingHouse.fetchAccounts();
 		// try {
 		await clearingHouse.openPosition(
 			PositionDirection.SHORT,
@@ -227,9 +229,11 @@ describe('delist market', () => {
 
 		// todo
 		// try {
+		await clearingHouseLoser.fetchAccounts();
+
 		await clearingHouseLoser.openPosition(
 			PositionDirection.LONG,
-			new BN(2000),
+			new BN(2000 * 2),
 			0
 		);
 		// } catch (e) {
@@ -239,15 +243,9 @@ describe('delist market', () => {
 		// 	return 0;
 		// }
 
+		await clearingHouse.fetchAccounts();
 		const market00 = clearingHouse.getPerpMarketAccount(0);
 		assert(market00.amm.feePool.scaledBalance.eq(new BN(1000000000000)));
-
-		// sol tanks 90%
-		await clearingHouse.moveAmmToPrice(
-			0,
-			new BN(43.1337 * PRICE_PRECISION.toNumber()).div(new BN(10))
-		);
-		await setFeedPrice(anchor.workspace.Pyth, 43.1337 / 10, solOracle);
 
 		const solAmount = new BN(1 * 10 ** 9);
 		[liquidatorClearingHouse, liquidatorClearingHouseWSOLAccount] =
@@ -295,6 +293,70 @@ describe('delist market', () => {
 		);
 	});
 
+	it('go through multiple market state changes', async () => {
+		const marketIndex = 0;
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOracleDivergenceNumerator: new BN(10),
+				markOracleDivergenceDenominator: new BN(1),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
+				confidenceIntervalMaxSize: new BN(100000),
+				tooVolatileRatio: new BN(100000000),
+			},
+			useForLiquidations: false,
+		};
+
+		await clearingHouse.updateOracleGuardRails(oracleGuardRails);
+
+		await clearingHouse.updateFundingRate(marketIndex, solOracle);
+
+		await clearingHouse.fetchAccounts();
+		const perpMarket = await clearingHouse.getPerpMarketAccount(marketIndex);
+		console.log(perpMarket.amm.cumulativeFundingRateLong.toString());
+		assert(!perpMarket.amm.cumulativeFundingRateLong.eq(ZERO));
+
+		await liquidatorClearingHouse.addPerpLpShares(BASE_PRECISION, marketIndex);
+		await clearingHouse.updateK(
+			marketIndex,
+			perpMarket.amm.sqrtK.mul(new BN(10012345)).div(new BN(9912345))
+		);
+		await clearingHouse.openPosition(
+			PositionDirection.LONG,
+			BASE_PRECISION,
+			0,
+			new BN(0)
+		);
+		await clearingHouse.settlePNL(
+			await clearingHouse.getUserAccountPublicKey(),
+			clearingHouse.getUserAccount(),
+			marketIndex
+		);
+		await clearingHouse.updateK(marketIndex, perpMarket.amm.sqrtK);
+		await clearingHouse.openPosition(
+			PositionDirection.SHORT,
+			BASE_PRECISION,
+			0,
+			new BN(0)
+		);
+		await clearingHouse.updateFundingRate(marketIndex, solOracle);
+		await liquidatorClearingHouse.removePerpLpShares(marketIndex);
+		await clearingHouse.updateK(
+			marketIndex,
+			perpMarket.amm.sqrtK.mul(new BN(9912345)).div(new BN(10012345))
+		);
+		await liquidatorClearingHouse.closePosition(marketIndex);
+
+		// sol tanks 90%
+		await clearingHouse.moveAmmToPrice(
+			0,
+			new BN(43.1337 * PRICE_PRECISION.toNumber()).div(new BN(10))
+		);
+		await setFeedPrice(anchor.workspace.Pyth, 43.1337 / 10, solOracle);
+	});
+
 	it('put market in reduce only mode', async () => {
 		const marketIndex = 0;
 		const slot = await connection.getSlot();
@@ -328,37 +390,71 @@ describe('delist market', () => {
 			market.amm.totalFeeMinusDistributions.toString()
 		);
 
+		await clearingHouse.fetchAccounts();
+		console.log(
+			'lastOraclePriceTwap:',
+			market.amm.historicalOracleData.lastOraclePriceTwap.toString()
+		);
+		assert(
+			market.amm.historicalOracleData.lastOraclePriceTwap.eq(new BN(43133700))
+		);
+
 		// should fail
-		// try {
-		// 	await clearingHouseLoser.openPosition(
-		// 		PositionDirection.LONG,
-		// 		new BN(10000000),
-		// 		0,
-		// 		new BN(0)
-		// 	);
-		// 	console.log('risk increase trade succeed when it should have failed!');
+		try {
+			await clearingHouseLoser.openPosition(
+				PositionDirection.LONG,
+				new BN(10000000),
+				0,
+				new BN(0)
+			);
+			console.log('risk increase trade succeed when it should have failed!');
 
-		// 	assert(false);
-		// } catch (e) {
-		// 	console.log(e);
+			assert(false);
+		} catch (e) {
+			console.log(e);
 
-		// 	if (!e.toString().search('AnchorError occurred')) {
-		// 		assert(false);
-		// 	}
-		// 	console.log('risk increase trade failed');
-		// }
+			if (!e.toString().search('AnchorError occurred')) {
+				assert(false);
+			}
+			console.log('risk increase trade failed');
+		}
 
-		// await clearingHouseLoser.fetchAccounts();
+		await clearingHouseLoser.fetchAccounts();
 
-		// const loserUser0 = clearingHouseLoser.getUserAccount();
-		// console.log(loserUser0.perpPositions[0]);
-		// // should succeed
-		// await clearingHouseLoser.openPosition(
-		// 	PositionDirection.SHORT,
-		// 	new BN(10000000),
-		// 	0,
-		// 	new BN(0)
-		// );
+		const loserUser0 = clearingHouseLoser.getUserAccount();
+		console.log(loserUser0.perpPositions[0]);
+
+		await clearingHouse.fetchAccounts();
+		const marketBeforeReduceUser = clearingHouse.getPerpMarketAccount(0);
+		console.log(
+			'lastOraclePriceTwap:',
+			marketBeforeReduceUser.amm.historicalOracleData.lastOraclePriceTwap.toString()
+		);
+		assert(
+			marketBeforeReduceUser.amm.historicalOracleData.lastOraclePriceTwap.eq(
+				new BN(43133700)
+			)
+		);
+		// should succeed
+		await clearingHouseLoser.openPosition(
+			PositionDirection.SHORT,
+			new BN(2000),
+			0,
+			new BN(0)
+		);
+
+		await clearingHouse.fetchAccounts();
+		const marketBeforeReduceUser2 = clearingHouse.getPerpMarketAccount(0);
+		console.log(
+			'lastOraclePriceTwap:',
+			marketBeforeReduceUser2.amm.historicalOracleData.lastOraclePriceTwap.toString()
+		);
+		// assert(marketBeforeReduceUser2.amm.historicalOracleData.lastOraclePriceTwap.eq(new BN(28755800)))
+		assert(
+			marketBeforeReduceUser2.amm.historicalOracleData.lastOraclePriceTwap.eq(
+				new BN(19170534)
+			)
+		);
 	});
 
 	it('put market in settlement mode', async () => {
@@ -404,6 +500,9 @@ describe('delist market', () => {
 			'market.amm.historicalOracleData.lastOraclePriceTwap:',
 			convertToNumber(market.amm.historicalOracleData.lastOraclePriceTwap)
 		);
+		assert(
+			market.amm.historicalOracleData.lastOraclePriceTwap.eq(new BN(12780356))
+		);
 
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solOracle))
 			.price;
@@ -421,7 +520,11 @@ describe('delist market', () => {
 		assert(
 			market.amm.historicalOracleData.lastOraclePriceTwap.lt(market.expiryPrice)
 		);
-		assert(market.expiryPrice.eq(new BN(28755801)));
+		assert(
+			market.expiryPrice.eq(
+				market.amm.historicalOracleData.lastOraclePriceTwap.add(new BN(1))
+			)
+		);
 
 		const winningUser = clearingHouse.getUserAccount();
 		console.log(winningUser.perpPositions[0]);
@@ -467,11 +570,11 @@ describe('delist market', () => {
 		assert(loserUser.perpPositions[0].quoteAssetAmount.eq(new BN(0)));
 		const marketAfter0 = clearingHouse.getPerpMarketAccount(marketIndex);
 
-		const finalPnlResultMin0 = new BN(999978435 - 1090);
+		const finalPnlResultMin0 = new BN(1000021789000 - 100090);
 		console.log(marketAfter0.pnlPool.scaledBalance.toString());
 		assert(marketAfter0.pnlPool.scaledBalance.gt(finalPnlResultMin0));
 		assert(
-			marketAfter0.pnlPool.scaledBalance.lt(new BN(999978435000 + 1000000))
+			marketAfter0.pnlPool.scaledBalance.lt(new BN(1000021789000 + 1000000))
 		);
 
 		const txSig2 = await clearingHouse.settlePNL(
@@ -494,10 +597,10 @@ describe('delist market', () => {
 
 		const marketAfter = clearingHouse.getPerpMarketAccount(marketIndex);
 
-		const finalPnlResultMin = new BN(985673154000 - 109000);
+		const finalPnlResultMin = new BN(969700933000 - 109000);
 		console.log('pnlPool:', marketAfter.pnlPool.scaledBalance.toString());
 		assert(marketAfter.pnlPool.scaledBalance.gt(finalPnlResultMin));
-		assert(marketAfter.pnlPool.scaledBalance.lt(new BN(986673294000)));
+		assert(marketAfter.pnlPool.scaledBalance.lt(new BN(969700933000 + 109000)));
 
 		console.log('feePool:', marketAfter.amm.feePool.scaledBalance.toString());
 		console.log(
@@ -505,6 +608,63 @@ describe('delist market', () => {
 			marketAfter.amm.totalExchangeFee.toString()
 		);
 		assert(marketAfter.amm.feePool.scaledBalance.eq(new BN(21567000)));
-		assert(marketAfter.amm.totalExchangeFee.eq(new BN(43134)));
+		// assert(marketAfter.amm.totalExchangeFee.eq(new BN(43134)));
+		assert(marketAfter.amm.totalExchangeFee.eq(new BN(129401)));
+	});
+
+	it('put settle market pools to revenue pool', async () => {
+		const marketIndex = 0;
+		const market = clearingHouse.getPerpMarketAccount(marketIndex);
+		const userCostBasis = market.amm.quoteAssetAmountLong
+			.add(market.amm.quoteAssetAmountShort)
+			.add(market.amm.cumulativeSocialLoss);
+
+		console.log('userCostBasis:', userCostBasis.toString());
+		assert(userCostBasis.eq(ZERO));
+		try {
+			await clearingHouse.settleExpiredMarketPoolsToRevenuePool(marketIndex);
+		} catch (e) {
+			console.log('failed');
+		}
+
+		await clearingHouse.updateStateSettlementDuration(1000); // too far away
+		try {
+			await clearingHouse.settleExpiredMarketPoolsToRevenuePool(marketIndex);
+		} catch (e) {
+			console.log('failed');
+		}
+
+		await clearingHouse.updateStateSettlementDuration(1);
+		await clearingHouse.settleExpiredMarketPoolsToRevenuePool(marketIndex);
+
+		await clearingHouse.fetchAccounts();
+		const marketAfter = clearingHouse.getPerpMarketAccount(marketIndex);
+
+		console.log(
+			marketAfter.amm.baseAssetReserve.toString(),
+			marketAfter.amm.quoteAssetReserve.toString(),
+			marketAfter.amm.sqrtK.toString(),
+			marketAfter.amm.terminalQuoteAssetReserve.toString()
+		);
+
+		console.log(marketAfter.pnlPool.scaledBalance.toString());
+		console.log(marketAfter.amm.feePool.scaledBalance.toString());
+		assert(
+			marketAfter.amm.feePool.scaledBalance
+				.add(marketAfter.pnlPool.scaledBalance)
+				.eq(ZERO)
+		);
+
+		const usdcMarket = clearingHouse.getQuoteSpotMarketAccount();
+		console.log(usdcMarket.revenuePool.scaledBalance.toString());
+		assert(usdcMarket.revenuePool.scaledBalance.gt(ZERO));
+		assert(
+			usdcMarket.revenuePool.scaledBalance.gt(new BN(969765629000 - 100000))
+		);
+		assert(
+			usdcMarket.revenuePool.scaledBalance.lt(new BN(969765629000 + 100000))
+		);
+
+		console.log('works');
 	});
 });

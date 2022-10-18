@@ -15,7 +15,7 @@ use crate::instructions::constraints::*;
 use crate::instructions::keeper::SpotFulfillmentType;
 use crate::load;
 use crate::load_mut;
-use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
+use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128, cast_to_u32};
 use crate::math::constants::{
     DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
     DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE, IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX,
@@ -679,6 +679,7 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    let state = &ctx.accounts.state;
 
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
@@ -712,7 +713,19 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
     )?;
 
     validate!(
-        now > perp_market.expiry_ts + TWENTY_FOUR_HOUR,
+        state.settlement_duration != 0,
+        ErrorCode::DefaultError,
+        "invalid state.settlement_duration (is 0)"
+    )?;
+
+    let escrow_period_before_transfer = if state.settlement_duration > 1 {
+        TWENTY_FOUR_HOUR * cast_to_i64(state.settlement_duration - 1)?
+    } else {
+        cast_to_i64(state.settlement_duration)?
+    };
+
+    validate!(
+        now > perp_market.expiry_ts + escrow_period_before_transfer,
         ErrorCode::DefaultError,
         "must be TWENTY_FOUR_HOUR after market.expiry_ts"
     )?;
@@ -1596,6 +1609,14 @@ pub fn handle_update_oracle_guard_rails(
     oracle_guard_rails: OracleGuardRails,
 ) -> Result<()> {
     ctx.accounts.state.oracle_guard_rails = oracle_guard_rails;
+    Ok(())
+}
+
+pub fn handle_update_state_settlement_duration(
+    ctx: Context<AdminUpdateState>,
+    settlement_duration: u16,
+) -> Result<()> {
+    ctx.accounts.state.settlement_duration = settlement_duration;
     Ok(())
 }
 
