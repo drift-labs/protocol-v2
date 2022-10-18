@@ -17,7 +17,7 @@ import {
 	PerpMarketAccount,
 	OraclePriceData,
 	SlotSubscriber,
-	UserMap,
+	UserMapInterface,
 	MarketTypeStr,
 	StateAccount,
 	isMarketOrder,
@@ -70,7 +70,7 @@ export class DLOB {
 		Map<number, PerpMarketAccount | SpotMarketAccount>
 	>();
 
-	userMap: UserMap;
+	userMap: UserMapInterface;
 	silent = false;
 	initialized = false;
 
@@ -85,7 +85,7 @@ export class DLOB {
 		perpMarkets: PerpMarketAccount[],
 		spotMarkets: SpotMarketAccount[],
 		stateAccount: StateAccount,
-		userMap: UserMap,
+		userMap: UserMapInterface,
 		silent?: boolean
 	) {
 		this.stateAccount = stateAccount;
@@ -779,9 +779,21 @@ export class DLOB {
 		const bidOrder = bidNode.order;
 		const askOrder = askNode.order;
 
+		const bidUserAuthority = this.userMap.getUserAuthority(
+			bidNode.userAccount.toString()
+		);
+		const askUserAuthority = this.userMap.getUserAuthority(
+			askNode.userAccount.toString()
+		);
+
 		// Can't match two maker orders or if maker and taker are the same
+		const sameAuthority = bidUserAuthority.equals(askUserAuthority);
 		const makerIsTaker = bidNode.userAccount.equals(askNode.userAccount);
-		if (makerIsTaker || (bidOrder.postOnly && askOrder.postOnly)) {
+		if (
+			sameAuthority ||
+			makerIsTaker ||
+			(bidOrder.postOnly && askOrder.postOnly)
+		) {
 			// don't have a principle way to pick which one to exhaust,
 			// exhaust each one 50% of the time so we can try each one against other orders
 			const exhaustedSide = Math.random() < 0.5 ? 'bid' : 'ask';
