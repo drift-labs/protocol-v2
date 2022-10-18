@@ -784,6 +784,10 @@ export class ClearingHouseUser {
 						marginRatio = marginRatio.add(liquidationBuffer);
 					}
 
+					if (isVariant(market.status, 'settlement')) {
+						marginRatio = ZERO;
+					}
+
 					baseAssetValue = baseAssetValue
 						.mul(marginRatio)
 						.div(MARGIN_PRECISION);
