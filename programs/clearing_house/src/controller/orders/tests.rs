@@ -2689,7 +2689,6 @@ pub mod fulfill_order {
         let taker_order = &taker.orders[0].clone();
         assert_eq!(taker_order.base_asset_amount_filled, BASE_PRECISION_U64 / 2);
         assert_eq!(taker_order.quote_asset_amount_filled, 50000000);
-        assert_eq!(taker_order.fee, 25000);
 
         // BTC Market shouldnt be affected
         assert_eq!(taker.perp_positions[1], taker_before.perp_positions[1]);
@@ -4157,7 +4156,6 @@ pub mod fulfill_spot_order_with_match {
             taker_order.quote_asset_amount_filled,
             100 * QUOTE_PRECISION_U64
         );
-        assert_eq!(taker_order.fee, 50000);
 
         assert_eq!(taker_stats.taker_volume_30d, 100000000);
         assert_eq!(taker_stats.fees.total_fee_paid, 50000);
@@ -4314,7 +4312,6 @@ pub mod fulfill_spot_order_with_match {
             maker_order.quote_asset_amount_filled,
             100 * QUOTE_PRECISION_U64
         );
-        assert_eq!(maker_order.fee, -30000);
 
         assert_eq!(maker_stats.maker_volume_30d, 100000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);

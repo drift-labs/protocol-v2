@@ -238,7 +238,6 @@ pub fn place_order(
         base_asset_amount: order_base_asset_amount,
         base_asset_amount_filled: 0,
         quote_asset_amount_filled: 0,
-        fee: 0,
         direction: params.direction,
         reduce_only: params.reduce_only || force_reduce_only,
         trigger_price: params.trigger_price.unwrap_or(0),
@@ -1553,7 +1552,6 @@ pub fn fulfill_order_with_amm(
         &mut user.orders[order_index],
         base_asset_amount,
         quote_asset_amount,
-        cast(user_fee)?,
     )?;
 
     decrease_open_bids_and_asks(
@@ -1898,7 +1896,6 @@ pub fn fulfill_order_with_match(
         &mut taker.orders[taker_order_index],
         base_asset_amount_left_to_fill,
         quote_asset_amount,
-        taker_fee.cast()?,
     )?;
 
     decrease_open_bids_and_asks(
@@ -1911,7 +1908,6 @@ pub fn fulfill_order_with_match(
         &mut maker.orders[maker_order_index],
         base_asset_amount_left_to_fill,
         quote_asset_amount,
-        -maker_rebate.cast()?,
     )?;
 
     decrease_open_bids_and_asks(
@@ -1963,7 +1959,6 @@ pub fn update_order_after_fill(
     order: &mut Order,
     base_asset_amount: u64,
     quote_asset_amount: u64,
-    fee: i64,
 ) -> ClearingHouseResult {
     order.base_asset_amount_filled = order
         .base_asset_amount_filled
@@ -1974,8 +1969,6 @@ pub fn update_order_after_fill(
         .quote_asset_amount_filled
         .checked_add(quote_asset_amount)
         .ok_or_else(math_error!())?;
-
-    order.fee = order.fee.checked_add(fee).ok_or_else(math_error!())?;
 
     if order.get_base_asset_amount_unfilled()? == 0 {
         order.status = OrderStatus::Filled;
@@ -2433,7 +2426,6 @@ pub fn place_spot_order(
         base_asset_amount: order_base_asset_amount,
         base_asset_amount_filled: 0,
         quote_asset_amount_filled: 0,
-        fee: 0,
         direction: params.direction,
         reduce_only: params.reduce_only || force_reduce_only,
         trigger_price: params.trigger_price.unwrap_or(0),
@@ -3154,7 +3146,6 @@ pub fn fulfill_spot_order_with_match(
         &mut taker.orders[taker_order_index],
         base_asset_amount,
         quote_asset_amount,
-        taker_fee.cast()?,
     )?;
 
     let taker_order_direction = taker.orders[taker_order_index].direction;
@@ -3198,7 +3189,6 @@ pub fn fulfill_spot_order_with_match(
         &mut maker.orders[maker_order_index],
         base_asset_amount,
         quote_asset_amount,
-        -maker_rebate.cast()?,
     )?;
 
     let maker_order_direction = maker.orders[maker_order_index].direction;
@@ -3676,7 +3666,6 @@ pub fn fulfill_spot_order_with_serum(
         &mut taker.orders[taker_order_index],
         base_asset_amount_filled,
         quote_asset_amount_filled,
-        taker_fee.cast()?,
     )?;
 
     let taker_order_direction = taker.orders[taker_order_index].direction;

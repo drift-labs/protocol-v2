@@ -465,7 +465,6 @@ describe('orders', () => {
 		const expectedFee = new BN(1001);
 		assert(orderRecord.ts.gt(ZERO));
 		assert(orderRecord.takerFee.eq(expectedFee));
-		assert(orderRecord.takerOrderFee.eq(expectedFee));
 		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
 		assert(
 			orderRecord.taker.equals(
