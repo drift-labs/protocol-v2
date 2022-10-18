@@ -34,9 +34,6 @@ pub fn handle_fill_order<'info>(
     order_id: Option<u32>,
     maker_order_id: Option<u32>,
 ) -> Result<()> {
-    let clock = &Clock::get()?;
-    let state = &ctx.accounts.state;
-
     let (order_id, market_index) = {
         let user = &load!(ctx.accounts.user)?;
         // if there is no order id, use the users last order id
@@ -50,6 +47,23 @@ pub fn handle_fill_order<'info>(
         };
         (order_id, market_index)
     };
+
+    fill_order(ctx, order_id, market_index, maker_order_id).map_err(|e| {
+        msg!("Err filling order id {}", order_id);
+        e
+    })?;
+
+    Ok(())
+}
+
+fn fill_order(
+    ctx: Context<FillOrder>,
+    order_id: u32,
+    market_index: u16,
+    maker_order_id: Option<u32>,
+) -> Result<()> {
+    let clock = &Clock::get()?;
+    let state = &ctx.accounts.state;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
@@ -136,6 +150,28 @@ pub fn handle_fill_spot_order<'info>(
         (order_id, market_index)
     };
 
+    fill_spot_order(
+        ctx,
+        order_id,
+        market_index,
+        fulfillment_type,
+        maker_order_id,
+    )
+    .map_err(|e| {
+        msg!("Err filling order id {}", order_id);
+        e
+    })?;
+
+    Ok(())
+}
+
+fn fill_spot_order(
+    ctx: Context<FillOrder>,
+    order_id: u32,
+    market_index: u16,
+    fulfillment_type: Option<SpotFulfillmentType>,
+    maker_order_id: Option<u32>,
+) -> Result<()> {
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
