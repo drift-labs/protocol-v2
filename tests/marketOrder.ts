@@ -241,7 +241,6 @@ describe('market order', () => {
 		const expectedFee = new BN(1001);
 		assert(orderActionRecord.ts.gt(ZERO));
 		assert(orderActionRecord.takerFee.eq(expectedFee));
-		assert(orderActionRecord.takerOrderFee.eq(expectedFee));
 		assert(isVariant(orderActionRecord.action, 'fill'));
 		assert(
 			orderActionRecord.taker.equals(
@@ -285,7 +284,6 @@ describe('market order', () => {
 		const expectedFee = new BN(1000);
 		assert(orderActionRecord.ts.gt(ZERO));
 		assert(orderActionRecord.takerFee.eq(expectedFee));
-		assert(orderActionRecord.takerOrderFee.eq(expectedFee));
 		assert(isVariant(orderActionRecord.action, 'fill'));
 		assert(
 			orderActionRecord.taker.equals(

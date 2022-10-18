@@ -4042,6 +4042,18 @@
             "type": "i64"
           },
           {
+            "name": "totalDeposits",
+            "type": "u64"
+          },
+          {
+            "name": "totalWithdraws",
+            "type": "u64"
+          },
+          {
+            "name": "settledPerpPnl",
+            "type": "i64"
+          },
+          {
             "name": "nextOrderId",
             "type": "u32"
           },
@@ -6022,6 +6034,16 @@
         {
           "name": "marketCumulativeBorrowInterest",
           "type": "u128",
+          "index": false
+        },
+        {
+          "name": "totalDepositsAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "totalWithdrawsAfter",
+          "type": "u64",
           "index": false
         },
         {

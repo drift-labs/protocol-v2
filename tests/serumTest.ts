@@ -289,7 +289,6 @@ describe('serum spot market', () => {
 		assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
 		assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
 		assert(orderActionRecord.takerFee.eq(new BN(100000)));
-		assert(orderActionRecord.takerOrderFee.eq(new BN(100000)));
 
 		assert(makerClearingHouse.getQuoteAssetTokenAmount().eq(new BN(10000)));
 
@@ -397,7 +396,6 @@ describe('serum spot market', () => {
 		assert(isVariant(orderActionRecord.action, 'fill'));
 		assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
 		assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
-		assert(orderActionRecord.takerOrderFee.eq(new BN(100000)));
 		assert(orderActionRecord.takerFee.eq(new BN(100000)));
 
 		assert(makerClearingHouse.getQuoteAssetTokenAmount().eq(new BN(20000)));
@@ -510,7 +508,6 @@ describe('serum spot market', () => {
 		assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
 		assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
 		assert(orderActionRecord.takerFee.eq(new BN(100000)));
-		assert(orderActionRecord.takerOrderFee.eq(new BN(100000)));
 
 		const solSpotMarket =
 			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
@@ -606,7 +603,6 @@ describe('serum spot market', () => {
 		assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
 		assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
 		assert(orderActionRecord.takerFee.eq(new BN(100000)));
-		assert(orderActionRecord.takerOrderFee.eq(new BN(100000)));
 
 		const solSpotMarket =
 			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
