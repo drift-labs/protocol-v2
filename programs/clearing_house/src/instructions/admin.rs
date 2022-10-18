@@ -712,7 +712,7 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
     )?;
 
     validate!(
-        now > perp_market.expiry_ts, // + TWENTY_FOUR_HOUR,
+        now > perp_market.expiry_ts + TWENTY_FOUR_HOUR,
         ErrorCode::DefaultError,
         "must be TWENTY_FOUR_HOUR after market.expiry_ts"
     )?;
