@@ -667,6 +667,9 @@ export type UserAccount = {
 	nextOrderId: number;
 	maxMarginRatio: number;
 	lastAddPerpLpSharesTs: BN;
+	settledPerpPnl: BN;
+	totalDeposits: BN;
+	totalWithdraws: BN;
 };
 
 export type SpotPosition = {

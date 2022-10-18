@@ -33,6 +33,9 @@ pub struct User {
     pub perp_positions: [PerpPosition; 8],
     pub orders: [Order; 32],
     pub last_add_perp_lp_shares_ts: i64,
+    pub total_deposits: u64,
+    pub total_withdraws: u64,
+    pub settled_perp_pnl: i64,
     pub next_order_id: u32,
     pub max_margin_ratio: u32,
     pub next_liquidation_id: u16,
@@ -148,6 +151,42 @@ impl User {
         } else {
             self.next_order_id - 1
         }
+    }
+
+    pub fn increment_total_deposits(
+        &mut self,
+        amount: u64,
+        price: i128,
+        precision: u128,
+    ) -> ClearingHouseResult {
+        let value = amount
+            .cast::<u128>()?
+            .checked_mul(price.unsigned_abs())
+            .ok_or_else(math_error!())?
+            .checked_div(precision)
+            .ok_or_else(math_error!())?
+            .cast::<u64>()?;
+        self.total_deposits = self.total_deposits.saturating_add(value);
+
+        Ok(())
+    }
+
+    pub fn increment_total_withdraws(
+        &mut self,
+        amount: u64,
+        price: i128,
+        precision: u128,
+    ) -> ClearingHouseResult {
+        let value = amount
+            .cast::<u128>()?
+            .checked_mul(price.unsigned_abs())
+            .ok_or_else(math_error!())?
+            .checked_div(precision)
+            .ok_or_else(math_error!())?
+            .cast::<u64>()?;
+        self.total_withdraws = self.total_withdraws.saturating_add(value);
+
+        Ok(())
     }
 }
 

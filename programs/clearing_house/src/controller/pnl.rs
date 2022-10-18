@@ -3,15 +3,16 @@ use crate::controller::funding::settle_funding_payment;
 use crate::controller::orders::{cancel_orders, validate_market_within_price_band};
 use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount, update_settled_pnl,
-    PositionDelta,
+    update_user_settled_pnl, PositionDelta,
 };
-use crate::controller::spot_balance::update_spot_market_cumulative_interest;
-use crate::controller::spot_position::update_spot_position_balance;
+use crate::controller::spot_balance::{
+    update_spot_balances, update_spot_market_cumulative_interest,
+};
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::calculate_net_user_pnl;
 use crate::math::casting::cast_to_i128;
 use crate::math::casting::cast_to_i64;
-use crate::math::casting::{cast, Cast};
+use crate::math::casting::Cast;
 use crate::math::margin::meets_maintenance_margin_requirement;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_expiry_price;
 use crate::math::spot_balance::get_token_amount;
@@ -133,7 +134,7 @@ pub fn settle_pnl(
         "User must settle their own unsettled pnl when its positive and pnl pool not in excess"
     )?;
 
-    update_spot_position_balance(
+    update_spot_balances(
         pnl_to_settle_with_user.unsigned_abs(),
         if pnl_to_settle_with_user > 0 {
             &SpotBalanceType::Deposit
@@ -151,10 +152,7 @@ pub fn settle_pnl(
         -pnl_to_settle_with_user.cast()?,
     )?;
 
-    update_settled_pnl(
-        &mut user.perp_positions[position_index],
-        cast(pnl_to_settle_with_user)?,
-    )?;
+    update_settled_pnl(user, position_index, pnl_to_settle_with_user.cast()?)?;
 
     let base_asset_amount = user.perp_positions[position_index].base_asset_amount;
     let quote_asset_amount_after = user.perp_positions[position_index].quote_asset_amount;
@@ -277,6 +275,8 @@ pub fn settle_expired_position(
         user,
         unrealized_pnl_with_fee,
     )?;
+
+    update_user_settled_pnl(user, unrealized_pnl_with_fee.cast()?)?;
 
     let user_position = &mut user.perp_positions[position_index];
 
