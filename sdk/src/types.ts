@@ -413,7 +413,6 @@ export type OrderActionRecord = {
 	makerOrderBaseAssetAmount: BN | null;
 	makerOrderCumulativeBaseAssetAmountFilled: BN | null;
 	makerOrderCumulativeQuoteAssetAmountFilled: BN | null;
-	makerOrderFee: BN | null;
 	oraclePrice: BN;
 };
 
@@ -694,7 +693,6 @@ export type Order = {
 	baseAssetAmountFilled: BN;
 	quoteAssetAmount: BN;
 	quoteAssetAmountFilled: BN;
-	fee: BN;
 	direction: PositionDirection;
 	reduceOnly: boolean;
 	triggerPrice: BN;
