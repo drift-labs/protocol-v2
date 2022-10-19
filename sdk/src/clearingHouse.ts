@@ -2685,6 +2685,63 @@ export class ClearingHouse {
 		});
 	}
 
+	/**
+	 * Edits an open order by closing it and replacing it with a new order.
+	 * @param orderId: The order to edit
+	 * @param newBaseAmount: The new base amount for the order. One of newBaseAmount or newLimitPrice must be provided.
+	 * @param newLimitPice: The new limit price for the order. One of newBaseAmount or newLimitPrice must be provided.
+	 * @returns
+	 */
+	public async editPerpOrder(
+		orderId: number,
+		newBaseAmount?: BN,
+		newLimitPrice?: BN
+	): Promise<TransactionSignature> {
+		if (!newBaseAmount && !newLimitPrice) {
+			throw new Error(
+				`Must provide newBaseAmount or newLimitPrice to edit order`
+			);
+		}
+
+		const openOrder = this.getUser().getOrder(orderId);
+		if (!openOrder) {
+			throw new Error(`No open order with id ${orderId.toString()}`);
+		}
+		const cancelOrderIx = await this.getCancelOrderIx(orderId);
+
+		const newOrderParams = {
+			orderType: openOrder.orderType,
+			MarketType: openOrder.marketType,
+			direction: openOrder.direction,
+			baseAssetAmount: newBaseAmount || openOrder.baseAssetAmount,
+			price: newLimitPrice || openOrder.price,
+			marketIndex: openOrder.marketIndex,
+			reduceOnly: openOrder.reduceOnly,
+			postOnly: openOrder.postOnly,
+			immediateOrCancel: openOrder.immediateOrCancel,
+			triggerPrice: openOrder.triggerPrice,
+			triggerCondition: openOrder.triggerCondition,
+			oraclePriceOffset: openOrder.oraclePriceOffset,
+			auctionDuration: openOrder.auctionDuration,
+			timeInforce: openOrder.timeInForce,
+			auctionStartPrice: openOrder.auctionStartPrice,
+		};
+		const placeOrderIx = await this.getPlaceOrderIx(newOrderParams);
+
+		const tx = new Transaction();
+		tx.add(
+			ComputeBudgetProgram.requestUnits({
+				units: 1_000_000,
+				additionalFee: 0,
+			})
+		);
+		tx.add(cancelOrderIx);
+		tx.add(placeOrderIx);
+		const { txSig, slot } = await this.txSender.send(tx, [], this.opts);
+		this.marketLastSlotCache.set(newOrderParams.marketIndex, slot);
+		return txSig;
+	}
+
 	public async settlePNLs(
 		users: {
 			settleeUserAccountPublicKey: PublicKey;
