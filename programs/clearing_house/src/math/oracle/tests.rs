@@ -92,5 +92,5 @@ fn calculate_oracle_valid() {
     oracle_status =
         get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
     assert!(oracle_status.mark_too_divergent);
-    assert!(oracle_status.oracle_validity == OracleValidity::Invalid);
+    assert!(oracle_status.oracle_validity == OracleValidity::TooUncertain);
 }

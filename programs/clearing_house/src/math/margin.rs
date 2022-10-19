@@ -10,7 +10,6 @@ use crate::math::position::{
 };
 use crate::math_error;
 
-use crate::state::user::User;
 use crate::validate;
 
 use crate::math::casting::{cast_to_i128, Cast};
@@ -24,11 +23,11 @@ use crate::math::spot_balance::{
 
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
-use crate::state::perp_market::{MarketStatus, PerpMarket};
+use crate::state::perp_market::{ContractTier, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
-use crate::state::user::{PerpPosition, SpotPosition};
+use crate::state::user::{PerpPosition, SpotPosition, User};
 use num_integer::Roots;
 use solana_program::msg;
 use std::cmp::{max, min, Ordering};
@@ -481,6 +480,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             .ok_or_else(math_error!())?;
 
         num_of_liabilities += 1;
+        with_isolated_liability &=
+            margin_requirement > 0 && market.contract_tier == ContractTier::Isolated;
     }
 
     Ok((

@@ -20,6 +20,7 @@ mod tests;
 pub enum OracleValidity {
     Invalid,
     TooVolatile,
+    TooUncertain,
     StaleForMargin,
     InsufficientDataPoints,
     StaleForAMM,
@@ -63,6 +64,7 @@ pub fn is_oracle_valid_for_action(
                 oracle_validity,
                 OracleValidity::Invalid
                     | OracleValidity::TooVolatile
+                    | OracleValidity::TooUncertain
                     | OracleValidity::StaleForMargin
             ),
             DriftAction::TriggerOrder => !matches!(
@@ -71,13 +73,17 @@ pub fn is_oracle_valid_for_action(
             ),
             DriftAction::SettlePnl => !matches!(
                 oracle_validity,
-                OracleValidity::Invalid | OracleValidity::TooVolatile
-            ),
-            DriftAction::Liquidate => !matches!(
-                oracle_validity,
-                OracleValidity::Invalid | OracleValidity::TooVolatile
+                OracleValidity::Invalid
+                    | OracleValidity::TooVolatile
+                    | OracleValidity::TooUncertain
             ),
             DriftAction::FillOrderMatch => !matches!(
+                oracle_validity,
+                OracleValidity::Invalid
+                    | OracleValidity::TooVolatile
+                    | OracleValidity::TooUncertain
+            ),
+            DriftAction::Liquidate => !matches!(
                 oracle_validity,
                 OracleValidity::Invalid | OracleValidity::TooVolatile
             ),
@@ -189,6 +195,7 @@ pub fn oracle_validity(
         .checked_div(cast_to_u128(oracle_price)?)
         .ok_or_else(math_error!())?;
 
+    // TooUncertain
     let is_conf_too_large =
         conf_pct_of_price.gt(&valid_oracle_guard_rails.confidence_interval_max_size);
     if is_conf_too_large {
@@ -204,10 +211,12 @@ pub fn oracle_validity(
         msg!("Invalid Oracle: Stale (oracle_delay={:?})", oracle_delay);
     }
 
-    let oracle_validity = if is_oracle_price_nonpositive || is_conf_too_large {
+    let oracle_validity = if is_oracle_price_nonpositive {
         OracleValidity::Invalid
     } else if is_oracle_price_too_volatile {
         OracleValidity::TooVolatile
+    } else if is_conf_too_large {
+        OracleValidity::TooUncertain
     } else if is_stale_for_margin {
         OracleValidity::StaleForMargin
     } else if !has_sufficient_number_of_data_points {

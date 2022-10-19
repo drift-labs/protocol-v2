@@ -60,6 +60,7 @@ pub enum ContractTier {
     B,           // max insurance capped at B level
     C,           // max insurance capped at C level
     Speculative, // no insurance
+    Isolated,    // no insurance, only single position allowed
 }
 
 impl Default for ContractTier {
@@ -119,6 +120,7 @@ impl PerpMarket {
             ContractTier::B => Some(5_i128),   // 20%
             ContractTier::C => Some(2_i128),   // 50%
             ContractTier::Speculative => None, // DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR
+            ContractTier::Isolated => None,    // DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR
         })
     }
 
