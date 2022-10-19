@@ -712,6 +712,7 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
         "outstanding quote_asset_amounts must be balanced"
     )?;
 
+    // block when settlement_duration is default/unconfigured
     validate!(
         state.settlement_duration != 0,
         ErrorCode::DefaultError,
@@ -719,15 +720,23 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
     )?;
 
     let escrow_period_before_transfer = if state.settlement_duration > 1 {
-        TWENTY_FOUR_HOUR * cast_to_i64(state.settlement_duration - 1)?
+        // minimum of TWENTY_FOUR_HOUR to examine settlement process
+        TWENTY_FOUR_HOUR
+            .checked_add(cast_to_i64(state.settlement_duration - 1)?)
+            .ok_or_else(math_error!())?
     } else {
+        // for testing / expediting if settlement_duration not default but 1
         cast_to_i64(state.settlement_duration)?
     };
 
     validate!(
-        now > perp_market.expiry_ts + escrow_period_before_transfer,
+        now > perp_market
+            .expiry_ts
+            .checked_add(escrow_period_before_transfer)
+            .ok_or_else(math_error!())?,
         ErrorCode::DefaultError,
-        "must be TWENTY_FOUR_HOUR after market.expiry_ts"
+        "must be escrow_period_before_transfer={} after market.expiry_ts",
+        escrow_period_before_transfer
     )?;
 
     let depositors_amount_before: u64 = cast(get_token_amount(

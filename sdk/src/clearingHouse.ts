@@ -1764,31 +1764,6 @@ export class ClearingHouse {
 	public async settleExpiredMarketPoolsToRevenuePool(
 		perpMarketIndex: number
 	): Promise<TransactionSignature> {
-		const marketAccountInfos = [];
-		const oracleAccountInfos = [];
-		const spotMarketAccountInfos = [];
-		const market = this.getPerpMarketAccount(perpMarketIndex);
-		marketAccountInfos.push({
-			pubkey: market.pubkey,
-			isWritable: true,
-			isSigner: false,
-		});
-		oracleAccountInfos.push({
-			pubkey: market.amm.oracle,
-			isWritable: false,
-			isSigner: false,
-		});
-
-		spotMarketAccountInfos.push({
-			pubkey: this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX).pubkey,
-			isSigner: false,
-			isWritable: true,
-		});
-
-		const remainingAccounts = oracleAccountInfos
-			.concat(spotMarketAccountInfos)
-			.concat(marketAccountInfos);
-
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			perpMarketIndex
@@ -1807,7 +1782,6 @@ export class ClearingHouse {
 					spotMarket: spotMarketPublicKey,
 					perpMarket: perpMarketPublicKey,
 				},
-				remainingAccounts,
 			});
 
 		const { txSig } = await this.txSender.send(wrapInTx(ix), [], this.opts);
