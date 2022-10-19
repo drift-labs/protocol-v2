@@ -146,7 +146,6 @@ pub mod amm_jit {
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION_U64,
-                ts: 0,
                 slot: 0,
                 auction_start_price: 0,
                 auction_end_price: 100 * PRICE_PRECISION_U64,
@@ -176,7 +175,6 @@ pub mod amm_jit {
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION_U64 / 2,
-                ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
@@ -318,7 +316,6 @@ pub mod amm_jit {
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION_U64 * 2, // if amm takes half it would flip
-                ts: 0,
                 slot: 0,
                 price: 100 * PRICE_PRECISION as u64,
                 auction_start_price: 0,
@@ -348,7 +345,6 @@ pub mod amm_jit {
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION_U64 * 2, // maker wants full = amm wants BASE_PERCISION
-                ts: 0,
                 price: 99 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
@@ -503,7 +499,6 @@ pub mod amm_jit {
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION_U64 * taker_mul as u64, // if amm takes half it would flip
-                ts: 0,
                 slot: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 auction_start_price: 0,
@@ -533,7 +528,6 @@ pub mod amm_jit {
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION_U64 * taker_mul as u64, // maker wants full = amm wants BASE_PERCISION
-                ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
@@ -703,7 +697,6 @@ pub mod amm_jit {
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short, // doesnt improve balance
                 base_asset_amount: BASE_PRECISION_U64,
-                ts: 0,
                 slot: 0,
                 auction_start_price: 0,
                 auction_end_price: 100 * PRICE_PRECISION_U64,
@@ -732,7 +725,6 @@ pub mod amm_jit {
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION_U64 / 2,
-                ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
@@ -897,7 +889,6 @@ pub mod amm_jit {
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION_U64,
-                ts: 0,
                 slot: 0,
                 auction_start_price: 0,
                 auction_end_price: 100 * PRICE_PRECISION_U64,
@@ -926,7 +917,6 @@ pub mod amm_jit {
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION_U64 / 2,
-                ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
@@ -1095,7 +1085,6 @@ pub mod amm_jit {
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION_U64,
-                ts: 0,
                 slot: 0,
                 auction_start_price: 99 * PRICE_PRECISION_U64,
                 auction_end_price: 100 * PRICE_PRECISION_U64,
@@ -1125,7 +1114,6 @@ pub mod amm_jit {
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION_U64 / 2,
-                ts: 0,
                 price: 100 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
@@ -1279,7 +1267,6 @@ pub mod amm_jit {
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION_U64,
-                ts: 0,
                 slot: 0,
                 auction_start_price: 0,
                 auction_end_price: 100 * PRICE_PRECISION_U64,
@@ -1308,7 +1295,6 @@ pub mod amm_jit {
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION_U64 / 2,
-                ts: 0,
                 price: 10 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
@@ -1488,7 +1474,6 @@ pub mod amm_jit {
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION_U64,
-                ts: 0,
                 slot: 0,
                 auction_end_price: 0,
                 auction_start_price: 200 * PRICE_PRECISION as u64,
@@ -1517,7 +1502,6 @@ pub mod amm_jit {
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION_U64 / 2,
-                ts: 0,
                 price: 200 * PRICE_PRECISION_U64,
                 ..Order::default()
             }),
@@ -1688,7 +1672,6 @@ pub mod amm_jit {
                 order_type: OrderType::Market,
                 direction: PositionDirection::Long,
                 base_asset_amount: 100 * BASE_PRECISION_U64,
-                ts: 0,
                 slot: 0,
                 auction_duration,
                 ..Order::default()
@@ -1768,7 +1751,6 @@ pub mod amm_jit {
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Short,
                     base_asset_amount: baa as u64,
-                    ts: 0,
                     price: auction_price,
                     ..Order::default()
                 }),
@@ -1956,7 +1938,6 @@ pub mod amm_jit {
                 order_type: OrderType::Market,
                 direction: PositionDirection::Short,
                 base_asset_amount: 100 * BASE_PRECISION_U64,
-                ts: 0,
                 slot: 0,
                 auction_duration, // !! amm will bid before the ask spread price
                 auction_end_price: 0,
@@ -2040,7 +2021,6 @@ pub mod amm_jit {
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Long,
                     base_asset_amount: baa as u64,
-                    ts: 0,
                     price: auction_price,
                     ..Order::default()
                 }),

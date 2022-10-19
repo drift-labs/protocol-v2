@@ -459,7 +459,6 @@ pub type PerpPositions = [PerpPosition; 8];
 #[repr(C)]
 #[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub struct Order {
-    pub ts: i64,
     pub slot: u64,
     pub price: u64,
     pub base_asset_amount: u64,
@@ -630,7 +629,6 @@ impl Default for Order {
             status: OrderStatus::Init,
             order_type: OrderType::Limit,
             market_type: MarketType::Perp,
-            ts: 0,
             slot: 0,
             order_id: 0,
             user_order_id: 0,

@@ -686,7 +686,6 @@ export type Order = {
 	status: OrderStatus;
 	orderType: OrderType;
 	marketType: MarketType;
-	ts: BN;
 	slot: BN;
 	orderId: number;
 	userOrderId: number;

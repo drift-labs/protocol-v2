@@ -228,7 +228,6 @@ pub fn place_order(
         status: OrderStatus::Open,
         order_type: params.order_type,
         market_type: params.market_type,
-        ts: now,
         slot,
         order_id: get_then_update_id!(user, next_order_id),
         user_order_id: params.user_order_id,
@@ -1400,8 +1399,8 @@ pub fn fulfill_order_with_amm(
 
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
 
-    let (order_post_only, order_ts, order_direction) =
-        get_struct_values!(user.orders[order_index], post_only, ts, direction);
+    let (order_post_only, order_slot, order_direction) =
+        get_struct_values!(user.orders[order_index], post_only, slot, direction);
 
     controller::validate::validate_amm_account_for_fill(&market.amm, order_direction)?;
 
@@ -1448,8 +1447,8 @@ pub fn fulfill_order_with_amm(
         user_stats,
         quote_asset_amount,
         fee_structure,
-        order_ts,
-        now,
+        order_slot,
+        slot,
         filler.is_some(),
         reward_referrer,
         referrer_stats,
@@ -1820,8 +1819,8 @@ pub fn fulfill_order_with_match(
         maker_stats,
         quote_asset_amount,
         fee_structure,
-        taker.orders[taker_order_index].ts,
-        now,
+        taker.orders[taker_order_index].slot,
+        slot,
         filler_multiplier,
         reward_referrer,
         referrer_stats,
@@ -2416,7 +2415,6 @@ pub fn place_spot_order(
         status: OrderStatus::Open,
         order_type: params.order_type,
         market_type: params.market_type,
-        ts: now,
         slot,
         order_id: get_then_update_id!(user, next_order_id),
         user_order_id: params.user_order_id,
@@ -3041,7 +3039,7 @@ pub fn fulfill_spot_order_with_match(
     )?;
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
-    let taker_order_ts = taker.orders[taker_order_index].ts;
+    let taker_order_slot = taker.orders[taker_order_index].slot;
     let taker_spot_position_index = taker.get_spot_position_index(market_index)?;
     let taker_direction = taker.orders[taker_order_index].direction;
 
@@ -3108,8 +3106,8 @@ pub fn fulfill_spot_order_with_match(
         maker_stats,
         quote_asset_amount,
         fee_structure,
-        taker_order_ts,
-        now,
+        taker_order_slot,
+        slot,
         filler_multiplier,
         false,
         &None,
@@ -3314,7 +3312,7 @@ pub fn fulfill_spot_order_with_serum(
     let taker_base_asset_amount =
         taker.orders[taker_order_index].get_base_asset_amount_unfilled()?;
     let order_direction = taker.orders[taker_order_index].direction;
-    let taker_order_ts = taker.orders[taker_order_index].ts;
+    let taker_order_slot = taker.orders[taker_order_index].slot;
 
     let (best_bid, best_ask) = get_best_bid_and_ask(
         serum_new_order_accounts.serum_market,
@@ -3611,8 +3609,8 @@ pub fn fulfill_spot_order_with_serum(
         taker_stats,
         quote_asset_amount_filled,
         fee_structure,
-        taker_order_ts,
-        now,
+        taker_order_slot,
+        slot,
         filler.is_some(),
         serum_fee,
         serum_referrer_rebate,

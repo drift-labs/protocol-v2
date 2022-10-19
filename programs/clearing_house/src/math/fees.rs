@@ -33,8 +33,8 @@ pub fn calculate_fee_for_fulfillment_with_amm(
     user_stats: &UserStats,
     quote_asset_amount: u64,
     fee_structure: &FeeStructure,
-    order_ts: i64,
-    now: i64,
+    order_slot: u64,
+    clock_slot: u64,
     reward_filler: bool,
     reward_referrer: bool,
     referrer_stats: &Option<&mut UserStats>,
@@ -51,8 +51,8 @@ pub fn calculate_fee_for_fulfillment_with_amm(
         } else {
             calculate_filler_reward(
                 quote_asset_amount,
-                order_ts,
-                now,
+                order_slot,
+                clock_slot,
                 0,
                 &fee_structure.filler_reward_structure,
             )?
@@ -91,8 +91,8 @@ pub fn calculate_fee_for_fulfillment_with_amm(
         } else {
             calculate_filler_reward(
                 fee,
-                order_ts,
-                now,
+                order_slot,
+                clock_slot,
                 0,
                 &fee_structure.filler_reward_structure,
             )?
@@ -181,8 +181,8 @@ fn calculate_referee_fee_and_referrer_reward(
 
 fn calculate_filler_reward(
     fee: u64,
-    order_ts: i64,
-    now: i64,
+    order_slot: u64,
+    clock_slot: u64,
     multiplier: u128,
     filler_reward_structure: &OrderFillerRewardStructure,
 ) -> ClearingHouseResult<u64> {
@@ -208,11 +208,15 @@ fn calculate_filler_reward(
         .checked_div(multiplier_precision)
         .ok_or_else(math_error!())?;
 
-    let time_since_order = max(
+    let slots_since_order = max(
         1,
-        cast_to_u128(now.checked_sub(order_ts).ok_or_else(math_error!())?)?,
+        cast_to_u128(
+            clock_slot
+                .checked_sub(order_slot)
+                .ok_or_else(math_error!())?,
+        )?,
     );
-    let time_filler_reward = time_since_order
+    let time_filler_reward = slots_since_order
         .checked_mul(100_000_000) // 1e8
         .ok_or_else(math_error!())?
         .nth_root(4)
@@ -233,8 +237,8 @@ pub fn calculate_fee_for_fulfillment_with_match(
     maker_stats: &UserStats,
     quote_asset_amount: u64,
     fee_structure: &FeeStructure,
-    order_ts: i64,
-    now: i64,
+    order_slot: u64,
+    clock_slot: u64,
     filler_multiplier: u128,
     reward_referrer: bool,
     referrer_stats: &Option<&mut UserStats>,
@@ -263,8 +267,8 @@ pub fn calculate_fee_for_fulfillment_with_match(
     } else {
         calculate_filler_reward(
             taker_fee,
-            order_ts,
-            now,
+            order_slot,
+            clock_slot,
             filler_multiplier,
             &fee_structure.filler_reward_structure,
         )?
@@ -302,8 +306,8 @@ pub fn calculate_fee_for_fulfillment_with_serum(
     user_stats: &UserStats,
     quote_asset_amount: u64,
     fee_structure: &FeeStructure,
-    order_ts: i64,
-    now: i64,
+    order_slot: u64,
+    clock_slot: u64,
     reward_filler: bool,
     serum_fee: u64,
     serum_referrer_rebate: u64,
@@ -334,8 +338,8 @@ pub fn calculate_fee_for_fulfillment_with_serum(
 
         calculate_filler_reward(
             quote_asset_amount,
-            order_ts,
-            now,
+            order_slot,
+            clock_slot,
             0,
             &fee_structure.filler_reward_structure,
         )?
