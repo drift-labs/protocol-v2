@@ -1,6 +1,6 @@
 use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
-use crate::math::casting::{cast, cast_to_u64};
+use crate::math::casting::{cast, cast_to_u64, Cast};
 use crate::math::constants::BID_ASK_SPREAD_PRECISION;
 use crate::math::orders::standardize_price;
 use crate::math_error;
@@ -9,10 +9,24 @@ use crate::state::user::Order;
 use solana_program::msg;
 use std::cmp::min;
 
-pub fn calculate_auction_end_price(
+pub fn calculate_auction_prices(
     oracle_price: &OraclePriceData,
     direction: PositionDirection,
-) -> ClearingHouseResult<u64> {
+    limit_price: u64,
+) -> ClearingHouseResult<(u64, u64)> {
+    if limit_price > 0 {
+        let auction_start_price = match direction {
+            PositionDirection::Long => limit_price
+                .checked_sub(limit_price / 100) // 1% improvement
+                .ok_or_else(math_error!())?,
+            PositionDirection::Short => limit_price
+                .checked_add(limit_price / 100)
+                .ok_or_else(math_error!())?,
+        };
+
+        return Ok((auction_start_price, limit_price));
+    }
+
     let numerator = match direction {
         PositionDirection::Long => {
             BID_ASK_SPREAD_PRECISION + BID_ASK_SPREAD_PRECISION / 100 // 1%
@@ -20,7 +34,7 @@ pub fn calculate_auction_end_price(
         PositionDirection::Short => BID_ASK_SPREAD_PRECISION - BID_ASK_SPREAD_PRECISION / 100,
     };
 
-    cast_to_u64(
+    let auction_end_price = cast_to_u64(
         oracle_price
             .price
             .unsigned_abs()
@@ -28,7 +42,9 @@ pub fn calculate_auction_end_price(
             .ok_or_else(math_error!())?
             .checked_div(BID_ASK_SPREAD_PRECISION)
             .ok_or_else(math_error!())?,
-    )
+    )?;
+
+    Ok((oracle_price.price.cast::<u64>()?, auction_end_price))
 }
 
 pub fn calculate_auction_price(
