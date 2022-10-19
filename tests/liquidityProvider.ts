@@ -540,7 +540,6 @@ describe('liquidity providing', () => {
 
 		console.log('done!');
 	});
-	return;
 
 	it('settles lp', async () => {
 		console.log('adding liquidity...');
