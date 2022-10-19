@@ -2686,20 +2686,20 @@ export class ClearingHouse {
 	}
 
 	/**
-	 * Edits an open order by closing it and replacing it with a new order.
-	 * @param orderId: The order to edit
+	 * Modifies an open order by closing it and replacing it with a new order.
+	 * @param orderId: The open order to modify
 	 * @param newBaseAmount: The new base amount for the order. One of newBaseAmount or newLimitPrice must be provided.
 	 * @param newLimitPice: The new limit price for the order. One of newBaseAmount or newLimitPrice must be provided.
 	 * @returns
 	 */
-	public async editPerpOrder(
+	public async modifyPerpOrder(
 		orderId: number,
 		newBaseAmount?: BN,
 		newLimitPrice?: BN
 	): Promise<TransactionSignature> {
 		if (!newBaseAmount && !newLimitPrice) {
 			throw new Error(
-				`Must provide newBaseAmount or newLimitPrice to edit order`
+				`Must provide newBaseAmount or newLimitPrice to modify order`
 			);
 		}
 
