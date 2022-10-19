@@ -267,7 +267,6 @@ describe('post only maker order w/ amm fulfillments', () => {
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(isVariant(orderRecord.actionExplanation, 'orderFilledWithAmm'));
 		assert(orderRecord.takerFee.eq(new BN(16091)));
-		assert(orderRecord.takerOrderFee.eq(new BN(32178)));
 		assert(orderRecord.fillRecordId.eq(new BN(2)));
 		assert(orderRecord.fillerReward.eq(ZERO));
 		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(4022)));

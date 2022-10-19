@@ -173,15 +173,15 @@ pub fn handle_deposit(
         now,
     )?;
 
-    let spot_position = user.force_get_spot_position_mut(spot_market.market_index)?;
+    let position_index = user.force_get_spot_position_index(spot_market.market_index)?;
 
     let force_reduce_only = spot_market.is_reduce_only()?;
 
     // if reduce only, have to compare ix amount to current borrow amount
     let amount = if (force_reduce_only || reduce_only)
-        && spot_position.balance_type == SpotBalanceType::Borrow
+        && user.spot_positions[position_index].balance_type == SpotBalanceType::Borrow
     {
-        spot_position
+        user.spot_positions[position_index]
             .get_token_amount(spot_market)?
             .cast::<u64>()?
             .min(amount)
@@ -189,6 +189,16 @@ pub fn handle_deposit(
         amount
     };
 
+    user.increment_total_deposits(
+        amount,
+        oracle_price_data.price,
+        spot_market.get_precision().cast()?,
+    )?;
+
+    let total_deposits_after = user.total_deposits;
+    let total_withdraws_after = user.total_withdraws;
+
+    let spot_position = &mut user.spot_positions[position_index];
     controller::spot_position::update_spot_position_balance(
         amount as u128,
         &SpotBalanceType::Deposit,
@@ -231,6 +241,8 @@ pub fn handle_deposit(
         market_withdraw_balance: spot_market.borrow_balance,
         market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
         market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+        total_deposits_after,
+        total_withdraws_after,
         market_index,
         transfer_user: None,
     };
@@ -343,11 +355,17 @@ pub fn handle_withdraw(
 
     meets_withdraw_margin_requirement(user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
 
+    user.is_being_liquidated = false;
+
     let spot_market = spot_market_map.get_ref(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
     let oracle_price = oracle_price_data.price;
 
-    user.is_being_liquidated = false;
+    user.increment_total_withdraws(
+        amount,
+        oracle_price_data.price,
+        spot_market.get_precision().cast()?,
+    )?;
 
     controller::token::send_from_program_vault(
         &ctx.accounts.token_program,
@@ -370,6 +388,8 @@ pub fn handle_withdraw(
         market_withdraw_balance: spot_market.borrow_balance,
         market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
         market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+        total_deposits_after: user.total_deposits,
+        total_withdraws_after: user.total_withdraws,
         transfer_user: None,
     };
     emit!(deposit_record);
@@ -471,6 +491,12 @@ pub fn handle_transfer_deposit(
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
 
+        from_user.increment_total_withdraws(
+            amount,
+            oracle_price,
+            spot_market.get_precision().cast()?,
+        )?;
+
         let deposit_record = DepositRecord {
             ts: clock.unix_timestamp,
             user_authority: *authority_key,
@@ -483,6 +509,8 @@ pub fn handle_transfer_deposit(
             market_withdraw_balance: spot_market.borrow_balance,
             market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
             market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+            total_deposits_after: from_user.total_deposits,
+            total_withdraws_after: from_user.total_withdraws,
             transfer_user: Some(to_user_key),
         };
         emit!(deposit_record);
@@ -490,6 +518,16 @@ pub fn handle_transfer_deposit(
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+
+        to_user.increment_total_deposits(
+            amount,
+            oracle_price,
+            spot_market.get_precision().cast()?,
+        )?;
+
+        let total_deposits_after = to_user.total_deposits;
+        let total_withdraws_after = to_user.total_withdraws;
+
         let to_spot_position = to_user.force_get_spot_position_mut(spot_market.market_index)?;
 
         controller::spot_position::update_spot_position_balance(
@@ -512,6 +550,8 @@ pub fn handle_transfer_deposit(
             market_withdraw_balance: spot_market.borrow_balance,
             market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
             market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+            total_deposits_after,
+            total_withdraws_after,
             transfer_user: Some(from_user_key),
         };
         emit!(deposit_record);

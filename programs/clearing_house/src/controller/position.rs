@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 
+use crate::checked_increment;
 use crate::controller;
 use crate::controller::amm::SwapDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
@@ -592,12 +593,30 @@ pub fn update_quote_asset_amount(
     Ok(())
 }
 
-pub fn update_settled_pnl(position: &mut PerpPosition, delta: i64) -> ClearingHouseResult<()> {
+pub fn update_settled_pnl(
+    user: &mut User,
+    position_index: usize,
+    delta: i64,
+) -> ClearingHouseResult<()> {
+    update_user_settled_pnl(user, delta)?;
+    update_position_settled_pnl(&mut user.perp_positions[position_index], delta)?;
+    Ok(())
+}
+
+pub fn update_position_settled_pnl(
+    position: &mut PerpPosition,
+    delta: i64,
+) -> ClearingHouseResult<()> {
     position.settled_pnl = position
         .settled_pnl
         .checked_add(delta)
         .ok_or_else(math_error!())?;
 
+    Ok(())
+}
+
+pub fn update_user_settled_pnl(user: &mut User, delta: i64) -> ClearingHouseResult<()> {
+    checked_increment!(user.settled_perp_pnl, delta);
     Ok(())
 }
 

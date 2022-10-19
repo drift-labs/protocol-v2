@@ -413,7 +413,6 @@ export type OrderActionRecord = {
 	makerOrderBaseAssetAmount: BN | null;
 	makerOrderCumulativeBaseAssetAmountFilled: BN | null;
 	makerOrderCumulativeQuoteAssetAmountFilled: BN | null;
-	makerOrderFee: BN | null;
 	oraclePrice: BN;
 };
 
@@ -668,6 +667,9 @@ export type UserAccount = {
 	nextOrderId: number;
 	maxMarginRatio: number;
 	lastAddPerpLpSharesTs: BN;
+	settledPerpPnl: BN;
+	totalDeposits: BN;
+	totalWithdraws: BN;
 };
 
 export type SpotPosition = {
@@ -694,7 +696,6 @@ export type Order = {
 	baseAssetAmountFilled: BN;
 	quoteAssetAmount: BN;
 	quoteAssetAmountFilled: BN;
-	fee: BN;
 	direction: PositionDirection;
 	reduceOnly: boolean;
 	triggerPrice: BN;
