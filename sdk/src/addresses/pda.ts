@@ -5,7 +5,7 @@ import { BN } from '@project-serum/anchor';
 export async function getClearingHouseStateAccountPublicKeyAndNonce(
 	programId: PublicKey
 ): Promise<[PublicKey, number]> {
-	return anchor.web3.PublicKey.findProgramAddress(
+	return PublicKey.findProgramAddress(
 		[Buffer.from(anchor.utils.bytes.utf8.encode('clearing_house'))],
 		programId
 	);
@@ -22,7 +22,7 @@ export async function getUserAccountPublicKeyAndNonce(
 	authority: PublicKey,
 	subAccountId = 0
 ): Promise<[PublicKey, number]> {
-	return anchor.web3.PublicKey.findProgramAddress(
+	return PublicKey.findProgramAddress(
 		[
 			Buffer.from(anchor.utils.bytes.utf8.encode('user')),
 			authority.toBuffer(),
@@ -47,7 +47,7 @@ export function getUserAccountPublicKeySync(
 	authority: PublicKey,
 	subAccountId = 0
 ): PublicKey {
-	return anchor.web3.PublicKey.findProgramAddressSync(
+	return PublicKey.findProgramAddressSync(
 		[
 			Buffer.from(anchor.utils.bytes.utf8.encode('user')),
 			authority.toBuffer(),
@@ -61,7 +61,7 @@ export function getUserStatsAccountPublicKey(
 	programId: PublicKey,
 	authority: PublicKey
 ): PublicKey {
-	return anchor.web3.PublicKey.findProgramAddressSync(
+	return PublicKey.findProgramAddressSync(
 		[
 			Buffer.from(anchor.utils.bytes.utf8.encode('user_stats')),
 			authority.toBuffer(),
@@ -75,7 +75,7 @@ export async function getPerpMarketPublicKey(
 	marketIndex: number
 ): Promise<PublicKey> {
 	return (
-		await anchor.web3.PublicKey.findProgramAddress(
+		await PublicKey.findProgramAddress(
 			[
 				Buffer.from(anchor.utils.bytes.utf8.encode('perp_market')),
 				new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
@@ -90,7 +90,7 @@ export async function getSpotMarketPublicKey(
 	marketIndex: number
 ): Promise<PublicKey> {
 	return (
-		await anchor.web3.PublicKey.findProgramAddress(
+		await PublicKey.findProgramAddress(
 			[
 				Buffer.from(anchor.utils.bytes.utf8.encode('spot_market')),
 				new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
@@ -105,7 +105,7 @@ export async function getSpotMarketVaultPublicKey(
 	marketIndex: number
 ): Promise<PublicKey> {
 	return (
-		await anchor.web3.PublicKey.findProgramAddress(
+		await PublicKey.findProgramAddress(
 			[
 				Buffer.from(anchor.utils.bytes.utf8.encode('spot_market_vault')),
 				new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
@@ -120,7 +120,7 @@ export async function getInsuranceFundVaultPublicKey(
 	marketIndex: number
 ): Promise<PublicKey> {
 	return (
-		await anchor.web3.PublicKey.findProgramAddress(
+		await PublicKey.findProgramAddress(
 			[
 				Buffer.from(anchor.utils.bytes.utf8.encode('insurance_fund_vault')),
 				new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
@@ -135,7 +135,7 @@ export function getInsuranceFundStakeAccountPublicKey(
 	authority: PublicKey,
 	marketIndex: number
 ): PublicKey {
-	return anchor.web3.PublicKey.findProgramAddressSync(
+	return PublicKey.findProgramAddressSync(
 		[
 			Buffer.from(anchor.utils.bytes.utf8.encode('insurance_fund_stake')),
 			authority.toBuffer(),
@@ -148,7 +148,7 @@ export function getInsuranceFundStakeAccountPublicKey(
 export function getClearingHouseSignerPublicKey(
 	programId: PublicKey
 ): PublicKey {
-	return anchor.web3.PublicKey.findProgramAddressSync(
+	return PublicKey.findProgramAddressSync(
 		[Buffer.from(anchor.utils.bytes.utf8.encode('clearing_house_signer'))],
 		programId
 	)[0];
@@ -158,7 +158,7 @@ export function getSerumOpenOrdersPublicKey(
 	programId: PublicKey,
 	market: PublicKey
 ): PublicKey {
-	return anchor.web3.PublicKey.findProgramAddressSync(
+	return PublicKey.findProgramAddressSync(
 		[
 			Buffer.from(anchor.utils.bytes.utf8.encode('serum_open_orders')),
 			market.toBuffer(),
@@ -182,7 +182,7 @@ export function getSerumFulfillmentConfigPublicKey(
 	programId: PublicKey,
 	market: PublicKey
 ): PublicKey {
-	return anchor.web3.PublicKey.findProgramAddressSync(
+	return PublicKey.findProgramAddressSync(
 		[
 			Buffer.from(anchor.utils.bytes.utf8.encode('serum_fulfillment_config')),
 			market.toBuffer(),
