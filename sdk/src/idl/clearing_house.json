@@ -5262,10 +5262,6 @@
             "type": "u64"
           },
           {
-            "name": "fee",
-            "type": "i64"
-          },
-          {
             "name": "triggerPrice",
             "type": "u64"
           },
@@ -5459,6 +5455,9 @@
           },
           {
             "name": "TooVolatile"
+          },
+          {
+            "name": "TooUncertain"
           },
           {
             "name": "StaleForMargin"
@@ -5783,6 +5782,9 @@
           },
           {
             "name": "Speculative"
+          },
+          {
+            "name": "Isolated"
           }
         ]
       }
@@ -6516,13 +6518,6 @@
           "index": false
         },
         {
-          "name": "takerOrderFee",
-          "type": {
-            "option": "i64"
-          },
-          "index": false
-        },
-        {
           "name": "maker",
           "type": {
             "option": "publicKey"
@@ -6563,13 +6558,6 @@
           "name": "makerOrderCumulativeQuoteAssetAmountFilled",
           "type": {
             "option": "u64"
-          },
-          "index": false
-        },
-        {
-          "name": "makerOrderFee",
-          "type": {
-            "option": "i64"
           },
           "index": false
         },

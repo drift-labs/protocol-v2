@@ -1405,6 +1405,20 @@ pub fn fulfill_order_with_amm(
 
     controller::validate::validate_amm_account_for_fill(&market.amm, order_direction)?;
 
+    let market_side_price = match order_direction {
+        PositionDirection::Long => market.amm.ask_price(reserve_price_before)?,
+        PositionDirection::Short => market.amm.bid_price(reserve_price_before)?,
+    };
+
+    let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
+    amm::update_mark_twap(
+        &mut market.amm,
+        now,
+        Some(market_side_price),
+        Some(order_direction),
+        sanitize_clamp_denominator,
+    )?;
+
     let (quote_asset_amount, quote_asset_amount_surplus, _) =
         controller::position::update_position_with_base_asset_amount(
             base_asset_amount,
@@ -1412,8 +1426,6 @@ pub fn fulfill_order_with_amm(
             market,
             user,
             position_index,
-            reserve_price_before,
-            now,
             fill_price,
         )?;
 

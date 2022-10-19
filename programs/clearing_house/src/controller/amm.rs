@@ -84,33 +84,7 @@ pub fn swap_base_asset(
     market: &mut PerpMarket,
     base_asset_swap_amount: u64,
     direction: SwapDirection,
-    now: i64,
-    precomputed_reserve_price: Option<u128>,
 ) -> ClearingHouseResult<(u64, i64)> {
-    let position_direction = match direction {
-        SwapDirection::Add => PositionDirection::Short,
-        SwapDirection::Remove => PositionDirection::Long,
-    };
-
-    let reserve_price = match precomputed_reserve_price {
-        Some(reserve_price) => reserve_price,
-        None => market.amm.reserve_price()?,
-    };
-
-    let market_side_price = match position_direction {
-        PositionDirection::Long => market.amm.ask_price(reserve_price)?,
-        PositionDirection::Short => market.amm.bid_price(reserve_price)?,
-    };
-
-    let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
-    amm::update_mark_twap(
-        &mut market.amm,
-        now,
-        Some(market_side_price),
-        Some(position_direction),
-        sanitize_clamp_denominator,
-    )?;
-
     let (
         new_base_asset_reserve,
         new_quote_asset_reserve,
