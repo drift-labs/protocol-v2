@@ -4,8 +4,8 @@ use std::fmt::{Display, Formatter};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::context::SpotFulfillmentType;
 use crate::error::ClearingHouseResult;
+use crate::instructions::SpotFulfillmentType;
 #[cfg(test)]
 use crate::math::constants::SPOT_CUMULATIVE_INTEREST_PRECISION;
 use crate::math::constants::{
@@ -17,8 +17,8 @@ use crate::math::margin::{
 };
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
-use crate::state::market::{MarketStatus, PoolBalance};
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
+use crate::state::perp_market::{MarketStatus, PoolBalance};
 use solana_program::msg;
 
 #[account(zero_copy)]
@@ -29,11 +29,11 @@ pub struct SpotMarket {
     pub oracle: Pubkey,
     pub mint: Pubkey,
     pub vault: Pubkey,
-    pub insurance_fund_vault: Pubkey,
     pub historical_oracle_data: HistoricalOracleData,
     pub historical_index_data: HistoricalIndexData,
     pub revenue_pool: PoolBalance,  // in base asset
     pub spot_fee_pool: PoolBalance, // in quote asset
+    pub insurance_fund: InsuranceFund,
     pub initial_asset_weight: u128,
     pub maintenance_asset_weight: u128,
     pub initial_liability_weight: u128,
@@ -42,9 +42,6 @@ pub struct SpotMarket {
     pub liquidator_fee: u128,
     pub if_liquidation_fee: u128, // percentage of liquidation transfer for total insurance
     pub withdraw_guard_threshold: u128, // no withdraw limits/guards when deposits below this threshold
-    pub total_if_shares: u128,
-    pub user_if_shares: u128,
-    pub if_shares_base: u128, // exponent for lp shares (for rebasing)
     pub total_spot_fee: u128,
     pub deposit_balance: u128,
     pub borrow_balance: u128,
@@ -54,22 +51,17 @@ pub struct SpotMarket {
     pub utilization_twap: u128,   // 24 hour twap
     pub cumulative_deposit_interest: u128,
     pub cumulative_borrow_interest: u128,
-    pub insurance_withdraw_escrow_period: i64,
-    pub last_revenue_settle_ts: i64,
-    pub revenue_settle_period: i64,
     pub last_interest_ts: u64,
     pub last_twap_ts: u64,
     pub expiry_ts: i64, // iff market in reduce only mode
     pub order_step_size: u64,
     pub order_tick_size: u64,
-    pub order_minimum_size: u64,
+    pub min_order_size: u64,
     pub max_position_size: u64,
     pub next_fill_record_id: u64,
     pub optimal_utilization: u32,
     pub optimal_borrow_rate: u32,
     pub max_borrow_rate: u32,
-    pub total_if_factor: u32, // percentage of interest for total insurance
-    pub user_if_factor: u32,  // percentage of interest for user staked insurance
     pub market_index: u16,
     pub decimals: u8,
     pub oracle_source: OracleSource,
@@ -80,9 +72,12 @@ pub struct SpotMarket {
 
 impl SpotMarket {
     pub fn is_active(&self, now: i64) -> ClearingHouseResult<bool> {
-        let status_ok = self.status != MarketStatus::Settlement;
-        let is_active = self.expiry_ts == 0 || self.expiry_ts < now;
-        Ok(is_active && status_ok)
+        let status_ok = !matches!(
+            self.status,
+            MarketStatus::Settlement | MarketStatus::Delisted
+        );
+        let not_expired = self.expiry_ts == 0 || now < self.expiry_ts;
+        Ok(status_ok && not_expired)
     }
 
     pub fn is_reduce_only(&self) -> ClearingHouseResult<bool> {
@@ -181,6 +176,10 @@ impl SpotMarket {
             .checked_sub(borrow_token_amount)
             .ok_or_else(math_error!())
     }
+
+    pub fn get_precision(self) -> u64 {
+        10_u64.pow(self.decimals as u32)
+    }
 }
 
 #[cfg(test)]
@@ -195,6 +194,7 @@ impl SpotMarket {
             initial_asset_weight: 8000,
             maintenance_asset_weight: 9000,
             decimals: 9,
+            order_tick_size: 1,
             status: MarketStatus::Active,
             ..SpotMarket::default()
         }
@@ -209,6 +209,7 @@ impl SpotMarket {
             maintenance_liability_weight: 10000,
             initial_asset_weight: 10000,
             maintenance_asset_weight: 10000,
+            order_tick_size: 1,
             status: MarketStatus::Active,
             ..SpotMarket::default()
         }
@@ -296,4 +297,19 @@ impl Default for AssetTier {
     fn default() -> Self {
         AssetTier::Unlisted
     }
+}
+
+#[zero_copy]
+#[derive(Default, Eq, PartialEq, Debug)]
+#[repr(C)]
+pub struct InsuranceFund {
+    pub vault: Pubkey,
+    pub total_shares: u128,
+    pub user_shares: u128,
+    pub shares_base: u128,     // exponent for lp shares (for rebasing)
+    pub unstaking_period: i64, // if_unstaking_period
+    pub last_revenue_settle_ts: i64,
+    pub revenue_settle_period: i64,
+    pub total_factor: u32, // percentage of interest for total insurance
+    pub user_factor: u32,  // percentage of interest for user staked insurance
 }

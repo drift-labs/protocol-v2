@@ -9,6 +9,7 @@ import {
 import { BN } from '@project-serum/anchor';
 import { OraclePriceData } from '../oracles/types';
 import { PerpMarketAccount, PerpPosition } from '..';
+import { isVariant } from '../types';
 import { assert } from '../assert/assert';
 
 export function calculateSizePremiumLiabilityWeight(
@@ -107,9 +108,14 @@ export function calculateBaseAssetValueWithOracle(
 	perpPosition: PerpPosition,
 	oraclePriceData: OraclePriceData
 ): BN {
+	let price = oraclePriceData.price;
+	if (isVariant(market.status, 'settlement')) {
+		price = market.expiryPrice;
+	}
+
 	return perpPosition.baseAssetAmount
 		.abs()
-		.mul(oraclePriceData.price)
+		.mul(price)
 		.div(AMM_RESERVE_PRECISION);
 }
 

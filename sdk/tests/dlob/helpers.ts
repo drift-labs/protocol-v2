@@ -1,9 +1,11 @@
-import { PublicKey } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
 	AMM,
 	AssetTier,
 	PerpPosition,
 	BN,
+	ClearingHouse,
+	ClearingHouseUser,
 	PerpMarketAccount,
 	SpotMarketAccount,
 	MarketStatus,
@@ -13,7 +15,12 @@ import {
 	BASE_PRECISION,
 	QUOTE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
+	StateAccount,
+	UserMapInterface,
+	Wallet,
+	OrderRecord,
 } from '../../src';
+import { ExchangeStatus } from '../../lib';
 
 export const mockPerpPosition: PerpPosition = {
 	baseAssetAmount: new BN(0),
@@ -70,18 +77,20 @@ export const mockAMM: AMM = {
 	cumulativeFeePerLp: new BN(0),
 	cumulativeNetBaseAssetAmountPerLp: new BN(0),
 	userLpShares: new BN(0),
-	netUnsettledLpBaseAssetAmount: new BN(0),
-	minimumQuoteAssetTradeSize: new BN(0),
-	baseAssetAmountStepSize: new BN(0),
-	maxBaseAssetAmountRatio: 0,
+	baseAssetAmountWithUnsettledLp: new BN(0),
+	orderStepSize: new BN(0),
+	orderTickSize: new BN(1),
+	maxFillReserveFraction: 0,
 	baseSpread: 0,
 	curveUpdateIntensity: 0,
-	netBaseAssetAmount: new BN(0),
+	baseAssetAmountWithAmm: new BN(0),
+	baseAssetAmountLong: new BN(0),
+	baseAssetAmountShort: new BN(0),
 	quoteAssetAmountLong: new BN(0),
 	quoteAssetAmountShort: new BN(0),
 	terminalQuoteAssetReserve: new BN(0),
 	feePool: {
-		balance: new BN(0),
+		scaledBalance: new BN(0),
 		marketIndex: 0,
 	},
 	totalExchangeFee: new BN(0),
@@ -94,110 +103,110 @@ export const mockAMM: AMM = {
 	longSpread: new BN(0),
 	shortSpread: new BN(0),
 	maxSpread: 0,
-	marketPosition: mockPerpPosition,
-	marketPositionPerLp: mockPerpPosition,
 	ammJitIntensity: 0,
 	maxBaseAssetReserve: new BN(0),
 	minBaseAssetReserve: new BN(0),
 	cumulativeSocialLoss: new BN(0),
+	baseAssetAmountPerLp: new BN(0),
+	quoteAssetAmountPerLp: new BN(0),
 };
 
 export const mockPerpMarkets: Array<PerpMarketAccount> = [
 	{
 		status: MarketStatus.INITIALIZED,
+		name: [],
 		contractType: ContractType.PERPETUAL,
 		expiryTs: new BN(0),
-		settlementPrice: new BN(0),
+		expiryPrice: new BN(0),
 		marketIndex: 0,
 		pubkey: PublicKey.default,
 		amm: mockAMM,
-		baseAssetAmount: new BN(0),
-		baseAssetAmountLong: new BN(0),
-		baseAssetAmountShort: new BN(0),
-		openInterest: new BN(0),
+		numberOfUsers: new BN(0),
 		marginRatioInitial: 0,
 		marginRatioMaintenance: 0,
 		nextFillRecordId: new BN(0),
 		pnlPool: {
-			balance: new BN(0),
+			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
 		ifLiquidationFee: new BN(0),
 		liquidatorFee: new BN(0),
 		imfFactor: new BN(0),
-		unrealizedImfFactor: new BN(0),
-		unrealizedMaxImbalance: new BN(0),
-		unrealizedInitialAssetWeight: 0,
-		unrealizedMaintenanceAssetWeight: 0,
-		revenueWithdrawSinceLastSettle: new BN(0),
-		maxRevenueWithdrawPerPeriod: new BN(0),
-		lastRevenueWithdrawTs: new BN(0),
-		quoteSettledInsurance: new BN(0),
-		quoteMaxInsurance: new BN(0),
+		unrealizedPnlImfFactor: new BN(0),
+		unrealizedPnlMaxImbalance: new BN(0),
+		unrealizedPnlInitialAssetWeight: 0,
+		unrealizedPnlMaintenanceAssetWeight: 0,
+		insuranceClaim: {
+			revenueWithdrawSinceLastSettle: new BN(0),
+			maxRevenueWithdrawPerPeriod: new BN(0),
+			lastRevenueWithdrawTs: new BN(0),
+			quoteSettledInsurance: new BN(0),
+			quoteMaxInsurance: new BN(0),
+		},
 	},
 	{
 		status: MarketStatus.INITIALIZED,
+		name: [],
 		contractType: ContractType.PERPETUAL,
 		expiryTs: new BN(0),
-		settlementPrice: new BN(0),
+		expiryPrice: new BN(0),
 		marketIndex: 1,
 		pubkey: PublicKey.default,
 		amm: mockAMM,
-		baseAssetAmount: new BN(0),
-		baseAssetAmountLong: new BN(0),
-		baseAssetAmountShort: new BN(0),
-		openInterest: new BN(0),
+		numberOfUsers: new BN(0),
 		marginRatioInitial: 0,
 		marginRatioMaintenance: 0,
 		nextFillRecordId: new BN(0),
 		pnlPool: {
-			balance: new BN(0),
+			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
 		ifLiquidationFee: new BN(0),
 		liquidatorFee: new BN(0),
 		imfFactor: new BN(0),
-		unrealizedImfFactor: new BN(0),
-		unrealizedMaxImbalance: new BN(0),
-		unrealizedInitialAssetWeight: 0,
-		unrealizedMaintenanceAssetWeight: 0,
-		revenueWithdrawSinceLastSettle: new BN(0),
-		maxRevenueWithdrawPerPeriod: new BN(0),
-		lastRevenueWithdrawTs: new BN(0),
-		quoteSettledInsurance: new BN(0),
-		quoteMaxInsurance: new BN(0),
+		unrealizedPnlImfFactor: new BN(0),
+		unrealizedPnlMaxImbalance: new BN(0),
+		unrealizedPnlInitialAssetWeight: 0,
+		unrealizedPnlMaintenanceAssetWeight: 0,
+		insuranceClaim: {
+			revenueWithdrawSinceLastSettle: new BN(0),
+			maxRevenueWithdrawPerPeriod: new BN(0),
+			lastRevenueWithdrawTs: new BN(0),
+			quoteSettledInsurance: new BN(0),
+			quoteMaxInsurance: new BN(0),
+		},
 	},
 	{
 		status: MarketStatus.INITIALIZED,
+		name: [],
 		contractType: ContractType.PERPETUAL,
 		expiryTs: new BN(0),
-		settlementPrice: new BN(0),
+		expiryPrice: new BN(0),
 		marketIndex: 2,
 		pubkey: PublicKey.default,
 		amm: mockAMM,
-		baseAssetAmount: new BN(0),
-		baseAssetAmountLong: new BN(0),
-		baseAssetAmountShort: new BN(0),
-		openInterest: new BN(0),
+		numberOfUsers: new BN(0),
 		marginRatioInitial: 0,
 		marginRatioMaintenance: 0,
 		nextFillRecordId: new BN(0),
 		pnlPool: {
-			balance: new BN(0),
+			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
 		ifLiquidationFee: new BN(0),
 		liquidatorFee: new BN(0),
 		imfFactor: new BN(0),
-		unrealizedImfFactor: new BN(0),
-		unrealizedMaxImbalance: new BN(0),
-		unrealizedInitialAssetWeight: 0,
-		unrealizedMaintenanceAssetWeight: 0,
-		revenueWithdrawSinceLastSettle: new BN(0),
-		maxRevenueWithdrawPerPeriod: new BN(0),
-		lastRevenueWithdrawTs: new BN(0),
-		quoteSettledInsurance: new BN(0),
-		quoteMaxInsurance: new BN(0),
+		unrealizedPnlImfFactor: new BN(0),
+		unrealizedPnlMaxImbalance: new BN(0),
+		unrealizedPnlInitialAssetWeight: 0,
+		unrealizedPnlMaintenanceAssetWeight: 0,
+		insuranceClaim: {
+			revenueWithdrawSinceLastSettle: new BN(0),
+			maxRevenueWithdrawPerPeriod: new BN(0),
+			lastRevenueWithdrawTs: new BN(0),
+			quoteSettledInsurance: new BN(0),
+			quoteMaxInsurance: new BN(0),
+		},
 	},
 ];
 
@@ -210,16 +219,21 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		pubkey: PublicKey.default,
 		mint: DevnetSpotMarkets[0].mint,
 		vault: PublicKey.default,
-		insuranceFundVault: PublicKey.default,
-		insuranceWithdrawEscrowPeriod: new BN(0),
 		revenuePool: {
-			balance: new BN(0),
+			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
-		totalIfShares: new BN(0),
-		userIfShares: new BN(0),
-		userIfFactor: 0,
-		totalIfFactor: 0,
+		insuranceFund: {
+			vault: PublicKey.default,
+			totalShares: new BN(0),
+			userShares: new BN(0),
+			sharesBase: new BN(0),
+			unstakingPeriod: new BN(0),
+			lastRevenueSettleTs: new BN(0),
+			revenueSettlePeriod: new BN(0),
+			totalFactor: 0,
+			userFactor: 0,
+		},
 		ifLiquidationFee: new BN(0),
 		liquidatorFee: new BN(0),
 		decimals: 6,
@@ -243,9 +257,10 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		borrowTokenTwap: new BN(0),
 		utilizationTwap: new BN(0),
 		orderStepSize: new BN(0),
+		orderTickSize: new BN(0),
 		nextFillRecordId: new BN(0),
 		spotFeePool: {
-			balance: new BN(0),
+			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
 		totalSpotFee: new BN(0),
@@ -274,16 +289,21 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		pubkey: PublicKey.default,
 		mint: DevnetSpotMarkets[1].mint,
 		vault: PublicKey.default,
-		insuranceFundVault: PublicKey.default,
-		insuranceWithdrawEscrowPeriod: new BN(0),
 		revenuePool: {
-			balance: new BN(0),
+			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
-		totalIfShares: new BN(0),
-		userIfShares: new BN(0),
-		userIfFactor: 0,
-		totalIfFactor: 0,
+		insuranceFund: {
+			vault: PublicKey.default,
+			totalShares: new BN(0),
+			userShares: new BN(0),
+			sharesBase: new BN(0),
+			unstakingPeriod: new BN(0),
+			lastRevenueSettleTs: new BN(0),
+			revenueSettlePeriod: new BN(0),
+			totalFactor: 0,
+			userFactor: 0,
+		},
 		ifLiquidationFee: new BN(0),
 		liquidatorFee: new BN(0),
 		decimals: 9,
@@ -307,9 +327,10 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		borrowTokenTwap: new BN(0),
 		utilizationTwap: new BN(0),
 		orderStepSize: new BN(0),
+		orderTickSize: new BN(0),
 		nextFillRecordId: new BN(0),
 		spotFeePool: {
-			balance: new BN(0),
+			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
 		totalSpotFee: new BN(0),
@@ -338,16 +359,21 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		pubkey: PublicKey.default,
 		mint: DevnetSpotMarkets[2].mint,
 		vault: PublicKey.default,
-		insuranceFundVault: PublicKey.default,
-		insuranceWithdrawEscrowPeriod: new BN(0),
 		revenuePool: {
-			balance: new BN(0),
+			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
-		totalIfShares: new BN(0),
-		userIfShares: new BN(0),
-		userIfFactor: 0,
-		totalIfFactor: 0,
+		insuranceFund: {
+			vault: PublicKey.default,
+			totalShares: new BN(0),
+			userShares: new BN(0),
+			sharesBase: new BN(0),
+			unstakingPeriod: new BN(0),
+			lastRevenueSettleTs: new BN(0),
+			revenueSettlePeriod: new BN(0),
+			totalFactor: 0,
+			userFactor: 0,
+		},
 		ifLiquidationFee: new BN(0),
 		liquidatorFee: new BN(0),
 		decimals: 6,
@@ -371,9 +397,10 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		borrowTokenTwap: new BN(0),
 		utilizationTwap: new BN(0),
 		orderStepSize: new BN(0),
+		orderTickSize: new BN(0),
 		nextFillRecordId: new BN(0),
 		spotFeePool: {
-			balance: new BN(0),
+			scaledBalance: new BN(0),
 			marketIndex: 0,
 		},
 		totalSpotFee: new BN(0),
@@ -395,3 +422,147 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		},
 	},
 ];
+
+export const mockStateAccount: StateAccount = {
+	admin: PublicKey.default,
+	defaultMarketOrderTimeInForce: 0,
+	defaultSpotAuctionDuration: 0,
+	discountMint: PublicKey.default,
+	exchangeStatus: ExchangeStatus.ACTIVE,
+	liquidationMarginBufferRatio: 0,
+	lpCooldownTime: new BN(0),
+	minPerpAuctionDuration: 0,
+	numberOfMarkets: 0,
+	numberOfSpotMarkets: 0,
+	oracleGuardRails: {
+		priceDivergence: {
+			markOracleDivergenceNumerator: new BN(0),
+			markOracleDivergenceDenominator: new BN(0),
+		},
+		validity: {
+			slotsBeforeStaleForAmm: new BN(0),
+			slotsBeforeStaleForMargin: new BN(0),
+			confidenceIntervalMaxSize: new BN(0),
+			tooVolatileRatio: new BN(0),
+		},
+		useForLiquidations: true,
+	},
+	perpFeeStructure: {
+		feeTiers: [
+			{
+				feeNumerator: 0,
+				feeDenominator: 0,
+				makerRebateNumerator: 0,
+				makerRebateDenominator: 0,
+				referrerRewardNumerator: 0,
+				referrerRewardDenominator: 0,
+				refereeFeeNumerator: 0,
+				refereeFeeDenominator: 0,
+			},
+		],
+		makerRebateNumerator: new BN(0),
+		makerRebateDenominator: new BN(0),
+		fillerRewardStructure: {
+			rewardNumerator: new BN(0),
+			rewardDenominator: new BN(0),
+			timeBasedRewardLowerBound: new BN(0),
+		},
+		flatFillerFee: new BN(0),
+		referrerRewardEpochUpperBound: new BN(0),
+	},
+	settlementDuration: 0,
+	signer: PublicKey.default,
+	signerNonce: 0,
+	spotFeeStructure: {
+		feeTiers: [
+			{
+				feeNumerator: 0,
+				feeDenominator: 0,
+				makerRebateNumerator: 0,
+				makerRebateDenominator: 0,
+				referrerRewardNumerator: 0,
+				referrerRewardDenominator: 0,
+				refereeFeeNumerator: 0,
+				refereeFeeDenominator: 0,
+			},
+		],
+		makerRebateNumerator: new BN(0),
+		makerRebateDenominator: new BN(0),
+		fillerRewardStructure: {
+			rewardNumerator: new BN(0),
+			rewardDenominator: new BN(0),
+			timeBasedRewardLowerBound: new BN(0),
+		},
+		flatFillerFee: new BN(0),
+		referrerRewardEpochUpperBound: new BN(0),
+	},
+	srmVault: PublicKey.default,
+	whitelistMint: PublicKey.default,
+};
+
+export class MockUserMap implements UserMapInterface {
+	private userMap = new Map<string, ClearingHouseUser>();
+	private userAccountToAuthority = new Map<string, string>();
+	private clearingHouse: ClearingHouse;
+
+	constructor() {
+		this.userMap = new Map();
+		this.userAccountToAuthority = new Map();
+		this.clearingHouse = new ClearingHouse({
+			connection: new Connection('http://localhost:8899'),
+			wallet: new Wallet(new Keypair()),
+			programID: PublicKey.default,
+		});
+	}
+
+	public async fetchAllUsers(): Promise<void> {}
+
+	public async addPubkey(userAccountPublicKey: PublicKey): Promise<void> {
+		const user = new ClearingHouseUser({
+			clearingHouse: this.clearingHouse,
+			userAccountPublicKey: userAccountPublicKey,
+		});
+		this.userMap.set(userAccountPublicKey.toBase58(), user);
+	}
+
+	// mock function
+	public addUserAccountAuthority(
+		userAccountPublicKey: PublicKey,
+		authorityPublicKey: PublicKey
+	): void {
+		if (!this.userMap.has(userAccountPublicKey.toBase58())) {
+			this.addPubkey(userAccountPublicKey);
+		}
+		this.userAccountToAuthority.set(
+			userAccountPublicKey.toBase58(),
+			authorityPublicKey.toBase58()
+		);
+	}
+
+	public has(key: string): boolean {
+		return this.userMap.has(key);
+	}
+
+	public get(_key: string): ClearingHouseUser | undefined {
+		return undefined;
+	}
+
+	public async mustGet(_key: string): Promise<ClearingHouseUser> {
+		return new ClearingHouseUser({
+			clearingHouse: this.clearingHouse,
+			userAccountPublicKey: PublicKey.default,
+		});
+	}
+
+	public getUserAuthority(key: string): PublicKey | undefined {
+		return new PublicKey(
+			this.userAccountToAuthority.get(key) || PublicKey.default.toBase58()
+		);
+	}
+
+	public async updateWithOrderRecord(_record: OrderRecord): Promise<void> {}
+
+	public values(): IterableIterator<ClearingHouseUser> {
+		return this.userMap.values();
+	}
+}

@@ -204,11 +204,11 @@ export class ClearingHouseUser {
 		);
 		const nShares = position.lpShares;
 
-		const deltaBaa = market.amm.marketPositionPerLp.baseAssetAmount
+		const deltaBaa = market.amm.baseAssetAmountPerLp
 			.sub(position.lastNetBaseAssetAmountPerLp)
 			.mul(nShares)
 			.div(AMM_RESERVE_PRECISION);
-		const deltaQaa = market.amm.marketPositionPerLp.quoteAssetAmount
+		const deltaQaa = market.amm.quoteAssetAmountPerLp
 			.sub(position.lastNetQuoteAssetAmountPerLp)
 			.mul(nShares)
 			.div(AMM_RESERVE_PRECISION);
@@ -228,18 +228,18 @@ export class ClearingHouseUser {
 
 		const [standardizedBaa, remainderBaa] = standardize(
 			deltaBaa,
-			market.amm.baseAssetAmountStepSize
+			market.amm.orderStepSize
 		);
 
 		position.remainderBaseAssetAmount += remainderBaa.toNumber();
 
 		if (
 			Math.abs(position.remainderBaseAssetAmount) >
-			market.amm.baseAssetAmountStepSize.toNumber()
+			market.amm.orderStepSize.toNumber()
 		) {
 			const [newStandardizedBaa, newRemainderBaa] = standardize(
 				position.remainderBaseAssetAmount,
-				market.amm.baseAssetAmountStepSize
+				market.amm.orderStepSize
 			);
 			position.baseAssetAmount =
 				position.baseAssetAmount.add(newStandardizedBaa);
@@ -367,7 +367,9 @@ export class ClearingHouseUser {
 				const market = this.clearingHouse.getPerpMarketAccount(
 					perpPosition.marketIndex
 				);
-				const oraclePriceData = this.getOracleDataForMarket(market.marketIndex);
+				const oraclePriceData = this.getOracleDataForPerpMarket(
+					market.marketIndex
+				);
 
 				let positionUnrealizedPnl = calculatePositionPNL(
 					market,
@@ -435,7 +437,7 @@ export class ClearingHouseUser {
 				if (spotPosition.marketIndex === QUOTE_SPOT_MARKET_INDEX) {
 					if (isVariant(spotPosition.balanceType, 'borrow')) {
 						const tokenAmount = getTokenAmount(
-							spotPosition.balance,
+							spotPosition.scaledBalance,
 							spotMarketAccount,
 							spotPosition.balanceType
 						);
@@ -444,7 +446,7 @@ export class ClearingHouseUser {
 						if (marginCategory === 'Initial') {
 							weight = BN.max(
 								weight,
-								new BN(this.getUserAccount().customMarginRatio)
+								new BN(this.getUserAccount().maxMarginRatio)
 							);
 						}
 
@@ -465,7 +467,7 @@ export class ClearingHouseUser {
 				if (!includeOpenOrders) {
 					if (isVariant(spotPosition.balanceType, 'borrow')) {
 						const tokenAmount = getTokenAmount(
-							spotPosition.balance,
+							spotPosition.scaledBalance,
 							spotMarketAccount,
 							spotPosition.balanceType
 						);
@@ -508,7 +510,7 @@ export class ClearingHouseUser {
 					if (marginCategory === 'Initial') {
 						weight = BN.max(
 							weight,
-							new BN(this.getUserAccount().customMarginRatio)
+							new BN(this.getUserAccount().maxMarginRatio)
 						);
 					}
 
@@ -548,10 +550,7 @@ export class ClearingHouseUser {
 			);
 
 			if (marginCategory === 'Initial') {
-				weight = BN.max(
-					weight,
-					new BN(this.getUserAccount().customMarginRatio)
-				);
+				weight = BN.max(weight, new BN(this.getUserAccount().maxMarginRatio));
 			}
 
 			if (liquidationBuffer !== undefined) {
@@ -588,7 +587,7 @@ export class ClearingHouseUser {
 				if (spotPosition.marketIndex === QUOTE_SPOT_MARKET_INDEX) {
 					if (isVariant(spotPosition.balanceType, 'deposit')) {
 						const tokenAmount = getTokenAmount(
-							spotPosition.balance,
+							spotPosition.scaledBalance,
 							spotMarketAccount,
 							spotPosition.balanceType
 						);
@@ -606,7 +605,7 @@ export class ClearingHouseUser {
 				if (!includeOpenOrders) {
 					if (isVariant(spotPosition.balanceType, 'deposit')) {
 						const tokenAmount = getTokenAmount(
-							spotPosition.balance,
+							spotPosition.scaledBalance,
 							spotMarketAccount,
 							spotPosition.balanceType
 						);
@@ -751,12 +750,12 @@ export class ClearingHouseUser {
 					perpPosition.openBids = perpPosition.openBids.add(openBids);
 				}
 
-				let valuationPrice = this.getOracleDataForMarket(
+				let valuationPrice = this.getOracleDataForPerpMarket(
 					market.marketIndex
 				).price;
 
 				if (isVariant(market.status, 'settlement')) {
-					valuationPrice = market.settlementPrice;
+					valuationPrice = market.expiryPrice;
 				}
 
 				const baseAssetAmount = includeOpenOrders
@@ -780,7 +779,7 @@ export class ClearingHouseUser {
 					if (marginCategory === 'Initial') {
 						marginRatio = BN.max(
 							marginRatio,
-							new BN(this.getUserAccount().customMarginRatio)
+							new BN(this.getUserAccount().maxMarginRatio)
 						);
 					}
 
@@ -846,7 +845,9 @@ export class ClearingHouseUser {
 
 		const entryPrice = calculateEntryPrice(position);
 
-		const oraclePriceData = this.getOracleDataForMarket(position.marketIndex);
+		const oraclePriceData = this.getOracleDataForPerpMarket(
+			position.marketIndex
+		);
 
 		if (amountToClose) {
 			if (amountToClose.eq(ZERO)) {
@@ -979,7 +980,7 @@ export class ClearingHouseUser {
 
 		// if user being liq'd, can continue to be liq'd until total collateral above the margin requirement plus buffer
 		let liquidationBuffer = undefined;
-		if (this.getUserAccount().beingLiquidated) {
+		if (this.getUserAccount().isBeingLiquidated) {
 			liquidationBuffer = new BN(
 				this.clearingHouse.getStateAccount().liquidationMarginBufferRatio
 			);
@@ -1083,7 +1084,7 @@ export class ClearingHouseUser {
 		const proposedPerpPositionValue = calculateBaseAssetValueWithOracle(
 			market,
 			proposedPerpPosition,
-			this.getOracleDataForMarket(market.marketIndex)
+			this.getOracleDataForPerpMarket(market.marketIndex)
 		);
 
 		// total position value after trade
@@ -1100,7 +1101,7 @@ export class ClearingHouseUser {
 						const positionValue = calculateBaseAssetValueWithOracle(
 							market,
 							position,
-							this.getOracleDataForMarket(market.marketIndex)
+							this.getOracleDataForPerpMarket(market.marketIndex)
 						);
 						const marketMarginRequirement = positionValue
 							.mul(
@@ -1178,7 +1179,7 @@ export class ClearingHouseUser {
 		if (positionBaseSizeChange.eq(ZERO)) {
 			markPriceAfterTrade = calculateReservePrice(
 				this.clearingHouse.getPerpMarketAccount(perpPosition.marketIndex),
-				this.getOracleDataForMarket(perpPosition.marketIndex)
+				this.getOracleDataForPerpMarket(perpPosition.marketIndex)
 			);
 		} else {
 			const direction = positionBaseSizeChange.gt(ZERO)
@@ -1189,7 +1190,7 @@ export class ClearingHouseUser {
 				positionBaseSizeChange.abs(),
 				this.clearingHouse.getPerpMarketAccount(perpPosition.marketIndex),
 				'base',
-				this.getOracleDataForMarket(perpPosition.marketIndex)
+				this.getOracleDataForPerpMarket(perpPosition.marketIndex)
 			)[3]; // newPrice after swap
 		}
 
@@ -1271,7 +1272,7 @@ export class ClearingHouseUser {
 			? true
 			: targetSide === currentPositionSide;
 
-		const oracleData = this.getOracleDataForMarket(targetMarketIndex);
+		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
 
 		// add any position we have on the opposite side of the current trade, because we can "flip" the size of this position without taking any extra leverage.
 		const oppositeSizeValueUSDC = targetingSameSide
@@ -1348,7 +1349,7 @@ export class ClearingHouseUser {
 			this.getUserPosition(targetMarketIndex) ||
 			this.getEmptyPosition(targetMarketIndex);
 
-		const oracleData = this.getOracleDataForMarket(targetMarketIndex);
+		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
 
 		let currentPositionQuoteAmount = this.getPerpPositionValue(
 			targetMarketIndex,
@@ -1501,7 +1502,7 @@ export class ClearingHouseUser {
 			this.getUserPosition(marketToIgnore) ||
 			this.getEmptyPosition(marketToIgnore);
 
-		const oracleData = this.getOracleDataForMarket(marketToIgnore);
+		const oracleData = this.getOracleDataForPerpMarket(marketToIgnore);
 
 		let currentPerpPositionValueUSDC = ZERO;
 		if (currentPerpPosition) {
@@ -1518,7 +1519,7 @@ export class ClearingHouseUser {
 		).sub(currentPerpPositionValueUSDC);
 	}
 
-	private getOracleDataForMarket(marketIndex: number): OraclePriceData {
+	private getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
 		const oracleKey =
 			this.clearingHouse.getPerpMarketAccount(marketIndex).amm.oracle;
 		const oracleData =

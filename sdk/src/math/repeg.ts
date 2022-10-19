@@ -26,7 +26,7 @@ export function calculateAdjustKCost(
 	const x = amm.baseAssetReserve;
 	const y = amm.quoteAssetReserve;
 
-	const d = amm.netBaseAssetAmount;
+	const d = amm.baseAssetAmountWithAmm;
 	const Q = amm.pegMultiplier;
 
 	const quoteScale = y.mul(d).mul(Q); //.div(AMM_RESERVE_PRECISION);
@@ -135,7 +135,7 @@ export function calculateBudgetedK(amm: AMM, cost: BN): [BN, BN] {
 	const x = amm.baseAssetReserve;
 	const y = amm.quoteAssetReserve;
 
-	const d = amm.netBaseAssetAmount;
+	const d = amm.baseAssetAmountWithAmm;
 	const Q = amm.pegMultiplier;
 
 	const [numerator, denominator] = calculateBudgetedKBN(x, y, cost, Q, d);
@@ -159,7 +159,7 @@ export function calculateBudgetedPeg(amm: AMM, cost: BN, targetPrice: BN): BN {
 	const x = amm.baseAssetReserve;
 	const y = amm.quoteAssetReserve;
 
-	const d = amm.netBaseAssetAmount;
+	const d = amm.baseAssetAmountWithAmm;
 	const Q = amm.pegMultiplier;
 
 	const C = cost.mul(new BN(-1));

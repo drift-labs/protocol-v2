@@ -34,6 +34,7 @@ import {
 } from './testHelpers';
 import { NATIVE_MINT } from '@solana/spl-token';
 import { Market } from '@project-serum/serum';
+import { getMarketOrderParams, ZERO } from '../sdk';
 
 describe('serum spot market', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -94,7 +95,7 @@ describe('serum spot market', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -265,7 +266,7 @@ describe('serum spot market', () => {
 		const takerBaseSpotBalance = takerClearingHouse.getSpotPosition(1);
 
 		const quoteTokenAmount = getTokenAmount(
-			takerQuoteSpotBalance.balance,
+			takerQuoteSpotBalance.scaledBalance,
 			takerClearingHouse.getQuoteSpotMarketAccount(),
 			takerQuoteSpotBalance.balanceType
 		);
@@ -273,7 +274,7 @@ describe('serum spot market', () => {
 		assert(quoteTokenAmount.eq(new BN(99900000)));
 
 		const baseTokenAmount = getTokenAmount(
-			takerBaseSpotBalance.balance,
+			takerBaseSpotBalance.scaledBalance,
 			takerClearingHouse.getSpotMarketAccount(1),
 			takerBaseSpotBalance.balanceType
 		);
@@ -288,7 +289,6 @@ describe('serum spot market', () => {
 		assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
 		assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
 		assert(orderActionRecord.takerFee.eq(new BN(100000)));
-		assert(orderActionRecord.takerOrderFee.eq(new BN(100000)));
 
 		assert(makerClearingHouse.getQuoteAssetTokenAmount().eq(new BN(10000)));
 
@@ -296,7 +296,7 @@ describe('serum spot market', () => {
 			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
 		assert(solSpotMarket.totalSpotFee.eq(new BN(58000)));
 		const spotFeePoolAmount = getTokenAmount(
-			solSpotMarket.spotFeePool.balance,
+			solSpotMarket.spotFeePool.scaledBalance,
 			takerClearingHouse.getQuoteSpotMarketAccount(),
 			SpotBalanceType.DEPOSIT
 		);
@@ -374,7 +374,7 @@ describe('serum spot market', () => {
 		const takerBaseSpotBalance = takerClearingHouse.getSpotPosition(1);
 
 		const quoteTokenAmount = getTokenAmount(
-			takerQuoteSpotBalance.balance,
+			takerQuoteSpotBalance.scaledBalance,
 			takerClearingHouse.getQuoteSpotMarketAccount(),
 			takerQuoteSpotBalance.balanceType
 		);
@@ -382,7 +382,7 @@ describe('serum spot market', () => {
 		assert(quoteTokenAmount.eq(new BN(199800000)));
 
 		const baseTokenAmount = getTokenAmount(
-			takerBaseSpotBalance.balance,
+			takerBaseSpotBalance.scaledBalance,
 			takerClearingHouse.getSpotMarketAccount(1),
 			takerBaseSpotBalance.balanceType
 		);
@@ -396,7 +396,6 @@ describe('serum spot market', () => {
 		assert(isVariant(orderActionRecord.action, 'fill'));
 		assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
 		assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
-		assert(orderActionRecord.takerOrderFee.eq(new BN(100000)));
 		assert(orderActionRecord.takerFee.eq(new BN(100000)));
 
 		assert(makerClearingHouse.getQuoteAssetTokenAmount().eq(new BN(20000)));
@@ -405,7 +404,7 @@ describe('serum spot market', () => {
 			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
 		assert(solSpotMarket.totalSpotFee.eq(new BN(116000)));
 		const spotFeePoolAmount = getTokenAmount(
-			solSpotMarket.spotFeePool.balance,
+			solSpotMarket.spotFeePool.scaledBalance,
 			takerClearingHouse.getQuoteSpotMarketAccount(),
 			SpotBalanceType.DEPOSIT
 		);
@@ -486,7 +485,7 @@ describe('serum spot market', () => {
 		const takerBaseSpotBalance = takerClearingHouse.getSpotPosition(1);
 
 		const quoteTokenAmount = getTokenAmount(
-			takerQuoteSpotBalance.balance,
+			takerQuoteSpotBalance.scaledBalance,
 			takerClearingHouse.getQuoteSpotMarketAccount(),
 			takerQuoteSpotBalance.balanceType
 		);
@@ -494,7 +493,7 @@ describe('serum spot market', () => {
 		assert(quoteTokenAmount.eq(new BN(99700000))); // paid ~$.30
 
 		const baseTokenAmount = getTokenAmount(
-			takerBaseSpotBalance.balance,
+			takerBaseSpotBalance.scaledBalance,
 			takerClearingHouse.getSpotMarketAccount(1),
 			takerBaseSpotBalance.balanceType
 		);
@@ -509,18 +508,113 @@ describe('serum spot market', () => {
 		assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
 		assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
 		assert(orderActionRecord.takerFee.eq(new BN(100000)));
-		assert(orderActionRecord.takerOrderFee.eq(new BN(100000)));
 
 		const solSpotMarket =
 			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
 		assert(solSpotMarket.totalSpotFee.eq(new BN(174000)));
 		const spotFeePoolAmount = getTokenAmount(
-			solSpotMarket.spotFeePool.balance,
+			solSpotMarket.spotFeePool.scaledBalance,
 			takerClearingHouse.getQuoteSpotMarketAccount(),
 			SpotBalanceType.DEPOSIT
 		);
 		console.log(spotFeePoolAmount.toString());
 		assert(spotFeePoolAmount.eq(new BN(166000)));
+
+		await crankMarkets();
+	});
+
+	// check that moving referrer rebates works properly
+	it('Place and take', async () => {
+		const market = await Market.load(
+			provider.connection,
+			serumMarketPublicKey,
+			{ commitment: 'recent' },
+			serumHelper.DEX_PID
+		);
+
+		// @ts-ignore
+		const { transaction, signers } = await market.makePlaceOrderTransaction(
+			provider.connection,
+			{
+				// @ts-ignore
+				owner: provider.wallet,
+				payer: makerUSDC.publicKey,
+				side: 'buy',
+				price: 100,
+				size: 1,
+				orderType: 'postOnly',
+				clientId: undefined, // todo?
+				openOrdersAddressKey: undefined,
+				openOrdersAccount: undefined,
+				feeDiscountPubkey: null,
+				selfTradeBehavior: 'abortTransaction',
+			}
+		);
+
+		await provider.sendAndConfirm(transaction, signers);
+		const baseAssetAmount = castNumberToSpotPrecision(
+			1,
+			makerClearingHouse.getSpotMarketAccount(solSpotMarketIndex)
+		);
+
+		const serumFulfillmentConfigAccount =
+			await makerClearingHouse.getSerumV3FulfillmentConfig(
+				serumMarketPublicKey
+			);
+
+		const txSig = await takerClearingHouse.placeAndTakeSpotOrder(
+			getMarketOrderParams({
+				marketIndex: solSpotMarketIndex,
+				direction: PositionDirection.SHORT,
+				baseAssetAmount,
+				userOrderId: 1,
+			}),
+			serumFulfillmentConfigAccount
+		);
+
+		await printTxLogs(connection, txSig);
+
+		await takerClearingHouse.fetchAccounts();
+
+		const takerQuoteSpotBalance = takerClearingHouse.getSpotPosition(0);
+		const takerBaseSpotBalance = takerClearingHouse.getSpotPosition(1);
+
+		const quoteTokenAmount = getTokenAmount(
+			takerQuoteSpotBalance.scaledBalance,
+			takerClearingHouse.getQuoteSpotMarketAccount(),
+			takerQuoteSpotBalance.balanceType
+		);
+		console.log(quoteTokenAmount.toString());
+		assert(quoteTokenAmount.eq(new BN(199600000))); // paid ~$.40
+
+		const baseTokenAmount = getTokenAmount(
+			takerBaseSpotBalance.scaledBalance,
+			takerClearingHouse.getSpotMarketAccount(1),
+			takerBaseSpotBalance.balanceType
+		);
+		assert(baseTokenAmount.eq(ZERO));
+
+		const takerOrder = takerClearingHouse.getUserAccount().orders[0];
+		assert(isVariant(takerOrder.status, 'init'));
+
+		const orderActionRecord =
+			eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		assert(isVariant(orderActionRecord.action, 'fill'));
+		assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
+		assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
+		assert(orderActionRecord.takerFee.eq(new BN(100000)));
+
+		const solSpotMarket =
+			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
+		console.log(solSpotMarket.totalSpotFee.toString());
+		assert(solSpotMarket.totalSpotFee.eq(new BN(242000)));
+		const spotFeePoolAmount = getTokenAmount(
+			solSpotMarket.spotFeePool.scaledBalance,
+			takerClearingHouse.getQuoteSpotMarketAccount(),
+			SpotBalanceType.DEPOSIT
+		);
+		console.log(spotFeePoolAmount.toString());
+		assert(spotFeePoolAmount.eq(new BN(234000)));
 
 		await crankMarkets();
 	});

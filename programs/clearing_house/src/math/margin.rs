@@ -1,6 +1,8 @@
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
-use crate::math::constants::{MARGIN_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION};
+use crate::math::constants::{
+    MARGIN_PRECISION, PRICE_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION,
+};
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
     calculate_base_asset_value_with_oracle_price,
@@ -17,9 +19,9 @@ use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
 use crate::math::spot_balance::{get_balance_value_and_token_amount, get_token_value};
 
-use crate::state::market::{MarketStatus, PerpMarket};
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
@@ -200,7 +202,7 @@ pub fn calculate_perp_position_value_and_pnl(
     };
 
     let valuation_price = if market.status == MarketStatus::Settlement {
-        market.settlement_price
+        market.expiry_price
     } else {
         oracle_price_data.price
     };
@@ -262,13 +264,13 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     let mut with_isolated_liability: bool = false;
 
     let user_custom_margin_ratio = if margin_requirement_type == MarginRequirementType::Initial {
-        user.custom_margin_ratio as u128
+        user.max_margin_ratio as u128
     } else {
         0_u128
     };
 
     for spot_position in user.spot_positions.iter() {
-        if spot_position.balance == 0 && spot_position.open_orders == 0 {
+        if spot_position.scaled_balance == 0 && spot_position.open_orders == 0 {
             continue;
         }
 
@@ -661,4 +663,36 @@ pub fn calculate_free_collateral(
     total_collateral
         .checked_sub(cast_to_i128(margin_requirement)?)
         .ok_or_else(math_error!())
+}
+
+pub fn calculate_max_withdrawable_amount(
+    market_index: u16,
+    user: &User,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+) -> ClearingHouseResult<u64> {
+    let free_collateral =
+        calculate_free_collateral(user, perp_market_map, spot_market_map, oracle_map)?
+            .max(0)
+            .cast::<u128>()?;
+
+    let spot_market = &mut spot_market_map.get_ref(&market_index)?;
+
+    let precision_increase = 10u128.pow((spot_market.decimals - 6) as u32);
+
+    let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
+
+    free_collateral
+        .checked_mul(MARGIN_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_div(spot_market.initial_asset_weight)
+        .ok_or_else(math_error!())?
+        .checked_mul(PRICE_PRECISION)
+        .ok_or_else(math_error!())?
+        .checked_div(oracle_price.unsigned_abs())
+        .ok_or_else(math_error!())?
+        .checked_mul(precision_increase)
+        .ok_or_else(math_error!())?
+        .cast()
 }

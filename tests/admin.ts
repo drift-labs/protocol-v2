@@ -11,6 +11,8 @@ import {
 	BN,
 } from '../sdk/src';
 
+import { decodeName, DEFAULT_MARKET_NAME } from '../sdk/src/userName';
+
 import {
 	mockOracle,
 	mockUSDCMint,
@@ -41,7 +43,7 @@ describe('admin', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
 		});
@@ -57,12 +59,31 @@ describe('admin', () => {
 		const solUsd = await mockOracle(1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solUsd,
 			new BN(1000),
 			new BN(1000),
 			periodicity
 		);
+	});
+
+	it('checks market name', async () => {
+		const market = clearingHouse.getPerpMarketAccount(0);
+		const name = decodeName(market.name);
+		assert(name == DEFAULT_MARKET_NAME);
+
+		const newName = 'Glory t0 the DAmm';
+		await clearingHouse.updatePerpMarketName(0, newName);
+
+		await clearingHouse.fetchAccounts();
+		const newMarket = clearingHouse.getPerpMarketAccount(0);
+		assert(decodeName(newMarket.name) == newName);
+	});
+
+	it('Update lp cooldown time', async () => {
+		await clearingHouse.updateLpCooldownTime(new BN(420));
+		await clearingHouse.fetchAccounts();
+		assert(clearingHouse.getStateAccount().lpCooldownTime.eq(new BN(420)));
 	});
 
 	it('Update Amm Jit', async () => {
@@ -82,7 +103,7 @@ describe('admin', () => {
 		const marginRatioInitial = 3000;
 		const marginRatioMaintenance = 1000;
 
-		await clearingHouse.updateMarginRatio(
+		await clearingHouse.updatePerpMarketMarginRatio(
 			0,
 			marginRatioInitial,
 			marginRatioMaintenance
@@ -175,7 +196,7 @@ describe('admin', () => {
 		const newOracle = PublicKey.default;
 		const newOracleSource = OracleSource.SWITCHBOARD;
 
-		await clearingHouse.updateMarketOracle(0, newOracle, newOracleSource);
+		await clearingHouse.updatePerpMarketOracle(0, newOracle, newOracleSource);
 
 		await clearingHouse.fetchAccounts();
 		const market = clearingHouse.getPerpMarketAccount(0);
@@ -186,27 +207,20 @@ describe('admin', () => {
 		);
 	});
 
-	it('Update market minimum quote asset trade size', async () => {
-		const minimumTradeSize = new BN(1);
+	it('Update market base asset step size', async () => {
+		const stepSize = new BN(2);
+		const tickSize = new BN(2);
 
-		await clearingHouse.updateMarketMinimumQuoteAssetTradeSize(
+		await clearingHouse.updatePerpMarketStepSizeAndTickSize(
 			0,
-			minimumTradeSize
+			stepSize,
+			tickSize
 		);
 
 		await clearingHouse.fetchAccounts();
 		const market = clearingHouse.getPerpMarketAccount(0);
-		assert(market.amm.minimumQuoteAssetTradeSize.eq(minimumTradeSize));
-	});
-
-	it('Update market base asset step size', async () => {
-		const stepSize = new BN(2);
-
-		await clearingHouse.updateMarketBaseAssetAmountStepSize(0, stepSize);
-
-		await clearingHouse.fetchAccounts();
-		const market = clearingHouse.getPerpMarketAccount(0);
-		assert(market.amm.baseAssetAmountStepSize.eq(stepSize));
+		assert(market.amm.orderStepSize.eq(stepSize));
+		assert(market.amm.orderTickSize.eq(tickSize));
 	});
 
 	it('Pause liq', async () => {

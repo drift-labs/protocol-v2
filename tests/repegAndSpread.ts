@@ -58,7 +58,7 @@ async function depositToFeePoolFromIF(
 
 	// // send $50 to market from IF
 	try {
-		const txSig00 = await clearingHouse.depositIntoMarketFeePool(
+		const txSig00 = await clearingHouse.depositIntoPerpMarketFeePool(
 			0,
 			ifAmount,
 			userUSDCAccount.publicKey
@@ -186,7 +186,7 @@ describe('repeg and spread amm', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos: oracleInfos,
@@ -200,7 +200,7 @@ describe('repeg and spread amm', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		// BTC
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			btcUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -210,8 +210,8 @@ describe('repeg and spread amm', () => {
 			500,
 			250
 		);
-		await clearingHouse.updateMarketBaseSpread(0, 250);
-		await clearingHouse.updateCurveUpdateIntensity(0, 100);
+		await clearingHouse.updatePerpMarketBaseSpread(0, 250);
+		await clearingHouse.updatePerpMarketCurveUpdateIntensity(0, 100);
 
 		// for (let i = 1; i <= 4; i++) {
 		// 	// init more markets
@@ -226,8 +226,8 @@ describe('repeg and spread amm', () => {
 		// 		1000,
 		// 		201
 		// 	);
-		// 	await clearingHouse.updateMarketBaseSpread(new BN(i), 2000);
-		// 	await clearingHouse.updateCurveUpdateIntensity(new BN(i), 100);
+		// 	await clearingHouse.updatePerpMarketBaseSpread(new BN(i), 2000);
+		// 	await clearingHouse.updatePerpMarketCurveUpdateIntensity(new BN(i), 100);
 		// }
 
 		const [, _userAccountPublicKey] =
@@ -314,7 +314,7 @@ describe('repeg and spread amm', () => {
 		);
 		console.log(
 			'market0.amm.netBaseAssetAmount:',
-			market0.amm.netBaseAssetAmount.toString(),
+			market0.amm.baseAssetAmountWithAmm.toString(),
 			'terminalQuoteAssetReserve:',
 			market0.amm.terminalQuoteAssetReserve.toString(),
 			'quoteAssetReserve:',
@@ -364,7 +364,7 @@ describe('repeg and spread amm', () => {
 
 		console.log(
 			'prepegAMM.netBaseAssetAmount:',
-			prepegAMM.netBaseAssetAmount.toString(),
+			prepegAMM.baseAssetAmountWithAmm.toString(),
 			'terminalQuoteAssetReserve:',
 			prepegAMM.terminalQuoteAssetReserve.toString(),
 			'quoteAssetReserve:',
@@ -380,7 +380,7 @@ describe('repeg and spread amm', () => {
 			prepegAMM.quoteAssetReserve,
 			prepegAMM.terminalQuoteAssetReserve,
 			prepegAMM.pegMultiplier,
-			prepegAMM.netBaseAssetAmount,
+			prepegAMM.baseAssetAmountWithAmm,
 			reservePrice,
 			prepegAMM.totalFeeMinusDistributions,
 			prepegAMM.baseAssetReserve,
@@ -419,12 +419,12 @@ describe('repeg and spread amm', () => {
 			prepegAMM.quoteAssetReserve,
 			prepegAMM.terminalQuoteAssetReserve,
 			prepegAMM.pegMultiplier,
-			prepegAMM.netBaseAssetAmount,
+			prepegAMM.baseAssetAmountWithAmm,
 			reservePrice,
 			prepegAMM.totalFeeMinusDistributions
 		);
 		const inventoryScale = calculateInventoryScale(
-			prepegAMM.netBaseAssetAmount,
+			prepegAMM.baseAssetAmountWithAmm,
 			prepegAMM.baseAssetReserve,
 			prepegAMM.minBaseAssetReserve,
 			prepegAMM.maxBaseAssetReserve
@@ -576,13 +576,13 @@ describe('repeg and spread amm', () => {
 		const spotMarketAccount0 = clearingHouse.getSpotMarketAccount(0);
 
 		const feePoolBalance0 = getTokenAmount(
-			market.amm.feePool.balance,
+			market.amm.feePool.scaledBalance,
 			spotMarketAccount0,
 			SpotBalanceType.DEPOSIT
 		);
 
 		const pnlPoolBalance0 = getTokenAmount(
-			market.pnlPool.balance,
+			market.pnlPool.scaledBalance,
 			spotMarketAccount0,
 			SpotBalanceType.DEPOSIT
 		);
@@ -634,19 +634,19 @@ describe('repeg and spread amm', () => {
 		const spotMarketAccount = clearingHouse.getSpotMarketAccount(0);
 
 		const revPoolBalance = getTokenAmount(
-			spotMarketAccount.revenuePool.balance,
+			spotMarketAccount.revenuePool.scaledBalance,
 			spotMarketAccount,
 			SpotBalanceType.DEPOSIT
 		);
 
 		const feePoolBalance = getTokenAmount(
-			market1.amm.feePool.balance,
+			market1.amm.feePool.scaledBalance,
 			spotMarketAccount,
 			SpotBalanceType.DEPOSIT
 		);
 
 		const pnlPoolBalance = getTokenAmount(
-			market1.pnlPool.balance,
+			market1.pnlPool.scaledBalance,
 			spotMarketAccount,
 			SpotBalanceType.DEPOSIT
 		);
@@ -843,7 +843,7 @@ describe('repeg and spread amm', () => {
 
 		const revPoolBalance = convertToNumber(
 			getTokenAmount(
-				spotMarketAccount.revenuePool.balance,
+				spotMarketAccount.revenuePool.scaledBalance,
 				spotMarketAccount,
 				SpotBalanceType.DEPOSIT
 			),
@@ -852,7 +852,7 @@ describe('repeg and spread amm', () => {
 
 		const pnlPoolBalance = convertToNumber(
 			getTokenAmount(
-				market0.pnlPool.balance,
+				market0.pnlPool.scaledBalance,
 				spotMarketAccount,
 				SpotBalanceType.DEPOSIT
 			),
@@ -861,7 +861,7 @@ describe('repeg and spread amm', () => {
 
 		const feePoolBalance = convertToNumber(
 			getTokenAmount(
-				market0.amm.feePool.balance,
+				market0.amm.feePool.scaledBalance,
 				spotMarketAccount,
 				SpotBalanceType.DEPOSIT
 			),
@@ -936,9 +936,9 @@ describe('repeg and spread amm', () => {
 
 		console.log(
 			'market0.amm.netBaseAssetAmount:',
-			market0.amm.netBaseAssetAmount.toString()
+			market0.amm.baseAssetAmountWithAmm.toString()
 		);
-		assert(market0.amm.netBaseAssetAmount.eq(new BN(0)));
+		assert(market0.amm.baseAssetAmountWithAmm.eq(new BN(0)));
 
 		// console.log(market0);
 

@@ -8,11 +8,11 @@ mod get_claimable_pnl {
     };
     use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
     use crate::math::spot_balance::get_token_amount;
-    use crate::state::market::{PerpMarket, PoolBalance, AMM};
     use crate::state::oracle::OracleSource;
+    use crate::state::perp_market::{PerpMarket, PoolBalance, AMM};
     use crate::state::spot_market::{SpotBalance, SpotMarket};
     use crate::state::user::{PerpPosition, User};
-    use crate::tests::utils::get_positions;
+    use crate::test_utils::get_positions;
 
     #[test]
     fn long_negative_unrealized_pnl() {
@@ -227,13 +227,13 @@ mod get_claimable_pnl {
                 concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
                 curve_update_intensity: 100,
-                net_base_asset_amount: AMM_RESERVE_PRECISION as i128,
+                base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
                 quote_asset_amount_long: -250 * QUOTE_PRECISION_I128,
                 quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
-                balance: (10 * SPOT_BALANCE_PRECISION) as u128,
+                scaled_balance: (10 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
@@ -273,7 +273,7 @@ mod get_claimable_pnl {
         let oracle_price = 150 * PRICE_PRECISION_I128;
 
         let pnl_pool_token_amount = get_token_amount(
-            perp_market.pnl_pool.balance,
+            perp_market.pnl_pool.scaled_balance,
             &usdc_market,
             perp_market.pnl_pool.balance_type(),
         )
@@ -331,13 +331,13 @@ mod get_claimable_pnl {
                 concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
                 curve_update_intensity: 100,
-                net_base_asset_amount: AMM_RESERVE_PRECISION as i128,
+                base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
                 quote_asset_amount_long: -249 * QUOTE_PRECISION_I128,
                 quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
-                balance: (60 * SPOT_BALANCE_PRECISION) as u128,
+                scaled_balance: (60 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
@@ -377,7 +377,7 @@ mod get_claimable_pnl {
         let oracle_price = 150 * PRICE_PRECISION_I128;
 
         let pnl_pool_token_amount = get_token_amount(
-            perp_market.pnl_pool.balance,
+            perp_market.pnl_pool.scaled_balance,
             &usdc_market,
             perp_market.pnl_pool.balance_type(),
         )
@@ -480,13 +480,13 @@ mod get_claimable_pnl {
                 concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
                 curve_update_intensity: 100,
-                net_base_asset_amount: AMM_RESERVE_PRECISION as i128,
+                base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
                 quote_asset_amount_long: -250 * QUOTE_PRECISION_I128,
                 quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
-                balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
+                scaled_balance: (1000 * SPOT_BALANCE_PRECISION) as u128,
                 market_index: 0,
                 ..PoolBalance::default()
             },
@@ -526,7 +526,7 @@ mod get_claimable_pnl {
         let oracle_price = 160 * PRICE_PRECISION_I128;
 
         let pnl_pool_token_amount = get_token_amount(
-            perp_market.pnl_pool.balance,
+            perp_market.pnl_pool.scaled_balance,
             &usdc_market,
             perp_market.pnl_pool.balance_type(),
         )
@@ -596,7 +596,7 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 0,
+            scaled_balance: 0,
             open_orders: 1,
             open_bids: 10_i64.pow(9),
             open_asks: 0,
@@ -631,7 +631,7 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 0,
+            scaled_balance: 0,
             open_orders: 1,
             open_bids: 0,
             open_asks: -(10_i64.pow(9)),
@@ -666,7 +666,7 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 2 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_bids: 0,
             open_asks: -(10_i64.pow(9)),
@@ -701,7 +701,7 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_bids: 0,
             open_asks: -2 * 10_i64.pow(9),
@@ -736,7 +736,7 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
-            balance: 2 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_bids: 0,
             open_asks: 10_i64.pow(9),
@@ -771,7 +771,7 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Borrow,
-            balance: 2 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_bids: 10_i64.pow(9),
             open_asks: 0,
@@ -807,7 +807,7 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Borrow,
-            balance: 2 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_bids: 5 * 10_i64.pow(9),
             open_asks: 0,
@@ -843,7 +843,7 @@ mod get_worst_case_token_amounts {
         let spot_position = SpotPosition {
             market_index: 0,
             balance_type: SpotBalanceType::Borrow,
-            balance: 2 * SPOT_BALANCE_PRECISION_U64,
+            scaled_balance: 2 * SPOT_BALANCE_PRECISION_U64,
             open_orders: 1,
             open_bids: 0,
             open_asks: -(10_i64.pow(9)),

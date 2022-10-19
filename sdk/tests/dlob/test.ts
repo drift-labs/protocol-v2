@@ -18,7 +18,12 @@ import {
 	isOrderExpired,
 } from '../../src';
 
-import { mockPerpMarkets, mockSpotMarkets } from './helpers';
+import {
+	mockPerpMarkets,
+	mockSpotMarkets,
+	mockStateAccount,
+	MockUserMap,
+} from './helpers';
 
 function insertOrderToDLOB(
 	dlob: DLOB,
@@ -51,7 +56,6 @@ function insertOrderToDLOB(
 			baseAssetAmountFilled: new BN(0),
 			quoteAssetAmount: new BN(0),
 			quoteAssetAmountFilled: new BN(0),
-			fee: new BN(0),
 			direction,
 			reduceOnly: false,
 			triggerPrice: new BN(0),
@@ -59,8 +63,8 @@ function insertOrderToDLOB(
 			triggered: false,
 			existingPositionDirection: PositionDirection.LONG,
 			postOnly: false,
-			immediateOrCancel: true,
-			oraclePriceOffset,
+			immediateOrCancel: false,
+			oraclePriceOffset: oraclePriceOffset.toNumber(),
 			auctionDuration: 10,
 			auctionStartPrice,
 			auctionEndPrice,
@@ -103,7 +107,6 @@ function insertTriggerOrderToDLOB(
 			baseAssetAmountFilled: new BN(0),
 			quoteAssetAmount: new BN(0),
 			quoteAssetAmountFilled: new BN(0),
-			fee: new BN(0),
 			direction,
 			reduceOnly: false,
 			triggerPrice,
@@ -112,7 +115,7 @@ function insertTriggerOrderToDLOB(
 			existingPositionDirection: PositionDirection.LONG,
 			postOnly: false,
 			immediateOrCancel: true,
-			oraclePriceOffset,
+			oraclePriceOffset: oraclePriceOffset.toNumber(),
 			auctionDuration: 10,
 			auctionStartPrice,
 			auctionEndPrice,
@@ -221,7 +224,15 @@ function getMockTimestamp(): number {
 
 describe('DLOB Tests', () => {
 	it('Fresh DLOB is empty', () => {
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const mockUserMap = new MockUserMap();
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const vAsk = new BN(11);
 		const vBid = new BN(10);
 		const oracle = {
@@ -288,7 +299,31 @@ describe('DLOB Tests', () => {
 	it('Can clear DLOB', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const user0Auth = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user1Auth = Keypair.generate();
+		const user2 = Keypair.generate();
+		const user2Auth = Keypair.generate();
+		const user3 = Keypair.generate();
+		const user3Auth = Keypair.generate();
+		const user4 = Keypair.generate();
+		const user4Auth = Keypair.generate();
+		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -301,7 +336,7 @@ describe('DLOB Tests', () => {
 
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			0, // orderId
@@ -314,7 +349,7 @@ describe('DLOB Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			1, // orderId
@@ -327,7 +362,7 @@ describe('DLOB Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user2.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			2, // orderId
@@ -369,7 +404,14 @@ describe('DLOB Perp Tests', () => {
 	it('Test proper bids', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const mockUserMap = new MockUserMap();
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -450,9 +492,14 @@ describe('DLOB Perp Tests', () => {
 			if (t.isVamm) {
 				continue;
 			}
+
+			const user = Keypair.generate();
+			const userAuth = Keypair.generate();
+			mockUserMap.addUserAccountAuthority(user.publicKey, userAuth.publicKey);
+
 			insertOrderToDLOB(
 				dlob,
-				Keypair.generate().publicKey,
+				user.publicKey,
 				t.orderType || OrderType.LIMIT,
 				MarketType.PERP,
 				t.orderId || 0, // orderId
@@ -503,7 +550,14 @@ describe('DLOB Perp Tests', () => {
 	it('Test proper bids on multiple markets', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const mockUserMap = new MockUserMap();
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex0 = 0;
 		const marketIndex1 = 1;
 
@@ -584,9 +638,14 @@ describe('DLOB Perp Tests', () => {
 			if (t.isVamm) {
 				continue;
 			}
+
+			const user = Keypair.generate();
+			const userAuth = Keypair.generate();
+			mockUserMap.addUserAccountAuthority(user.publicKey, userAuth.publicKey);
+
 			insertOrderToDLOB(
 				dlob,
-				Keypair.generate().publicKey,
+				user.publicKey,
 				t.orderType || OrderType.LIMIT,
 				MarketType.PERP,
 				t.orderId || 0, // orderId
@@ -646,7 +705,14 @@ describe('DLOB Perp Tests', () => {
 	it('Test proper asks', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const mockUserMap = new MockUserMap();
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -727,9 +793,14 @@ describe('DLOB Perp Tests', () => {
 			if (t.isVamm) {
 				continue;
 			}
+
+			const user = Keypair.generate();
+			const userAuth = Keypair.generate();
+			mockUserMap.addUserAccountAuthority(user.publicKey, userAuth.publicKey);
+
 			insertOrderToDLOB(
 				dlob,
-				Keypair.generate().publicKey,
+				user.publicKey,
 				t.orderType || OrderType.LIMIT,
 				MarketType.PERP,
 				t.orderId || 0, // orderId
@@ -780,7 +851,14 @@ describe('DLOB Perp Tests', () => {
 	it('Test insert market orders', () => {
 		const vAsk = new BN(11);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const mockUserMap = new MockUserMap();
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 		const oracle = {
 			price: vBid.add(vAsk).div(new BN(2)),
@@ -791,9 +869,13 @@ describe('DLOB Perp Tests', () => {
 
 		// 3 mkt buys
 		for (let i = 0; i < 3; i++) {
+			const user = Keypair.generate();
+			const userAuth = Keypair.generate();
+			mockUserMap.addUserAccountAuthority(user.publicKey, userAuth.publicKey);
+
 			insertOrderToDLOB(
 				dlob,
-				Keypair.generate().publicKey,
+				user.publicKey,
 				OrderType.MARKET,
 				MarketType.PERP,
 				i + 1,
@@ -808,9 +890,13 @@ describe('DLOB Perp Tests', () => {
 
 		// 3 mkt sells
 		for (let i = 0; i < 3; i++) {
+			const user = Keypair.generate();
+			const userAuth = Keypair.generate();
+			mockUserMap.addUserAccountAuthority(user.publicKey, userAuth.publicKey);
+
 			insertOrderToDLOB(
 				dlob,
-				Keypair.generate().publicKey,
+				user.publicKey,
 				OrderType.MARKET,
 				MarketType.PERP,
 				i + 1,
@@ -877,11 +963,39 @@ describe('DLOB Perp Tests', () => {
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
 		};
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const userAuth0 = Keypair.generate();
+		const user1 = Keypair.generate();
+		const userAuth1 = Keypair.generate();
+		const user2 = Keypair.generate();
+		const userAuth2 = Keypair.generate();
+		const user3 = Keypair.generate();
+		const userAuth3 = Keypair.generate();
+		const user4 = Keypair.generate();
+		const userAuth4 = Keypair.generate();
+		const user5 = Keypair.generate();
+		const userAuth5 = Keypair.generate();
+
+		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
+		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
+		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
+		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
+		mockUserMap.addUserAccountAuthority(user5.publicKey, userAuth5.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			3, // orderId
@@ -895,7 +1009,7 @@ describe('DLOB Perp Tests', () => {
 
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			2,
@@ -909,7 +1023,7 @@ describe('DLOB Perp Tests', () => {
 
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user2.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			1, // orderId
@@ -923,7 +1037,7 @@ describe('DLOB Perp Tests', () => {
 
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user3.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			1, // orderId
@@ -937,7 +1051,7 @@ describe('DLOB Perp Tests', () => {
 
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user4.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			2, // orderId
@@ -951,7 +1065,7 @@ describe('DLOB Perp Tests', () => {
 
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user5.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			3, // orderId
@@ -1021,13 +1135,41 @@ describe('DLOB Perp Tests', () => {
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
 		};
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const userAuth0 = Keypair.generate();
+		const user1 = Keypair.generate();
+		const userAuth1 = Keypair.generate();
+		const user2 = Keypair.generate();
+		const userAuth2 = Keypair.generate();
+		const user3 = Keypair.generate();
+		const userAuth3 = Keypair.generate();
+		const user4 = Keypair.generate();
+		const userAuth4 = Keypair.generate();
+		const user5 = Keypair.generate();
+		const userAuth5 = Keypair.generate();
+
+		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
+		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
+		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
+		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
+		mockUserMap.addUserAccountAuthority(user5.publicKey, userAuth5.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		// insert floating bids
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			1, // orderId
@@ -1043,7 +1185,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			3, // orderId
@@ -1059,7 +1201,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user2.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			2, // orderId
@@ -1077,7 +1219,7 @@ describe('DLOB Perp Tests', () => {
 		// insert floating asks
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user3.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			5, // orderId
@@ -1093,7 +1235,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user4.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			6, // orderId
@@ -1109,7 +1251,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user5.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			4, // orderId
@@ -1182,16 +1324,40 @@ describe('DLOB Perp Tests', () => {
 		expect(asks).to.equal(4); // vamm ask + 3 orders
 	});
 
-	it('Test multiple market orders fill with multiple limit orders', () => {
+	it('Test multiple market orders fill with multiple limit orders', async () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const user0Auth = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user1Auth = Keypair.generate();
+		const user2 = Keypair.generate();
+		const user2Auth = Keypair.generate();
+		const user3 = Keypair.generate();
+		const user3Auth = Keypair.generate();
+		const user4 = Keypair.generate();
+		const user4Auth = Keypair.generate();
+		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		// insert some limit buys above vamm bid, below ask
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			1, // orderId
@@ -1204,7 +1370,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			2, // orderId
@@ -1217,7 +1383,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user2.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			3, // orderId
@@ -1246,7 +1412,7 @@ describe('DLOB Perp Tests', () => {
 		// place two market sell order eating 2 of the limit orders
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user3.publicKey,
 			OrderType.MARKET,
 			MarketType.PERP,
 			4, // orderId
@@ -1259,7 +1425,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user4.publicKey,
 			OrderType.MARKET,
 			MarketType.PERP,
 			5, // orderId
@@ -1300,13 +1466,34 @@ describe('DLOB Perp Tests', () => {
 	it('Test one market orders fills two limit orders', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const user0Auth = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user1Auth = Keypair.generate();
+		const user2 = Keypair.generate();
+		const user2Auth = Keypair.generate();
+		const user3 = Keypair.generate();
+		const user3Auth = Keypair.generate();
+		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		// insert some limit sells below vAMM ask, above bid
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			1, // orderId
@@ -1319,7 +1506,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			2, // orderId
@@ -1332,7 +1519,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user2.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			3, // orderId
@@ -1361,7 +1548,7 @@ describe('DLOB Perp Tests', () => {
 		// place one market buy order eating 2 of the limit orders
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user3.publicKey,
 			OrderType.MARKET,
 			MarketType.PERP,
 			4, // orderId
@@ -1402,7 +1589,31 @@ describe('DLOB Perp Tests', () => {
 	it('Test two market orders to fill one limit order', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const user0Auth = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user1Auth = Keypair.generate();
+		const user2 = Keypair.generate();
+		const user2Auth = Keypair.generate();
+		const user3 = Keypair.generate();
+		const user3Auth = Keypair.generate();
+		const user4 = Keypair.generate();
+		const user4Auth = Keypair.generate();
+		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -1416,7 +1627,7 @@ describe('DLOB Perp Tests', () => {
 		// insert some limit sells below vAMM ask, above bid
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			1, // orderId
@@ -1429,7 +1640,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			2, // orderId
@@ -1442,7 +1653,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user2.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			3, // orderId
@@ -1466,7 +1677,7 @@ describe('DLOB Perp Tests', () => {
 		// place two market buy orders to eat the best ask
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user3.publicKey,
 			OrderType.MARKET,
 			MarketType.PERP,
 			4, // orderId
@@ -1479,7 +1690,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user4.publicKey,
 			OrderType.MARKET,
 			MarketType.PERP,
 			5, // orderId
@@ -1497,7 +1708,7 @@ describe('DLOB Perp Tests', () => {
 			MarketType.PERP,
 			oracle
 		);
-		const mktNodes = dlob.findExpiredMarketNodesToFill(
+		const mktNodes = dlob.findExpiredNodesToFill(
 			marketIndex,
 			slot,
 			MarketType.PERP
@@ -1524,7 +1735,52 @@ describe('DLOB Perp Tests', () => {
 	it('Test trigger orders', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const user0Auth = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user1Auth = Keypair.generate();
+		const user2 = Keypair.generate();
+		const user2Auth = Keypair.generate();
+		const user3 = Keypair.generate();
+		const user3Auth = Keypair.generate();
+		const user4 = Keypair.generate();
+		const user4Auth = Keypair.generate();
+		const user5 = Keypair.generate();
+		const user5Auth = Keypair.generate();
+		const user6 = Keypair.generate();
+		const user6Auth = Keypair.generate();
+		const user7 = Keypair.generate();
+		const user7Auth = Keypair.generate();
+		const user8 = Keypair.generate();
+		const user8Auth = Keypair.generate();
+		const user9 = Keypair.generate();
+		const user9Auth = Keypair.generate();
+		const user10 = Keypair.generate();
+		const user10Auth = Keypair.generate();
+		const user11 = Keypair.generate();
+		const user11Auth = Keypair.generate();
+		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user5.publicKey, user5Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user6.publicKey, user6Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user7.publicKey, user7Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user8.publicKey, user8Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user9.publicKey, user9Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user10.publicKey, user10Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user11.publicKey, user11Auth.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		const slot = 20;
@@ -1541,7 +1797,7 @@ describe('DLOB Perp Tests', () => {
 		// should trigger limit buy with above condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.TRIGGER_LIMIT,
 			MarketType.PERP,
 			1, //orderId
@@ -1557,7 +1813,7 @@ describe('DLOB Perp Tests', () => {
 		// should trigger limit sell with above condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.TRIGGER_LIMIT,
 			MarketType.PERP,
 			2, //orderId
@@ -1573,7 +1829,7 @@ describe('DLOB Perp Tests', () => {
 		// should trigger market buy with above condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user2.publicKey,
 			OrderType.TRIGGER_MARKET,
 			MarketType.PERP,
 			3, //orderId
@@ -1589,7 +1845,7 @@ describe('DLOB Perp Tests', () => {
 		// should trigger market sell with above condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user3.publicKey,
 			OrderType.TRIGGER_MARKET,
 			MarketType.PERP,
 			4, //orderId
@@ -1605,7 +1861,7 @@ describe('DLOB Perp Tests', () => {
 		// should trigger limit buy with below condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user4.publicKey,
 			OrderType.TRIGGER_LIMIT,
 			MarketType.PERP,
 			5, //orderId
@@ -1621,7 +1877,7 @@ describe('DLOB Perp Tests', () => {
 		// should trigger limit sell with below condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user5.publicKey,
 			OrderType.TRIGGER_LIMIT,
 			MarketType.PERP,
 			6, //orderId
@@ -1637,7 +1893,7 @@ describe('DLOB Perp Tests', () => {
 		// should trigger market buy with below condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user6.publicKey,
 			OrderType.TRIGGER_MARKET,
 			MarketType.PERP,
 			7, //orderId
@@ -1653,7 +1909,7 @@ describe('DLOB Perp Tests', () => {
 		// should trigger market sell with below condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user7.publicKey,
 			OrderType.TRIGGER_MARKET,
 			MarketType.PERP,
 			8, //orderId
@@ -1670,7 +1926,7 @@ describe('DLOB Perp Tests', () => {
 		// should NOT trigger market sell with above condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user8.publicKey,
 			OrderType.TRIGGER_MARKET,
 			MarketType.PERP,
 			9, //orderId
@@ -1686,7 +1942,7 @@ describe('DLOB Perp Tests', () => {
 		// should NOT trigger market sell with below condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user9.publicKey,
 			OrderType.TRIGGER_MARKET,
 			MarketType.PERP,
 			10, //orderId
@@ -1702,7 +1958,7 @@ describe('DLOB Perp Tests', () => {
 		// should NOT trigger market buy with above condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user10.publicKey,
 			OrderType.TRIGGER_MARKET,
 			MarketType.PERP,
 			11, //orderId
@@ -1718,7 +1974,7 @@ describe('DLOB Perp Tests', () => {
 		// should NOT trigger market buy with below condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user11.publicKey,
 			OrderType.TRIGGER_MARKET,
 			MarketType.PERP,
 			12, //orderId
@@ -1748,7 +2004,22 @@ describe('DLOB Perp Tests', () => {
 	it('Test will return expired market orders to fill', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const user0Auth = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user1Auth = Keypair.generate();
+		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		const slot = 20;
@@ -1757,7 +2028,7 @@ describe('DLOB Perp Tests', () => {
 		// non crossing bid
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.MARKET,
 			MarketType.PERP,
 			255, // orderId
@@ -1772,7 +2043,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.MARKET,
 			MarketType.PERP,
 			2, // orderId
@@ -1832,7 +2103,31 @@ describe('DLOB Perp Tests', () => {
 	it('Test skips vAMM and fills market buy order with floating limit order during auction', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const user0Auth = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user1Auth = Keypair.generate();
+		const user2 = Keypair.generate();
+		const user2Auth = Keypair.generate();
+		const user3 = Keypair.generate();
+		const user3Auth = Keypair.generate();
+		const user4 = Keypair.generate();
+		const user4Auth = Keypair.generate();
+		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -1846,7 +2141,7 @@ describe('DLOB Perp Tests', () => {
 		// insert some floating limit sells above vAMM ask
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			1, // orderId
@@ -1862,7 +2157,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			2, // orderId
@@ -1878,7 +2173,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user2.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			3, // orderId
@@ -1912,7 +2207,7 @@ describe('DLOB Perp Tests', () => {
 		// place two market buy orders to eat the best ask
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user3.publicKey,
 			OrderType.MARKET,
 			MarketType.PERP,
 			4, // orderId
@@ -1925,7 +2220,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user4.publicKey,
 			OrderType.MARKET,
 			MarketType.PERP,
 			5, // orderId
@@ -1950,7 +2245,7 @@ describe('DLOB Perp Tests', () => {
 				hasSufficientNumberOfDataPoints: true,
 			}
 		);
-		const mktNodes = dlob.findExpiredMarketNodesToFill(
+		const mktNodes = dlob.findExpiredNodesToFill(
 			marketIndex,
 			slot,
 			MarketType.PERP
@@ -1981,7 +2276,31 @@ describe('DLOB Perp Tests', () => {
 	it('Test fills market buy order with better priced vAMM after auction', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const user0Auth = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user1Auth = Keypair.generate();
+		const user2 = Keypair.generate();
+		const user2Auth = Keypair.generate();
+		const user3 = Keypair.generate();
+		const user3Auth = Keypair.generate();
+		const user4 = Keypair.generate();
+		const user4Auth = Keypair.generate();
+		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -1995,7 +2314,7 @@ describe('DLOB Perp Tests', () => {
 		// insert some floating limit sells above vAMM ask
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			1, // orderId
@@ -2011,7 +2330,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			2, // orderId
@@ -2027,7 +2346,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user2.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			3, // orderId
@@ -2055,7 +2374,7 @@ describe('DLOB Perp Tests', () => {
 		// place two market buy orders
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user3.publicKey,
 			OrderType.MARKET,
 			MarketType.PERP,
 			4, // orderId
@@ -2070,7 +2389,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user4.publicKey,
 			OrderType.MARKET,
 			MarketType.PERP,
 			5, // orderId
@@ -2111,7 +2430,31 @@ describe('DLOB Perp Tests', () => {
 	it('Test skips vAMM and fills market sell order with floating limit buys during auction', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const user0Auth = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user1Auth = Keypair.generate();
+		const user2 = Keypair.generate();
+		const user2Auth = Keypair.generate();
+		const user3 = Keypair.generate();
+		const user3Auth = Keypair.generate();
+		const user4 = Keypair.generate();
+		const user4Auth = Keypair.generate();
+		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -2125,7 +2468,7 @@ describe('DLOB Perp Tests', () => {
 		// insert some floating limit buy below vAMM bid
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			2, // orderId
@@ -2141,7 +2484,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			3, // orderId
@@ -2157,7 +2500,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user2.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			1, // orderId
@@ -2184,7 +2527,7 @@ describe('DLOB Perp Tests', () => {
 		// place two market sell orders to eat the best bid
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user3.publicKey,
 			OrderType.MARKET,
 			MarketType.PERP,
 			4, // orderId
@@ -2197,7 +2540,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user4.publicKey,
 			OrderType.MARKET,
 			MarketType.PERP,
 			5, // orderId
@@ -2215,7 +2558,7 @@ describe('DLOB Perp Tests', () => {
 			MarketType.PERP,
 			oracle
 		);
-		const mktNodes = dlob.findExpiredMarketNodesToFill(
+		const mktNodes = dlob.findExpiredNodesToFill(
 			marketIndex,
 			slot,
 			MarketType.PERP
@@ -2264,7 +2607,31 @@ describe('DLOB Perp Tests', () => {
 	it('Test fills market sell order with better priced vAMM after auction', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const user0Auth = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user1Auth = Keypair.generate();
+		const user2 = Keypair.generate();
+		const user2Auth = Keypair.generate();
+		const user3 = Keypair.generate();
+		const user3Auth = Keypair.generate();
+		const user4 = Keypair.generate();
+		const user4Auth = Keypair.generate();
+		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user3.publicKey, user3Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user4.publicKey, user4Auth.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -2278,7 +2645,7 @@ describe('DLOB Perp Tests', () => {
 		// insert some floating limit buy below vAMM bid
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			2, // orderId
@@ -2294,7 +2661,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			3, // orderId
@@ -2310,7 +2677,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user2.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			1, // orderId
@@ -2341,7 +2708,7 @@ describe('DLOB Perp Tests', () => {
 		// place two market sell orders to eat the best bid
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user3.publicKey,
 			OrderType.MARKET,
 			MarketType.PERP,
 			4, // orderId
@@ -2355,7 +2722,7 @@ describe('DLOB Perp Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user4.publicKey,
 			OrderType.MARKET,
 			MarketType.PERP,
 			5, // orderId
@@ -2413,7 +2780,25 @@ describe('DLOB Perp Tests', () => {
 	it('Test fills crossing bids with vAMM after auction ends', () => {
 		const vAsk = new BN(15).mul(PRICE_PRECISION);
 		const vBid = new BN(8).mul(PRICE_PRECISION);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const user0Auth = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user1Auth = Keypair.generate();
+		const user2 = Keypair.generate();
+		const user2Auth = Keypair.generate();
+		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user2.publicKey, user2Auth.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -2427,7 +2812,7 @@ describe('DLOB Perp Tests', () => {
 		// insert some floating limit buy below vAMM bid
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			2, // orderId
@@ -2438,11 +2823,11 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			30
+			200
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			3, // orderId
@@ -2453,11 +2838,11 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			30
+			200
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user2.publicKey,
 			OrderType.LIMIT,
 			MarketType.PERP,
 			1, // orderId
@@ -2468,7 +2853,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			30
+			200
 		);
 		console.log(`Book state before fill:`);
 		printBookState(dlob, marketIndex, vBid, vAsk, slot, oracle);
@@ -2525,13 +2910,190 @@ describe('DLOB Perp Tests', () => {
 
 		expect(nodesToFillAfter.length).to.equal(2);
 	});
+
+	it('Test fills two limit orders better than vAmm', () => {
+		const vAsk = new BN(20).mul(PRICE_PRECISION);
+		const vBid = new BN(5).mul(PRICE_PRECISION);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const user0Auth = Keypair.generate();
+		const user1 = Keypair.generate();
+		const user1Auth = Keypair.generate();
+		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, user1Auth.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
+		const marketIndex = 0;
+
+		const slot = 12;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)), // 11.5
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		// insert a sell below the bid, but above vBid
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			3, // orderId
+			marketIndex,
+			new BN(10).mul(PRICE_PRECISION), // price; crosses bid
+			new BN(1).mul(BASE_PRECISION), // quantity
+			PositionDirection.SHORT,
+			vAsk,
+			vBid,
+			new BN(slot),
+			200
+		);
+		// insert a buy above the vBid
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			2, // orderId
+			marketIndex,
+			new BN(15).mul(PRICE_PRECISION), // price,
+			new BN(8768).mul(BASE_PRECISION).div(new BN(10000)), // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(slot),
+			200
+		);
+
+		console.log(`Book state before fill:`);
+		printBookState(dlob, marketIndex, vBid, vAsk, slot, oracle);
+
+		const nodesToFillBefore = dlob.findNodesToFill(
+			marketIndex,
+			vBid,
+			vAsk,
+			slot,
+			MarketType.PERP,
+			oracle
+		);
+		console.log(`Filled nodes: ${nodesToFillBefore.length}`);
+		for (const n of nodesToFillBefore) {
+			printCrossedNodes(n, slot);
+		}
+		expect(nodesToFillBefore.length).to.equal(1);
+
+		// first order is maker, second is taker
+		expect(
+			nodesToFillBefore[0].node.order?.orderId,
+			'wrong taker orderId'
+		).to.equal(2);
+		expect(
+			nodesToFillBefore[0].makerNode?.order?.orderId,
+			'wrong maker orderId'
+		).to.equal(3);
+	});
+
+	it('Test will not fill two limit orders by same authority', () => {
+		const vAsk = new BN(20).mul(PRICE_PRECISION);
+		const vBid = new BN(5).mul(PRICE_PRECISION);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const user0Auth = Keypair.generate();
+		const user1 = Keypair.generate();
+		mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, user0Auth.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
+		const marketIndex = 0;
+
+		const slot = 12;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)), // 11.5
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		// insert a sell below the bid, but above vBid
+		insertOrderToDLOB(
+			dlob,
+			user0.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			3, // orderId
+			marketIndex,
+			new BN(10).mul(PRICE_PRECISION), // price; crosses bid
+			new BN(1).mul(BASE_PRECISION), // quantity
+			PositionDirection.SHORT,
+			vAsk,
+			vBid,
+			new BN(slot),
+			200
+		);
+		// insert a buy above the vBid
+		insertOrderToDLOB(
+			dlob,
+			user1.publicKey,
+			OrderType.LIMIT,
+			MarketType.PERP,
+			2, // orderId
+			marketIndex,
+			new BN(15).mul(PRICE_PRECISION), // price,
+			new BN(8768).mul(BASE_PRECISION).div(new BN(10000)), // quantity
+			PositionDirection.LONG,
+			vBid,
+			vAsk,
+			new BN(slot),
+			200
+		);
+
+		console.log(`Book state before fill:`);
+		printBookState(dlob, marketIndex, vBid, vAsk, slot, oracle);
+
+		const nodesToFillBefore = dlob.findNodesToFill(
+			marketIndex,
+			vBid,
+			vAsk,
+			slot,
+			MarketType.PERP,
+			oracle
+		);
+		console.log(`Filled nodes: ${nodesToFillBefore.length}`);
+		for (const n of nodesToFillBefore) {
+			printCrossedNodes(n, slot);
+		}
+
+		expect(nodesToFillBefore.length).to.equal(0);
+	});
 });
 
 describe('DLOB Spot Tests', () => {
 	it('Test proper bids', () => {
 		const vAsk = new BN(115);
 		const vBid = new BN(100);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const mockUserMap = new MockUserMap();
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -2594,9 +3156,13 @@ describe('DLOB Spot Tests', () => {
 		];
 
 		for (const t of testCases) {
+			const user0 = Keypair.generate();
+			const user0Auth = Keypair.generate();
+			mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+
 			insertOrderToDLOB(
 				dlob,
-				Keypair.generate().publicKey,
+				user0.publicKey,
 				t.orderType || OrderType.LIMIT,
 				MarketType.SPOT,
 				t.orderId || 0, // orderId
@@ -2645,7 +3211,14 @@ describe('DLOB Spot Tests', () => {
 	it('Test proper bids on multiple markets', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const mockUserMap = new MockUserMap();
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex0 = 0;
 		const marketIndex1 = 1;
 
@@ -2716,9 +3289,13 @@ describe('DLOB Spot Tests', () => {
 		];
 
 		for (const t of testCases) {
+			const user0 = Keypair.generate();
+			const user0Auth = Keypair.generate();
+			mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+
 			insertOrderToDLOB(
 				dlob,
-				Keypair.generate().publicKey,
+				user0.publicKey,
 				t.orderType || OrderType.LIMIT,
 				MarketType.SPOT,
 				t.orderId || 0, // orderId
@@ -2778,7 +3355,14 @@ describe('DLOB Spot Tests', () => {
 	it('Test proper asks', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const mockUserMap = new MockUserMap();
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -2841,9 +3425,13 @@ describe('DLOB Spot Tests', () => {
 		];
 
 		for (const t of testCases) {
+			const user0 = Keypair.generate();
+			const user0Auth = Keypair.generate();
+			mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+
 			insertOrderToDLOB(
 				dlob,
-				Keypair.generate().publicKey,
+				user0.publicKey,
 				t.orderType || OrderType.LIMIT,
 				MarketType.SPOT,
 				t.orderId || 0, // orderId
@@ -2900,14 +3488,25 @@ describe('DLOB Spot Tests', () => {
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
 		};
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+		const mockUserMap = new MockUserMap();
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		// 3 mkt buys
 		for (let i = 0; i < 3; i++) {
+			const user0 = Keypair.generate();
+			const user0Auth = Keypair.generate();
+			mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+
 			insertOrderToDLOB(
 				dlob,
-				Keypair.generate().publicKey,
+				user0.publicKey,
 				OrderType.MARKET,
 				MarketType.SPOT,
 				i + 1,
@@ -2922,9 +3521,13 @@ describe('DLOB Spot Tests', () => {
 
 		// 3 mkt sells
 		for (let i = 0; i < 3; i++) {
+			const user0 = Keypair.generate();
+			const user0Auth = Keypair.generate();
+			mockUserMap.addUserAccountAuthority(user0.publicKey, user0Auth.publicKey);
+
 			insertOrderToDLOB(
 				dlob,
-				Keypair.generate().publicKey,
+				user0.publicKey,
 				OrderType.MARKET,
 				MarketType.SPOT,
 				i + 1,
@@ -2986,11 +3589,39 @@ describe('DLOB Spot Tests', () => {
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
 		};
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const userAuth0 = Keypair.generate();
+		const user1 = Keypair.generate();
+		const userAuth1 = Keypair.generate();
+		const user2 = Keypair.generate();
+		const userAuth2 = Keypair.generate();
+		const user3 = Keypair.generate();
+		const userAuth3 = Keypair.generate();
+		const user4 = Keypair.generate();
+		const userAuth4 = Keypair.generate();
+		const user5 = Keypair.generate();
+		const userAuth5 = Keypair.generate();
+
+		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
+		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
+		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
+		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
+		mockUserMap.addUserAccountAuthority(user5.publicKey, userAuth5.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.LIMIT,
 			MarketType.SPOT,
 			3, // orderId
@@ -3004,7 +3635,7 @@ describe('DLOB Spot Tests', () => {
 
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.LIMIT,
 			MarketType.SPOT,
 			2, // orderId
@@ -3018,7 +3649,7 @@ describe('DLOB Spot Tests', () => {
 
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user2.publicKey,
 			OrderType.LIMIT,
 			MarketType.SPOT,
 			1, // orderId
@@ -3032,7 +3663,7 @@ describe('DLOB Spot Tests', () => {
 
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user3.publicKey,
 			OrderType.LIMIT,
 			MarketType.SPOT,
 			1, // orderId
@@ -3046,7 +3677,7 @@ describe('DLOB Spot Tests', () => {
 
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user4.publicKey,
 			OrderType.LIMIT,
 			MarketType.SPOT,
 			2, // orderId
@@ -3060,7 +3691,7 @@ describe('DLOB Spot Tests', () => {
 
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user5.publicKey,
 			OrderType.LIMIT,
 			MarketType.SPOT,
 			3, // orderId
@@ -3122,13 +3753,41 @@ describe('DLOB Spot Tests', () => {
 	it('Test multiple market orders fill with multiple limit orders', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const userAuth0 = Keypair.generate();
+		const user1 = Keypair.generate();
+		const userAuth1 = Keypair.generate();
+		const user2 = Keypair.generate();
+		const userAuth2 = Keypair.generate();
+		const user3 = Keypair.generate();
+		const userAuth3 = Keypair.generate();
+		const user4 = Keypair.generate();
+		const userAuth4 = Keypair.generate();
+		const user5 = Keypair.generate();
+		const userAuth5 = Keypair.generate();
+
+		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
+		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
+		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
+		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
+		mockUserMap.addUserAccountAuthority(user5.publicKey, userAuth5.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		// insert some limit buys above vamm bid, below ask
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.LIMIT,
 			MarketType.SPOT,
 			1, // orderId
@@ -3141,7 +3800,7 @@ describe('DLOB Spot Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.LIMIT,
 			MarketType.SPOT,
 			2, // orderId
@@ -3154,7 +3813,7 @@ describe('DLOB Spot Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user2.publicKey,
 			OrderType.LIMIT,
 			MarketType.SPOT,
 			3, // orderId
@@ -3183,7 +3842,7 @@ describe('DLOB Spot Tests', () => {
 		// place two market sell order eating 2 of the limit orders
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user4.publicKey,
 			OrderType.MARKET,
 			MarketType.SPOT,
 			4, // orderId
@@ -3196,7 +3855,7 @@ describe('DLOB Spot Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user5.publicKey,
 			OrderType.MARKET,
 			MarketType.SPOT,
 			5, // orderId
@@ -3238,13 +3897,35 @@ describe('DLOB Spot Tests', () => {
 	it('Test one market order fills two limit orders', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(10);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const userAuth0 = Keypair.generate();
+		const user1 = Keypair.generate();
+		const userAuth1 = Keypair.generate();
+		const user2 = Keypair.generate();
+		const userAuth2 = Keypair.generate();
+		const user3 = Keypair.generate();
+		const userAuth3 = Keypair.generate();
+
+		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
+		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
+		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		// insert some limit sells below vAMM ask, above bid
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.LIMIT,
 			MarketType.SPOT,
 			1, // orderId
@@ -3257,7 +3938,7 @@ describe('DLOB Spot Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.LIMIT,
 			MarketType.SPOT,
 			2, // orderId
@@ -3270,7 +3951,7 @@ describe('DLOB Spot Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user2.publicKey,
 			OrderType.LIMIT,
 			MarketType.SPOT,
 			3, // orderId
@@ -3299,7 +3980,7 @@ describe('DLOB Spot Tests', () => {
 		// place one market buy order eating 2 of the limit orders
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user3.publicKey,
 			OrderType.MARKET,
 			MarketType.SPOT,
 			4, // orderId
@@ -3341,7 +4022,32 @@ describe('DLOB Spot Tests', () => {
 	it('Test two market orders to fill one limit order', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const userAuth0 = Keypair.generate();
+		const user1 = Keypair.generate();
+		const userAuth1 = Keypair.generate();
+		const user2 = Keypair.generate();
+		const userAuth2 = Keypair.generate();
+		const user3 = Keypair.generate();
+		const userAuth3 = Keypair.generate();
+		const user4 = Keypair.generate();
+		const userAuth4 = Keypair.generate();
+
+		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
+		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
+		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
+		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		const slot = 12;
@@ -3355,7 +4061,7 @@ describe('DLOB Spot Tests', () => {
 		// insert some limit sells below vAMM ask, above bid
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.LIMIT,
 			MarketType.SPOT,
 			1, // orderId
@@ -3368,7 +4074,7 @@ describe('DLOB Spot Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.LIMIT,
 			MarketType.SPOT,
 			2, // orderId
@@ -3381,7 +4087,7 @@ describe('DLOB Spot Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user2.publicKey,
 			OrderType.LIMIT,
 			MarketType.SPOT,
 			3, // orderId
@@ -3405,7 +4111,7 @@ describe('DLOB Spot Tests', () => {
 		// place two market buy orders to eat the best ask
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user3.publicKey,
 			OrderType.MARKET,
 			MarketType.SPOT,
 			4, // orderId
@@ -3418,7 +4124,7 @@ describe('DLOB Spot Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user4.publicKey,
 			OrderType.MARKET,
 			MarketType.SPOT,
 			5, // orderId
@@ -3436,7 +4142,7 @@ describe('DLOB Spot Tests', () => {
 			MarketType.SPOT,
 			oracle
 		);
-		const mktNodes = dlob.findExpiredMarketNodesToFill(
+		const mktNodes = dlob.findExpiredNodesToFill(
 			marketIndex,
 			slot,
 			MarketType.SPOT
@@ -3464,7 +4170,53 @@ describe('DLOB Spot Tests', () => {
 	it('Test trigger orders', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const userAuth0 = Keypair.generate();
+		const user1 = Keypair.generate();
+		const userAuth1 = Keypair.generate();
+		const user2 = Keypair.generate();
+		const userAuth2 = Keypair.generate();
+		const user3 = Keypair.generate();
+		const userAuth3 = Keypair.generate();
+		const user4 = Keypair.generate();
+		const userAuth4 = Keypair.generate();
+		const user5 = Keypair.generate();
+		const userAuth5 = Keypair.generate();
+		const user6 = Keypair.generate();
+		const userAuth6 = Keypair.generate();
+		const user7 = Keypair.generate();
+		const userAuth7 = Keypair.generate();
+		const user8 = Keypair.generate();
+		const userAuth8 = Keypair.generate();
+		const user9 = Keypair.generate();
+		const userAuth9 = Keypair.generate();
+		const user10 = Keypair.generate();
+		const userAuth10 = Keypair.generate();
+		const user11 = Keypair.generate();
+		const userAuth11 = Keypair.generate();
+
+		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
+		mockUserMap.addUserAccountAuthority(user2.publicKey, userAuth2.publicKey);
+		mockUserMap.addUserAccountAuthority(user3.publicKey, userAuth3.publicKey);
+		mockUserMap.addUserAccountAuthority(user4.publicKey, userAuth4.publicKey);
+		mockUserMap.addUserAccountAuthority(user5.publicKey, userAuth5.publicKey);
+		mockUserMap.addUserAccountAuthority(user6.publicKey, userAuth6.publicKey);
+		mockUserMap.addUserAccountAuthority(user7.publicKey, userAuth7.publicKey);
+		mockUserMap.addUserAccountAuthority(user8.publicKey, userAuth8.publicKey);
+		mockUserMap.addUserAccountAuthority(user9.publicKey, userAuth9.publicKey);
+		mockUserMap.addUserAccountAuthority(user10.publicKey, userAuth10.publicKey);
+		mockUserMap.addUserAccountAuthority(user11.publicKey, userAuth11.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		const slot = 20;
@@ -3481,7 +4233,7 @@ describe('DLOB Spot Tests', () => {
 		// should trigger limit buy with above condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.TRIGGER_LIMIT,
 			MarketType.SPOT,
 			1, //orderId
@@ -3497,7 +4249,7 @@ describe('DLOB Spot Tests', () => {
 		// should trigger limit sell with above condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.TRIGGER_LIMIT,
 			MarketType.SPOT,
 			2, //orderId
@@ -3513,7 +4265,7 @@ describe('DLOB Spot Tests', () => {
 		// should trigger market buy with above condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user2.publicKey,
 			OrderType.TRIGGER_MARKET,
 			MarketType.SPOT,
 			3, //orderId
@@ -3529,7 +4281,7 @@ describe('DLOB Spot Tests', () => {
 		// should trigger market sell with above condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user3.publicKey,
 			OrderType.TRIGGER_MARKET,
 			MarketType.SPOT,
 			4, //orderId
@@ -3545,7 +4297,7 @@ describe('DLOB Spot Tests', () => {
 		// should trigger limit buy with below condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user4.publicKey,
 			OrderType.TRIGGER_LIMIT,
 			MarketType.SPOT,
 			5, //orderId
@@ -3561,7 +4313,7 @@ describe('DLOB Spot Tests', () => {
 		// should trigger limit sell with below condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user5.publicKey,
 			OrderType.TRIGGER_LIMIT,
 			MarketType.SPOT,
 			6, //orderId
@@ -3577,7 +4329,7 @@ describe('DLOB Spot Tests', () => {
 		// should trigger market buy with below condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user6.publicKey,
 			OrderType.TRIGGER_MARKET,
 			MarketType.SPOT,
 			7, //orderId
@@ -3593,7 +4345,7 @@ describe('DLOB Spot Tests', () => {
 		// should trigger market sell with below condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user7.publicKey,
 			OrderType.TRIGGER_MARKET,
 			MarketType.SPOT,
 			8, //orderId
@@ -3610,7 +4362,7 @@ describe('DLOB Spot Tests', () => {
 		// should NOT trigger market sell with above condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user8.publicKey,
 			OrderType.TRIGGER_MARKET,
 			MarketType.SPOT,
 			9, //orderId
@@ -3626,7 +4378,7 @@ describe('DLOB Spot Tests', () => {
 		// should NOT trigger market sell with below condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user9.publicKey,
 			OrderType.TRIGGER_MARKET,
 			MarketType.SPOT,
 			10, //orderId
@@ -3642,7 +4394,7 @@ describe('DLOB Spot Tests', () => {
 		// should NOT trigger market buy with above condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user10.publicKey,
 			OrderType.TRIGGER_MARKET,
 			MarketType.SPOT,
 			11, //orderId
@@ -3658,7 +4410,7 @@ describe('DLOB Spot Tests', () => {
 		// should NOT trigger market buy with below condition
 		insertTriggerOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user11.publicKey,
 			OrderType.TRIGGER_MARKET,
 			MarketType.SPOT,
 			12, //orderId
@@ -3688,7 +4440,22 @@ describe('DLOB Spot Tests', () => {
 	it('Test will return expired market orders to fill', () => {
 		const vAsk = new BN(15);
 		const vBid = new BN(8);
-		const dlob = new DLOB(mockPerpMarkets, mockSpotMarkets, false);
+
+		const mockUserMap = new MockUserMap();
+		const user0 = Keypair.generate();
+		const userAuth0 = Keypair.generate();
+		const user1 = Keypair.generate();
+		const userAuth1 = Keypair.generate();
+		mockUserMap.addUserAccountAuthority(user0.publicKey, userAuth0.publicKey);
+		mockUserMap.addUserAccountAuthority(user1.publicKey, userAuth1.publicKey);
+
+		const dlob = new DLOB(
+			mockPerpMarkets,
+			mockSpotMarkets,
+			mockStateAccount,
+			mockUserMap,
+			false
+		);
 		const marketIndex = 0;
 
 		const slot = 20;
@@ -3697,7 +4464,7 @@ describe('DLOB Spot Tests', () => {
 		// non crossing bid
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user0.publicKey,
 			OrderType.MARKET,
 			MarketType.SPOT,
 			255, // orderId
@@ -3712,7 +4479,7 @@ describe('DLOB Spot Tests', () => {
 		);
 		insertOrderToDLOB(
 			dlob,
-			Keypair.generate().publicKey,
+			user1.publicKey,
 			OrderType.MARKET,
 			MarketType.SPOT,
 			2, // orderId

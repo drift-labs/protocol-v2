@@ -363,6 +363,40 @@ export class BigNum {
 		}
 	}
 
+	public toRounded(roundingPrecision: number) {
+		const printString = this.toString();
+
+		let shouldRoundUp = false;
+
+		const roundingDigitChar = printString[roundingPrecision];
+
+		if (roundingDigitChar) {
+			const roundingDigitVal = Number(roundingDigitChar);
+			if (roundingDigitVal >= 5) shouldRoundUp = true;
+		}
+
+		if (shouldRoundUp) {
+			const valueWithRoundedPrecisionAdded = this.add(
+				BigNum.from(
+					new BN(10).pow(new BN(printString.length - roundingPrecision)),
+					this.precision
+				)
+			);
+
+			const roundedUpPrintString =
+				valueWithRoundedPrecisionAdded.toString().slice(0, roundingPrecision) +
+				this.getZeroes(printString.length - roundingPrecision);
+
+			return BigNum.from(roundedUpPrintString, this.precision);
+		} else {
+			const roundedDownPrintString =
+				printString.slice(0, roundingPrecision) +
+				this.getZeroes(printString.length - roundingPrecision);
+
+			return BigNum.from(roundedDownPrintString, this.precision);
+		}
+	}
+
 	/**
 	 * Pretty print to the specified number of significant figures
 	 * @param fixedPrecision

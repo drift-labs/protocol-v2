@@ -89,7 +89,7 @@ describe('market order', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -101,14 +101,14 @@ describe('market order', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
 
-		await clearingHouse.initializeMarket(
+		await clearingHouse.initializePerpMarket(
 			btcUsd,
 			ammInitialBaseAssetReserve.div(new BN(3000)),
 			ammInitialQuoteAssetReserve.div(new BN(3000)),
@@ -165,7 +165,7 @@ describe('market order', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -241,7 +241,6 @@ describe('market order', () => {
 		const expectedFee = new BN(1001);
 		assert(orderActionRecord.ts.gt(ZERO));
 		assert(orderActionRecord.takerFee.eq(expectedFee));
-		assert(orderActionRecord.takerOrderFee.eq(expectedFee));
 		assert(isVariant(orderActionRecord.action, 'fill'));
 		assert(
 			orderActionRecord.taker.equals(
@@ -285,7 +284,6 @@ describe('market order', () => {
 		const expectedFee = new BN(1000);
 		assert(orderActionRecord.ts.gt(ZERO));
 		assert(orderActionRecord.takerFee.eq(expectedFee));
-		assert(orderActionRecord.takerOrderFee.eq(expectedFee));
 		assert(isVariant(orderActionRecord.action, 'fill'));
 		assert(
 			orderActionRecord.taker.equals(

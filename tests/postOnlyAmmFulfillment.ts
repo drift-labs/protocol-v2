@@ -83,7 +83,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -95,7 +95,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await fillerClearingHouse.initializeMarket(
+		await fillerClearingHouse.initializePerpMarket(
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -104,7 +104,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		);
 		await fillerClearingHouse.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
-		await fillerClearingHouse.updateMarketBaseSpread(0, 500);
+		await fillerClearingHouse.updatePerpMarketBaseSpread(0, 500);
 
 		await fillerClearingHouse.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
@@ -151,7 +151,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeUserId: 0,
+			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			oracleInfos,
@@ -171,7 +171,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
 		const reservePrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex),
+			undefined
 		);
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
@@ -194,7 +195,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 		await fillerClearingHouse.moveAmmToPrice(marketIndex, newOraclePriceBN);
 
 		const reservePrice2 = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			clearingHouse.getPerpMarketAccount(marketIndex),
+			undefined
 		);
 		console.log(
 			'new amm prices:',
@@ -206,7 +208,9 @@ describe('post only maker order w/ amm fulfillments', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount: baseAssetAmount.div(new BN(2)),
-			price: reservePrice2.add(new BN(1)),
+			price: reservePrice2.add(
+				clearingHouse.getPerpMarketAccount(marketIndex).amm.orderTickSize
+			),
 			userOrderId: 1,
 			postOnly: true,
 		});
@@ -236,8 +240,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 		console.log(position.quoteAssetAmount.toString());
 		console.log(position.quoteEntryAmount.toString());
 
-		assert(position.quoteAssetAmount.eq(new BN(-32208904)));
-		assert(position.quoteEntryAmount.eq(new BN(-32176726)));
+		assert(position.quoteAssetAmount.eq(new BN(-32208912)));
+		assert(position.quoteEntryAmount.eq(new BN(-32176734)));
 
 		console.log(
 			'clearingHouse.getQuoteAssetTokenAmount:',
@@ -263,7 +267,6 @@ describe('post only maker order w/ amm fulfillments', () => {
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(isVariant(orderRecord.actionExplanation, 'orderFilledWithAmm'));
 		assert(orderRecord.takerFee.eq(new BN(16091)));
-		assert(orderRecord.takerOrderFee.eq(new BN(32178)));
 		assert(orderRecord.fillRecordId.eq(new BN(2)));
 		assert(orderRecord.fillerReward.eq(ZERO));
 		assert(orderRecord.quoteAssetAmountSurplus.eq(new BN(4022)));
@@ -279,7 +282,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 		// assert(orderRecord2.maker == await fillerClearingHouse.getUserAccountPublicKey());
 		// assert(orderRecord2.taker == await clearingHouse.getUserAccountPublicKey());
 		assert(orderRecord2.baseAssetAmountFilled.eq(new BN(1000000000 / 2)));
-		assert(orderRecord2.quoteAssetAmountFilled.eq(new BN(16086352)));
+		console.log(orderRecord2.quoteAssetAmountFilled.toString());
+		assert(orderRecord2.quoteAssetAmountFilled.eq(new BN(16086360)));
 		assert(orderRecord2.quoteAssetAmountSurplus == null);
 		assert(orderRecord2.makerFee.eq(new BN(-3217)));
 		assert(orderRecord2.takerFee.eq(new BN(16087)));
@@ -302,8 +306,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 		assert(positionMaker.baseAssetAmount.eq(new BN(-500000000)));
 		console.log(positionMaker.quoteAssetAmount.toString());
 		console.log(positionMaker.quoteEntryAmount.toString());
-		assert(positionMaker.quoteAssetAmount.eq(new BN(16089569)));
-		assert(positionMaker.quoteEntryAmount.eq(new BN(16086352)));
+		assert(positionMaker.quoteAssetAmount.eq(new BN(16089577)));
+		assert(positionMaker.quoteEntryAmount.eq(new BN(16086360)));
 
 		await fillerClearingHouse.fetchAccounts();
 		const perpMarket = fillerClearingHouse.getPerpMarketAccount(0);

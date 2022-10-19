@@ -1,7 +1,6 @@
 use std::cmp::min;
 use std::ops::Div;
 
-use crate::validate;
 use solana_program::msg;
 
 use crate::controller::position::PositionDelta;
@@ -11,15 +10,17 @@ use crate::math;
 use crate::math::amm::calculate_max_base_asset_amount_fillable;
 use crate::math::auction::is_auction_complete;
 use crate::math::casting::Cast;
-use crate::math::constants::{BASE_PRECISION, MARGIN_PRECISION};
-use crate::math::position::calculate_entry_price;
-
-use crate::math_error;
-use crate::state::market::{PerpMarket, AMM};
-
 use crate::math::ceil_div::CheckedCeilDiv;
+use crate::math::constants::MARGIN_PRECISION;
+use crate::math::position::calculate_entry_price;
+use crate::math_error;
+use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::user::{Order, OrderStatus, OrderTriggerCondition, OrderType, User};
+use crate::validate;
+
+#[cfg(test)]
+mod tests;
 
 pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     order: &Order,
@@ -27,23 +28,25 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     valid_oracle_price: Option<i128>,
     slot: u64,
     override_limit_price: Option<u128>,
-) -> ClearingHouseResult<(u64, u128)> {
+) -> ClearingHouseResult<(u64, Option<u128>)> {
     let limit_price = if let Some(override_limit_price) = override_limit_price {
-        let order_limit_price =
-            order.get_limit_price(valid_oracle_price, slot, Some(&market.amm))?;
+        if let Some(limit_price) =
+            order.get_optional_limit_price(valid_oracle_price, slot, market.amm.order_tick_size)?
+        {
+            validate!(
+                (limit_price >= override_limit_price && order.direction == PositionDirection::Long)
+                    || (limit_price <= override_limit_price
+                        && order.direction == PositionDirection::Short),
+                ErrorCode::DefaultError,
+                "override_limit_price={} not better than order_limit_price={}",
+                override_limit_price,
+                limit_price
+            )?;
+        }
 
-        validate!(
-            (order_limit_price >= override_limit_price
-                && order.direction == PositionDirection::Long)
-                || (order_limit_price <= override_limit_price
-                    && order.direction == PositionDirection::Short),
-            ErrorCode::DefaultError,
-            "override_limit_price not better than order's limit price"
-        )?;
-
-        override_limit_price
+        Some(override_limit_price)
     } else {
-        order.get_limit_price(valid_oracle_price, slot, Some(&market.amm))?
+        order.get_optional_limit_price(valid_oracle_price, slot, market.amm.order_tick_size)?
     };
 
     if order.must_be_triggered() && !order.triggered {
@@ -61,16 +64,20 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
 pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
     order: &Order,
     market: &PerpMarket,
-    limit_price: u128,
+    limit_price: Option<u128>,
 ) -> ClearingHouseResult<u64> {
     let base_asset_amount_unfilled = order.get_base_asset_amount_unfilled()?;
 
-    let (max_trade_base_asset_amount, max_trade_direction) =
-        math::amm::calculate_base_asset_amount_to_trade_to_price(
+    let (max_trade_base_asset_amount, max_trade_direction) = if let Some(limit_price) = limit_price
+    {
+        math::amm_spread::calculate_base_asset_amount_to_trade_to_price(
             &market.amm,
             limit_price,
             order.direction,
-        )?;
+        )?
+    } else {
+        (base_asset_amount_unfilled, order.direction)
+    };
 
     if max_trade_direction != order.direction || max_trade_base_asset_amount == 0 {
         return Ok(0);
@@ -78,7 +85,7 @@ pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
 
     standardize_base_asset_amount(
         min(base_asset_amount_unfilled, max_trade_base_asset_amount),
-        market.amm.base_asset_amount_step_size,
+        market.amm.order_step_size,
     )
 }
 
@@ -133,15 +140,18 @@ pub fn calculate_base_asset_amount_for_reduce_only_order(
     proposed_base_asset_amount: u64,
     order_direction: PositionDirection,
     existing_position: i64,
-) -> u64 {
+) -> ClearingHouseResult<u64> {
     if proposed_base_asset_amount > 0
         && (order_direction == PositionDirection::Long && existing_position >= 0)
         || (order_direction == PositionDirection::Short && existing_position <= 0)
     {
-        msg!("Reduce only order can not increase position");
-        0
+        msg!("Reduce Only Order must decrease existing position size");
+        Err(ErrorCode::InvalidOrder)
     } else {
-        min(proposed_base_asset_amount, existing_position.unsigned_abs())
+        Ok(min(
+            proposed_base_asset_amount,
+            existing_position.unsigned_abs(),
+        ))
     }
 }
 
@@ -207,6 +217,29 @@ pub fn is_multiple_of_step_size(
     Ok(remainder == 0)
 }
 
+pub fn standardize_price(
+    price: u64,
+    tick_size: u64,
+    direction: PositionDirection,
+) -> ClearingHouseResult<u64> {
+    let remainder = price
+        .checked_rem_euclid(tick_size)
+        .ok_or_else(math_error!())?;
+
+    if remainder == 0 {
+        return Ok(price);
+    }
+
+    match direction {
+        PositionDirection::Long => price.checked_sub(remainder).ok_or_else(math_error!()),
+        PositionDirection::Short => price
+            .checked_add(tick_size)
+            .ok_or_else(math_error!())?
+            .checked_sub(remainder)
+            .ok_or_else(math_error!()),
+    }
+}
+
 pub fn get_position_delta_for_fill(
     base_asset_amount: u64,
     quote_asset_amount: u64,
@@ -261,11 +294,11 @@ pub fn order_breaches_oracle_price_limits(
     order: &Order,
     oracle_price: i128,
     slot: u64,
+    tick_size: u64,
     margin_ratio_initial: u128,
     margin_ratio_maintenance: u128,
-    amm: Option<&AMM>,
 ) -> ClearingHouseResult<bool> {
-    let order_limit_price = order.get_limit_price(Some(oracle_price), slot, amm)?;
+    let order_limit_price = order.get_limit_price(Some(oracle_price), slot, tick_size)?;
     let oracle_price = oracle_price.unsigned_abs();
 
     let max_percent_diff = margin_ratio_initial
@@ -404,6 +437,7 @@ pub fn is_order_risk_increasing(
 pub fn validate_fill_price(
     quote_asset_amount: u64,
     base_asset_amount: u64,
+    base_precision: u64,
     order_direction: PositionDirection,
     order_limit_price: u128,
     is_taker: bool,
@@ -419,7 +453,7 @@ pub fn validate_fill_price(
 
     let fill_price = rounded_quote_asset_amount
         .cast::<u128>()?
-        .checked_mul(BASE_PRECISION)
+        .checked_mul(base_precision as u128)
         .ok_or_else(math_error!())?
         .checked_div(base_asset_amount.cast()?)
         .ok_or_else(math_error!())?;
@@ -449,428 +483,4 @@ pub fn validate_fill_price(
     }
 
     Ok(())
-}
-#[cfg(test)]
-mod test {
-    pub mod standardize_base_asset_amount_with_remainder_i128 {
-        use crate::math::orders::standardize_base_asset_amount_with_remainder_i128;
-
-        #[test]
-        fn negative_remainder_greater_than_step() {
-            let baa = -90;
-            let step_size = 50;
-
-            let (s_baa, rem) =
-                standardize_base_asset_amount_with_remainder_i128(baa, step_size).unwrap();
-
-            assert_eq!(s_baa, -50); // reduced to 50 short position
-            assert_eq!(rem, -40); // 40 short left over
-        }
-
-        #[test]
-        fn negative_remainder_smaller_than_step() {
-            let baa = -20;
-            let step_size = 50;
-
-            let (s_baa, rem) =
-                standardize_base_asset_amount_with_remainder_i128(baa, step_size).unwrap();
-
-            assert_eq!(s_baa, 0);
-            assert_eq!(rem, -20);
-        }
-
-        #[test]
-        fn positive_remainder_greater_than_step() {
-            let baa = 90;
-            let step_size = 50;
-
-            let (s_baa, rem) =
-                standardize_base_asset_amount_with_remainder_i128(baa, step_size).unwrap();
-
-            assert_eq!(s_baa, 50); // reduced to 50 long position
-            assert_eq!(rem, 40); // 40 long left over
-        }
-
-        #[test]
-        fn positive_remainder_smaller_than_step() {
-            let baa = 20;
-            let step_size = 50;
-
-            let (s_baa, rem) =
-                standardize_base_asset_amount_with_remainder_i128(baa, step_size).unwrap();
-
-            assert_eq!(s_baa, 0);
-            assert_eq!(rem, 20);
-        }
-
-        #[test]
-        fn no_remainder() {
-            let baa = 100;
-            let step_size = 50;
-
-            let (s_baa, rem) =
-                standardize_base_asset_amount_with_remainder_i128(baa, step_size).unwrap();
-
-            assert_eq!(s_baa, 100);
-            assert_eq!(rem, 0);
-        }
-    }
-    // baa = -90
-    // remainder = -40
-    // baa -= remainder (baa = -50)
-
-    // trades +100
-    // stepsize of 50
-    // amm = 10 lp = 90
-    // net_baa = 10
-    // market_baa = -10
-    // lp burns => metrics_baa: -90
-    // standardize => baa = -50 (round down (+40))
-    // amm_net_baa = 10 + (-40)
-    // amm_baa = 10 + 40 = 50
-
-    pub mod standardize_base_asset_amount {
-        use crate::math::orders::standardize_base_asset_amount;
-
-        #[test]
-        fn remainder_less_than_half_minimum_size() {
-            let base_asset_amount: u64 = 200001;
-            let minimum_size: u64 = 100000;
-
-            let result = standardize_base_asset_amount(base_asset_amount, minimum_size).unwrap();
-
-            assert_eq!(result, 200000);
-        }
-
-        #[test]
-        fn remainder_more_than_half_minimum_size() {
-            let base_asset_amount: u64 = 250001;
-            let minimum_size: u64 = 100000;
-
-            let result = standardize_base_asset_amount(base_asset_amount, minimum_size).unwrap();
-
-            assert_eq!(result, 200000);
-        }
-
-        #[test]
-        fn zero() {
-            let base_asset_amount: u64 = 0;
-            let minimum_size: u64 = 100000;
-
-            let result = standardize_base_asset_amount(base_asset_amount, minimum_size).unwrap();
-
-            assert_eq!(result, 0);
-        }
-    }
-
-    mod is_order_risk_increase {
-        use crate::controller::position::PositionDirection;
-        use crate::math::constants::{BASE_PRECISION_I64, BASE_PRECISION_U64};
-        use crate::math::orders::is_order_risk_decreasing;
-
-        #[test]
-        fn no_position() {
-            let order_direction = PositionDirection::Long;
-            let order_base_asset_amount = BASE_PRECISION_U64;
-            let existing_position = 0;
-
-            let risk_decreasing = is_order_risk_decreasing(
-                &order_direction,
-                order_base_asset_amount,
-                existing_position,
-            )
-            .unwrap();
-
-            assert!(!risk_decreasing);
-
-            let order_direction = PositionDirection::Short;
-            let risk_decreasing = is_order_risk_decreasing(
-                &order_direction,
-                order_base_asset_amount,
-                existing_position,
-            )
-            .unwrap();
-
-            assert!(!risk_decreasing);
-        }
-
-        #[test]
-        fn bid() {
-            // user long and bid
-            let order_direction = PositionDirection::Long;
-            let order_base_asset_amount = BASE_PRECISION_U64;
-            let existing_position = BASE_PRECISION_I64;
-            let risk_decreasing = is_order_risk_decreasing(
-                &order_direction,
-                order_base_asset_amount,
-                existing_position,
-            )
-            .unwrap();
-
-            assert!(!risk_decreasing);
-
-            // user short and bid < 2 * position
-            let existing_position = -BASE_PRECISION_I64;
-            let risk_decreasing = is_order_risk_decreasing(
-                &order_direction,
-                order_base_asset_amount,
-                existing_position,
-            )
-            .unwrap();
-
-            assert!(risk_decreasing);
-
-            // user short and bid = 2 * position
-            let existing_position = -BASE_PRECISION_I64 / 2;
-            let risk_decreasing = is_order_risk_decreasing(
-                &order_direction,
-                order_base_asset_amount,
-                existing_position,
-            )
-            .unwrap();
-
-            assert!(!risk_decreasing);
-        }
-
-        #[test]
-        fn ask() {
-            // user short and ask
-            let order_direction = PositionDirection::Short;
-            let order_base_asset_amount = BASE_PRECISION_U64;
-            let existing_position = -BASE_PRECISION_I64;
-
-            let risk_decreasing = is_order_risk_decreasing(
-                &order_direction,
-                order_base_asset_amount,
-                existing_position,
-            )
-            .unwrap();
-
-            assert!(!risk_decreasing);
-
-            // user long and ask < 2 * position
-            let existing_position = BASE_PRECISION_I64;
-            let risk_decreasing = is_order_risk_decreasing(
-                &order_direction,
-                order_base_asset_amount,
-                existing_position,
-            )
-            .unwrap();
-
-            assert!(risk_decreasing);
-
-            // user long and ask = 2 * position
-            let existing_position = BASE_PRECISION_I64 / 2;
-            let risk_decreasing = is_order_risk_decreasing(
-                &order_direction,
-                order_base_asset_amount,
-                existing_position,
-            )
-            .unwrap();
-
-            assert!(!risk_decreasing);
-        }
-    }
-
-    mod order_breaches_oracle_price_limits {
-        use crate::controller::position::PositionDirection;
-        use crate::math::constants::{MARGIN_PRECISION, PRICE_PRECISION_I128, PRICE_PRECISION_U64};
-        use crate::math::orders::order_breaches_oracle_price_limits;
-        use crate::state::market::PerpMarket;
-        use crate::state::user::Order;
-
-        #[test]
-        fn bid_does_not_breach() {
-            let _market = PerpMarket {
-                margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
-                ..PerpMarket::default()
-            };
-
-            let order = Order {
-                price: 101 * PRICE_PRECISION_U64,
-                ..Order::default()
-            };
-
-            let oracle_price = 100 * PRICE_PRECISION_I128;
-
-            let slot = 0;
-
-            let margin_ratio_initial = MARGIN_PRECISION / 10;
-            let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-            let result = order_breaches_oracle_price_limits(
-                &order,
-                oracle_price,
-                slot,
-                margin_ratio_initial,
-                margin_ratio_maintenance,
-                None,
-            )
-            .unwrap();
-
-            assert!(!result)
-        }
-
-        #[test]
-        fn bid_does_not_breach_4_99_percent_move() {
-            let _market = PerpMarket {
-                margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
-                ..PerpMarket::default()
-            };
-
-            let order = Order {
-                price: 105 * PRICE_PRECISION_U64 - 1,
-                ..Order::default()
-            };
-
-            let oracle_price = 100 * PRICE_PRECISION_I128;
-
-            let slot = 0;
-
-            let margin_ratio_initial = MARGIN_PRECISION / 10;
-            let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-            let result = order_breaches_oracle_price_limits(
-                &order,
-                oracle_price,
-                slot,
-                margin_ratio_initial,
-                margin_ratio_maintenance,
-                None,
-            )
-            .unwrap();
-
-            assert!(!result)
-        }
-
-        #[test]
-        fn bid_breaches() {
-            let _market = PerpMarket {
-                margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
-                margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
-                ..PerpMarket::default()
-            };
-
-            let order = Order {
-                direction: PositionDirection::Long,
-                price: 105 * PRICE_PRECISION_U64,
-                ..Order::default()
-            };
-
-            let oracle_price = 100 * PRICE_PRECISION_I128;
-
-            let slot = 0;
-
-            let margin_ratio_initial = MARGIN_PRECISION / 10;
-            let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-            let result = order_breaches_oracle_price_limits(
-                &order,
-                oracle_price,
-                slot,
-                margin_ratio_initial,
-                margin_ratio_maintenance,
-                None,
-            )
-            .unwrap();
-
-            assert!(result)
-        }
-
-        #[test]
-        fn ask_does_not_breach() {
-            let _market = PerpMarket {
-                margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
-                margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
-                ..PerpMarket::default()
-            };
-
-            let order = Order {
-                direction: PositionDirection::Short,
-                price: 99 * PRICE_PRECISION_U64,
-                ..Order::default()
-            };
-
-            let oracle_price = 100 * PRICE_PRECISION_I128;
-
-            let slot = 0;
-
-            let margin_ratio_initial = MARGIN_PRECISION / 10;
-            let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-            let result = order_breaches_oracle_price_limits(
-                &order,
-                oracle_price,
-                slot,
-                margin_ratio_initial,
-                margin_ratio_maintenance,
-                None,
-            )
-            .unwrap();
-
-            assert!(!result)
-        }
-
-        #[test]
-        fn ask_does_not_breach_4_99_percent_move() {
-            let _market = PerpMarket {
-                margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
-                margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
-                ..PerpMarket::default()
-            };
-
-            let order = Order {
-                direction: PositionDirection::Short,
-                price: 95 * PRICE_PRECISION_U64 + 1,
-                ..Order::default()
-            };
-
-            let oracle_price = 100 * PRICE_PRECISION_I128;
-
-            let slot = 0;
-
-            let margin_ratio_initial = MARGIN_PRECISION / 10;
-            let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-            let result = order_breaches_oracle_price_limits(
-                &order,
-                oracle_price,
-                slot,
-                margin_ratio_initial,
-                margin_ratio_maintenance,
-                None,
-            )
-            .unwrap();
-
-            assert!(!result)
-        }
-
-        #[test]
-        fn ask_breaches() {
-            let _market = PerpMarket {
-                margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
-                margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
-                ..PerpMarket::default()
-            };
-
-            let order = Order {
-                direction: PositionDirection::Short,
-                price: 95 * PRICE_PRECISION_U64,
-                ..Order::default()
-            };
-
-            let oracle_price = 100 * PRICE_PRECISION_I128;
-
-            let slot = 0;
-
-            let margin_ratio_initial = MARGIN_PRECISION / 10;
-            let margin_ratio_maintenance = MARGIN_PRECISION / 20;
-            let result = order_breaches_oracle_price_limits(
-                &order,
-                oracle_price,
-                slot,
-                margin_ratio_initial,
-                margin_ratio_maintenance,
-                None,
-            )
-            .unwrap();
-
-            assert!(result)
-        }
-    }
 }
