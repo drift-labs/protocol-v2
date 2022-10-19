@@ -922,7 +922,7 @@ export class DLOB {
 				makerNode: bidNode,
 				makerSide: 'bid',
 			};
-		} else if (askNode.order.ts.lt(bidNode.order.ts)) {
+		} else if (askNode.order.slot.lt(bidNode.order.slot)) {
 			return {
 				takerNode: bidNode,
 				makerNode: askNode,

@@ -98,7 +98,6 @@ pub mod liquidate_perp {
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION_U64,
-                ts: 0,
                 slot: 0,
                 ..Order::default()
             }),
@@ -238,7 +237,6 @@ pub mod liquidate_perp {
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION_U64,
-                ts: 0,
                 slot: 0,
                 ..Order::default()
             }),
@@ -378,7 +376,6 @@ pub mod liquidate_perp {
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
                 base_asset_amount: 1000 * BASE_PRECISION_U64,
-                ts: 0,
                 slot: 0,
                 ..Order::default()
             }),
@@ -507,7 +504,6 @@ pub mod liquidate_perp {
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION_U64,
-                ts: 0,
                 slot: 0,
                 ..Order::default()
             }),
@@ -648,7 +644,6 @@ pub mod liquidate_perp {
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION_U64,
-                ts: 0,
                 slot: 0,
                 ..Order::default()
             }),
@@ -816,7 +811,6 @@ pub mod liquidate_perp {
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION_U64,
-                ts: 0,
                 slot: 0,
                 ..Order::default()
             }),
@@ -2478,7 +2472,6 @@ pub mod resolve_perp_bankruptcy {
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION_U64,
-                ts: 0,
                 slot: 0,
                 ..Order::default()
             }),
@@ -2701,7 +2694,6 @@ pub mod resolve_spot_bankruptcy {
                 order_type: OrderType::Limit,
                 direction: PositionDirection::Long,
                 base_asset_amount: BASE_PRECISION_U64,
-                ts: 0,
                 slot: 0,
                 ..Order::default()
             }),

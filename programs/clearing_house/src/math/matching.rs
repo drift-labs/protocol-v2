@@ -28,7 +28,7 @@ pub fn is_maker_for_taker(
     } else if !maker_order.has_limit_price(slot)? {
         Ok(false)
     } else {
-        Ok(maker_order.ts < taker_order.ts)
+        Ok(maker_order.slot < taker_order.slot)
     }
 }
 

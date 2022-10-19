@@ -105,7 +105,7 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 		const newOrderSortPrice = newNode.sortValue;
 
 		if (newOrderSortPrice.eq(currentOrderSortPrice)) {
-			return newOrder.ts.lt(currentOrder.ts);
+			return newOrder.slot.lt(currentOrder.slot);
 		}
 
 		if (this.sortDirection === 'asc') {
