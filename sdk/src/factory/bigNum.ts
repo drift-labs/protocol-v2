@@ -326,7 +326,7 @@ export class BigNum {
 	}
 
 	private getZeroes(count: number) {
-		return new Array(count).fill('0').join('');
+		return new Array(Math.max(count, 0)).fill('0').join('');
 	}
 
 	public toRounded(roundingPrecision: number) {
