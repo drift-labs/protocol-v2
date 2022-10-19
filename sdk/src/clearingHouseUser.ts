@@ -46,6 +46,7 @@ import {
 	calculateAssetWeight,
 	calculateLiabilityWeight,
 } from './math/spotBalance';
+import { calculateMarketOpenBidAsk } from './math/amm';
 import {
 	calculateBaseAssetValueWithOracle,
 	calculateWorstCaseBaseAssetAmount,
@@ -187,6 +188,34 @@ export class ClearingHouseUser {
 	}
 
 	/**
+	 * calculates the open orders for an lp
+	 * @returns : lp open bids
+	 * @returns : lp open asks
+	 */
+	public getLPOpenOrders(marketIndex: number): [BN, BN] {
+		const position = this.getUserPosition(marketIndex);
+		if (position.lpShares.eq(ZERO)) {
+			return [ZERO, ZERO];
+		}
+
+		const market = this.clearingHouse.getPerpMarketAccount(marketIndex);
+		const [marketOpenBids, marketOpenAsks] = calculateMarketOpenBidAsk(
+			market.amm.baseAssetReserve,
+			market.amm.minBaseAssetReserve,
+			market.amm.maxBaseAssetReserve
+		);
+
+		const lpOpenBids = marketOpenBids
+			.mul(position.lpShares)
+			.div(market.amm.sqrtK);
+		const lpOpenAsks = marketOpenAsks
+			.mul(position.lpShares)
+			.div(market.amm.sqrtK);
+
+		return [lpOpenBids, lpOpenAsks];
+	}
+
+	/**
 	 * calculates the market position if the lp position was settled
 	 * @returns : the settled userPosition
 	 * @returns : the dust base asset amount (ie, < stepsize)
@@ -195,6 +224,10 @@ export class ClearingHouseUser {
 	public getSettledLPPosition(marketIndex: number): [PerpPosition, BN, BN] {
 		const _position = this.getUserPosition(marketIndex);
 		const position = this.getClonedPosition(_position);
+
+		if (position.lpShares.eq(ZERO)) {
+			return [position, ZERO, ZERO];
+		}
 
 		const market = this.clearingHouse.getPerpMarketAccount(
 			position.marketIndex
