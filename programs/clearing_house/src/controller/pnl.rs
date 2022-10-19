@@ -3,7 +3,7 @@ use crate::controller::funding::settle_funding_payment;
 use crate::controller::orders::{cancel_orders, validate_market_within_price_band};
 use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount, update_settled_pnl,
-    update_user_settled_pnl, PositionDelta,
+    PositionDelta,
 };
 use crate::controller::spot_balance::{
     update_spot_balances, update_spot_market_cumulative_interest,
@@ -14,7 +14,7 @@ use crate::math::casting::cast_to_i128;
 use crate::math::casting::cast_to_i64;
 use crate::math::casting::Cast;
 use crate::math::margin::meets_maintenance_margin_requirement;
-use crate::math::position::calculate_base_asset_value_and_pnl_with_expiry_price;
+use crate::math::position::calculate_base_asset_value_with_expiry_price;
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
 use crate::state::events::{OrderActionExplanation, SettlePnlRecord};
@@ -254,41 +254,49 @@ pub fn settle_expired_position(
         "User must first burn lp shares for expired market"
     )?;
 
-    let (base_asset_value, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_expiry_price(
+    let base_asset_value = calculate_base_asset_value_with_expiry_price(
         &user.perp_positions[position_index],
         perp_market.expiry_price,
     )?;
 
-    let fee = base_asset_value
-        .checked_mul(fee_structure.fee_tiers[0].fee_numerator as u128)
-        .ok_or_else(math_error!())?
-        .checked_div(fee_structure.fee_tiers[0].fee_denominator as u128)
-        .ok_or_else(math_error!())?;
-
-    let unrealized_pnl_with_fee = unrealized_pnl
-        .checked_sub(cast_to_i128(fee)?)
-        .ok_or_else(math_error!())?;
-
-    let pnl_to_settle_with_user = update_pnl_pool_and_user_balance(
-        perp_market,
-        quote_spot_market,
-        user,
-        unrealized_pnl_with_fee,
-    )?;
-
-    update_user_settled_pnl(user, unrealized_pnl_with_fee.cast()?)?;
-
-    let user_position = &mut user.perp_positions[position_index];
-
-    let base_asset_amount = user_position.base_asset_amount;
-    let quote_entry_amount = user_position.quote_entry_amount;
+    let base_asset_amount = user.perp_positions[position_index].base_asset_amount;
+    let quote_entry_amount = user.perp_positions[position_index].quote_entry_amount;
 
     let position_delta = PositionDelta {
-        quote_asset_amount: -user_position.quote_asset_amount.cast()?,
-        base_asset_amount: -user_position.base_asset_amount.cast()?,
+        quote_asset_amount: base_asset_value,
+        base_asset_amount: -user.perp_positions[position_index].base_asset_amount,
     };
 
-    let _user_pnl = update_position_and_market(user_position, perp_market, &position_delta)?;
+    update_position_and_market(
+        &mut user.perp_positions[position_index],
+        perp_market,
+        &position_delta,
+    )?;
+
+    let fee = base_asset_value
+        .checked_mul(fee_structure.fee_tiers[0].fee_numerator as i64)
+        .ok_or_else(math_error!())?
+        .checked_div(fee_structure.fee_tiers[0].fee_denominator as i64)
+        .ok_or_else(math_error!())?;
+
+    update_quote_asset_amount(
+        &mut user.perp_positions[position_index],
+        perp_market,
+        -fee.abs(),
+    )?;
+
+    let pnl = user.perp_positions[position_index].quote_asset_amount;
+
+    let pnl_to_settle_with_user =
+        update_pnl_pool_and_user_balance(perp_market, quote_spot_market, user, pnl.cast()?)?;
+
+    update_quote_asset_amount(
+        &mut user.perp_positions[position_index],
+        perp_market,
+        -pnl_to_settle_with_user.cast()?,
+    )?;
+
+    update_settled_pnl(user, position_index, pnl_to_settle_with_user.cast()?)?;
 
     perp_market.amm.base_asset_amount_with_amm = perp_market
         .amm
@@ -296,7 +304,7 @@ pub fn settle_expired_position(
         .checked_add(position_delta.base_asset_amount.cast()?)
         .ok_or_else(math_error!())?;
 
-    let quote_asset_amount_after = user_position.quote_asset_amount;
+    let quote_asset_amount_after = user.perp_positions[position_index].quote_asset_amount;
 
     emit!(SettlePnlRecord {
         ts: now,

@@ -158,27 +158,22 @@ pub fn calculate_base_asset_value_and_pnl_with_oracle_price(
     Ok((base_asset_value.unsigned_abs(), pnl))
 }
 
-pub fn calculate_base_asset_value_and_pnl_with_expiry_price(
+pub fn calculate_base_asset_value_with_expiry_price(
     market_position: &PerpPosition,
     expiry_price: i128,
-) -> ClearingHouseResult<(u128, i128)> {
+) -> ClearingHouseResult<i64> {
     if market_position.base_asset_amount == 0 {
-        return Ok((0, market_position.quote_asset_amount.cast()?));
+        return Ok(0);
     }
 
-    let base_asset_value = market_position
+    market_position
         .base_asset_amount
         .cast::<i128>()?
         .checked_mul(expiry_price)
         .ok_or_else(math_error!())?
         .checked_div(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)
-        .ok_or_else(math_error!())?;
-
-    let pnl = base_asset_value
-        .checked_add(market_position.quote_asset_amount.cast()?)
-        .ok_or_else(math_error!())?;
-
-    Ok((base_asset_value.unsigned_abs(), pnl))
+        .ok_or_else(math_error!())?
+        .cast::<i64>()
 }
 
 pub fn direction_to_close_position(base_asset_amount: i128) -> PositionDirection {
