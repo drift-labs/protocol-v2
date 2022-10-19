@@ -283,5 +283,8 @@ describe('BigNum Tests', () => {
 
 		const val5 = BigNum.from('123000000', 5);
 		expect(val5.toRounded(3).print()).to.equal('1230.00000');
+
+		const val6 = BigNum.from('0', 5);
+		expect(val6.toRounded(3).print()).to.equal('0.00000');
 	});
 });
