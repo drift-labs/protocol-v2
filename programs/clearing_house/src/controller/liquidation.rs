@@ -1566,7 +1566,7 @@ pub fn resolve_perp_bankruptcy(
         )?;
 
     // spot market's insurance fund draw attempt here (before social loss)
-    // subtract 1 so insurance_fund_vault_balance always stays >= 1
+    // subtract 1 from available insurance_fund_vault_balance so deposits in insurance vault always remains >= 1
 
     let if_payment = {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
