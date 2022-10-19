@@ -188,11 +188,27 @@ export class ClearingHouseUser {
 	}
 
 	/**
-	 * calculates the open orders for an lp
+	 * calculates the total open bids/asks in a perp market (including lps)
+	 * @returns : open bids
+	 * @returns : open asks
+	 */
+	public getPerpBidAsks(marketIndex: number): [BN, BN] {
+		const position = this.getUserPosition(marketIndex);
+
+		const [lpOpenBids, lpOpenAsks] = this.getLPBidAsks(marketIndex);
+
+		const totalOpenBids = lpOpenBids.add(position.openBids);
+		const totalOpenAsks = lpOpenAsks.sub(position.openAsks);
+
+		return [totalOpenBids, totalOpenAsks];
+	}
+
+	/**
+	 * calculates the open bids and asks for an lp
 	 * @returns : lp open bids
 	 * @returns : lp open asks
 	 */
-	public getLPOpenOrders(marketIndex: number): [BN, BN] {
+	public getLPBidAsks(marketIndex: number): [BN, BN] {
 		const position = this.getUserPosition(marketIndex);
 		if (position.lpShares.eq(ZERO)) {
 			return [ZERO, ZERO];

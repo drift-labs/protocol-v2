@@ -294,7 +294,7 @@ describe('liquidity providing', () => {
 			)
 		);
 
-		const [bids, asks] = clearingHouseUser.getLPOpenOrders(0);
+		const [bids, asks] = clearingHouseUser.getLPBidAsks(0);
 		console.log(
 			'bar, min_bar, max_bar:',
 			market.amm.baseAssetReserve.toString(),
