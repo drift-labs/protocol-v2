@@ -4248,6 +4248,12 @@
             "type": {
               "option": "u64"
             }
+          },
+          {
+            "name": "auctionEndPrice",
+            "type": {
+              "option": "u64"
+            }
           }
         ]
       }

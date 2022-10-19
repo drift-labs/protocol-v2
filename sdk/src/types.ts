@@ -728,6 +728,7 @@ export type OrderParams = {
 	auctionDuration: number | null;
 	timeInForce: number | null;
 	auctionStartPrice: BN | null;
+	auctionEndPrice: BN | null;
 };
 
 export type NecessaryOrderParams = {
@@ -759,6 +760,7 @@ export const DefaultOrderParams = {
 	auctionDuration: null,
 	timeInForce: null,
 	auctionStartPrice: null,
+	auctionEndPrice: null,
 };
 
 export type MakerInfo = {

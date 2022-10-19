@@ -578,6 +578,7 @@ pub struct OrderParams {
     pub auction_duration: Option<u8>,
     pub time_in_force: Option<u8>,
     pub auction_start_price: Option<u64>,
+    pub auction_end_price: Option<u64>,
 }
 
 #[access_control(

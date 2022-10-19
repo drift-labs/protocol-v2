@@ -30,7 +30,7 @@ use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::instructions::OrderParams;
 use crate::load_mut;
-use crate::math::auction::{calculate_auction_end_price, is_auction_complete};
+use crate::math::auction::{calculate_auction_prices, is_auction_complete};
 use crate::math::casting::{cast, cast_to_u64, Cast};
 use crate::math::constants::{
     BASE_PRECISION_U64, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
@@ -180,16 +180,13 @@ pub fn place_order(
 
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
     let (auction_start_price, auction_end_price) = if let OrderType::Market = params.order_type {
-        let auction_start_price = match params.auction_start_price {
-            Some(auction_price) => auction_price,
-            None => cast_to_u64(oracle_price_data.price)?,
-        };
-
-        let auction_end_price = if params.price == 0 {
-            calculate_auction_end_price(oracle_price_data, params.direction)?
-        } else {
-            params.price
-        };
+        let (auction_start_price, auction_end_price) =
+            match (params.auction_start_price, params.auction_end_price) {
+                (Some(auction_start_price), Some(auction_end_price)) => {
+                    (auction_start_price, auction_end_price)
+                }
+                _ => calculate_auction_prices(oracle_price_data, params.direction, params.price)?,
+            };
 
         (
             standardize_price(
@@ -2112,8 +2109,8 @@ pub fn trigger_order(
         user.orders[order_index].slot = slot;
         let order_type = user.orders[order_index].order_type;
         if let OrderType::TriggerMarket = order_type {
-            let auction_start_price = cast_to_u64(oracle_price_data.price.unsigned_abs())?;
-            let auction_end_price = calculate_auction_end_price(oracle_price_data, direction)?;
+            let (auction_start_price, auction_end_price) =
+                calculate_auction_prices(oracle_price_data, direction, 0)?;
             user.orders[order_index].auction_start_price = auction_start_price;
             user.orders[order_index].auction_end_price = auction_end_price;
         }
@@ -2364,16 +2361,14 @@ pub fn place_spot_order(
     };
 
     let (auction_start_price, auction_end_price) = if let OrderType::Market = params.order_type {
-        let auction_start_price = match params.auction_start_price {
-            Some(auction_start_price) => auction_start_price,
-            None => cast_to_u64(oracle_price_data.price.unsigned_abs())?,
-        };
+        let (auction_start_price, auction_end_price) =
+            match (params.auction_start_price, params.auction_end_price) {
+                (Some(auction_start_price), Some(auction_end_price)) => {
+                    (auction_start_price, auction_end_price)
+                }
+                _ => calculate_auction_prices(&oracle_price_data, params.direction, params.price)?,
+            };
 
-        let auction_end_price = if params.price == 0 {
-            calculate_auction_end_price(&oracle_price_data, params.direction)?
-        } else {
-            params.price
-        };
         (
             standardize_price(
                 auction_start_price,
@@ -3763,13 +3758,8 @@ pub fn trigger_spot_order(
         .position(|order| order.order_id == order_id)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
-    let (order_status, market_index, market_type, order_direction) = get_struct_values!(
-        user.orders[order_index],
-        status,
-        market_index,
-        market_type,
-        direction
-    );
+    let (order_status, market_index, market_type) =
+        get_struct_values!(user.orders[order_index], status, market_index, market_type);
 
     validate!(
         order_status == OrderStatus::Open,
@@ -3836,9 +3826,8 @@ pub fn trigger_spot_order(
         user.orders[order_index].slot = slot;
         let order_type = user.orders[order_index].order_type;
         if let OrderType::TriggerMarket = order_type {
-            let auction_start_price = cast_to_u64(oracle_price_data.price.unsigned_abs())?;
-            let auction_end_price =
-                calculate_auction_end_price(oracle_price_data, order_direction)?;
+            let (auction_start_price, auction_end_price) =
+                calculate_auction_prices(oracle_price_data, direction, 0)?;
             user.orders[order_index].auction_start_price = auction_start_price;
             user.orders[order_index].auction_end_price = auction_end_price;
         }

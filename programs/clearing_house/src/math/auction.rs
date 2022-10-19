@@ -1,7 +1,7 @@
 use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
-use crate::math::casting::{cast, cast_to_u64};
-use crate::math::constants::BID_ASK_SPREAD_PRECISION;
+use crate::math::casting::{cast, Cast};
+use crate::math::constants::AUCTION_DERIVE_PRICE_FRACTION;
 use crate::math::orders::standardize_price;
 use crate::math_error;
 use crate::state::oracle::OraclePriceData;
@@ -9,26 +9,77 @@ use crate::state::user::Order;
 use solana_program::msg;
 use std::cmp::min;
 
-pub fn calculate_auction_end_price(
-    oracle_price: &OraclePriceData,
+#[cfg(test)]
+mod tests;
+
+pub fn calculate_auction_prices(
+    oracle_price_data: &OraclePriceData,
     direction: PositionDirection,
-) -> ClearingHouseResult<u64> {
-    let numerator = match direction {
-        PositionDirection::Long => {
-            BID_ASK_SPREAD_PRECISION + BID_ASK_SPREAD_PRECISION / 100 // 1%
-        }
-        PositionDirection::Short => BID_ASK_SPREAD_PRECISION - BID_ASK_SPREAD_PRECISION / 100,
+    limit_price: u64,
+) -> ClearingHouseResult<(u64, u64)> {
+    let oracle_price = oracle_price_data.price.cast::<u64>()?;
+    if limit_price > 0 {
+        let (auction_start_price, auction_end_price) = match direction {
+            // Long and limit price is better than oracle price
+            PositionDirection::Long if limit_price < oracle_price => {
+                let limit_derive_start_price = limit_price
+                    .checked_sub(limit_price / AUCTION_DERIVE_PRICE_FRACTION)
+                    .ok_or_else(math_error!())?;
+                let oracle_derive_start_price = oracle_price
+                    .checked_sub(oracle_price / AUCTION_DERIVE_PRICE_FRACTION)
+                    .ok_or_else(math_error!())?;
+
+                (
+                    limit_derive_start_price.min(oracle_derive_start_price),
+                    limit_price,
+                )
+            }
+            // Long and limit price is worse than oracle price
+            PositionDirection::Long if limit_price >= oracle_price => {
+                let oracle_derive_end_price = oracle_price
+                    .checked_add(oracle_price / AUCTION_DERIVE_PRICE_FRACTION)
+                    .ok_or_else(math_error!())?;
+
+                (oracle_price, limit_price.min(oracle_derive_end_price))
+            }
+            // Short and limit price is better than oracle price
+            PositionDirection::Short if limit_price > oracle_price => {
+                let limit_derive_start_price = limit_price
+                    .checked_add(limit_price / AUCTION_DERIVE_PRICE_FRACTION)
+                    .ok_or_else(math_error!())?;
+                let oracle_derive_start_price = oracle_price
+                    .checked_add(oracle_price / AUCTION_DERIVE_PRICE_FRACTION)
+                    .ok_or_else(math_error!())?;
+
+                (
+                    limit_derive_start_price.max(oracle_derive_start_price),
+                    limit_price,
+                )
+            }
+            // Short and limit price is worse than oracle price
+            PositionDirection::Short if limit_price <= oracle_price => {
+                let oracle_derive_end_price = oracle_price
+                    .checked_sub(oracle_price / AUCTION_DERIVE_PRICE_FRACTION)
+                    .ok_or_else(math_error!())?;
+
+                (oracle_price, limit_price.max(oracle_derive_end_price))
+            }
+            _ => unreachable!(),
+        };
+
+        return Ok((auction_start_price, auction_end_price));
+    }
+
+    let auction_end_price = match direction {
+        PositionDirection::Long => oracle_price
+            .checked_add(oracle_price / AUCTION_DERIVE_PRICE_FRACTION)
+            .ok_or_else(math_error!())?,
+        PositionDirection::Short => oracle_price
+            .checked_sub(oracle_price / AUCTION_DERIVE_PRICE_FRACTION)
+            .ok_or_else(math_error!())?,
     };
 
-    cast_to_u64(
-        oracle_price
-            .price
-            .unsigned_abs()
-            .checked_mul(numerator)
-            .ok_or_else(math_error!())?
-            .checked_div(BID_ASK_SPREAD_PRECISION)
-            .ok_or_else(math_error!())?,
-    )
+    Ok((oracle_price, auction_end_price))
 }
 
 pub fn calculate_auction_price(
