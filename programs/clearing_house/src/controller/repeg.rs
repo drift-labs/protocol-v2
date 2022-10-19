@@ -16,7 +16,7 @@ use crate::math::constants::{K_BPS_UPDATE_SCALE, QUOTE_PRECISION, QUOTE_SPOT_MAR
 use crate::math::cp_curve;
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::oracle;
-use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
+use crate::math::oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction};
 use crate::math::repeg;
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
@@ -202,6 +202,38 @@ pub fn _update_amm(
     update_spreads(&mut market.amm, reserve_price_after)?;
 
     Ok(amm_update_cost)
+}
+
+pub fn update_amm_and_check_validity(
+    market: &mut PerpMarket,
+    oracle_price_data: &OraclePriceData,
+    state: &State,
+    now: i64,
+    clock_slot: u64,
+    action: Option<DriftAction>,
+) -> ClearingHouseResult {
+    _update_amm(market, oracle_price_data, state, now, clock_slot)?;
+
+    // 1 hour EMA
+    let risk_ema_price = market.amm.historical_oracle_data.last_oracle_price_twap;
+
+    let oracle_validity = oracle_validity(
+        risk_ema_price,
+        oracle_price_data,
+        &state.oracle_guard_rails.validity,
+    )?;
+
+    validate!(
+        is_oracle_valid_for_action(oracle_validity, action)?,
+        ErrorCode::InvalidOracle,
+        "Invalid Oracle ({:?} vs ema={:?}) for perp market index={} and action={:?}",
+        oracle_price_data,
+        risk_ema_price,
+        market.market_index,
+        action
+    )?;
+
+    Ok(())
 }
 
 pub fn apply_cost_to_market(

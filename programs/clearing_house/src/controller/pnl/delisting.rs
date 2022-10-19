@@ -2244,7 +2244,8 @@ pub mod delisting_test {
 
             assert_eq!(shorter.is_being_liquidated, false);
             assert_eq!(shorter.is_bankrupt, false);
-
+            let mut state = State::default();
+            state.liquidation_margin_buffer_ratio = 10;
             liquidate_perp(
                 0,
                 shorter.perp_positions[0].base_asset_amount.unsigned_abs(),
@@ -2259,7 +2260,7 @@ pub mod delisting_test {
                 &mut oracle_map,
                 clock.slot,
                 clock.unix_timestamp,
-                10,
+                &state,
             )
             .unwrap();
 

@@ -1,4 +1,5 @@
 pub mod liquidate_perp {
+    use crate::state::state::State;
     use std::str::FromStr;
 
     use anchor_lang::Owner;
@@ -131,7 +132,8 @@ pub mod liquidate_perp {
 
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
-
+        let mut state = State::default();
+        state.liquidation_margin_buffer_ratio = 10;
         liquidate_perp(
             0,
             BASE_PRECISION_U64,
@@ -146,7 +148,7 @@ pub mod liquidate_perp {
             &mut oracle_map,
             slot,
             now,
-            10,
+            &state,
         )
         .unwrap();
 
@@ -271,7 +273,8 @@ pub mod liquidate_perp {
 
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
-
+        let mut state = State::default();
+        state.liquidation_margin_buffer_ratio = 10;
         liquidate_perp(
             0,
             BASE_PRECISION_U64,
@@ -286,7 +289,7 @@ pub mod liquidate_perp {
             &mut oracle_map,
             slot,
             now,
-            10,
+            &state,
         )
         .unwrap();
 
@@ -414,7 +417,8 @@ pub mod liquidate_perp {
 
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
-
+        let mut state = State::default();
+        state.liquidation_margin_buffer_ratio = 255;
         liquidate_perp(
             0,
             BASE_PRECISION_U64,
@@ -429,7 +433,7 @@ pub mod liquidate_perp {
             &mut oracle_map,
             slot,
             now,
-            255,
+            &state,
         )
         .unwrap();
 
@@ -540,8 +544,8 @@ pub mod liquidate_perp {
 
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
-
-        let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
+        let mut state = State::default();
+        state.liquidation_margin_buffer_ratio = MARGIN_PRECISION as u32 / 50;
 
         liquidate_perp(
             0,
@@ -557,7 +561,7 @@ pub mod liquidate_perp {
             &mut oracle_map,
             slot,
             now,
-            liquidation_buffer,
+            &state,
         )
         .unwrap();
 
@@ -686,8 +690,8 @@ pub mod liquidate_perp {
 
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
-
-        let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
+        let mut state = State::default();
+        state.liquidation_margin_buffer_ratio = MARGIN_PRECISION as u32 / 50;
         liquidate_perp(
             0,
             10 * BASE_PRECISION_U64,
@@ -702,7 +706,7 @@ pub mod liquidate_perp {
             &mut oracle_map,
             slot,
             now,
-            liquidation_buffer,
+            &state,
         )
         .unwrap();
 
@@ -719,7 +723,7 @@ pub mod liquidate_perp {
                 MarginRequirementType::Maintenance,
                 &spot_market_map,
                 &mut oracle_map,
-                Some(liquidation_buffer as u128),
+                Some(state.liquidation_margin_buffer_ratio as u128),
             )
             .unwrap();
 
@@ -897,7 +901,8 @@ pub mod liquidate_perp {
 
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
-
+        let mut state = State::default();
+        state.liquidation_margin_buffer_ratio = 10;
         liquidate_perp(
             0,
             BASE_PRECISION_U64,
@@ -912,7 +917,7 @@ pub mod liquidate_perp {
             &mut oracle_map,
             slot,
             now,
-            10,
+            &state,
         )
         .unwrap();
 

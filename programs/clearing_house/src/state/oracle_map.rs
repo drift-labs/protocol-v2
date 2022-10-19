@@ -11,6 +11,8 @@ use std::collections::BTreeMap;
 use std::iter::Peekable;
 use std::slice::Iter;
 
+use super::state::ValidityGuardRails;
+
 pub struct AccountInfoAndOracleSource<'a> {
     /// CHECK: ownders are validated in OracleMap::load
     pub account_info: AccountInfo<'a>,
@@ -77,12 +79,12 @@ impl<'a> OracleMap<'a> {
 
         if self.price_data.contains_key(pubkey) {
             let oracle_price_data = self.price_data.get(pubkey).unwrap();
-            let is_oracle_valid = oracle_validity(
+            let oracle_validity = oracle_validity(
                 last_oracle_price_twap,
                 oracle_price_data,
                 &self.oracle_guard_rails.validity,
             )?;
-            return Ok((oracle_price_data, is_oracle_valid));
+            return Ok((oracle_price_data, oracle_validity));
         }
 
         let (account_info, oracle_source) = match self.oracles.get(pubkey) {
@@ -101,13 +103,50 @@ impl<'a> OracleMap<'a> {
         self.price_data.insert(*pubkey, price_data);
 
         let oracle_price_data = self.price_data.get(pubkey).unwrap();
-        let is_oracle_valid = oracle_validity(
+        let oracle_validity = oracle_validity(
             last_oracle_price_twap,
             oracle_price_data,
             &self.oracle_guard_rails.validity,
         )?;
 
-        Ok((oracle_price_data, is_oracle_valid))
+        Ok((oracle_price_data, oracle_validity))
+    }
+
+    pub fn get_price_data_and_guard_rails(
+        &mut self,
+        pubkey: &Pubkey,
+    ) -> ClearingHouseResult<(&OraclePriceData, &ValidityGuardRails)> {
+        if pubkey == &Pubkey::default() {
+            let validity_guard_rails = &self.oracle_guard_rails.validity;
+            return Ok((&self.quote_asset_price_data, validity_guard_rails));
+        }
+
+        if self.price_data.contains_key(pubkey) {
+            let oracle_price_data = self.price_data.get(pubkey).unwrap();
+            let validity_guard_rails = &self.oracle_guard_rails.validity;
+
+            return Ok((oracle_price_data, validity_guard_rails));
+        }
+
+        let (account_info, oracle_source) = match self.oracles.get(pubkey) {
+            Some(AccountInfoAndOracleSource {
+                account_info,
+                oracle_source,
+            }) => (account_info, oracle_source),
+            None => {
+                msg!("oracle pubkey not found in oracle_map: {}", pubkey);
+                return Err(ErrorCode::OracleNotFound);
+            }
+        };
+
+        let price_data = get_oracle_price(oracle_source, account_info, self.slot)?;
+
+        self.price_data.insert(*pubkey, price_data);
+
+        let oracle_price_data = self.price_data.get(pubkey).unwrap();
+        let validity_guard_rails = &self.oracle_guard_rails.validity;
+
+        Ok((oracle_price_data, validity_guard_rails))
     }
 
     pub fn load<'c>(

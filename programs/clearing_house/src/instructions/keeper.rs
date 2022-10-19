@@ -450,7 +450,7 @@ pub fn handle_liquidate_perp(
         &mut oracle_map,
         slot,
         now,
-        state.liquidation_margin_buffer_ratio,
+        state,
     )?;
 
     Ok(())
@@ -1027,7 +1027,7 @@ pub fn handle_settle_revenue_to_insurance_fund(
 }
 
 #[access_control(
-    funding_not_paused(&ctx.accounts.state)
+    exchange_not_paused(&ctx.accounts.state)
     valid_oracle_for_spot_market(&ctx.accounts.oracle, &ctx.accounts.spot_market)
 )]
 pub fn handle_update_spot_market_cumulative_interest(
@@ -1045,13 +1045,23 @@ pub fn handle_update_spot_market_cumulative_interest(
         Some(state.oracle_guard_rails),
     )?;
 
-    let oracle_price_data = &oracle_map.get_price_data(&spot_market.oracle)?;
+    let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
 
-    controller::spot_balance::update_spot_market_cumulative_interest(
-        spot_market,
-        Some(oracle_price_data),
-        now,
-    )?;
+    if !matches!(state.exchange_status, ExchangeStatus::FundingPaused) {
+        controller::spot_balance::update_spot_market_cumulative_interest(
+            spot_market,
+            Some(oracle_price_data),
+            now,
+        )?;
+    } else {
+        // even if funding is paused still update twap stats
+        controller::spot_balance::update_spot_market_twap_stats(
+            spot_market,
+            Some(oracle_price_data),
+            now,
+        )?;
+    }
+
     Ok(())
 }
 

@@ -33,6 +33,7 @@ impl Default for OracleValidity {
     }
 }
 
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum DriftAction {
     UpdateFunding,
     SettlePnl,
