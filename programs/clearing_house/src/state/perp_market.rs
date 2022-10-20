@@ -129,6 +129,10 @@ impl PerpMarket {
         size: u128,
         margin_type: MarginRequirementType,
     ) -> ClearingHouseResult<u32> {
+        if self.status == MarketStatus::Settlement {
+            return Ok(0); // no liability weight on size
+        }
+
         let default_margin_ratio = match margin_type {
             MarginRequirementType::Initial => cast_to_u128(self.margin_ratio_initial)?,
             MarginRequirementType::Maintenance => cast_to_u128(self.margin_ratio_maintenance)?,

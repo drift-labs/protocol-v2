@@ -53,6 +53,7 @@ import {
 	getPerpMarketPublicKey,
 	getSerumFulfillmentConfigPublicKey,
 	getSerumSignerPublicKey,
+	getSpotMarketPublicKey,
 	getUserAccountPublicKey,
 	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
@@ -1758,6 +1759,34 @@ export class ClearingHouse {
 			},
 			remainingAccounts,
 		});
+	}
+
+	public async settleExpiredMarketPoolsToRevenuePool(
+		perpMarketIndex: number
+	): Promise<TransactionSignature> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		const spotMarketPublicKey = await getSpotMarketPublicKey(
+			this.program.programId,
+			QUOTE_SPOT_MARKET_INDEX
+		);
+
+		const ix =
+			await this.program.instruction.settleExpiredMarketPoolsToRevenuePool({
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.wallet.publicKey,
+					spotMarket: spotMarketPublicKey,
+					perpMarket: perpMarketPublicKey,
+				},
+			});
+
+		const { txSig } = await this.txSender.send(wrapInTx(ix), [], this.opts);
+
+		return txSig;
 	}
 
 	public async cancelOrder(orderId?: number): Promise<TransactionSignature> {

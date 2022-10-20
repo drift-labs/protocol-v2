@@ -3002,6 +3002,27 @@
       ]
     },
     {
+      "name": "updateStateSettlementDuration",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "settlementDuration",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketOracle",
       "accounts": [
         {

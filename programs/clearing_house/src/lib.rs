@@ -685,6 +685,13 @@ pub mod clearing_house {
         handle_update_oracle_guard_rails(ctx, oracle_guard_rails)
     }
 
+    pub fn update_state_settlement_duration(
+        ctx: Context<AdminUpdateState>,
+        settlement_duration: u16,
+    ) -> Result<()> {
+        handle_update_state_settlement_duration(ctx, settlement_duration)
+    }
+
     pub fn update_perp_market_oracle(
         ctx: Context<RepegCurve>,
         oracle: Pubkey,

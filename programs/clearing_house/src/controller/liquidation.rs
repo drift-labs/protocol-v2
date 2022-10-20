@@ -284,7 +284,6 @@ pub fn liquidate_perp(
     let base_asset_amount = user_base_asset_amount
         .min(liquidator_max_base_asset_amount)
         .min(base_asset_amount_to_cover_margin_shortage);
-
     let base_asset_amount = standardize_base_asset_amount(
         base_asset_amount,
         perp_market_map.get_ref(&market_index)?.amm.order_step_size,

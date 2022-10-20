@@ -229,11 +229,15 @@ pub fn calculate_perp_position_value_and_pnl(
         margin_requirement_type,
     )? as u128);
 
-    let margin_requirement = worse_case_base_asset_value
-        .checked_mul(margin_ratio)
-        .ok_or_else(math_error!())?
-        .checked_div(MARGIN_PRECISION)
-        .ok_or_else(math_error!())?;
+    let margin_requirement = if market.status == MarketStatus::Settlement {
+        0
+    } else {
+        worse_case_base_asset_value
+            .checked_mul(margin_ratio)
+            .ok_or_else(math_error!())?
+            .checked_div(MARGIN_PRECISION)
+            .ok_or_else(math_error!())?
+    };
 
     let unrealized_asset_weight =
         market.get_unrealized_asset_weight(total_unrealized_pnl, margin_requirement_type)?;
