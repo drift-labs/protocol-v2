@@ -381,7 +381,7 @@ pub fn transfer_spot_balance_to_revenue_pool(
     Ok(())
 }
 
-pub fn update_spot_position_balance_with_limits(
+pub fn update_spot_balances_and_cumulative_deposits_with_limits(
     token_amount: u128,
     update_direction: &SpotBalanceType,
     spot_market: &mut SpotMarket,

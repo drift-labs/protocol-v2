@@ -341,7 +341,7 @@ pub fn handle_withdraw(
 
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         // prevents withdraw when limits hit
-        controller::spot_balance::update_spot_position_balance_with_limits(
+        controller::spot_balance::update_spot_balances_and_cumulative_deposits_with_limits(
             amount as u128,
             &SpotBalanceType::Borrow,
             spot_market,
