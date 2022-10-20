@@ -5046,6 +5046,7 @@ pub mod fulfill_spot_order {
             cumulative_deposits: 1000000000,
             ..SpotPosition::default()
         };
+        expected_taker.cumulative_spot_fees = -100000;
 
         let mut expected_maker = maker;
         expected_maker.orders[1] = Order::default();
@@ -5063,6 +5064,7 @@ pub mod fulfill_spot_order {
             cumulative_deposits: -1000000000,
             ..SpotPosition::default()
         };
+        expected_maker.cumulative_spot_fees = 20000;
 
         let base_asset_amount = fill_spot_order(
             1,
