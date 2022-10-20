@@ -16,6 +16,9 @@ import {
 	OraclePriceData,
 	NodeToFill,
 	isOrderExpired,
+	Order,
+	isMarketOrder,
+	isLimitOrder,
 } from '../../src';
 
 import {
@@ -186,32 +189,47 @@ function printBookState(
 
 function printCrossedNodes(n: NodeToFill, slot: number) {
 	console.log(
-		`Cross Found, taker: ${n.node.order !== undefined}, maker: ${
+		`Cross Found, takerExists: ${n.node.order !== undefined}, makerExists: ${
 			n.makerNode !== undefined
 		}`
 	);
+	console.log(
+		`node: (mkt: ${isMarketOrder(n.node.order)}, lim: ${isLimitOrder(
+			n.node.order
+		)})`
+	);
+	if (n.makerNode) {
+		console.log(
+			`mkrnode: (mkt: ${isMarketOrder(n.makerNode.order)}, lim: ${isLimitOrder(
+				n.makerNode.order
+			)})`
+		);
+	}
+
+	const printOrder = (o: Order) => {
+		console.log(
+			`  orderId: ${o.orderId}, ${getVariant(o.orderType)}, ${getVariant(
+				o.direction
+			)},\texpired: ${isOrderExpired(o, slot)}, postOnly: ${
+				o.postOnly
+			}, reduceOnly: ${
+				o.reduceOnly
+			}, price: ${o.price.toString()}, priceOffset: ${o.oraclePriceOffset.toString()}, baseAmtFileld: ${o.baseAssetAmountFilled.toString()}/${o.baseAssetAmount.toString()}`
+		);
+	};
+
 	if (n.node.order) {
 		const t = n.node.order;
-		const exp = isOrderExpired(t, slot);
-		console.log(
-			`  taker orderId: ${t.orderId}, ${getVariant(t.orderType)}, ${getVariant(
-				t.direction
-			)},\texpired: ${exp}, price: ${t.price.toString()}, priceOffset: ${t.oraclePriceOffset.toString()}, baseAmtFileld: ${t.baseAssetAmountFilled.toString()}/${t.baseAssetAmount.toString()}`
-		);
+		console.log(`Taker Order:`);
+		printOrder(t);
 	}
 	if (n.makerNode) {
 		if (n.makerNode.isVammNode()) {
 			console.log(`  maker is vAMM node`);
 		} else {
 			const m = n.makerNode.order!;
-			const exp = isOrderExpired(m, slot);
-			console.log(
-				`  maker orderId: ${m.orderId}, ${getVariant(
-					m.orderType
-				)}, ${getVariant(
-					m.direction
-				)},\texpired: ${exp}, price: ${m.price.toString()}, priceOffset: ${m.oraclePriceOffset.toString()}, baseAmtFileld: ${m.baseAssetAmountFilled.toString()}/${m.baseAssetAmount.toString()}`
-			);
+			console.log(`Maker Order:`);
+			printOrder(m);
 		}
 	}
 }
@@ -387,7 +405,6 @@ describe('DLOB Tests', () => {
 			const bids1 = dlob.getBids(marketIndex, vBid, 0, MarketType.PERP, oracle);
 			bids1.next();
 		} catch (e) {
-			console.error(e);
 			thrown = true;
 		}
 		expect(thrown, 'should throw after clearing').to.equal(true);
@@ -1525,14 +1542,17 @@ describe('DLOB Perp Tests', () => {
 			vAsk
 		);
 
+		// auction over
+		const endSlot = 12;
+
 		// should have no crossing orders
 		const nodesToFillBefore = dlob.findCrossingNodesToFill(
 			marketIndex,
-			12, // auction over
+			endSlot,
 			MarketType.PERP,
 			{
 				price: vBid.add(vAsk).div(new BN(2)),
-				slot: new BN(12),
+				slot: new BN(endSlot),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
 			}
@@ -1556,28 +1576,40 @@ describe('DLOB Perp Tests', () => {
 
 		const nodesToFillAfter = dlob.findCrossingNodesToFill(
 			marketIndex,
-			12, // auction over
+			endSlot,
 			MarketType.PERP,
 			{
 				price: vBid.add(vAsk).div(new BN(2)),
-				slot: new BN(12),
+				slot: new BN(endSlot),
 				confidence: new BN(1),
 				hasSufficientNumberOfDataPoints: true,
 			}
 		);
 		console.log(`Filled nodes: ${nodesToFillAfter.length}`);
 		for (const n of nodesToFillAfter) {
-			printCrossedNodes(n, 12);
+			printCrossedNodes(n, endSlot);
 		}
 		expect(nodesToFillAfter.length).to.equal(2);
 
 		// taker should fill completely with best maker
-		expect(nodesToFillAfter[0].node.order?.orderId).to.equal(4);
-		expect(nodesToFillAfter[0].makerNode?.order?.orderId).to.equal(3);
+		expect(
+			nodesToFillAfter[0].node.order?.orderId,
+			'wrong taker orderId'
+		).to.equal(4);
+		expect(
+			nodesToFillAfter[0].makerNode?.order?.orderId,
+			'wrong maker orderId'
+		).to.equal(3);
 
 		// taker should fill completely with second best maker
-		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(4);
-		expect(nodesToFillAfter[1].makerNode?.order?.orderId).to.equal(2);
+		expect(
+			nodesToFillAfter[1].node.order?.orderId,
+			'wrong taker orderId'
+		).to.equal(4);
+		expect(
+			nodesToFillAfter[1].makerNode?.order?.orderId,
+			'wrong maker orderId'
+		).to.equal(2);
 	});
 
 	it('Test two market orders to fill one limit order', () => {
@@ -2983,7 +3015,7 @@ describe('DLOB Perp Tests', () => {
 			PositionDirection.LONG,
 			vBid,
 			vAsk,
-			new BN(slot),
+			new BN(slot + 1), // later order becomes taker
 			new BN(200)
 		);
 

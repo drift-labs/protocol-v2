@@ -7,4 +7,5 @@ cargo +stable clippy --tests -- -D warnings
 cargo test --quiet
 yarn prettify
 yarn lint
-cd sdk && yarn build
+cd sdk && yarn run test 
+yarn build
