@@ -266,14 +266,18 @@ pub fn get_strict_token_value(
 
     let precision_decrease = 10_i128.pow(spot_decimals as u32);
 
-    let price = if oracle_price_twap != 0 {
-        if token_amount > 0 {
-            oracle_price_data.price.min(oracle_price_twap)
-        } else {
-            oracle_price_data.price.max(oracle_price_twap)
-        }
+    validate!(
+        oracle_price_twap > 0,
+        ErrorCode::InvalidOracle,
+        "oracle_price_data={:?} oracle_price_twap={} (<= 0)",
+        oracle_price_data,
+        oracle_price_twap
+    )?;
+
+    let price = if token_amount > 0 {
+        oracle_price_data.price.min(oracle_price_twap)
     } else {
-        oracle_price_data.price
+        oracle_price_data.price.max(oracle_price_twap)
     };
 
     token_amount

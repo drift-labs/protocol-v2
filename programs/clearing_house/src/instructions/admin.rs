@@ -113,6 +113,8 @@ pub fn handle_initialize_spot_market(
         SPOT_UTILIZATION_PRECISION
     )?;
 
+    let spot_market_index = get_then_update_id!(state, number_of_spot_markets);
+
     if oracle_source == OracleSource::QuoteAsset {
         // catches inconsistent parameters
         validate!(
@@ -120,9 +122,13 @@ pub fn handle_initialize_spot_market(
             ErrorCode::InvalidSpotMarketInitialization,
             "For OracleSource::QuoteAsset, oracle must be default public key"
         )?;
-    }
 
-    let spot_market_index = get_then_update_id!(state, number_of_spot_markets);
+        validate!(
+            spot_market_index == QUOTE_SPOT_MARKET_INDEX,
+            ErrorCode::InvalidSpotMarketInitialization,
+            "For OracleSource::QuoteAsset, spot_market_index must be QUOTE_SPOT_MARKET_INDEX"
+        )?;
+    }
 
     let oracle_price_data = get_oracle_price(
         &oracle_source,

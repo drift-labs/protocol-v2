@@ -132,8 +132,10 @@ pub mod liquidate_perp {
 
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
-        let mut state = State::default();
-        state.liquidation_margin_buffer_ratio = 10;
+        let state = State {
+            liquidation_margin_buffer_ratio: 10,
+            ..Default::default()
+        };
         liquidate_perp(
             0,
             BASE_PRECISION_U64,
@@ -273,8 +275,10 @@ pub mod liquidate_perp {
 
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
-        let mut state = State::default();
-        state.liquidation_margin_buffer_ratio = 10;
+        let state = State {
+            liquidation_margin_buffer_ratio: 10,
+            ..Default::default()
+        };
         liquidate_perp(
             0,
             BASE_PRECISION_U64,
@@ -417,8 +421,10 @@ pub mod liquidate_perp {
 
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
-        let mut state = State::default();
-        state.liquidation_margin_buffer_ratio = 255;
+        let state = State {
+            liquidation_margin_buffer_ratio: 255,
+            ..Default::default()
+        };
         liquidate_perp(
             0,
             BASE_PRECISION_U64,
@@ -544,9 +550,10 @@ pub mod liquidate_perp {
 
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
-        let mut state = State::default();
-        state.liquidation_margin_buffer_ratio = MARGIN_PRECISION as u32 / 50;
-
+        let state = State {
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            ..Default::default()
+        };
         liquidate_perp(
             0,
             BASE_PRECISION_U64 / 2,
@@ -690,8 +697,10 @@ pub mod liquidate_perp {
 
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
-        let mut state = State::default();
-        state.liquidation_margin_buffer_ratio = MARGIN_PRECISION as u32 / 50;
+        let state = State {
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            ..Default::default()
+        };
         liquidate_perp(
             0,
             10 * BASE_PRECISION_U64,
@@ -901,8 +910,10 @@ pub mod liquidate_perp {
 
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
-        let mut state = State::default();
-        state.liquidation_margin_buffer_ratio = 10;
+        let state = State {
+            liquidation_margin_buffer_ratio: 10,
+            ..Default::default()
+        };
         liquidate_perp(
             0,
             BASE_PRECISION_U64,

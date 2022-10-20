@@ -2244,8 +2244,10 @@ pub mod delisting_test {
 
             assert_eq!(shorter.is_being_liquidated, false);
             assert_eq!(shorter.is_bankrupt, false);
-            let mut state = State::default();
-            state.liquidation_margin_buffer_ratio = 10;
+            let state = State {
+                liquidation_margin_buffer_ratio: 10,
+                ..Default::default()
+            };
             liquidate_perp(
                 0,
                 shorter.perp_positions[0].base_asset_amount.unsigned_abs(),
