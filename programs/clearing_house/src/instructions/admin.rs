@@ -15,7 +15,7 @@ use crate::instructions::constraints::*;
 use crate::instructions::keeper::SpotFulfillmentType;
 use crate::load;
 use crate::load_mut;
-use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128, cast_to_u32};
+use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128, cast_to_u32, Cast};
 use crate::math::constants::{
     DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
     DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE, IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX,
@@ -26,6 +26,7 @@ use crate::math::constants::{
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
+use crate::math::orders::is_multiple_of_step_size;
 use crate::math::repeg::get_total_fee_lower_bound;
 use crate::math::spot_balance::get_token_amount;
 use crate::math::{amm, bn, oracle};
@@ -588,6 +589,7 @@ pub fn handle_initialize_perp_market(
             quote_asset_amount_short: 0,
             quote_entry_amount_long: 0,
             quote_entry_amount_short: 0,
+            max_open_interest: 0,
             mark_std: 0,
             volume_24h: 0,
             long_intensity_count: 0,
@@ -1791,6 +1793,28 @@ pub fn handle_update_perp_market_max_fill_reserve_fraction(
     validate!(max_fill_reserve_fraction > 0, ErrorCode::DefaultError)?;
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     perp_market.amm.max_fill_reserve_fraction = max_fill_reserve_fraction;
+    Ok(())
+}
+
+#[access_control(
+    market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_max_open_interest(
+    ctx: Context<AdminUpdatePerpMarket>,
+    max_open_interest: u128,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    validate!(
+        is_multiple_of_step_size(
+            max_open_interest.cast::<u64>()?,
+            perp_market.amm.order_step_size
+        )?,
+        ErrorCode::DefaultError,
+        "max oi not a multiple of the step size"
+    )?;
+
+    perp_market.amm.max_open_interest = max_open_interest;
     Ok(())
 }
 

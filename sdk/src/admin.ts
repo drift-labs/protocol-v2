@@ -1007,6 +1007,25 @@ export class Admin extends ClearingHouse {
 		);
 	}
 
+	public async updatePerpMarketMaxOpenInterest(
+		perpMarketIndex: number,
+		maxOpenInterest: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketMaxOpenInterest(
+			maxOpenInterest,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			}
+		);
+	}
+
 	public async updateSerumVault(
 		srmVault: PublicKey
 	): Promise<TransactionSignature> {

@@ -249,6 +249,14 @@ impl PerpMarket {
                 .ok_or_else(math_error!())
         }
     }
+
+    pub fn get_open_interest(&self) -> u128 {
+        self.amm
+            .base_asset_amount_long
+            .abs()
+            .max(self.amm.base_asset_amount_short.abs())
+            .unsigned_abs()
+    }
 }
 
 #[zero_copy]
@@ -328,6 +336,7 @@ pub struct AMM {
     pub base_asset_amount_short: i128,
     pub base_asset_amount_with_amm: i128,
     pub base_asset_amount_with_unsettled_lp: i128,
+    pub max_open_interest: u128,
     pub quote_asset_amount_long: i128,
     pub quote_asset_amount_short: i128,
     pub quote_entry_amount_long: i128,

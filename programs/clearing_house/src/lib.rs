@@ -760,6 +760,13 @@ pub mod clearing_house {
         handle_update_perp_market_max_fill_reserve_fraction(ctx, max_fill_reserve_fraction)
     }
 
+    pub fn update_perp_market_max_open_interest(
+        ctx: Context<AdminUpdatePerpMarket>,
+        max_open_interest: u128,
+    ) -> Result<()> {
+        handle_update_perp_market_max_open_interest(ctx, max_open_interest)
+    }
+
     pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
         handle_update_admin(ctx, admin)
     }

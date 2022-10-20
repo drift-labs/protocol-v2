@@ -275,6 +275,8 @@ pub enum ErrorCode {
     UserCantBeDeleted,
     #[msg("Reduce Only Withdraw Increased Risk")]
     ReduceOnlyWithdrawIncreasedRisk,
+    #[msg("Max Open Interest")]
+    MaxOpenInterest,
 }
 
 #[macro_export]
