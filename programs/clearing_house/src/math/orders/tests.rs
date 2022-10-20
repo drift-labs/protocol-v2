@@ -401,3 +401,123 @@ mod order_breaches_oracle_price_limits {
         assert!(result)
     }
 }
+
+mod should_expire_order {
+    use crate::math::orders::should_expire_order;
+    use crate::state::user::{Order, OrderStatus, OrderType, User};
+    use crate::test_utils::get_orders;
+
+    #[test]
+    fn max_ts_is_zero() {
+        let user = User {
+            orders: get_orders(Order {
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                max_ts: 0,
+                ..Order::default()
+            }),
+            ..User::default()
+        };
+
+        let now = 100;
+
+        let is_expired = should_expire_order(&user, 0, now).unwrap();
+
+        assert!(!is_expired);
+    }
+
+    #[test]
+    fn max_ts_is_greater_than_now() {
+        let user = User {
+            orders: get_orders(Order {
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                max_ts: 101,
+                ..Order::default()
+            }),
+            ..User::default()
+        };
+
+        let now = 100;
+
+        let is_expired = should_expire_order(&user, 0, now).unwrap();
+
+        assert!(!is_expired);
+    }
+
+    #[test]
+    fn max_ts_is_less_than_now() {
+        let user = User {
+            orders: get_orders(Order {
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                max_ts: 99,
+                ..Order::default()
+            }),
+            ..User::default()
+        };
+
+        let now = 100;
+
+        let is_expired = should_expire_order(&user, 0, now).unwrap();
+
+        assert!(is_expired);
+    }
+
+    #[test]
+    fn order_is_not_open() {
+        let user = User {
+            orders: get_orders(Order {
+                status: OrderStatus::Init,
+                order_type: OrderType::Limit,
+                max_ts: 99,
+                ..Order::default()
+            }),
+            ..User::default()
+        };
+
+        let now = 100;
+
+        let is_expired = should_expire_order(&user, 0, now).unwrap();
+
+        assert!(!is_expired);
+    }
+
+    #[test]
+    fn order_is_trigger_market_order() {
+        let user = User {
+            orders: get_orders(Order {
+                status: OrderStatus::Open,
+                order_type: OrderType::TriggerMarket,
+                max_ts: 99,
+                ..Order::default()
+            }),
+            ..User::default()
+        };
+
+        let now = 100;
+
+        let is_expired = should_expire_order(&user, 0, now).unwrap();
+
+        assert!(!is_expired);
+    }
+
+    #[test]
+    fn order_is_trigger_limit_order() {
+        let user = User {
+            orders: get_orders(Order {
+                status: OrderStatus::Open,
+                order_type: OrderType::TriggerLimit,
+                max_ts: 99,
+                ..Order::default()
+            }),
+            ..User::default()
+        };
+
+        let now = 100;
+
+        let is_expired = should_expire_order(&user, 0, now).unwrap();
+
+        assert!(!is_expired);
+    }
+}

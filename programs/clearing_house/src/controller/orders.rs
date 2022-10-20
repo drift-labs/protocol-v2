@@ -215,11 +215,14 @@ pub fn place_order(
         state.min_perp_auction_duration,
     );
 
-    let time_in_force = match params.time_in_force {
-        Some(time_in_force) => time_in_force.max(auction_duration),
-        None if params.order_type == OrderType::Market => state.default_market_order_time_in_force,
-        None => 0,
-    };
+    let max_ts = params.max_ts.unwrap_or(0);
+    validate!(
+        max_ts == 0 || max_ts > now,
+        ErrorCode::InvalidOrder,
+        "max_ts ({}) <= now ({})",
+        max_ts,
+        now
+    )?;
 
     let new_order = Order {
         status: OrderStatus::Open,
@@ -245,8 +248,7 @@ pub fn place_order(
         auction_start_price,
         auction_end_price,
         auction_duration,
-        time_in_force,
-        padding: [0; 1],
+        max_ts,
     };
 
     let valid_oracle_price = get_valid_oracle_price(
@@ -740,7 +742,7 @@ pub fn fill_order(
         return Ok((0, true));
     }
 
-    let should_expire_order = should_expire_order(user, order_index, slot)?;
+    let should_expire_order = should_expire_order(user, order_index, now)?;
     if should_expire_order {
         let filler_reward = {
             let mut market = perp_market_map.get_ref_mut(&market_index)?;
@@ -998,7 +1000,7 @@ fn sanitize_maker_order<'a>(
         )?
     };
 
-    let should_expire_order = should_expire_order(&maker, maker_order_index, slot)?;
+    let should_expire_order = should_expire_order(&maker, maker_order_index, now)?;
 
     // Dont fulfill with a maker order if oracle has diverged significantly
     if breaches_oracle_price_limits || should_expire_order {
@@ -2414,11 +2416,15 @@ pub fn place_spot_order(
     let auction_duration = params
         .auction_duration
         .unwrap_or(state.default_spot_auction_duration);
-    let time_in_force = match params.time_in_force {
-        Some(time_in_force) => time_in_force.max(auction_duration),
-        None if params.order_type == OrderType::Market => state.default_market_order_time_in_force,
-        None => 0,
-    };
+
+    let max_ts = params.max_ts.unwrap_or(0);
+    validate!(
+        max_ts == 0 || max_ts > now,
+        ErrorCode::InvalidOrder,
+        "max_ts ({}) <= now ({})",
+        max_ts,
+        now
+    )?;
 
     let new_order = Order {
         status: OrderStatus::Open,
@@ -2444,8 +2450,7 @@ pub fn place_spot_order(
         auction_start_price,
         auction_end_price,
         auction_duration,
-        time_in_force,
-        padding: [0; 1],
+        max_ts,
     };
 
     let valid_oracle_price = Some(oracle_price_data.price);
@@ -2628,7 +2633,7 @@ pub fn fill_spot_order(
         slot,
     )?;
 
-    let should_expire_order = should_expire_order(user, order_index, slot)?;
+    let should_expire_order = should_expire_order(user, order_index, now)?;
     if should_expire_order {
         let filler_reward = {
             let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
@@ -2792,7 +2797,7 @@ fn sanitize_spot_maker_order<'a>(
         )?
     };
 
-    let should_expire_order = should_expire_order(&maker, maker_order_index, slot)?;
+    let should_expire_order = should_expire_order(&maker, maker_order_index, now)?;
 
     if breaches_oracle_price_limits || should_expire_order {
         let filler_reward = {

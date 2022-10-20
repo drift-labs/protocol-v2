@@ -47,14 +47,11 @@ pub fn handle_initialize_user(
         .user
         .load_init()
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-    *user = User {
-        authority: ctx.accounts.authority.key(),
-        sub_account_id,
-        name,
-        next_order_id: 1,
-        next_liquidation_id: 1,
-        ..User::default()
-    };
+    user.authority = ctx.accounts.authority.key();
+    user.sub_account_id = sub_account_id;
+    user.name = name;
+    user.next_order_id = 1;
+    user.next_liquidation_id = 1;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
@@ -572,11 +569,11 @@ pub struct OrderParams {
     pub reduce_only: bool,
     pub post_only: bool,
     pub immediate_or_cancel: bool,
+    pub max_ts: Option<i64>,
     pub trigger_price: Option<u64>,
     pub trigger_condition: OrderTriggerCondition,
     pub oracle_price_offset: Option<i32>,
     pub auction_duration: Option<u8>,
-    pub time_in_force: Option<u8>,
     pub auction_start_price: Option<u64>,
     pub auction_end_price: Option<u64>,
 }

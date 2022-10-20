@@ -58,7 +58,7 @@ export class PollingLogProvider implements LogProvider {
 				const { mostRecentTx, transactionLogs } = response;
 
 				for (const { txSig, slot, logs } of transactionLogs) {
-					callback(txSig, slot, logs);
+					callback(txSig, slot, logs, response.mostRecentBlockTime);
 				}
 
 				this.mostRecentSeenTx = mostRecentTx;

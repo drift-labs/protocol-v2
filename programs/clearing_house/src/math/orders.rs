@@ -273,11 +273,11 @@ pub fn should_cancel_order_after_fulfill(
 pub fn should_expire_order(
     user: &User,
     user_order_index: usize,
-    slot: u64,
+    now: i64,
 ) -> ClearingHouseResult<bool> {
     let order = &user.orders[user_order_index];
     if order.status != OrderStatus::Open
-        || order.time_in_force == 0
+        || order.max_ts == 0
         || matches!(
             order.order_type,
             OrderType::TriggerMarket | OrderType::TriggerLimit
@@ -286,8 +286,7 @@ pub fn should_expire_order(
         return Ok(false);
     }
 
-    let slots_elapsed = slot.checked_sub(order.slot).ok_or_else(math_error!())?;
-    Ok(slots_elapsed > order.time_in_force.cast()?)
+    Ok(now > order.max_ts)
 }
 
 pub fn order_breaches_oracle_price_limits(

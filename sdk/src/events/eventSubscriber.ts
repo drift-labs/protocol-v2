@@ -26,6 +26,7 @@ export class EventSubscriber {
 	private logProvider: LogProvider;
 	public eventEmitter: StrictEventEmitter<EventEmitter, EventSubscriberEvents>;
 	private lastSeenSlot: number;
+	private lastSeenBlockTime: number | undefined;
 	public lastSeenTxSig: string;
 
 	public constructor(
@@ -70,8 +71,8 @@ export class EventSubscriber {
 				return true;
 			}
 
-			this.logProvider.subscribe((txSig, slot, logs) => {
-				this.handleTxLogs(txSig, slot, logs);
+			this.logProvider.subscribe((txSig, slot, logs, mostRecentBlockTime) => {
+				this.handleTxLogs(txSig, slot, logs, mostRecentBlockTime);
 			}, true);
 
 			return true;
@@ -85,7 +86,8 @@ export class EventSubscriber {
 	private handleTxLogs(
 		txSig: TransactionSignature,
 		slot: number,
-		logs: string[]
+		logs: string[],
+		mostRecentBlockTime: number | undefined
 	): void {
 		if (this.txEventCache.has(txSig)) {
 			return;
@@ -110,6 +112,14 @@ export class EventSubscriber {
 		if (slot > this.lastSeenSlot) {
 			this.lastSeenTxSig = txSig;
 		}
+
+		if (
+			this.lastSeenBlockTime === undefined ||
+			mostRecentBlockTime > this.lastSeenBlockTime
+		) {
+			this.lastSeenBlockTime = mostRecentBlockTime;
+		}
+
 		this.txEventCache.add(txSig, wrappedEvents);
 	}
 
@@ -138,7 +148,7 @@ export class EventSubscriber {
 			beforeTx = response.earliestTx;
 
 			for (const { txSig, slot, logs } of response.transactionLogs) {
-				this.handleTxLogs(txSig, slot, logs);
+				this.handleTxLogs(txSig, slot, logs, response.mostRecentBlockTime);
 			}
 		}
 	}

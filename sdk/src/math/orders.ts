@@ -181,7 +181,8 @@ export function isFillableByVAMM(
 	order: Order,
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
-	slot: number
+	slot: number,
+	ts: number
 ): boolean {
 	return (
 		(isAuctionComplete(order, slot) &&
@@ -191,7 +192,7 @@ export function isFillableByVAMM(
 				oraclePriceData,
 				slot
 			).eq(ZERO)) ||
-		isOrderExpired(order, slot)
+		isOrderExpired(order, ts)
 	);
 }
 
@@ -263,22 +264,22 @@ function isSameDirection(
 	);
 }
 
-export function isOrderExpired(order: Order, slot: number): boolean {
+export function isOrderExpired(order: Order, ts: number): boolean {
 	if (
 		isOneOfVariant(order.orderType, ['triggerMarket', 'triggerLimit']) ||
 		!isVariant(order.status, 'open') ||
-		order.timeInForce === 0
+		order.maxTs.eq(ZERO)
 	) {
 		return false;
 	}
 
-	return new BN(slot).sub(order.slot).gt(new BN(order.timeInForce));
+	return new BN(ts).gt(order.maxTs);
 }
 
 export function isMarketOrder(order: Order): boolean {
-	return isOneOfVariant(order, ['market', 'triggerMarket']);
+	return isOneOfVariant(order.orderType, ['market', 'triggerMarket']);
 }
 
 export function isLimitOrder(order: Order): boolean {
-	return isOneOfVariant(order, ['limit', 'triggerLimit']);
+	return isOneOfVariant(order.orderType, ['limit', 'triggerLimit']);
 }

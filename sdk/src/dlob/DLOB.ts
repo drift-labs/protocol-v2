@@ -290,6 +290,7 @@ export class DLOB {
 		fallbackBid: BN | undefined,
 		fallbackAsk: BN | undefined,
 		slot: number,
+		ts: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData
 	): NodeToFill[] {
@@ -324,7 +325,7 @@ export class DLOB {
 		// get expired market nodes
 		const expiredNodesToFill = this.findExpiredNodesToFill(
 			marketIndex,
-			slot,
+			ts,
 			marketType
 		);
 		return crossingNodesToFill.concat(
@@ -488,7 +489,7 @@ export class DLOB {
 
 	public findExpiredNodesToFill(
 		marketIndex: number,
-		slot: number,
+		ts: number,
 		marketType: MarketType
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
@@ -510,7 +511,7 @@ export class DLOB {
 
 		for (const bidGenerator of bidGenerators) {
 			for (const bid of bidGenerator) {
-				if (isOrderExpired(bid.order, slot)) {
+				if (isOrderExpired(bid.order, ts)) {
 					nodesToFill.push({
 						node: bid,
 					});
@@ -520,7 +521,7 @@ export class DLOB {
 
 		for (const askGenerator of askGenerators) {
 			for (const ask of askGenerator) {
-				if (isOrderExpired(ask.order, slot)) {
+				if (isOrderExpired(ask.order, ts)) {
 					nodesToFill.push({
 						node: ask,
 					});

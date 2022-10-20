@@ -17,7 +17,7 @@ export class WebSocketLogProvider implements LogProvider {
 		this.subscriptionId = this.connection.onLogs(
 			this.programId,
 			(logs, ctx) => {
-				callback(logs.signature, ctx.slot, logs.logs);
+				callback(logs.signature, ctx.slot, logs.logs, undefined);
 			},
 			this.commitment
 		);

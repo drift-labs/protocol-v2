@@ -5283,7 +5283,7 @@ pub mod fill_spot_order {
             epoch_start_timestamp: 0,
             epoch: 0,
             leader_schedule_epoch: 0,
-            unix_timestamp: 0,
+            unix_timestamp: 11,
         };
 
         let mut oracle_price = get_pyth_price(100, 6);
@@ -5343,7 +5343,7 @@ pub mod fill_spot_order {
                 auction_end_price: 200 * PRICE_PRECISION_U64,
                 auction_duration: 5,
                 price: 100 * PRICE_PRECISION_U64,
-                time_in_force: 10,
+                max_ts: 10,
                 ..Order::default()
             }),
             spot_positions: taker_spot_positions,
