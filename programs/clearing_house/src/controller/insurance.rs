@@ -546,7 +546,6 @@ pub fn attempt_settle_revenue_to_insurance_fund<'info>(
                 spot_market.market_index,
                 token_amount
             );
-            spot_market.insurance_fund.last_revenue_settle_ts = now;
 
             send_from_program_vault(
                 token_program,
@@ -557,6 +556,8 @@ pub fn attempt_settle_revenue_to_insurance_fund<'info>(
                 cast_to_u64(token_amount)?,
             )?;
         }
+
+        spot_market.insurance_fund.last_revenue_settle_ts = now;
 
         token_amount
     } else {
