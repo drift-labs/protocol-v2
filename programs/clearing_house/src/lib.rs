@@ -34,7 +34,7 @@ mod validation;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("DUZwKJKAk2C9S88BYvQzck1M1i5hySQjxB4zW6tJ29Nw");
+declare_id!("FPVkWvcQgc4aCS8TrKo5c8GqTbKMauvzpADdqzRT2WbT");
 
 #[program]
 pub mod clearing_house {
