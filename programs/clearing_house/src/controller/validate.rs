@@ -1,10 +1,11 @@
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::{cast_to_i128, Cast};
+use crate::math::constants::MAX_OPEN_ORDERS;
 use crate::math::orders::is_multiple_of_step_size;
 use crate::math_error;
 use crate::state::perp_market::{PerpMarket, AMM};
-use crate::state::user::PerpPosition;
+use crate::state::user::{PerpPosition, SpotPosition};
 use crate::validate;
 use solana_program::msg;
 
@@ -220,6 +221,43 @@ pub fn validate_position_account(
         )?,
         ErrorCode::DefaultError,
         "position not multiple of stepsize"
+    )?;
+
+    Ok(())
+}
+
+pub fn validate_spot_position(position: &SpotPosition) -> ClearingHouseResult {
+    // validate!(position.market_index < num_of_spot_markets,
+    //     ErrorCode::DefaultError,
+    //     "user spot={} position.market_index={} is greater than num_of_spot_markets={}",
+    //     position.market_index,
+    //     position.market_index,
+    //     num_of_spot_markets,
+    // )?;
+
+    validate!(
+        position.open_orders <= MAX_OPEN_ORDERS,
+        ErrorCode::DefaultError,
+        "user spot={} position.open_orders={} is greater than MAX_OPEN_ORDERS={}",
+        position.market_index,
+        position.open_orders,
+        MAX_OPEN_ORDERS,
+    )?;
+
+    validate!(
+        position.open_bids >= 0,
+        ErrorCode::DefaultError,
+        "user spot={} position.open_bids={} is less than 0",
+        position.market_index,
+        position.open_bids,
+    )?;
+
+    validate!(
+        position.open_asks <= 0,
+        ErrorCode::DefaultError,
+        "user spot={} position.open_asks={} is greater than 0",
+        position.market_index,
+        position.open_asks,
     )?;
 
     Ok(())

@@ -21,6 +21,7 @@ use crate::math::spot_balance::{
     get_balance_value_and_token_amount, get_strict_token_value, get_token_value,
 };
 
+use crate::controller::validate::validate_spot_position;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{ContractTier, MarketStatus, PerpMarket};
@@ -283,6 +284,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     };
 
     for spot_position in user.spot_positions.iter() {
+        validate_spot_position(spot_position)?;
+
         if spot_position.scaled_balance == 0 && spot_position.open_orders == 0 {
             continue;
         }

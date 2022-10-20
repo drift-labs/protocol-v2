@@ -412,7 +412,7 @@ pub fn validate_spot_balances(spot_market: &SpotMarket) -> ClearingHouseResult<u
     Ok(depositors_claim)
 }
 
-pub fn validate_spot_market_amounts(
+pub fn validate_spot_market_vault_amount(
     spot_market: &SpotMarket,
     vault_amount: u64,
 ) -> ClearingHouseResult<u64> {

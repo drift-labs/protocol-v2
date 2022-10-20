@@ -364,15 +364,6 @@ pub fn handle_withdraw(
         spot_market.get_precision().cast()?,
     )?;
 
-    controller::token::send_from_program_vault(
-        &ctx.accounts.token_program,
-        &ctx.accounts.spot_market_vault,
-        &ctx.accounts.user_token_account,
-        &ctx.accounts.clearing_house_signer,
-        state.signer_nonce,
-        amount,
-    )?;
-
     let deposit_record = DepositRecord {
         ts: now,
         user_authority: user.authority,
@@ -391,9 +382,21 @@ pub fn handle_withdraw(
     };
     emit!(deposit_record);
 
+    controller::token::send_from_program_vault(
+        &ctx.accounts.token_program,
+        &ctx.accounts.spot_market_vault,
+        &ctx.accounts.user_token_account,
+        &ctx.accounts.clearing_house_signer,
+        state.signer_nonce,
+        amount,
+    )?;
+
     // reload the spot market vault balance so it's up-to-date
     ctx.accounts.spot_market_vault.reload()?;
-    math::spot_balance::validate_spot_balances(&spot_market)?;
+    math::spot_balance::validate_spot_market_vault_amount(
+        &spot_market,
+        ctx.accounts.spot_market_vault.amount,
+    )?;
 
     Ok(())
 }

@@ -21,8 +21,7 @@ use crate::math::insurance::{
     calculate_if_shares_lost, calculate_rebase_info, if_shares_to_vault_amount,
     vault_amount_to_if_shares,
 };
-use crate::math::spot_balance::get_token_amount;
-use crate::math::spot_balance::validate_spot_market_amounts;
+use crate::math::spot_balance::{get_token_amount, validate_spot_market_vault_amount};
 use crate::math_error;
 use crate::state::events::{InsuranceFundRecord, InsuranceFundStakeRecord, StakeAction};
 use crate::state::insurance_fund_stake::InsuranceFundStake;
@@ -547,6 +546,7 @@ pub fn attempt_settle_revenue_to_insurance_fund<'info>(
                 spot_market.market_index,
                 token_amount
             );
+            spot_market.insurance_fund.last_revenue_settle_ts = now;
 
             send_from_program_vault(
                 token_program,
@@ -558,7 +558,6 @@ pub fn attempt_settle_revenue_to_insurance_fund<'info>(
             )?;
         }
 
-        spot_market.insurance_fund.last_revenue_settle_ts = now;
         token_amount
     } else {
         0
@@ -587,7 +586,7 @@ pub fn settle_revenue_to_insurance_fund(
         "invalid if_factor settings on spot market"
     )?;
 
-    let depositors_claim = cast_to_u128(validate_spot_market_amounts(
+    let depositors_claim = cast_to_u128(validate_spot_market_vault_amount(
         spot_market,
         spot_market_vault_amount,
     )?)?;
