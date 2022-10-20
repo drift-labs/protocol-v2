@@ -284,16 +284,19 @@ export class Admin extends ClearingHouse {
 		perpMarketIndex: number,
 		concentrationScale: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateConcentrationCoef(concentrationScale, {
-			accounts: {
-				state: await this.getStatePublicKey(),
-				admin: this.wallet.publicKey,
-				perpMarket: await getPerpMarketPublicKey(
-					this.program.programId,
-					perpMarketIndex
-				),
-			},
-		});
+		return await this.program.rpc.updatePerpMarketConcentrationCoef(
+			concentrationScale,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.wallet.publicKey,
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			}
+		);
 	}
 
 	public async moveAmmToPrice(
