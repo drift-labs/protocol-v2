@@ -286,7 +286,7 @@ pub fn should_expire_order(
         return Ok(false);
     }
 
-    Ok(now > -order.max_ts)
+    Ok(now > order.max_ts)
 }
 
 pub fn order_breaches_oracle_price_limits(

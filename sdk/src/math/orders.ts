@@ -273,7 +273,7 @@ export function isOrderExpired(order: Order, ts: number): boolean {
 		return false;
 	}
 
-	return new BN(ts).gte(order.maxTs);
+	return new BN(ts).gt(order.maxTs);
 }
 
 export function isMarketOrder(order: Order): boolean {
