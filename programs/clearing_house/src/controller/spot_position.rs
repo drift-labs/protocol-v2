@@ -61,12 +61,13 @@ pub fn decrease_spot_open_bids_and_asks(
     Ok(())
 }
 
-pub fn update_spot_position_balance(
+pub fn update_spot_balances_and_cumulative_deposits(
     token_amount: u128,
     update_direction: &SpotBalanceType,
     spot_market: &mut SpotMarket,
     spot_position: &mut SpotPosition,
     force_round_up: bool,
+    cumulative_deposit_delta: Option<u128>,
 ) -> ClearingHouseResult {
     update_spot_balances(
         token_amount,
@@ -76,12 +77,19 @@ pub fn update_spot_position_balance(
         force_round_up,
     )?;
 
+    let cumulative_deposit_delta = cumulative_deposit_delta.unwrap_or(token_amount);
     match update_direction {
         SpotBalanceType::Deposit => {
-            checked_increment!(spot_position.cumulative_deposits, cast(token_amount)?)
+            checked_increment!(
+                spot_position.cumulative_deposits,
+                cast(cumulative_deposit_delta)?
+            )
         }
         SpotBalanceType::Borrow => {
-            checked_decrement!(spot_position.cumulative_deposits, cast(token_amount)?)
+            checked_decrement!(
+                spot_position.cumulative_deposits,
+                cast(cumulative_deposit_delta)?
+            )
         }
     }
 
@@ -100,7 +108,7 @@ pub fn transfer_spot_position_deposit(
         "transfer market indexes arent equal",
     )?;
 
-    update_spot_position_balance(
+    update_spot_balances_and_cumulative_deposits(
         token_amount.unsigned_abs(),
         if token_amount > 0 {
             &SpotBalanceType::Borrow
@@ -110,9 +118,10 @@ pub fn transfer_spot_position_deposit(
         spot_market,
         from_spot_position,
         false,
+        None,
     )?;
 
-    update_spot_position_balance(
+    update_spot_balances_and_cumulative_deposits(
         token_amount.unsigned_abs(),
         if token_amount > 0 {
             &SpotBalanceType::Deposit
@@ -122,6 +131,7 @@ pub fn transfer_spot_position_deposit(
         spot_market,
         to_spot_position,
         false,
+        None,
     )?;
 
     Ok(())
