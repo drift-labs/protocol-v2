@@ -369,10 +369,7 @@ mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
             ..PerpMarket::default()
         };
 
-        let cumulative_funding_rate_delta =
-            calculate_funding_rate_deltas_to_resolve_bankruptcy(loss, &market).unwrap();
-
-        assert_eq!(cumulative_funding_rate_delta, 0);
+        assert!(calculate_funding_rate_deltas_to_resolve_bankruptcy(loss, &market).is_err());
     }
 
     #[test]

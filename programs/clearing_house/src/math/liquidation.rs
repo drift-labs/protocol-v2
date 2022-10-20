@@ -16,6 +16,7 @@ use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::User;
+use crate::validate;
 use solana_program::msg;
 
 #[cfg(test)]
@@ -316,9 +317,11 @@ pub fn calculate_funding_rate_deltas_to_resolve_bankruptcy(
         .checked_add(market.amm.base_asset_amount_short.abs())
         .ok_or_else(math_error!())?;
 
-    if total_base_asset_amount == 0 {
-        return Ok(0);
-    }
+    validate!(
+        total_base_asset_amount != 0,
+        ErrorCode::CantResolvePerpBankruptcy,
+        "Cant resolve perp bankruptcy when total base asset amount is 0"
+    )?;
 
     loss.abs()
         .checked_mul(AMM_RESERVE_PRECISION_I128)
