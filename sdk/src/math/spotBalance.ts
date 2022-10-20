@@ -287,12 +287,12 @@ export function calculateWithdrawLimit(
 	const borrowTokenTwapLive = spotMarket.borrowTokenTwap
 		.mul(sinceStart)
 		.add(marketBorrowTokenAmount.mul(sinceLast))
-		.div(sinceLast.add(sinceLast));
+		.div(sinceLast.add(sinceStart));
 
 	const depositTokenTwapLive = spotMarket.depositTokenTwap
 		.mul(sinceStart)
 		.add(marketDepositTokenAmount.mul(sinceLast))
-		.div(sinceLast.add(sinceLast));
+		.div(sinceLast.add(sinceStart));
 
 	const maxBorrowTokens = BN.min(
 		BN.max(

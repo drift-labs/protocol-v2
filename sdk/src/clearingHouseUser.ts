@@ -22,6 +22,7 @@ import {
 	MARGIN_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	QUOTE_SPOT_MARKET_INDEX,
+	TEN,
 } from './constants/numericConstants';
 import {
 	UserAccountSubscriber,
@@ -40,11 +41,13 @@ import {
 	BN,
 	SpotMarketAccount,
 	getTokenValue,
+	SpotBalanceType,
 } from '.';
 import {
 	getTokenAmount,
 	calculateAssetWeight,
 	calculateLiabilityWeight,
+	calculateWithdrawLimit,
 } from './math/spotBalance';
 import {
 	calculateBaseAssetValueWithOracle,
@@ -1412,6 +1415,80 @@ export class ClearingHouseUser {
 		return quoteAmount
 			.mul(new BN(feeTier.feeNumerator))
 			.div(new BN(feeTier.feeDenominator));
+	}
+
+	/**
+	 * Calculates a user's max withdrawal amounts for a spot market. If reduceOnly is true,
+	 * it will return the max withdrawal amount without opening a liability for the user
+	 * @param marketIndex
+	 * @returns withdrawalLimit : Precision is the token precision for the chosen SpotMarket
+	 */
+	public getWithdrawalLimit(marketIndex: number, reduceOnly?: boolean): BN {
+		const nowTs = new BN(Math.floor(Date.now() / 1000));
+		const spotMarket = this.clearingHouse.getSpotMarketAccount(marketIndex);
+
+		const { borrowLimit, withdrawLimit } = calculateWithdrawLimit(
+			spotMarket,
+			nowTs
+		);
+
+		const freeCollateral = this.getFreeCollateral();
+		const oracleData = this.getOracleDataForSpotMarket(marketIndex);
+		const precisionIncrease = TEN.pow(new BN(spotMarket.decimals - 6));
+
+		const amountWithdrawable = freeCollateral
+			.mul(MARGIN_PRECISION)
+			.div(spotMarket.initialAssetWeight)
+			.mul(PRICE_PRECISION)
+			.div(oracleData.price)
+			.mul(precisionIncrease);
+
+		const userSpotPosition = this.getUserAccount().spotPositions.find(
+			(spotPosition) =>
+				isVariant(spotPosition.balanceType, 'deposit') &&
+				spotPosition.marketIndex == marketIndex
+		);
+
+		const userSpotBalance = userSpotPosition
+			? getTokenAmount(
+					userSpotPosition.scaledBalance,
+					this.clearingHouse.getSpotMarketAccount(marketIndex),
+					SpotBalanceType.DEPOSIT
+			  )
+			: ZERO;
+
+		const maxWithdrawValue = BN.min(
+			BN.min(amountWithdrawable, userSpotBalance),
+			withdrawLimit.abs()
+		);
+
+		if (reduceOnly) {
+			return BN.max(maxWithdrawValue, ZERO);
+		} else {
+			const weightedAssetValue = this.getSpotMarketAssetValue(
+				marketIndex,
+				'Initial',
+				false
+			);
+
+			const freeCollatAfterWithdraw = userSpotBalance.gt(ZERO)
+				? freeCollateral.sub(weightedAssetValue)
+				: freeCollateral;
+
+			const maxLiabilityAllowed = freeCollatAfterWithdraw
+				.mul(MARGIN_PRECISION)
+				.div(spotMarket.initialLiabilityWeight)
+				.mul(PRICE_PRECISION)
+				.div(oracleData.price)
+				.mul(precisionIncrease);
+
+			const maxBorrowValue = BN.min(
+				maxWithdrawValue.add(maxLiabilityAllowed),
+				borrowLimit.abs()
+			);
+
+			return BN.max(maxBorrowValue, ZERO);
+		}
 	}
 
 	/**
