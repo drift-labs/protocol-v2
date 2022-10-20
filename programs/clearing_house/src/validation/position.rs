@@ -30,14 +30,6 @@ pub fn validate_perp_position_with_perp_market(
 }
 
 pub fn validate_spot_position(position: &SpotPosition) -> ClearingHouseResult {
-    // validate!(position.market_index < num_of_spot_markets,
-    //     ErrorCode::DefaultError,
-    //     "user spot={} position.market_index={} is greater than num_of_spot_markets={}",
-    //     position.market_index,
-    //     position.market_index,
-    //     num_of_spot_markets,
-    // )?;
-
     validate!(
         position.open_orders <= MAX_OPEN_ORDERS,
         ErrorCode::DefaultError,

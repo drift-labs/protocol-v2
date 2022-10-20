@@ -11,6 +11,7 @@ use crate::math::position::{
 use crate::math_error;
 
 use crate::validate;
+use crate::validation;
 
 use crate::math::casting::{cast_to_i128, Cast};
 use crate::math::funding::calculate_funding_payment;
@@ -28,7 +29,6 @@ use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{PerpPosition, SpotPosition, User};
-use crate::validation::position::validate_spot_position;
 use num_integer::Roots;
 use solana_program::msg;
 use std::cmp::{max, min, Ordering};
@@ -284,7 +284,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     };
 
     for spot_position in user.spot_positions.iter() {
-        validate_spot_position(spot_position)?;
+        validation::position::validate_spot_position(spot_position)?;
 
         if spot_position.scaled_balance == 0 && spot_position.open_orders == 0 {
             continue;
