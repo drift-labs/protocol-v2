@@ -249,6 +249,7 @@ pub fn place_order(
         auction_end_price,
         auction_duration,
         max_ts,
+        padding: [0; 2],
     };
 
     let valid_oracle_price = get_valid_oracle_price(
@@ -2451,6 +2452,7 @@ pub fn place_spot_order(
         auction_end_price,
         auction_duration,
         max_ts,
+        padding: [0; 2],
     };
 
     let valid_oracle_price = Some(oracle_price_data.price);

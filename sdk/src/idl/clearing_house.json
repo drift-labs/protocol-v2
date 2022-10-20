@@ -5371,6 +5371,15 @@
           {
             "name": "auctionDuration",
             "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                2
+              ]
+            }
           }
         ]
       }
