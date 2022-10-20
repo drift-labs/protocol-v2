@@ -12,4 +12,3 @@ pub mod serum;
 pub mod spot_balance;
 pub mod spot_position;
 pub mod token;
-pub mod validate;
