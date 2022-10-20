@@ -24,6 +24,7 @@ import {
 	mockStateAccount,
 	MockUserMap,
 } from './helpers';
+import { ZERO } from '../../lib';
 
 function insertOrderToDLOB(
 	dlob: DLOB,
@@ -38,7 +39,7 @@ function insertOrderToDLOB(
 	auctionStartPrice: BN,
 	auctionEndPrice: BN,
 	slot?: BN,
-	timeInForce = 30,
+	maxTs = ZERO,
 	oraclePriceOffset = new BN(0)
 ) {
 	dlob.insertOrder(
@@ -46,7 +47,6 @@ function insertOrderToDLOB(
 			status: OrderStatus.OPEN,
 			orderType,
 			marketType,
-			ts: new BN(getMockTimestamp()),
 			slot: slot || new BN(1),
 			orderId,
 			userOrderId: 0,
@@ -68,7 +68,7 @@ function insertOrderToDLOB(
 			auctionDuration: 10,
 			auctionStartPrice,
 			auctionEndPrice,
-			timeInForce,
+			maxTs,
 		},
 		userAccount
 	);
@@ -89,7 +89,7 @@ function insertTriggerOrderToDLOB(
 	auctionStartPrice: BN,
 	auctionEndPrice: BN,
 	slot?: BN,
-	timeInForce = 30,
+	maxTs = ZERO,
 	oraclePriceOffset = new BN(0)
 ) {
 	dlob.insertOrder(
@@ -97,7 +97,6 @@ function insertTriggerOrderToDLOB(
 			status: OrderStatus.OPEN,
 			orderType,
 			marketType,
-			ts: new BN(getMockTimestamp()),
 			slot: slot || new BN(1),
 			orderId,
 			userOrderId: 0,
@@ -119,7 +118,7 @@ function insertTriggerOrderToDLOB(
 			auctionDuration: 10,
 			auctionStartPrice,
 			auctionEndPrice,
-			timeInForce,
+			maxTs,
 		},
 		userAccount
 	);
@@ -133,8 +132,8 @@ function printOrderNode(
 	console.log(
 		` . vAMMNode? ${node.isVammNode()},\t${
 			node.order ? getVariant(node.order?.orderType) : '~'
-		} ${node.order ? getVariant(node.order?.direction) : '~'}\t, ts: ${
-			node.order?.ts.toString() || '~'
+		} ${node.order ? getVariant(node.order?.direction) : '~'}\t, slot: ${
+			node.order?.slot.toString() || '~'
 		}, orderId: ${node.order?.orderId.toString() || '~'},\tnode.getPrice: ${
 			oracle ? node.getPrice(oracle, slot!) : '~'
 		}, node.price: ${node.order?.price.toString() || '~'}, priceOffset: ${
@@ -215,11 +214,6 @@ function printCrossedNodes(n: NodeToFill, slot: number) {
 			);
 		}
 	}
-}
-
-let mockTs = 1;
-function getMockTimestamp(): number {
-	return mockTs++;
 }
 
 describe('DLOB Tests', () => {
@@ -1180,7 +1174,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			30, // TiF
+			ZERO, // TiF
 			new BN(-1).mul(PRICE_PRECISION) // oraclePriceOffset
 		);
 		insertOrderToDLOB(
@@ -1196,7 +1190,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			30, // TiF
+			ZERO, // TiF
 			new BN(-3).mul(PRICE_PRECISION) // oraclePriceOffset
 		);
 		insertOrderToDLOB(
@@ -1212,7 +1206,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			30, // TiF
+			ZERO, // TiF
 			new BN(-2).mul(PRICE_PRECISION) // oraclePriceOffset
 		);
 
@@ -1230,7 +1224,7 @@ describe('DLOB Perp Tests', () => {
 			vAsk,
 			vBid,
 			new BN(slot),
-			30, // TiF
+			ZERO, // TiF
 			new BN(2).mul(PRICE_PRECISION) // oraclePriceOffset
 		);
 		insertOrderToDLOB(
@@ -1246,7 +1240,7 @@ describe('DLOB Perp Tests', () => {
 			vAsk,
 			vBid,
 			new BN(slot),
-			30, // TiF
+			ZERO, // TiF
 			new BN(3).mul(PRICE_PRECISION) // oraclePriceOffset
 		);
 		insertOrderToDLOB(
@@ -1262,7 +1256,7 @@ describe('DLOB Perp Tests', () => {
 			vAsk,
 			vBid,
 			new BN(slot),
-			30, // TiF
+			ZERO, // TiF
 			new BN(1).mul(PRICE_PRECISION) // oraclePriceOffset
 		);
 
@@ -2023,7 +2017,8 @@ describe('DLOB Perp Tests', () => {
 		const marketIndex = 0;
 
 		const slot = 20;
-		const timeInForce = 30;
+		const ts = 20;
+		const maxTs = new BN(30);
 
 		// non crossing bid
 		insertOrderToDLOB(
@@ -2039,7 +2034,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			timeInForce
+			maxTs
 		);
 		insertOrderToDLOB(
 			dlob,
@@ -2054,16 +2049,18 @@ describe('DLOB Perp Tests', () => {
 			vAsk,
 			vBid,
 			new BN(slot),
-			timeInForce
+			maxTs
 		);
 
 		// order auction is not yet complete, and order is not expired.
 		const slot0 = slot;
+		const ts0 = ts;
 		const nodesToFillBefore = dlob.findNodesToFill(
 			marketIndex,
 			vBid,
 			vAsk,
 			slot0,
+			ts0,
 			MarketType.PERP,
 			{
 				price: vBid.add(vAsk).div(new BN(2)),
@@ -2075,12 +2072,14 @@ describe('DLOB Perp Tests', () => {
 		expect(nodesToFillBefore.length).to.equal(0);
 
 		// should get order to fill after timeInForce
-		const slot1 = slot0 + timeInForce * 2; // overshoots expiry
+		const slot1 = slot0 + 20;
+		const ts1 = ts0 + 20; // overshoots expiry
 		const nodesToFillAfter = dlob.findNodesToFill(
 			marketIndex,
 			vBid,
 			vAsk,
 			slot1, // auction is over, and order ix expired
+			ts1,
 			MarketType.PERP,
 			{
 				price: vBid.add(vAsk).div(new BN(2)),
@@ -2131,6 +2130,7 @@ describe('DLOB Perp Tests', () => {
 		const marketIndex = 0;
 
 		const slot = 12;
+		const ts = 12;
 		const oracle = {
 			price: vBid.add(vAsk).div(new BN(2)),
 			slot: new BN(slot),
@@ -2152,7 +2152,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			30,
+			ZERO,
 			new BN(1).mul(PRICE_PRECISION)
 		);
 		insertOrderToDLOB(
@@ -2168,7 +2168,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			30,
+			ZERO,
 			new BN(1).mul(PRICE_PRECISION)
 		);
 		insertOrderToDLOB(
@@ -2184,7 +2184,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			30,
+			ZERO,
 			new BN(1).mul(PRICE_PRECISION)
 		);
 
@@ -2194,6 +2194,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			slot,
+			ts,
 			MarketType.PERP,
 			{
 				price: vBid.add(vAsk).div(new BN(2)),
@@ -2237,6 +2238,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			slot,
+			ts,
 			MarketType.PERP,
 			{
 				price: vBid.add(vAsk).div(new BN(2)),
@@ -2304,6 +2306,7 @@ describe('DLOB Perp Tests', () => {
 		const marketIndex = 0;
 
 		const slot = 12;
+		const ts = 12;
 		const oracle = {
 			price: vBid.add(vAsk).div(new BN(2)),
 			slot: new BN(slot),
@@ -2325,7 +2328,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			0,
+			ZERO,
 			new BN(3).mul(PRICE_PRECISION)
 		);
 		insertOrderToDLOB(
@@ -2341,7 +2344,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			0,
+			ZERO,
 			new BN(4).mul(PRICE_PRECISION)
 		);
 		insertOrderToDLOB(
@@ -2357,12 +2360,13 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			0,
+			ZERO,
 			new BN(5).mul(PRICE_PRECISION)
 		);
 
 		// should have no crossing orders
 		const auctionOverSlot = slot * 10;
+		const auctionOverTs = ts * 10;
 		const nodesToFillBefore = dlob.findCrossingNodesToFill(
 			marketIndex,
 			auctionOverSlot, // auction over
@@ -2385,7 +2389,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			0
+			ZERO
 		);
 		insertOrderToDLOB(
 			dlob,
@@ -2400,14 +2404,15 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			0
+			ZERO
 		);
 
 		const nodesToFillAfter = dlob.findNodesToFill(
 			marketIndex,
 			vBid,
 			vAsk,
-			auctionOverSlot, // auction in progress
+			auctionOverTs, // auction in progress
+			ts,
 			MarketType.PERP,
 			oracle
 		);
@@ -2479,7 +2484,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			30,
+			ZERO,
 			new BN(-4).mul(PRICE_PRECISION) // second best bid, but worse than vBid (8): 7.5
 		);
 		insertOrderToDLOB(
@@ -2495,7 +2500,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			30,
+			ZERO,
 			new BN(-1).mul(PRICE_PRECISION) // best price: 10.5
 		);
 		insertOrderToDLOB(
@@ -2511,7 +2516,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			30,
+			ZERO,
 			new BN(-5).mul(PRICE_PRECISION) // third best bid, worse than vBid (8): 6.5
 		);
 
@@ -2635,6 +2640,7 @@ describe('DLOB Perp Tests', () => {
 		const marketIndex = 0;
 
 		const slot = 12;
+		const ts = 12;
 		const oracle = {
 			price: vBid.add(vAsk).div(new BN(2)), // 11.5
 			slot: new BN(slot),
@@ -2656,7 +2662,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			30,
+			ZERO,
 			new BN(-4).mul(PRICE_PRECISION) // second best bid, but worse than vBid (8): 7.5
 		);
 		insertOrderToDLOB(
@@ -2672,7 +2678,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			30,
+			ZERO,
 			new BN(-1).mul(PRICE_PRECISION) // best price: 10.5
 		);
 		insertOrderToDLOB(
@@ -2688,7 +2694,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			30,
+			ZERO,
 			new BN(-5).mul(PRICE_PRECISION) // third best bid, worse than vBid (8): 6.5
 		);
 
@@ -2700,6 +2706,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			slot,
+			ts,
 			MarketType.PERP,
 			oracle
 		);
@@ -2738,6 +2745,7 @@ describe('DLOB Perp Tests', () => {
 
 		// auction ends, but order not expired
 		const afterAuctionSlot = slot + 11;
+		const afterAuctionTs = ts + 11;
 		printBookState(dlob, marketIndex, vBid, vAsk, afterAuctionSlot, oracle);
 
 		const nodesToFillAfter = dlob.findNodesToFill(
@@ -2745,6 +2753,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			afterAuctionSlot,
+			afterAuctionTs,
 			MarketType.PERP,
 			oracle
 		);
@@ -2802,6 +2811,7 @@ describe('DLOB Perp Tests', () => {
 		const marketIndex = 0;
 
 		const slot = 12;
+		const ts = 12;
 		const oracle = {
 			price: vBid.add(vAsk).div(new BN(2)), // 11.5
 			slot: new BN(slot),
@@ -2823,7 +2833,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			200
+			new BN(200)
 		);
 		insertOrderToDLOB(
 			dlob,
@@ -2838,7 +2848,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			200
+			new BN(200)
 		);
 		insertOrderToDLOB(
 			dlob,
@@ -2853,7 +2863,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			200
+			new BN(200)
 		);
 		console.log(`Book state before fill:`);
 		printBookState(dlob, marketIndex, vBid, vAsk, slot, oracle);
@@ -2863,6 +2873,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			slot,
+			ts,
 			MarketType.PERP,
 			oracle
 		);
@@ -2870,12 +2881,14 @@ describe('DLOB Perp Tests', () => {
 
 		// auction ends now
 		const afterAuctionSlot = 10 * slot;
+		const afterAuctionTs = 10 * ts;
 
 		const nodesToFillAfter = dlob.findNodesToFill(
 			marketIndex,
 			vBid,
 			vAsk,
 			afterAuctionSlot,
+			afterAuctionTs,
 			MarketType.PERP,
 			oracle
 		);
@@ -2933,6 +2946,7 @@ describe('DLOB Perp Tests', () => {
 		const marketIndex = 0;
 
 		const slot = 12;
+		const ts = 12;
 		const oracle = {
 			price: vBid.add(vAsk).div(new BN(2)), // 11.5
 			slot: new BN(slot),
@@ -2954,7 +2968,7 @@ describe('DLOB Perp Tests', () => {
 			vAsk,
 			vBid,
 			new BN(slot),
-			200
+			new BN(200)
 		);
 		// insert a buy above the vBid
 		insertOrderToDLOB(
@@ -2970,7 +2984,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			200
+			new BN(200)
 		);
 
 		console.log(`Book state before fill:`);
@@ -2981,6 +2995,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			slot,
+			ts,
 			MarketType.PERP,
 			oracle
 		);
@@ -3022,6 +3037,7 @@ describe('DLOB Perp Tests', () => {
 		const marketIndex = 0;
 
 		const slot = 12;
+		const ts = 12;
 		const oracle = {
 			price: vBid.add(vAsk).div(new BN(2)), // 11.5
 			slot: new BN(slot),
@@ -3043,7 +3059,7 @@ describe('DLOB Perp Tests', () => {
 			vAsk,
 			vBid,
 			new BN(slot),
-			200
+			new BN(200)
 		);
 		// insert a buy above the vBid
 		insertOrderToDLOB(
@@ -3059,7 +3075,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			200
+			new BN(200)
 		);
 
 		console.log(`Book state before fill:`);
@@ -3070,6 +3086,7 @@ describe('DLOB Perp Tests', () => {
 			vBid,
 			vAsk,
 			slot,
+			ts,
 			MarketType.PERP,
 			oracle
 		);
@@ -4459,7 +4476,8 @@ describe('DLOB Spot Tests', () => {
 		const marketIndex = 0;
 
 		const slot = 20;
-		const timeInForce = 30;
+		const ts = 20;
+		const maxTs = new BN(30);
 
 		// non crossing bid
 		insertOrderToDLOB(
@@ -4475,7 +4493,7 @@ describe('DLOB Spot Tests', () => {
 			vBid,
 			vAsk,
 			new BN(slot),
-			timeInForce
+			maxTs
 		);
 		insertOrderToDLOB(
 			dlob,
@@ -4490,16 +4508,18 @@ describe('DLOB Spot Tests', () => {
 			vAsk,
 			vBid,
 			new BN(slot),
-			timeInForce
+			maxTs
 		);
 
 		// order auction is not yet complete, and order is not expired.
 		const slot0 = slot;
+		const ts0 = ts;
 		const nodesToFillBefore = dlob.findNodesToFill(
 			marketIndex,
 			vBid,
 			vAsk,
 			slot0,
+			ts0,
 			MarketType.SPOT,
 			{
 				price: vBid.add(vAsk).div(new BN(2)),
@@ -4511,12 +4531,14 @@ describe('DLOB Spot Tests', () => {
 		expect(nodesToFillBefore.length).to.equal(0);
 
 		// should get order to fill after timeInForce
-		const slot1 = slot0 + timeInForce * 2; // overshoots expiry
+		const slot1 = slot0 + slot * 2; // overshoots expiry
+		const ts1 = ts + ts * 2;
 		const nodesToFillAfter = dlob.findNodesToFill(
 			marketIndex,
 			vBid,
 			vAsk,
 			slot1,
+			ts1,
 			MarketType.SPOT,
 			{
 				price: vBid.add(vAsk).div(new BN(2)),

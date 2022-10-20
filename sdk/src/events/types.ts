@@ -93,7 +93,8 @@ export type SortFn = (
 export type logProviderCallback = (
 	txSig: TransactionSignature,
 	slot: number,
-	logs: string[]
+	logs: string[],
+	mostRecentBlockTime: number | undefined
 ) => void;
 
 export interface LogProvider {

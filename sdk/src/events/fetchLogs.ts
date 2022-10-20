@@ -15,6 +15,7 @@ type FetchLogsResponse = {
 	earliestSlot: number;
 	mostRecentSlot: number;
 	transactionLogs: Log[];
+	mostRecentBlockTime: number | undefined;
 };
 
 function mapTransactionResponseToLog(transaction: TransactionResponse): Log {
@@ -81,6 +82,7 @@ export async function fetchLogs(
 		mostRecentTx: mostRecent.signature,
 		earliestSlot: earliest.slot,
 		mostRecentSlot: mostRecent.slot,
+		mostRecentBlockTime: mostRecent.blockTime,
 	};
 }
 

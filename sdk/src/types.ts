@@ -707,7 +707,7 @@ export type Order = {
 	auctionDuration: number;
 	auctionStartPrice: BN;
 	auctionEndPrice: BN;
-	timeInForce: number;
+	maxTs: BN;
 };
 
 export type OrderParams = {
@@ -726,7 +726,7 @@ export type OrderParams = {
 	positionLimit: BN;
 	oraclePriceOffset: number | null;
 	auctionDuration: number | null;
-	timeInForce: number | null;
+	maxTs: BN | null;
 	auctionStartPrice: BN | null;
 	auctionEndPrice: BN | null;
 };
@@ -742,7 +742,7 @@ export type OptionalOrderParams = {
 	[Property in keyof OrderParams]?: OrderParams[Property];
 } & NecessaryOrderParams;
 
-export const DefaultOrderParams = {
+export const DefaultOrderParams: OrderParams = {
 	orderType: OrderType.MARKET,
 	marketType: MarketType.PERP,
 	userOrderId: 0,
@@ -758,7 +758,7 @@ export const DefaultOrderParams = {
 	positionLimit: ZERO,
 	oraclePriceOffset: null,
 	auctionDuration: null,
-	timeInForce: null,
+	maxTs: null,
 	auctionStartPrice: null,
 	auctionEndPrice: null,
 };

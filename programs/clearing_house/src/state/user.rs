@@ -467,6 +467,7 @@ pub struct Order {
     pub trigger_price: u64,
     pub auction_start_price: u64,
     pub auction_end_price: u64,
+    pub max_ts: i64,
     pub oracle_price_offset: i32,
     pub order_id: u32,
     pub market_index: u16,
@@ -482,8 +483,6 @@ pub struct Order {
     pub trigger_condition: OrderTriggerCondition,
     pub triggered: bool,
     pub auction_duration: u8,
-    pub time_in_force: u8,
-    pub padding: [u8; 1],
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
@@ -649,8 +648,7 @@ impl Default for Order {
             auction_start_price: 0,
             auction_end_price: 0,
             auction_duration: 0,
-            time_in_force: 0,
-            padding: [0; 1],
+            max_ts: 0,
         }
     }
 }

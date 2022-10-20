@@ -4214,6 +4214,12 @@
             "type": "bool"
           },
           {
+            "name": "maxTs",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
             "name": "triggerPrice",
             "type": {
               "option": "u64"
@@ -4233,12 +4239,6 @@
           },
           {
             "name": "auctionDuration",
-            "type": {
-              "option": "u8"
-            }
-          },
-          {
-            "name": "timeInForce",
             "type": {
               "option": "u8"
             }
@@ -5261,6 +5261,10 @@
             "type": "u64"
           },
           {
+            "name": "maxTs",
+            "type": "i64"
+          },
+          {
             "name": "oraclePriceOffset",
             "type": "i32"
           },
@@ -5331,19 +5335,6 @@
           {
             "name": "auctionDuration",
             "type": "u8"
-          },
-          {
-            "name": "timeInForce",
-            "type": "u8"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                1
-              ]
-            }
           }
         ]
       }

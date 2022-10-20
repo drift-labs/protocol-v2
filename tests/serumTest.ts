@@ -290,6 +290,7 @@ describe('serum spot market', () => {
 		assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
 		assert(orderActionRecord.takerFee.eq(new BN(100000)));
 
+		console.log(makerClearingHouse.getQuoteAssetTokenAmount().toString());
 		assert(makerClearingHouse.getQuoteAssetTokenAmount().eq(new BN(10000)));
 
 		const solSpotMarket =
