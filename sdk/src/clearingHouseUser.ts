@@ -49,6 +49,7 @@ import {
 	calculateLiabilityWeight,
 	calculateWithdrawLimit,
 } from './math/spotBalance';
+import { calculateMarketOpenBidAsk } from './math/amm';
 import {
 	calculateBaseAssetValueWithOracle,
 	calculateWorstCaseBaseAssetAmount,
@@ -190,6 +191,50 @@ export class ClearingHouseUser {
 	}
 
 	/**
+	 * calculates the total open bids/asks in a perp market (including lps)
+	 * @returns : open bids
+	 * @returns : open asks
+	 */
+	public getPerpBidAsks(marketIndex: number): [BN, BN] {
+		const position = this.getUserPosition(marketIndex);
+
+		const [lpOpenBids, lpOpenAsks] = this.getLPBidAsks(marketIndex);
+
+		const totalOpenBids = lpOpenBids.add(position.openBids);
+		const totalOpenAsks = lpOpenAsks.sub(position.openAsks);
+
+		return [totalOpenBids, totalOpenAsks];
+	}
+
+	/**
+	 * calculates the open bids and asks for an lp
+	 * @returns : lp open bids
+	 * @returns : lp open asks
+	 */
+	public getLPBidAsks(marketIndex: number): [BN, BN] {
+		const position = this.getUserPosition(marketIndex);
+		if (position.lpShares.eq(ZERO)) {
+			return [ZERO, ZERO];
+		}
+
+		const market = this.clearingHouse.getPerpMarketAccount(marketIndex);
+		const [marketOpenBids, marketOpenAsks] = calculateMarketOpenBidAsk(
+			market.amm.baseAssetReserve,
+			market.amm.minBaseAssetReserve,
+			market.amm.maxBaseAssetReserve
+		);
+
+		const lpOpenBids = marketOpenBids
+			.mul(position.lpShares)
+			.div(market.amm.sqrtK);
+		const lpOpenAsks = marketOpenAsks
+			.mul(position.lpShares)
+			.div(market.amm.sqrtK);
+
+		return [lpOpenBids, lpOpenAsks];
+	}
+
+	/**
 	 * calculates the market position if the lp position was settled
 	 * @returns : the settled userPosition
 	 * @returns : the dust base asset amount (ie, < stepsize)
@@ -198,6 +243,10 @@ export class ClearingHouseUser {
 	public getSettledLPPosition(marketIndex: number): [PerpPosition, BN, BN] {
 		const _position = this.getUserPosition(marketIndex);
 		const position = this.getClonedPosition(_position);
+
+		if (position.lpShares.eq(ZERO)) {
+			return [position, ZERO, ZERO];
+		}
 
 		const market = this.clearingHouse.getPerpMarketAccount(
 			position.marketIndex
@@ -220,7 +269,7 @@ export class ClearingHouseUser {
 			return sign;
 		}
 
-		function standardize(amount, stepsize) {
+		function standardize(amount: BN, stepsize: BN) {
 			const remainder = amount.abs().mod(stepsize).mul(sign(amount));
 			const standardizedAmount = amount.sub(remainder);
 			return [standardizedAmount, remainder];
@@ -238,7 +287,7 @@ export class ClearingHouseUser {
 			market.amm.orderStepSize.toNumber()
 		) {
 			const [newStandardizedBaa, newRemainderBaa] = standardize(
-				position.remainderBaseAssetAmount,
+				new BN(position.remainderBaseAssetAmount),
 				market.amm.orderStepSize
 			);
 			position.baseAssetAmount =

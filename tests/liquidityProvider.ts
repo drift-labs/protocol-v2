@@ -294,6 +294,17 @@ describe('liquidity providing', () => {
 			)
 		);
 
+		const [bids, asks] = clearingHouseUser.getLPBidAsks(0);
+		console.log(
+			'bar, min_bar, max_bar:',
+			market.amm.baseAssetReserve.toString(),
+			market.amm.minBaseAssetReserve.toString(),
+			market.amm.maxBaseAssetReserve.toString()
+		);
+		console.log('LP open bids/asks:', bids.toString(), asks.toString());
+		assert(bids.eq(new BN(29288643749)));
+		assert(asks.eq(new BN(-41419999989)));
+
 		const newInitMarginReq = clearingHouseUser.getInitialMarginRequirement();
 		console.log(initMarginReq.toString(), '->', newInitMarginReq.toString());
 		assert(newInitMarginReq.eq(new BN(8283999)));
