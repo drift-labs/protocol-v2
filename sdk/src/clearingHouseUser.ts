@@ -266,7 +266,7 @@ export class ClearingHouseUser {
 			return sign;
 		}
 
-		function standardize(amount, stepsize) {
+		function standardize(amount: BN, stepsize: BN) {
 			const remainder = amount.abs().mod(stepsize).mul(sign(amount));
 			const standardizedAmount = amount.sub(remainder);
 			return [standardizedAmount, remainder];
@@ -284,7 +284,7 @@ export class ClearingHouseUser {
 			market.amm.orderStepSize.toNumber()
 		) {
 			const [newStandardizedBaa, newRemainderBaa] = standardize(
-				position.remainderBaseAssetAmount,
+				new BN(position.remainderBaseAssetAmount),
 				market.amm.orderStepSize
 			);
 			position.baseAssetAmount =
