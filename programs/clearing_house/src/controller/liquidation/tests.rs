@@ -1,4 +1,5 @@
 pub mod liquidate_perp {
+    use crate::state::state::State;
     use std::str::FromStr;
 
     use anchor_lang::Owner;
@@ -130,7 +131,10 @@ pub mod liquidate_perp {
 
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
-
+        let state = State {
+            liquidation_margin_buffer_ratio: 10,
+            ..Default::default()
+        };
         liquidate_perp(
             0,
             BASE_PRECISION_U64,
@@ -145,7 +149,7 @@ pub mod liquidate_perp {
             &mut oracle_map,
             slot,
             now,
-            10,
+            &state,
         )
         .unwrap();
 
@@ -269,7 +273,10 @@ pub mod liquidate_perp {
 
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
-
+        let state = State {
+            liquidation_margin_buffer_ratio: 10,
+            ..Default::default()
+        };
         liquidate_perp(
             0,
             BASE_PRECISION_U64,
@@ -284,7 +291,7 @@ pub mod liquidate_perp {
             &mut oracle_map,
             slot,
             now,
-            10,
+            &state,
         )
         .unwrap();
 
@@ -411,7 +418,10 @@ pub mod liquidate_perp {
 
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
-
+        let state = State {
+            liquidation_margin_buffer_ratio: 255,
+            ..Default::default()
+        };
         liquidate_perp(
             0,
             BASE_PRECISION_U64,
@@ -426,7 +436,7 @@ pub mod liquidate_perp {
             &mut oracle_map,
             slot,
             now,
-            255,
+            &state,
         )
         .unwrap();
 
@@ -536,9 +546,10 @@ pub mod liquidate_perp {
 
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
-
-        let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
-
+        let state = State {
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            ..Default::default()
+        };
         liquidate_perp(
             0,
             BASE_PRECISION_U64 / 2,
@@ -553,7 +564,7 @@ pub mod liquidate_perp {
             &mut oracle_map,
             slot,
             now,
-            liquidation_buffer,
+            &state,
         )
         .unwrap();
 
@@ -681,8 +692,10 @@ pub mod liquidate_perp {
 
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
-
-        let liquidation_buffer = MARGIN_PRECISION as u32 / 50;
+        let state = State {
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION as u32 / 50,
+            ..Default::default()
+        };
         liquidate_perp(
             0,
             10 * BASE_PRECISION_U64,
@@ -697,7 +710,7 @@ pub mod liquidate_perp {
             &mut oracle_map,
             slot,
             now,
-            liquidation_buffer,
+            &state,
         )
         .unwrap();
 
@@ -714,7 +727,7 @@ pub mod liquidate_perp {
                 MarginRequirementType::Maintenance,
                 &spot_market_map,
                 &mut oracle_map,
-                Some(liquidation_buffer as u128),
+                Some(state.liquidation_margin_buffer_ratio as u128),
             )
             .unwrap();
 
@@ -891,7 +904,10 @@ pub mod liquidate_perp {
 
         let mut user_stats = UserStats::default();
         let mut liquidator_stats = UserStats::default();
-
+        let state = State {
+            liquidation_margin_buffer_ratio: 10,
+            ..Default::default()
+        };
         liquidate_perp(
             0,
             BASE_PRECISION_U64,
@@ -906,7 +922,7 @@ pub mod liquidate_perp {
             &mut oracle_map,
             slot,
             now,
-            10,
+            &state,
         )
         .unwrap();
 
@@ -946,7 +962,7 @@ pub mod liquidate_spot {
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
     };
-    use crate::math::spot_balance::{get_token_amount, get_token_value};
+    use crate::math::spot_balance::{get_strict_token_value, get_token_amount, get_token_value};
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
@@ -1369,6 +1385,34 @@ pub mod liquidate_spot {
         .unwrap();
         let oracle_price_data = oracle_map.get_price_data(&sol_oracle_price_key).unwrap();
         let token_value = get_token_value(token_amount as i128, 6, oracle_price_data).unwrap();
+
+        let strict_token_value_1 = get_strict_token_value(
+            token_amount as i128,
+            6,
+            oracle_price_data,
+            oracle_price_data.price / 10,
+        )
+        .unwrap();
+        let strict_token_value_2 = get_strict_token_value(
+            token_amount as i128,
+            6,
+            oracle_price_data,
+            oracle_price_data.price * 2,
+        )
+        .unwrap();
+        let strict_token_value_3 = get_strict_token_value(
+            -(token_amount as i128),
+            6,
+            oracle_price_data,
+            oracle_price_data.price * 2,
+        )
+        .unwrap();
+
+        assert_eq!(token_amount, 406768);
+        assert_eq!(token_value, 40676800);
+        assert_eq!(strict_token_value_1, 4067680); // if oracle price is more favorable than twap
+        assert_eq!(strict_token_value_2, token_value); // oracle price is less favorable than twap
+        assert_eq!(strict_token_value_3, -(token_value * 2)); // if liability and strict would value as twap
 
         let margin_ratio =
             total_collateral.unsigned_abs() * MARGIN_PRECISION / token_value.unsigned_abs();

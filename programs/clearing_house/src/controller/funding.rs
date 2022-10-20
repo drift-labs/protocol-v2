@@ -151,11 +151,14 @@ pub fn update_funding_rate(
 
     if valid_funding_update {
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+        let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
+
         let oracle_price_twap = amm::update_oracle_price_twap(
             &mut market.amm,
             now,
             oracle_price_data,
             Some(reserve_price),
+            sanitize_clamp_denominator,
         )?;
 
         // price relates to execution premium / direction
@@ -174,11 +177,13 @@ pub fn update_funding_rate(
                 (reserve_price, None)
             };
 
+        let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
         let mid_price_twap = amm::update_mark_twap(
             &mut market.amm,
             now,
             Some(execution_premium_price),
             execution_premium_direction,
+            sanitize_clamp_denominator,
         )?;
 
         let period_adjustment = (24_i128)

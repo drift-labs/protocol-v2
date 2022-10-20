@@ -7,7 +7,7 @@ use crate::math::repeg::{
     calculate_fee_pool, calculate_peg_from_target_price, calculate_repeg_cost,
 };
 use crate::state::oracle::HistoricalOracleData;
-use crate::state::perp_market::AMM;
+use crate::state::perp_market::{ContractTier, AMM};
 use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
 
 #[test]
@@ -32,6 +32,7 @@ pub fn update_amm_test() {
             ..AMM::default()
         },
         status: MarketStatus::Initialized,
+        contract_tier: ContractTier::B,
         margin_ratio_initial: 555, // max 1/.0555 = 18.018018018x leverage
         ..PerpMarket::default()
     };
@@ -69,7 +70,7 @@ pub fn update_amm_test() {
         .amm
         .historical_oracle_data
         .last_oracle_price_twap_5min = 18907668639;
-    market.amm.historical_oracle_data.last_oracle_price_twap_ts = now - 100;
+    market.amm.historical_oracle_data.last_oracle_price_twap_ts = now - (167 + 6);
     let oracle_reserve_price_spread_pct_before =
         amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(reserve_price_before))
             .unwrap();
@@ -93,13 +94,29 @@ pub fn update_amm_test() {
 
     let reserve_price_after_prepeg = market.amm.reserve_price().unwrap();
     assert_eq!(reserve_price_after_prepeg, 13088199999);
+    assert_eq!(
+        market.amm.historical_oracle_data.last_oracle_price,
+        12400000000
+    );
+    assert_eq!(market.amm.last_oracle_normalised_price, 15520000000);
+    assert_eq!(
+        market.amm.historical_oracle_data.last_oracle_price_twap,
+        15520000000
+    );
+    assert_eq!(
+        market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        16954113056
+    ); // since manually set higher above
 
     let oracle_reserve_price_spread_pct_before = amm::calculate_oracle_twap_5min_mark_spread_pct(
         &market.amm,
         Some(reserve_price_after_prepeg),
     )
     .unwrap();
-    assert_eq!(oracle_reserve_price_spread_pct_before, -292478);
+    assert_eq!(oracle_reserve_price_spread_pct_before, -295373);
     let too_diverge = amm::is_oracle_mark_too_divergent(
         oracle_reserve_price_spread_pct_before,
         &state.oracle_guard_rails.price_divergence,

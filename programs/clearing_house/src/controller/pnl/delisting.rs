@@ -2186,6 +2186,7 @@ pub mod delisting_test {
                 oracle_price_data,
                 MarginRequirementType::Initial,
                 0,
+                false,
             )
             .unwrap();
 
@@ -2234,7 +2235,10 @@ pub mod delisting_test {
 
             assert_eq!(shorter.is_being_liquidated, false);
             assert_eq!(shorter.is_bankrupt, false);
-
+            let state = State {
+                liquidation_margin_buffer_ratio: 10,
+                ..Default::default()
+            };
             liquidate_perp(
                 0,
                 shorter.perp_positions[0].base_asset_amount.unsigned_abs(),
@@ -2249,7 +2253,7 @@ pub mod delisting_test {
                 &mut oracle_map,
                 clock.slot,
                 clock.unix_timestamp,
-                10,
+                &state,
             )
             .unwrap();
 
@@ -2267,6 +2271,7 @@ pub mod delisting_test {
                         oracle_price_data,
                         MarginRequirementType::Initial,
                         0,
+                        false,
                     )
                     .unwrap();
 
@@ -2357,6 +2362,7 @@ pub mod delisting_test {
                         oracle_price_data,
                         MarginRequirementType::Initial,
                         0,
+                        false,
                     )
                     .unwrap();
 
@@ -2448,6 +2454,7 @@ pub mod delisting_test {
                         oracle_price_data,
                         MarginRequirementType::Initial,
                         0,
+                        false,
                     )
                     .unwrap();
 

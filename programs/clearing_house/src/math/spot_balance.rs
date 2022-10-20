@@ -254,6 +254,39 @@ pub fn get_balance_value_and_token_amount(
     Ok((value, token_amount))
 }
 
+pub fn get_strict_token_value(
+    token_amount: i128,
+    spot_decimals: u8,
+    oracle_price_data: &OraclePriceData,
+    oracle_price_twap: i128,
+) -> ClearingHouseResult<i128> {
+    if token_amount == 0 {
+        return Ok(0);
+    }
+
+    let precision_decrease = 10_i128.pow(spot_decimals as u32);
+
+    validate!(
+        oracle_price_twap > 0,
+        ErrorCode::InvalidOracle,
+        "oracle_price_data={:?} oracle_price_twap={} (<= 0)",
+        oracle_price_data,
+        oracle_price_twap
+    )?;
+
+    let price = if token_amount > 0 {
+        oracle_price_data.price.min(oracle_price_twap)
+    } else {
+        oracle_price_data.price.max(oracle_price_twap)
+    };
+
+    token_amount
+        .checked_mul(price)
+        .ok_or_else(math_error!())?
+        .checked_div(precision_decrease)
+        .ok_or_else(math_error!())
+}
+
 pub fn get_token_value(
     token_amount: i128,
     spot_decimals: u8,
@@ -304,10 +337,10 @@ pub fn check_withdraw_limits(spot_market: &SpotMarket) -> ClearingHouseResult<bo
             )
             .min(
                 deposit_token_amount
-                    .checked_sub(deposit_token_amount / 10)
+                    .checked_sub(deposit_token_amount / 5)
                     .ok_or_else(math_error!())?,
             ),
-    ); // between ~15-90% utilization with friction on twap
+    ); // between ~15-80% utilization with friction on twap
 
     let min_deposit_token = spot_market
         .deposit_token_twap

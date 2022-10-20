@@ -1434,6 +1434,11 @@
           "name": "spotMarket",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": []
@@ -2722,6 +2727,11 @@
           "name": "spotMarket",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
@@ -2995,11 +3005,6 @@
       "name": "updatePerpMarketOracle",
       "accounts": [
         {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
           "name": "state",
           "isMut": false,
           "isSigner": false
@@ -3008,6 +3013,16 @@
           "name": "perpMarket",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
         }
       ],
       "args": [
@@ -5444,6 +5459,9 @@
             "name": "TooVolatile"
           },
           {
+            "name": "TooUncertain"
+          },
+          {
             "name": "StaleForMargin"
           },
           {
@@ -5766,6 +5784,9 @@
           },
           {
             "name": "Speculative"
+          },
+          {
+            "name": "Isolated"
           }
         ]
       }

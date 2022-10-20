@@ -143,6 +143,7 @@ mod test {
             &oracle_price_data,
             MarginRequirementType::Initial,
             0,
+            false,
         )
         .unwrap();
 
@@ -256,6 +257,7 @@ mod test {
             &oracle_price_data,
             MarginRequirementType::Initial,
             0,
+            false,
         )
         .unwrap();
 
@@ -331,6 +333,7 @@ mod test {
             &oracle_price_data,
             MarginRequirementType::Initial,
             0,
+            false,
         )
         .unwrap();
 
@@ -392,6 +395,7 @@ mod test {
             &oracle_price_data,
             MarginRequirementType::Initial,
             0,
+            false,
         )
         .unwrap();
 
@@ -414,6 +418,7 @@ mod test {
             &oracle_price_data,
             MarginRequirementType::Initial,
             0,
+            false,
         )
         .unwrap();
 
@@ -459,6 +464,7 @@ mod test {
             &oracle_price_data,
             MarginRequirementType::Initial,
             0,
+            false,
         )
         .unwrap();
 
@@ -480,6 +486,7 @@ mod test {
             &oracle_price_data,
             MarginRequirementType::Initial,
             0,
+            false,
         )
         .unwrap();
 

@@ -58,7 +58,7 @@ fn calculate_oracle_valid() {
     assert!(!oracle_status.mark_too_divergent);
 
     let _new_oracle_twap =
-        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None).unwrap();
+        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
     assert_eq!(
         amm.historical_oracle_data.last_oracle_price_twap,
         (34 * PRICE_PRECISION - PRICE_PRECISION / 100) as i128
@@ -92,5 +92,5 @@ fn calculate_oracle_valid() {
     oracle_status =
         get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
     assert!(oracle_status.mark_too_divergent);
-    assert!(oracle_status.oracle_validity == OracleValidity::Invalid);
+    assert!(oracle_status.oracle_validity == OracleValidity::TooUncertain);
 }

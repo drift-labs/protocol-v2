@@ -115,55 +115,70 @@ pub fn handle_initialize_spot_market(
 
     let spot_market_index = get_then_update_id!(state, number_of_spot_markets);
 
+    if oracle_source == OracleSource::QuoteAsset {
+        // catches inconsistent parameters
+        validate!(
+            ctx.accounts.oracle.key == &Pubkey::default(),
+            ErrorCode::InvalidSpotMarketInitialization,
+            "For OracleSource::QuoteAsset, oracle must be default public key"
+        )?;
+
+        validate!(
+            spot_market_index == QUOTE_SPOT_MARKET_INDEX,
+            ErrorCode::InvalidSpotMarketInitialization,
+            "For OracleSource::QuoteAsset, spot_market_index must be QUOTE_SPOT_MARKET_INDEX"
+        )?;
+    }
+
     let oracle_price_data = get_oracle_price(
         &oracle_source,
         &ctx.accounts.oracle,
         cast(Clock::get()?.unix_timestamp)?,
     );
 
-    let (historical_oracle_data_default, historical_index_data_default) = if spot_market_index == 0
-    {
-        validate!(
-            ctx.accounts.oracle.key == &Pubkey::default(),
-            ErrorCode::InvalidSpotMarketInitialization,
-            "For quote asset spot market, oracle must be default public key"
-        )?;
+    let (historical_oracle_data_default, historical_index_data_default) =
+        if spot_market_index == QUOTE_SPOT_MARKET_INDEX {
+            validate!(
+                ctx.accounts.oracle.key == &Pubkey::default(),
+                ErrorCode::InvalidSpotMarketInitialization,
+                "For quote asset spot market, oracle must be default public key"
+            )?;
 
-        validate!(
-            oracle_source == OracleSource::QuoteAsset,
-            ErrorCode::InvalidSpotMarketInitialization,
-            "For quote asset spot market, oracle source must be QuoteAsset"
-        )?;
+            validate!(
+                oracle_source == OracleSource::QuoteAsset,
+                ErrorCode::InvalidSpotMarketInitialization,
+                "For quote asset spot market, oracle source must be QuoteAsset"
+            )?;
 
-        validate!(
-            ctx.accounts.spot_market_mint.decimals == 6,
-            ErrorCode::InvalidSpotMarketInitialization,
-            "For quote asset spot market, mint decimals must be 6"
-        )?;
+            validate!(
+                ctx.accounts.spot_market_mint.decimals == 6,
+                ErrorCode::InvalidSpotMarketInitialization,
+                "For quote asset spot market, mint decimals must be 6"
+            )?;
 
-        (
-            HistoricalOracleData::default_quote_oracle(),
-            HistoricalIndexData::default_quote_oracle(),
-        )
-    } else {
-        validate!(
-            ctx.accounts.spot_market_mint.decimals >= 6,
-            ErrorCode::InvalidSpotMarketInitialization,
-            "Mint decimals must be greater than or equal to 6"
-        )?;
+            (
+                HistoricalOracleData::default_quote_oracle(),
+                HistoricalIndexData::default_quote_oracle(),
+            )
+        } else {
+            validate!(
+                ctx.accounts.spot_market_mint.decimals >= 6,
+                ErrorCode::InvalidSpotMarketInitialization,
+                "Mint decimals must be greater than or equal to 6"
+            )?;
 
-        validate!(
-            oracle_price_data.is_ok(),
-            ErrorCode::InvalidSpotMarketInitialization,
-            "Unable to read oracle price for {}",
-            ctx.accounts.oracle.key,
-        )?;
+            validate!(
+                oracle_price_data.is_ok(),
+                ErrorCode::InvalidSpotMarketInitialization,
+                "Unable to read oracle price for {}",
+                ctx.accounts.oracle.key,
+            )?;
 
-        (
-            HistoricalOracleData::default_with_current_oracle(oracle_price_data?),
-            HistoricalIndexData::default_with_current_oracle(oracle_price_data?),
-        )
-    };
+            (
+                HistoricalOracleData::default_with_current_oracle(oracle_price_data?),
+                HistoricalIndexData::default_with_current_oracle(oracle_price_data?),
+            )
+        };
 
     validate_margin_weights(
         spot_market_index,
@@ -189,7 +204,11 @@ pub fn handle_initialize_spot_market(
         } else {
             MarketStatus::Initialized
         },
-        asset_tier: AssetTier::Collateral,
+        asset_tier: if spot_market_index == QUOTE_SPOT_MARKET_INDEX {
+            AssetTier::Collateral
+        } else {
+            AssetTier::Isolated
+        },
         expiry_ts: 0,
         oracle: ctx.accounts.oracle.key(),
         oracle_source,
@@ -599,11 +618,20 @@ pub fn handle_initialize_perp_market(
 }
 
 pub fn handle_update_spot_market_oracle(
-    ctx: Context<AdminUpdateSpotMarket>,
+    ctx: Context<AdminUpdateSpotMarketOracle>,
     oracle: Pubkey,
     oracle_source: OracleSource,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    let clock = Clock::get()?;
+
+    // Verify oracle is readable
+    let OraclePriceData {
+        price: _oracle_price,
+        delay: _oracle_delay,
+        ..
+    } = get_oracle_price(&oracle_source, &ctx.accounts.oracle, clock.slot)?;
+
     spot_market.oracle = oracle;
     spot_market.oracle_source = oracle_source;
     Ok(())
@@ -828,7 +856,7 @@ pub fn handle_deposit_into_perp_market_fee_pool(
 
 #[access_control(
     market_valid(&ctx.accounts.perp_market)
-    valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
+    valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128) -> Result<()> {
     let clock = Clock::get()?;
@@ -890,7 +918,7 @@ pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128)
 
 #[access_control(
     market_valid(&ctx.accounts.perp_market)
-    valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
+    valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
     // allow update to amm's oracle twap iff price gap is reduced and thus more tame funding
@@ -949,7 +977,7 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
 
 #[access_control(
     market_valid(&ctx.accounts.perp_market)
-    valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
+    valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
     let clock = Clock::get()?;
@@ -1106,7 +1134,7 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
 
 #[access_control(
     market_valid(&ctx.accounts.perp_market)
-    valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
+    valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
     // if oracle is invalid, failsafe to reset amm oracle_twap to the mark_twap
@@ -1185,6 +1213,7 @@ pub fn handle_update_perp_market_max_imbalances(
         ContractTier::B => INSURANCE_B_MAX,
         ContractTier::C => INSURANCE_C_MAX,
         ContractTier::Speculative => INSURANCE_SPECULATIVE_MAX,
+        ContractTier::Isolated => INSURANCE_SPECULATIVE_MAX,
     };
 
     validate!(
@@ -1603,13 +1632,23 @@ pub fn handle_update_oracle_guard_rails(
     market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_oracle(
-    ctx: Context<AdminUpdatePerpMarket>,
+    ctx: Context<RepegCurve>,
     oracle: Pubkey,
     oracle_source: OracleSource,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let clock = Clock::get()?;
+
+    // Verify oracle is readable
+    let OraclePriceData {
+        price: _oracle_price,
+        delay: _oracle_delay,
+        ..
+    } = get_oracle_price(&oracle_source, &ctx.accounts.oracle, clock.slot)?;
+
     perp_market.amm.oracle = oracle;
     perp_market.amm.oracle_source = oracle_source;
+
     Ok(())
 }
 
@@ -2077,6 +2116,19 @@ pub struct AdminUpdateSpotMarket<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub spot_market: AccountLoader<'info, SpotMarket>,
+}
+
+#[derive(Accounts)]
+pub struct AdminUpdateSpotMarketOracle<'info> {
+    pub admin: Signer<'info>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    /// CHECK: checked in `initialize_spot_market`
+    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]

@@ -1,7 +1,8 @@
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::math::constants::{
-    MARGIN_PRECISION, PRICE_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION,
+    MARGIN_PRECISION, MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PRICE_PRECISION, SPOT_IMF_PRECISION,
+    SPOT_WEIGHT_PRECISION,
 };
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
@@ -9,7 +10,6 @@ use crate::math::position::{
 };
 use crate::math_error;
 
-use crate::state::user::User;
 use crate::validate;
 
 use crate::math::casting::{cast_to_i128, Cast};
@@ -17,15 +17,17 @@ use crate::math::funding::calculate_funding_payment;
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
-use crate::math::spot_balance::{get_balance_value_and_token_amount, get_token_value};
+use crate::math::spot_balance::{
+    get_balance_value_and_token_amount, get_strict_token_value, get_token_value,
+};
 
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
-use crate::state::perp_market::{MarketStatus, PerpMarket};
+use crate::state::perp_market::{ContractTier, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
-use crate::state::user::{PerpPosition, SpotPosition};
+use crate::state::user::{PerpPosition, SpotPosition, User};
 use num_integer::Roots;
 use solana_program::msg;
 use std::cmp::{max, min, Ordering};
@@ -138,6 +140,7 @@ pub fn calculate_perp_position_value_and_pnl(
     oracle_price_data: &OraclePriceData,
     margin_requirement_type: MarginRequirementType,
     user_custom_margin_ratio: u128,
+    with_bounds: bool,
 ) -> ClearingHouseResult<(u128, i128, u128)> {
     let unrealized_funding = calculate_funding_payment(
         if market_position.base_asset_amount > 0 {
@@ -235,11 +238,16 @@ pub fn calculate_perp_position_value_and_pnl(
     let unrealized_asset_weight =
         market.get_unrealized_asset_weight(total_unrealized_pnl, margin_requirement_type)?;
 
-    let weighted_unrealized_pnl = total_unrealized_pnl
+    let mut weighted_unrealized_pnl = total_unrealized_pnl
         .checked_mul(unrealized_asset_weight as i128)
         .ok_or_else(math_error!())?
         .checked_div(SPOT_WEIGHT_PRECISION as i128)
         .ok_or_else(math_error!())?;
+
+    if with_bounds && margin_requirement_type == MarginRequirementType::Initial {
+        // safety guard for dangerously configured perp market
+        weighted_unrealized_pnl = weighted_unrealized_pnl.min(MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN);
+    }
 
     Ok((
         margin_requirement,
@@ -255,6 +263,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     margin_buffer_ratio: Option<u128>,
+    strict: bool,
 ) -> ClearingHouseResult<(u128, i128, u128, bool, u8, bool)> {
     let mut total_collateral: i128 = 0;
     let mut margin_requirement: u128 = 0;
@@ -323,11 +332,22 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     oracle_price_data,
                     None,
                 )?;
-            let worst_case_token_value = get_token_value(
-                worst_case_token_amount,
-                spot_market.decimals,
-                oracle_price_data,
-            )?;
+            let worst_case_token_value = if strict {
+                get_strict_token_value(
+                    worst_case_token_amount,
+                    spot_market.decimals,
+                    oracle_price_data,
+                    spot_market
+                        .historical_oracle_data
+                        .last_oracle_price_twap_5min,
+                )?
+            } else {
+                get_token_value(
+                    worst_case_token_amount,
+                    spot_market.decimals,
+                    oracle_price_data,
+                )?
+            };
 
             match worst_case_token_amount.cmp(&0) {
                 Ordering::Greater => {
@@ -438,6 +458,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 oracle_price_data,
                 margin_requirement_type,
                 user_custom_margin_ratio,
+                true,
             )?;
 
         margin_requirement = margin_requirement
@@ -459,6 +480,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             .ok_or_else(math_error!())?;
 
         num_of_liabilities += 1;
+        with_isolated_liability &=
+            margin_requirement > 0 && market.contract_tier == ContractTier::Isolated;
     }
 
     Ok((
@@ -493,6 +516,7 @@ pub fn calculate_margin_requirement_and_total_collateral(
         spot_market_map,
         oracle_map,
         margin_buffer_ratio,
+        false,
     )?;
 
     Ok((
@@ -509,6 +533,8 @@ pub fn meets_withdraw_margin_requirement(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> ClearingHouseResult<bool> {
+    let strict = true;
+
     let (
         initial_margin_requirement,
         total_collateral,
@@ -523,6 +549,7 @@ pub fn meets_withdraw_margin_requirement(
         spot_market_map,
         oracle_map,
         None,
+        strict,
     )?;
 
     if initial_margin_requirement > 0 {
@@ -588,6 +615,7 @@ pub fn meets_place_order_margin_requirement(
         spot_market_map,
         oracle_map,
         None,
+        true,
     )?;
 
     let meets_initial_margin_requirement = total_collateral >= cast_to_i128(margin_requirement)?;

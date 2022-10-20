@@ -9,8 +9,9 @@ use crate::controller::orders;
 use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount,
 };
+use crate::controller::repeg::update_amm_and_check_validity;
 use crate::controller::spot_balance::{
-    update_revenue_pool_balances, update_spot_market_cumulative_interest,
+    update_revenue_pool_balances, update_spot_market_and_check_validity,
 };
 use crate::controller::spot_position::{
     transfer_spot_position_deposit, update_spot_position_balance,
@@ -33,7 +34,7 @@ use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, meets_initial_margin_requirement,
     MarginRequirementType,
 };
-use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
+use crate::math::oracle::DriftAction;
 use crate::math::orders::{get_position_delta_for_fill, standardize_base_asset_amount};
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math_error;
@@ -47,6 +48,7 @@ use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::SpotMarketMap;
+use crate::state::state::State;
 use crate::state::user::{User, UserStats};
 use crate::validate;
 
@@ -67,8 +69,10 @@ pub fn liquidate_perp(
     oracle_map: &mut OracleMap,
     slot: u64,
     now: i64,
-    liquidation_margin_buffer_ratio: u32,
+    state: &State,
 ) -> ClearingHouseResult {
+    let liquidation_margin_buffer_ratio = state.liquidation_margin_buffer_ratio;
+
     validate!(!user.is_bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
 
     validate!(
@@ -154,18 +158,16 @@ pub fn liquidate_perp(
         None,
     )?;
 
-    let market = perp_market_map.get_ref(&market_index)?;
+    let mut market = perp_market_map.get_ref_mut(&market_index)?;
+    let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
 
-    let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
-        &market.amm.oracle,
-        market.amm.historical_oracle_data.last_oracle_price_twap,
-    )?;
-
-    validate!(
-        is_oracle_valid_for_action(oracle_validity, Some(DriftAction::Liquidate))?,
-        ErrorCode::InvalidOracle,
-        "OracleValidity for perp marketIndex={} has InvalidPrice or TooVolatile",
-        market.market_index
+    update_amm_and_check_validity(
+        &mut market,
+        oracle_price_data,
+        state,
+        now,
+        slot,
+        Some(DriftAction::Liquidate),
     )?;
 
     let oracle_price = if market.status == MarketStatus::Settlement {
@@ -453,19 +455,16 @@ pub fn liquidate_spot(
 
     let (asset_amount, asset_price, asset_decimals, asset_weight, asset_liquidation_multiplier) = {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
-        let (asset_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
-            &asset_market.oracle,
-            asset_market.historical_oracle_data.last_oracle_price_twap,
-        )?;
+        let (asset_price_data, validity_guard_rails) =
+            oracle_map.get_price_data_and_guard_rails(&asset_market.oracle)?;
 
-        validate!(
-            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::Liquidate))?,
-            ErrorCode::InvalidOracle,
-            "Invalid Oracle to Liquidate spot asset marketIndex={}",
-            asset_market.market_index
+        update_spot_market_and_check_validity(
+            &mut asset_market,
+            asset_price_data,
+            validity_guard_rails,
+            now,
+            Some(DriftAction::Liquidate),
         )?;
-
-        update_spot_market_cumulative_interest(&mut asset_market, Some(asset_price_data), now)?;
 
         let spot_deposit_position = user.get_spot_position(asset_market_index).unwrap();
 
@@ -499,25 +498,15 @@ pub fn liquidate_spot(
         liquidation_if_fee,
     ) = {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
+        let (liability_price_data, validity_guard_rails) =
+            oracle_map.get_price_data_and_guard_rails(&liability_market.oracle)?;
 
-        let (liability_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
-            &liability_market.oracle,
-            liability_market
-                .historical_oracle_data
-                .last_oracle_price_twap,
-        )?;
-
-        validate!(
-            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::Liquidate))?,
-            ErrorCode::InvalidOracle,
-            "Invalid Oracle to Liquidate spot liability marketIndex={}",
-            liability_market.market_index
-        )?;
-
-        update_spot_market_cumulative_interest(
+        update_spot_market_and_check_validity(
             &mut liability_market,
-            Some(liability_price_data),
+            liability_price_data,
+            validity_guard_rails,
             now,
+            Some(DriftAction::Liquidate),
         )?;
 
         let spot_position = user.get_spot_position(liability_market_index).unwrap();
@@ -776,6 +765,10 @@ pub fn liquidate_borrow_for_perp_pnl(
     slot: u64,
     liquidation_margin_buffer_ratio: u32,
 ) -> ClearingHouseResult {
+    // liquidator takes over a user borrow in exchange for that user's positive perpetual pnl
+    // can only be done once a user's perpetual position size is 0
+    // blocks borrows where oracle is deemed invalid
+
     validate!(!user.is_bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
 
     validate!(
@@ -882,24 +875,15 @@ pub fn liquidate_borrow_for_perp_pnl(
         liability_liquidation_multiplier,
     ) = {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
-        let (liability_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
-            &liability_market.oracle,
-            liability_market
-                .historical_oracle_data
-                .last_oracle_price_twap,
-        )?;
+        let (liability_price_data, validity_guard_rails) =
+            oracle_map.get_price_data_and_guard_rails(&liability_market.oracle)?;
 
-        validate!(
-            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::Liquidate))?,
-            ErrorCode::InvalidOracle,
-            "Invalid Oracle to Liquidate spot liability marketIndex={}",
-            liability_market.market_index
-        )?;
-
-        update_spot_market_cumulative_interest(
+        update_spot_market_and_check_validity(
             &mut liability_market,
-            Some(liability_price_data),
+            liability_price_data,
+            validity_guard_rails,
             now,
+            Some(DriftAction::Liquidate),
         )?;
 
         let spot_position = user.get_spot_position(liability_market_index).unwrap();
@@ -1138,6 +1122,10 @@ pub fn liquidate_perp_pnl_for_deposit(
     slot: u64,
     liquidation_margin_buffer_ratio: u32,
 ) -> ClearingHouseResult {
+    // liquidator takes over remaining negative perpetual pnl in exchange for a user deposit
+    // can only be done once the perpetual position's size is 0
+    // blocked when the user deposit oracle is deemed invalid
+
     validate!(!user.is_bankrupt, ErrorCode::UserBankrupt, "user bankrupt",)?;
 
     validate!(
@@ -1192,22 +1180,18 @@ pub fn liquidate_perp_pnl_for_deposit(
 
     let (asset_amount, asset_price, asset_decimals, asset_weight, asset_liquidation_multiplier) = {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
+        let (asset_price_data, validity_guard_rails) =
+            oracle_map.get_price_data_and_guard_rails(&asset_market.oracle)?;
 
-        let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
-            &asset_market.oracle,
-            asset_market.historical_oracle_data.last_oracle_price_twap,
+        update_spot_market_and_check_validity(
+            &mut asset_market,
+            asset_price_data,
+            validity_guard_rails,
+            now,
+            Some(DriftAction::Liquidate),
         )?;
 
-        validate!(
-            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::Liquidate))?,
-            ErrorCode::InvalidOracle,
-            "Invalid Oracle to Liquidate spot asset marketIndex={}",
-            asset_market.market_index
-        )?;
-
-        let token_price = oracle_price_data.price;
-        update_spot_market_cumulative_interest(&mut asset_market, Some(oracle_price_data), now)?;
-
+        let token_price = asset_price_data.price;
         let spot_position = user.get_spot_position(asset_market_index).unwrap();
 
         validate!(
@@ -1558,7 +1542,7 @@ pub fn resolve_perp_bankruptcy(
         )?;
 
     // spot market's insurance fund draw attempt here (before social loss)
-    // subtract 1 so insurance_fund_vault_balance always stays >= 1
+    // subtract 1 from available insurance_fund_vault_balance so deposits in insurance vault always remains >= 1
 
     let if_payment = {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;

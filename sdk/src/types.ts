@@ -480,7 +480,7 @@ export type HistoricalIndexData = {
 	lastIndexBidPrice: BN;
 	lastIndexAskPrice: BN;
 	lastIndexPriceTwap: BN;
-	lastIndexPriceTwap5Min: BN;
+	lastIndexPriceTwap5min: BN;
 	lastIndexPriceTwapTs: BN;
 };
 

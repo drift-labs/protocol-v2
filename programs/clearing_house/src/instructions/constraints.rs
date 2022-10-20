@@ -5,8 +5,11 @@ use anchor_lang::prelude::{AccountInfo, Pubkey};
 
 use crate::error::ErrorCode;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
+use crate::state::spot_market::SpotMarket;
 use crate::state::state::{ExchangeStatus, State};
 use crate::state::user::{User, UserStats};
+use crate::validate;
+use solana_program::msg;
 
 pub fn can_sign_for_user(user: &AccountLoader<User>, signer: &Signer) -> anchor_lang::Result<bool> {
     user.load().map(|user| {
@@ -31,13 +34,27 @@ pub fn market_valid(market: &AccountLoader<PerpMarket>) -> anchor_lang::Result<(
     Ok(())
 }
 
-pub fn valid_oracle_for_market(
+pub fn valid_oracle_for_spot_market(
+    oracle: &AccountInfo,
+    market: &AccountLoader<SpotMarket>,
+) -> anchor_lang::Result<()> {
+    validate!(
+        market.load()?.oracle.eq(oracle.key),
+        ErrorCode::InvalidOracle,
+        "not valid_oracle_for_spot_market"
+    )?;
+    Ok(())
+}
+
+pub fn valid_oracle_for_perp_market(
     oracle: &AccountInfo,
     market: &AccountLoader<PerpMarket>,
 ) -> anchor_lang::Result<()> {
-    if !market.load()?.amm.oracle.eq(oracle.key) {
-        return Err(ErrorCode::InvalidOracle.into());
-    }
+    validate!(
+        market.load()?.amm.oracle.eq(oracle.key),
+        ErrorCode::InvalidOracle,
+        "not valid_oracle_for_perp_market"
+    )?;
     Ok(())
 }
 

@@ -81,41 +81,19 @@ fn calculate_quote_asset_amount_surplus(
 }
 
 pub fn swap_base_asset(
-    amm: &mut AMM,
+    market: &mut PerpMarket,
     base_asset_swap_amount: u64,
     direction: SwapDirection,
-    now: i64,
-    precomputed_reserve_price: Option<u128>,
 ) -> ClearingHouseResult<(u64, i64)> {
-    let position_direction = match direction {
-        SwapDirection::Add => PositionDirection::Short,
-        SwapDirection::Remove => PositionDirection::Long,
-    };
-
-    let reserve_price = match precomputed_reserve_price {
-        Some(reserve_price) => reserve_price,
-        None => amm.reserve_price()?,
-    };
-
-    amm::update_mark_twap(
-        amm,
-        now,
-        Some(match position_direction {
-            PositionDirection::Long => amm.ask_price(reserve_price)?,
-            PositionDirection::Short => amm.bid_price(reserve_price)?,
-        }),
-        Some(position_direction),
-    )?;
-
     let (
         new_base_asset_reserve,
         new_quote_asset_reserve,
         quote_asset_amount,
         quote_asset_amount_surplus,
-    ) = calculate_base_swap_output_with_spread(amm, base_asset_swap_amount, direction)?;
+    ) = calculate_base_swap_output_with_spread(&market.amm, base_asset_swap_amount, direction)?;
 
-    amm.base_asset_reserve = new_base_asset_reserve;
-    amm.quote_asset_reserve = new_quote_asset_reserve;
+    market.amm.base_asset_reserve = new_base_asset_reserve;
+    market.amm.quote_asset_reserve = new_quote_asset_reserve;
 
     Ok((
         quote_asset_amount,

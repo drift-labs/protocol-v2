@@ -299,8 +299,8 @@ export function calculateWithdrawLimit(
 			marketDepositTokenAmount.div(new BN(6)),
 			borrowTokenTwapLive.add(borrowTokenTwapLive.div(new BN(5)))
 		),
-		marketDepositTokenAmount.sub(marketDepositTokenAmount.div(new BN(10)))
-	); // between ~15-90% utilization with friction on twap
+		marketDepositTokenAmount.sub(marketDepositTokenAmount.div(new BN(5)))
+	); // between ~15-80% utilization with friction on twap
 
 	const minDepositTokens = depositTokenTwapLive.sub(
 		BN.min(

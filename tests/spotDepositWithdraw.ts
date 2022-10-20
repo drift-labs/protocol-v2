@@ -43,6 +43,7 @@ import {
 	SPOT_MARKET_BALANCE_PRECISION,
 	PRICE_PRECISION,
 } from '../sdk';
+import { PRICE_PRECISION } from '@drift-labs/sdk';
 
 describe('spot deposit and withdraw', () => {
 	const provider = anchor.AnchorProvider.local();
@@ -184,7 +185,7 @@ describe('spot deposit and withdraw', () => {
 			optimalRate,
 			maxRate,
 			solOracle,
-			OracleSource.QUOTE_ASSET,
+			OracleSource.PYTH,
 			initialAssetWeight,
 			maintenanceAssetWeight,
 			initialLiabilityWeight,
@@ -216,6 +217,25 @@ describe('spot deposit and withdraw', () => {
 		assert(spotMarket.maintenanceAssetWeight.eq(maintenanceAssetWeight));
 		assert(spotMarket.initialLiabilityWeight.eq(initialLiabilityWeight));
 		assert(spotMarket.maintenanceAssetWeight.eq(maintenanceAssetWeight));
+
+		console.log(spotMarket.historicalOracleData);
+		assert(spotMarket.historicalOracleData.lastOraclePriceTwapTs.eq(ZERO));
+
+		assert(
+			spotMarket.historicalOracleData.lastOraclePrice.eq(
+				new BN(30 * PRICE_PRECISION.toNumber())
+			)
+		);
+		assert(
+			spotMarket.historicalOracleData.lastOraclePriceTwap.eq(
+				new BN(30 * PRICE_PRECISION.toNumber())
+			)
+		);
+		assert(
+			spotMarket.historicalOracleData.lastOraclePriceTwap5Min.eq(
+				new BN(30 * PRICE_PRECISION.toNumber())
+			)
+		);
 
 		assert(admin.getStateAccount().numberOfSpotMarkets === 2);
 	});
@@ -297,6 +317,23 @@ describe('spot deposit and withdraw', () => {
 
 		const spotMarket = await admin.getSpotMarketAccount(marketIndex);
 		assert(spotMarket.depositBalance.eq(SPOT_MARKET_BALANCE_PRECISION));
+		console.log(spotMarket.historicalOracleData);
+		assert(spotMarket.historicalOracleData.lastOraclePriceTwapTs.gt(ZERO));
+		assert(
+			spotMarket.historicalOracleData.lastOraclePrice.eq(
+				new BN(30 * PRICE_PRECISION.toNumber())
+			)
+		);
+		assert(
+			spotMarket.historicalOracleData.lastOraclePriceTwap.eq(
+				new BN(30 * PRICE_PRECISION.toNumber())
+			)
+		);
+		assert(
+			spotMarket.historicalOracleData.lastOraclePriceTwap5Min.eq(
+				new BN(30 * PRICE_PRECISION.toNumber())
+			)
+		);
 
 		const vaultAmount = new BN(
 			(

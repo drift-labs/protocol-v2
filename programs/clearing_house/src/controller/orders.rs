@@ -33,7 +33,7 @@ use crate::load_mut;
 use crate::math::auction::{calculate_auction_prices, is_auction_complete};
 use crate::math::casting::{cast, cast_to_u64, Cast};
 use crate::math::constants::{
-    BASE_PRECISION_U64, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
+    BASE_PRECISION_U64, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
     SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
 };
 use crate::math::fees::{FillFees, SerumFillFees};
@@ -1401,6 +1401,20 @@ pub fn fulfill_order_with_amm(
 
     controller::validate::validate_amm_account_for_fill(&market.amm, order_direction)?;
 
+    let market_side_price = match order_direction {
+        PositionDirection::Long => market.amm.ask_price(reserve_price_before)?,
+        PositionDirection::Short => market.amm.bid_price(reserve_price_before)?,
+    };
+
+    let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
+    amm::update_mark_twap(
+        &mut market.amm,
+        now,
+        Some(market_side_price),
+        Some(order_direction),
+        sanitize_clamp_denominator,
+    )?;
+
     let (quote_asset_amount, quote_asset_amount_surplus, _) =
         controller::position::update_position_with_base_asset_amount(
             base_asset_amount,
@@ -1408,8 +1422,6 @@ pub fn fulfill_order_with_amm(
             market,
             user,
             position_index,
-            reserve_price_before,
-            now,
             fill_price,
         )?;
 
@@ -1660,11 +1672,13 @@ pub fn fulfill_order_with_match(
         return Ok((0_u64, 0_u64));
     }
 
+    let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
     amm::update_mark_twap(
         &mut market.amm,
         now,
         Some(maker_price),
         Some(taker_direction),
+        sanitize_clamp_denominator,
     )?;
 
     let amm_wants_to_make = match taker_direction {
@@ -2546,7 +2560,7 @@ pub fn fill_spot_order(
                     | MarketStatus::ReduceOnly
                     | MarketStatus::WithdrawPaused
             ),
-            ErrorCode::DefaultError,
+            ErrorCode::MarketActionPaused,
             "Market unavailable for fills"
         )?;
     }
@@ -3341,7 +3355,7 @@ pub fn fulfill_spot_order_with_serum(
         now,
         cast(base_market.historical_index_data.last_index_price_twap)?,
         base_market.historical_index_data.last_index_price_twap_ts,
-        60 * 60,
+        ONE_HOUR as i64,
     )?)?;
 
     base_market.historical_index_data.last_index_price_twap_5min = cast(calculate_new_twap(
@@ -3349,7 +3363,7 @@ pub fn fulfill_spot_order_with_serum(
         now,
         cast(base_market.historical_index_data.last_index_price_twap_5min)?,
         base_market.historical_index_data.last_index_price_twap_ts,
-        60 * 5,
+        FIVE_MINUTE as i64,
     )?)?;
 
     let taker_price = if let Some(price) = taker_price {

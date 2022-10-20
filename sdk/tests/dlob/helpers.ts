@@ -52,14 +52,14 @@ export const mockAMM: AMM = {
 	lastFundingRate: new BN(0),
 	lastFundingRateTs: new BN(0),
 	lastMarkPriceTwap: new BN(0),
-	lastMarkPriceTwap5min: new BN(0),
+	lastMarkPriceTwap5Min: new BN(0),
 	lastMarkPriceTwapTs: new BN(0),
 	historicalOracleData: {
 		lastOraclePrice: new BN(0),
 		lastOracleConf: new BN(0),
 		lastOracleDelay: new BN(0),
 		lastOraclePriceTwap: new BN(0),
-		lastOraclePriceTwap5min: new BN(0),
+		lastOraclePriceTwap5Min: new BN(0),
 		lastOraclePriceTwapTs: new BN(0),
 	},
 	lastOracleReservePriceSpreadPct: new BN(0),
@@ -270,7 +270,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			lastOracleConf: new BN(0),
 			lastOracleDelay: new BN(0),
 			lastOraclePriceTwap: new BN(0),
-			lastOraclePriceTwap5min: new BN(0),
+			lastOraclePriceTwap5Min: new BN(0),
 			lastOraclePriceTwapTs: new BN(0),
 		},
 		historicalIndexData: {
@@ -340,7 +340,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			lastOracleConf: new BN(0),
 			lastOracleDelay: new BN(0),
 			lastOraclePriceTwap: new BN(0),
-			lastOraclePriceTwap5min: new BN(0),
+			lastOraclePriceTwap5Min: new BN(0),
 			lastOraclePriceTwapTs: new BN(0),
 		},
 		historicalIndexData: {
@@ -410,7 +410,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			lastOracleConf: new BN(0),
 			lastOracleDelay: new BN(0),
 			lastOraclePriceTwap: new BN(0),
-			lastOraclePriceTwap5min: new BN(0),
+			lastOraclePriceTwap5Min: new BN(0),
 			lastOraclePriceTwapTs: new BN(0),
 		},
 		historicalIndexData: {

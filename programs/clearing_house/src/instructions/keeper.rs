@@ -488,7 +488,7 @@ pub fn handle_liquidate_perp(
         &mut oracle_map,
         slot,
         now,
-        state.liquidation_margin_buffer_ratio,
+        state,
     )?;
 
     Ok(())
@@ -951,7 +951,7 @@ pub fn handle_resolve_spot_bankruptcy(
 #[access_control(
     market_valid(&ctx.accounts.perp_market)
     funding_not_paused(&ctx.accounts.state)
-    valid_oracle_for_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
+    valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_update_funding_rate(
     ctx: Context<UpdateFundingRate>,
@@ -1065,14 +1065,41 @@ pub fn handle_settle_revenue_to_insurance_fund(
 }
 
 #[access_control(
-    funding_not_paused(&ctx.accounts.state)
+    exchange_not_paused(&ctx.accounts.state)
+    valid_oracle_for_spot_market(&ctx.accounts.oracle, &ctx.accounts.spot_market)
 )]
 pub fn handle_update_spot_market_cumulative_interest(
     ctx: Context<UpdateSpotMarketCumulativeInterest>,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    let now = Clock::get()?.unix_timestamp;
-    controller::spot_balance::update_spot_market_cumulative_interest(spot_market, None, now)?;
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let clock_slot = clock.slot;
+
+    let mut oracle_map = OracleMap::load_one(
+        &ctx.accounts.oracle,
+        clock_slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+
+    if !matches!(state.exchange_status, ExchangeStatus::FundingPaused) {
+        controller::spot_balance::update_spot_market_cumulative_interest(
+            spot_market,
+            Some(oracle_price_data),
+            now,
+        )?;
+    } else {
+        // even if funding is paused still update twap stats
+        controller::spot_balance::update_spot_market_twap_stats(
+            spot_market,
+            Some(oracle_price_data),
+            now,
+        )?;
+    }
+
     Ok(())
 }
 
@@ -1371,6 +1398,8 @@ pub struct UpdateSpotMarketCumulativeInterest<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub spot_market: AccountLoader<'info, SpotMarket>,
+    /// CHECK: checked in `update_spot_market_cumulative_interest` ix constraint
+    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]

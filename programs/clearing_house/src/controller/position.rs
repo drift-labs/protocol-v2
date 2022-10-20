@@ -489,8 +489,6 @@ pub fn update_position_with_base_asset_amount(
     market: &mut PerpMarket,
     user: &mut User,
     position_index: usize,
-    reserve_price_before: u128,
-    now: i64,
     fill_price: Option<u128>,
 ) -> ClearingHouseResult<(u64, i64, i64)> {
     let swap_direction = match direction {
@@ -498,13 +496,8 @@ pub fn update_position_with_base_asset_amount(
         PositionDirection::Short => SwapDirection::Add,
     };
 
-    let (quote_asset_swapped, quote_asset_amount_surplus) = controller::amm::swap_base_asset(
-        &mut market.amm,
-        base_asset_amount,
-        swap_direction,
-        now,
-        Some(reserve_price_before),
-    )?;
+    let (quote_asset_swapped, quote_asset_amount_surplus) =
+        controller::amm::swap_base_asset(market, base_asset_amount, swap_direction)?;
 
     let (quote_asset_amount, quote_asset_amount_surplus) = match fill_price {
         Some(fill_price) => calculate_quote_asset_amount_surplus(
