@@ -309,7 +309,6 @@ describe('orders', () => {
 		assert(enumsAreEqual(order.direction, direction));
 		assert(enumsAreEqual(order.status, OrderStatus.OPEN));
 		assert(order.orderId === expectedOrderId);
-		assert(order.ts.gt(ZERO));
 
 		const position = clearingHouseUser.getUserAccount().perpPositions[0];
 		assert(position.openOrders === 1);
