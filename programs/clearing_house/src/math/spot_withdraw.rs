@@ -44,12 +44,8 @@ pub fn check_user_exception_to_withdraw_limits(
     if let Some(spot_position) = spot_position {
         if spot_position.market_index == QUOTE_SPOT_MARKET_INDEX
             && spot_position.cumulative_deposits >= 0
+            && spot_position.balance_type == SpotBalanceType::Deposit
         {
-            validate!(
-                 spot_position.balance_type == SpotBalanceType::Deposit,
-                 ErrorCode::DefaultError,
-                 "Expected position with spot_position.cumulative_deposits >= 0 to have SpotBalanceType::Deposit"
-             )?;
             if let Some(token_amount_withdrawn) = token_amount_withdrawn {
                 let user_deposit_token_amount = get_token_amount(
                     cast_to_u128(spot_position.scaled_balance)?,
