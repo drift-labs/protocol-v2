@@ -28,6 +28,7 @@ use crate::math::cp_curve::get_update_k_result;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::orders::is_multiple_of_step_size;
 use crate::math::repeg::get_total_fee_lower_bound;
+use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::math::{amm, bn, oracle};
 use crate::math_error;
@@ -48,7 +49,7 @@ use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State}
 use crate::validate;
 use crate::validation::fee_structure::validate_fee_structure;
 use crate::validation::margin::{validate_margin, validate_margin_weights};
-use crate::{checked_increment, math};
+use crate::{math, safe_increment};
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
     let (clearing_house_signer, clearing_house_signer_nonce) =
@@ -449,9 +450,8 @@ pub fn handle_initialize_perp_market(
     let concentration_coef = MAX_CONCENTRATION_COEFFICIENT;
 
     // Verify there's no overflow
-    let _k = bn::U192::from(amm_base_asset_reserve)
-        .checked_mul(bn::U192::from(amm_quote_asset_reserve))
-        .ok_or_else(math_error!())?;
+    let _k =
+        bn::U192::from(amm_base_asset_reserve).safe_mul(bn::U192::from(amm_quote_asset_reserve))?;
 
     let (min_base_asset_reserve, max_base_asset_reserve) =
         amm::calculate_bid_ask_bounds(concentration_coef, amm_base_asset_reserve)?;
@@ -480,8 +480,8 @@ pub fn handle_initialize_perp_market(
     // todo? should ensure peg within 1 cent of current oracle?
     // validate!(
     //     cast_to_i128(amm_peg_multiplier)?
-    //         .checked_sub(oracle_price)
-    //         .ok_or_else(math_error!())?
+    //         .safe_sub(oracle_price)
+    //         ?
     //         .unsigned_abs()
     //         < PRICE_PRECISION / 100,
     //     ErrorCode::InvalidInitialPeg
@@ -614,7 +614,7 @@ pub fn handle_initialize_perp_market(
         },
     };
 
-    checked_increment!(state.number_of_markets, 1);
+    safe_increment!(state.number_of_markets, 1);
 
     Ok(())
 }
@@ -751,9 +751,7 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
 
     let escrow_period_before_transfer = if state.settlement_duration > 1 {
         // minimum of TWENTY_FOUR_HOUR to examine settlement process
-        TWENTY_FOUR_HOUR
-            .checked_add(cast_to_i64(state.settlement_duration - 1)?)
-            .ok_or_else(math_error!())?
+        TWENTY_FOUR_HOUR.safe_add(cast_to_i64(state.settlement_duration - 1)?)?
     } else {
         // for testing / expediting if settlement_duration not default but 1
         cast_to_i64(state.settlement_duration)?
@@ -762,8 +760,7 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
     validate!(
         now > perp_market
             .expiry_ts
-            .checked_add(escrow_period_before_transfer)
-            .ok_or_else(math_error!())?,
+            .safe_add(escrow_period_before_transfer)?,
         ErrorCode::DefaultError,
         "must be escrow_period_before_transfer={} after market.expiry_ts",
         escrow_period_before_transfer
@@ -809,9 +806,7 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
     )?;
 
     controller::spot_balance::update_revenue_pool_balances(
-        pnl_pool_token_amount
-            .checked_add(fee_pool_token_amount)
-            .ok_or_else(math_error!())?,
+        pnl_pool_token_amount.safe_add(fee_pool_token_amount)?,
         &SpotBalanceType::Deposit,
         spot_market,
     )?;
@@ -854,8 +849,7 @@ pub fn handle_deposit_into_perp_market_fee_pool(
     perp_market.amm.total_fee_minus_distributions = perp_market
         .amm
         .total_fee_minus_distributions
-        .checked_add(cast(amount)?)
-        .ok_or_else(math_error!())?;
+        .safe_add(cast(amount)?)?;
 
     let quote_spot_market = &mut load_mut!(ctx.accounts.quote_spot_market)?;
 
@@ -956,18 +950,15 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
     let oracle_twap = perp_market.amm.get_oracle_twap(price_oracle)?;
 
     if let Some(oracle_twap) = oracle_twap {
-        let oracle_mark_gap_before = cast_to_i128(perp_market.amm.last_mark_price_twap)?
-            .checked_sub(
-                perp_market
-                    .amm
-                    .historical_oracle_data
-                    .last_oracle_price_twap,
-            )
-            .ok_or_else(math_error!())?;
+        let oracle_mark_gap_before = cast_to_i128(perp_market.amm.last_mark_price_twap)?.safe_sub(
+            perp_market
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap,
+        )?;
 
-        let oracle_mark_gap_after = cast_to_i128(perp_market.amm.last_mark_price_twap)?
-            .checked_sub(oracle_twap)
-            .ok_or_else(math_error!())?;
+        let oracle_mark_gap_after =
+            cast_to_i128(perp_market.amm.last_mark_price_twap)?.safe_sub(oracle_twap)?;
 
         if (oracle_mark_gap_after > 0 && oracle_mark_gap_before < 0)
             || (oracle_mark_gap_after < 0 && oracle_mark_gap_before > 0)
@@ -1053,10 +1044,8 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         let max_cost = perp_market
             .amm
             .total_fee_minus_distributions
-            .checked_sub(cast_to_i128(get_total_fee_lower_bound(perp_market)?)?)
-            .ok_or_else(math_error!())?
-            .checked_sub(cast_to_i128(perp_market.amm.total_fee_withdrawn)?)
-            .ok_or_else(math_error!())?;
+            .safe_sub(cast_to_i128(get_total_fee_lower_bound(perp_market)?)?)?
+            .safe_sub(cast_to_i128(perp_market.amm.total_fee_withdrawn)?)?;
         if adjustment_cost > max_cost {
             return Err(ErrorCode::InvalidUpdateK.into());
         }
@@ -1065,14 +1054,12 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
     perp_market.amm.total_fee_minus_distributions = perp_market
         .amm
         .total_fee_minus_distributions
-        .checked_sub(adjustment_cost)
-        .ok_or_else(math_error!())?;
+        .safe_sub(adjustment_cost)?;
 
     perp_market.amm.net_revenue_since_last_funding = perp_market
         .amm
         .net_revenue_since_last_funding
-        .checked_sub(adjustment_cost as i64)
-        .ok_or_else(math_error!())?;
+        .safe_sub(adjustment_cost as i64)?;
 
     let amm = &perp_market.amm;
 
@@ -1083,8 +1070,7 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
     )?;
 
     let price_change_too_large = cast_to_i128(price_before)?
-        .checked_sub(cast_to_i128(price_after)?)
-        .ok_or_else(math_error!())?
+        .safe_sub(cast_to_i128(price_after)?)?
         .unsigned_abs()
         .gt(&MAX_UPDATE_K_PRICE_CHANGE);
 
@@ -1099,14 +1085,11 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
     }
 
     let k_sqrt_check = bn::U192::from(amm.base_asset_reserve)
-        .checked_mul(bn::U192::from(amm.quote_asset_reserve))
-        .ok_or_else(math_error!())?
+        .safe_mul(bn::U192::from(amm.quote_asset_reserve))?
         .integer_sqrt()
         .try_to_u128()?;
 
-    let k_err = cast_to_i128(k_sqrt_check)?
-        .checked_sub(cast_to_i128(amm.sqrt_k)?)
-        .ok_or_else(math_error!())?;
+    let k_err = cast_to_i128(k_sqrt_check)?.safe_sub(cast_to_i128(amm.sqrt_k)?)?;
 
     if k_err.unsigned_abs() > 100 {
         msg!("k_err={:?}, {:?} != {:?}", k_err, k_sqrt_check, amm.sqrt_k);

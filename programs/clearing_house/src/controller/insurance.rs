@@ -21,9 +21,10 @@ use crate::math::insurance::{
     calculate_if_shares_lost, calculate_rebase_info, if_shares_to_vault_amount,
     vault_amount_to_if_shares,
 };
+use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::math::spot_balance::validate_spot_market_amounts;
-use crate::math_error;
+
 use crate::state::events::{InsuranceFundRecord, InsuranceFundStakeRecord, StakeAction};
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::perp_market::PerpMarket;
@@ -68,31 +69,22 @@ pub fn add_insurance_fund_stake(
     } else {
         insurance_fund_stake
             .cost_basis
-            .checked_add(cast_to_i64(amount)?)
-            .ok_or_else(math_error!())?
+            .safe_add(cast_to_i64(amount)?)?
     };
 
     insurance_fund_stake.increase_if_shares(n_shares, spot_market)?;
 
-    spot_market.insurance_fund.total_shares = spot_market
-        .insurance_fund
-        .total_shares
-        .checked_add(n_shares)
-        .ok_or_else(math_error!())?;
+    spot_market.insurance_fund.total_shares =
+        spot_market.insurance_fund.total_shares.safe_add(n_shares)?;
 
-    spot_market.insurance_fund.user_shares = spot_market
-        .insurance_fund
-        .user_shares
-        .checked_add(n_shares)
-        .ok_or_else(math_error!())?;
+    spot_market.insurance_fund.user_shares =
+        spot_market.insurance_fund.user_shares.safe_add(n_shares)?;
 
     if spot_market.market_index == 0 {
         user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
             insurance_fund_stake.checked_if_shares(spot_market)?,
             spot_market.insurance_fund.total_shares,
-            insurance_vault_amount
-                .checked_add(amount)
-                .ok_or_else(math_error!())?,
+            insurance_vault_amount.safe_add(amount)?,
         )?;
     }
 
@@ -131,18 +123,15 @@ pub fn apply_rebase_to_insurance_fund(
         spot_market.insurance_fund.total_shares = spot_market
             .insurance_fund
             .total_shares
-            .checked_div(rebase_divisor)
-            .ok_or_else(math_error!())?;
+            .safe_div(rebase_divisor)?;
         spot_market.insurance_fund.user_shares = spot_market
             .insurance_fund
             .user_shares
-            .checked_div(rebase_divisor)
-            .ok_or_else(math_error!())?;
+            .safe_div(rebase_divisor)?;
         spot_market.insurance_fund.shares_base = spot_market
             .insurance_fund
             .shares_base
-            .checked_add(cast_to_u128(expo_diff)?)
-            .ok_or_else(math_error!())?;
+            .safe_add(cast_to_u128(expo_diff)?)?;
 
         msg!("rebasing insurance fund: expo_diff={}", expo_diff);
     }
@@ -179,9 +168,7 @@ pub fn apply_rebase_to_insurance_fund_stake(
         insurance_fund_stake.if_base = spot_market.insurance_fund.shares_base;
 
         let old_if_shares = insurance_fund_stake.unchecked_if_shares();
-        let new_if_shares = old_if_shares
-            .checked_div(rebase_divisor)
-            .ok_or_else(math_error!())?;
+        let new_if_shares = old_if_shares.safe_div(rebase_divisor)?;
 
         msg!(
             "rebasing insurance fund stake: shares -> {} ",
@@ -192,8 +179,7 @@ pub fn apply_rebase_to_insurance_fund_stake(
 
         insurance_fund_stake.last_withdraw_request_shares = insurance_fund_stake
             .last_withdraw_request_shares
-            .checked_div(rebase_divisor)
-            .ok_or_else(math_error!())?;
+            .safe_div(rebase_divisor)?;
     }
 
     Ok(())
@@ -310,14 +296,12 @@ pub fn cancel_request_remove_insurance_fund_stake(
     spot_market.insurance_fund.total_shares = spot_market
         .insurance_fund
         .total_shares
-        .checked_sub(if_shares_lost)
-        .ok_or_else(math_error!())?;
+        .safe_sub(if_shares_lost)?;
 
     spot_market.insurance_fund.user_shares = spot_market
         .insurance_fund
         .user_shares
-        .checked_sub(if_shares_lost)
-        .ok_or_else(math_error!())?;
+        .safe_sub(if_shares_lost)?;
 
     let if_shares_after = insurance_fund_stake.checked_if_shares(spot_market)?;
 
@@ -358,9 +342,8 @@ pub fn remove_insurance_fund_stake(
     spot_market: &mut SpotMarket,
     now: i64,
 ) -> ClearingHouseResult<u64> {
-    let time_since_withdraw_request = now
-        .checked_sub(insurance_fund_stake.last_withdraw_request_ts)
-        .ok_or_else(math_error!())?;
+    let time_since_withdraw_request =
+        now.safe_sub(insurance_fund_stake.last_withdraw_request_ts)?;
 
     validate!(
         time_since_withdraw_request >= spot_market.insurance_fund.unstaking_period,
@@ -402,20 +385,13 @@ pub fn remove_insurance_fund_stake(
 
     insurance_fund_stake.cost_basis = insurance_fund_stake
         .cost_basis
-        .checked_sub(cast_to_i64(withdraw_amount)?)
-        .ok_or_else(math_error!())?;
+        .safe_sub(cast_to_i64(withdraw_amount)?)?;
 
-    spot_market.insurance_fund.total_shares = spot_market
-        .insurance_fund
-        .total_shares
-        .checked_sub(n_shares)
-        .ok_or_else(math_error!())?;
+    spot_market.insurance_fund.total_shares =
+        spot_market.insurance_fund.total_shares.safe_sub(n_shares)?;
 
-    spot_market.insurance_fund.user_shares = spot_market
-        .insurance_fund
-        .user_shares
-        .checked_sub(n_shares)
-        .ok_or_else(math_error!())?;
+    spot_market.insurance_fund.user_shares =
+        spot_market.insurance_fund.user_shares.safe_sub(n_shares)?;
 
     // reset insurance_fund_stake withdraw request info
     insurance_fund_stake.last_withdraw_request_shares = 0;
@@ -428,9 +404,7 @@ pub fn remove_insurance_fund_stake(
         user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
             if_shares_after,
             spot_market.insurance_fund.total_shares,
-            insurance_vault_amount
-                .checked_sub(amount)
-                .ok_or_else(math_error!())?,
+            insurance_vault_amount.safe_sub(amount)?,
         )?;
     }
 
@@ -464,9 +438,7 @@ pub fn admin_remove_insurance_fund_stake(
     let total_if_shares_before = spot_market.insurance_fund.total_shares;
     let user_if_shares_before = spot_market.insurance_fund.user_shares;
 
-    let if_shares_before = total_if_shares_before
-        .checked_sub(user_if_shares_before)
-        .ok_or_else(math_error!())?;
+    let if_shares_before = total_if_shares_before.safe_sub(user_if_shares_before)?;
 
     validate!(
         if_shares_before >= n_shares,
@@ -482,11 +454,8 @@ pub fn admin_remove_insurance_fund_stake(
         insurance_vault_amount,
     )?;
 
-    spot_market.insurance_fund.total_shares = spot_market
-        .insurance_fund
-        .total_shares
-        .checked_sub(n_shares)
-        .ok_or_else(math_error!())?;
+    spot_market.insurance_fund.total_shares =
+        spot_market.insurance_fund.total_shares.safe_sub(n_shares)?;
 
     let if_shares_after = spot_market.insurance_fund.total_shares;
 
@@ -600,25 +569,21 @@ pub fn settle_revenue_to_insurance_fund(
 
     if depositors_claim < token_amount {
         // only allow half of withdraw available when utilization is high
-        token_amount = depositors_claim.checked_div(2).ok_or_else(math_error!())?;
+        token_amount = depositors_claim.safe_div(2)?;
     }
 
     if spot_market.insurance_fund.user_shares > 0 {
         let capped_apr_amount = cast_to_u128(
             insurance_vault_amount
-                .checked_mul(MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT)
-                .ok_or_else(math_error!())?
-                .checked_div(PERCENTAGE_PRECISION_U64)
-                .ok_or_else(math_error!())?
-                .checked_div(
+                .safe_mul(MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT)?
+                .safe_div(PERCENTAGE_PRECISION_U64)?
+                .safe_div(
                     cast_to_u64(ONE_YEAR)?
-                        .checked_div(cast_to_u64(
+                        .safe_div(cast_to_u64(
                             spot_market.insurance_fund.revenue_settle_period,
-                        )?)
-                        .ok_or_else(math_error!())?
+                        )?)?
                         .max(1),
-                )
-                .ok_or_else(math_error!())?,
+                )?,
         )?;
         token_amount = token_amount.min(capped_apr_amount);
     }
@@ -640,27 +605,21 @@ pub fn settle_revenue_to_insurance_fund(
     let protocol_if_factor = spot_market
         .insurance_fund
         .total_factor
-        .checked_sub(spot_market.insurance_fund.user_factor)
-        .ok_or_else(math_error!())?;
+        .safe_sub(spot_market.insurance_fund.user_factor)?;
 
     // give protocol its cut
     let n_shares = vault_amount_to_if_shares(
         insurance_fund_token_amount
-            .checked_mul(cast_to_u64(protocol_if_factor)?)
-            .ok_or_else(math_error!())?
-            .checked_div(cast_to_u64(spot_market.insurance_fund.total_factor)?)
-            .ok_or_else(math_error!())?,
+            .safe_mul(cast_to_u64(protocol_if_factor)?)?
+            .safe_div(cast_to_u64(spot_market.insurance_fund.total_factor)?)?,
         spot_market.insurance_fund.total_shares,
         insurance_vault_amount,
     )?;
 
     let total_if_shares_before = spot_market.insurance_fund.total_shares;
 
-    spot_market.insurance_fund.total_shares = spot_market
-        .insurance_fund
-        .total_shares
-        .checked_add(n_shares)
-        .ok_or_else(math_error!())?;
+    spot_market.insurance_fund.total_shares =
+        spot_market.insurance_fund.total_shares.safe_add(n_shares)?;
 
     update_revenue_pool_balances(
         cast_to_u128(insurance_fund_token_amount)?,
@@ -722,9 +681,7 @@ pub fn resolve_perp_pnl_deficit(
             market.amm.historical_oracle_data.last_oracle_price,
         )?;
 
-        net_unsettled_pnl
-            .checked_sub(cast_to_i128(market.unrealized_pnl_max_imbalance)?)
-            .ok_or_else(math_error!())?
+        net_unsettled_pnl.safe_sub(cast_to_i128(market.unrealized_pnl_max_imbalance)?)?
     } else {
         0
     };
@@ -740,8 +697,7 @@ pub fn resolve_perp_pnl_deficit(
         market
             .insurance_claim
             .max_revenue_withdraw_per_period
-            .checked_sub(market.insurance_claim.revenue_withdraw_since_last_settle)
-            .ok_or_else(math_error!())?,
+            .safe_sub(market.insurance_claim.revenue_withdraw_since_last_settle)?,
     )?;
     validate!(
         max_revenue_withdraw_per_period > 0,
@@ -754,8 +710,7 @@ pub fn resolve_perp_pnl_deficit(
         market
             .insurance_claim
             .quote_max_insurance
-            .checked_sub(market.insurance_claim.quote_settled_insurance)
-            .ok_or_else(math_error!())?,
+            .safe_sub(market.insurance_claim.quote_settled_insurance)?,
     )?;
 
     validate!(
@@ -782,20 +737,17 @@ pub fn resolve_perp_pnl_deficit(
     market.amm.total_fee_minus_distributions = market
         .amm
         .total_fee_minus_distributions
-        .checked_add(insurance_withdraw)
-        .ok_or_else(math_error!())?;
+        .safe_add(insurance_withdraw)?;
 
     market.insurance_claim.revenue_withdraw_since_last_settle = market
         .insurance_claim
         .revenue_withdraw_since_last_settle
-        .checked_add(insurance_withdraw.unsigned_abs())
-        .ok_or_else(math_error!())?;
+        .safe_add(insurance_withdraw.unsigned_abs())?;
 
     market.insurance_claim.quote_settled_insurance = market
         .insurance_claim
         .quote_settled_insurance
-        .checked_add(insurance_withdraw.unsigned_abs())
-        .ok_or_else(math_error!())?;
+        .safe_add(insurance_withdraw.unsigned_abs())?;
 
     validate!(
         market.insurance_claim.quote_settled_insurance

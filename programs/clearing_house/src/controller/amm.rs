@@ -20,9 +20,10 @@ use crate::math::constants::{
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::repeg::get_total_fee_lower_bound;
+use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_token_amount, validate_spot_balances};
 use crate::math::{amm, amm_spread, bn, cp_curve, quote_asset::*};
-use crate::math_error;
+
 use crate::state::events::CurveRecord;
 use crate::state::oracle::OraclePriceData;
 use crate::state::perp_market::{PerpMarket, AMM};
@@ -48,13 +49,9 @@ fn calculate_quote_asset_amount_surplus(
     round_down: bool,
 ) -> ClearingHouseResult<u128> {
     let quote_asset_reserve_change = match swap_direction {
-        SwapDirection::Add => quote_asset_reserve_before
-            .checked_sub(quote_asset_reserve_after)
-            .ok_or_else(math_error!())?,
+        SwapDirection::Add => quote_asset_reserve_before.safe_sub(quote_asset_reserve_after)?,
 
-        SwapDirection::Remove => quote_asset_reserve_after
-            .checked_sub(quote_asset_reserve_before)
-            .ok_or_else(math_error!())?,
+        SwapDirection::Remove => quote_asset_reserve_after.safe_sub(quote_asset_reserve_before)?,
     };
 
     let mut actual_quote_asset_amount =
@@ -62,19 +59,13 @@ fn calculate_quote_asset_amount_surplus(
 
     // Compensate for +1 quote asset amount added when removing base asset
     if round_down {
-        actual_quote_asset_amount = actual_quote_asset_amount
-            .checked_add(1)
-            .ok_or_else(math_error!())?;
+        actual_quote_asset_amount = actual_quote_asset_amount.safe_add(1)?;
     }
 
     let quote_asset_amount_surplus = if actual_quote_asset_amount > initial_quote_asset_amount {
-        actual_quote_asset_amount
-            .checked_sub(initial_quote_asset_amount)
-            .ok_or_else(math_error!())?
+        actual_quote_asset_amount.safe_sub(initial_quote_asset_amount)?
     } else {
-        initial_quote_asset_amount
-            .checked_sub(actual_quote_asset_amount)
-            .ok_or_else(math_error!())?
+        initial_quote_asset_amount.safe_sub(actual_quote_asset_amount)?
     };
 
     Ok(quote_asset_amount_surplus)
@@ -296,20 +287,15 @@ pub fn formulaic_update_k(
         if max(market.amm.long_spread, market.amm.short_spread)
             <= cast_to_u128(market.amm.base_spread)?
         {
-            funding_imbalance_cost_i64
-                .checked_div(2)
-                .ok_or_else(math_error!())?
-                .abs()
+            funding_imbalance_cost_i64.safe_div(2)?.abs()
         } else {
             0
         }
     } else if market.amm.net_revenue_since_last_funding < funding_imbalance_cost_i64 {
         // cost exceeded period revenue, take back half in k decrease
         max(0, market.amm.net_revenue_since_last_funding)
-            .checked_sub(funding_imbalance_cost_i64)
-            .ok_or_else(math_error!())?
-            .checked_div(2)
-            .ok_or_else(math_error!())?
+            .safe_sub(funding_imbalance_cost_i64)?
+            .safe_div(2)?
     } else {
         0
     };
@@ -322,10 +308,8 @@ pub fn formulaic_update_k(
             cp_curve::calculate_budgeted_k_scale(market, cast_to_i128(budget)?, k_update_max)?;
 
         let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
-            .checked_mul(bn::U192::from(k_scale_numerator))
-            .ok_or_else(math_error!())?
-            .checked_div(bn::U192::from(k_scale_denominator))
-            .ok_or_else(math_error!())?;
+            .safe_mul(bn::U192::from(k_scale_numerator))?
+            .safe_div(bn::U192::from(k_scale_denominator))?;
 
         let update_k_result = get_update_k_result(market, new_sqrt_k, true)?;
 
@@ -399,16 +383,13 @@ pub fn update_pool_balances(
     let amm_target_max_fee_pool_token_amount = market
         .amm
         .total_fee_minus_distributions
-        .checked_add(cast_to_i128(market.amm.total_liquidation_fee)?)
-        .ok_or_else(math_error!())?
-        .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
-        .ok_or_else(math_error!())?;
+        .safe_add(cast_to_i128(market.amm.total_liquidation_fee)?)?
+        .safe_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)?;
 
     if amm_target_max_fee_pool_token_amount <= amm_fee_pool_token_amount {
         // owe the market pnl pool before settling user
-        let pnl_pool_addition = max(0, amm_target_max_fee_pool_token_amount)
-            .checked_sub(amm_fee_pool_token_amount)
-            .ok_or_else(math_error!())?;
+        let pnl_pool_addition =
+            max(0, amm_target_max_fee_pool_token_amount).safe_sub(amm_fee_pool_token_amount)?;
 
         if pnl_pool_addition < 0 {
             transfer_spot_balances(
@@ -424,10 +405,8 @@ pub fn update_pool_balances(
 
     {
         let amm_target_min_fee_pool_token_amount = get_total_fee_lower_bound(market)?
-            .checked_add(market.amm.total_liquidation_fee)
-            .ok_or_else(math_error!())?
-            .checked_sub(market.amm.total_fee_withdrawn)
-            .ok_or_else(math_error!())?;
+            .safe_add(market.amm.total_liquidation_fee)?
+            .safe_sub(market.amm.total_fee_withdrawn)?;
 
         let amm_fee_pool_token_amount = get_token_amount(
             market.amm.fee_pool.balance(),
@@ -443,8 +422,7 @@ pub fn update_pool_balances(
             )?;
 
             let pnl_pool_removal = amm_target_min_fee_pool_token_amount
-                .checked_sub(amm_fee_pool_token_amount)
-                .ok_or_else(math_error!())?
+                .safe_sub(amm_fee_pool_token_amount)?
                 .min(pnl_pool_token_amount);
 
             if pnl_pool_removal > 0 {
@@ -481,8 +459,7 @@ pub fn update_pool_balances(
             let max_revenue_withdraw_allowed = market
                 .insurance_claim
                 .max_revenue_withdraw_per_period
-                .checked_sub(market.insurance_claim.revenue_withdraw_since_last_settle)
-                .ok_or_else(math_error!())?;
+                .safe_sub(market.insurance_claim.revenue_withdraw_since_last_settle)?;
 
             if max_revenue_withdraw_allowed > 0 {
                 let spot_market_revenue_pool_amount = get_token_amount(
@@ -507,23 +484,19 @@ pub fn update_pool_balances(
                 market.amm.total_fee_minus_distributions = market
                     .amm
                     .total_fee_minus_distributions
-                    .checked_add(cast_to_i128(revenue_pool_transfer)?)
-                    .ok_or_else(math_error!())?;
+                    .safe_add(cast_to_i128(revenue_pool_transfer)?)?;
 
                 market.insurance_claim.revenue_withdraw_since_last_settle = market
                     .insurance_claim
                     .revenue_withdraw_since_last_settle
-                    .checked_add(revenue_pool_transfer)
-                    .ok_or_else(math_error!())?;
+                    .safe_add(revenue_pool_transfer)?;
 
                 market.insurance_claim.last_revenue_withdraw_ts = now;
             }
         } else {
             let revenue_pool_transfer = cast_to_i128(get_total_fee_lower_bound(market)?)?
-                .checked_add(cast_to_i128(market.amm.total_liquidation_fee)?)
-                .ok_or_else(math_error!())?
-                .checked_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)
-                .ok_or_else(math_error!())?
+                .safe_add(cast_to_i128(market.amm.total_liquidation_fee)?)?
+                .safe_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)?
                 .max(0)
                 .min(cast_to_i128(amm_fee_pool_token_amount_after)?)
                 .unsigned_abs();
@@ -537,8 +510,7 @@ pub fn update_pool_balances(
             market.amm.total_fee_withdrawn = market
                 .amm
                 .total_fee_withdrawn
-                .checked_add(revenue_pool_transfer)
-                .ok_or_else(math_error!())?;
+                .safe_add(revenue_pool_transfer)?;
         }
     }
 
@@ -556,9 +528,7 @@ pub fn update_pool_balances(
     };
 
     let pnl_fraction_for_amm = if fraction_for_amm > 0 {
-        let pnl_fraction_for_amm = pnl_to_settle_with_user
-            .checked_div(fraction_for_amm)
-            .ok_or_else(math_error!())?;
+        let pnl_fraction_for_amm = pnl_to_settle_with_user.safe_div(fraction_for_amm)?;
         update_spot_balances(
             pnl_fraction_for_amm.unsigned_abs(),
             &SpotBalanceType::Deposit,
@@ -571,9 +541,7 @@ pub fn update_pool_balances(
         0
     };
 
-    let pnl_to_settle_with_market = -(pnl_to_settle_with_user
-        .checked_sub(pnl_fraction_for_amm)
-        .ok_or_else(math_error!())?);
+    let pnl_to_settle_with_market = -(pnl_to_settle_with_user.safe_sub(pnl_fraction_for_amm)?);
 
     update_spot_balances(
         pnl_to_settle_with_market.unsigned_abs(),
@@ -650,13 +618,10 @@ pub fn move_price(
 ) -> ClearingHouseResult {
     amm.base_asset_reserve = base_asset_reserve;
 
-    let k = bn::U256::from(sqrt_k)
-        .checked_mul(bn::U256::from(sqrt_k))
-        .ok_or_else(math_error!())?;
+    let k = bn::U256::from(sqrt_k).safe_mul(bn::U256::from(sqrt_k))?;
 
     amm.quote_asset_reserve = k
-        .checked_div(bn::U256::from(base_asset_reserve))
-        .ok_or_else(math_error!())?
+        .safe_div(bn::U256::from(base_asset_reserve))?
         .try_to_u128()?;
 
     validate!(
@@ -686,20 +651,15 @@ pub fn move_price(
 #[allow(dead_code)]
 pub fn move_to_price(amm: &mut AMM, target_price: u128) -> ClearingHouseResult {
     let sqrt_k = bn::U256::from(amm.sqrt_k);
-    let k = sqrt_k.checked_mul(sqrt_k).ok_or_else(math_error!())?;
+    let k = sqrt_k.safe_mul(sqrt_k)?;
 
     let new_base_asset_amount_squared = k
-        .checked_mul(bn::U256::from(amm.peg_multiplier))
-        .ok_or_else(math_error!())?
-        .checked_mul(bn::U256::from(PRICE_TO_PEG_PRECISION_RATIO))
-        .ok_or_else(math_error!())?
-        .checked_div(bn::U256::from(target_price))
-        .ok_or_else(math_error!())?;
+        .safe_mul(bn::U256::from(amm.peg_multiplier))?
+        .safe_mul(bn::U256::from(PRICE_TO_PEG_PRECISION_RATIO))?
+        .safe_div(bn::U256::from(target_price))?;
 
     let new_base_asset_amount = new_base_asset_amount_squared.integer_sqrt();
-    let new_quote_asset_amount = k
-        .checked_div(new_base_asset_amount)
-        .ok_or_else(math_error!())?;
+    let new_quote_asset_amount = k.safe_div(new_base_asset_amount)?;
 
     amm.base_asset_reserve = new_base_asset_amount.try_to_u128()?;
     amm.quote_asset_reserve = new_quote_asset_amount.try_to_u128()?;

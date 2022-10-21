@@ -2,7 +2,6 @@ use std::cmp::{max, min};
 
 use anchor_lang::prelude::*;
 use solana_program::clock::UnixTimestamp;
-use solana_program::msg;
 
 use crate::controller::amm::formulaic_update_k;
 use crate::controller::position::{
@@ -15,10 +14,11 @@ use crate::math::casting::{cast, cast_to_i128, Cast};
 use crate::math::constants::{FUNDING_RATE_BUFFER, ONE_HOUR, TWENTY_FOUR_HOUR};
 use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
 use crate::math::helpers::on_the_hour_update;
+use crate::math::safe_math::SafeMath;
 use crate::math::stats::calculate_new_twap;
 
 use crate::math::oracle;
-use crate::math_error;
+
 use crate::state::events::{FundingPaymentRecord, FundingRateRecord};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{PerpMarket, AMM};
@@ -187,27 +187,19 @@ pub fn update_funding_rate(
         )?;
 
         let period_adjustment = (24_i128)
-            .checked_mul(ONE_HOUR)
-            .ok_or_else(math_error!())?
-            .checked_div(max(ONE_HOUR, market.amm.funding_period as i128))
-            .ok_or_else(math_error!())?;
+            .safe_mul(ONE_HOUR)?
+            .safe_div(max(ONE_HOUR, market.amm.funding_period as i128))?;
         // funding period = 1 hour, window = 1 day
         // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval
-        let price_spread = cast_to_i128(mid_price_twap)?
-            .checked_sub(oracle_price_twap)
-            .ok_or_else(math_error!())?;
+        let price_spread = cast_to_i128(mid_price_twap)?.safe_sub(oracle_price_twap)?;
 
         // clamp price divergence to 3% for funding rate calculation
-        let max_price_spread = oracle_price_twap
-            .checked_div(33)
-            .ok_or_else(math_error!())?; // 3%
+        let max_price_spread = oracle_price_twap.safe_div(33)?; // 3%
         let clamped_price_spread = max(-max_price_spread, min(price_spread, max_price_spread));
 
         let funding_rate = clamped_price_spread
-            .checked_mul(cast(FUNDING_RATE_BUFFER)?)
-            .ok_or_else(math_error!())?
-            .checked_div(cast(period_adjustment)?)
-            .ok_or_else(math_error!())?;
+            .safe_mul(cast(FUNDING_RATE_BUFFER)?)?
+            .safe_div(cast(period_adjustment)?)?;
 
         let (funding_rate_long, funding_rate_short, funding_imbalance_cost) =
             calculate_funding_rate_long_short(market, funding_rate)?;
@@ -220,14 +212,12 @@ pub fn update_funding_rate(
         market.amm.cumulative_funding_rate_long = market
             .amm
             .cumulative_funding_rate_long
-            .checked_add(funding_rate_long)
-            .ok_or_else(math_error!())?;
+            .safe_add(funding_rate_long)?;
 
         market.amm.cumulative_funding_rate_short = market
             .amm
             .cumulative_funding_rate_short
-            .checked_add(funding_rate_short)
-            .ok_or_else(math_error!())?;
+            .safe_add(funding_rate_short)?;
 
         market.amm.last_funding_rate = funding_rate;
         market.amm.last_funding_rate_long = funding_rate_long;

@@ -47,6 +47,7 @@ use crate::math::matching::{
 };
 use crate::math::oracle;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
+use crate::math::safe_math::SafeMath;
 use crate::math::serum::{
     calculate_serum_limit_price, calculate_serum_max_coin_qty,
     calculate_serum_max_native_pc_quantity,
@@ -54,7 +55,7 @@ use crate::math::serum::{
 use crate::math::spot_balance::get_token_amount;
 use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
-use crate::math_error;
+
 use crate::print_error;
 use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
@@ -1251,12 +1252,8 @@ fn fulfill_perp_order(
             )?,
         };
 
-        base_asset_amount = base_asset_amount
-            .checked_add(fill_base_asset_amount)
-            .ok_or_else(math_error!())?;
-        quote_asset_amount = quote_asset_amount
-            .checked_add(fill_quote_asset_amount)
-            .ok_or_else(math_error!())?;
+        base_asset_amount = base_asset_amount.safe_add(fill_base_asset_amount)?;
+        quote_asset_amount = quote_asset_amount.safe_add(fill_quote_asset_amount)?;
         market.amm.update_volume_24h(
             fill_quote_asset_amount,
             user.orders[user_order_index].direction,
@@ -1512,31 +1509,20 @@ pub fn fulfill_perp_order_with_amm(
     }
 
     // Increment the clearing house's total fee variables
-    market.amm.total_fee = market
-        .amm
-        .total_fee
-        .checked_add(fee_to_market.cast()?)
-        .ok_or_else(math_error!())?;
-    market.amm.total_exchange_fee = market
-        .amm
-        .total_exchange_fee
-        .checked_add(user_fee.cast()?)
-        .ok_or_else(math_error!())?;
+    market.amm.total_fee = market.amm.total_fee.safe_add(fee_to_market.cast()?)?;
+    market.amm.total_exchange_fee = market.amm.total_exchange_fee.safe_add(user_fee.cast()?)?;
     market.amm.total_mm_fee = market
         .amm
         .total_mm_fee
-        .checked_add(quote_asset_amount_surplus.cast()?)
-        .ok_or_else(math_error!())?;
+        .safe_add(quote_asset_amount_surplus.cast()?)?;
     market.amm.total_fee_minus_distributions = market
         .amm
         .total_fee_minus_distributions
-        .checked_add(fee_to_market.cast()?)
-        .ok_or_else(math_error!())?;
+        .safe_add(fee_to_market.cast()?)?;
     market.amm.net_revenue_since_last_funding = market
         .amm
         .net_revenue_since_last_funding
-        .checked_add(fee_to_market)
-        .ok_or_else(math_error!())?;
+        .safe_add(fee_to_market)?;
 
     // Increment the user's total fee variables
     user_stats.increment_total_fees(user_fee)?;
@@ -1748,9 +1734,7 @@ pub fn fulfill_perp_order_with_match(
 
             total_quote_asset_amount = quote_asset_amount_filled_by_amm;
 
-            base_asset_amount
-                .checked_sub(base_asset_amount_filled_by_amm)
-                .ok_or_else(math_error!())?
+            base_asset_amount.safe_sub(base_asset_amount_filled_by_amm)?
         } else {
             base_asset_amount
         }
@@ -1786,9 +1770,7 @@ pub fn fulfill_perp_order_with_match(
         false,
     )?;
 
-    total_quote_asset_amount = total_quote_asset_amount
-        .checked_add(quote_asset_amount)
-        .ok_or_else(math_error!())?;
+    total_quote_asset_amount = total_quote_asset_amount.safe_add(quote_asset_amount)?;
 
     let maker_position_index = get_position_index(
         &maker.perp_positions,
@@ -1864,26 +1846,19 @@ pub fn fulfill_perp_order_with_match(
     )?;
 
     // Increment the markets house's total fee variables
-    market.amm.total_fee = market
-        .amm
-        .total_fee
-        .checked_add(fee_to_market.cast()?)
-        .ok_or_else(math_error!())?;
+    market.amm.total_fee = market.amm.total_fee.safe_add(fee_to_market.cast()?)?;
     market.amm.total_exchange_fee = market
         .amm
         .total_exchange_fee
-        .checked_add(fee_to_market.cast()?)
-        .ok_or_else(math_error!())?;
+        .safe_add(fee_to_market.cast()?)?;
     market.amm.total_fee_minus_distributions = market
         .amm
         .total_fee_minus_distributions
-        .checked_add(fee_to_market.cast()?)
-        .ok_or_else(math_error!())?;
+        .safe_add(fee_to_market.cast()?)?;
     market.amm.net_revenue_since_last_funding = market
         .amm
         .net_revenue_since_last_funding
-        .checked_add(fee_to_market)
-        .ok_or_else(math_error!())?;
+        .safe_add(fee_to_market)?;
 
     controller::position::update_quote_asset_amount(
         &mut taker.perp_positions[taker_position_index],
@@ -1995,15 +1970,11 @@ pub fn update_order_after_fill(
     base_asset_amount: u64,
     quote_asset_amount: u64,
 ) -> ClearingHouseResult {
-    order.base_asset_amount_filled = order
-        .base_asset_amount_filled
-        .checked_add(base_asset_amount)
-        .ok_or_else(math_error!())?;
+    order.base_asset_amount_filled = order.base_asset_amount_filled.safe_add(base_asset_amount)?;
 
     order.quote_asset_amount_filled = order
         .quote_asset_amount_filled
-        .checked_add(quote_asset_amount)
-        .ok_or_else(math_error!())?;
+        .safe_add(quote_asset_amount)?;
 
     if order.get_base_asset_amount_unfilled()? == 0 {
         order.status = OrderStatus::Filled;
@@ -3000,9 +2971,7 @@ fn fulfill_spot_order(
             )?,
         };
 
-        base_asset_amount = base_asset_amount
-            .checked_add(_base_asset_amount)
-            .ok_or_else(math_error!())?;
+        base_asset_amount = base_asset_amount.safe_add(_base_asset_amount)?;
     }
 
     drop(base_market);
@@ -3177,12 +3146,8 @@ pub fn fulfill_spot_order_with_match(
     )?;
 
     let taker_quote_asset_amount_delta = match &taker.orders[taker_order_index].direction {
-        PositionDirection::Long => quote_asset_amount
-            .checked_add(taker_fee)
-            .ok_or_else(math_error!())?,
-        PositionDirection::Short => quote_asset_amount
-            .checked_sub(taker_fee)
-            .ok_or_else(math_error!())?,
+        PositionDirection::Long => quote_asset_amount.safe_add(taker_fee)?,
+        PositionDirection::Short => quote_asset_amount.safe_sub(taker_fee)?,
     };
 
     update_spot_balances_and_cumulative_deposits(
@@ -3224,12 +3189,8 @@ pub fn fulfill_spot_order_with_match(
     )?;
 
     let maker_quote_asset_amount_delta = match &maker.orders[maker_order_index].direction {
-        PositionDirection::Long => quote_asset_amount
-            .checked_sub(maker_rebate)
-            .ok_or_else(math_error!())?,
-        PositionDirection::Short => quote_asset_amount
-            .checked_add(maker_rebate)
-            .ok_or_else(math_error!())?,
+        PositionDirection::Long => quote_asset_amount.safe_sub(maker_rebate)?,
+        PositionDirection::Short => quote_asset_amount.safe_add(maker_rebate)?,
     };
 
     update_spot_balances_and_cumulative_deposits(
@@ -3278,10 +3239,7 @@ pub fn fulfill_spot_order_with_match(
     }
 
     // Update base market
-    base_market.total_spot_fee = base_market
-        .total_spot_fee
-        .checked_add(cast(fee_to_market)?)
-        .ok_or_else(math_error!())?;
+    base_market.total_spot_fee = base_market.total_spot_fee.safe_add(cast(fee_to_market)?)?;
 
     update_spot_balances(
         cast(fee_to_market)?,
@@ -3395,11 +3353,7 @@ pub fn fulfill_spot_order_with_serum(
         mid_price = if mid_price == 0 {
             best_ask
         } else {
-            mid_price
-                .checked_add(best_ask)
-                .ok_or_else(math_error!())?
-                .checked_div(2)
-                .ok_or_else(math_error!())?
+            mid_price.safe_add(best_ask)?.safe_div(2)?
         };
     }
 
@@ -3425,7 +3379,7 @@ pub fn fulfill_spot_order_with_serum(
         match order_direction {
             PositionDirection::Long => {
                 if let Some(ask) = best_ask {
-                    ask.checked_add(ask / 100).ok_or_else(math_error!())?
+                    ask.safe_add(ask / 100)?
                 } else {
                     msg!("Serum has no ask");
                     return Ok(0);
@@ -3433,7 +3387,7 @@ pub fn fulfill_spot_order_with_serum(
             }
             PositionDirection::Short => {
                 if let Some(bid) = best_bid {
-                    bid.checked_sub(bid / 100).ok_or_else(math_error!())?
+                    bid.safe_sub(bid / 100)?
                 } else {
                     msg!("Serum has no bid");
                     return Ok(0);
@@ -3566,9 +3520,8 @@ pub fn fulfill_spot_order_with_serum(
 
     drop(open_orders_after);
 
-    let settled_referred_rebate = unsettled_referrer_rebate_before
-        .checked_sub(unsettled_referrer_rebate_after)
-        .ok_or_else(math_error!())?;
+    let settled_referred_rebate =
+        unsettled_referrer_rebate_before.safe_sub(unsettled_referrer_rebate_after)?;
 
     update_spot_balances(
         settled_referred_rebate as u128,
@@ -3579,19 +3532,9 @@ pub fn fulfill_spot_order_with_serum(
     )?;
 
     let (base_update_direction, base_asset_amount_filled) = if base_after > base_before {
-        (
-            SpotBalanceType::Deposit,
-            base_after
-                .checked_sub(base_before)
-                .ok_or_else(math_error!())?,
-        )
+        (SpotBalanceType::Deposit, base_after.safe_sub(base_before)?)
     } else {
-        (
-            SpotBalanceType::Borrow,
-            base_before
-                .checked_sub(base_after)
-                .ok_or_else(math_error!())?,
-        )
+        (SpotBalanceType::Borrow, base_before.safe_sub(base_after)?)
     };
 
     if base_asset_amount_filled == 0 {
@@ -3599,43 +3542,32 @@ pub fn fulfill_spot_order_with_serum(
         return Ok(0);
     }
 
-    let serum_fee = market_fees_accrued_after
-        .checked_sub(market_fees_accrued_before)
-        .ok_or_else(math_error!())?;
+    let serum_fee = market_fees_accrued_after.safe_sub(market_fees_accrued_before)?;
 
-    let serum_referrer_rebate = market_rebates_accrued_after
-        .checked_sub(market_rebates_accrued_before)
-        .ok_or_else(math_error!())?;
+    let serum_referrer_rebate =
+        market_rebates_accrued_after.safe_sub(market_rebates_accrued_before)?;
 
     let (quote_update_direction, quote_asset_amount_filled) = if quote_after > quote_before {
         let quote_asset_amount_delta = quote_after
-            .checked_sub(quote_before)
-            .ok_or_else(math_error!())?
-            .checked_sub(settled_referred_rebate)
-            .ok_or_else(math_error!())?;
+            .safe_sub(quote_before)?
+            .safe_sub(settled_referred_rebate)?;
 
         (
             SpotBalanceType::Deposit,
             quote_asset_amount_delta
-                .checked_add(serum_fee)
-                .ok_or_else(math_error!())?
-                .checked_add(serum_referrer_rebate)
-                .ok_or_else(math_error!())?,
+                .safe_add(serum_fee)?
+                .safe_add(serum_referrer_rebate)?,
         )
     } else {
         let quote_asset_amount_delta = quote_before
-            .checked_sub(quote_after)
-            .ok_or_else(math_error!())?
-            .checked_add(settled_referred_rebate)
-            .ok_or_else(math_error!())?;
+            .safe_sub(quote_after)?
+            .safe_add(settled_referred_rebate)?;
 
         (
             SpotBalanceType::Borrow,
             quote_asset_amount_delta
-                .checked_sub(serum_fee)
-                .ok_or_else(math_error!())?
-                .checked_sub(serum_referrer_rebate)
-                .ok_or_else(math_error!())?,
+                .safe_sub(serum_fee)?
+                .safe_sub(serum_referrer_rebate)?,
         )
     };
 
@@ -3680,12 +3612,8 @@ pub fn fulfill_spot_order_with_serum(
     )?;
 
     let quote_spot_position_delta = match quote_update_direction {
-        SpotBalanceType::Deposit => quote_asset_amount_filled
-            .checked_sub(taker_fee)
-            .ok_or_else(math_error!())?,
-        SpotBalanceType::Borrow => quote_asset_amount_filled
-            .checked_add(taker_fee)
-            .ok_or_else(math_error!())?,
+        SpotBalanceType::Deposit => quote_asset_amount_filled.safe_sub(taker_fee)?,
+        SpotBalanceType::Borrow => quote_asset_amount_filled.safe_add(taker_fee)?,
     };
 
     validate!(
@@ -3769,10 +3697,7 @@ pub fn fulfill_spot_order_with_serum(
         )?;
     }
 
-    base_market.total_spot_fee = base_market
-        .total_spot_fee
-        .checked_add(fee_to_market.cast()?)
-        .ok_or_else(math_error!())?;
+    base_market.total_spot_fee = base_market.total_spot_fee.safe_add(fee_to_market.cast()?)?;
 
     let fill_record_id = get_then_update_id!(base_market, next_fill_record_id);
     let order_action_record = get_order_action_record(

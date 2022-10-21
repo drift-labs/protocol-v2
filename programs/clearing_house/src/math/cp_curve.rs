@@ -10,7 +10,8 @@ use crate::math::constants::{
     MAX_K_BPS_DECREASE, PEG_PRECISION, PERCENTAGE_PRECISION_I128, QUOTE_PRECISION,
 };
 use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
-use crate::math_error;
+use crate::math::safe_math::SafeMath;
+
 use crate::state::perp_market::PerpMarket;
 use crate::validate;
 
@@ -65,62 +66,44 @@ pub fn _calculate_budgeted_k_scale(
     let c_sign: i128 = if c > 0 { 1 } else { -1 };
     let d_sign: i128 = if d > 0 { 1 } else { -1 };
 
-    let rounding_bias: i128 = c_sign.checked_mul(d_sign).ok_or_else(math_error!())?;
+    let rounding_bias: i128 = c_sign.safe_mul(d_sign)?;
 
-    let x_d = cast_to_i128(x)?.checked_add(d).ok_or_else(math_error!())?;
+    let x_d = cast_to_i128(x)?.safe_add(d)?;
 
     let amm_reserve_precision_u192 = U192::from(AMM_RESERVE_PRECISION);
     let x_times_x_d_u192 = U192::from(x)
-        .checked_mul(U192::from(x_d))
-        .ok_or_else(math_error!())?
-        .checked_div(amm_reserve_precision_u192)
-        .ok_or_else(math_error!())?;
+        .safe_mul(U192::from(x_d))?
+        .safe_div(amm_reserve_precision_u192)?;
 
     let quote_precision_u192 = U192::from(QUOTE_PRECISION);
     let x_times_x_d_c = x_times_x_d_u192
-        .checked_mul(U192::from(c.unsigned_abs()))
-        .ok_or_else(math_error!())?
-        .checked_div(quote_precision_u192)
-        .ok_or_else(math_error!())?
+        .safe_mul(U192::from(c.unsigned_abs()))?
+        .safe_div(quote_precision_u192)?
         .try_to_u128()?;
 
     let c_times_x_d_d = U192::from(c.unsigned_abs())
-        .checked_mul(U192::from(x_d.unsigned_abs()))
-        .ok_or_else(math_error!())?
-        .checked_div(quote_precision_u192)
-        .ok_or_else(math_error!())?
-        .checked_mul(U192::from(d.unsigned_abs()))
-        .ok_or_else(math_error!())?
-        .checked_div(amm_reserve_precision_u192)
-        .ok_or_else(math_error!())?
+        .safe_mul(U192::from(x_d.unsigned_abs()))?
+        .safe_div(quote_precision_u192)?
+        .safe_mul(U192::from(d.unsigned_abs()))?
+        .safe_div(amm_reserve_precision_u192)?
         .try_to_u128()?;
 
     let pegged_quote_times_dd = cast_to_i128(
         U192::from(y)
-            .checked_mul(U192::from(d.unsigned_abs()))
-            .ok_or_else(math_error!())?
-            .checked_div(amm_reserve_precision_u192)
-            .ok_or_else(math_error!())?
-            .checked_mul(U192::from(d.unsigned_abs()))
-            .ok_or_else(math_error!())?
-            .checked_div(amm_reserve_precision_u192)
-            .ok_or_else(math_error!())?
-            .checked_mul(U192::from(q))
-            .ok_or_else(math_error!())?
-            .checked_div(U192::from(PEG_PRECISION))
-            .ok_or_else(math_error!())?
+            .safe_mul(U192::from(d.unsigned_abs()))?
+            .safe_div(amm_reserve_precision_u192)?
+            .safe_mul(U192::from(d.unsigned_abs()))?
+            .safe_div(amm_reserve_precision_u192)?
+            .safe_mul(U192::from(q))?
+            .safe_div(U192::from(PEG_PRECISION))?
             .try_to_u128()?,
     )?;
 
     let numer1 = pegged_quote_times_dd;
 
-    let numer2 = cast_to_i128(c_times_x_d_d)?
-        .checked_mul(rounding_bias)
-        .ok_or_else(math_error!())?;
+    let numer2 = cast_to_i128(c_times_x_d_d)?.safe_mul(rounding_bias)?;
 
-    let denom1 = cast_to_i128(x_times_x_d_c)?
-        .checked_mul(c_sign)
-        .ok_or_else(math_error!())?;
+    let denom1 = cast_to_i128(x_times_x_d_c)?.safe_mul(c_sign)?;
 
     let denom2 = pegged_quote_times_dd;
 
@@ -137,14 +120,10 @@ pub fn _calculate_budgeted_k_scale(
         }
     }
 
-    let mut numerator = (numer1.checked_sub(numer2).ok_or_else(math_error!())?)
-        .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
-        .ok_or_else(math_error!())?;
+    let mut numerator = (numer1.safe_sub(numer2)?).safe_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)?;
     let mut denominator = denom1
-        .checked_add(denom2)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)
-        .ok_or_else(math_error!())?;
+        .safe_add(denom2)?
+        .safe_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)?;
 
     if numerator < 0 && denominator < 0 {
         numerator = numerator.abs();
@@ -154,16 +133,12 @@ pub fn _calculate_budgeted_k_scale(
 
     let (numerator, denominator) = if numerator > denominator {
         let current_pct_change = numerator
-            .checked_mul(PERCENTAGE_PRECISION_I128)
-            .ok_or_else(math_error!())?
-            .checked_div(denominator)
-            .ok_or_else(math_error!())?;
+            .safe_mul(PERCENTAGE_PRECISION_I128)?
+            .safe_div(denominator)?;
 
         let maximum_pct_change = k_pct_upper_bound
-            .checked_mul(PERCENTAGE_PRECISION_I128)
-            .ok_or_else(math_error!())?
-            .checked_div(K_BPS_UPDATE_SCALE)
-            .ok_or_else(math_error!())?;
+            .safe_mul(PERCENTAGE_PRECISION_I128)?
+            .safe_div(K_BPS_UPDATE_SCALE)?;
 
         if current_pct_change > maximum_pct_change {
             (k_pct_upper_bound, K_BPS_UPDATE_SCALE)
@@ -172,16 +147,12 @@ pub fn _calculate_budgeted_k_scale(
         }
     } else {
         let current_pct_change = numerator
-            .checked_mul(PERCENTAGE_PRECISION_I128)
-            .ok_or_else(math_error!())?
-            .checked_div(denominator)
-            .ok_or_else(math_error!())?;
+            .safe_mul(PERCENTAGE_PRECISION_I128)?
+            .safe_div(denominator)?;
 
         let maximum_pct_change = k_pct_lower_bound
-            .checked_mul(PERCENTAGE_PRECISION_I128)
-            .ok_or_else(math_error!())?
-            .checked_div(K_BPS_UPDATE_SCALE)
-            .ok_or_else(math_error!())?;
+            .safe_mul(PERCENTAGE_PRECISION_I128)?
+            .safe_div(K_BPS_UPDATE_SCALE)?;
 
         if current_pct_change < maximum_pct_change {
             (k_pct_lower_bound, K_BPS_UPDATE_SCALE)
@@ -260,10 +231,8 @@ pub fn get_update_k_result(
 
     let old_sqrt_k = bn::U192::from(market.amm.sqrt_k);
     let mut sqrt_k_ratio = new_sqrt_k
-        .checked_mul(sqrt_k_ratio_precision)
-        .ok_or_else(math_error!())?
-        .checked_div(old_sqrt_k)
-        .ok_or_else(math_error!())?;
+        .safe_mul(sqrt_k_ratio_precision)?
+        .safe_div(old_sqrt_k)?;
 
     // if decreasing k, max decrease ratio for single transaction is 2.5%
     if bound_update && sqrt_k_ratio < U192::from(975_000_000_u128) {
@@ -278,8 +247,7 @@ pub fn get_update_k_result(
 
     if bound_update
         && new_sqrt_k < old_sqrt_k
-        && market.amm.base_asset_amount_with_amm.unsigned_abs()
-            > sqrt_k.checked_div(3).ok_or_else(math_error!())?
+        && market.amm.base_asset_amount_with_amm.unsigned_abs() > sqrt_k.safe_div(3)?
     {
         // todo, check less lp_tokens as well
         msg!("new_sqrt_k too small relative to market imbalance");
@@ -292,20 +260,15 @@ pub fn get_update_k_result(
     }
 
     let base_asset_reserve = bn::U192::from(market.amm.base_asset_reserve)
-        .checked_mul(sqrt_k_ratio)
-        .ok_or_else(math_error!())?
-        .checked_div(sqrt_k_ratio_precision)
-        .ok_or_else(math_error!())?
+        .safe_mul(sqrt_k_ratio)?
+        .safe_div(sqrt_k_ratio_precision)?
         .try_to_u128()?;
 
     let invariant_sqrt_u192 = U192::from(sqrt_k);
-    let invariant = invariant_sqrt_u192
-        .checked_mul(invariant_sqrt_u192)
-        .ok_or_else(math_error!())?;
+    let invariant = invariant_sqrt_u192.safe_mul(invariant_sqrt_u192)?;
 
     let quote_asset_reserve = invariant
-        .checked_div(U192::from(base_asset_reserve))
-        .ok_or_else(math_error!())?
+        .safe_div(U192::from(base_asset_reserve))?
         .try_to_u128()?;
 
     Ok(UpdateKResult {

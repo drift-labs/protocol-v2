@@ -3277,6 +3277,32 @@
       ]
     },
     {
+      "name": "updatePerpMarketMaxOpenInterest",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxOpenInterest",
+          "type": "u128"
+        }
+      ]
+    },
+    {
       "name": "updateAdmin",
       "accounts": [
         {
@@ -4090,6 +4116,10 @@
             "type": "i64"
           },
           {
+            "name": "cumulativeSpotFees",
+            "type": "i64"
+          },
+          {
             "name": "nextOrderId",
             "type": "u32"
           },
@@ -4685,6 +4715,10 @@
             "type": "i128"
           },
           {
+            "name": "maxOpenInterest",
+            "type": "u128"
+          },
+          {
             "name": "quoteAssetAmountLong",
             "type": "i128"
           },
@@ -5264,10 +5298,6 @@
       "type": {
         "kind": "struct",
         "fields": [
-          {
-            "name": "ts",
-            "type": "i64"
-          },
           {
             "name": "slot",
             "type": "u64"
@@ -7581,6 +7611,16 @@
       "code": 6134,
       "name": "ReduceOnlyWithdrawIncreasedRisk",
       "msg": "Reduce Only Withdraw Increased Risk"
+    },
+    {
+      "code": 6135,
+      "name": "MaxOpenInterest",
+      "msg": "Max Open Interest"
+    },
+    {
+      "code": 6136,
+      "name": "CantResolvePerpBankruptcy",
+      "msg": "Cant Resolve Perp Bankruptcy"
     }
   ]
 }

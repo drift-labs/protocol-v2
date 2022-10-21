@@ -3,15 +3,16 @@ use crate::error::ClearingHouseResult;
 use crate::math::casting::{cast_to_u128, Cast};
 use crate::math::constants::AMM_RESERVE_PRECISION;
 use crate::math::orders::standardize_base_asset_amount;
-use crate::math_error;
+use crate::math::safe_math::SafeMath;
+
 use crate::state::perp_market::PerpMarket;
-use solana_program::msg;
 
 #[cfg(test)]
 mod tests;
 
 // assumption: market.amm.amm_jit_is_active() == true
 // assumption: taker_baa will improve market balance (see orders.rs & amm_wants_to_make)
+#[allow(clippy::if_same_then_else)]
 pub fn calculate_jit_base_asset_amount(
     market: &PerpMarket,
     maker_base_asset_amount: u64,
@@ -20,9 +21,7 @@ pub fn calculate_jit_base_asset_amount(
     taker_direction: PositionDirection,
 ) -> ClearingHouseResult<u64> {
     // only take up to 50% of what the maker is making
-    let mut max_jit_amount = maker_base_asset_amount
-        .checked_div(2)
-        .ok_or_else(math_error!())?;
+    let mut max_jit_amount = maker_base_asset_amount.safe_div(2)?;
 
     // check for wash trade
     if let Some(oracle_price) = valid_oracle_price {
@@ -32,13 +31,9 @@ pub fn calculate_jit_base_asset_amount(
         // so we want to take less than 50%
         let wash_reduction_const = 1000;
         if taker_direction == PositionDirection::Long && auction_price < oracle_price {
-            max_jit_amount = max_jit_amount
-                .checked_div(wash_reduction_const)
-                .ok_or_else(math_error!())?
+            max_jit_amount = max_jit_amount.safe_div(wash_reduction_const)?
         } else if taker_direction == PositionDirection::Short && auction_price > oracle_price {
-            max_jit_amount = max_jit_amount
-                .checked_div(wash_reduction_const)
-                .ok_or_else(math_error!())?
+            max_jit_amount = max_jit_amount.safe_div(wash_reduction_const)?
         }
     } else {
         max_jit_amount = 0;
@@ -63,18 +58,10 @@ pub fn calculate_jit_base_asset_amount(
     let numerator = max_bids.max(max_asks);
     let denominator = max_bids.min(max_asks);
     let ratio = numerator
-        .checked_mul(AMM_RESERVE_PRECISION)
-        .ok_or_else(math_error!())?
-        .checked_div(denominator)
-        .ok_or_else(math_error!())?;
+        .safe_mul(AMM_RESERVE_PRECISION)?
+        .safe_div(denominator)?;
 
-    let imbalanced_bound = 15_u128
-        .checked_mul(
-            AMM_RESERVE_PRECISION
-                .checked_div(10)
-                .ok_or_else(math_error!())?,
-        )
-        .ok_or_else(math_error!())?;
+    let imbalanced_bound = 15_u128.safe_mul(AMM_RESERVE_PRECISION.safe_div(10)?)?;
 
     let amm_is_imbalanced = ratio >= imbalanced_bound;
 
@@ -82,9 +69,7 @@ pub fn calculate_jit_base_asset_amount(
     let mut jit_base_asset_amount = if amm_is_imbalanced {
         maker_base_asset_amount
     } else {
-        maker_base_asset_amount
-            .checked_div(4)
-            .ok_or_else(math_error!())?
+        maker_base_asset_amount.safe_div(4)?
     };
 
     if jit_base_asset_amount == 0 {
@@ -112,10 +97,8 @@ pub fn calculate_clamped_jit_base_asset_amount(
     // todo more efficient method do here
     let jit_base_asset_amount = jit_base_asset_amount
         .cast::<u128>()?
-        .checked_mul(market.amm.amm_jit_intensity as u128)
-        .ok_or_else(math_error!())?
-        .checked_div(100)
-        .ok_or_else(math_error!())?
+        .safe_mul(market.amm.amm_jit_intensity as u128)?
+        .safe_div(100)?
         .cast::<u64>()?;
 
     // bound it; dont flip the net_baa

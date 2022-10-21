@@ -1,12 +1,11 @@
-use solana_program::msg;
-
 use crate::error::ClearingHouseResult;
 use crate::math::amm::calculate_market_open_bids_asks;
 use crate::math::casting::{cast, cast_to_i128, Cast};
 use crate::math::constants::AMM_RESERVE_PRECISION_I128;
 use crate::math::helpers;
 use crate::math::orders::standardize_base_asset_amount_with_remainder_i128;
-use crate::math_error;
+use crate::math::safe_math::SafeMath;
+
 use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market::AMM;
 use crate::state::user::PerpPosition;
@@ -53,27 +52,21 @@ pub fn calculate_settled_lp_base_quote(
     // give them slice of the damm market position
     let amm_net_base_asset_amount_per_lp = amm
         .base_asset_amount_per_lp
-        .checked_sub(position.last_net_base_asset_amount_per_lp.cast()?)
-        .ok_or_else(math_error!())?;
+        .safe_sub(position.last_net_base_asset_amount_per_lp.cast()?)?;
 
     let base_asset_amount = amm_net_base_asset_amount_per_lp
         .cast::<i128>()?
-        .checked_mul(n_shares_i128)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_RESERVE_PRECISION_I128)
-        .ok_or_else(math_error!())?;
+        .safe_mul(n_shares_i128)?
+        .safe_div(AMM_RESERVE_PRECISION_I128)?;
 
     let amm_net_quote_asset_amount_per_lp = amm
         .quote_asset_amount_per_lp
-        .checked_sub(position.last_net_quote_asset_amount_per_lp.cast()?)
-        .ok_or_else(math_error!())?;
+        .safe_sub(position.last_net_quote_asset_amount_per_lp.cast()?)?;
 
     let quote_asset_amount = amm_net_quote_asset_amount_per_lp
         .cast::<i128>()?
-        .checked_mul(n_shares_i128)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_RESERVE_PRECISION_I128)
-        .ok_or_else(math_error!())?;
+        .safe_mul(n_shares_i128)?
+        .safe_div(AMM_RESERVE_PRECISION_I128)?;
 
     Ok((base_asset_amount, quote_asset_amount))
 }

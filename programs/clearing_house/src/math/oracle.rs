@@ -7,7 +7,8 @@ use crate::error::ClearingHouseResult;
 use crate::math::amm;
 use crate::math::casting::cast_to_u128;
 use crate::math::constants::BID_ASK_SPREAD_PRECISION;
-use crate::math_error;
+use crate::math::safe_math::SafeMath;
+
 use crate::state::oracle::OraclePriceData;
 use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
 use crate::state::state::{OracleGuardRails, ValidityGuardRails};
@@ -178,8 +179,7 @@ pub fn oracle_validity(
     }
 
     let is_oracle_price_too_volatile = (oracle_price.max(last_oracle_twap))
-        .checked_div(last_oracle_twap.min(oracle_price).max(1))
-        .ok_or_else(math_error!())?
+        .safe_div(last_oracle_twap.min(oracle_price).max(1))?
         .gt(&valid_oracle_guard_rails.too_volatile_ratio);
 
     if is_oracle_price_too_volatile {
@@ -191,10 +191,8 @@ pub fn oracle_validity(
     }
 
     let conf_pct_of_price = max(1, oracle_conf)
-        .checked_mul(BID_ASK_SPREAD_PRECISION)
-        .ok_or_else(math_error!())?
-        .checked_div(cast_to_u128(oracle_price)?)
-        .ok_or_else(math_error!())?;
+        .safe_mul(BID_ASK_SPREAD_PRECISION)?
+        .safe_div(cast_to_u128(oracle_price)?)?;
 
     // TooUncertain
     let is_conf_too_large =

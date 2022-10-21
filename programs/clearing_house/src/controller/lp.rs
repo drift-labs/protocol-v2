@@ -11,7 +11,8 @@ use crate::math::casting::Cast;
 use crate::math::cp_curve::{get_update_k_result, update_k};
 use crate::math::lp::calculate_settle_lp_metrics;
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
-use crate::math_error;
+use crate::math::safe_math::SafeMath;
+
 use crate::state::events::{LPAction, LPRecord};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::PerpMarket;
@@ -42,25 +43,16 @@ pub fn mint_lp_shares(
     }
 
     // add share balance
-    position.lp_shares = position
-        .lp_shares
-        .checked_add(n_shares)
-        .ok_or_else(math_error!())?;
+    position.lp_shares = position.lp_shares.safe_add(n_shares)?;
 
     // update market state
-    let new_sqrt_k = sqrt_k
-        .checked_add(n_shares.cast()?)
-        .ok_or_else(math_error!())?;
+    let new_sqrt_k = sqrt_k.safe_add(n_shares.cast()?)?;
     let new_sqrt_k_u192 = U192::from(new_sqrt_k);
 
     let update_k_result = get_update_k_result(market, new_sqrt_k_u192, true)?;
     update_k(market, &update_k_result)?;
 
-    market.amm.user_lp_shares = market
-        .amm
-        .user_lp_shares
-        .checked_add(n_shares.cast()?)
-        .ok_or_else(math_error!())?;
+    market.amm.user_lp_shares = market.amm.user_lp_shares.safe_add(n_shares.cast()?)?;
 
     crate::controller::validate::validate_market_account(market)?;
     crate::controller::validate::validate_position_account(position, market)?;
@@ -76,8 +68,7 @@ pub fn settle_lp_position(
 
     position.remainder_base_asset_amount = position
         .remainder_base_asset_amount
-        .checked_add(lp_metrics.remainder_base_asset_amount)
-        .ok_or_else(math_error!())?;
+        .safe_add(lp_metrics.remainder_base_asset_amount)?;
 
     if position.remainder_base_asset_amount.unsigned_abs() >= market.amm.order_step_size.cast()? {
         let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
@@ -88,8 +79,7 @@ pub fn settle_lp_position(
 
         lp_metrics.base_asset_amount = lp_metrics
             .base_asset_amount
-            .checked_add(standardized_remainder_base_asset_amount)
-            .ok_or_else(math_error!())?;
+            .safe_add(standardized_remainder_base_asset_amount)?;
 
         position.remainder_base_asset_amount = remainder_base_asset_amount.cast()?;
     }
@@ -106,8 +96,7 @@ pub fn settle_lp_position(
     market.amm.base_asset_amount_with_unsettled_lp = market
         .amm
         .base_asset_amount_with_unsettled_lp
-        .checked_add(lp_metrics.base_asset_amount)
-        .ok_or_else(math_error!())?;
+        .safe_add(lp_metrics.base_asset_amount)?;
 
     position.last_net_base_asset_amount_per_lp = market.amm.base_asset_amount_per_lp.cast()?;
     position.last_net_quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp.cast()?;
@@ -170,8 +159,7 @@ pub fn burn_lp_shares(
     let unsettled_remainder = market
         .amm
         .base_asset_amount_with_unsettled_lp
-        .checked_add(position.remainder_base_asset_amount.cast()?)
-        .ok_or_else(math_error!())?;
+        .safe_add(position.remainder_base_asset_amount.cast()?)?;
 
     if shares_to_burn as u128 == market.amm.user_lp_shares && unsettled_remainder != 0 {
         crate::validate!(
@@ -185,8 +173,7 @@ pub fn burn_lp_shares(
         // sub bc lps take the opposite side of the user
         position.remainder_base_asset_amount = position
             .remainder_base_asset_amount
-            .checked_sub(unsettled_remainder.cast()?)
-            .ok_or_else(math_error!())?;
+            .safe_sub(unsettled_remainder.cast()?)?;
     }
 
     // update stats
@@ -197,21 +184,18 @@ pub fn burn_lp_shares(
         market.amm.base_asset_amount_with_amm = market
             .amm
             .base_asset_amount_with_amm
-            .checked_sub(base_asset_amount)
-            .ok_or_else(math_error!())?;
+            .safe_sub(base_asset_amount)?;
 
         market.amm.base_asset_amount_with_unsettled_lp = market
             .amm
             .base_asset_amount_with_unsettled_lp
-            .checked_add(base_asset_amount)
-            .ok_or_else(math_error!())?;
+            .safe_add(base_asset_amount)?;
 
         position.remainder_base_asset_amount = 0;
 
-        let dust_base_asset_value =
-            calculate_base_asset_value_with_oracle_price(base_asset_amount, oracle_price)?
-                .checked_add(1) // round up
-                .ok_or_else(math_error!())?;
+        let dust_base_asset_value = calculate_base_asset_value_with_oracle_price(base_asset_amount, oracle_price)?
+                .safe_add(1) // round up
+                ?;
 
         update_quote_asset_amount(position, market, -dust_base_asset_value.cast()?)?;
     }
@@ -221,23 +205,12 @@ pub fn burn_lp_shares(
     position.last_net_quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp.cast()?;
 
     // burn shares
-    position.lp_shares = position
-        .lp_shares
-        .checked_sub(shares_to_burn)
-        .ok_or_else(math_error!())?;
+    position.lp_shares = position.lp_shares.safe_sub(shares_to_burn)?;
 
-    market.amm.user_lp_shares = market
-        .amm
-        .user_lp_shares
-        .checked_sub(shares_to_burn.cast()?)
-        .ok_or_else(math_error!())?;
+    market.amm.user_lp_shares = market.amm.user_lp_shares.safe_sub(shares_to_burn.cast()?)?;
 
     // update market state
-    let new_sqrt_k = market
-        .amm
-        .sqrt_k
-        .checked_sub(shares_to_burn.cast()?)
-        .ok_or_else(math_error!())?;
+    let new_sqrt_k = market.amm.sqrt_k.safe_sub(shares_to_burn.cast()?)?;
     let new_sqrt_k_u192 = U192::from(new_sqrt_k);
 
     let update_k_result = get_update_k_result(market, new_sqrt_k_u192, false)?;
@@ -275,9 +248,7 @@ pub fn remove_perp_lp_shares(
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
-    let time_since_last_add_liquidity = now
-        .checked_sub(user.last_add_perp_lp_shares_ts)
-        .ok_or_else(math_error!())?;
+    let time_since_last_add_liquidity = now.safe_sub(user.last_add_perp_lp_shares_ts)?;
 
     validate!(
         time_since_last_add_liquidity >= state.lp_cooldown_time.cast()?,

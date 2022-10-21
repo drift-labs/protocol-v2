@@ -3,7 +3,8 @@ use solana_program::msg;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::{cast_to_u128, cast_to_u32, cast_to_u64};
 use crate::math::helpers::{get_proportion_u128, log10_iter};
-use crate::math_error;
+use crate::math::safe_math::SafeMath;
+
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::spot_market::SpotMarket;
 use crate::validate;
@@ -70,10 +71,8 @@ pub fn calculate_rebase_info(
     insurance_fund_vault_balance: u64,
 ) -> ClearingHouseResult<(u32, u128)> {
     let rebase_divisor_full = total_if_shares
-        .checked_div(10)
-        .ok_or_else(math_error!())?
-        .checked_div(cast_to_u128(insurance_fund_vault_balance)?)
-        .ok_or_else(math_error!())?;
+        .safe_div(10)?
+        .safe_div(cast_to_u128(insurance_fund_vault_balance)?)?;
 
     let expo_diff = cast_to_u32(log10_iter(rebase_divisor_full))?;
     let rebase_divisor = 10_u128.pow(expo_diff);
@@ -109,9 +108,7 @@ pub fn calculate_if_shares_lost(
             n_shares
         )?;
 
-        n_shares
-            .checked_sub(new_n_shares)
-            .ok_or_else(math_error!())?
+        n_shares.safe_sub(new_n_shares)?
     } else {
         0
     };

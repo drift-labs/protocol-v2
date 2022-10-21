@@ -1,8 +1,6 @@
 use anchor_lang::{prelude::*, AnchorDeserialize, AnchorSerialize};
 use anchor_spl::token::{Token, TokenAccount};
 
-use crate::checked_decrement;
-use crate::checked_increment;
 use crate::controller::orders::cancel_orders;
 use crate::controller::position::PositionDirection;
 use crate::error::ErrorCode;
@@ -19,9 +17,12 @@ use crate::math::margin::{
     calculate_max_withdrawable_amount, meets_initial_margin_requirement,
     meets_withdraw_margin_requirement,
 };
+use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::math_error;
 use crate::print_error;
+use crate::safe_decrement;
+use crate::safe_increment;
 use crate::state::events::{
     DepositDirection, DepositRecord, LPAction, LPRecord, NewUserRecord, OrderActionExplanation,
 };
@@ -56,10 +57,7 @@ pub fn handle_initialize_user(
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
     let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
-    user_stats.number_of_sub_accounts = user_stats
-        .number_of_sub_accounts
-        .checked_add(1)
-        .ok_or_else(math_error!())?;
+    user_stats.number_of_sub_accounts = user_stats.number_of_sub_accounts.safe_add(1)?;
 
     // Only try to add referrer if it is the first user
     if user_stats.number_of_sub_accounts == 1 {
@@ -125,7 +123,7 @@ pub fn handle_initialize_user_stats(ctx: Context<InitializeUserStats>) -> Result
     };
 
     let state = &mut ctx.accounts.state;
-    checked_increment!(state.number_of_authorities, 1);
+    safe_increment!(state.number_of_authorities, 1);
 
     Ok(())
 }
@@ -1357,7 +1355,7 @@ pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
 
     validate_user_deletion(user, user_stats)?;
 
-    checked_decrement!(user_stats.number_of_sub_accounts, 1);
+    safe_decrement!(user_stats.number_of_sub_accounts, 1);
 
     Ok(())
 }
@@ -1626,10 +1624,7 @@ pub fn initialize_user(
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
     let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
-    user_stats.number_of_sub_accounts = user_stats
-        .number_of_sub_accounts
-        .checked_add(1)
-        .ok_or_else(math_error!())?;
+    user_stats.number_of_sub_accounts = user_stats.number_of_sub_accounts.safe_add(1)?;
 
     // Only try to add referrer if it is the first user
     if user_stats.number_of_sub_accounts == 1 {

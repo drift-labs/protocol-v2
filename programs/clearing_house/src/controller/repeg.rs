@@ -18,8 +18,9 @@ use crate::math::cp_curve::get_update_k_result;
 use crate::math::oracle;
 use crate::math::oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction};
 use crate::math::repeg;
+use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
-use crate::math_error;
+
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
@@ -244,11 +245,8 @@ pub fn apply_cost_to_market(
     // positive cost is expense, negative cost is revenue
     // Reduce pnl to quote asset precision and take the absolute value
     if cost > 0 {
-        let new_total_fee_minus_distributions = market
-            .amm
-            .total_fee_minus_distributions
-            .checked_sub(cost)
-            .ok_or_else(math_error!())?;
+        let new_total_fee_minus_distributions =
+            market.amm.total_fee_minus_distributions.safe_sub(cost)?;
 
         // Only a portion of the protocol fees are allocated to repegging
         // This checks that the total_fee_minus_distributions does not decrease too much after repeg
@@ -267,15 +265,13 @@ pub fn apply_cost_to_market(
         market.amm.total_fee_minus_distributions = market
             .amm
             .total_fee_minus_distributions
-            .checked_add(cost.abs())
-            .ok_or_else(math_error!())?;
+            .safe_add(cost.abs())?;
     }
 
     market.amm.net_revenue_since_last_funding = market
         .amm
         .net_revenue_since_last_funding
-        .checked_sub(cost as i64)
-        .ok_or_else(math_error!())?;
+        .safe_sub(cost as i64)?;
 
     Ok(true)
 }
@@ -314,16 +310,13 @@ pub fn settle_expired_market(
     let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
     let fee_reserved_for_protocol = cast_to_i128(
         repeg::get_total_fee_lower_bound(market)?
-            .checked_add(market.amm.total_liquidation_fee)
-            .ok_or_else(math_error!())?
-            .checked_sub(market.amm.total_fee_withdrawn)
-            .ok_or_else(math_error!())?,
+            .safe_add(market.amm.total_liquidation_fee)?
+            .safe_sub(market.amm.total_fee_withdrawn)?,
     )?;
     let budget = market
         .amm
         .total_fee_minus_distributions
-        .checked_sub(fee_reserved_for_protocol)
-        .ok_or_else(math_error!())?
+        .safe_sub(fee_reserved_for_protocol)?
         .max(0);
 
     let available_fee_pool = cast_to_i128(get_token_amount(
@@ -331,8 +324,7 @@ pub fn settle_expired_market(
         spot_market,
         &SpotBalanceType::Deposit,
     )?)?
-    .checked_sub(fee_reserved_for_protocol)
-    .ok_or_else(math_error!())?
+    .safe_sub(fee_reserved_for_protocol)?
     .max(0);
 
     let fee_pool_transfer = budget.min(available_fee_pool);
@@ -361,10 +353,8 @@ pub fn settle_expired_market(
         )?;
 
         let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
-            .checked_mul(bn::U192::from(k_scale_numerator))
-            .ok_or_else(math_error!())?
-            .checked_div(bn::U192::from(k_scale_denominator))
-            .ok_or_else(math_error!())?;
+            .safe_mul(bn::U192::from(k_scale_numerator))?
+            .safe_div(bn::U192::from(k_scale_denominator))?;
 
         let update_k_result = get_update_k_result(market, new_sqrt_k, true)?;
 
