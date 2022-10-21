@@ -201,7 +201,7 @@ export class ClearingHouseUser {
 		const [lpOpenBids, lpOpenAsks] = this.getLPBidAsks(marketIndex);
 
 		const totalOpenBids = lpOpenBids.add(position.openBids);
-		const totalOpenAsks = lpOpenAsks.sub(position.openAsks);
+		const totalOpenAsks = lpOpenAsks.add(position.openAsks);
 
 		return [totalOpenBids, totalOpenAsks];
 	}

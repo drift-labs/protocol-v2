@@ -23,6 +23,7 @@ import {
 	isVariant,
 	LPRecord,
 	BASE_PRECISION,
+	getLimitOrderParams,
 	OracleGuardRails,
 } from '../sdk/src';
 
@@ -304,6 +305,36 @@ describe('liquidity providing', () => {
 		console.log('LP open bids/asks:', bids.toString(), asks.toString());
 		assert(bids.eq(new BN(29288643749)));
 		assert(asks.eq(new BN(-41419999989)));
+
+		await clearingHouse.placePerpOrder(
+			getLimitOrderParams({
+				baseAssetAmount: BASE_PRECISION,
+				marketIndex: 0,
+				direction: PositionDirection.LONG, // ++ bids
+				price: PRICE_PRECISION,
+			})
+		);
+		await clearingHouse.placePerpOrder(
+			getLimitOrderParams({
+				baseAssetAmount: BASE_PRECISION,
+				marketIndex: 0,
+				direction: PositionDirection.SHORT, // ++ asks
+				price: PRICE_PRECISION.mul(new BN(100)),
+			})
+		);
+
+		await clearingHouse.fetchAccounts();
+		const [bids2, asks2] = clearingHouseUser.getPerpBidAsks(0);
+		assert(bids2.eq(bids.add(BASE_PRECISION)));
+		assert(asks2.eq(asks.sub(BASE_PRECISION)));
+
+		await clearingHouse.cancelOrders();
+
+		await clearingHouse.fetchAccounts();
+		const position3 = clearingHouseUser.getUserPosition(0);
+		assert(position3.openOrders == 0);
+		assert(position3.openAsks.eq(ZERO));
+		assert(position3.openBids.eq(ZERO));
 
 		const newInitMarginReq = clearingHouseUser.getInitialMarginRequirement();
 		console.log(initMarginReq.toString(), '->', newInitMarginReq.toString());
