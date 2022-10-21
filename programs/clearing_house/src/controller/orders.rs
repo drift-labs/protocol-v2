@@ -840,6 +840,17 @@ pub fn fill_perp_order(
             potentially_risk_increasing,
             Some(oracle_reserve_price_spread_pct_before),
         )?;
+
+        let open_interest = market.get_open_interest();
+        let max_open_interest = market.amm.max_open_interest;
+
+        validate!(
+            max_open_interest == 0 || max_open_interest > open_interest,
+            ErrorCode::MaxOpenInterest,
+            "open interest ({}) > max open interest ({})",
+            open_interest,
+            max_open_interest
+        )?;
     }
 
     // Try to update the funding rate at the end of every trade
