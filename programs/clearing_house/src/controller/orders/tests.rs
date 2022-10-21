@@ -5036,7 +5036,7 @@ pub mod fulfill_spot_order {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
             scaled_balance: 900000000,
-            cumulative_deposits: -100100000,
+            cumulative_deposits: -100000000,
             ..SpotPosition::default()
         };
         expected_taker.spot_positions[1] = SpotPosition {
@@ -5053,7 +5053,7 @@ pub mod fulfill_spot_order {
             market_index: 0,
             balance_type: SpotBalanceType::Deposit,
             scaled_balance: 100020000000,
-            cumulative_deposits: 100020000,
+            cumulative_deposits: 100000000,
             ..SpotPosition::default()
         };
         expected_maker.spot_positions[2] = SpotPosition {
