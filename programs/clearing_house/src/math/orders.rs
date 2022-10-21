@@ -1,5 +1,4 @@
 use std::cmp::min;
-use std::ops::Div;
 
 use solana_program::msg;
 
@@ -125,7 +124,7 @@ pub fn calculate_quote_asset_amount_for_maker_order(
     match position_direction {
         PositionDirection::Long => fill_price
             .safe_mul(base_asset_amount.cast()?)?
-            .div(precision_decrease)
+            .safe_div(precision_decrease)?
             .cast::<u64>(),
         PositionDirection::Short => fill_price
             .safe_mul(base_asset_amount.cast()?)?
