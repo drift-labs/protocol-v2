@@ -59,10 +59,8 @@ pub fn calculate_size_premium_liability_weight(
     // increases
     let size_premium_liability_weight = liability_weight_numerator.safe_add(
         size_sqrt // 1e5
-                .safe_mul(imf_factor)
-                ?
-                .safe_div(100_000 * SPOT_IMF_PRECISION / precision) // 1e5 * 1e2
-                ?,
+            .safe_mul(imf_factor)?
+            .safe_div(100_000 * SPOT_IMF_PRECISION / precision)?, // 1e5 * 1e2
     )?;
 
     let max_liability_weight = max(liability_weight, size_premium_liability_weight);
@@ -82,13 +80,7 @@ pub fn calculate_size_discount_asset_weight(
     let imf_numerator = SPOT_IMF_PRECISION + SPOT_IMF_PRECISION / 10;
 
     let size_discount_asset_weight = imf_numerator.safe_mul(SPOT_WEIGHT_PRECISION)?.safe_div(
-        SPOT_IMF_PRECISION.safe_add(
-            size_sqrt // 1e5
-                        .safe_mul(imf_factor)
-                        ?
-                        .safe_div(100_000) // 1e5
-                        ?,
-        )?,
+        SPOT_IMF_PRECISION.safe_add(size_sqrt.safe_mul(imf_factor)?.safe_div(100_000)?)?,
     )?;
 
     let min_asset_weight = min(asset_weight, size_discount_asset_weight);
