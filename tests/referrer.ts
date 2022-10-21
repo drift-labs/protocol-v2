@@ -189,7 +189,7 @@ describe('referrer', () => {
 	});
 
 	it('fill order', async () => {
-		const txSig = await refereeClearingHouse.placeAndTake(
+		const txSig = await refereeClearingHouse.placeAndTakePerpOrder(
 			getMarketOrderParams({
 				baseAssetAmount: BASE_PRECISION,
 				direction: PositionDirection.LONG,
@@ -216,7 +216,7 @@ describe('referrer', () => {
 		const refereeStats = refereeClearingHouse.getUserStats().getAccount();
 		assert(refereeStats.fees.totalRefereeDiscount.eq(new BN(5000)));
 
-		await refereeClearingHouse.placeAndTake(
+		await refereeClearingHouse.placeAndTakePerpOrder(
 			getMarketOrderParams({
 				baseAssetAmount: BASE_PRECISION,
 				direction: PositionDirection.SHORT,

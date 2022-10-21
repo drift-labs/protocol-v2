@@ -173,7 +173,7 @@ describe('oracle offset', () => {
 			userOrderId: 1,
 			oraclePriceOffset: priceOffset.toNumber(),
 		});
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 
 		await fillerClearingHouse.moveAmmPrice(
 			marketIndex,
@@ -184,7 +184,7 @@ describe('oracle offset', () => {
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getOrderByUserOrderId(1);
 
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
 			order
@@ -249,7 +249,7 @@ describe('oracle offset', () => {
 			oraclePriceOffset: priceOffset.toNumber(),
 		});
 
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 
 		await fillerClearingHouse.moveAmmPrice(
 			marketIndex,
@@ -260,7 +260,7 @@ describe('oracle offset', () => {
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getOrderByUserOrderId(1);
 
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
@@ -325,7 +325,7 @@ describe('oracle offset', () => {
 			userOrderId: 1,
 			oraclePriceOffset: priceOffset.toNumber(),
 		});
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 
 		await fillerClearingHouse.moveAmmPrice(
 			marketIndex,
@@ -336,7 +336,7 @@ describe('oracle offset', () => {
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getOrderByUserOrderId(1);
 
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
@@ -400,7 +400,7 @@ describe('oracle offset', () => {
 			postOnly: true,
 			oraclePriceOffset: priceOffset.toNumber(),
 		});
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 
 		await fillerClearingHouse.moveAmmPrice(
 			marketIndex,
@@ -411,7 +411,7 @@ describe('oracle offset', () => {
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getOrderByUserOrderId(1);
 
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
@@ -476,7 +476,7 @@ describe('oracle offset', () => {
 			postOnly: true,
 			oraclePriceOffset: priceOffset.toNumber(),
 		});
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 
 		await clearingHouseUser.fetchAccounts();
 		const orderId = clearingHouseUser.getUserAccount().orders[0].orderId;
@@ -535,7 +535,7 @@ describe('oracle offset', () => {
 			userOrderId: 1,
 			oraclePriceOffset: priceOffset.toNumber(),
 		});
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 
 		await clearingHouseUser.fetchAccounts();
 		await clearingHouse.cancelOrderByUserId(1);

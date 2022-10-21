@@ -80,8 +80,8 @@ pub mod clearing_house {
         handle_transfer_deposit(ctx, market_index, amount)
     }
 
-    pub fn place_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
-        handle_place_order(ctx, params)
+    pub fn place_perp_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
+        handle_place_perp_order(ctx, params)
     }
 
     pub fn cancel_order(ctx: Context<CancelOrder>, order_id: Option<u32>) -> Result<()> {
@@ -101,20 +101,20 @@ pub mod clearing_house {
         handle_cancel_orders(ctx, market_type, market_index, direction)
     }
 
-    pub fn place_and_take(
+    pub fn place_and_take_perp_order(
         ctx: Context<PlaceAndTake>,
         params: OrderParams,
         maker_order_id: Option<u32>,
     ) -> Result<()> {
-        handle_place_and_take(ctx, params, maker_order_id)
+        handle_place_and_take_perp_order(ctx, params, maker_order_id)
     }
 
-    pub fn place_and_make(
+    pub fn place_and_make_perp_order(
         ctx: Context<PlaceAndMake>,
         params: OrderParams,
         taker_order_id: u32,
     ) -> Result<()> {
-        handle_place_and_make(ctx, params, taker_order_id)
+        handle_place_and_make_perp_order(ctx, params, taker_order_id)
     }
 
     pub fn place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
@@ -192,12 +192,12 @@ pub mod clearing_house {
 
     // Keeper Instructions
 
-    pub fn fill_order(
+    pub fn fill_perp_order(
         ctx: Context<FillOrder>,
         order_id: Option<u32>,
         maker_order_id: Option<u32>,
     ) -> Result<()> {
-        handle_fill_order(ctx, order_id, maker_order_id)
+        handle_fill_perp_order(ctx, order_id, maker_order_id)
     }
 
     pub fn fill_spot_order(

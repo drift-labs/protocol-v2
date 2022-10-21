@@ -104,7 +104,7 @@ describe('clearing_house', () => {
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
 		});
-		await clearingHouse.placeAndTake(orderParams);
+		await clearingHouse.placeAndTakePerpOrder(orderParams);
 		const txSig = await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
@@ -168,7 +168,7 @@ describe('clearing_house', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		const txSig = await clearingHouse.placeAndTake(orderParams);
+		const txSig = await clearingHouse.placeAndTakePerpOrder(orderParams);
 		await printTxLogs(connection, txSig);
 
 		await clearingHouse.settlePNL(
@@ -227,7 +227,7 @@ describe('clearing_house', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		await clearingHouse.placeAndTake(orderParams);
+		await clearingHouse.placeAndTakePerpOrder(orderParams);
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),
@@ -283,7 +283,7 @@ describe('clearing_house', () => {
 			baseAssetAmount,
 			reduceOnly: true,
 		});
-		await clearingHouse.placeAndTake(orderParams);
+		await clearingHouse.placeAndTakePerpOrder(orderParams);
 		await clearingHouse.settlePNL(
 			await clearingHouse.getUserAccountPublicKey(),
 			clearingHouse.getUserAccount(),

@@ -126,7 +126,7 @@ describe('round in favor', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		await clearingHouse.placeAndTake(orderParams);
+		await clearingHouse.placeAndTakePerpOrder(orderParams);
 
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9999000)));
 
@@ -185,7 +185,7 @@ describe('round in favor', () => {
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
 		});
-		await clearingHouse.placeAndTake(orderParams);
+		await clearingHouse.placeAndTakePerpOrder(orderParams);
 
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9999000)));
 

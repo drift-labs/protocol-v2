@@ -30,7 +30,7 @@ fn get_oracle_map<'a>() -> OracleMap<'a> {
 }
 
 pub mod fulfill_order_with_maker_order {
-    use crate::controller::orders::fulfill_order_with_match;
+    use crate::controller::orders::fulfill_perp_order_with_match;
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{
         BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64, PRICE_PRECISION_U64,
@@ -99,7 +99,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        fulfill_order_with_match(
+        fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -215,7 +215,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        fulfill_order_with_match(
+        fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -331,7 +331,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        fulfill_order_with_match(
+        fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -447,7 +447,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        fulfill_order_with_match(
+        fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -563,7 +563,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let (base_asset_amount, _) = fulfill_order_with_match(
+        let (base_asset_amount, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -646,7 +646,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let (base_asset_amount, _) = fulfill_order_with_match(
+        let (base_asset_amount, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -730,7 +730,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let (base_asset_amount, _) = fulfill_order_with_match(
+        let (base_asset_amount, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -814,7 +814,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let (base_asset_amount, _) = fulfill_order_with_match(
+        let (base_asset_amount, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -898,7 +898,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        fulfill_order_with_match(
+        fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -1001,7 +1001,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        fulfill_order_with_match(
+        fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -1107,7 +1107,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        fulfill_order_with_match(
+        fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -1220,7 +1220,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        fulfill_order_with_match(
+        fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -1334,7 +1334,7 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        fulfill_order_with_match(
+        fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
             &mut taker_stats,
@@ -1398,7 +1398,7 @@ pub mod fulfill_order_with_maker_order {
 pub mod fulfill_order {
     use std::str::FromStr;
 
-    use crate::controller::orders::{fulfill_order, validate_market_within_price_band};
+    use crate::controller::orders::{fulfill_perp_order, validate_market_within_price_band};
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
@@ -1657,7 +1657,7 @@ pub mod fulfill_order {
         let mut maker_stats = UserStats::default();
         let mut filler_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_order(
+        let (base_asset_amount, _, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -1868,7 +1868,7 @@ pub mod fulfill_order {
         let mut maker_stats = UserStats::default();
         let mut filler_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_order(
+        let (base_asset_amount, _, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -2057,7 +2057,7 @@ pub mod fulfill_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_order(
+        let (base_asset_amount, _, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -2217,7 +2217,7 @@ pub mod fulfill_order {
 
         let mut taker_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_order(
+        let (base_asset_amount, _, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -2386,7 +2386,7 @@ pub mod fulfill_order {
 
         let mut taker_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_order(
+        let (base_asset_amount, _, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -2607,7 +2607,7 @@ pub mod fulfill_order {
 
         let taker_before = taker;
         let maker_before = maker;
-        let (base_asset_amount, _, _) = fulfill_order(
+        let (base_asset_amount, _, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -2714,7 +2714,7 @@ pub mod fill_order {
 
     use anchor_lang::prelude::{AccountLoader, Clock};
 
-    use crate::controller::orders::fill_order;
+    use crate::controller::orders::fill_perp_order;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
@@ -2879,7 +2879,7 @@ pub mod fill_order {
             ..State::default()
         };
 
-        let (base_asset_amount, updated_user_state) = fill_order(
+        let (base_asset_amount, updated_user_state) = fill_perp_order(
             1,
             &state,
             &user_account_loader,
@@ -3014,7 +3014,7 @@ pub mod fill_order {
             unix_timestamp: 0,
         };
 
-        let (base_asset_amount, _) = fill_order(
+        let (base_asset_amount, _) = fill_perp_order(
             1,
             &state,
             &user_account_loader,

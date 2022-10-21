@@ -275,6 +275,8 @@ pub enum ErrorCode {
     UserCantBeDeleted,
     #[msg("Reduce Only Withdraw Increased Risk")]
     ReduceOnlyWithdrawIncreasedRisk,
+    #[msg("Cant Resolve Perp Bankruptcy")]
+    CantResolvePerpBankruptcy,
 }
 
 #[macro_export]
