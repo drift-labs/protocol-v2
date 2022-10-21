@@ -101,7 +101,7 @@ describe('cancel all orders', () => {
 
 	it('cancel all orders', async () => {
 		for (let i = 0; i < 32; i++) {
-			await clearingHouse.placeOrder(
+			await clearingHouse.placePerpOrder(
 				getLimitOrderParams({
 					baseAssetAmount: BASE_PRECISION,
 					marketIndex: 0,

@@ -1,6 +1,6 @@
 mod update_spot_position_balance {
     use crate::controller::spot_position::{
-        transfer_spot_position_deposit, update_spot_position_balance,
+        transfer_spot_position_deposit, update_spot_balances_and_cumulative_deposits,
     };
     use crate::math::constants::{
         LAMPORTS_PER_SOL_I64, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
@@ -14,12 +14,13 @@ mod update_spot_position_balance {
         let mut spot_market = SpotMarket::default_quote_market();
 
         let token_amount = 100_u128;
-        update_spot_position_balance(
+        update_spot_balances_and_cumulative_deposits(
             token_amount,
             &SpotBalanceType::Deposit,
             &mut spot_market,
             user.get_quote_spot_position_mut(),
             false,
+            None,
         )
         .unwrap();
 
@@ -35,12 +36,13 @@ mod update_spot_position_balance {
         };
 
         let token_amount = 100_u128;
-        update_spot_position_balance(
+        update_spot_balances_and_cumulative_deposits(
             token_amount,
             &SpotBalanceType::Borrow,
             &mut spot_market,
             user.get_quote_spot_position_mut(),
             false,
+            None,
         )
         .unwrap();
 

@@ -29,7 +29,7 @@ fn get_user_keys() -> (Pubkey, Pubkey, Pubkey) {
 pub mod amm_jit {
     use std::str::FromStr;
 
-    use crate::controller::orders::fulfill_order;
+    use crate::controller::orders::fulfill_perp_order;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
@@ -203,7 +203,7 @@ pub mod amm_jit {
         let mut maker_stats = UserStats::default();
         let mut filler_stats = UserStats::default();
 
-        fulfill_order(
+        fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -379,7 +379,7 @@ pub mod amm_jit {
         assert_eq!(market.amm.total_mm_fee, 0);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
 
-        fulfill_order(
+        fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -562,7 +562,7 @@ pub mod amm_jit {
         assert_eq!(market.amm.total_mm_fee, 0);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
 
-        fulfill_order(
+        fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -753,7 +753,7 @@ pub mod amm_jit {
         let mut maker_stats = UserStats::default();
         let mut filler_stats = UserStats::default();
 
-        let (base_asset_amount, _, _) = fulfill_order(
+        let (base_asset_amount, _, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -951,7 +951,7 @@ pub mod amm_jit {
         assert_eq!(market.amm.total_mm_fee, 0);
         assert_eq!(market.amm.total_fee_withdrawn, 0);
 
-        let (base_asset_amount, _, _) = fulfill_order(
+        let (base_asset_amount, _, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -1151,7 +1151,7 @@ pub mod amm_jit {
         let reserve_price_before = market.amm.reserve_price().unwrap();
         assert_eq!(reserve_price_before, 100 * PRICE_PRECISION);
 
-        fulfill_order(
+        fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -1330,7 +1330,7 @@ pub mod amm_jit {
         assert_eq!(market.amm.total_fee_withdrawn, 0);
 
         // fulfill with match
-        let (base_asset_amount, _, _) = fulfill_order(
+        let (base_asset_amount, _, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -1537,7 +1537,7 @@ pub mod amm_jit {
         assert_eq!(market.amm.total_fee_withdrawn, 0);
 
         // fulfill with match
-        let (base_asset_amount, _, _) = fulfill_order(
+        let (base_asset_amount, _, _) = fulfill_perp_order(
             &mut taker,
             0,
             &taker_key,
@@ -1770,7 +1770,7 @@ pub mod amm_jit {
             };
 
             // fulfill with match
-            fulfill_order(
+            fulfill_perp_order(
                 &mut taker,
                 0,
                 &taker_key,
@@ -2040,7 +2040,7 @@ pub mod amm_jit {
             };
 
             // fulfill with match
-            fulfill_order(
+            fulfill_perp_order(
                 &mut taker,
                 0,
                 &taker_key,

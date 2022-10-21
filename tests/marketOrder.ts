@@ -203,7 +203,7 @@ describe('market order', () => {
 			baseAssetAmount,
 			price,
 		});
-		await clearingHouse.placeAndTake(orderParams);
+		await clearingHouse.placeAndTakePerpOrder(orderParams);
 		const orderIndex = new BN(0);
 
 		await clearingHouse.fetchAccounts();
@@ -260,7 +260,7 @@ describe('market order', () => {
 			direction,
 			baseAssetAmount,
 		});
-		await clearingHouse.placeAndTake(orderParams);
+		await clearingHouse.placeAndTakePerpOrder(orderParams);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();

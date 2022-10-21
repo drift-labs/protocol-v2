@@ -181,7 +181,7 @@ describe('user order id', () => {
 			reduceOnly,
 			userOrderId,
 		});
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
@@ -207,7 +207,7 @@ describe('user order id', () => {
 		});
 
 		try {
-			await clearingHouse.placeOrder(orderParams);
+			await clearingHouse.placePerpOrder(orderParams);
 		} catch (_) {
 			//
 			return;

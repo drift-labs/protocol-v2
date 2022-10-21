@@ -196,12 +196,13 @@ pub fn handle_deposit(
     let total_withdraws_after = user.total_withdraws;
 
     let spot_position = &mut user.spot_positions[position_index];
-    controller::spot_position::update_spot_position_balance(
+    controller::spot_position::update_spot_balances_and_cumulative_deposits(
         amount as u128,
         &SpotBalanceType::Deposit,
         spot_market,
         spot_position,
         false,
+        None,
     )?;
 
     if spot_position.balance_type == SpotBalanceType::Deposit && spot_position.scaled_balance > 0 {
@@ -340,7 +341,7 @@ pub fn handle_withdraw(
 
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         // prevents withdraw when limits hit
-        controller::spot_balance::update_spot_position_balance_with_limits(
+        controller::spot_balance::update_spot_balances_and_cumulative_deposits_with_limits(
             amount as u128,
             &SpotBalanceType::Borrow,
             spot_market,
@@ -458,12 +459,13 @@ pub fn handle_transfer_deposit(
 
         let from_spot_position = from_user.force_get_spot_position_mut(spot_market.market_index)?;
 
-        controller::spot_position::update_spot_position_balance(
+        controller::spot_position::update_spot_balances_and_cumulative_deposits(
             amount as u128,
             &SpotBalanceType::Borrow,
             spot_market,
             from_spot_position,
             true,
+            None,
         )?;
     }
 
@@ -527,12 +529,13 @@ pub fn handle_transfer_deposit(
 
         let to_spot_position = to_user.force_get_spot_position_mut(spot_market.market_index)?;
 
-        controller::spot_position::update_spot_position_balance(
+        controller::spot_position::update_spot_balances_and_cumulative_deposits(
             amount as u128,
             &SpotBalanceType::Deposit,
             spot_market,
             to_spot_position,
             false,
+            None,
         )?;
 
         let deposit_record = DepositRecord {
@@ -581,7 +584,7 @@ pub struct OrderParams {
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_place_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
+pub fn handle_place_perp_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Result<()> {
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
@@ -602,7 +605,7 @@ pub fn handle_place_order(ctx: Context<PlaceOrder>, params: OrderParams) -> Resu
         return Err(print_error!(ErrorCode::InvalidOrder)().into());
     }
 
-    controller::orders::place_order(
+    controller::orders::place_perp_order(
         &ctx.accounts.state,
         &ctx.accounts.user,
         &perp_market_map,
@@ -730,7 +733,7 @@ pub fn handle_cancel_orders(
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_place_and_take<'info>(
+pub fn handle_place_and_take_perp_order<'info>(
     ctx: Context<PlaceAndTake>,
     params: OrderParams,
     maker_order_id: Option<u32>,
@@ -776,7 +779,7 @@ pub fn handle_place_and_take<'info>(
         &Clock::get()?,
     )?;
 
-    controller::orders::place_order(
+    controller::orders::place_perp_order(
         &ctx.accounts.state,
         &ctx.accounts.user,
         &perp_market_map,
@@ -789,7 +792,7 @@ pub fn handle_place_and_take<'info>(
     let user = &mut ctx.accounts.user;
     let order_id = load!(user)?.get_last_order_id();
 
-    controller::orders::fill_order(
+    controller::orders::fill_perp_order(
         order_id,
         &ctx.accounts.state,
         user,
@@ -829,7 +832,7 @@ pub fn handle_place_and_take<'info>(
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_place_and_make<'info>(
+pub fn handle_place_and_make_perp_order<'info>(
     ctx: Context<PlaceAndMake>,
     params: OrderParams,
     taker_order_id: u32,
@@ -865,7 +868,7 @@ pub fn handle_place_and_make<'info>(
         clock,
     )?;
 
-    controller::orders::place_order(
+    controller::orders::place_perp_order(
         state,
         &ctx.accounts.user,
         &perp_market_map,
@@ -877,7 +880,7 @@ pub fn handle_place_and_make<'info>(
 
     let order_id = load!(ctx.accounts.user)?.get_last_order_id();
 
-    controller::orders::fill_order(
+    controller::orders::fill_perp_order(
         taker_order_id,
         state,
         &ctx.accounts.taker,

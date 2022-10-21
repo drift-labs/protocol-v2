@@ -277,6 +277,8 @@ pub enum ErrorCode {
     ReduceOnlyWithdrawIncreasedRisk,
     #[msg("Max Open Interest")]
     MaxOpenInterest,
+    #[msg("Cant Resolve Perp Bankruptcy")]
+    CantResolvePerpBankruptcy,
 }
 
 #[macro_export]

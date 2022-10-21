@@ -180,7 +180,7 @@ describe('post only', () => {
 			userOrderId: 1,
 			postOnly: true,
 		});
-		await clearingHouse.placeOrder(makerOrderParams);
+		await clearingHouse.placePerpOrder(makerOrderParams);
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getOrderByUserOrderId(1);
 
@@ -192,7 +192,7 @@ describe('post only', () => {
 			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
 
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
@@ -267,7 +267,7 @@ describe('post only', () => {
 			userOrderId: 1,
 			postOnly: true,
 		});
-		await clearingHouse.placeOrder(makerOrderParams);
+		await clearingHouse.placePerpOrder(makerOrderParams);
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getOrderByUserOrderId(1);
 
@@ -280,7 +280,7 @@ describe('post only', () => {
 			new BN(newOraclePrice * PRICE_PRECISION.toNumber())
 		);
 
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
