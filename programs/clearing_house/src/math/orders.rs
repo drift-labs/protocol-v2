@@ -1,5 +1,4 @@
 use std::cmp::min;
-use std::ops::Div;
 
 use solana_program::msg;
 
@@ -10,9 +9,10 @@ use crate::math;
 use crate::math::amm::calculate_max_base_asset_amount_fillable;
 use crate::math::auction::is_auction_complete;
 use crate::math::casting::Cast;
-use crate::math::ceil_div::CheckedCeilDiv;
+
 use crate::math::constants::MARGIN_PRECISION;
 use crate::math::position::calculate_entry_price;
+use crate::math::safe_math::SafeMath;
 use crate::math_error;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::SpotBalanceType;
@@ -123,15 +123,12 @@ pub fn calculate_quote_asset_amount_for_maker_order(
 
     match position_direction {
         PositionDirection::Long => fill_price
-            .checked_mul(base_asset_amount.cast()?)
-            .ok_or_else(math_error!())?
-            .div(precision_decrease)
+            .safe_mul(base_asset_amount.cast()?)?
+            .safe_div(precision_decrease)?
             .cast::<u64>(),
         PositionDirection::Short => fill_price
-            .checked_mul(base_asset_amount.cast()?)
-            .ok_or_else(math_error!())?
-            .checked_ceil_div(precision_decrease)
-            .ok_or_else(math_error!())?
+            .safe_mul(base_asset_amount.cast()?)?
+            .safe_div_ceil(precision_decrease)?
             .cast::<u64>(),
     }
 }
@@ -164,12 +161,9 @@ pub fn standardize_base_asset_amount_with_remainder_i128(
         .checked_rem_euclid(step_size)
         .ok_or_else(math_error!())?
         .cast::<i128>()?
-        .checked_mul(base_asset_amount.signum())
-        .ok_or_else(math_error!())?;
+        .safe_mul(base_asset_amount.signum())?;
 
-    let standardized_base_asset_amount = base_asset_amount
-        .checked_sub(remainder)
-        .ok_or_else(math_error!())?;
+    let standardized_base_asset_amount = base_asset_amount.safe_sub(remainder)?;
 
     Ok((standardized_base_asset_amount, remainder))
 }
@@ -182,9 +176,7 @@ pub fn standardize_base_asset_amount(
         .checked_rem_euclid(step_size)
         .ok_or_else(math_error!())?;
 
-    base_asset_amount
-        .checked_sub(remainder)
-        .ok_or_else(math_error!())
+    base_asset_amount.safe_sub(remainder)
 }
 
 pub fn standardize_base_asset_amount_ceil(
@@ -198,11 +190,7 @@ pub fn standardize_base_asset_amount_ceil(
     if remainder == 0 {
         Ok(base_asset_amount)
     } else {
-        base_asset_amount
-            .checked_add(step_size)
-            .ok_or_else(math_error!())?
-            .checked_sub(remainder)
-            .ok_or_else(math_error!())
+        base_asset_amount.safe_add(step_size)?.safe_sub(remainder)
     }
 }
 
@@ -231,12 +219,8 @@ pub fn standardize_price(
     }
 
     match direction {
-        PositionDirection::Long => price.checked_sub(remainder).ok_or_else(math_error!()),
-        PositionDirection::Short => price
-            .checked_add(tick_size)
-            .ok_or_else(math_error!())?
-            .checked_sub(remainder)
-            .ok_or_else(math_error!()),
+        PositionDirection::Long => price.safe_sub(remainder),
+        PositionDirection::Short => price.safe_add(tick_size)?.safe_sub(remainder),
     }
 }
 
@@ -300,9 +284,7 @@ pub fn order_breaches_oracle_price_limits(
     let order_limit_price = order.get_limit_price(Some(oracle_price), slot, tick_size)?;
     let oracle_price = oracle_price.unsigned_abs();
 
-    let max_percent_diff = margin_ratio_initial
-        .checked_sub(margin_ratio_maintenance)
-        .ok_or_else(math_error!())?;
+    let max_percent_diff = margin_ratio_initial.safe_sub(margin_ratio_maintenance)?;
 
     match order.direction {
         PositionDirection::Long => {
@@ -311,12 +293,9 @@ pub fn order_breaches_oracle_price_limits(
             }
 
             let percent_diff = order_limit_price
-                .checked_sub(oracle_price)
-                .ok_or_else(math_error!())?
-                .checked_mul(MARGIN_PRECISION)
-                .ok_or_else(math_error!())?
-                .checked_div(oracle_price)
-                .ok_or_else(math_error!())?;
+                .safe_sub(oracle_price)?
+                .safe_mul(MARGIN_PRECISION)?
+                .safe_div(oracle_price)?;
 
             if percent_diff >= max_percent_diff {
                 // order cant be buying if oracle price is more than 5% below limit price
@@ -336,12 +315,9 @@ pub fn order_breaches_oracle_price_limits(
             }
 
             let percent_diff = oracle_price
-                .checked_sub(order_limit_price)
-                .ok_or_else(math_error!())?
-                .checked_mul(MARGIN_PRECISION)
-                .ok_or_else(math_error!())?
-                .checked_div(oracle_price)
-                .ok_or_else(math_error!())?;
+                .safe_sub(order_limit_price)?
+                .safe_mul(MARGIN_PRECISION)?
+                .safe_div(oracle_price)?;
 
             if percent_diff >= max_percent_diff {
                 // order cant be selling if oracle price is more than 5% above limit price
@@ -372,12 +348,10 @@ pub fn is_spot_order_risk_decreasing(
 ) -> ClearingHouseResult<bool> {
     let risk_decreasing = match (balance_type, order.direction) {
         (SpotBalanceType::Deposit, PositionDirection::Short) => {
-            (order.base_asset_amount as u128)
-                < token_amount.checked_mul(2).ok_or_else(math_error!())?
+            (order.base_asset_amount as u128) < token_amount.safe_mul(2)?
         }
         (SpotBalanceType::Borrow, PositionDirection::Long) => {
-            (order.base_asset_amount as u128)
-                < token_amount.checked_mul(2).ok_or_else(math_error!())?
+            (order.base_asset_amount as u128) < token_amount.safe_mul(2)?
         }
         (_, _) => false,
     };
@@ -402,19 +376,11 @@ pub fn is_order_risk_decreasing(
     Ok(match order_direction {
         // User is short and order is long
         PositionDirection::Long if position_base_asset_amount < 0 => {
-            order_base_asset_amount
-                < position_base_asset_amount
-                    .unsigned_abs()
-                    .checked_mul(2)
-                    .ok_or_else(math_error!())?
+            order_base_asset_amount < position_base_asset_amount.unsigned_abs().safe_mul(2)?
         }
         // User is long and order is short
         PositionDirection::Short if position_base_asset_amount > 0 => {
-            order_base_asset_amount
-                < position_base_asset_amount
-                    .unsigned_abs()
-                    .checked_mul(2)
-                    .ok_or_else(math_error!())?
+            order_base_asset_amount < position_base_asset_amount.unsigned_abs().safe_mul(2)?
         }
         _ => false,
     })
@@ -452,10 +418,8 @@ pub fn validate_fill_price(
 
     let fill_price = rounded_quote_asset_amount
         .cast::<u128>()?
-        .checked_mul(base_precision as u128)
-        .ok_or_else(math_error!())?
-        .checked_div(base_asset_amount.cast()?)
-        .ok_or_else(math_error!())?;
+        .safe_mul(base_precision as u128)?
+        .safe_div(base_asset_amount.cast()?)?;
 
     if order_direction == PositionDirection::Long && fill_price > order_limit_price {
         msg!(

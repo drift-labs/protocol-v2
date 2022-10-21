@@ -15,11 +15,11 @@ use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
 };
+use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
-use crate::math_error;
+
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
 use crate::state::perp_market::{MarketStatus, PoolBalance};
-use solana_program::msg;
 
 #[account(zero_copy)]
 #[derive(Default, PartialEq, Eq, Debug)]
@@ -152,12 +152,8 @@ impl SpotMarket {
         balance_type: SpotBalanceType,
     ) -> ClearingHouseResult<u128> {
         match balance_type {
-            SpotBalanceType::Deposit => LIQUIDATION_FEE_PRECISION
-                .checked_add(self.liquidator_fee)
-                .ok_or_else(math_error!()),
-            SpotBalanceType::Borrow => LIQUIDATION_FEE_PRECISION
-                .checked_sub(self.liquidator_fee)
-                .ok_or_else(math_error!()),
+            SpotBalanceType::Deposit => LIQUIDATION_FEE_PRECISION.safe_add(self.liquidator_fee),
+            SpotBalanceType::Borrow => LIQUIDATION_FEE_PRECISION.safe_sub(self.liquidator_fee),
         }
     }
 
@@ -170,9 +166,7 @@ impl SpotMarket {
             MarginRequirementType::Initial => self.initial_liability_weight,
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
         };
-        liability_weight
-            .checked_sub(MARGIN_PRECISION)
-            .ok_or_else(math_error!())
+        liability_weight.safe_sub(MARGIN_PRECISION)
     }
 
     pub fn get_available_deposits(&self) -> ClearingHouseResult<u128> {
@@ -182,9 +176,7 @@ impl SpotMarket {
         let borrow_token_amount =
             get_token_amount(self.borrow_balance, self, &SpotBalanceType::Borrow)?;
 
-        deposit_token_amount
-            .checked_sub(borrow_token_amount)
-            .ok_or_else(math_error!())
+        deposit_token_amount.safe_sub(borrow_token_amount)
     }
 
     pub fn get_precision(self) -> u64 {

@@ -3,7 +3,7 @@ use solana_program::msg;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::{cast, cast_to_i128, cast_to_u64, Cast};
 use crate::math::constants::{ONE_YEAR, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION};
-use crate::math_error;
+use crate::math::safe_math::SafeMath;
 use crate::state::oracle::OraclePriceData;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::user::SpotPosition;
@@ -15,12 +15,7 @@ pub fn get_spot_balance(
     balance_type: &SpotBalanceType,
     round_up: bool,
 ) -> ClearingHouseResult<u128> {
-    let precision_increase = 10_u128.pow(
-        19_u8
-            .checked_sub(spot_market.decimals)
-            .ok_or_else(math_error!())?
-            .into(),
-    );
+    let precision_increase = 10_u128.pow(19_u8.safe_sub(spot_market.decimals)?.into());
 
     let cumulative_interest = match balance_type {
         SpotBalanceType::Deposit => spot_market.cumulative_deposit_interest,
@@ -28,13 +23,11 @@ pub fn get_spot_balance(
     };
 
     let mut balance = token_amount
-        .checked_mul(precision_increase)
-        .ok_or_else(math_error!())?
-        .checked_div(cumulative_interest)
-        .ok_or_else(math_error!())?;
+        .safe_mul(precision_increase)?
+        .safe_div(cumulative_interest)?;
 
     if round_up && balance != 0 {
-        balance = balance.checked_add(1).ok_or_else(math_error!())?;
+        balance = balance.safe_add(1)?;
     }
 
     Ok(balance)
@@ -45,12 +38,7 @@ pub fn get_token_amount(
     spot_market: &SpotMarket,
     balance_type: &SpotBalanceType,
 ) -> ClearingHouseResult<u128> {
-    let precision_decrease = 10_u128.pow(
-        19_u8
-            .checked_sub(spot_market.decimals)
-            .ok_or_else(math_error!())?
-            .into(),
-    );
+    let precision_decrease = 10_u128.pow(19_u8.safe_sub(spot_market.decimals)?.into());
 
     let cumulative_interest = match balance_type {
         SpotBalanceType::Deposit => spot_market.cumulative_deposit_interest,
@@ -58,10 +46,8 @@ pub fn get_token_amount(
     };
 
     let token_amount = balance
-        .checked_mul(cumulative_interest)
-        .ok_or_else(math_error!())?
-        .checked_div(precision_decrease)
-        .ok_or_else(math_error!())?;
+        .safe_mul(cumulative_interest)?
+        .safe_div(precision_decrease)?;
 
     Ok(token_amount)
 }
@@ -81,18 +67,9 @@ pub fn get_interest_token_amount(
     spot_market: &SpotMarket,
     interest: u128,
 ) -> ClearingHouseResult<u128> {
-    let precision_decrease = 10_u128.pow(
-        19_u8
-            .checked_sub(spot_market.decimals)
-            .ok_or_else(math_error!())?
-            .into(),
-    );
+    let precision_decrease = 10_u128.pow(19_u8.safe_sub(spot_market.decimals)?.into());
 
-    let token_amount = balance
-        .checked_mul(interest)
-        .ok_or_else(math_error!())?
-        .checked_div(precision_decrease)
-        .ok_or_else(math_error!())?;
+    let token_amount = balance.safe_mul(interest)?.safe_div(precision_decrease)?;
 
     Ok(token_amount)
 }
@@ -107,8 +84,7 @@ pub fn calculate_utilization(
     borrow_token_amount: u128,
 ) -> ClearingHouseResult<u128> {
     let utilization = borrow_token_amount
-        .checked_mul(SPOT_UTILIZATION_PRECISION)
-        .ok_or_else(math_error!())?
+        .safe_mul(SPOT_UTILIZATION_PRECISION)?
         .checked_div(deposit_token_amount)
         .or({
             if deposit_token_amount == 0 && borrow_token_amount == 0 {
@@ -148,87 +124,58 @@ pub fn calculate_accumulated_interest(
     }
 
     let borrow_rate = if utilization > spot_market.optimal_utilization.cast()? {
-        let surplus_utilization = utilization
-            .checked_sub(spot_market.optimal_utilization.cast()?)
-            .ok_or_else(math_error!())?;
+        let surplus_utilization = utilization.safe_sub(spot_market.optimal_utilization.cast()?)?;
 
         let borrow_rate_slope = spot_market
             .max_borrow_rate
             .cast::<u128>()?
-            .checked_sub(spot_market.optimal_borrow_rate.cast()?)
-            .ok_or_else(math_error!())?
-            .checked_mul(SPOT_UTILIZATION_PRECISION)
-            .ok_or_else(math_error!())?
-            .checked_div(
-                SPOT_UTILIZATION_PRECISION
-                    .checked_sub(spot_market.optimal_utilization.cast()?)
-                    .ok_or_else(math_error!())?,
-            )
-            .ok_or_else(math_error!())?;
+            .safe_sub(spot_market.optimal_borrow_rate.cast()?)?
+            .safe_mul(SPOT_UTILIZATION_PRECISION)?
+            .safe_div(
+                SPOT_UTILIZATION_PRECISION.safe_sub(spot_market.optimal_utilization.cast()?)?,
+            )?;
 
-        spot_market
-            .optimal_borrow_rate
-            .cast::<u128>()?
-            .checked_add(
-                surplus_utilization
-                    .checked_mul(borrow_rate_slope)
-                    .ok_or_else(math_error!())?
-                    .checked_div(SPOT_UTILIZATION_PRECISION)
-                    .ok_or_else(math_error!())?,
-            )
-            .ok_or_else(math_error!())?
+        spot_market.optimal_borrow_rate.cast::<u128>()?.safe_add(
+            surplus_utilization
+                .safe_mul(borrow_rate_slope)?
+                .safe_div(SPOT_UTILIZATION_PRECISION)?,
+        )?
     } else {
         let borrow_rate_slope = spot_market
             .optimal_borrow_rate
             .cast::<u128>()?
-            .checked_mul(SPOT_UTILIZATION_PRECISION)
-            .ok_or_else(math_error!())?
-            .checked_div(spot_market.optimal_utilization.cast()?)
-            .ok_or_else(math_error!())?;
+            .safe_mul(SPOT_UTILIZATION_PRECISION)?
+            .safe_div(spot_market.optimal_utilization.cast()?)?;
 
         utilization
-            .checked_mul(borrow_rate_slope)
-            .ok_or_else(math_error!())?
-            .checked_div(SPOT_UTILIZATION_PRECISION)
-            .ok_or_else(math_error!())?
+            .safe_mul(borrow_rate_slope)?
+            .safe_div(SPOT_UTILIZATION_PRECISION)?
     };
 
     let time_since_last_update = cast_to_u64(now)
         .or(Err(ErrorCode::UnableToCastUnixTime))?
-        .checked_sub(spot_market.last_interest_ts)
-        .ok_or_else(math_error!())?;
+        .safe_sub(spot_market.last_interest_ts)?;
 
     // To save some compute units, have to multiply the rate by the `time_since_last_update` here
     // and then divide out by ONE_YEAR when calculating interest accumulated below
-    let modified_borrow_rate = borrow_rate
-        .checked_mul(time_since_last_update as u128)
-        .ok_or_else(math_error!())?;
+    let modified_borrow_rate = borrow_rate.safe_mul(time_since_last_update as u128)?;
 
     let modified_deposit_rate = modified_borrow_rate
-        .checked_mul(utilization)
-        .ok_or_else(math_error!())?
-        .checked_div(SPOT_UTILIZATION_PRECISION)
-        .ok_or_else(math_error!())?;
+        .safe_mul(utilization)?
+        .safe_div(SPOT_UTILIZATION_PRECISION)?;
 
     let borrow_interest = spot_market
         .cumulative_borrow_interest
-        .checked_mul(modified_borrow_rate)
-        .ok_or_else(math_error!())?
-        .checked_div(ONE_YEAR)
-        .ok_or_else(math_error!())?
-        .checked_div(SPOT_RATE_PRECISION)
-        .ok_or_else(math_error!())?
-        .checked_add(1)
-        .ok_or_else(math_error!())?;
+        .safe_mul(modified_borrow_rate)?
+        .safe_div(ONE_YEAR)?
+        .safe_div(SPOT_RATE_PRECISION)?
+        .safe_add(1)?;
 
     let deposit_interest = spot_market
         .cumulative_deposit_interest
-        .checked_mul(modified_deposit_rate)
-        .ok_or_else(math_error!())?
-        .checked_div(ONE_YEAR)
-        .ok_or_else(math_error!())?
-        .checked_div(SPOT_RATE_PRECISION)
-        .ok_or_else(math_error!())?;
+        .safe_mul(modified_deposit_rate)?
+        .safe_div(ONE_YEAR)?
+        .safe_div(SPOT_RATE_PRECISION)?;
 
     Ok(InterestAccumulated {
         borrow_interest,
@@ -246,10 +193,8 @@ pub fn get_balance_value_and_token_amount(
     let precision_decrease = 10_u128.pow(spot_market.decimals as u32);
 
     let value = token_amount
-        .checked_mul(cast(oracle_price_data.price)?)
-        .ok_or_else(math_error!())?
-        .checked_div(precision_decrease)
-        .ok_or_else(math_error!())?;
+        .safe_mul(cast(oracle_price_data.price)?)?
+        .safe_div(precision_decrease)?;
 
     Ok((value, token_amount))
 }
@@ -280,11 +225,7 @@ pub fn get_strict_token_value(
         oracle_price_data.price.max(oracle_price_twap)
     };
 
-    token_amount
-        .checked_mul(price)
-        .ok_or_else(math_error!())?
-        .checked_div(precision_decrease)
-        .ok_or_else(math_error!())
+    token_amount.safe_mul(price)?.safe_div(precision_decrease)
 }
 
 pub fn get_token_value(
@@ -299,10 +240,8 @@ pub fn get_token_value(
     let precision_decrease = 10_i128.pow(spot_decimals as u32);
 
     token_amount
-        .checked_mul(oracle_price_data.price)
-        .ok_or_else(math_error!())?
-        .checked_div(precision_decrease)
-        .ok_or_else(math_error!())
+        .safe_mul(oracle_price_data.price)?
+        .safe_div(precision_decrease)
 }
 
 pub fn get_balance_value(
@@ -332,26 +271,18 @@ pub fn check_withdraw_limits(spot_market: &SpotMarket) -> ClearingHouseResult<bo
             .max(
                 spot_market
                     .borrow_token_twap
-                    .checked_add(spot_market.borrow_token_twap / 5)
-                    .ok_or_else(math_error!())?,
+                    .safe_add(spot_market.borrow_token_twap / 5)?,
             )
-            .min(
-                deposit_token_amount
-                    .checked_sub(deposit_token_amount / 5)
-                    .ok_or_else(math_error!())?,
-            ),
+            .min(deposit_token_amount.safe_sub(deposit_token_amount / 5)?),
     ); // between ~15-80% utilization with friction on twap
 
-    let min_deposit_token = spot_market
-        .deposit_token_twap
-        .checked_sub(
-            (spot_market.deposit_token_twap / 5).max(
-                spot_market
-                    .withdraw_guard_threshold
-                    .min(spot_market.deposit_token_twap),
-            ),
-        )
-        .ok_or_else(math_error!())?;
+    let min_deposit_token = spot_market.deposit_token_twap.safe_sub(
+        (spot_market.deposit_token_twap / 5).max(
+            spot_market
+                .withdraw_guard_threshold
+                .min(spot_market.deposit_token_twap),
+        ),
+    )?;
     // friction to decrease utilization (if above withdraw guard threshold)
 
     let valid_withdrawal =

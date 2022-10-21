@@ -1,13 +1,14 @@
 use solana_program::msg;
 
-use crate::checked_decrement;
-use crate::checked_increment;
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_spot_balances;
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::math::casting::{cast, Cast};
+use crate::math::safe_math::SafeMath;
 use crate::math_error;
+use crate::safe_decrement;
+use crate::safe_increment;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::user::SpotPosition;
 use crate::validate;
@@ -24,14 +25,12 @@ pub fn increase_spot_open_bids_and_asks(
         PositionDirection::Long => {
             spot_position.open_bids = spot_position
                 .open_bids
-                .checked_add(base_asset_amount_unfilled.cast()?)
-                .ok_or_else(math_error!())?;
+                .safe_add(base_asset_amount_unfilled.cast()?)?;
         }
         PositionDirection::Short => {
             spot_position.open_asks = spot_position
                 .open_asks
-                .checked_sub(base_asset_amount_unfilled.cast()?)
-                .ok_or_else(math_error!())?;
+                .safe_sub(base_asset_amount_unfilled.cast()?)?;
         }
     }
 
@@ -47,14 +46,12 @@ pub fn decrease_spot_open_bids_and_asks(
         PositionDirection::Long => {
             spot_position.open_bids = spot_position
                 .open_bids
-                .checked_sub(base_asset_amount_unfilled.cast()?)
-                .ok_or_else(math_error!())?;
+                .safe_sub(base_asset_amount_unfilled.cast()?)?;
         }
         PositionDirection::Short => {
             spot_position.open_asks = spot_position
                 .open_asks
-                .checked_add(base_asset_amount_unfilled.cast()?)
-                .ok_or_else(math_error!())?;
+                .safe_add(base_asset_amount_unfilled.cast()?)?;
         }
     }
 
@@ -80,13 +77,13 @@ pub fn update_spot_balances_and_cumulative_deposits(
     let cumulative_deposit_delta = cumulative_deposit_delta.unwrap_or(token_amount);
     match update_direction {
         SpotBalanceType::Deposit => {
-            checked_increment!(
+            safe_increment!(
                 spot_position.cumulative_deposits,
                 cast(cumulative_deposit_delta)?
             )
         }
         SpotBalanceType::Borrow => {
-            checked_decrement!(
+            safe_decrement!(
                 spot_position.cumulative_deposits,
                 cast(cumulative_deposit_delta)?
             )

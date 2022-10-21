@@ -17,22 +17,10 @@ mod calculate_get_proportion_u128 {
         }
 
         let proportional_value = if numerator <= denominator {
-            let ratio = denominator
-                .checked_mul(10000)
-                .ok_or_else(math_error!())?
-                .checked_div(numerator)
-                .ok_or_else(math_error!())?;
-            value
-                .checked_mul(10000)
-                .ok_or_else(math_error!())?
-                .checked_div(ratio)
-                .ok_or_else(math_error!())?
+            let ratio = denominator.safe_mul(10000)?.safe_div(numerator)?;
+            value.safe_mul(10000)?.safe_div(ratio)?
         } else {
-            value
-                .checked_mul(numerator)
-                .ok_or_else(math_error!())?
-                .checked_div(denominator)
-                .ok_or_else(math_error!())?
+            value.safe_mul(numerator)?.safe_div(denominator)?
         };
 
         Ok(proportional_value)

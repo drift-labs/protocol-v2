@@ -17,7 +17,7 @@ use crate::math::spot_balance::{
     get_interest_token_amount, get_spot_balance, get_token_amount, InterestAccumulated,
 };
 use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
-use crate::math_error;
+
 use crate::state::events::SpotInterestRecord;
 use crate::state::oracle::OraclePriceData;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
@@ -26,6 +26,7 @@ use crate::state::user::SpotPosition;
 use crate::validate;
 
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
+use crate::math::safe_math::SafeMath;
 
 #[cfg(test)]
 mod tests;
@@ -35,17 +36,8 @@ pub fn update_spot_market_twap_stats(
     oracle_price_data: Option<&OraclePriceData>,
     now: i64,
 ) -> ClearingHouseResult {
-    let since_last = cast_to_i128(max(
-        1,
-        now.checked_sub(spot_market.last_twap_ts as i64)
-            .ok_or_else(math_error!())?,
-    ))?;
-    let from_start = max(
-        1,
-        cast_to_i128(TWENTY_FOUR_HOUR)?
-            .checked_sub(since_last)
-            .ok_or_else(math_error!())?,
-    );
+    let since_last = cast_to_i128(max(1, now.safe_sub(spot_market.last_twap_ts as i64)?))?;
+    let from_start = max(1, cast_to_i128(TWENTY_FOUR_HOUR)?.safe_sub(since_last)?);
 
     let deposit_token_amount = get_token_amount(
         spot_market.deposit_balance,
@@ -143,25 +135,20 @@ pub fn update_spot_market_cumulative_interest(
     if deposit_interest > 0 && borrow_interest > 1 {
         // borrowers -> lenders IF fee here
         let deposit_interest_for_stakers = deposit_interest
-            .checked_mul(spot_market.insurance_fund.total_factor as u128)
-            .ok_or_else(math_error!())?
-            .checked_div(IF_FACTOR_PRECISION)
-            .ok_or_else(math_error!())?;
+            .safe_mul(spot_market.insurance_fund.total_factor as u128)?
+            .safe_div(IF_FACTOR_PRECISION)?;
 
-        let deposit_interest_for_lenders = deposit_interest
-            .checked_sub(deposit_interest_for_stakers)
-            .ok_or_else(math_error!())?;
+        let deposit_interest_for_lenders =
+            deposit_interest.safe_sub(deposit_interest_for_stakers)?;
 
         if deposit_interest_for_lenders > 0 {
             spot_market.cumulative_deposit_interest = spot_market
                 .cumulative_deposit_interest
-                .checked_add(deposit_interest_for_lenders)
-                .ok_or_else(math_error!())?;
+                .safe_add(deposit_interest_for_lenders)?;
 
             spot_market.cumulative_borrow_interest = spot_market
                 .cumulative_borrow_interest
-                .checked_add(borrow_interest)
-                .ok_or_else(math_error!())?;
+                .safe_add(borrow_interest)?;
             spot_market.last_interest_ts = cast_to_u64(now)?;
 
             // add deposit_interest_for_stakers as balance for revenue_pool
@@ -250,9 +237,7 @@ pub fn update_spot_balances(
 
             decrease_spot_balance(balance_delta, spot_market, spot_balance.balance_type())?;
             spot_balance.decrease_balance(balance_delta)?;
-            token_amount = token_amount
-                .checked_sub(token_delta)
-                .ok_or_else(math_error!())?;
+            token_amount = token_amount.safe_sub(token_delta)?;
         }
 
         if token_amount > 0 {
@@ -487,16 +472,10 @@ fn increase_spot_balance(
 ) -> ClearingHouseResult {
     match balance_type {
         SpotBalanceType::Deposit => {
-            spot_market.deposit_balance = spot_market
-                .deposit_balance
-                .checked_add(delta)
-                .ok_or_else(math_error!())?
+            spot_market.deposit_balance = spot_market.deposit_balance.safe_add(delta)?
         }
         SpotBalanceType::Borrow => {
-            spot_market.borrow_balance = spot_market
-                .borrow_balance
-                .checked_add(delta)
-                .ok_or_else(math_error!())?
+            spot_market.borrow_balance = spot_market.borrow_balance.safe_add(delta)?
         }
     }
 
@@ -510,16 +489,10 @@ fn decrease_spot_balance(
 ) -> ClearingHouseResult {
     match balance_type {
         SpotBalanceType::Deposit => {
-            spot_market.deposit_balance = spot_market
-                .deposit_balance
-                .checked_sub(delta)
-                .ok_or_else(math_error!())?
+            spot_market.deposit_balance = spot_market.deposit_balance.safe_sub(delta)?
         }
         SpotBalanceType::Borrow => {
-            spot_market.borrow_balance = spot_market
-                .borrow_balance
-                .checked_sub(delta)
-                .ok_or_else(math_error!())?
+            spot_market.borrow_balance = spot_market.borrow_balance.safe_sub(delta)?
         }
     }
 

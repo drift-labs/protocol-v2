@@ -1,5 +1,3 @@
-use solana_program::msg;
-
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::{PositionDelta, PositionDirection};
 use crate::error::ClearingHouseResult;
@@ -12,7 +10,8 @@ use crate::math::constants::{
 };
 use crate::math::helpers::get_proportion_u128;
 use crate::math::pnl::calculate_pnl;
-use crate::math_error;
+use crate::math::safe_math::SafeMath;
+
 use crate::state::perp_market::AMM;
 use crate::state::user::PerpPosition;
 
@@ -79,10 +78,7 @@ pub fn calculate_base_asset_value(
         (amm.base_asset_reserve, amm.quote_asset_reserve)
     };
 
-    let amm_lp_shares = amm
-        .sqrt_k
-        .checked_sub(amm.user_lp_shares)
-        .ok_or_else(math_error!())?;
+    let amm_lp_shares = amm.sqrt_k.safe_sub(amm.user_lp_shares)?;
 
     let base_asset_reserve_proportion =
         get_proportion_u128(base_asset_reserve, amm_lp_shares, amm.sqrt_k)?;
@@ -123,10 +119,8 @@ pub fn calculate_base_asset_value_with_oracle_price(
 
     base_asset_amount
         .unsigned_abs()
-        .checked_mul(oracle_price)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_RESERVE_PRECISION * PRICE_TO_QUOTE_PRECISION_RATIO)
-        .ok_or_else(math_error!())
+        .safe_mul(oracle_price)?
+        .safe_div(AMM_RESERVE_PRECISION * PRICE_TO_QUOTE_PRECISION_RATIO)
 }
 
 pub fn calculate_base_asset_value_and_pnl_with_oracle_price(
@@ -146,14 +140,10 @@ pub fn calculate_base_asset_value_and_pnl_with_oracle_price(
     let base_asset_value = market_position
         .base_asset_amount
         .cast::<i128>()?
-        .checked_mul(oracle_price)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_RESERVE_PRECISION_I128)
-        .ok_or_else(math_error!())?;
+        .safe_mul(oracle_price)?
+        .safe_div(AMM_RESERVE_PRECISION_I128)?;
 
-    let pnl = base_asset_value
-        .checked_add(market_position.quote_asset_amount.cast()?)
-        .ok_or_else(math_error!())?;
+    let pnl = base_asset_value.safe_add(market_position.quote_asset_amount.cast()?)?;
 
     Ok((base_asset_value.unsigned_abs(), pnl))
 }
@@ -169,10 +159,8 @@ pub fn calculate_base_asset_value_with_expiry_price(
     market_position
         .base_asset_amount
         .cast::<i128>()?
-        .checked_mul(expiry_price)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)
-        .ok_or_else(math_error!())?
+        .safe_mul(expiry_price)?
+        .safe_div(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)?
         .cast::<i64>()
 }
 
@@ -197,10 +185,8 @@ pub fn calculate_entry_price(
     base_asset_amount: u128,
 ) -> ClearingHouseResult<u128> {
     let price = quote_asset_amount
-        .checked_mul(PRICE_PRECISION * AMM_TO_QUOTE_PRECISION_RATIO)
-        .ok_or_else(math_error!())?
-        .checked_div(base_asset_amount)
-        .ok_or_else(math_error!())?;
+        .safe_mul(PRICE_PRECISION * AMM_TO_QUOTE_PRECISION_RATIO)?
+        .safe_div(base_asset_amount)?;
 
     Ok(price)
 }
@@ -238,20 +224,17 @@ pub fn calculate_position_new_quote_base_pnl(
     // Update User
     let new_quote_asset_amount = position
         .quote_asset_amount
-        .checked_add(delta.quote_asset_amount.cast()?)
-        .ok_or_else(math_error!())?;
+        .safe_add(delta.quote_asset_amount.cast()?)?;
 
     let new_base_asset_amount = position
         .base_asset_amount
-        .checked_add(delta.base_asset_amount.cast()?)
-        .ok_or_else(math_error!())?;
+        .safe_add(delta.base_asset_amount.cast()?)?;
 
     let (new_quote_entry_amount, pnl) = match update_type {
         PositionUpdateType::Open | PositionUpdateType::Increase => {
             let new_quote_entry_amount = position
                 .quote_entry_amount
-                .checked_add(delta.quote_asset_amount.cast()?)
-                .ok_or_else(math_error!())?;
+                .safe_add(delta.quote_asset_amount.cast()?)?;
 
             (new_quote_entry_amount, 0_i128)
         }
@@ -259,25 +242,20 @@ pub fn calculate_position_new_quote_base_pnl(
             let new_quote_entry_amount = position
                 .quote_entry_amount
                 .cast::<i128>()?
-                .checked_sub(
+                .safe_sub(
                     position
                         .quote_entry_amount
                         .cast::<i128>()?
-                        .checked_mul(delta.base_asset_amount.abs().cast()?)
-                        .ok_or_else(math_error!())?
-                        .checked_div(position.base_asset_amount.abs().cast()?)
-                        .ok_or_else(math_error!())?,
-                )
-                .ok_or_else(math_error!())?
+                        .safe_mul(delta.base_asset_amount.abs().cast()?)?
+                        .safe_div(position.base_asset_amount.abs().cast()?)?,
+                )?
                 .cast::<i64>()?;
 
             let pnl = position
                 .quote_entry_amount
                 .cast::<i128>()?
-                .checked_sub(new_quote_entry_amount.cast()?)
-                .ok_or_else(math_error!())?
-                .checked_add(delta.quote_asset_amount.cast()?)
-                .ok_or_else(math_error!())?;
+                .safe_sub(new_quote_entry_amount.cast()?)?
+                .safe_add(delta.quote_asset_amount.cast()?)?;
 
             (new_quote_entry_amount, pnl)
         }
@@ -285,29 +263,21 @@ pub fn calculate_position_new_quote_base_pnl(
             let new_quote_entry_amount = delta
                 .quote_asset_amount
                 .cast::<i128>()?
-                .checked_sub(
+                .safe_sub(
                     delta
                         .quote_asset_amount
                         .cast::<i128>()?
-                        .checked_mul(position.base_asset_amount.abs().cast()?)
-                        .ok_or_else(math_error!())?
-                        .checked_div(delta.base_asset_amount.abs().cast()?)
-                        .ok_or_else(math_error!())?,
-                )
-                .ok_or_else(math_error!())?
+                        .safe_mul(position.base_asset_amount.abs().cast()?)?
+                        .safe_div(delta.base_asset_amount.abs().cast()?)?,
+                )?
                 .cast::<i64>()?;
 
-            let pnl = position
-                .quote_entry_amount
-                .cast::<i128>()?
-                .checked_add(
-                    delta
-                        .quote_asset_amount
-                        .checked_sub(new_quote_entry_amount)
-                        .ok_or_else(math_error!())?
-                        .cast()?,
-                )
-                .ok_or_else(math_error!())?;
+            let pnl = position.quote_entry_amount.cast::<i128>()?.safe_add(
+                delta
+                    .quote_asset_amount
+                    .safe_sub(new_quote_entry_amount)?
+                    .cast()?,
+            )?;
 
             (new_quote_entry_amount, pnl)
         }

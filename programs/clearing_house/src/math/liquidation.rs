@@ -8,8 +8,9 @@ use crate::math::constants::{
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, MarginRequirementType,
 };
+use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
-use crate::math_error;
+
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -29,39 +30,27 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
     if_liquidation_fee: u128,
     oracle_price: i128,
 ) -> ClearingHouseResult<u64> {
-    let margin_ratio = (margin_ratio as u128)
-        .checked_mul(LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO)
-        .ok_or_else(math_error!())?;
+    let margin_ratio =
+        (margin_ratio as u128).safe_mul(LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO)?;
 
     if oracle_price == 0 || margin_ratio <= liquidation_fee {
         return Ok(u64::MAX);
     }
 
     margin_shortage
-        .checked_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
-        .ok_or_else(math_error!())?
-        .checked_div(
+        .safe_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)?
+        .safe_div(
             oracle_price
                 .unsigned_abs()
-                .checked_mul(
-                    margin_ratio
-                        .checked_sub(liquidation_fee)
-                        .ok_or_else(math_error!())?,
-                )
-                .ok_or_else(math_error!())?
-                .checked_div(LIQUIDATION_FEE_PRECISION)
-                .ok_or_else(math_error!())?
-                .checked_sub(
+                .safe_mul(margin_ratio.safe_sub(liquidation_fee)?)?
+                .safe_div(LIQUIDATION_FEE_PRECISION)?
+                .safe_sub(
                     oracle_price
                         .unsigned_abs()
-                        .checked_mul(if_liquidation_fee)
-                        .ok_or_else(math_error!())?
-                        .checked_div(LIQUIDATION_FEE_PRECISION)
-                        .ok_or_else(math_error!())?,
-                )
-                .ok_or_else(math_error!())?,
-        )
-        .ok_or_else(math_error!())?
+                        .safe_mul(if_liquidation_fee)?
+                        .safe_div(LIQUIDATION_FEE_PRECISION)?,
+                )?,
+        )?
         .cast()
 }
 
@@ -87,46 +76,31 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
     };
 
     margin_shortage
-        .checked_mul(numerator_scale)
-        .ok_or_else(math_error!())?
-        .checked_mul(PRICE_PRECISION * SPOT_WEIGHT_PRECISION * 10)
-        .ok_or_else(math_error!())?
-        .checked_div(
+        .safe_mul(numerator_scale)?
+        .safe_mul(PRICE_PRECISION * SPOT_WEIGHT_PRECISION * 10)?
+        .safe_div(
             liability_price
                 .unsigned_abs()
-                .checked_mul(
+                .safe_mul(
                     liability_weight
-                        .checked_mul(10) // multiply market weights by extra 10 to increase precision
-                        .ok_or_else(math_error!())?
-                        .checked_sub(
+                        .safe_mul(10)? // multiply market weights by extra 10 to increase precision
+                        .safe_sub(
                             asset_weight
-                                .checked_mul(10)
-                                .ok_or_else(math_error!())?
-                                .checked_mul(asset_liquidation_multiplier)
-                                .ok_or_else(math_error!())?
-                                .checked_div(liability_liquidation_multiplier)
-                                .ok_or_else(math_error!())?,
-                        )
-                        .ok_or_else(math_error!())?,
-                )
-                .ok_or_else(math_error!())?
-                .checked_sub(
+                                .safe_mul(10)?
+                                .safe_mul(asset_liquidation_multiplier)?
+                                .safe_div(liability_liquidation_multiplier)?,
+                        )?,
+                )?
+                .safe_sub(
                     liability_price
                         .unsigned_abs()
-                        .checked_mul(if_liquidation_fee)
-                        .ok_or_else(math_error!())?
-                        .checked_div(LIQUIDATION_FEE_PRECISION)
-                        .ok_or_else(math_error!())?
-                        .checked_mul(liability_weight)
-                        .ok_or_else(math_error!())?
-                        .checked_mul(10)
-                        .ok_or_else(math_error!())?,
-                )
-                .ok_or_else(math_error!())?,
-        )
-        .ok_or_else(math_error!())?
-        .checked_div(denominator_scale)
-        .ok_or_else(math_error!())
+                        .safe_mul(if_liquidation_fee)?
+                        .safe_div(LIQUIDATION_FEE_PRECISION)?
+                        .safe_mul(liability_weight)?
+                        .safe_mul(10)?,
+                )?,
+        )?
+        .safe_div(denominator_scale)
 }
 
 pub fn calculate_liability_transfer_implied_by_asset_amount(
@@ -145,21 +119,15 @@ pub fn calculate_liability_transfer_implied_by_asset_amount(
     };
 
     asset_amount
-        .checked_mul(numerator_scale)
-        .ok_or_else(math_error!())?
-        .checked_mul(asset_price.unsigned_abs())
-        .ok_or_else(math_error!())?
-        .checked_mul(liability_liquidation_multiplier)
-        .ok_or_else(math_error!())?
-        .checked_div(
+        .safe_mul(numerator_scale)?
+        .safe_mul(asset_price.unsigned_abs())?
+        .safe_mul(liability_liquidation_multiplier)?
+        .safe_div(
             liability_price
                 .unsigned_abs()
-                .checked_mul(asset_liquidation_multiplier)
-                .ok_or_else(math_error!())?,
-        )
-        .ok_or_else(math_error!())?
-        .checked_div(denominator_scale)
-        .ok_or_else(math_error!())
+                .safe_mul(asset_liquidation_multiplier)?,
+        )?
+        .safe_div(denominator_scale)
 }
 
 pub fn calculate_asset_transfer_for_liability_transfer(
@@ -179,21 +147,15 @@ pub fn calculate_asset_transfer_for_liability_transfer(
     };
 
     let mut asset_transfer = liability_amount
-        .checked_mul(numerator_scale)
-        .ok_or_else(math_error!())?
-        .checked_mul(liability_price.unsigned_abs())
-        .ok_or_else(math_error!())?
-        .checked_mul(asset_liquidation_multiplier)
-        .ok_or_else(math_error!())?
-        .checked_div(
+        .safe_mul(numerator_scale)?
+        .safe_mul(liability_price.unsigned_abs())?
+        .safe_mul(asset_liquidation_multiplier)?
+        .safe_div(
             asset_price
                 .unsigned_abs()
-                .checked_mul(liability_liquidation_multiplier)
-                .ok_or_else(math_error!())?,
-        )
-        .ok_or_else(math_error!())?
-        .checked_div(denominator_scale)
-        .ok_or_else(math_error!())?;
+                .safe_mul(liability_liquidation_multiplier)?,
+        )?
+        .safe_div(denominator_scale)?;
 
     // Need to check if asset_transfer should be rounded to asset amount
     let (asset_value_numerator_scale, asset_value_denominator_scale) = if asset_decimals > 6 {
@@ -209,14 +171,10 @@ pub fn calculate_asset_transfer_for_liability_transfer(
     };
 
     let asset_value_delta = asset_delta
-        .checked_mul(asset_price.unsigned_abs())
-        .ok_or_else(math_error!())?
-        .checked_div(PRICE_PRECISION)
-        .ok_or_else(math_error!())?
-        .checked_mul(asset_value_numerator_scale)
-        .ok_or_else(math_error!())?
-        .checked_div(asset_value_denominator_scale)
-        .ok_or_else(math_error!())?;
+        .safe_mul(asset_price.unsigned_abs())?
+        .safe_div(PRICE_PRECISION)?
+        .safe_mul(asset_value_numerator_scale)?
+        .safe_div(asset_value_denominator_scale)?;
 
     if asset_value_delta < QUOTE_PRECISION {
         asset_transfer = asset_amount;
@@ -251,12 +209,7 @@ pub fn get_margin_requirement_plus_buffer(
     liquidation_margin_buffer_ratio: u8,
 ) -> ClearingHouseResult<u128> {
     margin_requirement
-        .checked_add(
-            margin_requirement
-                .checked_div(liquidation_margin_buffer_ratio as u128)
-                .ok_or_else(math_error!())?,
-        )
-        .ok_or_else(math_error!())
+        .safe_add(margin_requirement.safe_div(liquidation_margin_buffer_ratio as u128)?)
 }
 
 pub fn validate_user_not_being_liquidated(
@@ -297,12 +250,8 @@ pub fn calculate_liquidation_multiplier(
     multiplier_type: LiquidationMultiplierType,
 ) -> ClearingHouseResult<u128> {
     match multiplier_type {
-        LiquidationMultiplierType::Premium => LIQUIDATION_FEE_PRECISION
-            .checked_add(liquidation_fee)
-            .ok_or_else(math_error!()),
-        LiquidationMultiplierType::Discount => LIQUIDATION_FEE_PRECISION
-            .checked_sub(liquidation_fee)
-            .ok_or_else(math_error!()),
+        LiquidationMultiplierType::Premium => LIQUIDATION_FEE_PRECISION.safe_add(liquidation_fee),
+        LiquidationMultiplierType::Discount => LIQUIDATION_FEE_PRECISION.safe_sub(liquidation_fee),
     }
 }
 
@@ -314,8 +263,7 @@ pub fn calculate_funding_rate_deltas_to_resolve_bankruptcy(
         .amm
         .base_asset_amount_long
         .abs()
-        .checked_add(market.amm.base_asset_amount_short.abs())
-        .ok_or_else(math_error!())?;
+        .safe_add(market.amm.base_asset_amount_short.abs())?;
 
     validate!(
         total_base_asset_amount != 0,
@@ -324,12 +272,9 @@ pub fn calculate_funding_rate_deltas_to_resolve_bankruptcy(
     )?;
 
     loss.abs()
-        .checked_mul(AMM_RESERVE_PRECISION_I128)
-        .ok_or_else(math_error!())?
-        .checked_div(total_base_asset_amount)
-        .ok_or_else(math_error!())?
-        .checked_mul(cast(FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO)?)
-        .ok_or_else(math_error!())
+        .safe_mul(AMM_RESERVE_PRECISION_I128)?
+        .safe_div(total_base_asset_amount)?
+        .safe_mul(cast(FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO)?)
 }
 
 pub fn calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(
@@ -344,9 +289,7 @@ pub fn calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(
 
     spot_market
         .cumulative_deposit_interest
-        .checked_mul(borrow)
-        .ok_or_else(math_error!())?
-        .checked_div(total_deposits)
-        .or(Some(0))
-        .ok_or_else(math_error!())
+        .safe_mul(borrow)?
+        .safe_div(total_deposits)
+        .or(Ok(0))
 }

@@ -37,7 +37,7 @@ use crate::math::margin::{
 use crate::math::oracle::DriftAction;
 use crate::math::orders::{get_position_delta_for_fill, standardize_base_asset_amount};
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
-use crate::math_error;
+use crate::math::safe_math::SafeMath;
 use crate::state::events::{
     LiquidateBorrowForPerpPnlRecord, LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord,
     LiquidateSpotRecord, LiquidationRecord, LiquidationType, OrderActionExplanation,
@@ -257,13 +257,10 @@ pub fn liquidate_perp(
         MarginRequirementType::Maintenance,
     )?;
 
-    let margin_ratio_with_buffer = margin_ratio
-        .checked_add(liquidation_margin_buffer_ratio)
-        .ok_or_else(math_error!())?;
+    let margin_ratio_with_buffer = margin_ratio.safe_add(liquidation_margin_buffer_ratio)?;
 
     let margin_shortage = cast_to_i128(intermediate_margin_requirement_with_buffer)?
-        .checked_sub(intermediate_total_collateral)
-        .ok_or_else(math_error!())?
+        .safe_sub(intermediate_total_collateral)?
         .unsigned_abs();
 
     let market = perp_market_map.get_ref(&market_index)?;
@@ -300,17 +297,13 @@ pub fn liquidate_perp(
     let base_asset_value =
         calculate_base_asset_value_with_oracle_price(cast(base_asset_amount)?, oracle_price)?;
     let quote_asset_amount = base_asset_value
-        .checked_mul(liquidation_multiplier)
-        .ok_or_else(math_error!())?
-        .checked_div(LIQUIDATION_FEE_PRECISION)
-        .ok_or_else(math_error!())?
+        .safe_mul(liquidation_multiplier)?
+        .safe_div(LIQUIDATION_FEE_PRECISION)?
         .cast::<u64>()?;
 
     let if_fee = -base_asset_value
-        .checked_mul(if_liquidation_fee)
-        .ok_or_else(math_error!())?
-        .checked_div(LIQUIDATION_FEE_PRECISION)
-        .ok_or_else(math_error!())?
+        .safe_mul(if_liquidation_fee)?
+        .safe_div(LIQUIDATION_FEE_PRECISION)?
         .cast::<i64>()?;
 
     user_stats.update_taker_volume_30d(quote_asset_amount, now)?;
@@ -343,8 +336,7 @@ pub fn liquidate_perp(
         market.amm.total_liquidation_fee = market
             .amm
             .total_liquidation_fee
-            .checked_add(if_fee.unsigned_abs().cast()?)
-            .ok_or_else(math_error!())?;
+            .safe_add(if_fee.unsigned_abs().cast()?)?;
     };
 
     if base_asset_amount >= base_asset_amount_to_cover_margin_shortage {
@@ -617,13 +609,11 @@ pub fn liquidate_spot(
         };
 
     let margin_shortage = cast_to_i128(intermediate_margin_requirement_with_buffer)?
-        .checked_sub(intermediate_total_collateral)
-        .ok_or_else(math_error!())?
+        .safe_sub(intermediate_total_collateral)?
         .unsigned_abs();
 
-    let liability_weight_with_buffer = liability_weight
-        .checked_add(liquidation_margin_buffer_ratio as u128)
-        .ok_or_else(math_error!())?;
+    let liability_weight_with_buffer =
+        liability_weight.safe_add(liquidation_margin_buffer_ratio as u128)?;
 
     // Determine what amount of borrow to transfer to reduce margin shortage to 0
     let liability_transfer_to_cover_margin_shortage =
@@ -668,17 +658,13 @@ pub fn liquidate_spot(
     )?;
 
     let if_fee = liability_transfer
-        .checked_mul(liquidation_if_fee)
-        .ok_or_else(math_error!())?
-        .checked_div(LIQUIDATION_FEE_PRECISION)
-        .ok_or_else(math_error!())?;
+        .safe_mul(liquidation_if_fee)?
+        .safe_div(LIQUIDATION_FEE_PRECISION)?;
     {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
 
         update_spot_balances_and_cumulative_deposits(
-            liability_transfer
-                .checked_sub(if_fee)
-                .ok_or_else(math_error!())?,
+            liability_transfer.safe_sub(if_fee)?,
             &SpotBalanceType::Deposit,
             &mut liability_market,
             user.get_spot_position_mut(liability_market_index).unwrap(),
@@ -995,13 +981,11 @@ pub fn liquidate_borrow_for_perp_pnl(
         };
 
     let margin_shortage = cast_to_i128(intermediate_margin_requirement_with_buffer)?
-        .checked_sub(intermediate_total_collateral)
-        .ok_or_else(math_error!())?
+        .safe_sub(intermediate_total_collateral)?
         .unsigned_abs();
 
-    let liability_weight_with_buffer = liability_weight
-        .checked_add(liquidation_margin_buffer_ratio as u128)
-        .ok_or_else(math_error!())?;
+    let liability_weight_with_buffer =
+        liability_weight.safe_add(liquidation_margin_buffer_ratio as u128)?;
 
     // Determine what amount of borrow to transfer to reduce margin shortage to 0
     let liability_transfer_to_cover_margin_shortage =
@@ -1349,8 +1333,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         };
 
     let margin_shortage = cast_to_i128(intermediate_margin_requirement_with_buffer)?
-        .checked_sub(intermediate_total_collateral)
-        .ok_or_else(math_error!())?
+        .safe_sub(intermediate_total_collateral)?
         .unsigned_abs();
 
     // Determine what amount of borrow to transfer to reduce margin shortage to 0
@@ -1473,9 +1456,7 @@ pub fn liquidate_perp_pnl_for_deposit(
 
 pub fn set_being_liquidated_and_get_liquidation_id(user: &mut User) -> ClearingHouseResult<u16> {
     let liquidation_id = if user.is_being_liquidated {
-        user.next_liquidation_id
-            .checked_sub(1)
-            .ok_or_else(math_error!())?
+        user.next_liquidation_id.safe_sub(1)?
     } else {
         get_then_update_id!(user, next_liquidation_id)
     };
@@ -1552,8 +1533,7 @@ pub fn resolve_perp_bankruptcy(
         let max_insurance_withdraw = market
             .insurance_claim
             .quote_max_insurance
-            .checked_sub(market.insurance_claim.quote_settled_insurance)
-            .ok_or_else(math_error!())?;
+            .safe_sub(market.insurance_claim.quote_settled_insurance)?;
 
         let _if_payment = loss
             .unsigned_abs()
@@ -1565,14 +1545,11 @@ pub fn resolve_perp_bankruptcy(
         market.insurance_claim.quote_settled_insurance = market
             .insurance_claim
             .quote_settled_insurance
-            .checked_add(_if_payment)
-            .ok_or_else(math_error!())?;
+            .safe_add(_if_payment)?;
         _if_payment
     };
 
-    let loss_to_socialize = loss
-        .checked_add(cast_to_i128(if_payment)?)
-        .ok_or_else(math_error!())?;
+    let loss_to_socialize = loss.safe_add(cast_to_i128(if_payment)?)?;
 
     let cumulative_funding_rate_delta = calculate_funding_rate_deltas_to_resolve_bankruptcy(
         loss_to_socialize,
@@ -1590,20 +1567,17 @@ pub fn resolve_perp_bankruptcy(
             market.amm.cumulative_social_loss = market
                 .amm
                 .cumulative_social_loss
-                .checked_add(loss_to_socialize)
-                .ok_or_else(math_error!())?;
+                .safe_add(loss_to_socialize)?;
 
             market.amm.cumulative_funding_rate_long = market
                 .amm
                 .cumulative_funding_rate_long
-                .checked_add(cumulative_funding_rate_delta)
-                .ok_or_else(math_error!())?;
+                .safe_add(cumulative_funding_rate_delta)?;
 
             market.amm.cumulative_funding_rate_short = market
                 .amm
                 .cumulative_funding_rate_short
-                .checked_sub(cumulative_funding_rate_delta)
-                .ok_or_else(math_error!())?;
+                .safe_sub(cumulative_funding_rate_delta)?;
         }
     }
 
@@ -1613,10 +1587,7 @@ pub fn resolve_perp_bankruptcy(
         user.is_being_liquidated = false;
     }
 
-    let liquidation_id = user
-        .next_liquidation_id
-        .checked_sub(1)
-        .ok_or_else(math_error!())?;
+    let liquidation_id = user.next_liquidation_id.safe_sub(1)?;
 
     emit!(LiquidationRecord {
         ts: now,
@@ -1709,9 +1680,7 @@ pub fn resolve_spot_bankruptcy(
         insurance_fund_vault_balance.saturating_sub(1),
     )?);
 
-    let loss_to_socialize = borrow_amount
-        .checked_sub(if_payment)
-        .ok_or_else(math_error!())?;
+    let loss_to_socialize = borrow_amount.safe_sub(if_payment)?;
 
     let cumulative_deposit_interest_delta =
         calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(
@@ -1733,8 +1702,7 @@ pub fn resolve_spot_bankruptcy(
 
         spot_market.cumulative_deposit_interest = spot_market
             .cumulative_deposit_interest
-            .checked_sub(cumulative_deposit_interest_delta)
-            .ok_or_else(math_error!())?;
+            .safe_sub(cumulative_deposit_interest_delta)?;
     }
 
     // exit bankruptcy
@@ -1743,10 +1711,7 @@ pub fn resolve_spot_bankruptcy(
         user.is_being_liquidated = false;
     }
 
-    let liquidation_id = user
-        .next_liquidation_id
-        .checked_sub(1)
-        .ok_or_else(math_error!())?;
+    let liquidation_id = user.next_liquidation_id.safe_sub(1)?;
 
     emit!(LiquidationRecord {
         ts: now,

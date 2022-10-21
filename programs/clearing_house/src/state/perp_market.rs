@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use solana_program::msg;
+
 use std::cmp::max;
 
 use crate::controller::position::PositionDirection;
@@ -13,8 +13,9 @@ use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
 };
+use crate::math::safe_math::SafeMath;
 use crate::math::stats;
-use crate::math_error;
+
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::{
@@ -201,10 +202,8 @@ impl PerpMarket {
             )?;
             if net_unsettled_pnl > cast_to_i128(self.unrealized_pnl_max_imbalance)? {
                 margin_asset_weight = margin_asset_weight
-                    .checked_mul(self.unrealized_pnl_max_imbalance)
-                    .ok_or_else(math_error!())?
-                    .checked_div(net_unsettled_pnl.unsigned_abs())
-                    .ok_or_else(math_error!())?
+                    .safe_mul(self.unrealized_pnl_max_imbalance)?
+                    .safe_div(net_unsettled_pnl.unsigned_abs())?
             }
         }
 
@@ -219,8 +218,7 @@ impl PerpMarket {
                 MarginRequirementType::Initial => calculate_size_discount_asset_weight(
                     unrealized_pnl
                         .unsigned_abs()
-                        .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO)
-                        .ok_or_else(math_error!())?,
+                        .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO)?,
                     self.unrealized_pnl_imf_factor,
                     margin_asset_weight,
                 )?,
@@ -240,13 +238,9 @@ impl PerpMarket {
         base_asset_amount: i128,
     ) -> ClearingHouseResult<u128> {
         if base_asset_amount >= 0 {
-            LIQUIDATION_FEE_PRECISION
-                .checked_sub(self.liquidator_fee)
-                .ok_or_else(math_error!())
+            LIQUIDATION_FEE_PRECISION.safe_sub(self.liquidator_fee)
         } else {
-            LIQUIDATION_FEE_PRECISION
-                .checked_add(self.liquidator_fee)
-                .ok_or_else(math_error!())
+            LIQUIDATION_FEE_PRECISION.safe_add(self.liquidator_fee)
         }
     }
 
@@ -293,18 +287,12 @@ impl SpotBalance for PoolBalance {
     }
 
     fn increase_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.scaled_balance = self
-            .scaled_balance
-            .checked_add(delta)
-            .ok_or_else(math_error!())?;
+        self.scaled_balance = self.scaled_balance.safe_add(delta)?;
         Ok(())
     }
 
     fn decrease_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.scaled_balance = self
-            .scaled_balance
-            .checked_sub(delta)
-            .ok_or_else(math_error!())?;
+        self.scaled_balance = self.scaled_balance.safe_sub(delta)?;
         Ok(())
     }
 
@@ -468,28 +456,16 @@ impl AMM {
 
     pub fn bid_price(&self, reserve_price: u128) -> ClearingHouseResult<u128> {
         let bid_price = reserve_price
-            .checked_mul(
-                BID_ASK_SPREAD_PRECISION
-                    .checked_sub(self.short_spread)
-                    .ok_or_else(math_error!())?,
-            )
-            .ok_or_else(math_error!())?
-            .checked_div(BID_ASK_SPREAD_PRECISION)
-            .ok_or_else(math_error!())?;
+            .safe_mul(BID_ASK_SPREAD_PRECISION.safe_sub(self.short_spread)?)?
+            .safe_div(BID_ASK_SPREAD_PRECISION)?;
 
         Ok(bid_price)
     }
 
     pub fn ask_price(&self, reserve_price: u128) -> ClearingHouseResult<u128> {
         let ask_price = reserve_price
-            .checked_mul(
-                BID_ASK_SPREAD_PRECISION
-                    .checked_add(self.long_spread)
-                    .ok_or_else(math_error!())?,
-            )
-            .ok_or_else(math_error!())?
-            .checked_div(BID_ASK_SPREAD_PRECISION)
-            .ok_or_else(math_error!())?;
+            .safe_mul(BID_ASK_SPREAD_PRECISION.safe_add(self.long_spread)?)?
+            .safe_div(BID_ASK_SPREAD_PRECISION)?;
 
         Ok(ask_price)
     }
@@ -529,20 +505,14 @@ impl AMM {
         let mut oracle_scale_div = 1;
 
         if oracle_precision > PRICE_PRECISION {
-            oracle_scale_div = oracle_precision
-                .checked_div(PRICE_PRECISION)
-                .ok_or_else(math_error!())?;
+            oracle_scale_div = oracle_precision.safe_div(PRICE_PRECISION)?;
         } else {
-            oracle_scale_mult = PRICE_PRECISION
-                .checked_div(oracle_precision)
-                .ok_or_else(math_error!())?;
+            oracle_scale_mult = PRICE_PRECISION.safe_div(oracle_precision)?;
         }
 
         let oracle_twap_scaled = (oracle_twap)
-            .checked_mul(cast(oracle_scale_mult)?)
-            .ok_or_else(math_error!())?
-            .checked_div(cast(oracle_scale_div)?)
-            .ok_or_else(math_error!())?;
+            .safe_mul(cast(oracle_scale_mult)?)?
+            .safe_div(cast(oracle_scale_div)?)?;
 
         Ok(oracle_twap_scaled)
     }
@@ -553,11 +523,7 @@ impl AMM {
         position_direction: PositionDirection,
         now: i64,
     ) -> ClearingHouseResult {
-        let since_last = cast_to_i128(max(
-            1,
-            now.checked_sub(self.last_trade_ts)
-                .ok_or_else(math_error!())?,
-        ))?;
+        let since_last = cast_to_i128(max(1, now.safe_sub(self.last_trade_ts)?))?;
 
         amm::update_amm_long_short_intensity(self, now, quote_asset_amount, position_direction)?;
 

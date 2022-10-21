@@ -15,8 +15,9 @@ use crate::math::casting::cast_to_i64;
 use crate::math::casting::Cast;
 use crate::math::margin::meets_maintenance_margin_requirement;
 use crate::math::position::calculate_base_asset_value_with_expiry_price;
+use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
-use crate::math_error;
+
 use crate::state::events::{OrderActionExplanation, SettlePnlRecord};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
@@ -103,9 +104,7 @@ pub fn settle_pnl(
     )?)?;
     let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, oracle_price)?;
     let max_pnl_pool_excess = if net_user_pnl < pnl_pool_token_amount {
-        pnl_pool_token_amount
-            .checked_sub(net_user_pnl.max(0))
-            .ok_or_else(math_error!())?
+        pnl_pool_token_amount.safe_sub(net_user_pnl.max(0))?
     } else {
         0
     };
@@ -232,8 +231,7 @@ pub fn settle_expired_position(
 
     let position_settlement_ts = perp_market
         .expiry_ts
-        .checked_add(cast_to_i64(state.settlement_duration)?)
-        .ok_or_else(math_error!())?;
+        .safe_add(cast_to_i64(state.settlement_duration)?)?;
 
     validate!(
         now > position_settlement_ts,
@@ -274,10 +272,8 @@ pub fn settle_expired_position(
     )?;
 
     let fee = base_asset_value
-        .checked_mul(fee_structure.fee_tiers[0].fee_numerator as i64)
-        .ok_or_else(math_error!())?
-        .checked_div(fee_structure.fee_tiers[0].fee_denominator as i64)
-        .ok_or_else(math_error!())?;
+        .safe_mul(fee_structure.fee_tiers[0].fee_numerator as i64)?
+        .safe_div(fee_structure.fee_tiers[0].fee_denominator as i64)?;
 
     update_quote_asset_amount(
         &mut user.perp_positions[position_index],
@@ -301,8 +297,7 @@ pub fn settle_expired_position(
     perp_market.amm.base_asset_amount_with_amm = perp_market
         .amm
         .base_asset_amount_with_amm
-        .checked_add(position_delta.base_asset_amount.cast()?)
-        .ok_or_else(math_error!())?;
+        .safe_add(position_delta.base_asset_amount.cast()?)?;
 
     let quote_asset_amount_after = user.perp_positions[position_index].quote_asset_amount;
 

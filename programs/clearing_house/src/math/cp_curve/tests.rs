@@ -136,11 +136,9 @@ fn calculate_k_with_rounding() {
     let k_scale_denominator: u128 = 340980;
 
     let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
-        .checked_mul(bn::U192::from(k_scale_numerator))
-        .ok_or_else(math_error!())
+        .safe_mul(bn::U192::from(k_scale_numerator))
         .unwrap()
-        .checked_div(bn::U192::from(k_scale_denominator))
-        .ok_or_else(math_error!())
+        .safe_div(bn::U192::from(k_scale_denominator))
         .unwrap();
 
     let update_k_result = get_update_k_result(&market, new_sqrt_k, true).unwrap();

@@ -1,7 +1,7 @@
 use crate::error::ClearingHouseResult;
 use crate::math::constants::AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO;
-use crate::math_error;
-use solana_program::msg;
+use crate::math::safe_math::SafeMath;
+
 use std::ops::Div;
 
 pub fn reserve_to_asset_amount(
@@ -9,8 +9,7 @@ pub fn reserve_to_asset_amount(
     peg_multiplier: u128,
 ) -> ClearingHouseResult<u128> {
     Ok(quote_asset_reserve
-        .checked_mul(peg_multiplier)
-        .ok_or_else(math_error!())?
+        .safe_mul(peg_multiplier)?
         .div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO))
 }
 
@@ -19,7 +18,6 @@ pub fn asset_to_reserve_amount(
     peg_multiplier: u128,
 ) -> ClearingHouseResult<u128> {
     Ok(quote_asset_amount
-        .checked_mul(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO)
-        .ok_or_else(math_error!())?
+        .safe_mul(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO)?
         .div(peg_multiplier))
 }

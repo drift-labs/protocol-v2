@@ -2,7 +2,6 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 
-use crate::checked_increment;
 use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
@@ -13,9 +12,11 @@ use crate::math::constants::{
 };
 use crate::math::orders::standardize_price;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
+use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
 use crate::math::stats::calculate_rolling_sum;
 use crate::math_error;
+use crate::safe_increment;
 use crate::state::oracle::OraclePriceData;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use std::cmp::max;
@@ -165,10 +166,8 @@ impl User {
     ) -> ClearingHouseResult {
         let value = amount
             .cast::<u128>()?
-            .checked_mul(price.unsigned_abs())
-            .ok_or_else(math_error!())?
-            .checked_div(precision)
-            .ok_or_else(math_error!())?
+            .safe_mul(price.unsigned_abs())?
+            .safe_div(precision)?
             .cast::<u64>()?;
         self.total_deposits = self.total_deposits.saturating_add(value);
 
@@ -183,10 +182,8 @@ impl User {
     ) -> ClearingHouseResult {
         let value = amount
             .cast::<u128>()?
-            .checked_mul(price.unsigned_abs())
-            .ok_or_else(math_error!())?
-            .checked_div(precision)
-            .ok_or_else(math_error!())?
+            .safe_mul(price.unsigned_abs())?
+            .safe_div(precision)?
             .cast::<u64>()?;
         self.total_withdraws = self.total_withdraws.saturating_add(value);
 
@@ -194,7 +191,7 @@ impl User {
     }
 
     pub fn update_cumulative_spot_fees(&mut self, amount: i64) -> ClearingHouseResult {
-        checked_increment!(self.cumulative_spot_fees, amount);
+        safe_increment!(self.cumulative_spot_fees, amount);
         Ok(())
     }
 }
@@ -239,18 +236,12 @@ impl SpotBalance for SpotPosition {
     }
 
     fn increase_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.scaled_balance = self
-            .scaled_balance
-            .checked_add(delta.cast()?)
-            .ok_or_else(math_error!())?;
+        self.scaled_balance = self.scaled_balance.safe_add(delta.cast()?)?;
         Ok(())
     }
 
     fn decrease_balance(&mut self, delta: u128) -> ClearingHouseResult {
-        self.scaled_balance = self
-            .scaled_balance
-            .checked_sub(delta.cast()?)
-            .ok_or_else(math_error!())?;
+        self.scaled_balance = self.scaled_balance.safe_sub(delta.cast()?)?;
         Ok(())
     }
 
@@ -287,13 +278,9 @@ impl SpotPosition {
             None => self.get_signed_token_amount(spot_market)?,
         };
 
-        let token_amount_all_bids_fill = token_amount
-            .checked_add(self.open_bids as i128)
-            .ok_or_else(math_error!())?;
+        let token_amount_all_bids_fill = token_amount.safe_add(self.open_bids as i128)?;
 
-        let token_amount_all_asks_fill = token_amount
-            .checked_add(self.open_asks as i128)
-            .ok_or_else(math_error!())?;
+        let token_amount_all_asks_fill = token_amount.safe_add(self.open_asks as i128)?;
 
         if token_amount_all_bids_fill.abs() > token_amount_all_asks_fill.abs() {
             let worst_case_quote_token_amount = get_token_value(
@@ -362,14 +349,8 @@ impl PerpPosition {
     }
 
     pub fn worst_case_base_asset_amount(&self) -> ClearingHouseResult<i128> {
-        let base_asset_amount_all_bids_fill = self
-            .base_asset_amount
-            .checked_add(self.open_bids)
-            .ok_or_else(math_error!())?;
-        let base_asset_amount_all_asks_fill = self
-            .base_asset_amount
-            .checked_add(self.open_asks)
-            .ok_or_else(math_error!())?;
+        let base_asset_amount_all_bids_fill = self.base_asset_amount.safe_add(self.open_bids)?;
+        let base_asset_amount_all_asks_fill = self.base_asset_amount.safe_add(self.open_asks)?;
 
         if base_asset_amount_all_bids_fill
             .checked_abs()
@@ -406,12 +387,9 @@ impl PerpPosition {
         }
 
         (-self.quote_entry_amount.cast::<i128>()?)
-            .checked_mul(PRICE_PRECISION_I128)
-            .ok_or_else(math_error!())?
-            .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)
-            .ok_or_else(math_error!())?
-            .checked_div(self.base_asset_amount.cast()?)
-            .ok_or_else(math_error!())
+            .safe_mul(PRICE_PRECISION_I128)?
+            .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
+            .safe_div(self.base_asset_amount.cast()?)
     }
 
     pub fn get_cost_basis(&self) -> ClearingHouseResult<i128> {
@@ -420,12 +398,9 @@ impl PerpPosition {
         }
 
         (-self.quote_asset_amount.cast::<i128>()?)
-            .checked_mul(PRICE_PRECISION_I128)
-            .ok_or_else(math_error!())?
-            .checked_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)
-            .ok_or_else(math_error!())?
-            .checked_div(self.base_asset_amount.cast()?)
-            .ok_or_else(math_error!())
+            .safe_mul(PRICE_PRECISION_I128)?
+            .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
+            .safe_div(self.base_asset_amount.cast()?)
     }
 
     pub fn get_unrealized_pnl(&self, oracle_price: i128) -> ClearingHouseResult<i128> {
@@ -449,11 +424,9 @@ impl PerpPosition {
             let max_positive_pnl = self
                 .quote_asset_amount
                 .cast::<i128>()?
-                .checked_sub(self.quote_entry_amount.cast()?)
-                .map(|delta| delta.max(0))
-                .ok_or_else(math_error!())?
-                .checked_add(pnl_pool_excess.max(0))
-                .ok_or_else(math_error!())?;
+                .safe_sub(self.quote_entry_amount.cast()?)
+                .map(|delta| delta.max(0))?
+                .safe_add(pnl_pool_excess.max(0))?;
 
             Ok(unrealized_pnl.min(max_positive_pnl))
         } else {
@@ -516,9 +489,7 @@ impl Order {
         // the limit price can be hardcoded on order or derived based on oracle/slot
         let price = if self.has_oracle_price_offset() {
             if let Some(oracle_price) = valid_oracle_price {
-                let limit_price = oracle_price
-                    .checked_add(self.oracle_price_offset.cast()?)
-                    .ok_or_else(math_error!())?;
+                let limit_price = oracle_price.safe_add(self.oracle_price_offset.cast()?)?;
 
                 if limit_price <= 0 {
                     msg!("Oracle offset limit price below zero: {}", limit_price);
@@ -550,12 +521,8 @@ impl Order {
                 let oracle_price_1pct = oracle_price / 100;
 
                 let price = match self.direction {
-                    PositionDirection::Long => oracle_price
-                        .checked_add(oracle_price_1pct)
-                        .ok_or_else(math_error!())?,
-                    PositionDirection::Short => oracle_price
-                        .checked_sub(oracle_price_1pct)
-                        .ok_or_else(math_error!())?,
+                    PositionDirection::Long => oracle_price.safe_add(oracle_price_1pct)?,
+                    PositionDirection::Short => oracle_price.safe_sub(oracle_price_1pct)?,
                 };
 
                 standardize_price(price.cast()?, tick_size, self.direction)?.cast::<u128>()?
@@ -590,8 +557,7 @@ impl Order {
 
     pub fn get_base_asset_amount_unfilled(&self) -> ClearingHouseResult<u64> {
         self.base_asset_amount
-            .checked_sub(self.base_asset_amount_filled)
-            .ok_or_else(math_error!())
+            .safe_sub(self.base_asset_amount_filled)
     }
 
     pub fn must_be_triggered(&self) -> bool {
@@ -740,11 +706,7 @@ impl UserStats {
         quote_asset_amount: u64,
         now: i64,
     ) -> ClearingHouseResult {
-        let since_last = cast_to_i128(max(
-            1,
-            now.checked_sub(self.last_maker_volume_30d_ts)
-                .ok_or_else(math_error!())?,
-        ))?;
+        let since_last = cast_to_i128(max(1, now.safe_sub(self.last_maker_volume_30d_ts)?))?;
 
         self.maker_volume_30d = calculate_rolling_sum(
             self.maker_volume_30d,
@@ -762,11 +724,7 @@ impl UserStats {
         quote_asset_amount: u64,
         now: i64,
     ) -> ClearingHouseResult {
-        let since_last = cast_to_i128(max(
-            1,
-            now.checked_sub(self.last_taker_volume_30d_ts)
-                .ok_or_else(math_error!())?,
-        ))?;
+        let since_last = cast_to_i128(max(1, now.safe_sub(self.last_taker_volume_30d_ts)?))?;
 
         self.taker_volume_30d = calculate_rolling_sum(
             self.taker_volume_30d,
@@ -784,11 +742,7 @@ impl UserStats {
         quote_asset_amount: u64,
         now: i64,
     ) -> ClearingHouseResult {
-        let since_last = cast_to_i128(max(
-            1,
-            now.checked_sub(self.last_filler_volume_30d_ts)
-                .ok_or_else(math_error!())?,
-        ))?;
+        let since_last = cast_to_i128(max(1, now.safe_sub(self.last_filler_volume_30d_ts)?))?;
 
         self.filler_volume_30d = calculate_rolling_sum(
             self.filler_volume_30d,
@@ -803,21 +757,13 @@ impl UserStats {
     }
 
     pub fn increment_total_fees(&mut self, fee: u64) -> ClearingHouseResult {
-        self.fees.total_fee_paid = self
-            .fees
-            .total_fee_paid
-            .checked_add(fee)
-            .ok_or_else(math_error!())?;
+        self.fees.total_fee_paid = self.fees.total_fee_paid.safe_add(fee)?;
 
         Ok(())
     }
 
     pub fn increment_total_rebate(&mut self, fee: u64) -> ClearingHouseResult {
-        self.fees.total_fee_rebate = self
-            .fees
-            .total_fee_rebate
-            .checked_add(fee)
-            .ok_or_else(math_error!())?;
+        self.fees.total_fee_rebate = self.fees.total_fee_rebate.safe_add(fee)?;
 
         Ok(())
     }
@@ -827,35 +773,20 @@ impl UserStats {
         reward: u64,
         now: i64,
     ) -> ClearingHouseResult {
-        self.fees.total_referrer_reward = self
-            .fees
-            .total_referrer_reward
-            .checked_add(reward)
-            .ok_or_else(math_error!())?;
+        self.fees.total_referrer_reward = self.fees.total_referrer_reward.safe_add(reward)?;
 
-        self.fees.current_epoch_referrer_reward = self
-            .fees
-            .current_epoch_referrer_reward
-            .checked_add(reward)
-            .ok_or_else(math_error!())?;
+        self.fees.current_epoch_referrer_reward =
+            self.fees.current_epoch_referrer_reward.safe_add(reward)?;
 
         if now > self.next_epoch_ts {
             let n_epoch_durations = now
-                .checked_sub(self.next_epoch_ts)
-                .ok_or_else(math_error!())?
-                .checked_div(EPOCH_DURATION)
-                .ok_or_else(math_error!())?
-                .checked_add(1)
-                .ok_or_else(math_error!())?;
+                .safe_sub(self.next_epoch_ts)?
+                .safe_div(EPOCH_DURATION)?
+                .safe_add(1)?;
 
             self.next_epoch_ts = self
                 .next_epoch_ts
-                .checked_add(
-                    EPOCH_DURATION
-                        .checked_mul(n_epoch_durations)
-                        .ok_or_else(math_error!())?,
-                )
-                .ok_or_else(math_error!())?;
+                .safe_add(EPOCH_DURATION.safe_mul(n_epoch_durations)?)?;
 
             self.fees.current_epoch_referrer_reward = 0;
         }
@@ -864,11 +795,7 @@ impl UserStats {
     }
 
     pub fn increment_total_referee_discount(&mut self, discount: u64) -> ClearingHouseResult {
-        self.fees.total_referee_discount = self
-            .fees
-            .total_referee_discount
-            .checked_add(discount)
-            .ok_or_else(math_error!())?;
+        self.fees.total_referee_discount = self.fees.total_referee_discount.safe_add(discount)?;
 
         Ok(())
     }
@@ -878,8 +805,6 @@ impl UserStats {
     }
 
     pub fn get_total_30d_volume(&self) -> ClearingHouseResult<u64> {
-        self.taker_volume_30d
-            .checked_add(self.maker_volume_30d)
-            .ok_or_else(math_error!())
+        self.taker_volume_30d.safe_add(self.maker_volume_30d)
     }
 }

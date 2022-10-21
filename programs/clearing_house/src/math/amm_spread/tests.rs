@@ -280,16 +280,13 @@ mod test {
         assert_eq!(max_bids, 4000000000);
         assert_eq!(max_asks, -3000000000);
 
-        let total_liquidity = max_bids
-            .checked_add(max_asks.abs())
-            .ok_or_else(math_error!())
-            .unwrap();
+        let total_liquidity = max_bids.safe_add(max_asks.abs()).unwrap();
         assert_eq!(total_liquidity, 7000000000);
         // inventory scale
         let inventory_scale = base_asset_amount_with_amm
-            .checked_mul(BID_ASK_SPREAD_PRECISION_I128 * 5)
+            .safe_mul(BID_ASK_SPREAD_PRECISION_I128 * 5)
             .unwrap()
-            .checked_div(total_liquidity)
+            .safe_div(total_liquidity)
             .unwrap()
             .unsigned_abs();
         assert_eq!(inventory_scale, 714285);

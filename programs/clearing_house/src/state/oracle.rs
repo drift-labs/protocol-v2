@@ -3,8 +3,8 @@ use anchor_lang::prelude::*;
 use crate::error::ClearingHouseResult;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
 use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I128};
-use crate::math_error;
-use solana_program::msg;
+use crate::math::safe_math::SafeMath;
+
 use switchboard_v2::decimal::SwitchboardDecimal;
 
 #[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
@@ -155,30 +155,20 @@ pub fn get_pyth_price(
     let mut oracle_scale_div = 1;
 
     if oracle_precision > PRICE_PRECISION {
-        oracle_scale_div = oracle_precision
-            .checked_div(PRICE_PRECISION)
-            .ok_or_else(math_error!())?;
+        oracle_scale_div = oracle_precision.safe_div(PRICE_PRECISION)?;
     } else {
-        oracle_scale_mult = PRICE_PRECISION
-            .checked_div(oracle_precision)
-            .ok_or_else(math_error!())?;
+        oracle_scale_mult = PRICE_PRECISION.safe_div(oracle_precision)?;
     }
 
     let oracle_price_scaled = (oracle_price)
-        .checked_mul(cast(oracle_scale_mult)?)
-        .ok_or_else(math_error!())?
-        .checked_div(cast(oracle_scale_div)?)
-        .ok_or_else(math_error!())?;
+        .safe_mul(cast(oracle_scale_mult)?)?
+        .safe_div(cast(oracle_scale_div)?)?;
 
     let oracle_conf_scaled = (oracle_conf)
-        .checked_mul(oracle_scale_mult)
-        .ok_or_else(math_error!())?
-        .checked_div(oracle_scale_div)
-        .ok_or_else(math_error!())?;
+        .safe_mul(oracle_scale_mult)?
+        .safe_div(oracle_scale_div)?;
 
-    let oracle_delay: i64 = cast_to_i64(clock_slot)?
-        .checked_sub(cast(price_data.valid_slot)?)
-        .ok_or_else(math_error!())?;
+    let oracle_delay: i64 = cast_to_i64(clock_slot)?.safe_sub(cast(price_data.valid_slot)?)?;
 
     Ok(OraclePriceData {
         price: oracle_price_scaled,
@@ -208,16 +198,16 @@ pub fn get_switchboard_price(
     // } else {
     //     let price_10bps = price
     //         .unsigned_abs()
-    //         .checked_div(1000)
-    //         .ok_or_else(math_error!())?;
+    //         .safe_div(1000)
+    //         ?;
     //     max(confidence.unsigned_abs(), price_10bps)
     // };
     //
     // let delay: i64 = cast_to_i64(clock_slot)?
-    //     .checked_sub(cast(
+    //     .safe_sub(cast(
     //         aggregator_data.latest_confirmed_round.round_open_slot,
     //     )?)
-    //     .ok_or_else(math_error!())?;
+    //     ?;
     //
     // let has_sufficient_number_of_data_points =
     //     aggregator_data.latest_confirmed_round.num_success >= aggregator_data.min_oracle_results;
@@ -241,12 +231,10 @@ fn convert_switchboard_decimal(
     if switchboard_precision > PRICE_PRECISION {
         switchboard_decimal
             .mantissa
-            .checked_div((switchboard_precision / PRICE_PRECISION) as i128)
-            .ok_or_else(math_error!())
+            .safe_div((switchboard_precision / PRICE_PRECISION) as i128)
     } else {
         switchboard_decimal
             .mantissa
-            .checked_mul((PRICE_PRECISION / switchboard_precision) as i128)
-            .ok_or_else(math_error!())
+            .safe_mul((PRICE_PRECISION / switchboard_precision) as i128)
     }
 }
