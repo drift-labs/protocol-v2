@@ -1,8 +1,8 @@
-use crate::checked_decrement;
-use crate::checked_increment;
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::math_error;
+use crate::safe_decrement;
+use crate::safe_increment;
 use crate::state::spot_market::SpotMarket;
 use crate::validate;
 use anchor_lang::prelude::*;
@@ -66,7 +66,7 @@ impl InsuranceFundStake {
         spot_market: &SpotMarket,
     ) -> ClearingHouseResult {
         self.validate_base(spot_market)?;
-        checked_increment!(self.if_shares, delta);
+        safe_increment!(self.if_shares, delta);
         Ok(())
     }
 
@@ -76,7 +76,7 @@ impl InsuranceFundStake {
         spot_market: &SpotMarket,
     ) -> ClearingHouseResult {
         self.validate_base(spot_market)?;
-        checked_decrement!(self.if_shares, delta);
+        safe_decrement!(self.if_shares, delta);
         Ok(())
     }
 

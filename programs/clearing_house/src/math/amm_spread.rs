@@ -12,7 +12,8 @@ use crate::math::constants::{
     BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, DEFAULT_LARGE_BID_ASK_FACTOR,
     MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128,
 };
-use crate::math_error;
+use crate::math::safe_math::SafeMath;
+
 use crate::state::perp_market::AMM;
 use crate::validate;
 
@@ -25,21 +26,15 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
     direction: PositionDirection,
 ) -> ClearingHouseResult<(u64, PositionDirection)> {
     let invariant_sqrt_u192 = U192::from(amm.sqrt_k);
-    let invariant = invariant_sqrt_u192
-        .checked_mul(invariant_sqrt_u192)
-        .ok_or_else(math_error!())?;
+    let invariant = invariant_sqrt_u192.safe_mul(invariant_sqrt_u192)?;
 
     validate!(limit_price > 0, ErrorCode::DefaultError, "limit_price <= 0")?;
 
     let new_base_asset_reserve_squared = invariant
-        .checked_mul(U192::from(PRICE_PRECISION))
-        .ok_or_else(math_error!())?
-        .checked_div(U192::from(limit_price))
-        .ok_or_else(math_error!())?
-        .checked_mul(U192::from(amm.peg_multiplier))
-        .ok_or_else(math_error!())?
-        .checked_div(U192::from(PEG_PRECISION))
-        .ok_or_else(math_error!())?;
+        .safe_mul(U192::from(PRICE_PRECISION))?
+        .safe_div(U192::from(limit_price))?
+        .safe_mul(U192::from(amm.peg_multiplier))?
+        .safe_div(U192::from(PEG_PRECISION))?;
 
     let new_base_asset_reserve = new_base_asset_reserve_squared
         .integer_sqrt()
@@ -54,14 +49,12 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
 
     if new_base_asset_reserve > base_asset_reserve_before {
         let max_trade_amount = new_base_asset_reserve
-            .checked_sub(base_asset_reserve_before)
-            .ok_or_else(math_error!())?
+            .safe_sub(base_asset_reserve_before)?
             .cast::<u64>()?;
         Ok((max_trade_amount, PositionDirection::Short))
     } else {
         let max_trade_amount = base_asset_reserve_before
-            .checked_sub(new_base_asset_reserve)
-            .ok_or_else(math_error!())?
+            .safe_sub(new_base_asset_reserve)?
             .cast::<u64>()?;
         Ok((max_trade_amount, PositionDirection::Long))
     }
@@ -72,27 +65,19 @@ pub fn cap_to_max_spread(
     mut short_spread: u128,
     max_spread: u128,
 ) -> ClearingHouseResult<(u128, u128)> {
-    let total_spread = long_spread
-        .checked_add(short_spread)
-        .ok_or_else(math_error!())?;
+    let total_spread = long_spread.safe_add(short_spread)?;
 
     if total_spread > max_spread {
         if long_spread > short_spread {
             long_spread = min(max_spread, long_spread);
-            short_spread = max_spread
-                .checked_sub(long_spread)
-                .ok_or_else(math_error!())?;
+            short_spread = max_spread.safe_sub(long_spread)?;
         } else {
             short_spread = min(max_spread, short_spread);
-            long_spread = max_spread
-                .checked_sub(short_spread)
-                .ok_or_else(math_error!())?;
+            long_spread = max_spread.safe_sub(short_spread)?;
         }
     }
 
-    let new_total_spread = long_spread
-        .checked_add(short_spread)
-        .ok_or_else(math_error!())?;
+    let new_total_spread = long_spread.safe_add(short_spread)?;
 
     validate!(
         new_total_spread <= max_spread,
@@ -131,16 +116,14 @@ pub fn calculate_spread(
             long_spread,
             last_oracle_reserve_price_spread_pct
                 .unsigned_abs()
-                .checked_add(cast_to_u128(last_oracle_conf_pct)?)
-                .ok_or_else(math_error!())?,
+                .safe_add(cast_to_u128(last_oracle_conf_pct)?)?,
         );
     } else {
         short_spread = max(
             short_spread,
             last_oracle_reserve_price_spread_pct
                 .unsigned_abs()
-                .checked_add(cast_to_u128(last_oracle_conf_pct)?)
-                .ok_or_else(math_error!())?,
+                .safe_add(cast_to_u128(last_oracle_conf_pct)?)?,
         );
     }
 
@@ -155,89 +138,59 @@ pub fn calculate_spread(
 
     // inventory scale
     let inventory_scale = base_asset_amount_with_amm
-        .checked_mul(cast_to_i128(DEFAULT_LARGE_BID_ASK_FACTOR)?)
-        .ok_or_else(math_error!())?
-        .checked_div(min_side_liquidity.max(1))
-        .ok_or_else(math_error!())?
+        .safe_mul(cast_to_i128(DEFAULT_LARGE_BID_ASK_FACTOR)?)?
+        .safe_div(min_side_liquidity.max(1))?
         .unsigned_abs();
 
     let inventory_scale_capped = min(
         MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
-        BID_ASK_SPREAD_PRECISION
-            .checked_add(inventory_scale)
-            .ok_or_else(math_error!())?,
+        BID_ASK_SPREAD_PRECISION.safe_add(inventory_scale)?,
     );
 
     if base_asset_amount_with_amm > 0 {
         long_spread = long_spread
-            .checked_mul(inventory_scale_capped)
-            .ok_or_else(math_error!())?
-            .checked_div(BID_ASK_SPREAD_PRECISION)
-            .ok_or_else(math_error!())?;
+            .safe_mul(inventory_scale_capped)?
+            .safe_div(BID_ASK_SPREAD_PRECISION)?;
     } else if base_asset_amount_with_amm < 0 {
         short_spread = short_spread
-            .checked_mul(inventory_scale_capped)
-            .ok_or_else(math_error!())?
-            .checked_div(BID_ASK_SPREAD_PRECISION)
-            .ok_or_else(math_error!())?;
+            .safe_mul(inventory_scale_capped)?
+            .safe_div(BID_ASK_SPREAD_PRECISION)?;
     }
 
     // effective leverage scale
     let net_base_asset_value = cast_to_i128(quote_asset_reserve)?
-        .checked_sub(cast_to_i128(terminal_quote_asset_reserve)?)
-        .ok_or_else(math_error!())?
-        .checked_mul(cast_to_i128(peg_multiplier)?)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)
-        .ok_or_else(math_error!())?;
+        .safe_sub(cast_to_i128(terminal_quote_asset_reserve)?)?
+        .safe_mul(cast_to_i128(peg_multiplier)?)?
+        .safe_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)?;
 
     let local_base_asset_value = base_asset_amount_with_amm
-        .checked_mul(cast_to_i128(reserve_price)?)
-        .ok_or_else(math_error!())?
-        .checked_div(AMM_TO_QUOTE_PRECISION_RATIO_I128 * PRICE_PRECISION_I128)
-        .ok_or_else(math_error!())?;
+        .safe_mul(cast_to_i128(reserve_price)?)?
+        .safe_div(AMM_TO_QUOTE_PRECISION_RATIO_I128 * PRICE_PRECISION_I128)?;
 
-    let effective_leverage = max(
-        0,
-        local_base_asset_value
-            .checked_sub(net_base_asset_value)
-            .ok_or_else(math_error!())?,
-    )
-    .checked_mul(BID_ASK_SPREAD_PRECISION_I128)
-    .ok_or_else(math_error!())?
-    .checked_div(max(0, total_fee_minus_distributions) + 1)
-    .ok_or_else(math_error!())?;
+    let effective_leverage = max(0, local_base_asset_value.safe_sub(net_base_asset_value)?)
+        .safe_mul(BID_ASK_SPREAD_PRECISION_I128)?
+        .safe_div(max(0, total_fee_minus_distributions) + 1)?;
 
     let effective_leverage_capped = min(
         MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
-        BID_ASK_SPREAD_PRECISION
-            .checked_add(cast_to_u128(max(0, effective_leverage))? + 1)
-            .ok_or_else(math_error!())?,
+        BID_ASK_SPREAD_PRECISION.safe_add(cast_to_u128(max(0, effective_leverage))? + 1)?,
     );
 
     if total_fee_minus_distributions <= 0 {
         long_spread = long_spread
-            .checked_mul(DEFAULT_LARGE_BID_ASK_FACTOR)
-            .ok_or_else(math_error!())?
-            .checked_div(BID_ASK_SPREAD_PRECISION)
-            .ok_or_else(math_error!())?;
+            .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR)?
+            .safe_div(BID_ASK_SPREAD_PRECISION)?;
         short_spread = short_spread
-            .checked_mul(DEFAULT_LARGE_BID_ASK_FACTOR)
-            .ok_or_else(math_error!())?
-            .checked_div(BID_ASK_SPREAD_PRECISION)
-            .ok_or_else(math_error!())?;
+            .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR)?
+            .safe_div(BID_ASK_SPREAD_PRECISION)?;
     } else if base_asset_amount_with_amm > 0 {
         long_spread = long_spread
-            .checked_mul(effective_leverage_capped)
-            .ok_or_else(math_error!())?
-            .checked_div(BID_ASK_SPREAD_PRECISION)
-            .ok_or_else(math_error!())?;
+            .safe_mul(effective_leverage_capped)?
+            .safe_div(BID_ASK_SPREAD_PRECISION)?;
     } else {
         short_spread = short_spread
-            .checked_mul(effective_leverage_capped)
-            .ok_or_else(math_error!())?
-            .checked_div(BID_ASK_SPREAD_PRECISION)
-            .ok_or_else(math_error!())?;
+            .safe_mul(effective_leverage_capped)?
+            .safe_div(BID_ASK_SPREAD_PRECISION)?;
     }
     let (long_spread, short_spread) = cap_to_max_spread(
         long_spread,
@@ -271,8 +224,7 @@ pub fn calculate_spread_reserves(
 
     let quote_asset_reserve_delta = if spread > 0 {
         amm.quote_asset_reserve
-            .checked_div(BID_ASK_SPREAD_PRECISION / (spread / 2))
-            .ok_or_else(math_error!())?
+            .safe_div(BID_ASK_SPREAD_PRECISION / (spread / 2))?
     } else {
         0
     };
@@ -280,22 +232,17 @@ pub fn calculate_spread_reserves(
     let quote_asset_reserve = match direction {
         PositionDirection::Long => amm
             .quote_asset_reserve
-            .checked_add(quote_asset_reserve_delta)
-            .ok_or_else(math_error!())?,
+            .safe_add(quote_asset_reserve_delta)?,
         PositionDirection::Short => amm
             .quote_asset_reserve
-            .checked_sub(quote_asset_reserve_delta)
-            .ok_or_else(math_error!())?,
+            .safe_sub(quote_asset_reserve_delta)?,
     };
 
     let invariant_sqrt_u192 = U192::from(amm.sqrt_k);
-    let invariant = invariant_sqrt_u192
-        .checked_mul(invariant_sqrt_u192)
-        .ok_or_else(math_error!())?;
+    let invariant = invariant_sqrt_u192.safe_mul(invariant_sqrt_u192)?;
 
     let base_asset_reserve = invariant
-        .checked_div(U192::from(quote_asset_reserve))
-        .ok_or_else(math_error!())?
+        .safe_div(U192::from(quote_asset_reserve))?
         .try_to_u128()?;
 
     Ok((base_asset_reserve, quote_asset_reserve))

@@ -1,4 +1,7 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math::bn::{U192, U256};
+use crate::math::ceil_div::CheckedCeilDiv;
+use solana_program::msg;
 use std::panic::Location;
 
 pub trait SafeMath: Sized {
@@ -6,6 +9,7 @@ pub trait SafeMath: Sized {
     fn safe_sub(self, rhs: Self) -> ClearingHouseResult<Self>;
     fn safe_mul(self, rhs: Self) -> ClearingHouseResult<Self>;
     fn safe_div(self, rhs: Self) -> ClearingHouseResult<Self>;
+    fn safe_div_ceil(self, rhs: Self) -> ClearingHouseResult<Self>;
 }
 
 macro_rules! checked_impl {
@@ -18,7 +22,7 @@ macro_rules! checked_impl {
                     Some(result) => Ok(result),
                     None => {
                         let caller = Location::caller();
-                        println!("Math error thrown at {}:{}", caller.file(), caller.line());
+                        msg!("Math error thrown at {}:{}", caller.file(), caller.line());
                         Err(ErrorCode::MathError)
                     }
                 }
@@ -31,7 +35,7 @@ macro_rules! checked_impl {
                     Some(result) => Ok(result),
                     None => {
                         let caller = Location::caller();
-                        println!("Math error thrown at {}:{}", caller.file(), caller.line());
+                        msg!("Math error thrown at {}:{}", caller.file(), caller.line());
                         Err(ErrorCode::MathError)
                     }
                 }
@@ -44,7 +48,7 @@ macro_rules! checked_impl {
                     Some(result) => Ok(result),
                     None => {
                         let caller = Location::caller();
-                        println!("Math error thrown at {}:{}", caller.file(), caller.line());
+                        msg!("Math error thrown at {}:{}", caller.file(), caller.line());
                         Err(ErrorCode::MathError)
                     }
                 }
@@ -57,7 +61,20 @@ macro_rules! checked_impl {
                     Some(result) => Ok(result),
                     None => {
                         let caller = Location::caller();
-                        println!("Math error thrown at {}:{}", caller.file(), caller.line());
+                        msg!("Math error thrown at {}:{}", caller.file(), caller.line());
+                        Err(ErrorCode::MathError)
+                    }
+                }
+            }
+
+            #[track_caller]
+            #[inline]
+            fn safe_div_ceil(self, v: $t) -> ClearingHouseResult<$t> {
+                match self.checked_ceil_div(v) {
+                    Some(result) => Ok(result),
+                    None => {
+                        let caller = Location::caller();
+                        msg!("Math error thrown at {}:{}", caller.file(), caller.line());
                         Err(ErrorCode::MathError)
                     }
                 }
@@ -66,6 +83,8 @@ macro_rules! checked_impl {
     };
 }
 
+checked_impl!(U256);
+checked_impl!(U192);
 checked_impl!(u128);
 checked_impl!(u64);
 checked_impl!(u32);

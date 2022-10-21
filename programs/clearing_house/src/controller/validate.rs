@@ -2,7 +2,8 @@ use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::casting::{cast_to_i128, Cast};
 use crate::math::orders::is_multiple_of_step_size;
-use crate::math_error;
+use crate::math::safe_math::SafeMath;
+
 use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::user::PerpPosition;
 use crate::validate;
@@ -60,17 +61,13 @@ pub fn validate_market_account(market: &PerpMarket) -> ClearingHouseResult {
     )?;
 
     let invariant_sqrt_u192 = crate::bn::U192::from(market.amm.sqrt_k);
-    let invariant = invariant_sqrt_u192
-        .checked_mul(invariant_sqrt_u192)
-        .ok_or_else(math_error!())?;
+    let invariant = invariant_sqrt_u192.safe_mul(invariant_sqrt_u192)?;
     let quote_asset_reserve = invariant
-        .checked_div(crate::bn::U192::from(market.amm.base_asset_reserve))
-        .ok_or_else(math_error!())?
+        .safe_div(crate::bn::U192::from(market.amm.base_asset_reserve))?
         .try_to_u128()?;
 
     let rounding_diff = cast_to_i128(quote_asset_reserve)?
-        .checked_sub(cast_to_i128(market.amm.quote_asset_reserve)?)
-        .ok_or_else(math_error!())?
+        .safe_sub(cast_to_i128(market.amm.quote_asset_reserve)?)?
         .abs();
 
     validate!(
