@@ -2255,6 +2255,8 @@ pub fn pay_keeper_flat_reward_for_spot(
             false,
         )?;
 
+        filler.update_cumulative_spot_fees(filler_reward.cast()?)?;
+
         update_spot_balances(
             filler_reward as u128,
             &SpotBalanceType::Borrow,
@@ -2262,6 +2264,8 @@ pub fn pay_keeper_flat_reward_for_spot(
             user.get_quote_spot_position_mut(),
             false,
         )?;
+
+        user.update_cumulative_spot_fees(-filler_reward.cast()?)?;
 
         filler_reward
     } else {
@@ -3159,6 +3163,8 @@ pub fn fulfill_spot_order_with_match(
         Some(quote_asset_amount.cast()?),
     )?;
 
+    taker.update_cumulative_spot_fees(-taker_fee.cast()?)?;
+
     update_order_after_fill(
         &mut taker.orders[taker_order_index],
         base_asset_amount,
@@ -3204,6 +3210,8 @@ pub fn fulfill_spot_order_with_match(
         Some(quote_asset_amount.cast()?),
     )?;
 
+    maker.update_cumulative_spot_fees(maker_rebate.cast()?)?;
+
     update_order_after_fill(
         &mut maker.orders[maker_order_index],
         base_asset_amount,
@@ -3231,6 +3239,8 @@ pub fn fulfill_spot_order_with_match(
                 filler.get_quote_spot_position_mut(),
                 false,
             )?;
+
+            filler.update_cumulative_spot_fees(filler_reward.cast()?)?;
         }
 
         filler_stats.update_filler_volume(quote_asset_amount, now)?;
@@ -3679,6 +3689,8 @@ pub fn fulfill_spot_order_with_serum(
         Some(quote_asset_amount_filled.cast()?),
     )?;
 
+    taker.update_cumulative_spot_fees(-taker_fee.cast()?)?;
+
     taker_stats.update_taker_volume_30d(cast(quote_asset_amount_filled)?, now)?;
 
     taker_stats.increment_total_fees(cast(taker_fee)?)?;
@@ -3705,6 +3717,8 @@ pub fn fulfill_spot_order_with_serum(
                 filler.get_quote_spot_position_mut(),
                 false,
             )?;
+
+            filler.update_cumulative_spot_fees(filler_reward.cast()?)?;
         }
 
         filler_stats.update_filler_volume(cast(quote_asset_amount_filled)?, now)?;
