@@ -21,7 +21,9 @@ export async function bulkPollingUserSubscribe(
 				user.accountSubscriber as PollingUserAccountSubscriber
 			).addToAccountLoader();
 		})
-	);
+	).catch((e) => {
+		throw e;
+	});
 
 	await accountLoader.load();
 
@@ -29,5 +31,9 @@ export async function bulkPollingUserSubscribe(
 		users.map(async (user) => {
 			return user.subscribe();
 		})
-	);
+	).catch((e) => {
+		throw e;
+	});
+
+	return;
 }
