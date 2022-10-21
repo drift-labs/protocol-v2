@@ -218,7 +218,7 @@ describe('stop limit', () => {
 		const limitPrice = PRICE_PRECISION;
 		const triggerCondition = OrderTriggerCondition.ABOVE;
 
-		await clearingHouse.placeAndTake(
+		await clearingHouse.placeAndTakePerpOrder(
 			getMarketOrderParams({
 				marketIndex,
 				direction: PositionDirection.LONG,
@@ -235,7 +235,7 @@ describe('stop limit', () => {
 			triggerCondition,
 		});
 
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 		const orderId = 2;
 		const orderIndex = new BN(0);
 		await clearingHouseUser.fetchAccounts();
@@ -248,7 +248,7 @@ describe('stop limit', () => {
 			order
 		);
 
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			userAccountPublicKey,
 			clearingHouseUser.getUserAccount(),
 			order
@@ -304,7 +304,7 @@ describe('stop limit', () => {
 		const limitPrice = PRICE_PRECISION;
 		const triggerCondition = OrderTriggerCondition.BELOW;
 
-		await clearingHouse.placeAndTake(
+		await clearingHouse.placeAndTakePerpOrder(
 			getMarketOrderParams({
 				marketIndex,
 				direction: PositionDirection.SHORT,
@@ -321,7 +321,7 @@ describe('stop limit', () => {
 			triggerCondition,
 		});
 
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 		const orderId = 4;
 		const orderIndex = new BN(0);
 		let order = clearingHouseUser.getOrder(orderId);
@@ -333,7 +333,7 @@ describe('stop limit', () => {
 			order
 		);
 
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			userAccountPublicKey,
 			clearingHouseUser.getUserAccount(),
 			order

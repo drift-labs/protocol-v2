@@ -182,7 +182,7 @@ describe('amm spread: market order', () => {
 			direction,
 			baseAssetAmount,
 		});
-		const txSig = await clearingHouse.placeAndTake(orderParams);
+		const txSig = await clearingHouse.placeAndTakePerpOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
@@ -298,7 +298,7 @@ describe('amm spread: market order', () => {
 			direction,
 			baseAssetAmount,
 		});
-		const txSig = await clearingHouse.placeAndTake(orderParams);
+		const txSig = await clearingHouse.placeAndTakePerpOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
@@ -373,7 +373,7 @@ describe('amm spread: market order', () => {
 			userOrderId: 1,
 		});
 
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
@@ -389,7 +389,7 @@ describe('amm spread: market order', () => {
 
 		// fill should fail because nothing to fill
 		try {
-			await clearingHouse.fillOrder(
+			await clearingHouse.fillPerpOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
 				clearingHouseUser.getUserAccount(),
 				unfilledOrder
@@ -417,7 +417,7 @@ describe('amm spread: market order', () => {
 			price: limitPrice,
 			userOrderId: 1,
 		});
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
@@ -433,7 +433,7 @@ describe('amm spread: market order', () => {
 
 		// fill should fail because nothing to fill
 		try {
-			await clearingHouse.fillOrder(
+			await clearingHouse.fillPerpOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
 				clearingHouseUser.getUserAccount(),
 				unfilledOrder
@@ -464,7 +464,7 @@ describe('amm spread: market order', () => {
 			price: limitPrice,
 			userOrderId: 1,
 		});
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
@@ -501,7 +501,7 @@ describe('amm spread: market order', () => {
 			getSwapDirection('base', direction)
 		).neg();
 
-		const txSig = await clearingHouse.fillOrder(
+		const txSig = await clearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
@@ -550,7 +550,7 @@ describe('amm spread: market order', () => {
 			price: limitPrice,
 			userOrderId: 1,
 		});
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
@@ -587,7 +587,7 @@ describe('amm spread: market order', () => {
 			getSwapDirection('base', direction)
 		);
 
-		const txSig = await clearingHouse.fillOrder(
+		const txSig = await clearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
@@ -691,7 +691,7 @@ describe('amm spread: market order', () => {
 			direction,
 			baseAssetAmount,
 		});
-		const txSig = await clearingHouse.placeAndTake(orderParams);
+		const txSig = await clearingHouse.placeAndTakePerpOrder(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
 			connection,
@@ -743,7 +743,7 @@ describe('amm spread: market order', () => {
 				baseAssetAmount: baseAssetAmount.div(new BN(numCloses * i)), // variable sized close
 			});
 			try {
-				await clearingHouse.placeAndTake(orderParams);
+				await clearingHouse.placeAndTakePerpOrder(orderParams);
 			} catch (e) {
 				console.error(e);
 			}

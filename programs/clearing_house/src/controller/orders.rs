@@ -79,7 +79,7 @@ mod tests;
 #[cfg(test)]
 mod amm_jit_tests;
 
-pub fn place_order(
+pub fn place_perp_order(
     state: &State,
     user: &AccountLoader<User>,
     perp_market_map: &PerpMarketMap,
@@ -547,7 +547,7 @@ pub fn cancel_order(
     Ok(())
 }
 
-pub fn fill_order(
+pub fn fill_perp_order(
     order_id: u32,
     state: &State,
     user: &AccountLoader<User>,
@@ -773,31 +773,32 @@ pub fn fill_order(
         return Ok((0, true));
     }
 
-    let (base_asset_amount, potentially_risk_increasing, mut updated_user_state) = fulfill_order(
-        user,
-        order_index,
-        &user_key,
-        user_stats,
-        &mut maker.as_deref_mut(),
-        &mut maker_stats.as_deref_mut(),
-        maker_order_index,
-        maker_key.as_ref(),
-        &mut filler.as_deref_mut(),
-        &filler_key,
-        &mut filler_stats.as_deref_mut(),
-        &mut referrer.as_deref_mut(),
-        &mut referrer_stats.as_deref_mut(),
-        spot_market_map,
-        perp_market_map,
-        oracle_map,
-        &state.perp_fee_structure,
-        reserve_price_before,
-        valid_oracle_price,
-        now,
-        slot,
-        market_is_reduce_only,
-        amm_is_available,
-    )?;
+    let (base_asset_amount, potentially_risk_increasing, mut updated_user_state) =
+        fulfill_perp_order(
+            user,
+            order_index,
+            &user_key,
+            user_stats,
+            &mut maker.as_deref_mut(),
+            &mut maker_stats.as_deref_mut(),
+            maker_order_index,
+            maker_key.as_ref(),
+            &mut filler.as_deref_mut(),
+            &filler_key,
+            &mut filler_stats.as_deref_mut(),
+            &mut referrer.as_deref_mut(),
+            &mut referrer_stats.as_deref_mut(),
+            spot_market_map,
+            perp_market_map,
+            oracle_map,
+            &state.perp_fee_structure,
+            reserve_price_before,
+            valid_oracle_price,
+            now,
+            slot,
+            market_is_reduce_only,
+            amm_is_available,
+        )?;
 
     if should_cancel_order_after_fulfill(user, order_index, slot)? {
         updated_user_state = true;
@@ -1095,7 +1096,7 @@ fn sanitize_referrer<'a>(
     Ok((Some(referrer), Some(referrer_stats)))
 }
 
-fn fulfill_order(
+fn fulfill_perp_order(
     user: &mut User,
     user_order_index: usize,
     user_key: &Pubkey,
@@ -1183,7 +1184,7 @@ fn fulfill_order(
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
         let (fill_base_asset_amount, fill_quote_asset_amount) = match fulfillment_method {
-            PerpFulfillmentMethod::AMM(maker_price) => fulfill_order_with_amm(
+            PerpFulfillmentMethod::AMM(maker_price) => fulfill_perp_order_with_amm(
                 user,
                 user_stats,
                 user_order_index,
@@ -1205,7 +1206,7 @@ fn fulfill_order(
                 *maker_price,
                 true,
             )?,
-            PerpFulfillmentMethod::Match => fulfill_order_with_match(
+            PerpFulfillmentMethod::Match => fulfill_perp_order_with_match(
                 market.deref_mut(),
                 user,
                 user_stats,
@@ -1338,7 +1339,7 @@ fn cancel_risk_increasing_order(
     Ok(())
 }
 
-pub fn fulfill_order_with_amm(
+pub fn fulfill_perp_order_with_amm(
     user: &mut User,
     user_stats: &mut UserStats,
     order_index: usize,
@@ -1609,7 +1610,7 @@ pub fn fulfill_order_with_amm(
     Ok((base_asset_amount, quote_asset_amount))
 }
 
-pub fn fulfill_order_with_match(
+pub fn fulfill_perp_order_with_match(
     market: &mut PerpMarket,
     taker: &mut User,
     taker_stats: &mut UserStats,
@@ -1702,7 +1703,7 @@ pub fn fulfill_order_with_match(
 
         if jit_base_asset_amount > 0 {
             let (base_asset_amount_filled_by_amm, quote_asset_amount_filled_by_amm) =
-                fulfill_order_with_amm(
+                fulfill_perp_order_with_amm(
                     taker,
                     taker_stats,
                     taker_order_index,
