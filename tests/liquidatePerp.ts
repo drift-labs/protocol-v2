@@ -118,7 +118,7 @@ describe('liquidate perp and lp', () => {
 		await printTxLogs(connection, txSig);
 
 		for (let i = 0; i < 32; i++) {
-			await clearingHouse.placeOrder(
+			await clearingHouse.placePerpOrder(
 				getLimitOrderParams({
 					baseAssetAmount: BASE_PRECISION,
 					marketIndex: 0,

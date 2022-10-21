@@ -19,8 +19,8 @@ import {
 	UserMapInterface,
 	Wallet,
 	OrderRecord,
+	ExchangeStatus,
 } from '../../src';
-import { ExchangeStatus } from '../../lib';
 
 export const mockPerpPosition: PerpPosition = {
 	baseAssetAmount: new BN(0),
@@ -73,9 +73,6 @@ export const mockAMM: AMM = {
 	totalFeeMinusDistributions: new BN(0),
 	totalFeeWithdrawn: new BN(0),
 	totalFee: new BN(0),
-	cumulativeFundingPaymentPerLp: new BN(0),
-	cumulativeFeePerLp: new BN(0),
-	cumulativeNetBaseAssetAmountPerLp: new BN(0),
 	userLpShares: new BN(0),
 	baseAssetAmountWithUnsettledLp: new BN(0),
 	orderStepSize: new BN(0),

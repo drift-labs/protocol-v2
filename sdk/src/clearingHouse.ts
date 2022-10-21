@@ -1561,7 +1561,7 @@ export class ClearingHouse {
 		marketIndex: number,
 		limitPrice?: BN
 	): Promise<TransactionSignature> {
-		return await this.placeAndTake({
+		return await this.placeAndTakePerpOrder({
 			orderType: OrderType.MARKET,
 			marketIndex,
 			direction,
@@ -1591,9 +1591,9 @@ export class ClearingHouse {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
 
-		const marketOrderTx = wrapInTx(await this.getPlaceOrderIx(orderParams));
+		const marketOrderTx = wrapInTx(await this.getPlacePerpOrderIx(orderParams));
 		const fillTx = wrapInTx(
-			await this.getFillOrderIx(userAccountPublicKey, userAccount, {
+			await this.getFillPerpOrderIx(userAccountPublicKey, userAccount, {
 				orderId,
 				marketIndex,
 			})
@@ -1624,11 +1624,11 @@ export class ClearingHouse {
 		return { txSig, signedFillTx };
 	}
 
-	public async placeOrder(
+	public async placePerpOrder(
 		orderParams: OptionalOrderParams
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
-			wrapInTx(await this.getPlaceOrderIx(orderParams)),
+			wrapInTx(await this.getPlacePerpOrderIx(orderParams)),
 			[],
 			this.opts
 		);
@@ -1645,7 +1645,7 @@ export class ClearingHouse {
 		});
 	}
 
-	public async getPlaceOrderIx(
+	public async getPlacePerpOrderIx(
 		orderParams: OptionalOrderParams
 	): Promise<TransactionInstruction> {
 		orderParams = this.getOrderParams(orderParams, MarketType.PERP);
@@ -1657,7 +1657,7 @@ export class ClearingHouse {
 			readablePerpMarketIndex: orderParams.marketIndex,
 		});
 
-		return await this.program.instruction.placeOrder(orderParams, {
+		return await this.program.instruction.placePerpOrder(orderParams, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				user: userAccountPublicKey,
@@ -1895,7 +1895,7 @@ export class ClearingHouse {
 		);
 	}
 
-	public async fillOrder(
+	public async fillPerpOrder(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
 		order?: Pick<Order, 'marketIndex' | 'orderId'>,
@@ -1904,7 +1904,7 @@ export class ClearingHouse {
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.txSender.send(
 			wrapInTx(
-				await this.getFillOrderIx(
+				await this.getFillPerpOrderIx(
 					userAccountPublicKey,
 					user,
 					order,
@@ -1918,7 +1918,7 @@ export class ClearingHouse {
 		return txSig;
 	}
 
-	public async getFillOrderIx(
+	public async getFillPerpOrderIx(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		order: Pick<Order, 'marketIndex' | 'orderId'>,
@@ -1977,7 +1977,7 @@ export class ClearingHouse {
 		const orderId = order.orderId;
 		const makerOrderId = makerInfo ? makerInfo.order.orderId : null;
 
-		return await this.program.instruction.fillOrder(orderId, makerOrderId, {
+		return await this.program.instruction.fillPerpOrder(orderId, makerOrderId, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				filler: fillerPublicKey,
@@ -2275,14 +2275,18 @@ export class ClearingHouse {
 		});
 	}
 
-	public async placeAndTake(
+	public async placeAndTakePerpOrder(
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
-				await this.getPlaceAndTakeIx(orderParams, makerInfo, referrerInfo)
+				await this.getPlaceAndTakePerpOrderIx(
+					orderParams,
+					makerInfo,
+					referrerInfo
+				)
 			),
 			[],
 			this.opts
@@ -2291,7 +2295,7 @@ export class ClearingHouse {
 		return txSig;
 	}
 
-	public async getPlaceAndTakeIx(
+	public async getPlaceAndTakePerpOrderIx(
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo
@@ -2338,7 +2342,7 @@ export class ClearingHouse {
 			});
 		}
 
-		return await this.program.instruction.placeAndTake(
+		return await this.program.instruction.placeAndTakePerpOrder(
 			orderParams,
 			makerOrderId,
 			{
@@ -2353,14 +2357,18 @@ export class ClearingHouse {
 		);
 	}
 
-	public async placeAndMake(
+	public async placeAndMakePerpOrder(
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
-				await this.getPlaceAndMakeIx(orderParams, takerInfo, referrerInfo)
+				await this.getPlaceAndMakePerpOrderIx(
+					orderParams,
+					takerInfo,
+					referrerInfo
+				)
 			),
 			[],
 			this.opts
@@ -2371,7 +2379,7 @@ export class ClearingHouse {
 		return txSig;
 	}
 
-	public async getPlaceAndMakeIx(
+	public async getPlaceAndMakePerpOrderIx(
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
 		referrerInfo?: ReferrerInfo
@@ -2400,7 +2408,7 @@ export class ClearingHouse {
 		}
 
 		const takerOrderId = takerInfo.order.orderId;
-		return await this.program.instruction.placeAndMake(
+		return await this.program.instruction.placeAndMakePerpOrder(
 			orderParams,
 			takerOrderId,
 			{
@@ -2596,7 +2604,7 @@ export class ClearingHouse {
 			throw Error(`No position in market ${marketIndex.toString()}`);
 		}
 
-		return await this.placeAndTake({
+		return await this.placeAndTakePerpOrder({
 			orderType: OrderType.MARKET,
 			marketIndex,
 			direction: findDirectionToClose(userPosition),

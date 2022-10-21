@@ -107,7 +107,7 @@ async function iterClosePosition(
 			price: limitPrice,
 			immediateOrCancel: true,
 		});
-		const txClose = await clearingHouse.placeAndTake(closeOrderParams);
+		const txClose = await clearingHouse.placeAndTakePerpOrder(closeOrderParams);
 		console.log(
 			'tx logs',
 			(
@@ -282,9 +282,8 @@ describe('repeg and spread amm', () => {
 
 		await depositToFeePoolFromIF(0.001, clearingHouse, userUSDCAccount);
 
-		// await clearingHouse.placeAndFillOrder(orderParams);
 		// await clearingHouse.closePosition(new BN(0));
-		const txSig0 = await clearingHouse.placeAndTake(orderParams);
+		const txSig0 = await clearingHouse.placeAndTakePerpOrder(orderParams);
 
 		console.log(
 			'tx logs',
@@ -531,7 +530,9 @@ describe('repeg and spread amm', () => {
 				price: limitPrice,
 				immediateOrCancel: true,
 			});
-			const txClose = await clearingHouse.placeAndTake(closeOrderParams);
+			const txClose = await clearingHouse.placeAndTakePerpOrder(
+				closeOrderParams
+			);
 			console.log(
 				'tx logs',
 				(await connection.getTransaction(txClose, { commitment: 'confirmed' }))
@@ -732,7 +733,7 @@ describe('repeg and spread amm', () => {
 				baseAssetAmount: new BN(tradeSize),
 			});
 
-			await clearingHouses[count % 5].placeAndTake(orderParams);
+			await clearingHouses[count % 5].placeAndTakePerpOrder(orderParams);
 			count += 1;
 		}
 

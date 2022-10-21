@@ -289,7 +289,7 @@ describe('orders', () => {
 			reduceOnly,
 		});
 
-		const txSig = await clearingHouse.placeOrder(orderParams);
+		const txSig = await clearingHouse.placePerpOrder(orderParams);
 		console.log(
 			'tx logs',
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
@@ -372,7 +372,7 @@ describe('orders', () => {
 			price,
 		});
 
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 		const orderIndex = new BN(0);
 		const orderId = 2;
 		await clearingHouseUser.fetchAccounts();
@@ -384,7 +384,7 @@ describe('orders', () => {
 		assert(clearingHouseUser.getUserPosition(marketIndex).openAsks.eq(ZERO));
 
 		let order = clearingHouseUser.getOrder(orderId);
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			userAccountPublicKey,
 			clearingHouseUser.getUserAccount(),
 			order
@@ -497,7 +497,7 @@ describe('orders', () => {
 			triggerPrice,
 			triggerCondition,
 		});
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 		const orderId = 3;
 		const orderIndex = new BN(0);
 		await clearingHouseUser.fetchAccounts();
@@ -511,7 +511,7 @@ describe('orders', () => {
 			order
 		);
 
-		const txSig = await fillerClearingHouse.fillOrder(
+		const txSig = await fillerClearingHouse.fillPerpOrder(
 			userAccountPublicKey,
 			clearingHouseUser.getUserAccount(),
 			order
@@ -635,7 +635,7 @@ describe('orders', () => {
 			baseAssetAmount,
 			price: limitPrice,
 		});
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
@@ -666,7 +666,7 @@ describe('orders', () => {
 			clearingHouseUser.getUserPosition(marketIndex).baseAssetAmount;
 		order = clearingHouseUser.getOrder(orderId);
 		console.log(order);
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			userAccountPublicKey,
 			clearingHouseUser.getUserAccount(),
 			order
@@ -714,7 +714,7 @@ describe('orders', () => {
 			price: limitPrice,
 		});
 
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getUserAccount().orders[0];
@@ -735,7 +735,7 @@ describe('orders', () => {
 		console.log(amountToFill.toString());
 
 		const orderId = 5;
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			userAccountPublicKey,
 			clearingHouseUser.getUserAccount(),
 			order
@@ -831,7 +831,7 @@ describe('orders', () => {
 			price: limitPrice,
 		});
 
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 
 		const newPrice = convertToNumber(
 			limitPrice.mul(new BN(104)).div(new BN(100)),
@@ -868,7 +868,7 @@ describe('orders', () => {
 
 		console.log(amountToFill);
 
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			userAccountPublicKey,
 			clearingHouseUser.getUserAccount(),
 			order
@@ -947,7 +947,7 @@ describe('orders', () => {
 		});
 
 		try {
-			await clearingHouse.placeOrder(orderParams);
+			await clearingHouse.placePerpOrder(orderParams);
 		} catch (e) {
 			console.error(e);
 			throw e;
@@ -1010,7 +1010,7 @@ describe('orders', () => {
 		);
 
 		try {
-			await fillerClearingHouse.fillOrder(
+			await fillerClearingHouse.fillPerpOrder(
 				userAccountPublicKey,
 				clearingHouseUser.getUserAccount(),
 				order
@@ -1105,7 +1105,7 @@ describe('orders', () => {
 			baseAssetAmount,
 			price: limitPrice,
 		});
-		await clearingHouse.placeOrder(orderParams);
+		await clearingHouse.placePerpOrder(orderParams);
 
 		await clearingHouseUser.fetchAccounts();
 
@@ -1149,7 +1149,7 @@ describe('orders', () => {
 
 		assert(order.orderId >= 7);
 		try {
-			await fillerClearingHouse.fillOrder(
+			await fillerClearingHouse.fillPerpOrder(
 				userAccountPublicKey,
 				clearingHouseUser.getUserAccount(),
 				order
@@ -1237,7 +1237,7 @@ describe('orders', () => {
 			price: limitPrice,
 		});
 		try {
-			await clearingHouse.placeOrder(orderParams);
+			await clearingHouse.placePerpOrder(orderParams);
 		} catch (e) {
 			console.error(e);
 			throw e;
@@ -1300,7 +1300,7 @@ describe('orders', () => {
 		);
 
 		try {
-			const txSig = await fillerClearingHouse.fillOrder(
+			const txSig = await fillerClearingHouse.fillPerpOrder(
 				userAccountPublicKey,
 				clearingHouseUser.getUserAccount(),
 				order
@@ -1411,7 +1411,7 @@ describe('orders', () => {
 			baseAssetAmount,
 			price,
 		});
-		const txSig = await clearingHouse.placeAndTake(orderParams);
+		const txSig = await clearingHouse.placeAndTakePerpOrder(orderParams);
 
 		const computeUnits = await findComputeUnitConsumption(
 			clearingHouse.program.programId,
@@ -1466,7 +1466,7 @@ describe('orders', () => {
 			triggerCondition,
 		});
 
-		const placeTxSig = await whaleClearingHouse.placeOrder(orderParams);
+		const placeTxSig = await whaleClearingHouse.placePerpOrder(orderParams);
 		await printTxLogs(connection, placeTxSig);
 
 		await whaleClearingHouse.fetchAccounts();
@@ -1487,7 +1487,7 @@ describe('orders', () => {
 			order
 		);
 
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			whaleAccountPublicKey,
 			whaleUser.getUserAccount(),
 			order
@@ -1533,7 +1533,7 @@ describe('orders', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount: AMM_RESERVE_PRECISION,
 		});
-		await clearingHouse.placeAndTake(openPositionOrderParams);
+		await clearingHouse.placeAndTakePerpOrder(openPositionOrderParams);
 		console.log('1');
 		const reduceMarketOrderParams = getMarketOrderParams({
 			marketIndex: marketIndexEth,
@@ -1541,7 +1541,7 @@ describe('orders', () => {
 			baseAssetAmount: TWO.mul(AMM_RESERVE_PRECISION),
 			reduceOnly: true,
 		});
-		await clearingHouse.placeAndTake(reduceMarketOrderParams);
+		await clearingHouse.placeAndTakePerpOrder(reduceMarketOrderParams);
 		await clearingHouse.fetchAccounts();
 		await clearingHouseUser.fetchAccounts();
 		console.log('2');
@@ -1552,7 +1552,7 @@ describe('orders', () => {
 			isVariant(clearingHouseUser.getUserAccount().orders[0].status, 'init')
 		);
 
-		await clearingHouse.placeAndTake(openPositionOrderParams);
+		await clearingHouse.placeAndTakePerpOrder(openPositionOrderParams);
 		const reduceLimitOrderParams = getLimitOrderParams({
 			marketIndex: marketIndexEth,
 			direction: PositionDirection.LONG,
@@ -1565,7 +1565,7 @@ describe('orders', () => {
 		console.log('3');
 
 		try {
-			await clearingHouse.placeAndTake(reduceLimitOrderParams);
+			await clearingHouse.placeAndTakePerpOrder(reduceLimitOrderParams);
 		} catch (e) {
 			console.error(e);
 		}

@@ -16,6 +16,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount, get_token_value};
 use crate::math::stats::calculate_rolling_sum;
 use crate::math_error;
+use crate::safe_increment;
 use crate::state::oracle::OraclePriceData;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use std::cmp::max;
@@ -36,7 +37,10 @@ pub struct User {
     pub last_add_perp_lp_shares_ts: i64,
     pub total_deposits: u64,
     pub total_withdraws: u64,
+    // Fees (taker fees, maker rebate, referrer reward, filler reward) and pnl for perps
     pub settled_perp_pnl: i64,
+    // Fees (taker fees, maker rebate, filler reward) for spot
+    pub cumulative_spot_fees: i64,
     pub next_order_id: u32,
     pub max_margin_ratio: u32,
     pub next_liquidation_id: u16,
@@ -183,6 +187,11 @@ impl User {
             .cast::<u64>()?;
         self.total_withdraws = self.total_withdraws.saturating_add(value);
 
+        Ok(())
+    }
+
+    pub fn update_cumulative_spot_fees(&mut self, amount: i64) -> ClearingHouseResult {
+        safe_increment!(self.cumulative_spot_fees, amount);
         Ok(())
     }
 }

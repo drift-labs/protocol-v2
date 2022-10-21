@@ -451,7 +451,7 @@ describe('update amm', () => {
 		);
 		let txSig;
 		try {
-			txSig = await clearingHouse.placeAndTake(orderParams);
+			txSig = await clearingHouse.placeAndTakePerpOrder(orderParams);
 		} catch (e) {
 			console.error(e);
 		}
@@ -540,7 +540,7 @@ describe('update amm', () => {
 			);
 			let txSig;
 			try {
-				txSig = await clearingHouse.placeAndTake(orderParams);
+				txSig = await clearingHouse.placeAndTakePerpOrder(orderParams);
 			} catch (e) {
 				console.error(e);
 			}
@@ -641,7 +641,7 @@ describe('update amm', () => {
 		);
 		console.log(computeUnits21);
 
-		const txSig3 = await clearingHouse.placeAndTake(orderParams);
+		const txSig3 = await clearingHouse.placeAndTakePerpOrder(orderParams);
 		await clearingHouse.fetchAccounts();
 
 		console.log(

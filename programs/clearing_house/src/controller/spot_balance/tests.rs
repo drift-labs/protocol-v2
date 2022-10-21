@@ -145,7 +145,7 @@ fn check_withdraw_limits() {
     // fails
     let spot_market_backup = spot_market;
     let user_backup = user;
-    assert!(update_spot_position_balance_with_limits(
+    assert!(update_spot_balances_and_cumulative_deposits_with_limits(
         amount as u128,
         &SpotBalanceType::Borrow,
         &mut spot_market,
@@ -162,7 +162,7 @@ fn check_withdraw_limits() {
     assert_eq!(spot_market.deposit_balance, 1000000000);
     assert_eq!(spot_market.borrow_balance, 0);
     assert_eq!((amount / 2), 500000);
-    update_spot_position_balance_with_limits(
+    update_spot_balances_and_cumulative_deposits_with_limits(
         (amount / 2) as u128,
         &SpotBalanceType::Borrow,
         &mut spot_market,
@@ -175,7 +175,7 @@ fn check_withdraw_limits() {
     assert_eq!(spot_market.borrow_balance, 0);
 
     // .50 * .2 = .1
-    update_spot_position_balance_with_limits(
+    update_spot_balances_and_cumulative_deposits_with_limits(
         ((amount / 10) - 2) as u128,
         &SpotBalanceType::Borrow,
         &mut spot_market,
@@ -186,7 +186,7 @@ fn check_withdraw_limits() {
     //fail
     let spot_market_backup = spot_market;
     let user_backup = user;
-    assert!(update_spot_position_balance_with_limits(
+    assert!(update_spot_balances_and_cumulative_deposits_with_limits(
         2_u128,
         &SpotBalanceType::Borrow,
         &mut spot_market,
@@ -211,7 +211,7 @@ fn check_withdraw_limits() {
 
     // Borrowing blocks
 
-    update_spot_position_balance_with_limits(
+    update_spot_balances_and_cumulative_deposits_with_limits(
         QUOTE_PRECISION * 100000,
         &SpotBalanceType::Deposit,
         &mut spot_market,
@@ -244,7 +244,7 @@ fn check_withdraw_limits() {
     sol_spot_market.optimal_borrow_rate = SPOT_RATE_PRECISION_U32 / 5; //20% APR
     sol_spot_market.max_borrow_rate = SPOT_RATE_PRECISION_U32; //100% APR
 
-    update_spot_position_balance_with_limits(
+    update_spot_balances_and_cumulative_deposits_with_limits(
         QUOTE_PRECISION * 50,
         &SpotBalanceType::Borrow,
         &mut spot_market,
@@ -263,7 +263,7 @@ fn check_withdraw_limits() {
 
     user.spot_positions[1].market_index = 1; // usually done elsewhere in instruction
 
-    update_spot_position_balance_with_limits(
+    update_spot_balances_and_cumulative_deposits_with_limits(
         100000 * 100000,
         &SpotBalanceType::Borrow,
         &mut sol_spot_market,
@@ -290,7 +290,7 @@ fn check_withdraw_limits() {
     // 80% from 2% bad
     let spot_market_backup = sol_spot_market;
     let user_backup = user;
-    assert!(update_spot_position_balance_with_limits(
+    assert!(update_spot_balances_and_cumulative_deposits_with_limits(
         100000 * 100000 * 40,
         &SpotBalanceType::Borrow,
         &mut sol_spot_market,
@@ -300,7 +300,7 @@ fn check_withdraw_limits() {
     sol_spot_market = spot_market_backup;
     user = user_backup;
 
-    update_spot_position_balance_with_limits(
+    update_spot_balances_and_cumulative_deposits_with_limits(
         100000 * 100000 * 6,
         &SpotBalanceType::Borrow,
         &mut sol_spot_market,
@@ -315,7 +315,7 @@ fn check_withdraw_limits() {
     assert_eq!(sol_spot_market.deposit_token_twap, 500067287978);
     assert_eq!(sol_spot_market.borrow_token_twap, 80072075949);
 
-    update_spot_position_balance_with_limits(
+    update_spot_balances_and_cumulative_deposits_with_limits(
         100000 * 100000,
         &SpotBalanceType::Borrow,
         &mut sol_spot_market,
@@ -345,7 +345,7 @@ fn check_withdraw_limits() {
     .unwrap();
 
     // ok to deposit when market is invalid
-    update_spot_position_balance_with_limits(
+    update_spot_balances_and_cumulative_deposits_with_limits(
         100000 * 100000 * 100,
         &SpotBalanceType::Deposit,
         &mut sol_spot_market,
@@ -479,7 +479,7 @@ fn check_fee_collection() {
     assert_eq!(spot_market.borrow_balance, 0);
 
     let amount = QUOTE_PRECISION / 4;
-    update_spot_position_balance_with_limits(
+    update_spot_balances_and_cumulative_deposits_with_limits(
         (amount / 2) as u128,
         &SpotBalanceType::Borrow,
         &mut spot_market,

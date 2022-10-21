@@ -771,7 +771,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		});
 
 		//    'Program failed to complete: Access violation in stack frame 11 at address 0x20000bff0 of size 8 by instruction #88129',
-		const txSig = await clearingHouseLoser.placeAndTake(orderParams);
+		const txSig = await clearingHouseLoser.placeAndTakePerpOrder(orderParams);
 		await printTxLogs(connection, txSig);
 
 		const market1 = clearingHouse.getPerpMarketAccount(0);

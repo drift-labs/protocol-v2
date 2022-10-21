@@ -247,7 +247,7 @@
       ]
     },
     {
-      "name": "placeOrder",
+      "name": "placePerpOrder",
       "accounts": [
         {
           "name": "state",
@@ -373,7 +373,7 @@
       ]
     },
     {
-      "name": "placeAndTake",
+      "name": "placeAndTakePerpOrder",
       "accounts": [
         {
           "name": "state",
@@ -412,7 +412,7 @@
       ]
     },
     {
-      "name": "placeAndMake",
+      "name": "placeAndMakePerpOrder",
       "accounts": [
         {
           "name": "state",
@@ -772,7 +772,7 @@
       "args": []
     },
     {
-      "name": "fillOrder",
+      "name": "fillPerpOrder",
       "accounts": [
         {
           "name": "state",
@@ -3277,6 +3277,32 @@
       ]
     },
     {
+      "name": "updatePerpMarketMaxOpenInterest",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxOpenInterest",
+          "type": "u128"
+        }
+      ]
+    },
+    {
       "name": "updateAdmin",
       "accounts": [
         {
@@ -4090,6 +4116,10 @@
             "type": "i64"
           },
           {
+            "name": "cumulativeSpotFees",
+            "type": "i64"
+          },
+          {
             "name": "nextOrderId",
             "type": "u32"
           },
@@ -4683,6 +4713,10 @@
           {
             "name": "baseAssetAmountWithUnsettledLp",
             "type": "i128"
+          },
+          {
+            "name": "maxOpenInterest",
+            "type": "u128"
           },
           {
             "name": "quoteAssetAmountLong",
@@ -7577,6 +7611,16 @@
       "code": 6134,
       "name": "ReduceOnlyWithdrawIncreasedRisk",
       "msg": "Reduce Only Withdraw Increased Risk"
+    },
+    {
+      "code": 6135,
+      "name": "MaxOpenInterest",
+      "msg": "Max Open Interest"
+    },
+    {
+      "code": 6136,
+      "name": "CantResolvePerpBankruptcy",
+      "msg": "Cant Resolve Perp Bankruptcy"
     }
   ]
 }
