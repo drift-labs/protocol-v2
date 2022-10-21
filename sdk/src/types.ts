@@ -683,6 +683,7 @@ export type SpotPosition = {
 };
 
 export type Order = {
+	ts: BN;
 	status: OrderStatus;
 	orderType: OrderType;
 	marketType: MarketType;

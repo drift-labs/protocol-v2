@@ -47,6 +47,7 @@ function insertOrderToDLOB(
 ) {
 	dlob.insertOrder(
 		{
+			ts: ZERO,
 			status: OrderStatus.OPEN,
 			orderType,
 			marketType,
@@ -97,6 +98,7 @@ function insertTriggerOrderToDLOB(
 ) {
 	dlob.insertOrder(
 		{
+			ts: ZERO,
 			status: OrderStatus.OPEN,
 			orderType,
 			marketType,
