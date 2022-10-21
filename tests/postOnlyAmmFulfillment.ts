@@ -182,7 +182,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 			userOrderId: 1,
 			postOnly: false,
 		});
-		await clearingHouse.placeOrder(makerOrderParams);
+		await clearingHouse.placePerpOrder(makerOrderParams);
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getOrderByUserOrderId(1);
 		assert(!order.postOnly);
@@ -214,7 +214,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 			userOrderId: 1,
 			postOnly: true,
 		});
-		await fillerClearingHouse.placeOrder(makerOrderParams2);
+		await fillerClearingHouse.placePerpOrder(makerOrderParams2);
 		await fillerClearingHouse.fetchAccounts();
 		const order2 = fillerClearingHouse.getOrderByUserId(1);
 		assert(order2.postOnly);
@@ -226,7 +226,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 			order: order2,
 		};
 
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order,

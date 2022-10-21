@@ -169,7 +169,7 @@ describe('trigger orders', () => {
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
 		});
-		await clearingHouse.placeAndTake(marketOrderParams);
+		await clearingHouse.placeAndTakePerpOrder(marketOrderParams);
 
 		const stopOrderParams = getTriggerMarketOrderParams({
 			marketIndex,
@@ -179,14 +179,14 @@ describe('trigger orders', () => {
 			triggerCondition: OrderTriggerCondition.BELOW,
 			userOrderId: 1,
 		});
-		await clearingHouse.placeOrder(stopOrderParams);
+		await clearingHouse.placePerpOrder(stopOrderParams);
 
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getOrderByUserOrderId(1);
 
 		try {
 			// fill should fail since price is above trigger
-			await fillerClearingHouse.fillOrder(
+			await fillerClearingHouse.fillPerpOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
 				clearingHouseUser.getUserAccount(),
 				order
@@ -208,7 +208,7 @@ describe('trigger orders', () => {
 			clearingHouseUser.getUserAccount(),
 			order
 		);
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
@@ -266,7 +266,7 @@ describe('trigger orders', () => {
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
 		});
-		await clearingHouse.placeAndTake(marketOrderParams);
+		await clearingHouse.placeAndTakePerpOrder(marketOrderParams);
 
 		const stopLimitOrderParams = getTriggerLimitOrderParams({
 			marketIndex,
@@ -279,14 +279,14 @@ describe('trigger orders', () => {
 			triggerCondition: OrderTriggerCondition.BELOW,
 			userOrderId: 1,
 		});
-		await clearingHouse.placeOrder(stopLimitOrderParams);
+		await clearingHouse.placePerpOrder(stopLimitOrderParams);
 
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getOrderByUserOrderId(1);
 
 		try {
 			// fill should fail since price is above trigger
-			await fillerClearingHouse.fillOrder(
+			await fillerClearingHouse.fillPerpOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
 				clearingHouseUser.getUserAccount(),
 				order
@@ -308,7 +308,7 @@ describe('trigger orders', () => {
 			clearingHouseUser.getUserAccount(),
 			order
 		);
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
@@ -366,7 +366,7 @@ describe('trigger orders', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		await clearingHouse.placeAndTake(marketOrderParams);
+		await clearingHouse.placeAndTakePerpOrder(marketOrderParams);
 
 		const stopOrderParams = getTriggerMarketOrderParams({
 			marketIndex,
@@ -376,14 +376,14 @@ describe('trigger orders', () => {
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			userOrderId: 1,
 		});
-		await clearingHouse.placeOrder(stopOrderParams);
+		await clearingHouse.placePerpOrder(stopOrderParams);
 
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getOrderByUserOrderId(1);
 
 		try {
 			// fill should fail since price is above trigger
-			await fillerClearingHouse.fillOrder(
+			await fillerClearingHouse.fillPerpOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
 				clearingHouseUser.getUserAccount(),
 				order
@@ -405,7 +405,7 @@ describe('trigger orders', () => {
 			clearingHouseUser.getUserAccount(),
 			order
 		);
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
@@ -463,7 +463,7 @@ describe('trigger orders', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		await clearingHouse.placeAndTake(marketOrderParams);
+		await clearingHouse.placeAndTakePerpOrder(marketOrderParams);
 
 		const triggerPrice = PRICE_PRECISION.mul(new BN(6)).div(new BN(5));
 		const limitPrice = triggerPrice.add(PRICE_PRECISION.div(new BN(50)));
@@ -476,14 +476,14 @@ describe('trigger orders', () => {
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			userOrderId: 1,
 		});
-		await clearingHouse.placeOrder(stopLimitOrderParams);
+		await clearingHouse.placePerpOrder(stopLimitOrderParams);
 
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getOrderByUserOrderId(1);
 
 		try {
 			// fill should fail since price is above trigger
-			await fillerClearingHouse.fillOrder(
+			await fillerClearingHouse.fillPerpOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
 				clearingHouseUser.getUserAccount(),
 				order
@@ -521,7 +521,7 @@ describe('trigger orders', () => {
 			clearingHouseUser.getUserAccount(),
 			order
 		);
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
@@ -580,7 +580,7 @@ describe('trigger orders', () => {
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
 		});
-		await clearingHouse.placeAndTake(marketOrderParams);
+		await clearingHouse.placeAndTakePerpOrder(marketOrderParams);
 
 		const stopOrderParams = getTriggerMarketOrderParams({
 			marketIndex,
@@ -590,14 +590,14 @@ describe('trigger orders', () => {
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			userOrderId: 1,
 		});
-		await clearingHouse.placeOrder(stopOrderParams);
+		await clearingHouse.placePerpOrder(stopOrderParams);
 
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getOrderByUserOrderId(1);
 
 		try {
 			// fill should fail since price is above trigger
-			await fillerClearingHouse.fillOrder(
+			await fillerClearingHouse.fillPerpOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
 				clearingHouseUser.getUserAccount(),
 				order
@@ -619,7 +619,7 @@ describe('trigger orders', () => {
 			clearingHouseUser.getUserAccount(),
 			order
 		);
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
@@ -677,7 +677,7 @@ describe('trigger orders', () => {
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
 		});
-		await clearingHouse.placeAndTake(marketOrderParams);
+		await clearingHouse.placeAndTakePerpOrder(marketOrderParams);
 
 		const triggerPrice = PRICE_PRECISION.mul(new BN(2));
 		const limitPrice = triggerPrice.sub(PRICE_PRECISION.div(new BN(50)));
@@ -690,14 +690,14 @@ describe('trigger orders', () => {
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			userOrderId: 1,
 		});
-		await clearingHouse.placeOrder(stopLimitOrderParams);
+		await clearingHouse.placePerpOrder(stopLimitOrderParams);
 
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getOrderByUserOrderId(1);
 
 		try {
 			// fill should fail since price is above trigger
-			await fillerClearingHouse.fillOrder(
+			await fillerClearingHouse.fillPerpOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
 				clearingHouseUser.getUserAccount(),
 				order
@@ -719,7 +719,7 @@ describe('trigger orders', () => {
 			clearingHouseUser.getUserAccount(),
 			order
 		);
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
@@ -777,7 +777,7 @@ describe('trigger orders', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		await clearingHouse.placeAndTake(marketOrderParams);
+		await clearingHouse.placeAndTakePerpOrder(marketOrderParams);
 
 		const stopOrderParams = getTriggerMarketOrderParams({
 			marketIndex,
@@ -787,14 +787,14 @@ describe('trigger orders', () => {
 			triggerCondition: OrderTriggerCondition.BELOW,
 			userOrderId: 1,
 		});
-		await clearingHouse.placeOrder(stopOrderParams);
+		await clearingHouse.placePerpOrder(stopOrderParams);
 
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getOrderByUserOrderId(1);
 
 		try {
 			// fill should fail since price is above trigger
-			await fillerClearingHouse.fillOrder(
+			await fillerClearingHouse.fillPerpOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
 				clearingHouseUser.getUserAccount(),
 				order
@@ -816,7 +816,7 @@ describe('trigger orders', () => {
 			clearingHouseUser.getUserAccount(),
 			order
 		);
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order
@@ -874,7 +874,7 @@ describe('trigger orders', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 		});
-		await clearingHouse.placeAndTake(marketOrderParams);
+		await clearingHouse.placeAndTakePerpOrder(marketOrderParams);
 
 		const triggerPrice = PRICE_PRECISION.div(new BN(2));
 		const limitPrice = triggerPrice.add(PRICE_PRECISION.div(new BN(50)));
@@ -887,14 +887,14 @@ describe('trigger orders', () => {
 			triggerCondition: OrderTriggerCondition.BELOW,
 			userOrderId: 1,
 		});
-		await clearingHouse.placeOrder(stopLimitOrderParams);
+		await clearingHouse.placePerpOrder(stopLimitOrderParams);
 
 		await clearingHouseUser.fetchAccounts();
 		const order = clearingHouseUser.getOrderByUserOrderId(1);
 
 		try {
 			// fill should fail since price is above trigger
-			await fillerClearingHouse.fillOrder(
+			await fillerClearingHouse.fillPerpOrder(
 				await clearingHouseUser.getUserAccountPublicKey(),
 				clearingHouseUser.getUserAccount(),
 				order
@@ -916,7 +916,7 @@ describe('trigger orders', () => {
 			clearingHouseUser.getUserAccount(),
 			order
 		);
-		await fillerClearingHouse.fillOrder(
+		await fillerClearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
 			order

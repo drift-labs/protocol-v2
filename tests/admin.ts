@@ -194,7 +194,7 @@ describe('admin', () => {
 
 	it('Update market oracle', async () => {
 		const newOracle = PublicKey.default;
-		const newOracleSource = OracleSource.SWITCHBOARD;
+		const newOracleSource = OracleSource.QUOTE_ASSET;
 
 		await clearingHouse.updatePerpMarketOracle(0, newOracle, newOracleSource);
 

@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 
+use crate::checked_increment;
 use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
@@ -35,7 +36,10 @@ pub struct User {
     pub last_add_perp_lp_shares_ts: i64,
     pub total_deposits: u64,
     pub total_withdraws: u64,
+    // Fees (taker fees, maker rebate, referrer reward, filler reward) and pnl for perps
     pub settled_perp_pnl: i64,
+    // Fees (taker fees, maker rebate, filler reward) for spot
+    pub cumulative_spot_fees: i64,
     pub next_order_id: u32,
     pub max_margin_ratio: u32,
     pub next_liquidation_id: u16,
@@ -186,6 +190,11 @@ impl User {
             .cast::<u64>()?;
         self.total_withdraws = self.total_withdraws.saturating_add(value);
 
+        Ok(())
+    }
+
+    pub fn update_cumulative_spot_fees(&mut self, amount: i64) -> ClearingHouseResult {
+        checked_increment!(self.cumulative_spot_fees, amount);
         Ok(())
     }
 }

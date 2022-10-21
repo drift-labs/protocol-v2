@@ -290,18 +290,17 @@ describe('serum spot market', () => {
 		assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
 		assert(orderActionRecord.takerFee.eq(new BN(100000)));
 
-		console.log(makerClearingHouse.getQuoteAssetTokenAmount().toString());
-		assert(makerClearingHouse.getQuoteAssetTokenAmount().eq(new BN(10000)));
+		assert(makerClearingHouse.getQuoteAssetTokenAmount().eq(new BN(11800)));
 
 		const solSpotMarket =
 			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
-		assert(solSpotMarket.totalSpotFee.eq(new BN(58000)));
+		assert(solSpotMarket.totalSpotFee.eq(new BN(56200)));
 		const spotFeePoolAmount = getTokenAmount(
 			solSpotMarket.spotFeePool.scaledBalance,
 			takerClearingHouse.getQuoteSpotMarketAccount(),
 			SpotBalanceType.DEPOSIT
 		);
-		assert(spotFeePoolAmount.eq(new BN(50000)));
+		assert(spotFeePoolAmount.eq(new BN(48200)));
 
 		await crankMarkets();
 	});
@@ -399,18 +398,18 @@ describe('serum spot market', () => {
 		assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
 		assert(orderActionRecord.takerFee.eq(new BN(100000)));
 
-		assert(makerClearingHouse.getQuoteAssetTokenAmount().eq(new BN(20000)));
+		assert(makerClearingHouse.getQuoteAssetTokenAmount().eq(new BN(23600)));
 
 		const solSpotMarket =
 			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
-		assert(solSpotMarket.totalSpotFee.eq(new BN(116000)));
+		assert(solSpotMarket.totalSpotFee.eq(new BN(112400)));
 		const spotFeePoolAmount = getTokenAmount(
 			solSpotMarket.spotFeePool.scaledBalance,
 			takerClearingHouse.getQuoteSpotMarketAccount(),
 			SpotBalanceType.DEPOSIT
 		);
 		console.log(spotFeePoolAmount.toString());
-		assert(spotFeePoolAmount.eq(new BN(108000)));
+		assert(spotFeePoolAmount.eq(new BN(104400)));
 
 		await crankMarkets();
 	});
@@ -512,14 +511,13 @@ describe('serum spot market', () => {
 
 		const solSpotMarket =
 			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
-		assert(solSpotMarket.totalSpotFee.eq(new BN(174000)));
+		assert(solSpotMarket.totalSpotFee.eq(new BN(168600)));
 		const spotFeePoolAmount = getTokenAmount(
 			solSpotMarket.spotFeePool.scaledBalance,
 			takerClearingHouse.getQuoteSpotMarketAccount(),
 			SpotBalanceType.DEPOSIT
 		);
-		console.log(spotFeePoolAmount.toString());
-		assert(spotFeePoolAmount.eq(new BN(166000)));
+		assert(spotFeePoolAmount.eq(new BN(160600)));
 
 		await crankMarkets();
 	});
@@ -608,14 +606,14 @@ describe('serum spot market', () => {
 		const solSpotMarket =
 			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
 		console.log(solSpotMarket.totalSpotFee.toString());
-		assert(solSpotMarket.totalSpotFee.eq(new BN(242000)));
+		assert(solSpotMarket.totalSpotFee.eq(new BN(236600)));
 		const spotFeePoolAmount = getTokenAmount(
 			solSpotMarket.spotFeePool.scaledBalance,
 			takerClearingHouse.getQuoteSpotMarketAccount(),
 			SpotBalanceType.DEPOSIT
 		);
 		console.log(spotFeePoolAmount.toString());
-		assert(spotFeePoolAmount.eq(new BN(234000)));
+		assert(spotFeePoolAmount.eq(new BN(228600)));
 
 		await crankMarkets();
 	});

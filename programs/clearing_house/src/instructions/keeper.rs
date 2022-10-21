@@ -29,7 +29,7 @@ use crate::{controller, load, math};
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_fill_order<'info>(
+pub fn handle_fill_perp_order<'info>(
     ctx: Context<FillOrder>,
     order_id: Option<u32>,
     maker_order_id: Option<u32>,
@@ -97,7 +97,7 @@ fn fill_order(
         clock,
     )?;
 
-    controller::orders::fill_order(
+    controller::orders::fill_perp_order(
         order_id,
         &ctx.accounts.state,
         &ctx.accounts.user,
