@@ -5,6 +5,7 @@ use solana_program::pubkey::Pubkey;
 
 use crate::controller::insurance::settle_revenue_to_insurance_fund;
 use crate::controller::spot_balance::*;
+use crate::controller::spot_position::update_spot_balances_and_cumulative_deposits_with_limits;
 use crate::create_account_info;
 use crate::create_anchor_account_info;
 use crate::math::constants::{

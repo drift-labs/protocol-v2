@@ -5,7 +5,6 @@ use std::cmp::max; //, OracleValidity};
 use anchor_lang::prelude::*;
 use solana_program::msg;
 
-use crate::controller::spot_position::update_spot_balances_and_cumulative_deposits;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::sanitize_new_price;
 use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128, cast_to_u64};
@@ -17,14 +16,12 @@ use crate::math::spot_balance::{
     calculate_accumulated_interest, calculate_utilization, get_interest_token_amount,
     get_spot_balance, get_token_amount, InterestAccumulated,
 };
-use crate::math::spot_withdraw::check_withdraw_limits;
 use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
 
 use crate::state::events::SpotInterestRecord;
 use crate::state::oracle::OraclePriceData;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
-use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType, SpotMarket};
-use crate::state::user::SpotPosition;
+use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::validate;
 
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
@@ -370,57 +367,6 @@ pub fn transfer_spot_balance_to_revenue_pool(
     )?;
 
     update_revenue_pool_balances(token_amount, &SpotBalanceType::Deposit, spot_market)?;
-
-    Ok(())
-}
-
-pub fn update_spot_balances_and_cumulative_deposits_with_limits(
-    token_amount: u128,
-    update_direction: &SpotBalanceType,
-    spot_market: &mut SpotMarket,
-    spot_position: &mut SpotPosition,
-) -> ClearingHouseResult {
-    update_spot_balances_and_cumulative_deposits(
-        token_amount,
-        update_direction,
-        spot_market,
-        spot_position,
-        true,
-        None,
-    )?;
-
-    let valid_withdraw =
-        check_withdraw_limits(spot_market, Some(spot_position), Some(token_amount))?;
-
-    validate!(
-        valid_withdraw,
-        ErrorCode::DailyWithdrawLimit,
-        "Spot Market {} has hit daily withdraw limit",
-        spot_market.market_index
-    )?;
-
-    validate!(
-        matches!(
-            spot_market.status,
-            MarketStatus::Active
-                | MarketStatus::AmmPaused
-                | MarketStatus::FundingPaused
-                | MarketStatus::FillPaused
-                | MarketStatus::ReduceOnly
-                | MarketStatus::Settlement
-        ),
-        ErrorCode::MarketActionPaused,
-        "Spot Market {} withdraws are currently paused",
-        spot_market.market_index
-    )?;
-
-    validate!(
-        !(spot_market.asset_tier == AssetTier::Protected
-            && spot_position.balance_type() == &SpotBalanceType::Borrow),
-        ErrorCode::AssetTierViolation,
-        "Spot Market {} has Protected status and cannot be borrowed",
-        spot_market.market_index
-    )?;
 
     Ok(())
 }
