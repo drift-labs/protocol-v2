@@ -103,6 +103,16 @@ pub fn place_perp_order(
 
     validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
 
+    expire_orders(
+        user,
+        &user_key,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        now,
+        slot,
+    )?;
+
     let new_order_index = user
         .orders
         .iter()
@@ -2310,6 +2320,16 @@ pub fn place_spot_order(
 
     validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
 
+    expire_orders(
+        user,
+        &user_key,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        now,
+        slot,
+    )?;
+
     let new_order_index = user
         .orders
         .iter()
@@ -3954,6 +3974,39 @@ pub fn trigger_spot_order(
             slot,
             OrderActionExplanation::InsufficientFreeCollateral,
             Some(&filler_key),
+            0,
+            false,
+        )?;
+    }
+
+    Ok(())
+}
+
+pub fn expire_orders(
+    user: &mut User,
+    user_key: &Pubkey,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    now: i64,
+    slot: u64,
+) -> ClearingHouseResult {
+    for order_index in 0..user.orders.len() {
+        if !should_expire_order(user, order_index, now)? {
+            continue;
+        }
+
+        cancel_order(
+            order_index,
+            user,
+            user_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::OrderExpired,
+            None,
             0,
             false,
         )?;
