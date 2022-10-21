@@ -23,8 +23,7 @@ use crate::math::insurance::{
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
-use crate::math::spot_balance::validate_spot_market_amounts;
-
+use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::state::events::{InsuranceFundRecord, InsuranceFundStakeRecord, StakeAction};
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::perp_market::PerpMarket;
@@ -528,6 +527,7 @@ pub fn attempt_settle_revenue_to_insurance_fund<'info>(
         }
 
         spot_market.insurance_fund.last_revenue_settle_ts = now;
+
         token_amount
     } else {
         0
@@ -556,7 +556,7 @@ pub fn settle_revenue_to_insurance_fund(
         "invalid if_factor settings on spot market"
     )?;
 
-    let depositors_claim = cast_to_u128(validate_spot_market_amounts(
+    let depositors_claim = cast_to_u128(validate_spot_market_vault_amount(
         spot_market,
         spot_market_vault_amount,
     )?)?;

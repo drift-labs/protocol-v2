@@ -631,6 +631,22 @@ describe('delist market, liquidation of expired position', () => {
 		console.log(txSigLiqPnl);
 		await printTxLogs(connection, txSigLiqPnl);
 
+		await sleep(100);
+		await clearingHouseLoser.fetchAccounts();
+
+		console.log(
+			'clearingHouseLoserUser.getNetSpotMarketValue=',
+			clearingHouseLoserUser.getNetSpotMarketValue().toString()
+		);
+		console.log(
+			clearingHouseLoser
+				.getUserAccount()
+				.spotPositions[0].scaledBalance.toString()
+		);
+		console.log(
+			clearingHouseLoser.getUserAccount().spotPositions,
+			clearingHouseLoser.getUserAccount().perpPositions
+		);
 		assert(clearingHouseLoser.getUserAccount().isBankrupt);
 
 		const txSigBankrupt = await liquidatorClearingHouse.resolvePerpBankruptcy(

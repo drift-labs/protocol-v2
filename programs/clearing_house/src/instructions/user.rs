@@ -339,7 +339,7 @@ pub fn handle_withdraw(
 
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         // prevents withdraw when limits hit
-        controller::spot_balance::update_spot_balances_and_cumulative_deposits_with_limits(
+        controller::spot_position::update_spot_balances_and_cumulative_deposits_with_limits(
             amount as u128,
             &SpotBalanceType::Borrow,
             spot_market,
@@ -363,15 +363,6 @@ pub fn handle_withdraw(
         spot_market.get_precision().cast()?,
     )?;
 
-    controller::token::send_from_program_vault(
-        &ctx.accounts.token_program,
-        &ctx.accounts.spot_market_vault,
-        &ctx.accounts.user_token_account,
-        &ctx.accounts.clearing_house_signer,
-        state.signer_nonce,
-        amount,
-    )?;
-
     let deposit_record = DepositRecord {
         ts: now,
         user_authority: user.authority,
@@ -390,9 +381,21 @@ pub fn handle_withdraw(
     };
     emit!(deposit_record);
 
+    controller::token::send_from_program_vault(
+        &ctx.accounts.token_program,
+        &ctx.accounts.spot_market_vault,
+        &ctx.accounts.user_token_account,
+        &ctx.accounts.clearing_house_signer,
+        state.signer_nonce,
+        amount,
+    )?;
+
     // reload the spot market vault balance so it's up-to-date
     ctx.accounts.spot_market_vault.reload()?;
-    math::spot_balance::validate_spot_balances(&spot_market)?;
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        &spot_market,
+        ctx.accounts.spot_market_vault.amount,
+    )?;
 
     Ok(())
 }
@@ -464,6 +467,14 @@ pub fn handle_transfer_deposit(
             from_spot_position,
             true,
             None,
+        )?;
+
+        // prevents withdraw when limits hit
+        controller::spot_position::update_spot_balances_and_cumulative_deposits_with_limits(
+            amount as u128,
+            &SpotBalanceType::Borrow,
+            spot_market,
+            from_spot_position,
         )?;
     }
 

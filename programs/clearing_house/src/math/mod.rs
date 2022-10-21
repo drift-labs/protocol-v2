@@ -26,4 +26,5 @@ pub mod repeg;
 pub mod safe_math;
 pub mod serum;
 pub mod spot_balance;
+pub mod spot_withdraw;
 pub mod stats;

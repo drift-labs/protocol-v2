@@ -72,6 +72,7 @@ use crate::state::state::*;
 use crate::state::user::{AssetType, Order, OrderStatus, OrderType, UserStats};
 use crate::state::user::{MarketType, User};
 use crate::validate;
+use crate::validation;
 use crate::validation::order::{validate_order, validate_spot_order};
 
 #[cfg(test)]
@@ -657,7 +658,7 @@ pub fn fill_perp_order(
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         market_is_reduce_only = market.is_reduce_only()?;
         amm_is_available &= market.status != MarketStatus::AmmPaused;
-        controller::validate::validate_market_account(market)?;
+        validation::market::validate_perp_market(market)?;
         validate!(
             market.is_active(now)?,
             ErrorCode::MarketActionPaused,
@@ -1421,7 +1422,7 @@ pub fn fulfill_perp_order_with_amm(
     let (order_post_only, order_slot, order_direction) =
         get_struct_values!(user.orders[order_index], post_only, slot, direction);
 
-    controller::validate::validate_amm_account_for_fill(&market.amm, order_direction)?;
+    validation::market::validate_amm_account_for_fill(&market.amm, order_direction)?;
 
     let market_side_price = match order_direction {
         PositionDirection::Long => market.amm.ask_price(reserve_price_before)?,

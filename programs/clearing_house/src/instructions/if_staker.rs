@@ -68,6 +68,13 @@ pub fn handle_add_insurance_fund_stake(
             &ctx.accounts.clearing_house_signer,
             state,
         )?;
+
+        // reload the spot market vault balance so it's up-to-date
+        ctx.accounts.spot_market_vault.reload()?;
+        math::spot_withdraw::validate_spot_market_vault_amount(
+            spot_market,
+            ctx.accounts.spot_market_vault.amount,
+        )?;
     }
 
     controller::insurance::add_insurance_fund_stake(
@@ -214,6 +221,9 @@ pub fn handle_remove_insurance_fund_stake(
         ErrorCode::DefaultError,
         "insurance_fund_vault.amount must remain > 0"
     )?;
+
+    // validate relevant spot market balances before unstake
+    math::spot_withdraw::validate_spot_balances(spot_market)?;
 
     Ok(())
 }

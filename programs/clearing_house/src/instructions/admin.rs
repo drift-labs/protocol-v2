@@ -8,7 +8,6 @@ use serum_dex::state::ToAlignedBytes;
 use solana_program::msg;
 
 use crate::controller;
-use crate::controller::validate::validate_market_account;
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
 use crate::instructions::constraints::*;
@@ -49,6 +48,7 @@ use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State}
 use crate::validate;
 use crate::validation::fee_structure::validate_fee_structure;
 use crate::validation::margin::{validate_margin, validate_margin_weights};
+use crate::validation::market::validate_perp_market;
 use crate::{math, safe_increment};
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -696,7 +696,7 @@ pub fn handle_move_amm_price(
         quote_asset_reserve,
         sqrt_k,
     )?;
-    validate_market_account(perp_market)?;
+    validate_perp_market(perp_market)?;
 
     Ok(())
 }
@@ -830,7 +830,7 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
         "Bank token balances must be equal before and after"
     )?;
 
-    math::spot_balance::validate_spot_balances(spot_market)?;
+    math::spot_withdraw::validate_spot_balances(spot_market)?;
 
     perp_market.status = MarketStatus::Delisted;
 

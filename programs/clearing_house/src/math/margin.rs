@@ -10,6 +10,7 @@ use crate::math::position::{
 };
 
 use crate::validate;
+use crate::validation;
 
 use crate::math::casting::{cast_to_i128, Cast};
 use crate::math::funding::calculate_funding_payment;
@@ -241,6 +242,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     };
 
     for spot_position in user.spot_positions.iter() {
+        validation::position::validate_spot_position(spot_position)?;
+
         if spot_position.scaled_balance == 0 && spot_position.open_orders == 0 {
             continue;
         }

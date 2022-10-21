@@ -704,6 +704,13 @@ pub fn handle_resolve_perp_pnl_deficit(
             &ctx.accounts.clearing_house_signer,
             state,
         )?;
+
+        // reload the spot market vault balance so it's up-to-date
+        ctx.accounts.spot_market_vault.reload()?;
+        math::spot_withdraw::validate_spot_market_vault_amount(
+            spot_market,
+            ctx.accounts.spot_market_vault.amount,
+        )?;
     }
 
     let insurance_vault_amount = ctx.accounts.insurance_fund_vault.amount;
@@ -825,6 +832,13 @@ pub fn handle_resolve_perp_bankruptcy(
             &ctx.accounts.clearing_house_signer,
             state,
         )?;
+
+        // reload the spot market vault balance so it's up-to-date
+        ctx.accounts.spot_market_vault.reload()?;
+        math::spot_withdraw::validate_spot_market_vault_amount(
+            spot_market,
+            ctx.accounts.spot_market_vault.amount,
+        )?;
     }
 
     let pay_from_insurance = controller::liquidation::resolve_perp_bankruptcy(
@@ -912,6 +926,13 @@ pub fn handle_resolve_spot_bankruptcy(
             &ctx.accounts.token_program,
             &ctx.accounts.clearing_house_signer,
             state,
+        )?;
+
+        // reload the spot market vault balance so it's up-to-date
+        ctx.accounts.spot_market_vault.reload()?;
+        math::spot_withdraw::validate_spot_market_vault_amount(
+            spot_market,
+            ctx.accounts.spot_market_vault.amount,
         )?;
     }
 
@@ -1050,6 +1071,8 @@ pub fn handle_settle_revenue_to_insurance_fund(
         now,
     )?;
 
+    spot_market.insurance_fund.last_revenue_settle_ts = now;
+
     controller::token::send_from_program_vault(
         &ctx.accounts.token_program,
         &ctx.accounts.spot_market_vault,
@@ -1059,7 +1082,12 @@ pub fn handle_settle_revenue_to_insurance_fund(
         token_amount as u64,
     )?;
 
-    spot_market.insurance_fund.last_revenue_settle_ts = now;
+    // reload the spot market vault balance so it's up-to-date
+    ctx.accounts.spot_market_vault.reload()?;
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        spot_market,
+        ctx.accounts.spot_market_vault.amount,
+    )?;
 
     Ok(())
 }

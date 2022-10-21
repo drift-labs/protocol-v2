@@ -5,6 +5,7 @@ use solana_program::pubkey::Pubkey;
 
 use crate::controller::insurance::settle_revenue_to_insurance_fund;
 use crate::controller::spot_balance::*;
+use crate::controller::spot_position::update_spot_balances_and_cumulative_deposits_with_limits;
 use crate::create_account_info;
 use crate::create_anchor_account_info;
 use crate::math::constants::{
@@ -17,6 +18,9 @@ use crate::math::constants::{
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, MarginRequirementType,
 };
+use crate::math::spot_withdraw::{
+    calculate_max_borrow_token, calculate_min_deposit_token, check_withdraw_limits,
+};
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
@@ -28,7 +32,7 @@ use crate::test_utils::*;
 use crate::test_utils::{get_pyth_price, get_spot_positions};
 
 #[test]
-fn check_withdraw_limits() {
+fn test_daily_withdraw_limits() {
     let now = 0_i64;
     let slot = 0_u64;
 
@@ -361,8 +365,104 @@ fn check_withdraw_limits() {
     )
     .unwrap();
 }
-#[test]
 
+#[test]
+fn test_check_withdraw_limits() {
+    // let now = 0_i64;
+    let slot = 0_u64;
+
+    let mut oracle_price = get_pyth_price(100, 6);
+    let oracle_price_key =
+        Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+    let pyth_program = crate::ids::pyth_program::id();
+    create_account_info!(
+        oracle_price,
+        &oracle_price_key,
+        &pyth_program,
+        oracle_account_info
+    );
+    let _oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+    let mut spot_market = SpotMarket {
+        market_index: 0,
+        oracle_source: OracleSource::QuoteAsset,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+
+        decimals: 6,
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: SPOT_BALANCE_PRECISION,
+        borrow_balance: 0,
+        deposit_token_twap: QUOTE_PRECISION / 2,
+        status: MarketStatus::Active,
+
+        ..SpotMarket::default()
+    };
+    create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+    let mut sol_spot_market = SpotMarket {
+        market_index: 1,
+        oracle_source: OracleSource::Pyth,
+        oracle: oracle_price_key,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        decimals: 10,
+        initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
+        maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
+        initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
+        maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
+        deposit_balance: 2 * SPOT_BALANCE_PRECISION,
+        borrow_balance: SPOT_BALANCE_PRECISION,
+        liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+        status: MarketStatus::Active,
+
+        ..SpotMarket::default()
+    };
+    create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
+    let spot_market_account_infos =
+        Vec::from([&spot_market_account_info, &sol_spot_market_account_info]);
+    let _spot_market_map = SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
+
+    let mut spot_positions = [SpotPosition::default(); 8];
+    spot_positions[0] = SpotPosition {
+        market_index: 0,
+        balance_type: SpotBalanceType::Deposit,
+        scaled_balance: SPOT_BALANCE_PRECISION_U64,
+        ..SpotPosition::default()
+    };
+    spot_positions[1] = SpotPosition {
+        market_index: 1,
+        balance_type: SpotBalanceType::Deposit,
+        scaled_balance: SPOT_BALANCE_PRECISION_U64,
+        ..SpotPosition::default()
+    };
+    // let mut user = User {
+    //     orders: [Order::default(); 32],
+    //     perp_positions: [PerpPosition::default(); 8],
+    //     spot_positions,
+    //     ..User::default()
+    // };
+
+    let mdt = calculate_min_deposit_token(QUOTE_PRECISION, 0).unwrap();
+    assert_eq!(mdt, QUOTE_PRECISION - QUOTE_PRECISION * 2 / 10);
+
+    let mbt = calculate_max_borrow_token(QUOTE_PRECISION, QUOTE_PRECISION / 2, 0).unwrap();
+    assert_eq!(mbt, 600000);
+
+    let valid_withdraw =
+        check_withdraw_limits(&spot_market, Some(&spot_positions[0]), Some(0)).unwrap();
+    assert!(valid_withdraw);
+
+    let valid_withdraw = check_withdraw_limits(
+        &sol_spot_market,
+        Some(&spot_positions[1]),
+        Some(QUOTE_PRECISION),
+    )
+    .unwrap();
+    assert!(!valid_withdraw);
+}
+
+#[test]
 fn check_fee_collection() {
     let mut now = 0_i64;
     let slot = 0_u64;

@@ -6,10 +6,12 @@ use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::math::casting::{cast, Cast};
 use crate::math::safe_math::SafeMath;
+use crate::math::spot_withdraw::check_withdraw_limits;
 use crate::math_error;
 use crate::safe_decrement;
 use crate::safe_increment;
-use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+use crate::state::perp_market::MarketStatus;
+use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::user::SpotPosition;
 use crate::validate;
 
@@ -89,6 +91,57 @@ pub fn update_spot_balances_and_cumulative_deposits(
             )
         }
     }
+
+    Ok(())
+}
+
+pub fn update_spot_balances_and_cumulative_deposits_with_limits(
+    token_amount: u128,
+    update_direction: &SpotBalanceType,
+    spot_market: &mut SpotMarket,
+    spot_position: &mut SpotPosition,
+) -> ClearingHouseResult {
+    update_spot_balances_and_cumulative_deposits(
+        token_amount,
+        update_direction,
+        spot_market,
+        spot_position,
+        true,
+        None,
+    )?;
+
+    let valid_withdraw =
+        check_withdraw_limits(spot_market, Some(spot_position), Some(token_amount))?;
+
+    validate!(
+        valid_withdraw,
+        ErrorCode::DailyWithdrawLimit,
+        "Spot Market {} has hit daily withdraw limit",
+        spot_market.market_index
+    )?;
+
+    validate!(
+        matches!(
+            spot_market.status,
+            MarketStatus::Active
+                | MarketStatus::AmmPaused
+                | MarketStatus::FundingPaused
+                | MarketStatus::FillPaused
+                | MarketStatus::ReduceOnly
+                | MarketStatus::Settlement
+        ),
+        ErrorCode::MarketActionPaused,
+        "Spot Market {} withdraws are currently paused",
+        spot_market.market_index
+    )?;
+
+    validate!(
+        !(spot_market.asset_tier == AssetTier::Protected
+            && spot_position.balance_type() == &SpotBalanceType::Borrow),
+        ErrorCode::AssetTierViolation,
+        "Spot Market {} has Protected status and cannot be borrowed",
+        spot_market.market_index
+    )?;
 
     Ok(())
 }
