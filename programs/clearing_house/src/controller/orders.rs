@@ -225,7 +225,6 @@ pub fn place_perp_order(
     )?;
 
     let new_order = Order {
-        ts: now,
         status: OrderStatus::Open,
         order_type: params.order_type,
         market_type: params.market_type,
@@ -2430,7 +2429,6 @@ pub fn place_spot_order(
     )?;
 
     let new_order = Order {
-        ts: now,
         status: OrderStatus::Open,
         order_type: params.order_type,
         market_type: params.market_type,
