@@ -19,6 +19,7 @@ import {
 	Order,
 	isMarketOrder,
 	isLimitOrder,
+	ZERO,
 } from '../../src';
 
 import {
@@ -27,7 +28,6 @@ import {
 	mockStateAccount,
 	MockUserMap,
 } from './helpers';
-import { ZERO } from '../../lib';
 
 function insertOrderToDLOB(
 	dlob: DLOB,
@@ -196,14 +196,14 @@ function printCrossedNodes(n: NodeToFill, slot: number) {
 		}`
 	);
 	console.log(
-		`node: (mkt: ${isMarketOrder(n.node.order)}, lim: ${isLimitOrder(
-			n.node.order
+		`node: (mkt: ${isMarketOrder(n.node.order!)}, lim: ${isLimitOrder(
+			n.node.order!
 		)})`
 	);
 	if (n.makerNode) {
 		console.log(
-			`mkrnode: (mkt: ${isMarketOrder(n.makerNode.order)}, lim: ${isLimitOrder(
-				n.makerNode.order
+			`mkrnode: (mkt: ${isMarketOrder(n.makerNode.order!)}, lim: ${isLimitOrder(
+				n.makerNode.order!
 			)})`
 		);
 	}
