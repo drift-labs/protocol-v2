@@ -22,8 +22,8 @@ use crate::math::insurance::{
     vault_amount_to_if_shares,
 };
 use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::{get_token_amount, validate_spot_market_vault_amount};
-
+use crate::math::spot_balance::get_token_amount;
+use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::state::events::{InsuranceFundRecord, InsuranceFundStakeRecord, StakeAction};
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::perp_market::PerpMarket;

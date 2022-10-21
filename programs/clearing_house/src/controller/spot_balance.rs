@@ -8,14 +8,16 @@ use solana_program::msg;
 use crate::controller::spot_position::update_spot_balances_and_cumulative_deposits;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::sanitize_new_price;
-use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64};
+use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128, cast_to_u64};
 use crate::math::constants::{
-    FIVE_MINUTE, IF_FACTOR_PRECISION, ONE_HOUR, QUOTE_SPOT_MARKET_INDEX, TWENTY_FOUR_HOUR,
+    FIVE_MINUTE, IF_FACTOR_PRECISION, ONE_HOUR, QUOTE_SPOT_MARKET_INDEX,
+    SPOT_MARKET_TOKEN_TWAP_WINDOW,
 };
 use crate::math::spot_balance::{
-    calculate_accumulated_interest, calculate_utilization, check_withdraw_limits,
-    get_interest_token_amount, get_spot_balance, get_token_amount, InterestAccumulated,
+    calculate_accumulated_interest, calculate_utilization, get_interest_token_amount,
+    get_spot_balance, get_token_amount, InterestAccumulated,
 };
+use crate::math::spot_withdraw::check_withdraw_limits;
 use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
 
 use crate::state::events::SpotInterestRecord;
@@ -36,8 +38,14 @@ pub fn update_spot_market_twap_stats(
     oracle_price_data: Option<&OraclePriceData>,
     now: i64,
 ) -> ClearingHouseResult {
-    let since_last = cast_to_i128(max(1, now.safe_sub(spot_market.last_twap_ts as i64)?))?;
-    let from_start = max(1, cast_to_i128(TWENTY_FOUR_HOUR)?.safe_sub(since_last)?);
+    let since_last = cast_to_i128(max(
+        1,
+        now.safe_sub(cast_to_i64(spot_market.last_twap_ts)?)?,
+    ))?;
+    let from_start = max(
+        1,
+        cast_to_i128(SPOT_MARKET_TOKEN_TWAP_WINDOW)?.safe_sub(since_last)?,
+    );
 
     let deposit_token_amount = get_token_amount(
         spot_market.deposit_balance,
@@ -381,7 +389,8 @@ pub fn update_spot_balances_and_cumulative_deposits_with_limits(
         None,
     )?;
 
-    let valid_withdraw = check_withdraw_limits(spot_market)?;
+    let valid_withdraw =
+        check_withdraw_limits(spot_market, Some(spot_position), Some(token_amount))?;
 
     validate!(
         valid_withdraw,

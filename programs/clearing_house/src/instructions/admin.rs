@@ -830,7 +830,7 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
         "Bank token balances must be equal before and after"
     )?;
 
-    math::spot_balance::validate_spot_balances(spot_market)?;
+    math::spot_withdraw::validate_spot_balances(spot_market)?;
 
     perp_market.status = MarketStatus::Delisted;
 

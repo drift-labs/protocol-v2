@@ -21,7 +21,8 @@ use crate::math::constants::{
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::repeg::get_total_fee_lower_bound;
 use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::{get_token_amount, validate_spot_balances};
+use crate::math::spot_balance::get_token_amount;
+use crate::math::spot_withdraw::validate_spot_balances;
 use crate::math::{amm, amm_spread, bn, cp_curve, quote_asset::*};
 
 use crate::state::events::CurveRecord;
