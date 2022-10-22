@@ -460,15 +460,6 @@ pub fn handle_transfer_deposit(
 
         let from_spot_position = from_user.force_get_spot_position_mut(spot_market.market_index)?;
 
-        controller::spot_position::update_spot_balances_and_cumulative_deposits(
-            amount as u128,
-            &SpotBalanceType::Borrow,
-            spot_market,
-            from_spot_position,
-            true,
-            None,
-        )?;
-
         // prevents withdraw when limits hit
         controller::spot_position::update_spot_balances_and_cumulative_deposits_with_limits(
             amount as u128,
