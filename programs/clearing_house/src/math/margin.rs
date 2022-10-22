@@ -666,7 +666,7 @@ pub fn validate_spot_margin_trading(
     let mut total_open_bids_value = 0_i128;
     for position_index in 0..user.spot_positions.len() {
         let asks = user.spot_positions[position_index].open_asks;
-        if asks > 0 {
+        if asks < 0 {
             let spot_market =
                 spot_market_map.get_ref(&user.spot_positions[position_index].market_index)?;
             let signed_token_amount =
@@ -675,7 +675,7 @@ pub fn validate_spot_margin_trading(
             // 1. no open asks with an existing short
             // 2. open asks with a larger existing long
             validate!(
-                asks == 0 || signed_token_amount.safe_add(asks.cast()?)? >= 0,
+                signed_token_amount.safe_add(asks.cast()?)? >= 0,
                 ErrorCode::MarginTradingDisabled,
                 "Open asks can lead to increased borrow in spot market {}",
                 user.spot_positions[position_index].market_index
