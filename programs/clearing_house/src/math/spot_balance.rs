@@ -1,7 +1,7 @@
 use solana_program::msg;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast, cast_to_i128, cast_to_u64, Cast};
+use crate::math::casting::Cast;
 use crate::math::constants::{ONE_YEAR, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION};
 use crate::math::safe_math::SafeMath;
 use crate::state::oracle::OraclePriceData;
@@ -57,8 +57,10 @@ pub fn get_signed_token_amount(
     balance_type: &SpotBalanceType,
 ) -> ClearingHouseResult<i128> {
     match balance_type {
-        SpotBalanceType::Deposit => cast_to_i128(token_amount),
-        SpotBalanceType::Borrow => cast_to_i128(token_amount).map(|token_amount| -token_amount),
+        SpotBalanceType::Deposit => token_amount.cast(),
+        SpotBalanceType::Borrow => token_amount
+            .cast::<i128>()
+            .map(|token_amount| -token_amount),
     }
 }
 
@@ -152,7 +154,8 @@ pub fn calculate_accumulated_interest(
             .safe_div(SPOT_UTILIZATION_PRECISION)?
     };
 
-    let time_since_last_update = cast_to_u64(now)
+    let time_since_last_update = now
+        .cast::<u64>()
         .or(Err(ErrorCode::UnableToCastUnixTime))?
         .safe_sub(spot_market.last_interest_ts)?;
 
@@ -193,7 +196,7 @@ pub fn get_balance_value_and_token_amount(
     let precision_decrease = 10_u128.pow(spot_market.decimals as u32);
 
     let value = token_amount
-        .safe_mul(cast(oracle_price_data.price)?)?
+        .safe_mul(oracle_price_data.price.cast()?)?
         .safe_div(precision_decrease)?;
 
     Ok((value, token_amount))

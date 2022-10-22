@@ -1,5 +1,5 @@
 use crate::error::ClearingHouseResult;
-use crate::math::casting::{cast_to_i128, cast_to_u128, cast_to_u64};
+use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
 use std::cmp::max;
 
@@ -10,14 +10,12 @@ pub fn calculate_rolling_sum(
     weight1_denom: i128,
 ) -> ClearingHouseResult<u64> {
     // assumes that missing times are zeros (e.g. handle NaN as 0)
-    let prev_twap_99 = cast_to_u128(data1)?
-        .safe_mul(cast_to_u128(max(
-            0,
-            weight1_denom.safe_sub(weight1_numer)?,
-        ))?)?
-        .safe_div(cast_to_u128(weight1_denom)?)?;
+    let prev_twap_99 = data1
+        .cast::<u128>()?
+        .safe_mul(max(0, weight1_denom.safe_sub(weight1_numer)?).cast::<u128>()?)?
+        .safe_div(weight1_denom.cast::<u128>()?)?;
 
-    cast_to_u64(prev_twap_99)?.safe_add(data2)
+    prev_twap_99.cast::<u64>()?.safe_add(data2)
 }
 
 pub fn calculate_weighted_average(
@@ -60,8 +58,8 @@ pub fn calculate_new_twap(
     last_ts: i64,
     period: i64,
 ) -> ClearingHouseResult<i128> {
-    let since_last = cast_to_i128(max(1, current_ts.safe_sub(last_ts)?))?;
-    let from_start = max(1, cast_to_i128(period)?.safe_sub(since_last)?);
+    let since_last = max(1, current_ts.safe_sub(last_ts)?).cast::<i128>()?;
+    let from_start = max(1, period.cast::<i128>()?.safe_sub(since_last)?);
 
     let new_twap: i128 =
         calculate_weighted_average(current_price, last_twap, since_last, from_start)?;

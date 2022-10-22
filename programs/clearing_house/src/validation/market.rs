@@ -1,6 +1,6 @@
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::cast_to_i128;
+use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
 
 use crate::state::perp_market::{PerpMarket, AMM};
@@ -64,8 +64,9 @@ pub fn validate_perp_market(market: &PerpMarket) -> ClearingHouseResult {
         .safe_div(crate::bn::U192::from(market.amm.base_asset_reserve))?
         .try_to_u128()?;
 
-    let rounding_diff = cast_to_i128(quote_asset_reserve)?
-        .safe_sub(cast_to_i128(market.amm.quote_asset_reserve)?)?
+    let rounding_diff = quote_asset_reserve
+        .cast::<i128>()?
+        .safe_sub(market.amm.quote_asset_reserve.cast()?)?
         .abs();
 
     validate!(

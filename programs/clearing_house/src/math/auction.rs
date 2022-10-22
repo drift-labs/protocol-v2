@@ -1,6 +1,6 @@
 use crate::controller::position::PositionDirection;
 use crate::error::ClearingHouseResult;
-use crate::math::casting::{cast, Cast};
+use crate::math::casting::Cast;
 use crate::math::constants::AUCTION_DERIVE_PRICE_FRACTION;
 use crate::math::orders::standardize_price;
 use crate::math::safe_math::SafeMath;
@@ -83,7 +83,7 @@ pub fn calculate_auction_price(
 ) -> ClearingHouseResult<u64> {
     let slots_elapsed = slot.safe_sub(order.slot)?;
 
-    let delta_numerator = min(slots_elapsed, cast(order.auction_duration)?);
+    let delta_numerator = min(slots_elapsed, order.auction_duration.cast()?);
     let delta_denominator = order.auction_duration;
 
     if delta_denominator == 0 {
@@ -94,13 +94,13 @@ pub fn calculate_auction_price(
         PositionDirection::Long => order
             .auction_end_price
             .safe_sub(order.auction_start_price)?
-            .safe_mul(cast(delta_numerator)?)?
-            .safe_div(cast(delta_denominator)?)?,
+            .safe_mul(delta_numerator.cast()?)?
+            .safe_div(delta_denominator.cast()?)?,
         PositionDirection::Short => order
             .auction_start_price
             .safe_sub(order.auction_end_price)?
-            .safe_mul(cast(delta_numerator)?)?
-            .safe_div(cast(delta_denominator)?)?,
+            .safe_mul(delta_numerator.cast()?)?
+            .safe_div(delta_denominator.cast()?)?,
     };
 
     let price = match order.direction {
@@ -140,5 +140,5 @@ pub fn is_auction_complete(
 
     let slots_elapsed = slot.safe_sub(order_slot)?;
 
-    Ok(slots_elapsed > cast(auction_duration)?)
+    Ok(slots_elapsed > auction_duration.cast()?)
 }

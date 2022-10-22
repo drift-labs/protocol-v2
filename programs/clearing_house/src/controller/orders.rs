@@ -31,7 +31,7 @@ use crate::get_then_update_id;
 use crate::instructions::OrderParams;
 use crate::load_mut;
 use crate::math::auction::{calculate_auction_prices, is_auction_complete};
-use crate::math::casting::{cast, cast_to_u64, Cast};
+use crate::math::casting::Cast;
 use crate::math::constants::{
     BASE_PRECISION_U64, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
     SPOT_FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
@@ -532,7 +532,7 @@ pub fn cancel_order(
             position::decrease_open_bids_and_asks(
                 &mut user.perp_positions[position_index],
                 &order_direction,
-                cast(base_asset_amount_unfilled)?,
+                base_asset_amount_unfilled.cast()?,
             )?;
         }
 
@@ -2108,7 +2108,7 @@ pub fn trigger_order(
 
     let can_trigger = order_satisfies_trigger_condition(
         &user.orders[order_index],
-        cast(oracle_price.unsigned_abs())?,
+        oracle_price.unsigned_abs().cast()?,
     );
     validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
 
@@ -2382,7 +2382,10 @@ pub fn place_spot_order(
         } else {
             PositionDirection::Short
         };
-        (existing_position_direction, cast_to_u64(base_asset_amount)?)
+        (
+            existing_position_direction,
+            base_asset_amount.cast::<u64>()?,
+        )
     };
 
     let (auction_start_price, auction_end_price) = if let OrderType::Market = params.order_type {
@@ -3240,10 +3243,10 @@ pub fn fulfill_spot_order_with_match(
     }
 
     // Update base market
-    base_market.total_spot_fee = base_market.total_spot_fee.safe_add(cast(fee_to_market)?)?;
+    base_market.total_spot_fee = base_market.total_spot_fee.safe_add(fee_to_market.cast()?)?;
 
     update_spot_balances(
-        cast(fee_to_market)?,
+        fee_to_market.cast()?,
         &SpotBalanceType::Deposit,
         quote_market,
         &mut base_market.spot_fee_pool,
@@ -3274,7 +3277,7 @@ pub fn fulfill_spot_order_with_match(
         Some(fill_record_id),
         Some(filler_reward),
         Some(base_asset_amount),
-        Some(cast(quote_asset_amount)?),
+        Some(quote_asset_amount.cast()?),
         Some(taker_fee),
         Some(maker_rebate),
         None,
@@ -3358,21 +3361,29 @@ pub fn fulfill_spot_order_with_serum(
         };
     }
 
-    base_market.historical_index_data.last_index_price_twap = cast(calculate_new_twap(
-        cast(mid_price)?,
+    base_market.historical_index_data.last_index_price_twap = calculate_new_twap(
+        mid_price.cast()?,
         now,
-        cast(base_market.historical_index_data.last_index_price_twap)?,
+        base_market
+            .historical_index_data
+            .last_index_price_twap
+            .cast()?,
         base_market.historical_index_data.last_index_price_twap_ts,
         ONE_HOUR as i64,
-    )?)?;
+    )?
+    .cast()?;
 
-    base_market.historical_index_data.last_index_price_twap_5min = cast(calculate_new_twap(
-        cast(mid_price)?,
+    base_market.historical_index_data.last_index_price_twap_5min = calculate_new_twap(
+        mid_price.cast()?,
         now,
-        cast(base_market.historical_index_data.last_index_price_twap_5min)?,
+        base_market
+            .historical_index_data
+            .last_index_price_twap_5min
+            .cast()?,
         base_market.historical_index_data.last_index_price_twap_ts,
         FIVE_MINUTE as i64,
-    )?)?;
+    )?
+    .cast()?;
 
     let taker_price = if let Some(price) = taker_price {
         price
@@ -3651,9 +3662,9 @@ pub fn fulfill_spot_order_with_serum(
 
     taker.update_cumulative_spot_fees(-taker_fee.cast()?)?;
 
-    taker_stats.update_taker_volume_30d(cast(quote_asset_amount_filled)?, now)?;
+    taker_stats.update_taker_volume_30d(quote_asset_amount_filled.cast()?, now)?;
 
-    taker_stats.increment_total_fees(cast(taker_fee)?)?;
+    taker_stats.increment_total_fees(taker_fee.cast()?)?;
 
     update_order_after_fill(
         &mut taker.orders[taker_order_index],
@@ -3681,7 +3692,7 @@ pub fn fulfill_spot_order_with_serum(
             filler.update_cumulative_spot_fees(filler_reward.cast()?)?;
         }
 
-        filler_stats.update_filler_volume(cast(quote_asset_amount_filled)?, now)?;
+        filler_stats.update_filler_volume(quote_asset_amount_filled.cast()?, now)?;
     }
 
     if fee_pool_delta != 0 {
@@ -3710,7 +3721,7 @@ pub fn fulfill_spot_order_with_serum(
         Some(fill_record_id),
         Some(filler_reward),
         Some(base_asset_amount_filled),
-        Some(cast(quote_asset_amount_filled)?),
+        Some(quote_asset_amount_filled.cast()?),
         Some(taker_fee),
         Some(0),
         None,
@@ -3813,7 +3824,7 @@ pub fn trigger_spot_order(
 
     let can_trigger = order_satisfies_trigger_condition(
         &user.orders[order_index],
-        cast(oracle_price.unsigned_abs())?,
+        oracle_price.unsigned_abs().cast()?,
     );
     validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
 
@@ -3832,7 +3843,7 @@ pub fn trigger_spot_order(
         }
 
         let user_position = user.force_get_spot_position_mut(market_index)?;
-        increase_spot_open_bids_and_asks(user_position, &direction, cast(base_asset_amount)?)?;
+        increase_spot_open_bids_and_asks(user_position, &direction, base_asset_amount.cast()?)?;
     }
 
     let is_filler_taker = user_key == filler_key;

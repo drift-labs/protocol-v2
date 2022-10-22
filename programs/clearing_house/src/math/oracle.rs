@@ -5,7 +5,7 @@ use solana_program::msg;
 
 use crate::error::ClearingHouseResult;
 use crate::math::amm;
-use crate::math::casting::cast_to_u128;
+use crate::math::casting::Cast;
 use crate::math::constants::BID_ASK_SPREAD_PRECISION;
 use crate::math::safe_math::SafeMath;
 
@@ -192,7 +192,7 @@ pub fn oracle_validity(
 
     let conf_pct_of_price = max(1, oracle_conf)
         .safe_mul(BID_ASK_SPREAD_PRECISION)?
-        .safe_div(cast_to_u128(oracle_price)?)?;
+        .safe_div(oracle_price.cast::<u128>()?)?;
 
     // TooUncertain
     let is_conf_too_large =

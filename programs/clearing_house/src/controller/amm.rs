@@ -13,7 +13,7 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::get_then_update_id;
 use crate::math::amm::calculate_quote_asset_amount_swapped;
 use crate::math::amm_spread::{calculate_spread_reserves, get_spread_reserves};
-use crate::math::casting::{cast_to_i128, cast_to_i64, cast_to_u128, Cast};
+use crate::math::casting::Cast;
 use crate::math::constants::{
     CONCENTRATION_PRECISION, K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE,
     PRICE_TO_PEG_PRECISION_RATIO,
@@ -211,7 +211,7 @@ pub fn update_spreads(amm: &mut AMM, reserve_price: u128) -> ClearingHouseResult
             amm.max_base_asset_reserve,
         )?
     } else {
-        let half_base_spread = cast_to_u128(amm.base_spread / 2)?;
+        let half_base_spread = amm.base_spread.safe_div(2)?.cast::<u128>()?;
         (half_base_spread, half_base_spread)
     };
 
@@ -280,13 +280,13 @@ pub fn formulaic_update_k(
     let quote_asset_reserve_before = market.amm.quote_asset_reserve;
     let sqrt_k_before = market.amm.sqrt_k;
 
-    let funding_imbalance_cost_i64 = cast_to_i64(funding_imbalance_cost)?;
+    let funding_imbalance_cost_i64 = funding_imbalance_cost.cast::<i64>()?;
 
     // calculate budget
     let budget = if funding_imbalance_cost_i64 < 0 {
         // negative cost is period revenue, if spread is low give back half in k increase
         if max(market.amm.long_spread, market.amm.short_spread)
-            <= cast_to_u128(market.amm.base_spread)?
+            <= market.amm.base_spread.cast::<u128>()?
         {
             funding_imbalance_cost_i64.safe_div(2)?.abs()
         } else {
@@ -306,7 +306,7 @@ pub fn formulaic_update_k(
         let k_update_max = K_BPS_UPDATE_SCALE
             + MAX_K_BPS_INCREASE * (market.amm.curve_update_intensity as i128) / 100;
         let (k_scale_numerator, k_scale_denominator) =
-            cp_curve::calculate_budgeted_k_scale(market, cast_to_i128(budget)?, k_update_max)?;
+            cp_curve::calculate_budgeted_k_scale(market, budget.cast::<i128>()?, k_update_max)?;
 
         let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
             .safe_mul(bn::U192::from(k_scale_numerator))?
@@ -357,13 +357,12 @@ pub fn get_fee_pool_tokens(
     perp_market: &mut PerpMarket,
     spot_market: &mut SpotMarket,
 ) -> ClearingHouseResult<i128> {
-    let amm_fee_pool_token_amount = cast_to_i128(get_token_amount(
+    get_token_amount(
         perp_market.amm.fee_pool.balance(),
         spot_market,
         perp_market.amm.fee_pool.balance_type(),
-    )?)?;
-
-    Ok(amm_fee_pool_token_amount)
+    )?
+    .cast()
 }
 
 pub fn update_pool_balances(
@@ -373,19 +372,20 @@ pub fn update_pool_balances(
     now: i64,
 ) -> ClearingHouseResult<i128> {
     // current spot_market balance of amm fee pool
-    let amm_fee_pool_token_amount = cast_to_i128(get_token_amount(
+    let amm_fee_pool_token_amount = get_token_amount(
         market.amm.fee_pool.balance(),
         spot_market,
         market.amm.fee_pool.balance_type(),
-    )?)?;
+    )?
+    .cast::<i128>()?;
 
     let mut fraction_for_amm = 100;
 
     let amm_target_max_fee_pool_token_amount = market
         .amm
         .total_fee_minus_distributions
-        .safe_add(cast_to_i128(market.amm.total_liquidation_fee)?)?
-        .safe_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)?;
+        .safe_add(market.amm.total_liquidation_fee.cast()?)?
+        .safe_sub(market.amm.total_fee_withdrawn.cast()?)?;
 
     if amm_target_max_fee_pool_token_amount <= amm_fee_pool_token_amount {
         // owe the market pnl pool before settling user
@@ -428,7 +428,7 @@ pub fn update_pool_balances(
 
             if pnl_pool_removal > 0 {
                 transfer_spot_balances(
-                    cast_to_i128(pnl_pool_removal)?,
+                    pnl_pool_removal.cast::<i128>()?,
                     spot_market,
                     &mut market.pnl_pool,
                     &mut market.amm.fee_pool,
@@ -485,7 +485,7 @@ pub fn update_pool_balances(
                 market.amm.total_fee_minus_distributions = market
                     .amm
                     .total_fee_minus_distributions
-                    .safe_add(cast_to_i128(revenue_pool_transfer)?)?;
+                    .safe_add(revenue_pool_transfer.cast::<i128>()?)?;
 
                 market.insurance_claim.revenue_withdraw_since_last_settle = market
                     .insurance_claim
@@ -495,11 +495,12 @@ pub fn update_pool_balances(
                 market.insurance_claim.last_revenue_withdraw_ts = now;
             }
         } else {
-            let revenue_pool_transfer = cast_to_i128(get_total_fee_lower_bound(market)?)?
-                .safe_add(cast_to_i128(market.amm.total_liquidation_fee)?)?
-                .safe_sub(cast_to_i128(market.amm.total_fee_withdrawn)?)?
+            let revenue_pool_transfer = get_total_fee_lower_bound(market)?
+                .cast::<i128>()?
+                .safe_add(market.amm.total_liquidation_fee.cast()?)?
+                .safe_sub(market.amm.total_fee_withdrawn.cast()?)?
                 .max(0)
-                .min(cast_to_i128(amm_fee_pool_token_amount_after)?)
+                .min(amm_fee_pool_token_amount_after.cast()?)
                 .unsigned_abs();
 
             transfer_spot_balance_to_revenue_pool(
@@ -523,7 +524,7 @@ pub fn update_pool_balances(
     )?;
 
     let pnl_to_settle_with_user = if user_unsettled_pnl > 0 {
-        min(user_unsettled_pnl, cast_to_i128(pnl_pool_token_amount)?)
+        min(user_unsettled_pnl, pnl_pool_token_amount.cast::<i128>()?)
     } else {
         user_unsettled_pnl
     };
@@ -568,11 +569,14 @@ pub fn update_pnl_pool_and_user_balance(
     unrealized_pnl_with_fee: i128,
 ) -> ClearingHouseResult<i128> {
     let pnl_to_settle_with_user = if unrealized_pnl_with_fee > 0 {
-        unrealized_pnl_with_fee.min(cast_to_i128(get_token_amount(
-            market.pnl_pool.scaled_balance,
-            bank,
-            market.pnl_pool.balance_type(),
-        )?)?)
+        unrealized_pnl_with_fee.min(
+            get_token_amount(
+                market.pnl_pool.scaled_balance,
+                bank,
+                market.pnl_pool.balance_type(),
+            )?
+            .cast()?,
+        )
     } else {
         unrealized_pnl_with_fee
     };
@@ -626,7 +630,7 @@ pub fn move_price(
         .try_to_u128()?;
 
     validate!(
-        (cast_to_i128(quote_asset_reserve)? - cast_to_i128(amm.quote_asset_reserve)?).abs() < 100,
+        (quote_asset_reserve.cast::<i128>()? - amm.quote_asset_reserve.cast::<i128>()?).abs() < 100,
         ErrorCode::DefaultError,
         "quote_asset_reserve passed doesnt reconcile enough"
     )?;

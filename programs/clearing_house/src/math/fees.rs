@@ -3,7 +3,7 @@ use std::cmp::{max, min};
 use num_integer::Roots;
 
 use crate::error::ClearingHouseResult;
-use crate::math::casting::{cast_to_u128, Cast};
+use crate::math::casting::Cast;
 
 use crate::math::constants::{
     FIFTY_MILLION_QUOTE, FIVE_MILLION_QUOTE, ONE_HUNDRED_MILLION_QUOTE, ONE_HUNDRED_THOUSAND_QUOTE,
@@ -119,8 +119,8 @@ pub fn calculate_fee_for_fulfillment_with_amm(
 fn calculate_taker_fee(quote_asset_amount: u64, fee_tier: &FeeTier) -> ClearingHouseResult<u64> {
     quote_asset_amount
         .cast::<u128>()?
-        .safe_mul(cast_to_u128(fee_tier.fee_numerator)?)?
-        .safe_div_ceil(cast_to_u128(fee_tier.fee_denominator)?)?
+        .safe_mul(fee_tier.fee_numerator.cast::<u128>()?)?
+        .safe_div_ceil(fee_tier.fee_denominator.cast::<u128>()?)?
         .cast()
 }
 
@@ -179,7 +179,7 @@ fn calculate_filler_reward(
         .safe_mul(filler_reward_structure.reward_numerator as u64)?
         .safe_div(filler_reward_structure.reward_denominator as u64)?;
 
-    let multiplier_precision = cast_to_u128(TEN_BPS)?;
+    let multiplier_precision = TEN_BPS.cast::<u128>()?;
 
     let min_time_filler_reward = filler_reward_structure
         .time_based_reward_lower_bound
@@ -190,7 +190,7 @@ fn calculate_filler_reward(
         )?
         .safe_div(multiplier_precision)?;
 
-    let slots_since_order = max(1, cast_to_u128(clock_slot.safe_sub(order_slot)?)?);
+    let slots_since_order = max(1, clock_slot.safe_sub(order_slot)?.cast::<u128>()?);
     let time_filler_reward = slots_since_order
         .safe_mul(100_000_000)? // 1e8
         .nth_root(4)

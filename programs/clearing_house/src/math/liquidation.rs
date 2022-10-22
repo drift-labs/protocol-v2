@@ -1,5 +1,5 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast, Cast};
+use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO,
     LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, PRICE_PRECISION,
@@ -199,7 +199,7 @@ pub fn is_user_being_liquidated(
             oracle_map,
             Some(liquidation_margin_buffer_ratio as u128),
         )?;
-    let is_being_liquidated = total_collateral <= cast(margin_requirement_plus_buffer)?;
+    let is_being_liquidated = total_collateral <= margin_requirement_plus_buffer.cast()?;
 
     Ok(is_being_liquidated)
 }
@@ -274,7 +274,7 @@ pub fn calculate_funding_rate_deltas_to_resolve_bankruptcy(
     loss.abs()
         .safe_mul(AMM_RESERVE_PRECISION_I128)?
         .safe_div(total_base_asset_amount)?
-        .safe_mul(cast(FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO)?)
+        .safe_mul(FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO.cast()?)
 }
 
 pub fn calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(

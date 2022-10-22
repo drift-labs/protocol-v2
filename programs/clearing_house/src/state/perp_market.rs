@@ -5,7 +5,7 @@ use std::cmp::max;
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
-use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u32};
+use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
@@ -135,8 +135,8 @@ impl PerpMarket {
         }
 
         let default_margin_ratio = match margin_type {
-            MarginRequirementType::Initial => cast_to_u128(self.margin_ratio_initial)?,
-            MarginRequirementType::Maintenance => cast_to_u128(self.margin_ratio_maintenance)?,
+            MarginRequirementType::Initial => self.margin_ratio_initial.cast::<u128>()?,
+            MarginRequirementType::Maintenance => self.margin_ratio_maintenance.cast::<u128>()?,
         };
 
         let size_adj_margin_ratio = calculate_size_premium_liability_weight(
@@ -148,7 +148,7 @@ impl PerpMarket {
 
         let margin_ratio = default_margin_ratio.max(size_adj_margin_ratio);
 
-        cast_to_u32(margin_ratio)
+        margin_ratio.cast()
     }
 
     pub fn get_initial_leverage_ratio(&self, margin_type: MarginRequirementType) -> u128 {
@@ -200,7 +200,7 @@ impl PerpMarket {
                 &self.amm,
                 self.amm.historical_oracle_data.last_oracle_price,
             )?;
-            if net_unsettled_pnl > cast_to_i128(self.unrealized_pnl_max_imbalance)? {
+            if net_unsettled_pnl > self.unrealized_pnl_max_imbalance.cast::<i128>()? {
                 margin_asset_weight = margin_asset_weight
                     .safe_mul(self.unrealized_pnl_max_imbalance)?
                     .safe_div(net_unsettled_pnl.unsigned_abs())?
@@ -495,9 +495,9 @@ impl AMM {
             .or(Err(ErrorCode::UnableToLoadOracle))?;
         let price_data = pyth_client::cast::<pyth_client::Price>(&pyth_price_data);
 
-        let oracle_twap = cast_to_i128(price_data.twap.val)?;
+        let oracle_twap = price_data.twap.val.cast::<i128>()?;
 
-        assert!(oracle_twap > cast_to_i128(price_data.agg.price)? / 10);
+        assert!(oracle_twap > price_data.agg.price.cast::<i128>()? / 10);
 
         let oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
 
@@ -511,8 +511,8 @@ impl AMM {
         }
 
         let oracle_twap_scaled = (oracle_twap)
-            .safe_mul(cast(oracle_scale_mult)?)?
-            .safe_div(cast(oracle_scale_div)?)?;
+            .safe_mul(oracle_scale_mult.cast()?)?
+            .safe_div(oracle_scale_div.cast()?)?;
 
         Ok(oracle_twap_scaled)
     }
@@ -523,7 +523,7 @@ impl AMM {
         position_direction: PositionDirection,
         now: i64,
     ) -> ClearingHouseResult {
-        let since_last = cast_to_i128(max(1, now.safe_sub(self.last_trade_ts)?))?;
+        let since_last = max(1, now.safe_sub(self.last_trade_ts)?).cast::<i128>()?;
 
         amm::update_amm_long_short_intensity(self, now, quote_asset_amount, position_direction)?;
 

@@ -11,7 +11,7 @@ use crate::error::*;
 use crate::load_mut;
 use crate::math::amm;
 use crate::math::bn;
-use crate::math::casting::cast_to_i128;
+use crate::math::casting::Cast;
 use crate::math::constants::{K_BPS_UPDATE_SCALE, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::cp_curve;
 use crate::math::cp_curve::get_update_k_result;
@@ -155,7 +155,8 @@ pub fn _update_amm(
 
     let mut amm_update_cost = 0;
     if is_oracle_valid_for_action(oracle_validity, Some(DriftAction::UpdateAMMCurve))? {
-        let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
+        let curve_update_intensity =
+            min(market.amm.curve_update_intensity, 100_u8).cast::<i128>()?;
 
         if curve_update_intensity > 0 {
             let (optimal_peg, fee_budget, check_lower_bound) =
@@ -252,7 +253,7 @@ pub fn apply_cost_to_market(
         // This checks that the total_fee_minus_distributions does not decrease too much after repeg
         if check_lower_bound {
             if new_total_fee_minus_distributions
-                >= cast_to_i128(repeg::get_total_fee_lower_bound(market)?)?
+                >= repeg::get_total_fee_lower_bound(market)?.cast::<i128>()?
             {
                 market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
             } else {
@@ -308,22 +309,22 @@ pub fn settle_expired_market(
     )?;
 
     let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
-    let fee_reserved_for_protocol = cast_to_i128(
-        repeg::get_total_fee_lower_bound(market)?
-            .safe_add(market.amm.total_liquidation_fee)?
-            .safe_sub(market.amm.total_fee_withdrawn)?,
-    )?;
+    let fee_reserved_for_protocol = repeg::get_total_fee_lower_bound(market)?
+        .safe_add(market.amm.total_liquidation_fee)?
+        .safe_sub(market.amm.total_fee_withdrawn)?
+        .cast::<i128>()?;
     let budget = market
         .amm
         .total_fee_minus_distributions
         .safe_sub(fee_reserved_for_protocol)?
         .max(0);
 
-    let available_fee_pool = cast_to_i128(get_token_amount(
+    let available_fee_pool = get_token_amount(
         market.amm.fee_pool.scaled_balance,
         spot_market,
         &SpotBalanceType::Deposit,
-    )?)?
+    )?
+    .cast::<i128>()?
     .safe_sub(fee_reserved_for_protocol)?
     .max(0);
 
@@ -346,11 +347,8 @@ pub fn settle_expired_market(
     )?;
 
     if budget > 0 {
-        let (k_scale_numerator, k_scale_denominator) = cp_curve::calculate_budgeted_k_scale(
-            market,
-            cast_to_i128(budget)?,
-            K_BPS_UPDATE_SCALE * 100,
-        )?;
+        let (k_scale_numerator, k_scale_denominator) =
+            cp_curve::calculate_budgeted_k_scale(market, budget.cast()?, K_BPS_UPDATE_SCALE * 100)?;
 
         let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
             .safe_mul(bn::U192::from(k_scale_numerator))?

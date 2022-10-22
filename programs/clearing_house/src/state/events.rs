@@ -3,7 +3,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode::DefaultError};
-use crate::math::casting::{cast, cast_to_u64};
+use crate::math::casting::Cast;
 use crate::state::user::{MarketType, Order};
 use anchor_lang::Discriminator;
 use std::io::Write;
@@ -200,11 +200,11 @@ pub fn get_order_action_record(
         quote_asset_amount_filled,
         taker_fee,
         maker_fee: match maker_rebate {
-            Some(maker_rebate) => Some(-cast(maker_rebate)?),
+            Some(maker_rebate) => Some(-maker_rebate.cast()?),
             None => None,
         },
         referrer_reward: match referrer_reward {
-            Some(referrer_reward) if referrer_reward > 0 => Some(cast(referrer_reward)?),
+            Some(referrer_reward) if referrer_reward > 0 => Some(referrer_reward.cast()?),
             _ => None,
         },
         quote_asset_amount_surplus,
@@ -215,10 +215,9 @@ pub fn get_order_action_record(
         taker_order_base_asset_amount: taker_order.map(|order| order.base_asset_amount),
         taker_order_cumulative_base_asset_amount_filled: taker_order
             .map(|order| order.base_asset_amount_filled),
-        taker_order_cumulative_quote_asset_amount_filled: match &taker_order {
-            Some(order) => Some(cast_to_u64(order.quote_asset_amount_filled)?),
-            None => None,
-        },
+        taker_order_cumulative_quote_asset_amount_filled: taker_order
+            .as_ref()
+            .map(|order| order.quote_asset_amount_filled),
         maker,
         maker_order_id: maker_order.map(|order| order.order_id),
         maker_order_direction: maker_order.map(|order| order.direction),

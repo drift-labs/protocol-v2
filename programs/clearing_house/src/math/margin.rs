@@ -12,7 +12,7 @@ use crate::math::position::{
 use crate::validate;
 use crate::validation;
 
-use crate::math::casting::{cast_to_i128, Cast};
+use crate::math::casting::Cast;
 use crate::math::funding::calculate_funding_payment;
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
@@ -261,7 +261,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
             match spot_position.balance_type {
                 SpotBalanceType::Deposit => {
-                    total_collateral = total_collateral.safe_add(cast_to_i128(token_amount)?)?
+                    total_collateral = total_collateral.safe_add(token_amount.cast::<i128>()?)?
                 }
                 SpotBalanceType::Borrow => {
                     let liability_weight = user_custom_margin_ratio.max(SPOT_WEIGHT_PRECISION);
@@ -319,7 +319,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         .safe_div(SPOT_WEIGHT_PRECISION)?;
 
                     total_collateral =
-                        total_collateral.safe_add(cast_to_i128(weighted_token_value)?)?;
+                        total_collateral.safe_add(weighted_token_value.cast::<i128>()?)?;
                 }
                 Ordering::Less => {
                     let liability_weight =
@@ -354,7 +354,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             match worst_cast_quote_token_amount.cmp(&0) {
                 Ordering::Greater => {
                     total_collateral =
-                        total_collateral.safe_add(cast_to_i128(worst_cast_quote_token_amount)?)?
+                        total_collateral.safe_add(worst_cast_quote_token_amount.cast::<i128>()?)?
                 }
                 Ordering::Less => {
                     let liability_weight = user_custom_margin_ratio.max(SPOT_WEIGHT_PRECISION);
@@ -512,7 +512,7 @@ pub fn meets_withdraw_margin_requirement(
     }
 
     validate!(
-        total_collateral >= cast_to_i128(initial_margin_requirement)?,
+        total_collateral >= initial_margin_requirement.cast::<i128>()?,
         ErrorCode::InsufficientCollateral,
         "User attempting to withdraw where total_collateral {} is below initial_margin_requirement {}",
         total_collateral,
@@ -554,7 +554,7 @@ pub fn meets_place_order_margin_requirement(
         true,
     )?;
 
-    let meets_initial_margin_requirement = total_collateral >= cast_to_i128(margin_requirement)?;
+    let meets_initial_margin_requirement = total_collateral >= margin_requirement.cast::<i128>()?;
 
     if !meets_initial_margin_requirement && !risk_decreasing {
         return Err(ErrorCode::InsufficientCollateral);
@@ -586,7 +586,7 @@ pub fn meets_initial_margin_requirement(
             oracle_map,
             None,
         )?;
-    Ok(total_collateral >= cast_to_i128(margin_requirement)?)
+    Ok(total_collateral >= margin_requirement.cast::<i128>()?)
 }
 
 pub fn meets_maintenance_margin_requirement(
@@ -605,7 +605,7 @@ pub fn meets_maintenance_margin_requirement(
             None,
         )?;
 
-    Ok(total_collateral >= cast_to_i128(margin_requirement)?)
+    Ok(total_collateral >= margin_requirement.cast::<i128>()?)
 }
 
 pub fn calculate_free_collateral(
@@ -624,7 +624,7 @@ pub fn calculate_free_collateral(
             None,
         )?;
 
-    total_collateral.safe_sub(cast_to_i128(margin_requirement)?)
+    total_collateral.safe_sub(margin_requirement.cast::<i128>()?)
 }
 
 pub fn calculate_max_withdrawable_amount(

@@ -10,7 +10,7 @@ use crate::controller::position::{
 use crate::error::ClearingHouseResult;
 use crate::get_then_update_id;
 use crate::math::amm;
-use crate::math::casting::{cast, cast_to_i128, Cast};
+use crate::math::casting::Cast;
 use crate::math::constants::{FUNDING_RATE_BUFFER, ONE_HOUR, TWENTY_FOUR_HOUR};
 use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
 use crate::math::helpers::on_the_hour_update;
@@ -191,15 +191,15 @@ pub fn update_funding_rate(
             .safe_div(max(ONE_HOUR, market.amm.funding_period as i128))?;
         // funding period = 1 hour, window = 1 day
         // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval
-        let price_spread = cast_to_i128(mid_price_twap)?.safe_sub(oracle_price_twap)?;
+        let price_spread = mid_price_twap.cast::<i128>()?.safe_sub(oracle_price_twap)?;
 
         // clamp price divergence to 3% for funding rate calculation
         let max_price_spread = oracle_price_twap.safe_div(33)?; // 3%
         let clamped_price_spread = max(-max_price_spread, min(price_spread, max_price_spread));
 
         let funding_rate = clamped_price_spread
-            .safe_mul(cast(FUNDING_RATE_BUFFER)?)?
-            .safe_div(cast(period_adjustment)?)?;
+            .safe_mul(FUNDING_RATE_BUFFER.cast()?)?
+            .safe_div(period_adjustment.cast()?)?;
 
         let (funding_rate_long, funding_rate_short, funding_imbalance_cost) =
             calculate_funding_rate_long_short(market, funding_rate)?;

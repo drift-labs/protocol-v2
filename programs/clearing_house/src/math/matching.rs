@@ -2,7 +2,7 @@ use std::cmp::min;
 
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast_to_i128, cast_to_u128};
+use crate::math::casting::Cast;
 use crate::math::constants::{BID_ASK_SPREAD_PRECISION_I128, TEN_BPS};
 use crate::math::orders::calculate_quote_asset_amount_for_maker_order;
 use crate::math::safe_math::SafeMath;
@@ -77,7 +77,7 @@ pub fn calculate_filler_multiplier_for_matched_orders(
 ) -> ClearingHouseResult<u128> {
     // percentage oracle_price is above maker_price
     let price_pct_diff = oracle_price
-        .safe_sub(cast_to_i128(maker_price)?)?
+        .safe_sub(maker_price.cast::<i128>()?)?
         .safe_mul(BID_ASK_SPREAD_PRECISION_I128)?
         .safe_div(oracle_price)?;
 
@@ -90,5 +90,5 @@ pub fn calculate_filler_multiplier_for_matched_orders(
     .max(TEN_BPS)
     .min(TEN_BPS * 100);
 
-    cast_to_u128(multiplier)
+    multiplier.cast()
 }

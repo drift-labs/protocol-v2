@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 use crate::error::ClearingHouseResult;
-use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128};
+use crate::math::casting::Cast;
 use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I128};
 use crate::math::safe_math::SafeMath;
 
@@ -76,7 +76,7 @@ impl HistoricalIndexData {
     }
 
     pub fn default_with_current_oracle(oracle_price_data: OraclePriceData) -> Self {
-        let price = cast_to_u128(oracle_price_data.price).unwrap();
+        let price = oracle_price_data.price.cast::<u128>().unwrap();
         HistoricalIndexData {
             last_index_bid_price: price,
             last_index_ask_price: price,
@@ -146,8 +146,8 @@ pub fn get_pyth_price(
         .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
     let price_data = pyth_client::cast::<pyth_client::Price>(&pyth_price_data);
 
-    let oracle_price = cast_to_i128(price_data.agg.price)?;
-    let oracle_conf = cast_to_u128(price_data.agg.conf)?;
+    let oracle_price = price_data.agg.price.cast::<i128>()?;
+    let oracle_conf = price_data.agg.conf.cast::<u128>()?;
 
     let oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
 
@@ -161,14 +161,16 @@ pub fn get_pyth_price(
     }
 
     let oracle_price_scaled = (oracle_price)
-        .safe_mul(cast(oracle_scale_mult)?)?
-        .safe_div(cast(oracle_scale_div)?)?;
+        .safe_mul(oracle_scale_mult.cast()?)?
+        .safe_div(oracle_scale_div.cast()?)?;
 
     let oracle_conf_scaled = (oracle_conf)
         .safe_mul(oracle_scale_mult)?
         .safe_div(oracle_scale_div)?;
 
-    let oracle_delay: i64 = cast_to_i64(clock_slot)?.safe_sub(cast(price_data.valid_slot)?)?;
+    let oracle_delay: i64 = clock_slot
+        .cast::<i64>()?
+        .safe_sub(price_data.valid_slot.cast()?)?;
 
     Ok(OraclePriceData {
         price: oracle_price_scaled,

@@ -2,7 +2,7 @@ use solana_program::msg;
 
 use crate::error::ClearingHouseResult;
 use crate::math::bn::U192;
-use crate::math::casting::{cast_to_i128, cast_to_u128};
+use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
 use crate::math_error;
 
@@ -13,13 +13,12 @@ pub fn standardize_value_with_remainder_i128(
     value: i128,
     step_size: u128,
 ) -> ClearingHouseResult<(i128, i128)> {
-    let remainder = cast_to_i128(
-        value
-            .unsigned_abs()
-            .checked_rem_euclid(step_size)
-            .ok_or_else(math_error!())?,
-    )?
-    .safe_mul(value.signum())?;
+    let remainder = value
+        .unsigned_abs()
+        .checked_rem_euclid(step_size)
+        .ok_or_else(math_error!())?
+        .cast::<i128>()?
+        .safe_mul(value.signum())?;
 
     let standardized_value = value.safe_sub(remainder)?;
 
@@ -32,7 +31,7 @@ pub fn get_proportion_i128(
     denominator: u128,
 ) -> ClearingHouseResult<i128> {
     let proportional_u128 = get_proportion_u128(value.unsigned_abs(), numerator, denominator)?;
-    let proportional_value = cast_to_i128(proportional_u128)?.safe_mul(value.signum())?;
+    let proportional_value = proportional_u128.cast::<i128>()?.safe_mul(value.signum())?;
 
     Ok(proportional_value)
 }
@@ -43,7 +42,7 @@ pub fn get_proportion_u128(
     denominator: u128,
 ) -> ClearingHouseResult<u128> {
     // we use u128::max.sqrt() here
-    let large_constant = cast_to_u128(u64::MAX)?;
+    let large_constant = u64::MAX.cast::<u128>()?;
 
     let proportional_value = if numerator == denominator {
         value
@@ -52,18 +51,20 @@ pub fn get_proportion_u128(
             .safe_mul(U192::from(numerator))?
             .safe_div(U192::from(denominator))?;
 
-        cast_to_u128(value)?
+        value.cast::<u128>()?
     } else if numerator > denominator / 2 && denominator > numerator {
         // get values to ensure a ceiling division
         let (std_value, r) = standardize_value_with_remainder_i128(
-            cast_to_i128(value.safe_mul(denominator.safe_sub(numerator)?)?)?,
+            value
+                .safe_mul(denominator.safe_sub(numerator)?)?
+                .cast::<i128>()?,
             denominator,
         )?;
 
         // perform ceiling division by subtracting one if there is a remainder
         value
-            .safe_sub(cast_to_u128(std_value)?.safe_div(denominator)?)?
-            .safe_sub(cast_to_u128(r.signum())?)?
+            .safe_sub(std_value.cast::<u128>()?.safe_div(denominator)?)?
+            .safe_sub(r.signum().cast::<u128>()?)?
     } else {
         value.safe_mul(numerator)?.safe_div(denominator)?
     };

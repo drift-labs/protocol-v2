@@ -7,7 +7,7 @@ use solana_program::msg;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::sanitize_new_price;
-use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128, cast_to_u64};
+use crate::math::casting::Cast;
 use crate::math::constants::{
     FIVE_MINUTE, IF_FACTOR_PRECISION, ONE_HOUR, QUOTE_SPOT_MARKET_INDEX,
     SPOT_MARKET_TOKEN_TWAP_WINDOW,
@@ -35,13 +35,12 @@ pub fn update_spot_market_twap_stats(
     oracle_price_data: Option<&OraclePriceData>,
     now: i64,
 ) -> ClearingHouseResult {
-    let since_last = cast_to_i128(max(
-        1,
-        now.safe_sub(cast_to_i64(spot_market.last_twap_ts)?)?,
-    ))?;
+    let since_last = max(1, now.safe_sub(spot_market.last_twap_ts.cast()?)?).cast::<i128>()?;
     let from_start = max(
         1,
-        cast_to_i128(SPOT_MARKET_TOKEN_TWAP_WINDOW)?.safe_sub(since_last)?,
+        SPOT_MARKET_TOKEN_TWAP_WINDOW
+            .cast::<i128>()?
+            .safe_sub(since_last)?,
     );
 
     let deposit_token_amount = get_token_amount(
@@ -56,28 +55,31 @@ pub fn update_spot_market_twap_stats(
         &SpotBalanceType::Borrow,
     )?;
 
-    spot_market.deposit_token_twap = cast(calculate_weighted_average(
-        cast(deposit_token_amount)?,
-        cast(spot_market.deposit_token_twap)?,
+    spot_market.deposit_token_twap = calculate_weighted_average(
+        deposit_token_amount.cast()?,
+        spot_market.deposit_token_twap.cast()?,
         since_last,
         from_start,
-    )?)?;
+    )?
+    .cast()?;
 
-    spot_market.borrow_token_twap = cast(calculate_weighted_average(
-        cast(borrow_token_amount)?,
-        cast(spot_market.borrow_token_twap)?,
+    spot_market.borrow_token_twap = calculate_weighted_average(
+        borrow_token_amount.cast()?,
+        spot_market.borrow_token_twap.cast()?,
         since_last,
         from_start,
-    )?)?;
+    )?
+    .cast()?;
 
     let utilization = calculate_utilization(deposit_token_amount, borrow_token_amount)?;
 
-    spot_market.utilization_twap = cast_to_u128(calculate_weighted_average(
-        cast_to_i128(utilization)?,
-        cast_to_i128(spot_market.utilization_twap)?,
+    spot_market.utilization_twap = calculate_weighted_average(
+        utilization.cast::<i128>()?,
+        spot_market.utilization_twap.cast()?,
         since_last,
         from_start,
-    )?)?;
+    )?
+    .cast()?;
 
     if let Some(oracle_price_data) = oracle_price_data {
         let sanitize_clamp_denominator = spot_market.get_sanitize_clamp_denominator()?;
@@ -117,7 +119,7 @@ pub fn update_spot_market_twap_stats(
         spot_market.historical_oracle_data.last_oracle_price_twap_ts = now;
     }
 
-    spot_market.last_twap_ts = cast_to_u64(now)?;
+    spot_market.last_twap_ts = now.cast()?;
 
     Ok(())
 }
@@ -154,7 +156,7 @@ pub fn update_spot_market_cumulative_interest(
             spot_market.cumulative_borrow_interest = spot_market
                 .cumulative_borrow_interest
                 .safe_add(borrow_interest)?;
-            spot_market.last_interest_ts = cast_to_u64(now)?;
+            spot_market.last_interest_ts = now.cast()?;
 
             // add deposit_interest_for_stakers as balance for revenue_pool
             let token_amount = get_interest_token_amount(

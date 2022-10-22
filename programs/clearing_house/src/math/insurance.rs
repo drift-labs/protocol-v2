@@ -1,7 +1,7 @@
 use solana_program::msg;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast_to_u128, cast_to_u32, cast_to_u64};
+use crate::math::casting::Cast;
 use crate::math::helpers::{get_proportion_u128, log10_iter};
 use crate::math::safe_math::SafeMath;
 
@@ -22,9 +22,9 @@ pub fn vault_amount_to_if_shares(
         // assumes total_if_shares != 0 (in most cases) for nice result for user
 
         get_proportion_u128(
-            cast_to_u128(amount)?,
+            amount.cast::<u128>()?,
             total_if_shares,
-            cast_to_u128(insurance_fund_vault_balance)?,
+            insurance_fund_vault_balance.cast::<u128>()?,
         )?
     } else {
         // must be case that total_if_shares == 0 for nice result for user
@@ -34,7 +34,7 @@ pub fn vault_amount_to_if_shares(
             "assumes total_if_shares == 0",
         )?;
 
-        cast_to_u128(amount)?
+        amount.cast::<u128>()?
     };
 
     Ok(n_shares)
@@ -54,11 +54,12 @@ pub fn if_shares_to_vault_amount(
     )?;
 
     let amount = if total_if_shares > 0 {
-        cast_to_u64(get_proportion_u128(
+        get_proportion_u128(
             insurance_fund_vault_balance as u128,
             n_shares,
             total_if_shares as u128,
-        )?)?
+        )?
+        .cast::<u64>()?
     } else {
         0
     };
@@ -72,9 +73,9 @@ pub fn calculate_rebase_info(
 ) -> ClearingHouseResult<(u32, u128)> {
     let rebase_divisor_full = total_if_shares
         .safe_div(10)?
-        .safe_div(cast_to_u128(insurance_fund_vault_balance)?)?;
+        .safe_div(insurance_fund_vault_balance.cast::<u128>()?)?;
 
-    let expo_diff = cast_to_u32(log10_iter(rebase_divisor_full))?;
+    let expo_diff = log10_iter(rebase_divisor_full).cast::<u32>()?;
     let rebase_divisor = 10_u128.pow(expo_diff);
 
     Ok((expo_diff, rebase_divisor))

@@ -5,7 +5,7 @@ use solana_program::msg;
 use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
-use crate::math::casting::{cast_to_i128, Cast};
+use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, PRICE_PRECISION_I128,
     QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY_I128,
@@ -706,7 +706,7 @@ impl UserStats {
         quote_asset_amount: u64,
         now: i64,
     ) -> ClearingHouseResult {
-        let since_last = cast_to_i128(max(1, now.safe_sub(self.last_maker_volume_30d_ts)?))?;
+        let since_last = max(1, now.safe_sub(self.last_maker_volume_30d_ts)?).cast::<i128>()?;
 
         self.maker_volume_30d = calculate_rolling_sum(
             self.maker_volume_30d,
@@ -724,7 +724,7 @@ impl UserStats {
         quote_asset_amount: u64,
         now: i64,
     ) -> ClearingHouseResult {
-        let since_last = cast_to_i128(max(1, now.safe_sub(self.last_taker_volume_30d_ts)?))?;
+        let since_last = max(1, now.safe_sub(self.last_taker_volume_30d_ts)?).cast::<i128>()?;
 
         self.taker_volume_30d = calculate_rolling_sum(
             self.taker_volume_30d,
@@ -742,7 +742,7 @@ impl UserStats {
         quote_asset_amount: u64,
         now: i64,
     ) -> ClearingHouseResult {
-        let since_last = cast_to_i128(max(1, now.safe_sub(self.last_filler_volume_30d_ts)?))?;
+        let since_last = max(1, now.safe_sub(self.last_filler_volume_30d_ts)?).cast::<i128>()?;
 
         self.filler_volume_30d = calculate_rolling_sum(
             self.filler_volume_30d,

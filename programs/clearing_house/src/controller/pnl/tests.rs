@@ -7,7 +7,7 @@ use crate::controller::pnl::settle_pnl;
 use crate::create_account_info;
 use crate::create_anchor_account_info;
 use crate::error::ErrorCode;
-use crate::math::casting::cast;
+use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION,
     PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX,
@@ -207,7 +207,7 @@ pub fn user_does_not_meet_maintenance_requirement() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -325,7 +325,7 @@ pub fn user_unsettled_negative_pnl() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -455,7 +455,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -585,7 +585,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -716,7 +716,7 @@ pub fn market_fee_pool_receives_portion() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -853,7 +853,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -984,7 +984,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1116,7 +1116,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1245,7 +1245,7 @@ pub fn user_long_negative_unrealized_pnl() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1377,7 +1377,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -1509,7 +1509,7 @@ pub fn user_short_negative_unrealized_pnl() {
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
-        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION).unwrap(),
+        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);

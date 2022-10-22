@@ -3,7 +3,7 @@ use crate::controller::position::{PositionDelta, PositionDirection};
 use crate::error::ClearingHouseResult;
 use crate::math::amm;
 use crate::math::amm::calculate_quote_asset_amount_swapped;
-use crate::math::casting::{cast_to_i128, Cast};
+use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO,
     PRICE_PRECISION, PRICE_TO_QUOTE_PRECISION_RATIO,
@@ -160,7 +160,7 @@ pub fn calculate_base_asset_value_with_expiry_price(
         .base_asset_amount
         .cast::<i128>()?
         .safe_mul(expiry_price)?
-        .safe_div(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)?
+        .safe_div(AMM_RESERVE_PRECISION_I128 * PRICE_TO_QUOTE_PRECISION_RATIO.cast::<i128>()?)?
         .cast::<i64>()
 }
 

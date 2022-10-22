@@ -6,7 +6,7 @@ use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn::U192;
-use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64, Cast};
+use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
     CONCENTRATION_PRECISION, DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE,
@@ -97,14 +97,18 @@ pub fn _calculate_market_open_bids_asks(
 ) -> ClearingHouseResult<(i128, i128)> {
     // worse case if all asks are filled
     let max_asks = if base_asset_reserve < max_base_asset_reserve {
-        -cast_to_i128(max_base_asset_reserve.safe_sub(base_asset_reserve)?)?
+        -max_base_asset_reserve
+            .safe_sub(base_asset_reserve)?
+            .cast::<i128>()?
     } else {
         0
     };
 
     // worst case if all bids are filled
     let max_bids = if base_asset_reserve > min_base_asset_reserve {
-        cast_to_i128(base_asset_reserve.safe_sub(min_base_asset_reserve)?)?
+        base_asset_reserve
+            .safe_sub(min_base_asset_reserve)?
+            .cast::<i128>()?
     } else {
         0
     };
@@ -119,8 +123,11 @@ pub fn update_mark_twap(
     direction: Option<PositionDirection>,
     sanitize_clamp: Option<i128>,
 ) -> ClearingHouseResult<u128> {
-    let base_spread_u128 = cast_to_u128(amm.base_spread)?;
-    let last_oracle_price_u128 = cast_to_u128(amm.historical_oracle_data.last_oracle_price)?;
+    let base_spread_u128 = amm.base_spread.cast::<u128>()?;
+    let last_oracle_price_u128 = amm
+        .historical_oracle_data
+        .last_oracle_price
+        .cast::<u128>()?;
 
     let trade_price: u128 = match precomputed_trade_price {
         Some(trade_price) => trade_price,
@@ -183,13 +190,13 @@ pub fn update_mark_twap(
 
     let (bid_price_capped_update, ask_price_capped_update) = (
         sanitize_new_price(
-            cast_to_i128(bid_price)?,
-            cast_to_i128(amm.last_bid_price_twap)?,
+            bid_price.cast::<i128>()?,
+            amm.last_bid_price_twap.cast()?,
             sanitize_clamp,
         )?,
         sanitize_new_price(
-            cast_to_i128(ask_price)?,
-            cast_to_i128(amm.last_ask_price_twap)?,
+            ask_price.cast::<i128>()?,
+            amm.last_ask_price_twap.cast()?,
             sanitize_clamp,
         )?,
     );
@@ -204,39 +211,43 @@ pub fn update_mark_twap(
     let bid_twap = calculate_new_twap(
         bid_price_capped_update,
         now,
-        cast(amm.last_bid_price_twap)?,
+        amm.last_bid_price_twap.cast()?,
         amm.last_mark_price_twap_ts,
         amm.funding_period,
     )?;
-    amm.last_bid_price_twap = cast(bid_twap)?;
+    amm.last_bid_price_twap = bid_twap.cast()?;
 
     let ask_twap = calculate_new_twap(
         ask_price_capped_update,
         now,
-        cast(amm.last_ask_price_twap)?,
+        amm.last_ask_price_twap.cast()?,
         amm.last_mark_price_twap_ts,
         amm.funding_period,
     )?;
 
-    amm.last_ask_price_twap = cast(ask_twap)?;
+    amm.last_ask_price_twap = ask_twap.cast()?;
 
     let mid_twap = bid_twap.safe_add(ask_twap)? / 2;
 
     // update std stat
     update_amm_mark_std(amm, now, trade_price, amm.last_mark_price_twap)?;
 
-    amm.last_mark_price_twap = cast(mid_twap)?;
-    amm.last_mark_price_twap_5min = cast(calculate_new_twap(
-        cast(bid_price_capped_update.safe_add(ask_price_capped_update)? / 2)?,
+    amm.last_mark_price_twap = mid_twap.cast()?;
+    amm.last_mark_price_twap_5min = calculate_new_twap(
+        bid_price_capped_update
+            .safe_add(ask_price_capped_update)?
+            .safe_div(2)?
+            .cast()?,
         now,
-        cast(amm.last_mark_price_twap_5min)?,
+        amm.last_mark_price_twap_5min.cast()?,
         amm.last_mark_price_twap_ts,
         FIVE_MINUTE as i64,
-    )?)?;
+    )?
+    .cast()?;
 
     amm.last_mark_price_twap_ts = now;
 
-    cast(mid_twap)
+    mid_twap.cast()
 }
 
 pub fn sanitize_new_price(
@@ -364,27 +375,28 @@ pub fn calculate_new_oracle_price_twap(
         TwapPeriod::FiveMin => FIVE_MINUTE as i64,
     };
 
-    let since_last = cast_to_i128(max(
+    let since_last = max(
         1,
         now.safe_sub(amm.historical_oracle_data.last_oracle_price_twap_ts)?,
-    ))?;
-    let from_start = max(0, cast_to_i128(period)?.safe_sub(since_last)?);
+    )
+    .cast()?;
+    let from_start = max(0, period.cast::<i128>()?.safe_sub(since_last)?);
 
     // if an oracle delay impacted last oracle_twap, shrink toward mark_twap
     let interpolated_oracle_price =
         if amm.last_mark_price_twap_ts > amm.historical_oracle_data.last_oracle_price_twap_ts {
-            let since_last_valid = cast_to_i128(
-                amm.last_mark_price_twap_ts
-                    .safe_sub(amm.historical_oracle_data.last_oracle_price_twap_ts)?,
-            )?;
+            let since_last_valid = amm
+                .last_mark_price_twap_ts
+                .safe_sub(amm.historical_oracle_data.last_oracle_price_twap_ts)?
+                .cast::<i128>()?;
             msg!(
                 "correcting oracle twap update (oracle previously invalid for {:?} seconds)",
                 since_last_valid
             );
 
-            let from_start_valid = max(1, cast_to_i128(period)?.safe_sub(since_last_valid)?);
+            let from_start_valid = max(1, period.cast::<i128>()?.safe_sub(since_last_valid)?);
             calculate_weighted_average(
-                cast_to_i128(last_mark_twap)?,
+                last_mark_twap.cast::<i128>()?,
                 oracle_price,
                 since_last_valid,
                 from_start_valid,
@@ -407,13 +419,13 @@ pub fn update_amm_mark_std(
     price: u128,
     ewma: u128,
 ) -> ClearingHouseResult<bool> {
-    let since_last = cast_to_i128(max(1, now.safe_sub(amm.last_mark_price_twap_ts)?))?;
+    let since_last = max(1, now.safe_sub(amm.last_mark_price_twap_ts)?).cast::<i128>()?;
 
-    let price_change = cast_to_i128(price)?.safe_sub(cast_to_i128(ewma)?)?;
+    let price_change = price.cast::<i128>()?.safe_sub(ewma.cast::<i128>()?)?;
 
     amm.mark_std = calculate_rolling_sum(
         amm.mark_std,
-        cast_to_u64(price_change.unsigned_abs())?,
+        price_change.unsigned_abs().cast()?,
         max(ONE_HOUR_I128, since_last),
         ONE_HOUR_I128,
     )?;
@@ -427,7 +439,7 @@ pub fn update_amm_long_short_intensity(
     quote_asset_amount: u64,
     direction: PositionDirection,
 ) -> ClearingHouseResult<bool> {
-    let since_last = cast_to_i128(max(1, now.safe_sub(amm.last_trade_ts)?))?;
+    let since_last = max(1, now.safe_sub(amm.last_trade_ts)?).cast::<i128>()?;
 
     let (long_quote_amount, short_quote_amount) = if direction == PositionDirection::Long {
         (quote_asset_amount, 0_u64)
@@ -436,8 +448,8 @@ pub fn update_amm_long_short_intensity(
     };
 
     amm.long_intensity_count = (calculate_rolling_sum(
-        cast_to_u64(amm.long_intensity_count)?,
-        cast_to_u64(long_quote_amount != 0)?,
+        amm.long_intensity_count.cast()?,
+        (long_quote_amount != 0).cast()?,
         since_last,
         ONE_HOUR_I128,
     )?) as u16;
@@ -449,8 +461,8 @@ pub fn update_amm_long_short_intensity(
     )?;
 
     amm.short_intensity_count = (calculate_rolling_sum(
-        cast_to_u64(amm.short_intensity_count)?,
-        cast_to_u64(short_quote_amount != 0)?,
+        amm.short_intensity_count.cast()?,
+        (short_quote_amount != 0).cast()?,
         since_last,
         ONE_HOUR_I128,
     )?) as u16;
@@ -558,8 +570,8 @@ pub fn calculate_oracle_reserve_price_spread(
     precomputed_reserve_price: Option<u128>,
 ) -> ClearingHouseResult<(i128, i128)> {
     let reserve_price = match precomputed_reserve_price {
-        Some(reserve_price) => cast_to_i128(reserve_price)?,
-        None => cast_to_i128(amm.reserve_price()?)?,
+        Some(reserve_price) => reserve_price.cast::<i128>()?,
+        None => amm.reserve_price()?.cast::<i128>()?,
     };
 
     let oracle_price = oracle_price_data.price;
@@ -581,13 +593,13 @@ pub fn normalise_oracle_price(
     } = *oracle_price;
 
     let reserve_price = match precomputed_reserve_price {
-        Some(reserve_price) => cast_to_i128(reserve_price)?,
-        None => cast_to_i128(amm.reserve_price()?)?,
+        Some(reserve_price) => reserve_price.cast::<i128>()?,
+        None => amm.reserve_price()?.cast::<i128>()?,
     };
 
     // 2.5 bps of the mark price
     let reserve_price_2p5_bps = reserve_price.safe_div(4000)?;
-    let conf_int = cast_to_i128(oracle_conf)?;
+    let conf_int = oracle_conf.cast::<i128>()?;
 
     //  normalises oracle toward mark price based on the oracle’s confidence interval
     //  if mark above oracle: use oracle+conf unless it exceeds .99975 * mark price
@@ -622,7 +634,7 @@ pub fn calculate_oracle_reserve_price_spread_pct(
 
     price_spread
         .safe_mul(BID_ASK_SPREAD_PRECISION_I128)?
-        .safe_div(cast_to_i128(reserve_price)?) // todo? better for spread logic
+        .safe_div(reserve_price.cast::<i128>()?) // todo? better for spread logic
 }
 
 pub fn calculate_oracle_twap_5min_mark_spread_pct(
@@ -633,13 +645,14 @@ pub fn calculate_oracle_twap_5min_mark_spread_pct(
         Some(reserve_price) => reserve_price,
         None => amm.reserve_price()?,
     };
-    let price_spread = cast_to_i128(reserve_price)?
+    let price_spread = reserve_price
+        .cast::<i128>()?
         .safe_sub(amm.historical_oracle_data.last_oracle_price_twap_5min)?;
 
     // price_spread_pct
     price_spread
         .safe_mul(BID_ASK_SPREAD_PRECISION_I128)?
-        .safe_div(cast_to_i128(reserve_price)?) // todo? better for spread logic
+        .safe_div(reserve_price.cast::<i128>()?) // todo? better for spread logic
 }
 
 pub fn is_oracle_mark_too_divergent(
@@ -655,8 +668,8 @@ pub fn is_oracle_mark_too_divergent(
 }
 
 pub fn calculate_mark_twap_spread_pct(amm: &AMM, reserve_price: u128) -> ClearingHouseResult<i128> {
-    let reserve_price = cast_to_i128(reserve_price)?;
-    let mark_twap = cast_to_i128(amm.last_mark_price_twap)?;
+    let reserve_price = reserve_price.cast::<i128>()?;
+    let mark_twap = amm.last_mark_price_twap.cast::<i128>()?;
 
     let price_spread = reserve_price.safe_sub(mark_twap)?;
 
@@ -723,7 +736,7 @@ pub fn calculate_net_user_pnl(amm: &AMM, oracle_price: i128) -> ClearingHouseRes
     let net_user_base_asset_value = amm
         .base_asset_amount_with_amm
         .safe_mul(oracle_price)?
-        .safe_div(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)?;
+        .safe_div(AMM_RESERVE_PRECISION_I128 * PRICE_TO_QUOTE_PRECISION_RATIO.cast::<i128>()?)?;
 
     net_user_base_asset_value.safe_add(calculate_net_user_cost_basis(amm)?)
 }
@@ -745,8 +758,8 @@ pub fn calculate_expiry_price(
     let best_expiry_price = -(amm
         .quote_asset_amount_long
         .safe_add(amm.quote_asset_amount_short)?
-        .safe_sub(cast_to_i128(pnl_pool_amount)?)?
-        .safe_mul(AMM_RESERVE_PRECISION_I128 * cast_to_i128(PRICE_TO_QUOTE_PRECISION_RATIO)?)?
+        .safe_sub(pnl_pool_amount.cast::<i128>()?)?
+        .safe_mul(AMM_RESERVE_PRECISION_I128 * PRICE_TO_QUOTE_PRECISION_RATIO.cast::<i128>()?)?
         .safe_div(amm.base_asset_amount_with_amm)?);
 
     let expiry_price = if amm.base_asset_amount_with_amm > 0 {

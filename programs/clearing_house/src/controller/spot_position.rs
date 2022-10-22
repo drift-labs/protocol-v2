@@ -4,7 +4,7 @@ use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_spot_balances;
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
-use crate::math::casting::{cast, Cast};
+use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::check_withdraw_limits;
 use crate::math_error;
@@ -81,13 +81,13 @@ pub fn update_spot_balances_and_cumulative_deposits(
         SpotBalanceType::Deposit => {
             safe_increment!(
                 spot_position.cumulative_deposits,
-                cast(cumulative_deposit_delta)?
+                cumulative_deposit_delta.cast()?
             )
         }
         SpotBalanceType::Borrow => {
             safe_decrement!(
                 spot_position.cumulative_deposits,
-                cast(cumulative_deposit_delta)?
+                cumulative_deposit_delta.cast()?
             )
         }
     }

@@ -4,7 +4,7 @@ use solana_program::msg;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
-use crate::math::casting::{cast, cast_to_i128, Cast};
+use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO, AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_RATE_BUFFER, ONE_HOUR,
     PRICE_PRECISION, QUOTE_TO_BASE_AMT_FUNDING_PRECISION,
@@ -30,15 +30,15 @@ pub fn calculate_funding_rate(
         .safe_mul(ONE_HOUR)?
         .safe_div(max(ONE_HOUR, funding_period as i128))?;
 
-    let price_spread = cast_to_i128(mid_price_twap)?.safe_sub(oracle_price_twap)?;
+    let price_spread = mid_price_twap.cast::<i128>()?.safe_sub(oracle_price_twap)?;
 
     // clamp price divergence to 3% for funding rate calculation
     let max_price_spread = oracle_price_twap.safe_div(33)?; // 3%
     let clamped_price_spread = max(-max_price_spread, min(price_spread, max_price_spread));
 
     let funding_rate = clamped_price_spread
-        .safe_mul(cast(FUNDING_RATE_BUFFER)?)?
-        .safe_div(cast(period_adjustment)?)?;
+        .safe_mul(FUNDING_RATE_BUFFER.cast()?)?
+        .safe_div(period_adjustment.cast()?)?;
 
     Ok(funding_rate)
 }
@@ -87,7 +87,7 @@ pub fn calculate_funding_rate_long_short(
     // clearing house is paying part of funding imbalance
     if capped_funding_pnl != 0 {
         let total_fee_minus_distributions_lower_bound =
-            cast_to_i128(get_total_fee_lower_bound(market)?)?;
+            get_total_fee_lower_bound(market)?.cast::<i128>()?;
 
         // makes sure the clearing house doesn't pay more than the share of fees allocated to `distributions`
         if new_total_fee_minus_distributions < total_fee_minus_distributions_lower_bound {
@@ -125,7 +125,7 @@ fn calculate_capped_funding_rate(
     let fee_pool = calculate_fee_pool(market)?;
 
     // limit to 1/3 of current fee pool per funding period
-    let funding_rate_pnl_limit = -cast_to_i128(fee_pool)?.safe_div(3)?;
+    let funding_rate_pnl_limit = -fee_pool.cast::<i128>()?.safe_div(3)?;
 
     // if theres enough in fees, give user's uncapped funding
     // if theres a little/nothing in fees, give the user's capped outflow funding
@@ -191,13 +191,12 @@ fn _calculate_funding_payment(
 ) -> ClearingHouseResult<i128> {
     let funding_rate_delta_sign: i128 = if funding_rate_delta > 0 { 1 } else { -1 };
 
-    let funding_rate_payment_magnitude = cast_to_i128(
-        bn::U192::from(funding_rate_delta.unsigned_abs())
-            .safe_mul(bn::U192::from(base_asset_amount.unsigned_abs()))?
-            .safe_div(bn::U192::from(PRICE_PRECISION))?
-            .safe_div(bn::U192::from(FUNDING_RATE_BUFFER))?
-            .try_to_u128()?,
-    )?;
+    let funding_rate_payment_magnitude = bn::U192::from(funding_rate_delta.unsigned_abs())
+        .safe_mul(bn::U192::from(base_asset_amount.unsigned_abs()))?
+        .safe_div(bn::U192::from(PRICE_PRECISION))?
+        .safe_div(bn::U192::from(FUNDING_RATE_BUFFER))?
+        .try_to_u128()?
+        .cast::<i128>()?;
 
     // funding_rate: longs pay shorts
     let funding_rate_payment_sign: i128 = if base_asset_amount > 0 { -1 } else { 1 };
@@ -234,7 +233,7 @@ pub fn calculate_funding_payment_in_quote_precision(
 ) -> ClearingHouseResult<i128> {
     let funding_payment = _calculate_funding_payment(funding_rate_delta, base_asset_amount)?;
     let funding_payment_collateral =
-        funding_payment.safe_div(cast_to_i128(AMM_TO_QUOTE_PRECISION_RATIO)?)?;
+        funding_payment.safe_div(AMM_TO_QUOTE_PRECISION_RATIO.cast::<i128>()?)?;
 
     Ok(funding_payment_collateral)
 }

@@ -6,7 +6,7 @@ use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::_calculate_market_open_bids_asks;
 use crate::math::bn::U192;
-use crate::math::casting::{cast_to_i128, cast_to_u128, Cast};
+use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
     BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, DEFAULT_LARGE_BID_ASK_FACTOR,
@@ -116,14 +116,14 @@ pub fn calculate_spread(
             long_spread,
             last_oracle_reserve_price_spread_pct
                 .unsigned_abs()
-                .safe_add(cast_to_u128(last_oracle_conf_pct)?)?,
+                .safe_add(last_oracle_conf_pct.cast::<u128>()?)?,
         );
     } else {
         short_spread = max(
             short_spread,
             last_oracle_reserve_price_spread_pct
                 .unsigned_abs()
-                .safe_add(cast_to_u128(last_oracle_conf_pct)?)?,
+                .safe_add(last_oracle_conf_pct.cast::<u128>()?)?,
         );
     }
 
@@ -138,7 +138,7 @@ pub fn calculate_spread(
 
     // inventory scale
     let inventory_scale = base_asset_amount_with_amm
-        .safe_mul(cast_to_i128(DEFAULT_LARGE_BID_ASK_FACTOR)?)?
+        .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR.cast::<i128>()?)?
         .safe_div(min_side_liquidity.max(1))?
         .unsigned_abs();
 
@@ -158,13 +158,14 @@ pub fn calculate_spread(
     }
 
     // effective leverage scale
-    let net_base_asset_value = cast_to_i128(quote_asset_reserve)?
-        .safe_sub(cast_to_i128(terminal_quote_asset_reserve)?)?
-        .safe_mul(cast_to_i128(peg_multiplier)?)?
+    let net_base_asset_value = quote_asset_reserve
+        .cast::<i128>()?
+        .safe_sub(terminal_quote_asset_reserve.cast::<i128>()?)?
+        .safe_mul(peg_multiplier.cast::<i128>()?)?
         .safe_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128)?;
 
     let local_base_asset_value = base_asset_amount_with_amm
-        .safe_mul(cast_to_i128(reserve_price)?)?
+        .safe_mul(reserve_price.cast::<i128>()?)?
         .safe_div(AMM_TO_QUOTE_PRECISION_RATIO_I128 * PRICE_PRECISION_I128)?;
 
     let effective_leverage = max(0, local_base_asset_value.safe_sub(net_base_asset_value)?)
@@ -173,7 +174,7 @@ pub fn calculate_spread(
 
     let effective_leverage_capped = min(
         MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
-        BID_ASK_SPREAD_PRECISION.safe_add(cast_to_u128(max(0, effective_leverage))? + 1)?,
+        BID_ASK_SPREAD_PRECISION.safe_add(max(0, effective_leverage).cast::<u128>()? + 1)?,
     );
 
     if total_fee_minus_distributions <= 0 {
@@ -195,7 +196,9 @@ pub fn calculate_spread(
     let (long_spread, short_spread) = cap_to_max_spread(
         long_spread,
         short_spread,
-        cast_to_u128(max_spread)?.max(last_oracle_reserve_price_spread_pct.unsigned_abs()),
+        max_spread
+            .cast::<u128>()?
+            .max(last_oracle_reserve_price_spread_pct.unsigned_abs()),
     )?;
 
     Ok((long_spread, short_spread))

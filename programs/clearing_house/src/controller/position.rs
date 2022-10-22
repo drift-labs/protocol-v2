@@ -5,7 +5,7 @@ use solana_program::msg;
 use crate::controller;
 use crate::controller::amm::SwapDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast, cast_to_i128, Cast};
+use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, LP_FEE_SLICE_DENOMINATOR,
     LP_FEE_SLICE_NUMERATOR, PERP_DECIMALS,
@@ -380,13 +380,13 @@ pub fn update_lp_market_position(
         LP_FEE_SLICE_NUMERATOR,
         LP_FEE_SLICE_DENOMINATOR,
     )?
-    .safe_mul(cast_to_i128(user_lp_shares)?)?
-    .safe_div(cast_to_i128(total_lp_shares)?)?;
+    .safe_mul(user_lp_shares.cast::<i128>()?)?
+    .safe_div(total_lp_shares.cast::<i128>()?)?;
 
     let per_lp_fee = if lp_fee > 0 {
         lp_fee
             .safe_mul(AMM_RESERVE_PRECISION_I128)?
-            .safe_div(cast_to_i128(user_lp_shares)?)?
+            .safe_div(user_lp_shares.cast::<i128>()?)?
     } else {
         0
     };
@@ -536,12 +536,12 @@ pub fn increase_open_bids_and_asks(
         PositionDirection::Long => {
             position.open_bids = position
                 .open_bids
-                .safe_add(cast(base_asset_amount_unfilled)?)?;
+                .safe_add(base_asset_amount_unfilled.cast()?)?;
         }
         PositionDirection::Short => {
             position.open_asks = position
                 .open_asks
-                .safe_sub(cast(base_asset_amount_unfilled)?)?;
+                .safe_sub(base_asset_amount_unfilled.cast()?)?;
         }
     }
 
@@ -557,12 +557,12 @@ pub fn decrease_open_bids_and_asks(
         PositionDirection::Long => {
             position.open_bids = position
                 .open_bids
-                .safe_sub(cast(base_asset_amount_unfilled)?)?;
+                .safe_sub(base_asset_amount_unfilled.cast()?)?;
         }
         PositionDirection::Short => {
             position.open_asks = position
                 .open_asks
-                .safe_add(cast(base_asset_amount_unfilled)?)?;
+                .safe_add(base_asset_amount_unfilled.cast()?)?;
         }
     }
 
