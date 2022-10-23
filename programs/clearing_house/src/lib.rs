@@ -233,8 +233,14 @@ pub mod clearing_house {
         ctx: Context<LiquidatePerp>,
         market_index: u16,
         liquidator_max_base_asset_amount: u64,
+        limit_price: Option<u64>,
     ) -> Result<()> {
-        handle_liquidate_perp(ctx, market_index, liquidator_max_base_asset_amount)
+        handle_liquidate_perp(
+            ctx,
+            market_index,
+            liquidator_max_base_asset_amount,
+            limit_price,
+        )
     }
 
     pub fn liquidate_spot(
