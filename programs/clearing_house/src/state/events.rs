@@ -80,7 +80,7 @@ pub struct FundingRateRecord {
     pub ts: i64,
     pub record_id: u64,
     pub market_index: u16,
-    pub funding_rate: i128,
+    pub funding_rate: i64,
     pub funding_rate_long: i128,
     pub funding_rate_short: i128,
     pub cumulative_funding_rate_long: i128,

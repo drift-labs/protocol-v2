@@ -200,10 +200,11 @@ pub fn update_funding_rate(
         let funding_rate = clamped_price_spread
             .cast::<i128>()?
             .safe_mul(FUNDING_RATE_BUFFER.cast()?)?
-            .safe_div(period_adjustment.cast()?)?;
+            .safe_div(period_adjustment.cast()?)?
+            .cast::<i64>()?;
 
         let (funding_rate_long, funding_rate_short, funding_imbalance_cost) =
-            calculate_funding_rate_long_short(market, funding_rate)?;
+            calculate_funding_rate_long_short(market, funding_rate.cast()?)?;
 
         // todo: finish robust tests
         if market.amm.curve_update_intensity > 0 {
@@ -221,15 +222,16 @@ pub fn update_funding_rate(
             .safe_add(funding_rate_short)?;
 
         market.amm.last_funding_rate = funding_rate;
-        market.amm.last_funding_rate_long = funding_rate_long;
-        market.amm.last_funding_rate_short = funding_rate_short;
+        market.amm.last_funding_rate_long = funding_rate_long.cast()?;
+        market.amm.last_funding_rate_short = funding_rate_short.cast()?;
         market.amm.last_24h_avg_funding_rate = calculate_new_twap(
-            funding_rate,
+            funding_rate.cast()?,
             now,
-            market.amm.last_24h_avg_funding_rate,
+            market.amm.last_24h_avg_funding_rate.cast()?,
             market.amm.last_funding_rate_ts,
             TWENTY_FOUR_HOUR,
-        )?;
+        )?
+        .cast()?;
         market.amm.last_funding_rate_ts = now;
 
         emit!(FundingRateRecord {
