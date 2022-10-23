@@ -84,7 +84,7 @@ impl SpotMarket {
         Ok(self.status == MarketStatus::ReduceOnly)
     }
 
-    pub fn get_sanitize_clamp_denominator(&self) -> ClearingHouseResult<Option<i128>> {
+    pub fn get_sanitize_clamp_denominator(&self) -> ClearingHouseResult<Option<i64>> {
         Ok(match self.asset_tier {
             AssetTier::Collateral => Some(10), // 10%
             AssetTier::Protected => Some(10),  // 10%

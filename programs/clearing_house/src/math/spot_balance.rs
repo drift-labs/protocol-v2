@@ -206,7 +206,7 @@ pub fn get_strict_token_value(
     token_amount: i128,
     spot_decimals: u8,
     oracle_price_data: &OraclePriceData,
-    oracle_price_twap: i128,
+    oracle_price_twap: i64,
 ) -> ClearingHouseResult<i128> {
     if token_amount == 0 {
         return Ok(0);
@@ -228,7 +228,9 @@ pub fn get_strict_token_value(
         oracle_price_data.price.max(oracle_price_twap)
     };
 
-    token_amount.safe_mul(price)?.safe_div(precision_decrease)
+    token_amount
+        .safe_mul(price.cast()?)?
+        .safe_div(precision_decrease)
 }
 
 pub fn get_token_value(
@@ -243,7 +245,7 @@ pub fn get_token_value(
     let precision_decrease = 10_i128.pow(spot_decimals as u32);
 
     token_amount
-        .safe_mul(oracle_price_data.price)?
+        .safe_mul(oracle_price_data.price.cast()?)?
         .safe_div(precision_decrease)
 }
 

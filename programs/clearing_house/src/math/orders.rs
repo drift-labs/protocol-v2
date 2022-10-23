@@ -25,10 +25,10 @@ mod tests;
 pub fn calculate_base_asset_amount_for_amm_to_fulfill(
     order: &Order,
     market: &PerpMarket,
-    valid_oracle_price: Option<i128>,
+    valid_oracle_price: Option<i64>,
     slot: u64,
-    override_limit_price: Option<u128>,
-) -> ClearingHouseResult<(u64, Option<u128>)> {
+    override_limit_price: Option<u64>,
+) -> ClearingHouseResult<(u64, Option<u64>)> {
     let limit_price = if let Some(override_limit_price) = override_limit_price {
         if let Some(limit_price) =
             order.get_optional_limit_price(valid_oracle_price, slot, market.amm.order_tick_size)?
@@ -64,7 +64,7 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
 pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
     order: &Order,
     market: &PerpMarket,
-    limit_price: Option<u128>,
+    limit_price: Option<u64>,
 ) -> ClearingHouseResult<u64> {
     let base_asset_amount_unfilled = order.get_base_asset_amount_unfilled()?;
 
@@ -115,7 +115,7 @@ pub fn limit_price_satisfied(
 
 pub fn calculate_quote_asset_amount_for_maker_order(
     base_asset_amount: u64,
-    fill_price: u128,
+    fill_price: u64,
     base_decimals: u32,
     position_direction: PositionDirection,
 ) -> ClearingHouseResult<u64> {
@@ -123,10 +123,12 @@ pub fn calculate_quote_asset_amount_for_maker_order(
 
     match position_direction {
         PositionDirection::Long => fill_price
+            .cast::<u128>()?
             .safe_mul(base_asset_amount.cast()?)?
             .safe_div(precision_decrease)?
             .cast::<u64>(),
         PositionDirection::Short => fill_price
+            .cast::<u128>()?
             .safe_mul(base_asset_amount.cast()?)?
             .safe_div_ceil(precision_decrease)?
             .cast::<u64>(),
@@ -275,7 +277,7 @@ pub fn should_expire_order(
 
 pub fn order_breaches_oracle_price_limits(
     order: &Order,
-    oracle_price: i128,
+    oracle_price: i64,
     slot: u64,
     tick_size: u64,
     margin_ratio_initial: u128,
@@ -294,8 +296,9 @@ pub fn order_breaches_oracle_price_limits(
 
             let percent_diff = order_limit_price
                 .safe_sub(oracle_price)?
+                .cast::<u128>()?
                 .safe_mul(MARGIN_PRECISION)?
-                .safe_div(oracle_price)?;
+                .safe_div(oracle_price.cast()?)?;
 
             if percent_diff >= max_percent_diff {
                 // order cant be buying if oracle price is more than 5% below limit price
@@ -316,8 +319,9 @@ pub fn order_breaches_oracle_price_limits(
 
             let percent_diff = oracle_price
                 .safe_sub(order_limit_price)?
+                .cast::<u128>()?
                 .safe_mul(MARGIN_PRECISION)?
-                .safe_div(oracle_price)?;
+                .safe_div(oracle_price.cast()?)?;
 
             if percent_diff >= max_percent_diff {
                 // order cant be selling if oracle price is more than 5% above limit price
@@ -404,7 +408,7 @@ pub fn validate_fill_price(
     base_asset_amount: u64,
     base_precision: u64,
     order_direction: PositionDirection,
-    order_limit_price: u128,
+    order_limit_price: u64,
     is_taker: bool,
 ) -> ClearingHouseResult {
     let rounded_quote_asset_amount = if is_taker {
@@ -419,7 +423,8 @@ pub fn validate_fill_price(
     let fill_price = rounded_quote_asset_amount
         .cast::<u128>()?
         .safe_mul(base_precision as u128)?
-        .safe_div(base_asset_amount.cast()?)?;
+        .safe_div(base_asset_amount.cast()?)?
+        .cast::<u64>()?;
 
     if order_direction == PositionDirection::Long && fill_price > order_limit_price {
         msg!(

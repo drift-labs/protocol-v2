@@ -150,7 +150,7 @@ pub fn burn_lp_shares(
     position: &mut PerpPosition,
     market: &mut PerpMarket,
     shares_to_burn: u64,
-    oracle_price: i128,
+    oracle_price: i64,
 ) -> ClearingHouseResult<(PositionDelta, i64)> {
     // settle
     let (position_delta, pnl) = settle_lp_position(position, market)?;

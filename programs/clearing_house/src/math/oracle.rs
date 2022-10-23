@@ -104,7 +104,7 @@ pub fn block_operation(
     market: &PerpMarket,
     oracle_price_data: &OraclePriceData,
     guard_rails: &OracleGuardRails,
-    precomputed_reserve_price: Option<u128>,
+    precomputed_reserve_price: Option<u64>,
 ) -> ClearingHouseResult<bool> {
     let OracleStatus {
         oracle_validity,
@@ -129,7 +129,7 @@ pub fn block_operation(
 #[derive(Default, Clone, Copy, Debug)]
 pub struct OracleStatus {
     pub price_data: OraclePriceData,
-    pub oracle_reserve_price_spread_pct: i128,
+    pub oracle_reserve_price_spread_pct: i64,
     pub mark_too_divergent: bool,
     pub oracle_validity: OracleValidity,
 }
@@ -138,7 +138,7 @@ pub fn get_oracle_status<'a>(
     amm: &AMM,
     oracle_price_data: &'a OraclePriceData,
     guard_rails: &OracleGuardRails,
-    precomputed_reserve_price: Option<u128>,
+    precomputed_reserve_price: Option<u64>,
 ) -> ClearingHouseResult<OracleStatus> {
     let oracle_validity = oracle_validity(
         amm.historical_oracle_data.last_oracle_price_twap,
@@ -161,7 +161,7 @@ pub fn get_oracle_status<'a>(
 }
 
 pub fn oracle_validity(
-    last_oracle_twap: i128,
+    last_oracle_twap: i64,
     oracle_price_data: &OraclePriceData,
     valid_oracle_guard_rails: &ValidityGuardRails,
 ) -> ClearingHouseResult<OracleValidity> {
@@ -192,7 +192,7 @@ pub fn oracle_validity(
 
     let conf_pct_of_price = max(1, oracle_conf)
         .safe_mul(BID_ASK_SPREAD_PRECISION)?
-        .safe_div(oracle_price.cast::<u128>()?)?;
+        .safe_div(oracle_price.cast()?)?;
 
     // TooUncertain
     let is_conf_too_large =

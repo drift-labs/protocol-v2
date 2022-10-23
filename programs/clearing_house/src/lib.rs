@@ -702,7 +702,7 @@ pub mod clearing_house {
 
     pub fn update_perp_market_base_spread(
         ctx: Context<AdminUpdatePerpMarket>,
-        base_spread: u16,
+        base_spread: u32,
     ) -> Result<()> {
         handle_update_perp_market_base_spread(ctx, base_spread)
     }

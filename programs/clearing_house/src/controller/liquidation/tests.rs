@@ -65,9 +65,7 @@ pub mod liquidate_perp {
                 quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                historical_oracle_data: HistoricalOracleData::default_price(
-                    oracle_price.agg.price as i128,
-                ),
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -207,9 +205,7 @@ pub mod liquidate_perp {
                 quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                historical_oracle_data: HistoricalOracleData::default_price(
-                    oracle_price.agg.price as i128,
-                ),
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -349,9 +345,7 @@ pub mod liquidate_perp {
                 quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                historical_oracle_data: HistoricalOracleData::default_price(
-                    oracle_price.agg.price as i128,
-                ),
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -480,9 +474,7 @@ pub mod liquidate_perp {
                 quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                historical_oracle_data: HistoricalOracleData::default_price(
-                    oracle_price.agg.price as i128,
-                ),
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -620,9 +612,7 @@ pub mod liquidate_perp {
                 quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                historical_oracle_data: HistoricalOracleData::default_price(
-                    oracle_price.agg.price as i128,
-                ),
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -789,9 +779,7 @@ pub mod liquidate_perp {
                 quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                historical_oracle_data: HistoricalOracleData::default_price(
-                    oracle_price.agg.price as i128,
-                ),
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1019,7 +1007,7 @@ pub mod liquidate_spot {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -1143,7 +1131,7 @@ pub mod liquidate_spot {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (sol_oracle_price.agg.price * 1442 / 10000) as i128,
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 1442 / 10000),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -1212,7 +1200,7 @@ pub mod liquidate_spot {
             .get_ref_mut(&sol_market.market_index)
             .unwrap();
         market1.historical_oracle_data.last_oracle_price_twap =
-            (sol_oracle_price.agg.price * 6744 / 10000) as i128;
+            sol_oracle_price.agg.price * 6744 / 10000;
         drop(market1);
 
         liquidate_spot(
@@ -1294,7 +1282,7 @@ pub mod liquidate_spot {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -1551,7 +1539,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -1698,7 +1686,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -1882,7 +1870,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2054,7 +2042,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             borrow_balance: 0,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2201,7 +2189,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             borrow_balance: 0,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2350,7 +2338,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             borrow_balance: 0,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()

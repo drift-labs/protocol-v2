@@ -28,7 +28,7 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
     margin_ratio: u32,
     liquidation_fee: u128,
     if_liquidation_fee: u128,
-    oracle_price: i128,
+    oracle_price: i64,
 ) -> ClearingHouseResult<u64> {
     let margin_ratio =
         (margin_ratio as u128).safe_mul(LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO)?;
@@ -41,12 +41,12 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
         .safe_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)?
         .safe_div(
             oracle_price
-                .unsigned_abs()
+                .cast::<u128>()?
                 .safe_mul(margin_ratio.safe_sub(liquidation_fee)?)?
                 .safe_div(LIQUIDATION_FEE_PRECISION)?
                 .safe_sub(
                     oracle_price
-                        .unsigned_abs()
+                        .cast::<u128>()?
                         .safe_mul(if_liquidation_fee)?
                         .safe_div(LIQUIDATION_FEE_PRECISION)?,
                 )?,
@@ -61,7 +61,7 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
     liability_weight: u128,
     liability_liquidation_multiplier: u128,
     liability_decimals: u8,
-    liability_price: i128,
+    liability_price: i64,
     if_liquidation_fee: u128,
 ) -> ClearingHouseResult<u128> {
     // If unsettled pnl asset weight is 1 and quote asset is 1, this calculation breaks
@@ -80,7 +80,7 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
         .safe_mul(PRICE_PRECISION * SPOT_WEIGHT_PRECISION * 10)?
         .safe_div(
             liability_price
-                .unsigned_abs()
+                .cast::<u128>()?
                 .safe_mul(
                     liability_weight
                         .safe_mul(10)? // multiply market weights by extra 10 to increase precision
@@ -93,7 +93,7 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
                 )?
                 .safe_sub(
                     liability_price
-                        .unsigned_abs()
+                        .cast::<u128>()?
                         .safe_mul(if_liquidation_fee)?
                         .safe_div(LIQUIDATION_FEE_PRECISION)?
                         .safe_mul(liability_weight)?
@@ -107,10 +107,10 @@ pub fn calculate_liability_transfer_implied_by_asset_amount(
     asset_amount: u128,
     asset_liquidation_multiplier: u128,
     asset_decimals: u8,
-    asset_price: i128,
+    asset_price: i64,
     liability_liquidation_multiplier: u128,
     liability_decimals: u8,
-    liability_price: i128,
+    liability_price: i64,
 ) -> ClearingHouseResult<u128> {
     let (numerator_scale, denominator_scale) = if liability_decimals > asset_decimals {
         (10_u128.pow((liability_decimals - asset_decimals) as u32), 1)
@@ -120,11 +120,11 @@ pub fn calculate_liability_transfer_implied_by_asset_amount(
 
     asset_amount
         .safe_mul(numerator_scale)?
-        .safe_mul(asset_price.unsigned_abs())?
+        .safe_mul(asset_price.cast()?)?
         .safe_mul(liability_liquidation_multiplier)?
         .safe_div(
             liability_price
-                .unsigned_abs()
+                .cast::<u128>()?
                 .safe_mul(asset_liquidation_multiplier)?,
         )?
         .safe_div(denominator_scale)
@@ -134,11 +134,11 @@ pub fn calculate_asset_transfer_for_liability_transfer(
     asset_amount: u128,
     asset_liquidation_multiplier: u128,
     asset_decimals: u8,
-    asset_price: i128,
+    asset_price: i64,
     liability_amount: u128,
     liability_liquidation_multiplier: u128,
     liability_decimals: u8,
-    liability_price: i128,
+    liability_price: i64,
 ) -> ClearingHouseResult<u128> {
     let (numerator_scale, denominator_scale) = if asset_decimals > liability_decimals {
         (10_u128.pow((asset_decimals - liability_decimals) as u32), 1)
@@ -148,11 +148,11 @@ pub fn calculate_asset_transfer_for_liability_transfer(
 
     let mut asset_transfer = liability_amount
         .safe_mul(numerator_scale)?
-        .safe_mul(liability_price.unsigned_abs())?
+        .safe_mul(liability_price.cast()?)?
         .safe_mul(asset_liquidation_multiplier)?
         .safe_div(
             asset_price
-                .unsigned_abs()
+                .cast::<u128>()?
                 .safe_mul(liability_liquidation_multiplier)?,
         )?
         .safe_div(denominator_scale)?;
@@ -171,7 +171,7 @@ pub fn calculate_asset_transfer_for_liability_transfer(
     };
 
     let asset_value_delta = asset_delta
-        .safe_mul(asset_price.unsigned_abs())?
+        .safe_mul(asset_price.cast()?)?
         .safe_div(PRICE_PRECISION)?
         .safe_mul(asset_value_numerator_scale)?
         .safe_div(asset_value_denominator_scale)?;

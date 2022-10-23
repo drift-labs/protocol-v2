@@ -193,25 +193,25 @@ pub fn update_spread_reserves(amm: &mut AMM) -> ClearingHouseResult {
     Ok(())
 }
 
-pub fn update_spreads(amm: &mut AMM, reserve_price: u128) -> ClearingHouseResult<(u128, u128)> {
+pub fn update_spreads(amm: &mut AMM, reserve_price: u64) -> ClearingHouseResult<(u32, u32)> {
     let (long_spread, short_spread) = if amm.curve_update_intensity > 0 {
         amm_spread::calculate_spread(
             amm.base_spread,
-            amm.last_oracle_reserve_price_spread_pct,
+            amm.last_oracle_reserve_price_spread_pct.cast()?,
             amm.last_oracle_conf_pct,
             amm.max_spread,
             amm.quote_asset_reserve,
             amm.terminal_quote_asset_reserve,
             amm.peg_multiplier,
             amm.base_asset_amount_with_amm,
-            reserve_price,
+            reserve_price.cast()?,
             amm.total_fee_minus_distributions,
             amm.base_asset_reserve,
             amm.min_base_asset_reserve,
             amm.max_base_asset_reserve,
         )?
     } else {
-        let half_base_spread = amm.base_spread.safe_div(2)?.cast::<u128>()?;
+        let half_base_spread = amm.base_spread.safe_div(2)?;
         (half_base_spread, half_base_spread)
     };
 
@@ -285,9 +285,7 @@ pub fn formulaic_update_k(
     // calculate budget
     let budget = if funding_imbalance_cost_i64 < 0 {
         // negative cost is period revenue, if spread is low give back half in k increase
-        if max(market.amm.long_spread, market.amm.short_spread)
-            <= market.amm.base_spread.cast::<u128>()?
-        {
+        if max(market.amm.long_spread, market.amm.short_spread) <= market.amm.base_spread {
             funding_imbalance_cost_i64.safe_div(2)?.abs()
         } else {
             0

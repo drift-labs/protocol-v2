@@ -649,7 +649,7 @@ pub fn calculate_max_withdrawable_amount(
         .safe_mul(MARGIN_PRECISION)?
         .safe_div(spot_market.initial_asset_weight)?
         .safe_mul(PRICE_PRECISION)?
-        .safe_div(oracle_price.unsigned_abs())?
+        .safe_div(oracle_price.cast()?)?
         .safe_mul(precision_increase)?
         .cast()
 }

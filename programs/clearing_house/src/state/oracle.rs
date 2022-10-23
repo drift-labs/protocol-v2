@@ -2,35 +2,34 @@ use anchor_lang::prelude::*;
 
 use crate::error::ClearingHouseResult;
 use crate::math::casting::Cast;
-use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I128};
+use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
 use crate::math::safe_math::SafeMath;
 
 use switchboard_v2::decimal::SwitchboardDecimal;
 
 #[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
 pub struct HistoricalOracleData {
-    // use u64?
-    pub last_oracle_price: i128,
-    pub last_oracle_conf: u128,
+    pub last_oracle_price: i64,
+    pub last_oracle_conf: u64,
     pub last_oracle_delay: i64,
-    pub last_oracle_price_twap: i128,
-    pub last_oracle_price_twap_5min: i128,
+    pub last_oracle_price_twap: i64,
+    pub last_oracle_price_twap_5min: i64,
     pub last_oracle_price_twap_ts: i64,
 }
 
 impl HistoricalOracleData {
     pub fn default_quote_oracle() -> Self {
         HistoricalOracleData {
-            last_oracle_price: PRICE_PRECISION_I128,
+            last_oracle_price: PRICE_PRECISION_I64,
             last_oracle_conf: 0,
             last_oracle_delay: 0,
-            last_oracle_price_twap: PRICE_PRECISION_I128,
-            last_oracle_price_twap_5min: PRICE_PRECISION_I128,
+            last_oracle_price_twap: PRICE_PRECISION_I64,
+            last_oracle_price_twap_5min: PRICE_PRECISION_I64,
             ..HistoricalOracleData::default()
         }
     }
 
-    pub fn default_price(price: i128) -> Self {
+    pub fn default_price(price: i64) -> Self {
         HistoricalOracleData {
             last_oracle_price: price,
             last_oracle_conf: 0,
@@ -56,27 +55,26 @@ impl HistoricalOracleData {
 
 #[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
 pub struct HistoricalIndexData {
-    // use u64?
-    pub last_index_bid_price: u128,
-    pub last_index_ask_price: u128,
-    pub last_index_price_twap: u128,
-    pub last_index_price_twap_5min: u128,
+    pub last_index_bid_price: u64,
+    pub last_index_ask_price: u64,
+    pub last_index_price_twap: u64,
+    pub last_index_price_twap_5min: u64,
     pub last_index_price_twap_ts: i64,
 }
 
 impl HistoricalIndexData {
     pub fn default_quote_oracle() -> Self {
         HistoricalIndexData {
-            last_index_bid_price: PRICE_PRECISION,
-            last_index_ask_price: PRICE_PRECISION,
-            last_index_price_twap: PRICE_PRECISION,
-            last_index_price_twap_5min: PRICE_PRECISION,
+            last_index_bid_price: PRICE_PRECISION_U64,
+            last_index_ask_price: PRICE_PRECISION_U64,
+            last_index_price_twap: PRICE_PRECISION_U64,
+            last_index_price_twap_5min: PRICE_PRECISION_U64,
             ..HistoricalIndexData::default()
         }
     }
 
     pub fn default_with_current_oracle(oracle_price_data: OraclePriceData) -> Self {
-        let price = oracle_price_data.price.cast::<u128>().unwrap();
+        let price = oracle_price_data.price.cast::<u64>().unwrap();
         HistoricalIndexData {
             last_index_bid_price: price,
             last_index_ask_price: price,
@@ -103,8 +101,8 @@ impl Default for OracleSource {
 
 #[derive(Default, Clone, Copy, Debug)]
 pub struct OraclePriceData {
-    pub price: i128,
-    pub confidence: u128,
+    pub price: i64,
+    pub confidence: u64,
     pub delay: i64,
     pub has_sufficient_number_of_data_points: bool,
 }
@@ -112,7 +110,7 @@ pub struct OraclePriceData {
 impl OraclePriceData {
     pub fn default_usd() -> Self {
         OraclePriceData {
-            price: PRICE_PRECISION_I128,
+            price: PRICE_PRECISION_I64,
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
@@ -129,7 +127,7 @@ pub fn get_oracle_price(
         OracleSource::Pyth => get_pyth_price(price_oracle, clock_slot),
         OracleSource::Switchboard => get_switchboard_price(price_oracle, clock_slot),
         OracleSource::QuoteAsset => Ok(OraclePriceData {
-            price: PRICE_PRECISION_I128,
+            price: PRICE_PRECISION_I64,
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
@@ -146,8 +144,8 @@ pub fn get_pyth_price(
         .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
     let price_data = pyth_client::cast::<pyth_client::Price>(&pyth_price_data);
 
-    let oracle_price = price_data.agg.price.cast::<i128>()?;
-    let oracle_conf = price_data.agg.conf.cast::<u128>()?;
+    let oracle_price = price_data.agg.price;
+    let oracle_conf = price_data.agg.conf;
 
     let oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
 
@@ -161,12 +159,16 @@ pub fn get_pyth_price(
     }
 
     let oracle_price_scaled = (oracle_price)
+        .cast::<i128>()?
         .safe_mul(oracle_scale_mult.cast()?)?
-        .safe_div(oracle_scale_div.cast()?)?;
+        .safe_div(oracle_scale_div.cast()?)?
+        .cast::<i64>()?;
 
     let oracle_conf_scaled = (oracle_conf)
+        .cast::<u128>()?
         .safe_mul(oracle_scale_mult)?
-        .safe_div(oracle_scale_div)?;
+        .safe_div(oracle_scale_div)?
+        .cast::<u64>()?;
 
     let oracle_delay: i64 = clock_slot
         .cast::<i64>()?

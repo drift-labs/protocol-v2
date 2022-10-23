@@ -448,7 +448,7 @@ pub fn handle_initialize_perp_market(
         amm_peg_multiplier,
     )?;
 
-    assert_eq!(amm_peg_multiplier, init_reserve_price);
+    assert_eq!(amm_peg_multiplier, init_reserve_price.cast::<u128>()?);
 
     let concentration_coef = MAX_CONCENTRATION_COEFFICIENT;
 
@@ -478,7 +478,7 @@ pub fn handle_initialize_perp_market(
         OracleSource::QuoteAsset => panic!(),
     };
 
-    let max_spread = (margin_ratio_initial - margin_ratio_maintenance) * (100 - 5);
+    let max_spread = ((margin_ratio_initial - margin_ratio_maintenance) * (100 - 5)) as u32;
 
     // todo? should ensure peg within 1 cent of current oracle?
     // validate!(
@@ -613,7 +613,7 @@ pub fn handle_initialize_perp_market(
 
             last_oracle_valid: false,
 
-            padding: [0; 6],
+            padding: [0; 4],
         },
     };
 
@@ -962,7 +962,7 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
         let oracle_mark_gap_before = perp_market
             .amm
             .last_mark_price_twap
-            .cast::<i128>()?
+            .cast::<i64>()?
             .safe_sub(
                 perp_market
                     .amm
@@ -973,7 +973,7 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
         let oracle_mark_gap_after = perp_market
             .amm
             .last_mark_price_twap
-            .cast::<i128>()?
+            .cast::<i64>()?
             .safe_sub(oracle_twap)?;
 
         if (oracle_mark_gap_after > 0 && oracle_mark_gap_before < 0)
@@ -982,7 +982,7 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
             perp_market
                 .amm
                 .historical_oracle_data
-                .last_oracle_price_twap = perp_market.amm.last_mark_price_twap.cast::<i128>()?;
+                .last_oracle_price_twap = perp_market.amm.last_mark_price_twap.cast::<i64>()?;
             perp_market
                 .amm
                 .historical_oracle_data
@@ -1192,7 +1192,7 @@ pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
         perp_market
             .amm
             .historical_oracle_data
-            .last_oracle_price_twap = perp_market.amm.last_mark_price_twap.cast::<i128>()?;
+            .last_oracle_price_twap = perp_market.amm.last_mark_price_twap.cast::<i64>()?;
         perp_market
             .amm
             .historical_oracle_data
@@ -1691,12 +1691,12 @@ pub fn handle_update_perp_market_oracle(
 )]
 pub fn handle_update_perp_market_base_spread(
     ctx: Context<AdminUpdatePerpMarket>,
-    base_spread: u16,
+    base_spread: u32,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     perp_market.amm.base_spread = base_spread;
-    perp_market.amm.long_spread = (base_spread / 2) as u128;
-    perp_market.amm.short_spread = (base_spread / 2) as u128;
+    perp_market.amm.long_spread = base_spread / 2;
+    perp_market.amm.short_spread = base_spread / 2;
     Ok(())
 }
 
@@ -1728,13 +1728,13 @@ pub fn handle_update_perp_market_max_spread(
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     validate!(
-        (max_spread >= perp_market.amm.base_spread as u32),
+        max_spread >= perp_market.amm.base_spread,
         ErrorCode::DefaultError,
         "invalid max_spread < base_spread",
     )?;
 
     validate!(
-        max_spread <= perp_market.margin_ratio_initial * 100,
+        max_spread <= (perp_market.margin_ratio_initial * 100).cast()?,
         ErrorCode::DefaultError,
         "invalid max_spread > market.margin_ratio_initial * 100",
     )?;

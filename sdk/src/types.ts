@@ -598,8 +598,8 @@ export type AMM = {
 	lastOracleValid: boolean;
 	lastBidPriceTwap: BN;
 	lastAskPriceTwap: BN;
-	longSpread: BN;
-	shortSpread: BN;
+	longSpread: number;
+	shortSpread: number;
 	maxSpread: number;
 
 	baseAssetAmountPerLp: BN;

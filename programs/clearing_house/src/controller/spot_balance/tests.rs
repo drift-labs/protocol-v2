@@ -64,9 +64,7 @@ fn test_daily_withdraw_limits() {
             quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            historical_oracle_data: HistoricalOracleData::default_price(
-                oracle_price.agg.price as i128,
-            ),
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -495,9 +493,7 @@ fn check_fee_collection() {
             quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            historical_oracle_data: HistoricalOracleData::default_price(
-                oracle_price.agg.price as i128,
-            ),
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -834,9 +830,7 @@ fn check_fee_collection_larger_nums() {
             quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            historical_oracle_data: HistoricalOracleData::default_price(
-                oracle_price.agg.price as i128,
-            ),
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
@@ -1122,9 +1116,7 @@ fn attempt_borrow_with_massive_upnl() {
             quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            historical_oracle_data: HistoricalOracleData::default_price(
-                oracle_price.agg.price as i128,
-            ),
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
             ..AMM::default()
         },
         unrealized_pnl_initial_asset_weight: 0,

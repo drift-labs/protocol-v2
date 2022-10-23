@@ -126,7 +126,7 @@ pub fn update_funding_rate(
     now: UnixTimestamp,
     guard_rails: &OracleGuardRails,
     funding_paused: bool,
-    precomputed_reserve_price: Option<u128>,
+    precomputed_reserve_price: Option<u64>,
 ) -> ClearingHouseResult<bool> {
     let reserve_price = match precomputed_reserve_price {
         Some(reserve_price) => reserve_price,
@@ -191,13 +191,14 @@ pub fn update_funding_rate(
             .safe_div(max(ONE_HOUR, market.amm.funding_period as i128))?;
         // funding period = 1 hour, window = 1 day
         // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval
-        let price_spread = mid_price_twap.cast::<i128>()?.safe_sub(oracle_price_twap)?;
+        let price_spread = mid_price_twap.cast::<i64>()?.safe_sub(oracle_price_twap)?;
 
         // clamp price divergence to 3% for funding rate calculation
         let max_price_spread = oracle_price_twap.safe_div(33)?; // 3%
         let clamped_price_spread = max(-max_price_spread, min(price_spread, max_price_spread));
 
         let funding_rate = clamped_price_spread
+            .cast::<i128>()?
             .safe_mul(FUNDING_RATE_BUFFER.cast()?)?
             .safe_div(period_adjustment.cast()?)?;
 

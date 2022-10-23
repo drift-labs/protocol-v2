@@ -3081,7 +3081,7 @@
       "args": [
         {
           "name": "baseSpread",
-          "type": "u16"
+          "type": "u32"
         }
       ]
     },
@@ -3566,10 +3566,6 @@
             }
           },
           {
-            "name": "expiryPrice",
-            "type": "i128"
-          },
-          {
             "name": "numberOfUsers",
             "type": "u128"
           },
@@ -3601,6 +3597,10 @@
           },
           {
             "name": "expiryTs",
+            "type": "i64"
+          },
+          {
+            "name": "expiryPrice",
             "type": "i64"
           },
           {
@@ -4335,7 +4335,7 @@
           },
           {
             "name": "oraclePrice",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "baseAssetAmount",
@@ -4379,7 +4379,7 @@
           },
           {
             "name": "assetPrice",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "assetTransfer",
@@ -4391,7 +4391,7 @@
           },
           {
             "name": "liabilityPrice",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "liabilityTransfer",
@@ -4415,7 +4415,7 @@
           },
           {
             "name": "marketOraclePrice",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "pnlTransfer",
@@ -4427,7 +4427,7 @@
           },
           {
             "name": "liabilityPrice",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "liabilityTransfer",
@@ -4447,7 +4447,7 @@
           },
           {
             "name": "marketOraclePrice",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "pnlTransfer",
@@ -4459,7 +4459,7 @@
           },
           {
             "name": "assetPrice",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "assetTransfer",
@@ -4523,11 +4523,11 @@
         "fields": [
           {
             "name": "lastOraclePrice",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "lastOracleConf",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastOracleDelay",
@@ -4535,11 +4535,11 @@
           },
           {
             "name": "lastOraclePriceTwap",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "lastOraclePriceTwap5min",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "lastOraclePriceTwapTs",
@@ -4555,19 +4555,19 @@
         "fields": [
           {
             "name": "lastIndexBidPrice",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastIndexAskPrice",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastIndexPriceTwap",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastIndexPriceTwap5min",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastIndexPriceTwapTs",
@@ -4657,14 +4657,6 @@
             "type": {
               "defined": "PoolBalance"
             }
-          },
-          {
-            "name": "lastOracleNormalisedPrice",
-            "type": "i128"
-          },
-          {
-            "name": "lastOracleReservePriceSpreadPct",
-            "type": "i128"
           },
           {
             "name": "baseAssetReserve",
@@ -4791,14 +4783,6 @@
             "type": "i128"
           },
           {
-            "name": "longSpread",
-            "type": "u128"
-          },
-          {
-            "name": "shortSpread",
-            "type": "u128"
-          },
-          {
             "name": "askBaseAssetReserve",
             "type": "u128"
           },
@@ -4815,20 +4799,28 @@
             "type": "u128"
           },
           {
+            "name": "lastOracleNormalisedPrice",
+            "type": "i64"
+          },
+          {
+            "name": "lastOracleReservePriceSpreadPct",
+            "type": "i64"
+          },
+          {
             "name": "lastBidPriceTwap",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastAskPriceTwap",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastMarkPriceTwap",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastMarkPriceTwap5min",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastUpdateSlot",
@@ -4891,7 +4883,19 @@
             "type": "i64"
           },
           {
+            "name": "baseSpread",
+            "type": "u32"
+          },
+          {
             "name": "maxSpread",
+            "type": "u32"
+          },
+          {
+            "name": "longSpread",
+            "type": "u32"
+          },
+          {
+            "name": "shortSpread",
             "type": "u32"
           },
           {
@@ -4900,10 +4904,6 @@
           },
           {
             "name": "maxSlippageRatio",
-            "type": "u16"
-          },
-          {
-            "name": "baseSpread",
             "type": "u16"
           },
           {
@@ -4937,7 +4937,7 @@
             "type": {
               "array": [
                 "u8",
-                6
+                4
               ]
             }
           }
@@ -5043,11 +5043,11 @@
           },
           {
             "name": "confidenceIntervalMaxSize",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "tooVolatileRatio",
-            "type": "i128"
+            "type": "i64"
           }
         ]
       }
@@ -5733,7 +5733,7 @@
             "name": "AMM",
             "fields": [
               {
-                "option": "u128"
+                "option": "u64"
               }
             ]
           },
@@ -6087,7 +6087,7 @@
         },
         {
           "name": "oraclePrice",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
@@ -6274,12 +6274,12 @@
         },
         {
           "name": "oraclePriceTwap",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "markPriceTwap",
-          "type": "u128",
+          "type": "u64",
           "index": false
         },
         {
@@ -6394,7 +6394,7 @@
         },
         {
           "name": "oraclePrice",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
@@ -6620,7 +6620,7 @@
         },
         {
           "name": "oraclePrice",
-          "type": "i128",
+          "type": "i64",
           "index": false
         }
       ]
@@ -6808,7 +6808,7 @@
         },
         {
           "name": "settlePrice",
-          "type": "i128",
+          "type": "i64",
           "index": false
         }
       ]

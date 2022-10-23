@@ -460,11 +460,11 @@ describe('prepeg', () => {
 		assert(actualDist.sub(estDist).abs().lte(new BN(4))); // cost is near equal
 		assert(market.amm.sqrtK.lt(market0.amm.sqrtK)); // k was lowered
 
-		console.log(market.amm.longSpread.toString());
-		console.log(market.amm.shortSpread.toString());
+		console.log(market.amm.longSpread);
+		console.log(market.amm.shortSpread);
 
-		assert(market.amm.longSpread.eq(new BN('26784')));
-		assert(market.amm.shortSpread.eq(new BN(500)));
+		assert(market.amm.longSpread === 26784);
+		assert(market.amm.shortSpread === 500);
 
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];

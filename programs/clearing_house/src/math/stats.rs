@@ -61,8 +61,5 @@ pub fn calculate_new_twap(
     let since_last = max(1, current_ts.safe_sub(last_ts)?).cast::<i128>()?;
     let from_start = max(1, period.cast::<i128>()?.safe_sub(since_last)?);
 
-    let new_twap: i128 =
-        calculate_weighted_average(current_price, last_twap, since_last, from_start)?;
-
-    Ok(new_twap)
+    calculate_weighted_average(current_price, last_twap, since_last, from_start)
 }
