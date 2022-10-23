@@ -3,6 +3,8 @@ use std::ops::{Deref, DerefMut};
 use anchor_lang::prelude::*;
 use solana_program::msg;
 
+use crate::math::margin::calculate_free_collateral;
+
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
 use crate::controller::orders;
@@ -1489,7 +1491,7 @@ pub fn resolve_perp_bankruptcy(
     bankrupt_user: &mut User,
     bankrupt_user_key: &Pubkey,
     delever_user: Option<&mut User>,
-    delever_user_key: Option<&Pubkey>,
+    _delever_user_key: Option<&Pubkey>,
     liquidator: &mut User,
     liquidator_key: &Pubkey,
     perp_market_map: &PerpMarketMap,
@@ -1570,13 +1572,22 @@ pub fn resolve_perp_bankruptcy(
 
     let mut loss_to_socialize = loss.safe_add(if_payment.cast::<i128>()?)?;
 
-    if delever_user.is_some() {
+    if let Some(delever_user) = delever_user {
         let market = perp_market_map.get_ref(&market_index)?;
+
+        let free_collateral = calculate_free_collateral(
+            delever_user,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            MarginRequirementType::Maintenance,
+        )?
+        .max(0);
+
+        let deleverage_user_position = delever_user.get_perp_position_mut(market_index).unwrap();
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
 
-        let deleverage_user_position = bankrupt_user.get_perp_position_mut(market_index).unwrap();
-
-        let (_deleverage_value, deleverage_user_pnl) =
+        let (_deleverage_value, _deleverage_user_pnl) =
             calculate_base_asset_value_and_pnl_with_oracle_price(
                 deleverage_user_position,
                 oracle_price_data.price,
@@ -1586,7 +1597,8 @@ pub fn resolve_perp_bankruptcy(
             base_asset_amount: deleverage_user_position.base_asset_amount,
             quote_asset_amount: deleverage_user_position.quote_asset_amount,
             quote_entry_amount: deleverage_user_position.quote_entry_amount,
-            unrealized_pnl: deleverage_user_pnl,
+            // unrealized_pnl: deleverage_user_pnl,
+            free_collateral,
         };
 
         let deleverage_user_payment = calculate_perp_market_deleverage_payment(

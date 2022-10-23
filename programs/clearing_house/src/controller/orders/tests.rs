@@ -38,7 +38,6 @@ pub mod fulfill_order_with_maker_order {
     };
     use crate::state::perp_market::PerpMarket;
     use crate::state::user::{Order, OrderType, PerpPosition, User, UserStats};
-
     use crate::test_utils::{get_orders, get_positions};
 
     use super::*;
@@ -4805,8 +4804,6 @@ pub mod fulfill_spot_order_with_match {
 pub mod fulfill_spot_order {
     use std::str::FromStr;
 
-    use anchor_lang::prelude::{AccountLoader, Clock};
-
     use crate::controller::orders::fill_spot_order;
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
@@ -4816,6 +4813,7 @@ pub mod fulfill_spot_order {
         SPOT_BALANCE_PRECISION_U64,
     };
     use crate::math::margin::calculate_free_collateral;
+    use crate::math::margin::MarginRequirementType;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
@@ -4823,6 +4821,7 @@ pub mod fulfill_spot_order {
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_pyth_price};
+    use anchor_lang::prelude::{AccountLoader, Clock};
 
     use super::*;
 
@@ -4958,9 +4957,14 @@ pub mod fulfill_spot_order {
             ..State::default()
         };
 
-        let free_collateral =
-            calculate_free_collateral(&taker, &perp_market_map, &spot_market_map, &mut oracle_map)
-                .unwrap();
+        let free_collateral = calculate_free_collateral(
+            &taker,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginRequirementType::Initial,
+        )
+        .unwrap();
         assert_eq!(free_collateral, -19000000);
 
         let base_asset_amount = fill_spot_order(
@@ -4990,6 +4994,7 @@ pub mod fulfill_spot_order {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
+            MarginRequirementType::Initial,
         )
         .unwrap();
         assert_eq!(free_collateral, 1000000);

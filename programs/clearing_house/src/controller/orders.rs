@@ -1154,8 +1154,13 @@ fn fulfill_perp_order(
         position_base_asset_amount_before.cast()?,
     )?;
 
-    let free_collateral =
-        calculate_free_collateral(user, perp_market_map, spot_market_map, oracle_map)?;
+    let free_collateral = calculate_free_collateral(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        MarginRequirementType::Initial,
+    )?;
     if !risk_decreasing && (free_collateral < 0 || market_is_reduce_only) {
         cancel_risk_increasing_order(
             user,
@@ -2875,8 +2880,13 @@ fn fulfill_spot_order(
     fee_structure: &FeeStructure,
     mut serum_fulfillment_params: Option<SerumFulfillmentParams>,
 ) -> ClearingHouseResult<(u64, bool)> {
-    let free_collateral =
-        calculate_free_collateral(user, perp_market_map, spot_market_map, oracle_map)?;
+    let free_collateral = calculate_free_collateral(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        MarginRequirementType::Initial,
+    )?;
 
     let base_market = user.orders[user_order_index].market_index;
     let spot_position_index = user.get_spot_position_index(base_market)?;

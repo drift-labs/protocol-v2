@@ -807,15 +807,13 @@ pub fn handle_resolve_perp_bankruptcy(
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
-    let deleverage_order_id = Some(0);
-
-    let (delevered_user, _delevered_user_stats) = match deleverage_order_id {
-        Some(_) => {
-            let (user, user_stats) = get_maker_and_maker_stats(remaining_accounts_iter)?;
-            (Some(user), Some(user_stats))
-        }
-        None => (None, None),
-    };
+    // let (delevered_user, _delevered_user_stats) = match deleverage_order_id {
+    //     Some(_) => {
+    //         let (user, user_stats) = get_maker_and_maker_stats(remaining_accounts_iter)?;
+    //         (Some(user), Some(user_stats))
+    //     }
+    //     None => (None, None),
+    // };
 
     let user = &mut load_mut!(ctx.accounts.user)?;
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
