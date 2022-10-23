@@ -1549,9 +1549,10 @@ pub fn resolve_perp_bankruptcy(
         let max_insurance_withdraw = market
             .insurance_claim
             .quote_max_insurance
-            .safe_sub(market.insurance_claim.quote_settled_insurance)?;
+            .safe_sub(market.insurance_claim.quote_settled_insurance)?
+            .cast::<u128>()?;
 
-        let _if_payment = loss
+        let if_payment = loss
             .unsigned_abs()
             .min(insurance_fund_vault_balance.saturating_sub(1).cast()?)
             .min(max_insurance_withdraw);
@@ -1559,8 +1560,9 @@ pub fn resolve_perp_bankruptcy(
         market.insurance_claim.quote_settled_insurance = market
             .insurance_claim
             .quote_settled_insurance
-            .safe_add(_if_payment)?;
-        _if_payment
+            .safe_add(if_payment.cast()?)?;
+
+        if_payment
     };
 
     let loss_to_socialize = loss.safe_add(if_payment.cast::<i128>()?)?;

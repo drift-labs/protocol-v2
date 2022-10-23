@@ -80,10 +80,10 @@ pub struct PerpMarket {
     pub name: [u8; 32], // 256 bits
     pub imf_factor: u128,
     pub unrealized_pnl_imf_factor: u128,
-    pub unrealized_pnl_max_imbalance: u128,
     pub liquidator_fee: u128,
     pub if_liquidation_fee: u128,
     pub insurance_claim: InsuranceClaim,
+    pub unrealized_pnl_max_imbalance: u64,
     pub expiry_ts: i64,    // iff market in reduce only mode
     pub expiry_price: i64, // iff market has expired, price users can settle position
     pub next_fill_record_id: u64,
@@ -200,9 +200,10 @@ impl PerpMarket {
                 &self.amm,
                 self.amm.historical_oracle_data.last_oracle_price,
             )?;
+
             if net_unsettled_pnl > self.unrealized_pnl_max_imbalance.cast::<i128>()? {
                 margin_asset_weight = margin_asset_weight
-                    .safe_mul(self.unrealized_pnl_max_imbalance)?
+                    .safe_mul(self.unrealized_pnl_max_imbalance.cast()?)?
                     .safe_div(net_unsettled_pnl.unsigned_abs())?
             }
         }
@@ -257,10 +258,10 @@ impl PerpMarket {
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct InsuranceClaim {
-    pub revenue_withdraw_since_last_settle: u128,
-    pub max_revenue_withdraw_per_period: u128,
-    pub quote_max_insurance: u128,
-    pub quote_settled_insurance: u128,
+    pub revenue_withdraw_since_last_settle: u64,
+    pub max_revenue_withdraw_per_period: u64,
+    pub quote_max_insurance: u64,
+    pub quote_settled_insurance: u64,
     pub last_revenue_withdraw_ts: i64,
 }
 

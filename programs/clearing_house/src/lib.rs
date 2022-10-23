@@ -505,9 +505,9 @@ pub mod clearing_house {
 
     pub fn update_perp_market_max_imbalances(
         ctx: Context<AdminUpdatePerpMarket>,
-        unrealized_max_imbalance: u128,
-        max_revenue_withdraw_per_period: u128,
-        quote_max_insurance: u128,
+        unrealized_max_imbalance: u64,
+        max_revenue_withdraw_per_period: u64,
+        quote_max_insurance: u64,
     ) -> Result<()> {
         handle_update_perp_market_max_imbalances(
             ctx,

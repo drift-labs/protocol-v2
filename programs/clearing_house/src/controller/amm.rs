@@ -458,7 +458,8 @@ pub fn update_pool_balances(
             let max_revenue_withdraw_allowed = market
                 .insurance_claim
                 .max_revenue_withdraw_per_period
-                .safe_sub(market.insurance_claim.revenue_withdraw_since_last_settle)?;
+                .safe_sub(market.insurance_claim.revenue_withdraw_since_last_settle)?
+                .cast::<u128>()?;
 
             if max_revenue_withdraw_allowed > 0 {
                 let spot_market_revenue_pool_amount = get_token_amount(
@@ -488,7 +489,7 @@ pub fn update_pool_balances(
                 market.insurance_claim.revenue_withdraw_since_last_settle = market
                     .insurance_claim
                     .revenue_withdraw_since_last_settle
-                    .safe_add(revenue_pool_transfer)?;
+                    .safe_add(revenue_pool_transfer.cast()?)?;
 
                 market.insurance_claim.last_revenue_withdraw_ts = now;
             }
