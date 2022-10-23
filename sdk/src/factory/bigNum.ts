@@ -2,12 +2,18 @@ import { BN } from '@project-serum/anchor';
 import { assert } from '../assert/assert';
 import { ZERO } from './../constants/numericConstants';
 
+const locale =
+	(typeof window !== 'undefined' && window.navigator?.languages?.[0]) ||
+	'en-US';
+const localeDelimiter = (1.1).toLocaleString(locale).slice(1, 2) || '.';
+const localeSplitter = (1000).toLocaleString(locale).slice(1, 2) || ',';
+
 export class BigNum {
 	val: BN;
 	precision: BN;
 
-	static delim = '.';
-	static spacer = ',';
+	static delim = localeDelimiter;
+	static spacer = localeSplitter;
 
 	constructor(
 		val: BN | number | string,
@@ -566,7 +572,21 @@ export class BigNum {
 	 * @returns
 	 */
 	public toNum() {
-		return parseFloat(this.print());
+		let printedValue = this.print();
+
+		// Must convert any non-US delimiters and spacers to US format before using parseFloat
+		if (BigNum.delim !== '.' || BigNum.spacer !== ',') {
+			printedValue = printedValue
+				.split('')
+				.map((char) => {
+					if (char === BigNum.delim) return '.';
+					if (char === BigNum.spacer) return ',';
+					return char;
+				})
+				.join('');
+		}
+
+		return parseFloat(printedValue);
 	}
 
 	static fromJSON(json: { val: string; precision: string }) {
@@ -599,12 +619,16 @@ export class BigNum {
 	static fromPrint(val: string, precisionShift?: BN): BigNum {
 		// Handle empty number edge cases
 		if (!val) return BigNum.from(ZERO, precisionShift);
-		if (!val.replace(BigNum.delim, ''))
+		if (!val.replace(BigNum.delim, '')) {
 			return BigNum.from(ZERO, precisionShift);
+		}
 
-		const [leftSide, rightSide] = val.split(BigNum.delim);
+		const sides = val.split(BigNum.delim);
+		const rightSide = sides[1];
+		const leftSide = sides[0].replace(/\D/g, '');
+		const bnInput = `${leftSide ?? ''}${rightSide ?? ''}`;
 
-		const rawBn = new BN(`${leftSide ?? ''}${rightSide ?? ''}`);
+		const rawBn = new BN(bnInput);
 
 		const rightSideLength = rightSide?.length ?? 0;
 
