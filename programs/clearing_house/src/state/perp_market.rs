@@ -77,8 +77,7 @@ pub struct PerpMarket {
     pub pubkey: Pubkey,
     pub amm: AMM,
     pub pnl_pool: PoolBalance,
-    pub name: [u8; 32],        // 256 bits
-    pub number_of_users: u128, // number of users in a position
+    pub name: [u8; 32], // 256 bits
     pub imf_factor: u128,
     pub unrealized_pnl_imf_factor: u128,
     pub unrealized_pnl_max_imbalance: u128,
@@ -94,11 +93,12 @@ pub struct PerpMarket {
     pub margin_ratio_maintenance: u32,
     pub unrealized_pnl_initial_asset_weight: u32,
     pub unrealized_pnl_maintenance_asset_weight: u32,
+    pub number_of_users: u32, // number of users in a position
     pub market_index: u16,
     pub status: MarketStatus,
     pub contract_type: ContractType,
     pub contract_tier: ContractTier,
-    pub padding: [u8; 3],
+    pub padding: [u8; 7],
 }
 
 impl PerpMarket {
@@ -378,7 +378,6 @@ pub struct AMM {
     pub amm_jit_intensity: u8,
     pub oracle_source: OracleSource,
     pub last_oracle_valid: bool,
-    pub padding: [u8; 4],
 }
 
 impl AMM {
