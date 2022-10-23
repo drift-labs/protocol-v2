@@ -198,8 +198,8 @@ pub fn handle_initialize_spot_market(
         .cast()
         .or(Err(ErrorCode::UnableToCastUnixTime))?;
 
-    let decimals = ctx.accounts.spot_market_mint.decimals;
-    let order_step_size = 10_u64.pow(2 + (decimals - 6) as u32); // 10 for usdc/btc, 10000 for sol
+    let decimals = ctx.accounts.spot_market_mint.decimals.cast::<u32>()?;
+    let order_step_size = 10_u64.pow(2 + decimals - 6); // 10 for usdc/btc, 10000 for sol
 
     **spot_market = SpotMarket {
         market_index: spot_market_index,
@@ -226,7 +226,7 @@ pub fn handle_initialize_spot_market(
             market_index: spot_market_index,
             ..PoolBalance::default()
         }, // in base asset
-        decimals: ctx.accounts.spot_market_mint.decimals,
+        decimals: ctx.accounts.spot_market_mint.decimals.cast()?,
         optimal_utilization,
         optimal_borrow_rate,
         max_borrow_rate,
@@ -255,7 +255,7 @@ pub fn handle_initialize_spot_market(
         next_fill_record_id: 1,
         spot_fee_pool: PoolBalance::default(), // in quote asset
         total_spot_fee: 0,
-        padding: [0; 6],
+        padding: [0; 3],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             ..InsuranceFund::default()

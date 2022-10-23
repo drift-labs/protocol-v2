@@ -853,7 +853,7 @@ pub fn liquidate_borrow_for_perp_pnl(
         (
             pnl.unsigned_abs(),
             quote_price,
-            6_u8,
+            6_u32,
             pnl_asset_weight,
             calculate_liquidation_multiplier(
                 market.liquidator_fee,
@@ -1250,7 +1250,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         (
             unsettled_pnl.unsigned_abs(),
             quote_price,
-            6_u8,
+            6_u32,
             SPOT_WEIGHT_PRECISION,
             calculate_liquidation_multiplier(
                 market.liquidator_fee,

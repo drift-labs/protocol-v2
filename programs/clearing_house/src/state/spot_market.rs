@@ -59,15 +59,15 @@ pub struct SpotMarket {
     pub min_order_size: u64,
     pub max_position_size: u64,
     pub next_fill_record_id: u64,
-    pub optimal_utilization: u32,
+    pub optimal_utilization: u32, //
     pub optimal_borrow_rate: u32,
     pub max_borrow_rate: u32,
+    pub decimals: u32,
     pub market_index: u16,
-    pub decimals: u8,
     pub oracle_source: OracleSource,
     pub status: MarketStatus,
     pub asset_tier: AssetTier,
-    pub padding: [u8; 6],
+    pub padding: [u8; 3],
 }
 
 impl SpotMarket {
@@ -180,7 +180,7 @@ impl SpotMarket {
     }
 
     pub fn get_precision(self) -> u64 {
-        10_u64.pow(self.decimals as u32)
+        10_u64.pow(self.decimals)
     }
 }
 

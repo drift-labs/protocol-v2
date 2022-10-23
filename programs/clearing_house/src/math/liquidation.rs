@@ -60,7 +60,7 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
     asset_liquidation_multiplier: u128,
     liability_weight: u128,
     liability_liquidation_multiplier: u128,
-    liability_decimals: u8,
+    liability_decimals: u32,
     liability_price: i64,
     if_liquidation_fee: u128,
 ) -> ClearingHouseResult<u128> {
@@ -70,9 +70,9 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
     }
 
     let (numerator_scale, denominator_scale) = if liability_decimals > 6 {
-        (10_u128.pow((liability_decimals - 6) as u32), 1)
+        (10_u128.pow(liability_decimals - 6), 1)
     } else {
-        (1, 10_u128.pow((6 - liability_decimals) as u32))
+        (1, 10_u128.pow(6 - liability_decimals))
     };
 
     margin_shortage
@@ -106,16 +106,16 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
 pub fn calculate_liability_transfer_implied_by_asset_amount(
     asset_amount: u128,
     asset_liquidation_multiplier: u128,
-    asset_decimals: u8,
+    asset_decimals: u32,
     asset_price: i64,
     liability_liquidation_multiplier: u128,
-    liability_decimals: u8,
+    liability_decimals: u32,
     liability_price: i64,
 ) -> ClearingHouseResult<u128> {
     let (numerator_scale, denominator_scale) = if liability_decimals > asset_decimals {
-        (10_u128.pow((liability_decimals - asset_decimals) as u32), 1)
+        (10_u128.pow(liability_decimals - asset_decimals), 1)
     } else {
-        (1, 10_u128.pow((asset_decimals - liability_decimals) as u32))
+        (1, 10_u128.pow(asset_decimals - liability_decimals))
     };
 
     asset_amount
@@ -133,17 +133,17 @@ pub fn calculate_liability_transfer_implied_by_asset_amount(
 pub fn calculate_asset_transfer_for_liability_transfer(
     asset_amount: u128,
     asset_liquidation_multiplier: u128,
-    asset_decimals: u8,
+    asset_decimals: u32,
     asset_price: i64,
     liability_amount: u128,
     liability_liquidation_multiplier: u128,
-    liability_decimals: u8,
+    liability_decimals: u32,
     liability_price: i64,
 ) -> ClearingHouseResult<u128> {
     let (numerator_scale, denominator_scale) = if asset_decimals > liability_decimals {
-        (10_u128.pow((asset_decimals - liability_decimals) as u32), 1)
+        (10_u128.pow(asset_decimals - liability_decimals), 1)
     } else {
-        (1, 10_u128.pow((liability_decimals - asset_decimals) as u32))
+        (1, 10_u128.pow(liability_decimals - asset_decimals))
     };
 
     let mut asset_transfer = liability_amount
@@ -159,9 +159,9 @@ pub fn calculate_asset_transfer_for_liability_transfer(
 
     // Need to check if asset_transfer should be rounded to asset amount
     let (asset_value_numerator_scale, asset_value_denominator_scale) = if asset_decimals > 6 {
-        (10_u128.pow((asset_decimals - 6) as u32), 1)
+        (10_u128.pow(asset_decimals - 6), 1)
     } else {
-        (1, 10_u128.pow((asset_decimals - 6) as u32))
+        (1, 10_u128.pow(asset_decimals - 6))
     };
 
     let asset_delta = if asset_transfer > asset_amount {

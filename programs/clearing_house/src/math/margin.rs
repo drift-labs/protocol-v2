@@ -641,7 +641,7 @@ pub fn calculate_max_withdrawable_amount(
 
     let spot_market = &mut spot_market_map.get_ref(&market_index)?;
 
-    let precision_increase = 10u128.pow((spot_market.decimals - 6) as u32);
+    let precision_increase = 10u128.pow(spot_market.decimals - 6);
 
     let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
 

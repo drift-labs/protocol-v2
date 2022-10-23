@@ -3097,7 +3097,7 @@ pub fn fulfill_spot_order_with_match(
         maker_base_asset_amount,
         maker_price,
         taker_base_asset_amount,
-        base_market.decimals as u32,
+        base_market.decimals,
         maker_direction,
     )?;
 
@@ -3352,7 +3352,7 @@ pub fn fulfill_spot_order_with_serum(
         serum_new_order_accounts.serum_bids,
         serum_new_order_accounts.serum_asks,
         serum_new_order_accounts.serum_program_id.key,
-        base_market.decimals as u32,
+        base_market.decimals,
     )?;
 
     let mut mid_price = 0;
@@ -3433,7 +3433,7 @@ pub fn fulfill_spot_order_with_serum(
     let serum_limit_price = calculate_serum_limit_price(
         taker_price,
         market_state_before.pc_lot_size,
-        base_market.decimals as u32,
+        base_market.decimals,
         market_state_before.coin_lot_size,
     )?;
 
