@@ -86,7 +86,7 @@ type RemainingAccountParams = {
 	writablePerpMarketIndexes?: number[];
 	writableSpotMarketIndexes?: number[];
 	readablePerpMarketIndex?: number;
-	readableSpotMarketIndex?: number;
+	readableSpotMarketIndexes?: number[];
 	useMarketLastSlotCache?: boolean;
 };
 
@@ -720,11 +720,11 @@ export class ClearingHouse {
 			}
 		}
 
-		if (params.readableSpotMarketIndex !== undefined) {
+		for (const readableSpotMarketIndex of params.readableSpotMarketIndexes) {
 			const spotMarketAccount = this.getSpotMarketAccount(
-				params.readableSpotMarketIndex
+				readableSpotMarketIndex
 			);
-			spotMarketAccountMap.set(params.readableSpotMarketIndex, {
+			spotMarketAccountMap.set(readableSpotMarketIndex, {
 				pubkey: spotMarketAccount.pubkey,
 				isSigner: false,
 				isWritable: false,
@@ -789,6 +789,17 @@ export class ClearingHouse {
 					if (!spotMarket.oracle.equals(PublicKey.default)) {
 						oracleAccountMap.set(spotMarket.oracle.toString(), {
 							pubkey: spotMarket.oracle,
+							isSigner: false,
+							isWritable: false,
+						});
+					}
+
+					if (
+						!spotPosition.openAsks.eq(ZERO) ||
+						!spotPosition.openBids.eq(ZERO)
+					) {
+						spotMarketAccountMap.set(spotPosition.marketIndex, {
+							pubkey: this.getQuoteSpotMarketAccount().pubkey,
 							isSigner: false,
 							isWritable: false,
 						});
@@ -2010,7 +2021,10 @@ export class ClearingHouse {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount()],
 			useMarketLastSlotCache: true,
-			readableSpotMarketIndex: orderParams.marketIndex,
+			readableSpotMarketIndexes: [
+				orderParams.marketIndex,
+				QUOTE_SPOT_MARKET_INDEX,
+			],
 		});
 
 		return await this.program.instruction.placeSpotOrder(orderParams, {
