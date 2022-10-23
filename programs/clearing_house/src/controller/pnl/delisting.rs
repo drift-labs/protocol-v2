@@ -2726,6 +2726,8 @@ pub mod delisting_test {
                 0,
                 &mut shorter,
                 &maker_key,
+                None,
+                None,
                 &mut liquidator,
                 &liq_key,
                 &market_map,

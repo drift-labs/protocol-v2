@@ -2561,6 +2561,8 @@ pub mod resolve_perp_bankruptcy {
             0,
             &mut user,
             &user_key,
+            None,
+            None,
             &mut liquidator,
             &liquidator_key,
             &market_map,

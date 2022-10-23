@@ -28,7 +28,7 @@ use crate::math::liquidation::{
     calculate_funding_rate_deltas_to_resolve_bankruptcy,
     calculate_liability_transfer_implied_by_asset_amount,
     calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
-    LiquidationMultiplierType,
+    calculate_perp_market_deleverage_payment, DeleverageUserStats, LiquidationMultiplierType,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral, meets_initial_margin_requirement,
@@ -36,7 +36,10 @@ use crate::math::margin::{
 };
 use crate::math::oracle::DriftAction;
 use crate::math::orders::{get_position_delta_for_fill, standardize_base_asset_amount};
-use crate::math::position::calculate_base_asset_value_with_oracle_price;
+use crate::math::position::{
+    calculate_base_asset_value_and_pnl_with_oracle_price,
+    calculate_base_asset_value_with_oracle_price,
+};
 use crate::math::safe_math::SafeMath;
 use crate::state::events::{
     LiquidateBorrowForPerpPnlRecord, LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord,
@@ -1483,8 +1486,10 @@ pub fn set_being_liquidated_and_get_liquidation_id(user: &mut User) -> ClearingH
 
 pub fn resolve_perp_bankruptcy(
     market_index: u16,
-    user: &mut User,
-    user_key: &Pubkey,
+    bankrupt_user: &mut User,
+    bankrupt_user_key: &Pubkey,
+    delever_user: Option<&mut User>,
+    delever_user_key: Option<&Pubkey>,
     liquidator: &mut User,
     liquidator_key: &Pubkey,
     perp_market_map: &PerpMarketMap,
@@ -1494,7 +1499,7 @@ pub fn resolve_perp_bankruptcy(
     insurance_fund_vault_balance: u64,
 ) -> ClearingHouseResult<u64> {
     validate!(
-        user.is_bankrupt,
+        bankrupt_user.is_bankrupt,
         ErrorCode::UserNotBankrupt,
         "user not bankrupt",
     )?;
@@ -1511,7 +1516,7 @@ pub fn resolve_perp_bankruptcy(
         "liquidator bankrupt",
     )?;
 
-    user.get_perp_position(market_index).map_err(|e| {
+    bankrupt_user.get_perp_position(market_index).map_err(|e| {
         msg!(
             "User does not have a position for perp market {}",
             market_index
@@ -1519,7 +1524,7 @@ pub fn resolve_perp_bankruptcy(
         e
     })?;
 
-    let loss = user
+    let loss = bankrupt_user
         .get_perp_position(market_index)
         .unwrap()
         .quote_asset_amount
@@ -1533,7 +1538,7 @@ pub fn resolve_perp_bankruptcy(
 
     let (margin_requirement, total_collateral, _, _) =
         calculate_margin_requirement_and_total_collateral(
-            user,
+            bankrupt_user,
             perp_market_map,
             MarginRequirementType::Maintenance,
             spot_market_map,
@@ -1563,7 +1568,36 @@ pub fn resolve_perp_bankruptcy(
         _if_payment
     };
 
-    let loss_to_socialize = loss.safe_add(if_payment.cast::<i128>()?)?;
+    let mut loss_to_socialize = loss.safe_add(if_payment.cast::<i128>()?)?;
+
+    if delever_user.is_some() {
+        let market = perp_market_map.get_ref(&market_index)?;
+        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+
+        let deleverage_user_position = bankrupt_user.get_perp_position_mut(market_index).unwrap();
+
+        let (_deleverage_value, deleverage_user_pnl) =
+            calculate_base_asset_value_and_pnl_with_oracle_price(
+                deleverage_user_position,
+                oracle_price_data.price,
+            )?;
+
+        let deleverage_user_stats = DeleverageUserStats {
+            base_asset_amount: deleverage_user_position.base_asset_amount,
+            quote_asset_amount: deleverage_user_position.quote_asset_amount,
+            quote_entry_amount: deleverage_user_position.quote_entry_amount,
+            unrealized_pnl: deleverage_user_pnl,
+        };
+
+        let deleverage_user_payment = calculate_perp_market_deleverage_payment(
+            loss_to_socialize,
+            deleverage_user_stats,
+            &market,
+            oracle_price_data.price,
+        )?;
+
+        loss_to_socialize = loss_to_socialize.safe_add(deleverage_user_payment)?;
+    }
 
     let cumulative_funding_rate_delta = calculate_funding_rate_deltas_to_resolve_bankruptcy(
         loss_to_socialize,
@@ -1573,8 +1607,8 @@ pub fn resolve_perp_bankruptcy(
     // socialize loss
     if loss_to_socialize < 0 {
         {
-            let user = user.get_perp_position_mut(market_index).unwrap();
-            user.quote_asset_amount = 0;
+            let user_position = bankrupt_user.get_perp_position_mut(market_index).unwrap();
+            user_position.quote_asset_amount = 0;
 
             let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
@@ -1596,18 +1630,18 @@ pub fn resolve_perp_bankruptcy(
     }
 
     // exit bankruptcy
-    if !is_user_bankrupt(user) {
-        user.is_bankrupt = false;
-        user.is_being_liquidated = false;
+    if !is_user_bankrupt(bankrupt_user) {
+        bankrupt_user.is_bankrupt = false;
+        bankrupt_user.is_being_liquidated = false;
     }
 
-    let liquidation_id = user.next_liquidation_id.safe_sub(1)?;
+    let liquidation_id = bankrupt_user.next_liquidation_id.safe_sub(1)?;
 
     emit!(LiquidationRecord {
         ts: now,
         liquidation_id,
         liquidation_type: LiquidationType::PerpBankruptcy,
-        user: *user_key,
+        user: *bankrupt_user_key,
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,

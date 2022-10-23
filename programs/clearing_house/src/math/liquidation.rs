@@ -20,6 +20,8 @@ use crate::state::user::User;
 use crate::validate;
 use solana_program::msg;
 
+use super::constants::PRICE_PRECISION_I128;
+
 #[cfg(test)]
 mod tests;
 
@@ -292,4 +294,83 @@ pub fn calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(
         .safe_mul(borrow)?
         .safe_div(total_deposits)
         .or(Ok(0))
+}
+
+#[derive(Debug)]
+pub struct DeleverageUserStats {
+    pub base_asset_amount: i64,
+    pub quote_asset_amount: i64,
+    pub quote_entry_amount: i64,
+    pub unrealized_pnl: i128,
+    // pub settled_pnl: i128,
+}
+
+pub fn calculate_perp_market_deleverage_payment(
+    loss_to_socialize: i128,
+    deleverage_user_stats: DeleverageUserStats,
+    market: &PerpMarket,
+    oracle_price: i128,
+) -> ClearingHouseResult<i128> {
+    let quote_entry_amount_long_in_market = market.amm.quote_entry_amount_long;
+    let quote_entry_amount_short_in_market = market.amm.quote_entry_amount_short;
+
+    let quote_asset_amount_long_in_market = market.amm.quote_asset_amount_long;
+    let quote_asset_amount_short_in_market = market.amm.quote_asset_amount_short;
+    let cumulative_social_loss_in_market = market.amm.cumulative_social_loss;
+
+    let base_asset_amount_long_in_market = market.amm.base_asset_amount_long;
+    let base_asset_amount_short_in_market = market.amm.base_asset_amount_short;
+
+    let number_of_users_in_market = market.number_of_users;
+
+    let cost_basis_above_mean = if deleverage_user_stats.base_asset_amount != 0 {
+        let quote_entry =
+            (-quote_entry_amount_long_in_market).safe_add(quote_entry_amount_short_in_market)?;
+        let base_amount =
+            (-base_asset_amount_short_in_market).safe_add(base_asset_amount_long_in_market)?;
+        let mean_entry_basis = if base_amount == 0 {
+            -(quote_entry)
+                .safe_mul(PRICE_PRECISION_I128)?
+                .safe_div(base_amount)?
+        } else {
+            0
+        };
+
+        let user_entry_basis: i128 = if deleverage_user_stats.base_asset_amount != 0 {
+            PRICE_PRECISION_I128
+                .safe_mul(-(deleverage_user_stats.quote_entry_amount).cast()?)?
+                .safe_div(deleverage_user_stats.base_asset_amount.cast()?)?
+        } else {
+            0_i128
+        };
+
+        let basis_above_mean: i128 = if deleverage_user_stats.base_asset_amount > 0 {
+            mean_entry_basis.safe_sub(user_entry_basis.cast()?)?
+        } else {
+            -(mean_entry_basis.safe_sub(user_entry_basis.cast()?)?)
+        };
+
+        basis_above_mean.safe_mul(deleverage_user_stats.base_asset_amount.cast()?)?
+    } else {
+        let mean_quote = quote_asset_amount_long_in_market
+            .safe_add(quote_asset_amount_short_in_market)?
+            .safe_sub(cumulative_social_loss_in_market)?;
+
+        -(mean_quote.safe_sub(deleverage_user_stats.quote_asset_amount.cast()?)?)
+    };
+
+    let profit_above_mean = cost_basis_above_mean.safe_mul(oracle_price)?;
+
+    let alt_max_deleverage = loss_to_socialize
+        .abs()
+        .safe_div(number_of_users_in_market.max(1).cast()?)?
+        .max(1);
+
+    let deleverage_payment = profit_above_mean
+        .max(alt_max_deleverage)
+        .min(deleverage_user_stats.unrealized_pnl.safe_div(2)?)
+        .min(loss_to_socialize.abs())
+        .max(0);
+
+    Ok(deleverage_payment)
 }

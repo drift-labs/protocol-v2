@@ -431,3 +431,35 @@ mod calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy {
         assert_eq!(delta, 916666666);
     }
 }
+
+mod auto_deleveraging {
+    use crate::math::constants::PRICE_PRECISION_I128;
+    use crate::math::liquidation::{calculate_perp_market_deleverage_payment, DeleverageUserStats};
+    use crate::state::perp_market::{PerpMarket, AMM};
+
+    #[test]
+    fn base_case_adl() {
+        let market = PerpMarket {
+            amm: AMM {
+                base_asset_amount_long: 0,
+                base_asset_amount_short: 0,
+                ..AMM::default()
+            },
+            ..PerpMarket::default()
+        };
+
+        let dus = DeleverageUserStats {
+            base_asset_amount: 0,
+            quote_asset_amount: 0,
+            quote_entry_amount: 0,
+            unrealized_pnl: 0,
+        };
+
+        let delev_payment =
+            calculate_perp_market_deleverage_payment(0, dus, &market, 100 * PRICE_PRECISION_I128)
+                .unwrap();
+
+        assert_eq!(delev_payment, 0);
+        //todo
+    }
+}

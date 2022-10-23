@@ -805,6 +805,18 @@ pub fn handle_resolve_perp_bankruptcy(
         ErrorCode::InvalidSpotMarketAccount
     )?;
 
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
+    let deleverage_order_id = Some(0);
+
+    let (delevered_user, _delevered_user_stats) = match deleverage_order_id {
+        Some(_) => {
+            let (user, user_stats) = get_maker_and_maker_stats(remaining_accounts_iter)?;
+            (Some(user), Some(user_stats))
+        }
+        None => (None, None),
+    };
+
     let user = &mut load_mut!(ctx.accounts.user)?;
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
     let state = &ctx.accounts.state;
@@ -814,7 +826,7 @@ pub fn handle_resolve_perp_bankruptcy(
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        remaining_accounts_iter,
         &get_writable_perp_market_set(market_index),
         &get_writable_spot_market_set(quote_spot_market_index),
         clock.slot,
@@ -845,6 +857,8 @@ pub fn handle_resolve_perp_bankruptcy(
         market_index,
         user,
         &user_key,
+        None,
+        None,
         liquidator,
         &liquidator_key,
         &perp_market_map,
