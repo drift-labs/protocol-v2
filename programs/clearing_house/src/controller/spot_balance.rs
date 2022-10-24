@@ -91,28 +91,22 @@ pub fn update_spot_market_twap_stats(
         )?;
 
         let oracle_price_twap = calculate_new_twap(
-            capped_oracle_update_price.cast()?,
+            capped_oracle_update_price,
             now,
-            spot_market
-                .historical_oracle_data
-                .last_oracle_price_twap
-                .cast()?,
+            spot_market.historical_oracle_data.last_oracle_price_twap,
             spot_market.historical_oracle_data.last_oracle_price_twap_ts,
             ONE_HOUR as i64,
-        )?
-        .cast::<i64>()?;
+        )?;
 
         let oracle_price_twap_5min = calculate_new_twap(
-            capped_oracle_update_price.cast()?,
+            capped_oracle_update_price,
             now,
             spot_market
                 .historical_oracle_data
-                .last_oracle_price_twap_5min
-                .cast()?,
+                .last_oracle_price_twap_5min,
             spot_market.historical_oracle_data.last_oracle_price_twap_ts,
             FIVE_MINUTE as i64,
-        )?
-        .cast::<i64>()?;
+        )?;
 
         spot_market.historical_oracle_data.last_oracle_price_twap = oracle_price_twap;
         spot_market

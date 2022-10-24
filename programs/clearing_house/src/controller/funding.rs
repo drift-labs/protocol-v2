@@ -225,13 +225,12 @@ pub fn update_funding_rate(
         market.amm.last_funding_rate_long = funding_rate_long.cast()?;
         market.amm.last_funding_rate_short = funding_rate_short.cast()?;
         market.amm.last_24h_avg_funding_rate = calculate_new_twap(
-            funding_rate.cast()?,
+            funding_rate,
             now,
-            market.amm.last_24h_avg_funding_rate.cast()?,
+            market.amm.last_24h_avg_funding_rate,
             market.amm.last_funding_rate_ts,
             TWENTY_FOUR_HOUR,
-        )?
-        .cast()?;
+        )?;
         market.amm.last_funding_rate_ts = now;
 
         emit!(FundingRateRecord {

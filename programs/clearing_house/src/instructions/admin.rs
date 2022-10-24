@@ -226,7 +226,7 @@ pub fn handle_initialize_spot_market(
             market_index: spot_market_index,
             ..PoolBalance::default()
         }, // in base asset
-        decimals: ctx.accounts.spot_market_mint.decimals.cast()?,
+        decimals,
         optimal_utilization,
         optimal_borrow_rate,
         max_borrow_rate,
@@ -1732,7 +1732,7 @@ pub fn handle_update_perp_market_max_spread(
     )?;
 
     validate!(
-        max_spread <= (perp_market.margin_ratio_initial * 100).cast()?,
+        max_spread <= perp_market.margin_ratio_initial * 100,
         ErrorCode::DefaultError,
         "invalid max_spread > market.margin_ratio_initial * 100",
     )?;

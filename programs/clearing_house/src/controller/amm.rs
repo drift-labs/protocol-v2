@@ -197,14 +197,14 @@ pub fn update_spreads(amm: &mut AMM, reserve_price: u64) -> ClearingHouseResult<
     let (long_spread, short_spread) = if amm.curve_update_intensity > 0 {
         amm_spread::calculate_spread(
             amm.base_spread,
-            amm.last_oracle_reserve_price_spread_pct.cast()?,
+            amm.last_oracle_reserve_price_spread_pct,
             amm.last_oracle_conf_pct,
             amm.max_spread,
             amm.quote_asset_reserve,
             amm.terminal_quote_asset_reserve,
             amm.peg_multiplier,
             amm.base_asset_amount_with_amm,
-            reserve_price.cast()?,
+            reserve_price,
             amm.total_fee_minus_distributions,
             amm.base_asset_reserve,
             amm.min_base_asset_reserve,

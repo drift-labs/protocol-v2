@@ -205,7 +205,7 @@ pub fn update_mark_twap(
 
     // update bid and ask twaps
     let bid_twap = calculate_new_twap(
-        bid_price_capped_update.cast()?,
+        bid_price_capped_update,
         now,
         amm.last_bid_price_twap.cast()?,
         amm.last_mark_price_twap_ts,
@@ -214,7 +214,7 @@ pub fn update_mark_twap(
     amm.last_bid_price_twap = bid_twap.cast()?;
 
     let ask_twap = calculate_new_twap(
-        ask_price_capped_update.cast()?,
+        ask_price_capped_update,
         now,
         amm.last_ask_price_twap.cast()?,
         amm.last_mark_price_twap_ts,

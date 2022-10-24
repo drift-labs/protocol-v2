@@ -101,7 +101,7 @@ pub fn calculate_spread(
     terminal_quote_asset_reserve: u128,
     peg_multiplier: u128,
     base_asset_amount_with_amm: i128,
-    reserve_price: u128,
+    reserve_price: u64,
     total_fee_minus_distributions: i128,
     base_asset_reserve: u128,
     min_base_asset_reserve: u128,
