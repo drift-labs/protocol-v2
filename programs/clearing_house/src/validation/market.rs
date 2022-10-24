@@ -167,8 +167,8 @@ pub fn validate_perp_market(market: &PerpMarket) -> ClearingHouseResult {
 
     if market.amm.base_spread > 0 {
         validate!(
-            (market.amm.max_spread > market.amm.base_spread)
-                && ((market.amm.max_spread as u32) < market.margin_ratio_initial * 100),
+            market.amm.max_spread > market.amm.base_spread
+                && market.amm.max_spread < market.margin_ratio_initial * 100,
             ErrorCode::DefaultError,
             "invalid max_spread",
         )?;
