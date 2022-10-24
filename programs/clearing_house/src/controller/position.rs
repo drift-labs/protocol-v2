@@ -493,6 +493,10 @@ pub fn update_quote_asset_amount(
     market: &mut PerpMarket,
     delta: i64,
 ) -> ClearingHouseResult<()> {
+    if delta == 0 {
+        return Ok(());
+    }
+
     if position.quote_asset_amount == 0 {
         market.number_of_users_with_quote = market.number_of_users_with_quote.safe_add(1)?;
     }
