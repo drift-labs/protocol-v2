@@ -8,9 +8,7 @@ use crate::error::ClearingHouseResult;
 use crate::instructions::SpotFulfillmentType;
 #[cfg(test)]
 use crate::math::constants::SPOT_CUMULATIVE_INTEREST_PRECISION;
-use crate::math::constants::{
-    AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, SPOT_WEIGHT_PRECISION,
-};
+use crate::math::constants::{AMM_RESERVE_PRECISION, MARGIN_PRECISION, SPOT_WEIGHT_PRECISION_U128};
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
@@ -34,13 +32,6 @@ pub struct SpotMarket {
     pub revenue_pool: PoolBalance,  // in base asset
     pub spot_fee_pool: PoolBalance, // in quote asset
     pub insurance_fund: InsuranceFund,
-    pub initial_asset_weight: u128,
-    pub maintenance_asset_weight: u128,
-    pub initial_liability_weight: u128,
-    pub maintenance_liability_weight: u128,
-    pub imf_factor: u128,
-    pub liquidator_fee: u128,
-    pub if_liquidation_fee: u128, // percentage of liquidation transfer for total insurance
     pub withdraw_guard_threshold: u128, // no withdraw limits/guards when deposits below this threshold
     pub total_spot_fee: u128,
     pub deposit_balance: u128,
@@ -59,6 +50,13 @@ pub struct SpotMarket {
     pub min_order_size: u64,
     pub max_position_size: u64,
     pub next_fill_record_id: u64,
+    pub initial_asset_weight: u32,
+    pub maintenance_asset_weight: u32,
+    pub initial_liability_weight: u32,
+    pub maintenance_liability_weight: u32,
+    pub imf_factor: u32,
+    pub liquidator_fee: u32,
+    pub if_liquidation_fee: u32, // percentage of liquidation transfer for total insurance
     pub optimal_utilization: u32, //
     pub optimal_borrow_rate: u32,
     pub max_borrow_rate: u32,
@@ -67,7 +65,7 @@ pub struct SpotMarket {
     pub oracle_source: OracleSource,
     pub status: MarketStatus,
     pub asset_tier: AssetTier,
-    pub padding: [u8; 3],
+    pub padding: [u8; 7],
 }
 
 impl SpotMarket {
@@ -98,8 +96,8 @@ impl SpotMarket {
         &self,
         size: u128,
         margin_requirement_type: &MarginRequirementType,
-    ) -> ClearingHouseResult<u128> {
-        let size_precision = 10_u128.pow(self.decimals as u32);
+    ) -> ClearingHouseResult<u32> {
+        let size_precision = 10_u128.pow(self.decimals);
 
         let size_in_amm_reserve_precision = if size_precision > AMM_RESERVE_PRECISION {
             size / (size_precision / AMM_RESERVE_PRECISION)
@@ -121,8 +119,8 @@ impl SpotMarket {
         &self,
         size: u128,
         margin_requirement_type: &MarginRequirementType,
-    ) -> ClearingHouseResult<u128> {
-        let size_precision = 10_u128.pow(self.decimals as u32);
+    ) -> ClearingHouseResult<u32> {
+        let size_precision = 10_u128.pow(self.decimals);
 
         let size_in_amm_reserve_precision = if size_precision > AMM_RESERVE_PRECISION {
             size / (size_precision / AMM_RESERVE_PRECISION)
@@ -139,7 +137,7 @@ impl SpotMarket {
             size_in_amm_reserve_precision,
             self.imf_factor,
             default_liability_weight,
-            SPOT_WEIGHT_PRECISION,
+            SPOT_WEIGHT_PRECISION_U128,
         )?;
 
         let liability_weight = size_based_liability_weight.max(default_liability_weight);
@@ -147,21 +145,11 @@ impl SpotMarket {
         Ok(liability_weight)
     }
 
-    pub fn get_liquidation_fee_multiplier(
-        &self,
-        balance_type: SpotBalanceType,
-    ) -> ClearingHouseResult<u128> {
-        match balance_type {
-            SpotBalanceType::Deposit => LIQUIDATION_FEE_PRECISION.safe_add(self.liquidator_fee),
-            SpotBalanceType::Borrow => LIQUIDATION_FEE_PRECISION.safe_sub(self.liquidator_fee),
-        }
-    }
-
     // get liability weight as if it were perp market margin requirement
     pub fn get_margin_ratio(
         &self,
         margin_requirement_type: &MarginRequirementType,
-    ) -> ClearingHouseResult<u128> {
+    ) -> ClearingHouseResult<u32> {
         let liability_weight = match margin_requirement_type {
             MarginRequirementType::Initial => self.initial_liability_weight,
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,

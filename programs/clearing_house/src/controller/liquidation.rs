@@ -20,7 +20,7 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::get_then_update_id;
 use crate::math::bankruptcy::is_user_bankrupt;
 use crate::math::casting::Cast;
-use crate::math::constants::{LIQUIDATION_FEE_PRECISION, SPOT_WEIGHT_PRECISION};
+use crate::math::constants::{LIQUIDATION_FEE_PRECISION_U128, SPOT_WEIGHT_PRECISION};
 use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
     calculate_base_asset_amount_to_cover_margin_shortage,
@@ -301,13 +301,13 @@ pub fn liquidate_perp(
     let base_asset_value =
         calculate_base_asset_value_with_oracle_price(base_asset_amount.cast()?, oracle_price)?;
     let quote_asset_amount = base_asset_value
-        .safe_mul(liquidation_multiplier)?
-        .safe_div(LIQUIDATION_FEE_PRECISION)?
+        .safe_mul(liquidation_multiplier.cast()?)?
+        .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
         .cast::<u64>()?;
 
     let if_fee = -base_asset_value
-        .safe_mul(if_liquidation_fee)?
-        .safe_div(LIQUIDATION_FEE_PRECISION)?
+        .safe_mul(if_liquidation_fee.cast()?)?
+        .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
         .cast::<i64>()?;
 
     user_stats.update_taker_volume_30d(quote_asset_amount, now)?;
@@ -621,7 +621,7 @@ pub fn liquidate_spot(
         .unsigned_abs();
 
     let liability_weight_with_buffer =
-        liability_weight.safe_add(liquidation_margin_buffer_ratio as u128)?;
+        liability_weight.safe_add(liquidation_margin_buffer_ratio)?;
 
     // Determine what amount of borrow to transfer to reduce margin shortage to 0
     let liability_transfer_to_cover_margin_shortage =
@@ -666,8 +666,8 @@ pub fn liquidate_spot(
     )?;
 
     let if_fee = liability_transfer
-        .safe_mul(liquidation_if_fee)?
-        .safe_div(LIQUIDATION_FEE_PRECISION)?;
+        .safe_mul(liquidation_if_fee.cast()?)?
+        .safe_div(LIQUIDATION_FEE_PRECISION_U128)?;
     {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
 
@@ -997,13 +997,13 @@ pub fn liquidate_borrow_for_perp_pnl(
         .unsigned_abs();
 
     let liability_weight_with_buffer =
-        liability_weight.safe_add(liquidation_margin_buffer_ratio as u128)?;
+        liability_weight.safe_add(liquidation_margin_buffer_ratio)?;
 
     // Determine what amount of borrow to transfer to reduce margin shortage to 0
     let liability_transfer_to_cover_margin_shortage =
         calculate_liability_transfer_to_cover_margin_shortage(
             margin_shortage,
-            pnl_asset_weight as u128,
+            pnl_asset_weight,
             pnl_liquidation_multiplier,
             liability_weight_with_buffer,
             liability_liquidation_multiplier,

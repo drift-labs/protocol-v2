@@ -722,7 +722,7 @@ describe('delist market, liquidation of expired position', () => {
 		assert(liqUser.perpPositions[0].quoteAssetAmount.eq(new BN(0)));
 		const marketAfter0 = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log(marketAfter0);
-		assert(marketAfter0.numberOfUsers.eq(ZERO));
+		assert(marketAfter0.numberOfUsers === 0);
 
 		// old 1415296436
 		const finalPnlResultMin0 = new BN(2270702294000 - 11090000);

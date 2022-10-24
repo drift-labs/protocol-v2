@@ -7,7 +7,7 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION_U128, LIQUIDATION_FEE_PRECISION,
+    AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION_U128, MARGIN_PRECISION_U128,
     PRICE_PRECISION_I64, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::margin::{
@@ -19,9 +19,7 @@ use crate::math::stats;
 
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
-use crate::{
-    AMM_TO_QUOTE_PRECISION_RATIO, MARGIN_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION,
-};
+use crate::{AMM_TO_QUOTE_PRECISION_RATIO, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION};
 use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
@@ -78,10 +76,6 @@ pub struct PerpMarket {
     pub amm: AMM,
     pub pnl_pool: PoolBalance,
     pub name: [u8; 32], // 256 bits
-    pub imf_factor: u128,
-    pub unrealized_pnl_imf_factor: u128,
-    pub liquidator_fee: u128,
-    pub if_liquidation_fee: u128,
     pub insurance_claim: InsuranceClaim,
     pub unrealized_pnl_max_imbalance: u64,
     pub expiry_ts: i64,    // iff market in reduce only mode
@@ -89,6 +83,10 @@ pub struct PerpMarket {
     pub next_fill_record_id: u64,
     pub next_funding_rate_record_id: u64,
     pub next_curve_record_id: u64,
+    pub imf_factor: u32,
+    pub unrealized_pnl_imf_factor: u32,
+    pub liquidator_fee: u32,
+    pub if_liquidation_fee: u32,
     pub margin_ratio_initial: u32,
     pub margin_ratio_maintenance: u32,
     pub unrealized_pnl_initial_asset_weight: u32,
@@ -135,29 +133,30 @@ impl PerpMarket {
         }
 
         let default_margin_ratio = match margin_type {
-            MarginRequirementType::Initial => self.margin_ratio_initial.cast::<u128>()?,
-            MarginRequirementType::Maintenance => self.margin_ratio_maintenance.cast::<u128>()?,
+            MarginRequirementType::Initial => self.margin_ratio_initial,
+            MarginRequirementType::Maintenance => self.margin_ratio_maintenance,
         };
 
         let size_adj_margin_ratio = calculate_size_premium_liability_weight(
             size,
             self.imf_factor,
             default_margin_ratio,
-            MARGIN_PRECISION,
+            MARGIN_PRECISION_U128,
         )?;
 
         let margin_ratio = default_margin_ratio.max(size_adj_margin_ratio);
 
-        margin_ratio.cast()
+        Ok(margin_ratio)
     }
 
     pub fn get_initial_leverage_ratio(&self, margin_type: MarginRequirementType) -> u128 {
         match margin_type {
             MarginRequirementType::Initial => {
-                MARGIN_PRECISION * MARGIN_PRECISION / self.margin_ratio_initial as u128
+                MARGIN_PRECISION_U128 * MARGIN_PRECISION_U128 / self.margin_ratio_initial as u128
             }
             MarginRequirementType::Maintenance => {
-                MARGIN_PRECISION * MARGIN_PRECISION / self.margin_ratio_maintenance as u128
+                MARGIN_PRECISION_U128 * MARGIN_PRECISION_U128
+                    / self.margin_ratio_maintenance as u128
             }
         }
     }
@@ -187,12 +186,10 @@ impl PerpMarket {
         &self,
         unrealized_pnl: i128,
         margin_type: MarginRequirementType,
-    ) -> ClearingHouseResult<u128> {
+    ) -> ClearingHouseResult<u32> {
         let mut margin_asset_weight = match margin_type {
-            MarginRequirementType::Initial => self.unrealized_pnl_initial_asset_weight as u128,
-            MarginRequirementType::Maintenance => {
-                self.unrealized_pnl_maintenance_asset_weight as u128
-            }
+            MarginRequirementType::Initial => self.unrealized_pnl_initial_asset_weight,
+            MarginRequirementType::Maintenance => self.unrealized_pnl_maintenance_asset_weight,
         };
 
         if margin_type == MarginRequirementType::Initial && self.unrealized_pnl_max_imbalance > 0 {
@@ -203,8 +200,10 @@ impl PerpMarket {
 
             if net_unsettled_pnl > self.unrealized_pnl_max_imbalance.cast::<i128>()? {
                 margin_asset_weight = margin_asset_weight
+                    .cast::<u128>()?
                     .safe_mul(self.unrealized_pnl_max_imbalance.cast()?)?
                     .safe_div(net_unsettled_pnl.unsigned_abs())?
+                    .cast()?;
             }
         }
 
@@ -223,26 +222,13 @@ impl PerpMarket {
                     self.unrealized_pnl_imf_factor,
                     margin_asset_weight,
                 )?,
-                MarginRequirementType::Maintenance => {
-                    self.unrealized_pnl_maintenance_asset_weight as u128
-                }
+                MarginRequirementType::Maintenance => self.unrealized_pnl_maintenance_asset_weight,
             }
         } else {
             SPOT_WEIGHT_PRECISION
         };
 
         Ok(unrealized_asset_weight)
-    }
-
-    pub fn get_liquidation_fee_multiplier(
-        &self,
-        base_asset_amount: i128,
-    ) -> ClearingHouseResult<u128> {
-        if base_asset_amount >= 0 {
-            LIQUIDATION_FEE_PRECISION.safe_sub(self.liquidator_fee)
-        } else {
-            LIQUIDATION_FEE_PRECISION.safe_add(self.liquidator_fee)
-        }
     }
 
     pub fn get_open_interest(&self) -> u128 {

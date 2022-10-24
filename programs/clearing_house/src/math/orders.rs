@@ -10,7 +10,7 @@ use crate::math::amm::calculate_max_base_asset_amount_fillable;
 use crate::math::auction::is_auction_complete;
 use crate::math::casting::Cast;
 
-use crate::math::constants::MARGIN_PRECISION;
+use crate::math::constants::MARGIN_PRECISION_U128;
 use crate::math::position::calculate_entry_price;
 use crate::math::safe_math::SafeMath;
 use crate::math_error;
@@ -280,8 +280,8 @@ pub fn order_breaches_oracle_price_limits(
     oracle_price: i64,
     slot: u64,
     tick_size: u64,
-    margin_ratio_initial: u128,
-    margin_ratio_maintenance: u128,
+    margin_ratio_initial: u32,
+    margin_ratio_maintenance: u32,
 ) -> ClearingHouseResult<bool> {
     let order_limit_price = order.get_limit_price(Some(oracle_price), slot, tick_size)?;
     let oracle_price = oracle_price.unsigned_abs();
@@ -297,10 +297,10 @@ pub fn order_breaches_oracle_price_limits(
             let percent_diff = order_limit_price
                 .safe_sub(oracle_price)?
                 .cast::<u128>()?
-                .safe_mul(MARGIN_PRECISION)?
+                .safe_mul(MARGIN_PRECISION_U128)?
                 .safe_div(oracle_price.cast()?)?;
 
-            if percent_diff >= max_percent_diff {
+            if percent_diff >= max_percent_diff.cast()? {
                 // order cant be buying if oracle price is more than 5% below limit price
                 msg!(
                     "Limit Price Breaches Oracle for Long: {} >> {}",
@@ -320,10 +320,10 @@ pub fn order_breaches_oracle_price_limits(
             let percent_diff = oracle_price
                 .safe_sub(order_limit_price)?
                 .cast::<u128>()?
-                .safe_mul(MARGIN_PRECISION)?
+                .safe_mul(MARGIN_PRECISION_U128)?
                 .safe_div(oracle_price.cast()?)?;
 
-            if percent_diff >= max_percent_diff {
+            if percent_diff >= max_percent_diff.cast()? {
                 // order cant be selling if oracle price is more than 5% above limit price
                 msg!(
                     "Limit Price Breaches Oracle for Short: {} << {}",

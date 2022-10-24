@@ -87,12 +87,12 @@ pub fn handle_initialize_spot_market(
     optimal_borrow_rate: u32,
     max_borrow_rate: u32,
     oracle_source: OracleSource,
-    initial_asset_weight: u128,
-    maintenance_asset_weight: u128,
-    initial_liability_weight: u128,
-    maintenance_liability_weight: u128,
-    imf_factor: u128,
-    liquidation_fee: u128,
+    initial_asset_weight: u32,
+    maintenance_asset_weight: u32,
+    initial_liability_weight: u32,
+    maintenance_liability_weight: u32,
+    imf_factor: u32,
+    liquidation_fee: u32,
     active_status: bool,
 ) -> Result<()> {
     let state = &mut ctx.accounts.state;
@@ -255,7 +255,7 @@ pub fn handle_initialize_spot_market(
         next_fill_record_id: 1,
         spot_fee_pool: PoolBalance::default(), // in quote asset
         total_spot_fee: 0,
-        padding: [0; 3],
+        padding: [0; 7],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             ..InsuranceFund::default()
@@ -428,7 +428,7 @@ pub fn handle_initialize_perp_market(
     oracle_source: OracleSource,
     margin_ratio_initial: u32,
     margin_ratio_maintenance: u32,
-    liquidation_fee: u128,
+    liquidation_fee: u32,
     active_status: bool,
     name: [u8; 32],
 ) -> Result<()> {
@@ -1295,8 +1295,8 @@ pub fn handle_update_perp_market_name(
 )]
 pub fn handle_update_perp_liquidation_fee(
     ctx: Context<AdminUpdatePerpMarket>,
-    liquidator_fee: u128,
-    if_liquidation_fee: u128,
+    liquidator_fee: u32,
+    if_liquidation_fee: u32,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     validate!(
@@ -1334,8 +1334,8 @@ pub fn handle_update_insurance_fund_unstaking_period(
 
 pub fn handle_update_spot_market_liquidation_fee(
     ctx: Context<AdminUpdateSpotMarket>,
-    liquidator_fee: u128,
-    if_liquidation_fee: u128,
+    liquidator_fee: u32,
+    if_liquidation_fee: u32,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     validate!(
@@ -1456,11 +1456,11 @@ pub fn handle_update_spot_market_asset_tier(
 
 pub fn handle_update_spot_market_margin_weights(
     ctx: Context<AdminUpdateSpotMarket>,
-    initial_asset_weight: u128,
-    maintenance_asset_weight: u128,
-    initial_liability_weight: u128,
-    maintenance_liability_weight: u128,
-    imf_factor: u128,
+    initial_asset_weight: u32,
+    maintenance_asset_weight: u32,
+    initial_liability_weight: u32,
+    maintenance_liability_weight: u32,
+    imf_factor: u32,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 
@@ -1526,7 +1526,7 @@ pub fn handle_update_perp_market_contract_tier(
 )]
 pub fn handle_update_perp_market_imf_factor(
     ctx: Context<AdminUpdatePerpMarket>,
-    imf_factor: u128,
+    imf_factor: u32,
 ) -> Result<()> {
     validate!(
         imf_factor <= SPOT_IMF_PRECISION,

@@ -724,8 +724,8 @@ pub fn fill_perp_order(
             oracle_price,
             slot,
             market.amm.order_tick_size,
-            market.margin_ratio_initial as u128,
-            market.margin_ratio_maintenance as u128,
+            market.margin_ratio_initial,
+            market.margin_ratio_maintenance,
         )?
     };
 
@@ -1020,8 +1020,8 @@ fn sanitize_maker_order<'a>(
             oracle_price,
             slot,
             market.amm.order_tick_size,
-            market.margin_ratio_initial as u128,
-            market.margin_ratio_maintenance as u128,
+            market.margin_ratio_initial,
+            market.margin_ratio_maintenance,
         )?
     };
 

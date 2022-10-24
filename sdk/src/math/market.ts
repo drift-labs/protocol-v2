@@ -131,7 +131,7 @@ export function calculateMarketMarginRatio(
 		case 'Initial':
 			marginRatio = calculateSizePremiumLiabilityWeight(
 				size,
-				market.imfFactor,
+				new BN(market.imfFactor),
 				new BN(market.marginRatioInitial),
 				MARGIN_PRECISION
 			).toNumber();
@@ -139,7 +139,7 @@ export function calculateMarketMarginRatio(
 		case 'Maintenance':
 			marginRatio = calculateSizePremiumLiabilityWeight(
 				size,
-				market.imfFactor,
+				new BN(market.imfFactor),
 				new BN(market.marginRatioMaintenance),
 				MARGIN_PRECISION
 			).toNumber();
@@ -176,7 +176,7 @@ export function calculateUnrealizedAssetWeight(
 
 			assetWeight = calculateSizeDiscountAssetWeight(
 				unrealizedPnl,
-				market.unrealizedPnlImfFactor,
+				new BN(market.unrealizedPnlImfFactor),
 				assetWeight
 			);
 			break;

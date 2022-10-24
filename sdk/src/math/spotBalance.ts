@@ -103,19 +103,19 @@ export function calculateAssetWeight(
 		case 'Initial':
 			assetWeight = calculateSizeDiscountAssetWeight(
 				sizeInAmmReservePrecision,
-				spotMarket.imfFactor,
-				spotMarket.initialAssetWeight
+				new BN(spotMarket.imfFactor),
+				new BN(spotMarket.initialAssetWeight)
 			);
 			break;
 		case 'Maintenance':
 			assetWeight = calculateSizeDiscountAssetWeight(
 				sizeInAmmReservePrecision,
-				spotMarket.imfFactor,
-				spotMarket.maintenanceAssetWeight
+				new BN(spotMarket.imfFactor),
+				new BN(spotMarket.maintenanceAssetWeight)
 			);
 			break;
 		default:
-			assetWeight = spotMarket.initialAssetWeight;
+			assetWeight = new BN(spotMarket.initialAssetWeight);
 			break;
 	}
 
@@ -145,16 +145,16 @@ export function calculateLiabilityWeight(
 		case 'Initial':
 			assetWeight = calculateSizePremiumLiabilityWeight(
 				sizeInAmmReservePrecision,
-				spotMarket.imfFactor,
-				spotMarket.initialLiabilityWeight,
+				new BN(spotMarket.imfFactor),
+				new BN(spotMarket.initialLiabilityWeight),
 				SPOT_MARKET_WEIGHT_PRECISION
 			);
 			break;
 		case 'Maintenance':
 			assetWeight = calculateSizePremiumLiabilityWeight(
 				sizeInAmmReservePrecision,
-				spotMarket.imfFactor,
-				spotMarket.maintenanceLiabilityWeight,
+				new BN(spotMarket.imfFactor),
+				new BN(spotMarket.maintenanceLiabilityWeight),
 				SPOT_MARKET_WEIGHT_PRECISION
 			);
 			break;
