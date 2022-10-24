@@ -47,7 +47,8 @@ pub struct User {
     pub sub_account_id: u8,
     pub is_being_liquidated: bool,
     pub is_bankrupt: bool,
-    pub padding: [u8; 3],
+    pub is_margin_trading_enabled: bool,
+    pub padding: [u8; 2],
 }
 
 impl User {
@@ -73,6 +74,10 @@ impl User {
         self.get_spot_position_index(market_index)
             .ok()
             .map(move |market_index| &mut self.spot_positions[market_index])
+    }
+
+    pub fn get_quote_spot_position(&self) -> &SpotPosition {
+        self.get_spot_position(QUOTE_SPOT_MARKET_INDEX).unwrap()
     }
 
     pub fn get_quote_spot_position_mut(&mut self) -> &mut SpotPosition {
