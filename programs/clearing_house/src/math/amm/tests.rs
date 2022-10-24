@@ -1,7 +1,7 @@
 use crate::math::amm::*;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I64,
-    PRICE_PRECISION_U64, QUOTE_PRECISION, QUOTE_PRECISION_I128,
+    PRICE_PRECISION_U64, QUOTE_PRECISION,
 };
 use crate::state::oracle::HistoricalOracleData;
 use crate::state::perp_market::PerpMarket;
@@ -14,7 +14,7 @@ fn calculate_net_user_pnl_test() {
 
     let px = 32 * PRICE_PRECISION;
 
-    let mut amm = AMM {
+    let amm = AMM {
         base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
         quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
         peg_multiplier: PEG_PRECISION,
@@ -39,10 +39,6 @@ fn calculate_net_user_pnl_test() {
 
     let net_user_pnl = calculate_net_user_pnl(&amm, oracle_price_data.price).unwrap();
     assert_eq!(net_user_pnl, 0);
-
-    amm.cumulative_social_loss = -QUOTE_PRECISION_I128;
-    let net_user_pnl = calculate_net_user_pnl(&amm, oracle_price_data.price).unwrap();
-    assert_eq!(net_user_pnl, QUOTE_PRECISION_I128);
 
     let market = PerpMarket::default_btc_test();
     let net_user_pnl = calculate_net_user_pnl(

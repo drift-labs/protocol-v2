@@ -699,8 +699,7 @@ pub fn calculate_max_base_asset_amount_fillable(
 
 pub fn calculate_net_user_cost_basis(amm: &AMM) -> ClearingHouseResult<i128> {
     amm.quote_asset_amount_long
-        .safe_add(amm.quote_asset_amount_short)?
-        .safe_sub(amm.cumulative_social_loss)
+        .safe_add(amm.quote_asset_amount_short)
 }
 
 pub fn calculate_net_user_pnl(amm: &AMM, oracle_price: i64) -> ClearingHouseResult<i128> {
