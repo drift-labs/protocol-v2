@@ -2508,6 +2508,8 @@ pub fn place_spot_order(
         return Err(ErrorCode::InvalidOrder);
     }
 
+    validate_spot_margin_trading(user, spot_market_map, oracle_map)?;
+
     let (taker, taker_order, maker, maker_order) =
         get_taker_and_maker_for_order_record(&user_key, &new_order);
 

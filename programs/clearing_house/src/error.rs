@@ -279,6 +279,10 @@ pub enum ErrorCode {
     MaxOpenInterest,
     #[msg("Cant Resolve Perp Bankruptcy")]
     CantResolvePerpBankruptcy,
+    #[msg("Liquidation Doesnt Satisfy Limit Price")]
+    LiquidationDoesntSatisfyLimitPrice,
+    #[msg("Margin Trading Disabled")]
+    MarginTradingDisabled,
 }
 
 #[macro_export]
