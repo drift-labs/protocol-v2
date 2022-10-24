@@ -11,7 +11,7 @@ use crate::error::ClearingHouseResult;
 use crate::get_then_update_id;
 use crate::math::amm;
 use crate::math::casting::Cast;
-use crate::math::constants::{FUNDING_RATE_BUFFER, ONE_HOUR, TWENTY_FOUR_HOUR};
+use crate::math::constants::{FUNDING_RATE_BUFFER, ONE_HOUR_I128, TWENTY_FOUR_HOUR};
 use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
 use crate::math::helpers::on_the_hour_update;
 use crate::math::safe_math::SafeMath;
@@ -187,8 +187,8 @@ pub fn update_funding_rate(
         )?;
 
         let period_adjustment = (24_i128)
-            .safe_mul(ONE_HOUR)?
-            .safe_div(max(ONE_HOUR, market.amm.funding_period as i128))?;
+            .safe_mul(ONE_HOUR_I128)?
+            .safe_div(max(ONE_HOUR_I128, market.amm.funding_period as i128))?;
         // funding period = 1 hour, window = 1 day
         // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval
         let price_spread = mid_price_twap.cast::<i64>()?.safe_sub(oracle_price_twap)?;

@@ -9,8 +9,7 @@ use crate::math::bn::U192;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
-    CONCENTRATION_PRECISION, DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE,
-    ONE_HOUR_I128, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
+    CONCENTRATION_PRECISION, DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE, ONE_HOUR, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
     PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, PRICE_TO_PEG_PRECISION_RATIO,
 };
 use crate::math::orders::standardize_base_asset_amount;
@@ -413,15 +412,15 @@ pub fn update_amm_mark_std(
     price: u64,
     ewma: u64,
 ) -> ClearingHouseResult<bool> {
-    let since_last = max(1, now.safe_sub(amm.last_mark_price_twap_ts)?).cast::<i128>()?;
+    let since_last = max(1_i64, now.safe_sub(amm.last_mark_price_twap_ts)?);
 
-    let price_change = price.cast::<i128>()?.safe_sub(ewma.cast::<i128>()?)?;
+    let price_change = price.cast::<i64>()?.safe_sub(ewma.cast::<i64>()?)?;
 
     amm.mark_std = calculate_rolling_sum(
         amm.mark_std,
-        price_change.unsigned_abs().cast()?,
-        max(ONE_HOUR_I128, since_last),
-        ONE_HOUR_I128,
+        price_change.unsigned_abs(),
+        max(ONE_HOUR, since_last),
+        ONE_HOUR,
     )?;
 
     Ok(true)
@@ -433,7 +432,7 @@ pub fn update_amm_long_short_intensity(
     quote_asset_amount: u64,
     direction: PositionDirection,
 ) -> ClearingHouseResult<bool> {
-    let since_last = max(1, now.safe_sub(amm.last_trade_ts)?).cast::<i128>()?;
+    let since_last = max(1, now.safe_sub(amm.last_trade_ts)?);
 
     let (long_quote_amount, short_quote_amount) = if direction == PositionDirection::Long {
         (quote_asset_amount, 0_u64)
@@ -445,28 +444,28 @@ pub fn update_amm_long_short_intensity(
         amm.long_intensity_count.cast()?,
         (long_quote_amount != 0).cast()?,
         since_last,
-        ONE_HOUR_I128,
+        ONE_HOUR,
     )?
     .cast()?;
     amm.long_intensity_volume = calculate_rolling_sum(
         amm.long_intensity_volume,
         long_quote_amount,
         since_last,
-        ONE_HOUR_I128,
+        ONE_HOUR,
     )?;
 
     amm.short_intensity_count = calculate_rolling_sum(
         amm.short_intensity_count.cast()?,
         (short_quote_amount != 0).cast()?,
         since_last,
-        ONE_HOUR_I128,
+        ONE_HOUR,
     )?
     .cast()?;
     amm.short_intensity_volume = calculate_rolling_sum(
         amm.short_intensity_volume,
         short_quote_amount,
         since_last,
-        ONE_HOUR_I128,
+        ONE_HOUR,
     )?;
 
     Ok(true)

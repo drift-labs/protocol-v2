@@ -6,8 +6,8 @@ use std::cmp::max;
 pub fn calculate_rolling_sum(
     data1: u64,
     data2: u64,
-    weight1_numer: i128,
-    weight1_denom: i128,
+    weight1_numer: i64,
+    weight1_denom: i64,
 ) -> ClearingHouseResult<u64> {
     // assumes that missing times are zeros (e.g. handle NaN as 0)
     let prev_twap_99 = data1

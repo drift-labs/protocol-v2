@@ -8,7 +8,7 @@ use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, PRICE_PRECISION_I128,
-    QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY_I128,
+    QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
 };
 use crate::math::orders::standardize_price;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
@@ -705,13 +705,13 @@ impl UserStats {
         quote_asset_amount: u64,
         now: i64,
     ) -> ClearingHouseResult {
-        let since_last = max(1, now.safe_sub(self.last_maker_volume_30d_ts)?).cast::<i128>()?;
+        let since_last = max(1_i64, now.safe_sub(self.last_maker_volume_30d_ts)?);
 
         self.maker_volume_30d = calculate_rolling_sum(
             self.maker_volume_30d,
             quote_asset_amount,
             since_last,
-            THIRTY_DAY_I128,
+            THIRTY_DAY,
         )?;
         self.last_maker_volume_30d_ts = now;
 
@@ -723,13 +723,13 @@ impl UserStats {
         quote_asset_amount: u64,
         now: i64,
     ) -> ClearingHouseResult {
-        let since_last = max(1, now.safe_sub(self.last_taker_volume_30d_ts)?).cast::<i128>()?;
+        let since_last = max(1_i64, now.safe_sub(self.last_taker_volume_30d_ts)?);
 
         self.taker_volume_30d = calculate_rolling_sum(
             self.taker_volume_30d,
             quote_asset_amount,
             since_last,
-            THIRTY_DAY_I128,
+            THIRTY_DAY,
         )?;
         self.last_taker_volume_30d_ts = now;
 
@@ -741,13 +741,13 @@ impl UserStats {
         quote_asset_amount: u64,
         now: i64,
     ) -> ClearingHouseResult {
-        let since_last = max(1, now.safe_sub(self.last_filler_volume_30d_ts)?).cast::<i128>()?;
+        let since_last = max(1_i64, now.safe_sub(self.last_filler_volume_30d_ts)?);
 
         self.filler_volume_30d = calculate_rolling_sum(
             self.filler_volume_30d,
             quote_asset_amount,
             since_last,
-            THIRTY_DAY_I128,
+            THIRTY_DAY,
         )?;
 
         self.last_filler_volume_30d_ts = now;

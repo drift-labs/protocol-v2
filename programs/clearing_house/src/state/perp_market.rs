@@ -509,7 +509,7 @@ impl AMM {
         position_direction: PositionDirection,
         now: i64,
     ) -> ClearingHouseResult {
-        let since_last = max(1, now.safe_sub(self.last_trade_ts)?).cast::<i128>()?;
+        let since_last = max(1_i64, now.safe_sub(self.last_trade_ts)?);
 
         amm::update_amm_long_short_intensity(self, now, quote_asset_amount, position_direction)?;
 
@@ -517,7 +517,7 @@ impl AMM {
             self.volume_24h,
             quote_asset_amount,
             since_last,
-            TWENTY_FOUR_HOUR as i128,
+            TWENTY_FOUR_HOUR,
         )?;
 
         self.last_trade_ts = now;
