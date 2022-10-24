@@ -19,16 +19,16 @@ pub fn calculate_rolling_sum(
 }
 
 pub fn calculate_weighted_average(
-    data1: i128,
-    data2: i128,
-    weight1: i128,
-    weight2: i128,
-) -> ClearingHouseResult<i128> {
-    let denominator = weight1.safe_add(weight2)?;
-    let prev_twap_99 = data1.safe_mul(weight1)?;
-    let latest_price_01 = data2.safe_mul(weight2)?;
+    data1: i64,
+    data2: i64,
+    weight1: i64,
+    weight2: i64,
+) -> ClearingHouseResult<i64> {
+    let denominator = weight1.safe_add(weight2)?.cast::<i128>()?;
+    let prev_twap_99 = data1.cast::<i128>()?.safe_mul(weight1.cast()?)?;
+    let latest_price_01 = data2.cast::<i128>()?.safe_mul(weight2.cast()?)?;
 
-    let bias: i128 = if weight2 > 1 {
+    let bias: i64 = if weight2 > 1 {
         if latest_price_01 < prev_twap_99 {
             -1
         } else if latest_price_01 > prev_twap_99 {
@@ -42,7 +42,8 @@ pub fn calculate_weighted_average(
 
     let twap = prev_twap_99
         .safe_add(latest_price_01)?
-        .safe_div(denominator)?;
+        .safe_div(denominator)?
+        .cast::<i64>()?;
 
     if twap == 0 && bias < 0 {
         return Ok(twap);
@@ -58,14 +59,8 @@ pub fn calculate_new_twap(
     last_ts: i64,
     period: i64,
 ) -> ClearingHouseResult<i64> {
-    let since_last = max(1, current_ts.safe_sub(last_ts)?).cast::<i128>()?;
-    let from_start = max(1, period.cast::<i128>()?.safe_sub(since_last)?);
+    let since_last = max(1_i64, current_ts.safe_sub(last_ts)?);
+    let from_start = max(1_i64, period.safe_sub(since_last)?);
 
-    calculate_weighted_average(
-        current_price.cast()?,
-        last_twap.cast()?,
-        since_last,
-        from_start,
-    )?
-    .cast()
+    calculate_weighted_average(current_price, last_twap, since_last, from_start)
 }

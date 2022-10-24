@@ -20,8 +20,8 @@ import {
 	Wallet,
 	OrderRecord,
 	ExchangeStatus,
+	ZERO,
 } from '../../src';
-import { ZERO } from '../../lib';
 
 export const mockPerpPosition: PerpPosition = {
 	baseAssetAmount: new BN(0),

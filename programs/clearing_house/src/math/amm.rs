@@ -372,33 +372,31 @@ pub fn calculate_new_oracle_price_twap(
     };
 
     let since_last = max(
-        1,
+        1_i64,
         now.safe_sub(amm.historical_oracle_data.last_oracle_price_twap_ts)?,
-    )
-    .cast()?;
-    let from_start = max(0, period.cast::<i128>()?.safe_sub(since_last)?);
+    );
+    let from_start = max(0_i64, period.safe_sub(since_last)?);
 
     // if an oracle delay impacted last oracle_twap, shrink toward mark_twap
     let interpolated_oracle_price =
         if amm.last_mark_price_twap_ts > amm.historical_oracle_data.last_oracle_price_twap_ts {
             let since_last_valid = amm
                 .last_mark_price_twap_ts
-                .safe_sub(amm.historical_oracle_data.last_oracle_price_twap_ts)?
-                .cast::<i128>()?;
+                .safe_sub(amm.historical_oracle_data.last_oracle_price_twap_ts)?;
             msg!(
                 "correcting oracle twap update (oracle previously invalid for {:?} seconds)",
                 since_last_valid
             );
 
-            let from_start_valid = max(1, period.cast::<i128>()?.safe_sub(since_last_valid)?);
+            let from_start_valid = max(1, period.safe_sub(since_last_valid)?);
             calculate_weighted_average(
-                last_mark_twap.cast::<i128>()?,
-                oracle_price.cast()?,
+                last_mark_twap.cast::<i64>()?,
+                oracle_price,
                 since_last_valid,
                 from_start_valid,
             )?
         } else {
-            oracle_price.cast::<i128>()?
+            oracle_price
         };
 
     calculate_weighted_average(
@@ -406,8 +404,7 @@ pub fn calculate_new_oracle_price_twap(
         last_oracle_twap.cast()?,
         since_last,
         from_start,
-    )?
-    .cast()
+    )
 }
 
 pub fn update_amm_mark_std(
