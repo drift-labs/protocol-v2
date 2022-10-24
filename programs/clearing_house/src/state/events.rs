@@ -371,6 +371,8 @@ pub struct PerpBankruptcyRecord {
     pub market_index: u16,
     pub pnl: i128,
     pub if_payment: u128,
+    pub delever_user_key: Option<Pubkey>,
+    pub delever_user_payment: Option<u128>,
     pub cumulative_funding_rate_delta: i128,
 }
 

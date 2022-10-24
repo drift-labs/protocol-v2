@@ -291,8 +291,9 @@ pub mod clearing_house {
         ctx: Context<ResolveBankruptcy>,
         quote_spot_market_index: u16,
         market_index: u16,
+        _deleveraging: bool,
     ) -> Result<()> {
-        handle_resolve_perp_bankruptcy(ctx, quote_spot_market_index, market_index)
+        handle_resolve_perp_bankruptcy(ctx, quote_spot_market_index, market_index, _deleveraging)
     }
 
     pub fn resolve_spot_bankruptcy(

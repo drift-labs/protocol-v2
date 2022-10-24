@@ -38,10 +38,7 @@ use crate::math::margin::{
 };
 use crate::math::oracle::DriftAction;
 use crate::math::orders::{get_position_delta_for_fill, standardize_base_asset_amount};
-use crate::math::position::{
-    calculate_base_asset_value_and_pnl_with_oracle_price,
-    calculate_base_asset_value_with_oracle_price,
-};
+use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
 use crate::state::events::{
     LiquidateBorrowForPerpPnlRecord, LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord,
@@ -1491,7 +1488,7 @@ pub fn resolve_perp_bankruptcy(
     bankrupt_user: &mut User,
     bankrupt_user_key: &Pubkey,
     delever_user: Option<&mut User>,
-    _delever_user_key: Option<&Pubkey>,
+    delever_user_key: Option<&Pubkey>,
     liquidator: &mut User,
     liquidator_key: &Pubkey,
     perp_market_map: &PerpMarketMap,
@@ -1572,44 +1569,43 @@ pub fn resolve_perp_bankruptcy(
 
     let mut loss_to_socialize = loss.safe_add(if_payment.cast::<i128>()?)?;
 
-    if let Some(delever_user) = delever_user {
+    let delever_user_payment = if let Some(delever_user) = delever_user {
         let market = perp_market_map.get_ref(&market_index)?;
-
         let free_collateral = calculate_free_collateral(
             delever_user,
             perp_market_map,
             spot_market_map,
             oracle_map,
             MarginRequirementType::Maintenance,
-        )?
-        .max(0);
+        )?;
 
-        let deleverage_user_position = delever_user.get_perp_position_mut(market_index).unwrap();
-        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+        if free_collateral > 0 {
+            let deleverage_user_position =
+                delever_user.get_perp_position_mut(market_index).unwrap();
+            let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
 
-        let (_deleverage_value, _deleverage_user_pnl) =
-            calculate_base_asset_value_and_pnl_with_oracle_price(
-                deleverage_user_position,
+            let deleverage_user_stats = DeleverageUserStats {
+                base_asset_amount: deleverage_user_position.base_asset_amount,
+                quote_asset_amount: deleverage_user_position.quote_asset_amount,
+                quote_entry_amount: deleverage_user_position.quote_entry_amount,
+                free_collateral,
+            };
+
+            let deleverage_user_payment = calculate_perp_market_deleverage_payment(
+                loss_to_socialize,
+                deleverage_user_stats,
+                &market,
                 oracle_price_data.price,
             )?;
 
-        let deleverage_user_stats = DeleverageUserStats {
-            base_asset_amount: deleverage_user_position.base_asset_amount,
-            quote_asset_amount: deleverage_user_position.quote_asset_amount,
-            quote_entry_amount: deleverage_user_position.quote_entry_amount,
-            // unrealized_pnl: deleverage_user_pnl,
-            free_collateral,
-        };
-
-        let deleverage_user_payment = calculate_perp_market_deleverage_payment(
-            loss_to_socialize,
-            deleverage_user_stats,
-            &market,
-            oracle_price_data.price,
-        )?;
-
-        loss_to_socialize = loss_to_socialize.safe_add(deleverage_user_payment)?;
-    }
+            loss_to_socialize = loss_to_socialize.safe_add(deleverage_user_payment)?;
+            deleverage_user_payment
+        } else {
+            0
+        }
+    } else {
+        0
+    };
 
     let cumulative_funding_rate_delta = calculate_funding_rate_deltas_to_resolve_bankruptcy(
         loss_to_socialize,
@@ -1662,6 +1658,8 @@ pub fn resolve_perp_bankruptcy(
             market_index,
             if_payment,
             pnl: loss,
+            delever_user_key: delever_user_key.copied(),
+            delever_user_payment: Some(delever_user_payment.unsigned_abs()),
             cumulative_funding_rate_delta,
         },
         ..LiquidationRecord::default()

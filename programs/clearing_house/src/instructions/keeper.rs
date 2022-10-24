@@ -788,6 +788,7 @@ pub fn handle_resolve_perp_bankruptcy(
     ctx: Context<ResolveBankruptcy>,
     quote_spot_market_index: u16,
     market_index: u16,
+    _deleveraging: bool,
 ) -> Result<()> {
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
@@ -807,12 +808,11 @@ pub fn handle_resolve_perp_bankruptcy(
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
-    // let (delevered_user, _delevered_user_stats) = match deleverage_order_id {
-    //     Some(_) => {
+    // let (delevered_user, _delevered_user_stats) = if deleveraging {
     //         let (user, user_stats) = get_maker_and_maker_stats(remaining_accounts_iter)?;
     //         (Some(user), Some(user_stats))
-    //     }
-    //     None => (None, None),
+    // } else {
+    //     (None, None)
     // };
 
     let user = &mut load_mut!(ctx.accounts.user)?;
