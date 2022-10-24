@@ -773,30 +773,12 @@ export class ClearingHouseUser {
 						settledPosition.baseAssetAmount.add(dustBaa);
 					perpPosition.quoteAssetAmount = settledPosition.quoteAssetAmount;
 
-					// open orders
-					let openAsks;
-					if (market.amm.maxBaseAssetReserve > market.amm.baseAssetReserve) {
-						openAsks = market.amm.maxBaseAssetReserve
-							.sub(market.amm.baseAssetReserve)
-							.mul(perpPosition.lpShares)
-							.div(market.amm.sqrtK)
-							.mul(new BN(-1));
-					} else {
-						openAsks = ZERO;
-					}
+					const [totalOpenBids, totalOpenAsks] = this.getPerpBidAsks(
+						market.marketIndex
+					);
 
-					let openBids;
-					if (market.amm.minBaseAssetReserve < market.amm.baseAssetReserve) {
-						openBids = market.amm.baseAssetReserve
-							.sub(market.amm.minBaseAssetReserve)
-							.mul(perpPosition.lpShares)
-							.div(market.amm.sqrtK);
-					} else {
-						openBids = ZERO;
-					}
-
-					perpPosition.openAsks = perpPosition.openAsks.add(openAsks);
-					perpPosition.openBids = perpPosition.openBids.add(openBids);
+					perpPosition.openAsks = totalOpenAsks;
+					perpPosition.openBids = totalOpenBids;
 				}
 
 				let valuationPrice = this.getOracleDataForPerpMarket(
