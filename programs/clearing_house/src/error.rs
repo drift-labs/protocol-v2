@@ -281,6 +281,8 @@ pub enum ErrorCode {
     CantResolvePerpBankruptcy,
     #[msg("Liquidation Doesnt Satisfy Limit Price")]
     LiquidationDoesntSatisfyLimitPrice,
+    #[msg("Margin Trading Disabled")]
+    MarginTradingDisabled,
 }
 
 #[macro_export]
