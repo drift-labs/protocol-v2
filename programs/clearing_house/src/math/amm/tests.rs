@@ -82,7 +82,7 @@ fn calculate_expiry_price_long_imbalance_with_loss_test() {
             peg_multiplier: 22_100_000_000,
             base_asset_amount_with_amm: (12295081967_i128),
             max_spread: 1000,
-            quote_asset_amount_long: market_position.quote_asset_amount as i128 * 2,
+            quote_asset_amount: market_position.quote_asset_amount as i128 * 2,
             // assume someone else has other half same entry,
             ..AMM::default()
         },
@@ -164,7 +164,7 @@ fn calculate_expiry_price_long_imbalance_test() {
             peg_multiplier: 22_100_000_000,
             base_asset_amount_with_amm: (12295081967_i128),
             max_spread: 1000,
-            quote_asset_amount_long: market_position.quote_asset_amount as i128 * 2,
+            quote_asset_amount: market_position.quote_asset_amount as i128 * 2,
             // assume someone else has other half same entry,
             ..AMM::default()
         },
@@ -279,7 +279,7 @@ fn calculate_expiry_price_test() {
             peg_multiplier: 22_100_000_000,
             base_asset_amount_with_amm: -(12295081967_i128),
             max_spread: 1000,
-            quote_asset_amount_short: market_position.quote_asset_amount as i128 * 2,
+            quote_asset_amount: market_position.quote_asset_amount as i128 * 2,
             // assume someone else has other half same entry,
             ..AMM::default()
         },

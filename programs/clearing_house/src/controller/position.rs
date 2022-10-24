@@ -157,6 +157,11 @@ pub fn update_position_and_market(
         market.number_of_users = market.number_of_users.safe_sub(1)?;
     }
 
+    market.amm.quote_asset_amount = market
+        .amm
+        .quote_asset_amount
+        .safe_add(delta.quote_asset_amount.cast()?)?;
+
     match update_type {
         PositionUpdateType::Open | PositionUpdateType::Increase => {
             if new_base_asset_amount > 0 {
@@ -164,10 +169,6 @@ pub fn update_position_and_market(
                     .amm
                     .base_asset_amount_long
                     .safe_add(delta.base_asset_amount.cast()?)?;
-                market.amm.quote_asset_amount_long = market
-                    .amm
-                    .quote_asset_amount_long
-                    .safe_add(delta.quote_asset_amount.cast()?)?;
                 market.amm.quote_entry_amount_long = market
                     .amm
                     .quote_entry_amount_long
@@ -177,10 +178,6 @@ pub fn update_position_and_market(
                     .amm
                     .base_asset_amount_short
                     .safe_add(delta.base_asset_amount.cast()?)?;
-                market.amm.quote_asset_amount_short = market
-                    .amm
-                    .quote_asset_amount_short
-                    .safe_add(delta.quote_asset_amount.cast()?)?;
                 market.amm.quote_entry_amount_short = market
                     .amm
                     .quote_entry_amount_short
@@ -193,10 +190,6 @@ pub fn update_position_and_market(
                     .amm
                     .base_asset_amount_long
                     .safe_add(delta.base_asset_amount.cast()?)?;
-                market.amm.quote_asset_amount_long = market
-                    .amm
-                    .quote_asset_amount_long
-                    .safe_add(delta.quote_asset_amount.cast()?)?;
                 market.amm.quote_entry_amount_long = market.amm.quote_entry_amount_long.safe_sub(
                     position
                         .quote_entry_amount
@@ -208,10 +201,6 @@ pub fn update_position_and_market(
                     .amm
                     .base_asset_amount_short
                     .safe_add(delta.base_asset_amount.cast()?)?;
-                market.amm.quote_asset_amount_short = market
-                    .amm
-                    .quote_asset_amount_short
-                    .safe_add(delta.quote_asset_amount.cast()?)?;
                 market.amm.quote_entry_amount_short =
                     market.amm.quote_entry_amount_short.safe_sub(
                         position
@@ -232,22 +221,10 @@ pub fn update_position_and_market(
                     .base_asset_amount_long
                     .safe_add(new_base_asset_amount.cast()?)?;
 
-                market.amm.quote_asset_amount_short =
-                    market.amm.quote_asset_amount_short.safe_add(
-                        delta
-                            .quote_asset_amount
-                            .safe_sub(new_quote_entry_amount)?
-                            .cast()?,
-                    )?;
                 market.amm.quote_entry_amount_short = market
                     .amm
                     .quote_entry_amount_short
                     .safe_sub(position.quote_entry_amount.cast()?)?;
-
-                market.amm.quote_asset_amount_long = market
-                    .amm
-                    .quote_asset_amount_long
-                    .safe_add(new_quote_entry_amount.cast()?)?;
                 market.amm.quote_entry_amount_long = market
                     .amm
                     .quote_entry_amount_long
@@ -262,20 +239,10 @@ pub fn update_position_and_market(
                     .base_asset_amount_short
                     .safe_add(new_base_asset_amount.cast()?)?;
 
-                market.amm.quote_asset_amount_long = market.amm.quote_asset_amount_long.safe_add(
-                    delta
-                        .quote_asset_amount
-                        .safe_sub(new_quote_entry_amount)?
-                        .cast()?,
-                )?;
                 market.amm.quote_entry_amount_long = market
                     .amm
                     .quote_entry_amount_long
                     .safe_sub(position.quote_entry_amount.cast()?)?;
-                market.amm.quote_asset_amount_short = market
-                    .amm
-                    .quote_asset_amount_short
-                    .safe_add(new_quote_entry_amount.cast()?)?;
                 market.amm.quote_entry_amount_short = market
                     .amm
                     .quote_entry_amount_short
@@ -503,18 +470,7 @@ pub fn update_quote_asset_amount(
 
     position.quote_asset_amount = position.quote_asset_amount.safe_add(delta)?;
 
-    match position.get_direction() {
-        PositionDirection::Long => {
-            market.amm.quote_asset_amount_long =
-                market.amm.quote_asset_amount_long.safe_add(delta.cast()?)?
-        }
-        PositionDirection::Short => {
-            market.amm.quote_asset_amount_short = market
-                .amm
-                .quote_asset_amount_short
-                .safe_add(delta.cast()?)?
-        }
-    }
+    market.amm.quote_asset_amount = market.amm.quote_asset_amount.safe_add(delta.cast()?)?;
 
     if position.quote_asset_amount == 0 {
         market.number_of_users_with_quote = market.number_of_users_with_quote.safe_sub(1)?;

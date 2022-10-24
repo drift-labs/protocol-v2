@@ -130,8 +130,7 @@ fn increase_long_from_no_position() {
     assert_eq!(market.amm.base_asset_amount_long, 1);
     assert_eq!(market.amm.base_asset_amount_short, 0);
     assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-    assert_eq!(market.amm.quote_asset_amount_long, -1);
-    assert_eq!(market.amm.quote_asset_amount_short, 0);
+    assert_eq!(market.amm.quote_asset_amount, -1);
     assert_eq!(market.amm.quote_entry_amount_long, -1);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
 }
@@ -164,8 +163,7 @@ fn increase_short_from_no_position() {
     assert_eq!(market.number_of_users, 1);
     assert_eq!(market.amm.base_asset_amount_long, 0);
     assert_eq!(market.amm.base_asset_amount_short, -1);
-    assert_eq!(market.amm.quote_asset_amount_long, 0);
-    assert_eq!(market.amm.quote_asset_amount_short, 1);
+    assert_eq!(market.amm.quote_asset_amount, 1);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 1);
 }
@@ -188,7 +186,7 @@ fn increase_long() {
             base_asset_amount_with_amm: 1,
             base_asset_amount_long: 1,
             base_asset_amount_short: 0,
-            quote_asset_amount_long: -1,
+            quote_asset_amount: -1,
             quote_entry_amount_long: -1,
             cumulative_funding_rate_long: 1,
             ..AMM::default_test()
@@ -209,8 +207,7 @@ fn increase_long() {
     assert_eq!(market.number_of_users, 1);
     assert_eq!(market.amm.base_asset_amount_long, 2);
     assert_eq!(market.amm.base_asset_amount_short, 0);
-    assert_eq!(market.amm.quote_asset_amount_long, -2);
-    assert_eq!(market.amm.quote_asset_amount_short, 0);
+    assert_eq!(market.amm.quote_asset_amount, -2);
     assert_eq!(market.amm.quote_entry_amount_long, -2);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
 
@@ -234,8 +231,7 @@ fn increase_short() {
         amm: AMM {
             base_asset_amount_short: -1,
             base_asset_amount_long: 0,
-            quote_asset_amount_long: 0,
-            quote_asset_amount_short: 1,
+            quote_asset_amount: 1,
             quote_entry_amount_short: 1,
             cumulative_funding_rate_short: 1,
             ..AMM::default_test()
@@ -256,8 +252,7 @@ fn increase_short() {
     assert_eq!(market.number_of_users, 1);
     assert_eq!(market.amm.base_asset_amount_long, 0);
     assert_eq!(market.amm.base_asset_amount_short, -2);
-    assert_eq!(market.amm.quote_asset_amount_long, 0);
-    assert_eq!(market.amm.quote_asset_amount_short, 2);
+    assert_eq!(market.amm.quote_asset_amount, 2);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 2);
 }
@@ -280,9 +275,8 @@ fn reduce_long_profitable() {
             base_asset_amount_with_amm: 10,
             base_asset_amount_long: 10,
             base_asset_amount_short: 0,
-            quote_asset_amount_long: -10,
+            quote_asset_amount: -10,
             quote_entry_amount_long: -10,
-            quote_asset_amount_short: 0,
             cumulative_funding_rate_long: 1,
             ..AMM::default_test()
         },
@@ -303,8 +297,7 @@ fn reduce_long_profitable() {
     assert_eq!(market.amm.base_asset_amount_long, 9);
     assert_eq!(market.amm.base_asset_amount_short, 0);
     // assert_eq!(market.amm.base_asset_amount_with_amm, 9);
-    assert_eq!(market.amm.quote_asset_amount_long, -5);
-    assert_eq!(market.amm.quote_asset_amount_short, 0);
+    assert_eq!(market.amm.quote_asset_amount, -5);
     assert_eq!(market.amm.quote_entry_amount_long, -9);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
 }
@@ -327,9 +320,8 @@ fn reduce_long_unprofitable() {
             base_asset_amount_with_amm: 10,
             base_asset_amount_long: 10,
             base_asset_amount_short: 0,
-            quote_asset_amount_long: -100,
+            quote_asset_amount: -100,
             quote_entry_amount_long: -100,
-            quote_asset_amount_short: 0,
             cumulative_funding_rate_long: 1,
             ..AMM::default_test()
         },
@@ -350,8 +342,7 @@ fn reduce_long_unprofitable() {
     assert_eq!(market.amm.base_asset_amount_long, 9);
     assert_eq!(market.amm.base_asset_amount_short, 0);
     // assert_eq!(market.amm.base_asset_amount_with_amm, 9);
-    assert_eq!(market.amm.quote_asset_amount_long, -95);
-    assert_eq!(market.amm.quote_asset_amount_short, 0);
+    assert_eq!(market.amm.quote_asset_amount, -95);
     assert_eq!(market.amm.quote_entry_amount_long, -90);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
 }
@@ -374,9 +365,8 @@ fn flip_long_to_short_profitable() {
             base_asset_amount_with_amm: 10,
             base_asset_amount_long: 10,
             base_asset_amount_short: 0,
-            quote_asset_amount_long: -10,
+            quote_asset_amount: -10,
             quote_entry_amount_long: -10,
-            quote_asset_amount_short: 0,
             cumulative_funding_rate_short: 2,
             cumulative_funding_rate_long: 1,
             ..AMM::default_test()
@@ -398,8 +388,7 @@ fn flip_long_to_short_profitable() {
     assert_eq!(market.amm.base_asset_amount_long, 0);
     assert_eq!(market.amm.base_asset_amount_short, -1);
     // assert_eq!(market.amm.base_asset_amount_with_amm, -1);
-    assert_eq!(market.amm.quote_asset_amount_long, 10);
-    assert_eq!(market.amm.quote_asset_amount_short, 2);
+    assert_eq!(market.amm.quote_asset_amount, 12);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 2);
 }
@@ -422,9 +411,8 @@ fn flip_long_to_short_unprofitable() {
             base_asset_amount_with_amm: 10,
             base_asset_amount_long: 10,
             base_asset_amount_short: 0,
-            quote_asset_amount_long: -10,
+            quote_asset_amount: -10,
             quote_entry_amount_long: -10,
-            quote_asset_amount_short: 0,
             cumulative_funding_rate_short: 2,
             cumulative_funding_rate_long: 1,
             order_step_size: 1,
@@ -447,8 +435,7 @@ fn flip_long_to_short_unprofitable() {
     assert_eq!(market.amm.base_asset_amount_long, 0);
     assert_eq!(market.amm.base_asset_amount_short, -1);
     // assert_eq!(market.amm.base_asset_amount_with_amm, -1);
-    assert_eq!(market.amm.quote_asset_amount_long, -1);
-    assert_eq!(market.amm.quote_asset_amount_short, 1);
+    assert_eq!(market.amm.quote_asset_amount, 0);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 1);
 }
@@ -470,8 +457,7 @@ fn reduce_short_profitable() {
         amm: AMM {
             base_asset_amount_long: 0,
             base_asset_amount_short: -10,
-            quote_asset_amount_long: 0,
-            quote_asset_amount_short: 100,
+            quote_asset_amount: 100,
             quote_entry_amount_short: 100,
             cumulative_funding_rate_short: 1,
             ..AMM::default_test()
@@ -492,8 +478,7 @@ fn reduce_short_profitable() {
     assert_eq!(market.number_of_users, 1);
     assert_eq!(market.amm.base_asset_amount_long, 0);
     assert_eq!(market.amm.base_asset_amount_short, -9);
-    assert_eq!(market.amm.quote_asset_amount_long, 0);
-    assert_eq!(market.amm.quote_asset_amount_short, 95);
+    assert_eq!(market.amm.quote_asset_amount, 95);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 90);
 }
@@ -515,8 +500,7 @@ fn decrease_short_unprofitable() {
         amm: AMM {
             base_asset_amount_long: 0,
             base_asset_amount_short: -10,
-            quote_asset_amount_long: 0,
-            quote_asset_amount_short: 100,
+            quote_asset_amount: 100,
             quote_entry_amount_short: 100,
             cumulative_funding_rate_short: 1,
             ..AMM::default_test()
@@ -537,8 +521,7 @@ fn decrease_short_unprofitable() {
     assert_eq!(market.number_of_users, 1);
     assert_eq!(market.amm.base_asset_amount_long, 0);
     assert_eq!(market.amm.base_asset_amount_short, -9);
-    assert_eq!(market.amm.quote_asset_amount_long, 0);
-    assert_eq!(market.amm.quote_asset_amount_short, 85);
+    assert_eq!(market.amm.quote_asset_amount, 85);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 90);
 }
@@ -561,8 +544,7 @@ fn flip_short_to_long_profitable() {
             base_asset_amount_with_amm: -10,
             base_asset_amount_long: 0,
             base_asset_amount_short: -10,
-            quote_asset_amount_long: 0,
-            quote_asset_amount_short: 100,
+            quote_asset_amount: 100,
             quote_entry_amount_short: 100,
             cumulative_funding_rate_long: 2,
             cumulative_funding_rate_short: 1,
@@ -585,8 +567,7 @@ fn flip_short_to_long_profitable() {
     assert_eq!(market.amm.base_asset_amount_long, 1);
     assert_eq!(market.amm.base_asset_amount_short, 0);
     // assert_eq!(market.amm.base_asset_amount_with_amm, 1);
-    assert_eq!(market.amm.quote_asset_amount_long, -6);
-    assert_eq!(market.amm.quote_asset_amount_short, 46);
+    assert_eq!(market.amm.quote_asset_amount, 40);
     assert_eq!(market.amm.quote_entry_amount_long, -6);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
 }
@@ -609,8 +590,7 @@ fn flip_short_to_long_unprofitable() {
             base_asset_amount_with_amm: -10,
             base_asset_amount_long: 0,
             base_asset_amount_short: -10,
-            quote_asset_amount_long: 0,
-            quote_asset_amount_short: 100,
+            quote_asset_amount: 100,
             quote_entry_amount_short: 100,
             cumulative_funding_rate_long: 2,
             cumulative_funding_rate_short: 1,
@@ -633,8 +613,7 @@ fn flip_short_to_long_unprofitable() {
     assert_eq!(market.amm.base_asset_amount_long, 1);
     assert_eq!(market.amm.base_asset_amount_short, 0);
     // assert_eq!(market.amm.base_asset_amount_with_amm, 1);
-    assert_eq!(market.amm.quote_asset_amount_long, -11);
-    assert_eq!(market.amm.quote_asset_amount_short, -9);
+    assert_eq!(market.amm.quote_asset_amount, -20);
     assert_eq!(market.amm.quote_entry_amount_long, -11);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
 }
@@ -656,7 +635,7 @@ fn close_long_profitable() {
         amm: AMM {
             base_asset_amount_with_amm: 11,
             base_asset_amount_long: 11,
-            quote_asset_amount_long: -11,
+            quote_asset_amount: -11,
             quote_entry_amount_long: -11,
             cumulative_funding_rate_long: 1,
             ..AMM::default_test()
@@ -679,8 +658,7 @@ fn close_long_profitable() {
     assert_eq!(market.amm.base_asset_amount_short, 0);
     // assert_eq!(market.amm.base_asset_amount_with_amm, 1);
     // not 5 because quote asset amount long was -11 not -10 before
-    assert_eq!(market.amm.quote_asset_amount_long, 4);
-    assert_eq!(market.amm.quote_asset_amount_short, 0);
+    assert_eq!(market.amm.quote_asset_amount, 4);
     assert_eq!(market.amm.quote_entry_amount_long, -1);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
 }
@@ -702,7 +680,7 @@ fn close_long_unprofitable() {
         amm: AMM {
             base_asset_amount_with_amm: 11,
             base_asset_amount_long: 11,
-            quote_asset_amount_long: -11,
+            quote_asset_amount: -11,
             quote_entry_amount_long: -11,
             cumulative_funding_rate_long: 1,
             ..AMM::default_test()
@@ -724,8 +702,7 @@ fn close_long_unprofitable() {
     assert_eq!(market.amm.base_asset_amount_long, 1);
     assert_eq!(market.amm.base_asset_amount_short, 0);
     // assert_eq!(market.amm.base_asset_amount_with_amm, 1);
-    assert_eq!(market.amm.quote_asset_amount_long, -6);
-    assert_eq!(market.amm.quote_asset_amount_short, 0);
+    assert_eq!(market.amm.quote_asset_amount, -6);
     assert_eq!(market.amm.quote_entry_amount_long, -1);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
 }
@@ -746,7 +723,7 @@ fn close_short_profitable() {
     let mut market = PerpMarket {
         amm: AMM {
             base_asset_amount_short: -11,
-            quote_asset_amount_short: 11,
+            quote_asset_amount: 11,
             quote_entry_amount_short: 11,
             cumulative_funding_rate_short: 1,
             ..AMM::default_test()
@@ -767,8 +744,7 @@ fn close_short_profitable() {
     assert_eq!(market.number_of_users, 1);
     assert_eq!(market.amm.base_asset_amount_long, 0);
     assert_eq!(market.amm.base_asset_amount_short, -1);
-    assert_eq!(market.amm.quote_asset_amount_long, 0);
-    assert_eq!(market.amm.quote_asset_amount_short, 6);
+    assert_eq!(market.amm.quote_asset_amount, 6);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 1);
 }
@@ -789,7 +765,7 @@ fn close_short_unprofitable() {
     let mut market = PerpMarket {
         amm: AMM {
             base_asset_amount_short: -11,
-            quote_asset_amount_short: 11,
+            quote_asset_amount: 11,
             quote_entry_amount_short: 11,
             cumulative_funding_rate_short: 1,
             ..AMM::default_test()
@@ -810,8 +786,7 @@ fn close_short_unprofitable() {
     assert_eq!(market.number_of_users, 1);
     assert_eq!(market.amm.base_asset_amount_long, 0);
     assert_eq!(market.amm.base_asset_amount_short, -1);
-    assert_eq!(market.amm.quote_asset_amount_long, 0);
-    assert_eq!(market.amm.quote_asset_amount_short, -4);
+    assert_eq!(market.amm.quote_asset_amount, -4);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 1);
 }
@@ -833,7 +808,7 @@ fn close_long_with_quote_entry_amount_less_than_quote_asset_amount() {
         amm: AMM {
             base_asset_amount_with_amm: 11,
             base_asset_amount_long: 11,
-            quote_asset_amount_long: -11,
+            quote_asset_amount: -11,
             quote_entry_amount_long: -8,
             cumulative_funding_rate_long: 1,
             order_step_size: 1,
@@ -856,8 +831,7 @@ fn close_long_with_quote_entry_amount_less_than_quote_asset_amount() {
     assert_eq!(market.amm.base_asset_amount_long, 1);
     assert_eq!(market.amm.base_asset_amount_short, 0);
     // assert_eq!(market.amm.base_asset_amount_with_amm, 1);
-    assert_eq!(market.amm.quote_asset_amount_long, -6);
-    assert_eq!(market.amm.quote_asset_amount_short, 0);
+    assert_eq!(market.amm.quote_asset_amount, -6);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
 }
@@ -878,7 +852,7 @@ fn close_short_with_quote_entry_amount_more_than_quote_asset_amount() {
     let mut market = PerpMarket {
         amm: AMM {
             base_asset_amount_short: -11,
-            quote_asset_amount_short: 11,
+            quote_asset_amount: 11,
             quote_entry_amount_short: 15,
             cumulative_funding_rate_short: 1,
             order_step_size: 1,
@@ -900,8 +874,7 @@ fn close_short_with_quote_entry_amount_more_than_quote_asset_amount() {
     assert_eq!(market.number_of_users, 1);
     assert_eq!(market.amm.base_asset_amount_long, 0);
     assert_eq!(market.amm.base_asset_amount_short, -1);
-    assert_eq!(market.amm.quote_asset_amount_long, 0);
-    assert_eq!(market.amm.quote_asset_amount_short, -4);
+    assert_eq!(market.amm.quote_asset_amount, -4);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
 }

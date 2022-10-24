@@ -72,7 +72,7 @@ pub fn user_no_position() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
@@ -186,7 +186,7 @@ pub fn user_does_not_meet_maintenance_requirement() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
@@ -304,7 +304,7 @@ pub fn user_unsettled_negative_pnl() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
@@ -371,7 +371,7 @@ pub fn user_unsettled_negative_pnl() {
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 100 * SPOT_BALANCE_PRECISION;
-    expected_market.amm.quote_asset_amount_long = -100 * QUOTE_PRECISION_I128;
+    expected_market.amm.quote_asset_amount = -100 * QUOTE_PRECISION_I128;
     expected_market.number_of_users_with_quote = 0;
 
     settle_pnl(
@@ -436,7 +436,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
@@ -502,7 +502,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 0;
-    expected_market.amm.quote_asset_amount_long = -200 * QUOTE_PRECISION_I128;
+    expected_market.amm.quote_asset_amount = -200 * QUOTE_PRECISION_I128;
 
     settle_pnl(
         0,
@@ -566,7 +566,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
@@ -633,7 +633,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 25 * SPOT_BALANCE_PRECISION;
-    expected_market.amm.quote_asset_amount_long = -175 * QUOTE_PRECISION_I128;
+    expected_market.amm.quote_asset_amount = -175 * QUOTE_PRECISION_I128;
     expected_market.number_of_users_with_quote = 0;
 
     settle_pnl(
@@ -698,7 +698,7 @@ pub fn market_fee_pool_receives_portion() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             total_fee_minus_distributions: QUOTE_PRECISION_I128,
@@ -767,7 +767,7 @@ pub fn market_fee_pool_receives_portion() {
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 149 * SPOT_BALANCE_PRECISION;
     expected_market.amm.fee_pool.scaled_balance = SPOT_BALANCE_PRECISION;
-    expected_market.amm.quote_asset_amount_long = -50 * QUOTE_PRECISION_I128;
+    expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
     expected_market.number_of_users_with_quote = 0;
 
     settle_pnl(
@@ -832,7 +832,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             total_fee_minus_distributions: QUOTE_PRECISION_I128,
@@ -906,7 +906,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 151 * SPOT_BALANCE_PRECISION;
     expected_market.amm.fee_pool.scaled_balance = SPOT_BALANCE_PRECISION;
-    expected_market.amm.quote_asset_amount_long = -50 * QUOTE_PRECISION_I128;
+    expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
     expected_market.number_of_users_with_quote = 0;
 
     settle_pnl(
@@ -971,7 +971,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
@@ -1039,7 +1039,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 0;
-    expected_market.amm.quote_asset_amount_long = -200 * QUOTE_PRECISION_I128;
+    expected_market.amm.quote_asset_amount = -200 * QUOTE_PRECISION_I128;
 
     settle_pnl(
         0,
@@ -1103,7 +1103,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
@@ -1171,7 +1171,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 0;
-    expected_market.amm.quote_asset_amount_long = -200 * QUOTE_PRECISION_I128;
+    expected_market.amm.quote_asset_amount = -200 * QUOTE_PRECISION_I128;
 
     assert!(settle_pnl(
         0,
@@ -1232,7 +1232,7 @@ pub fn user_long_negative_unrealized_pnl() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
@@ -1300,7 +1300,7 @@ pub fn user_long_negative_unrealized_pnl() {
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 100 * SPOT_BALANCE_PRECISION;
-    expected_market.amm.quote_asset_amount_long = -100 * QUOTE_PRECISION_I128;
+    expected_market.amm.quote_asset_amount = -100 * QUOTE_PRECISION_I128;
 
     settle_pnl(
         0,
@@ -1364,7 +1364,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
@@ -1432,7 +1432,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 0;
-    expected_market.amm.quote_asset_amount_short = 100 * QUOTE_PRECISION_I128;
+    expected_market.amm.quote_asset_amount = 100 * QUOTE_PRECISION_I128;
 
     settle_pnl(
         0,
@@ -1496,7 +1496,7 @@ pub fn user_short_negative_unrealized_pnl() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
@@ -1564,7 +1564,7 @@ pub fn user_short_negative_unrealized_pnl() {
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 100 * SPOT_BALANCE_PRECISION;
-    expected_market.amm.quote_asset_amount_short = 200 * QUOTE_PRECISION_I128;
+    expected_market.amm.quote_asset_amount = 200 * QUOTE_PRECISION_I128;
 
     settle_pnl(
         0,

@@ -311,8 +311,7 @@ pub struct AMM {
     pub base_asset_amount_with_amm: i128,
     pub base_asset_amount_with_unsettled_lp: i128,
     pub max_open_interest: u128,
-    pub quote_asset_amount_long: i128,
-    pub quote_asset_amount_short: i128,
+    pub quote_asset_amount: i128,
     pub quote_entry_amount_long: i128,
     pub quote_entry_amount_short: i128,
     pub user_lp_shares: u128,
@@ -409,8 +408,7 @@ impl AMM {
             base_asset_amount_with_amm: -(AMM_RESERVE_PRECISION as i128),
             mark_std: PRICE_PRECISION as u64,
 
-            quote_asset_amount_long: 0,
-            quote_asset_amount_short: 19_000_000_000, // short 1 BTC @ $19000
+            quote_asset_amount: 19_000_000_000, // short 1 BTC @ $19000
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: 19_400 * PRICE_PRECISION_I64,
                 last_oracle_price_twap: 19_400 * PRICE_PRECISION_I64,

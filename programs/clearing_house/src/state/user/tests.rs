@@ -228,8 +228,7 @@ mod get_claimable_pnl {
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
                 curve_update_intensity: 100,
                 base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
-                quote_asset_amount_long: -250 * QUOTE_PRECISION_I128,
-                quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: -100 * QUOTE_PRECISION_I128,
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
@@ -332,8 +331,7 @@ mod get_claimable_pnl {
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
                 curve_update_intensity: 100,
                 base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
-                quote_asset_amount_long: -249 * QUOTE_PRECISION_I128,
-                quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: -99 * QUOTE_PRECISION_I128,
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
@@ -431,7 +429,7 @@ mod get_claimable_pnl {
         );
         assert_eq!(unsettled_pnl3, 9_000_000);
 
-        perp_market.amm.quote_asset_amount_long = -250 * QUOTE_PRECISION_I128;
+        perp_market.amm.quote_asset_amount = -100 * QUOTE_PRECISION_I128;
         let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, oracle_price).unwrap();
         assert_eq!(net_user_pnl, 50000000);
         let max_pnl_pool_excess = if net_user_pnl < pnl_pool_token_amount {
@@ -481,8 +479,7 @@ mod get_claimable_pnl {
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
                 curve_update_intensity: 100,
                 base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
-                quote_asset_amount_long: -250 * QUOTE_PRECISION_I128,
-                quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: -100 * QUOTE_PRECISION_I128,
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {

@@ -63,7 +63,7 @@ pub mod liquidate_perp {
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
-                quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
@@ -204,7 +204,7 @@ pub mod liquidate_perp {
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
-                quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
+                quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
@@ -345,7 +345,7 @@ pub mod liquidate_perp {
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
-                quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
+                quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
@@ -475,7 +475,7 @@ pub mod liquidate_perp {
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
-                quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
@@ -614,7 +614,7 @@ pub mod liquidate_perp {
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
-                quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
@@ -782,7 +782,7 @@ pub mod liquidate_perp {
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
-                quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
@@ -969,7 +969,7 @@ pub mod liquidate_perp {
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
-                quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
@@ -1092,7 +1092,7 @@ pub mod liquidate_perp {
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
-                quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
+                quote_asset_amount: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
@@ -1749,7 +1749,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
-                quote_asset_amount_long: 150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -1895,7 +1895,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
-                quote_asset_amount_long: 150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -2081,7 +2081,7 @@ pub mod liquidate_borrow_for_perp_pnl {
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
-                quote_asset_amount_long: 150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -2252,7 +2252,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
-                quote_asset_amount_long: 150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -2398,7 +2398,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
-                quote_asset_amount_long: 150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -2548,7 +2548,7 @@ pub mod liquidate_perp_pnl_for_deposit {
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
-                quote_asset_amount_long: 150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -2722,7 +2722,7 @@ pub mod resolve_perp_bankruptcy {
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
-                quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_long: 5 * BASE_PRECISION_I128,
                 base_asset_amount_short: -5 * BASE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
@@ -2799,7 +2799,7 @@ pub mod resolve_perp_bankruptcy {
         expected_market.amm.cumulative_funding_rate_long = 1010 * FUNDING_RATE_PRECISION_I128;
         expected_market.amm.cumulative_funding_rate_short = -1010 * FUNDING_RATE_PRECISION_I128;
         expected_market.amm.cumulative_social_loss = -100000000;
-        expected_market.amm.quote_asset_amount_long = -50 * QUOTE_PRECISION_I128;
+        expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
         expected_market.number_of_users_with_quote = 0;
 
         resolve_perp_bankruptcy(
@@ -2944,7 +2944,7 @@ pub mod resolve_spot_bankruptcy {
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
-                quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 base_asset_amount_long: 5 * BASE_PRECISION_I128,
                 base_asset_amount_short: -5 * BASE_PRECISION_I128,
