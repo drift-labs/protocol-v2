@@ -169,7 +169,7 @@ fn calculate_filler_reward(
     fee: u64,
     order_slot: u64,
     clock_slot: u64,
-    multiplier: u128,
+    multiplier: u64,
     filler_reward_structure: &OrderFillerRewardStructure,
 ) -> ClearingHouseResult<u64> {
     // incentivize keepers to prioritize filling older orders (rather than just largest orders)
@@ -185,6 +185,7 @@ fn calculate_filler_reward(
         .time_based_reward_lower_bound
         .safe_mul(
             multiplier
+                .cast::<u128>()?
                 .max(multiplier_precision)
                 .min(multiplier_precision * 100),
         )?
@@ -211,7 +212,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     fee_structure: &FeeStructure,
     order_slot: u64,
     clock_slot: u64,
-    filler_multiplier: u128,
+    filler_multiplier: u64,
     reward_referrer: bool,
     referrer_stats: &Option<&mut UserStats>,
     market_type: &MarketType,

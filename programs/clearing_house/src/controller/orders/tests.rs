@@ -1403,7 +1403,7 @@ pub mod fulfill_order {
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64,
-        BID_ASK_SPREAD_PRECISION_I128, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128,
+        BID_ASK_SPREAD_PRECISION_I64, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I64,
         PRICE_PRECISION_U64, QUOTE_PRECISION_I64, QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
@@ -1443,9 +1443,9 @@ pub mod fulfill_order {
                 oracle: oracle_price_key,
                 base_spread: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
 
                     ..HistoricalOracleData::default()
                 },
@@ -1483,7 +1483,7 @@ pub mod fulfill_order {
         market
             .amm
             .historical_oracle_data
-            .last_oracle_price_twap_5min = 50 * PRICE_PRECISION as i128;
+            .last_oracle_price_twap_5min = 50 * PRICE_PRECISION as i64;
         assert!(validate_market_within_price_band(&market, &state, true, None).is_err());
 
         // within 60% ok -> success
@@ -1497,19 +1497,19 @@ pub mod fulfill_order {
         market
             .amm
             .historical_oracle_data
-            .last_oracle_price_twap_5min = 20 * PRICE_PRECISION as i128;
+            .last_oracle_price_twap_5min = 20 * PRICE_PRECISION as i64;
         assert!(validate_market_within_price_band(&market, &state, true, None).is_err());
 
         // twap_5min $20 and mark $100 but risk reduction when already breached -> success
         market
             .amm
             .historical_oracle_data
-            .last_oracle_price_twap_5min = 20 * PRICE_PRECISION as i128;
+            .last_oracle_price_twap_5min = 20 * PRICE_PRECISION as i64;
         assert!(validate_market_within_price_band(
             &market,
             &state,
             false,
-            Some(BID_ASK_SPREAD_PRECISION_I128 * 77 / 100)
+            Some(BID_ASK_SPREAD_PRECISION_I64 * 77 / 100)
         )
         .unwrap());
 
@@ -1517,12 +1517,12 @@ pub mod fulfill_order {
         market
             .amm
             .historical_oracle_data
-            .last_oracle_price_twap_5min = 20 * PRICE_PRECISION as i128;
+            .last_oracle_price_twap_5min = 20 * PRICE_PRECISION as i64;
         assert!(validate_market_within_price_band(
             &market,
             &state,
             false,
-            Some(BID_ASK_SPREAD_PRECISION_I128 * 51 / 100)
+            Some(BID_ASK_SPREAD_PRECISION_I64 * 51 / 100)
         )
         .is_err());
     }
@@ -1561,9 +1561,9 @@ pub mod fulfill_order {
                 oracle: oracle_price_key,
                 base_spread: 0, // 1 basis point
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
 
                     ..HistoricalOracleData::default()
                 },
@@ -1772,9 +1772,9 @@ pub mod fulfill_order {
                 oracle: oracle_price_key,
                 base_spread: 100, // 1 basis point
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
 
                     ..HistoricalOracleData::default()
                 },
@@ -1962,9 +1962,9 @@ pub mod fulfill_order {
                 order_step_size: 1,
                 order_tick_size: 1,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
 
                     ..HistoricalOracleData::default()
                 },
@@ -2149,9 +2149,9 @@ pub mod fulfill_order {
                 order_tick_size: 1,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
 
                     ..HistoricalOracleData::default()
                 },
@@ -2301,9 +2301,9 @@ pub mod fulfill_order {
                 order_tick_size: 1,
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
 
                     ..HistoricalOracleData::default()
                 },
@@ -2433,7 +2433,7 @@ pub mod fulfill_order {
                 order_step_size: 1,
                 order_tick_size: 1,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: 100 * PRICE_PRECISION_I128,
+                    last_oracle_price: 100 * PRICE_PRECISION_I64,
                     ..HistoricalOracleData::default()
                 },
                 max_slippage_ratio: 50,
@@ -2459,7 +2459,7 @@ pub mod fulfill_order {
                 order_step_size: 1,
                 order_tick_size: 1,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: 20000 * PRICE_PRECISION_I128,
+                    last_oracle_price: 20000 * PRICE_PRECISION_I64,
                     ..HistoricalOracleData::default()
                 },
                 max_slippage_ratio: 50,
@@ -2781,9 +2781,9 @@ pub mod fill_order {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: oracle_price.twap as i128,
-                    last_oracle_price_twap_5min: oracle_price.twap as i128,
-                    last_oracle_price: oracle_price.agg.price as i128,
+                    last_oracle_price_twap: oracle_price.twap as i64,
+                    last_oracle_price_twap_5min: oracle_price.twap as i64,
+                    last_oracle_price: oracle_price.agg.price as i64,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -3084,9 +3084,9 @@ pub mod fill_order {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: oracle_price.twap as i128,
-                    last_oracle_price_twap_5min: oracle_price.twap as i128,
-                    last_oracle_price: oracle_price.agg.price as i128,
+                    last_oracle_price_twap: oracle_price.twap as i64,
+                    last_oracle_price_twap_5min: oracle_price.twap as i64,
+                    last_oracle_price: oracle_price.agg.price as i64,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()

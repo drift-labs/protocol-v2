@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, getMarketOrderParams, ONE, OracleSource, ZERO } from '../sdk';
+import { BN, getMarketOrderParams, OracleSource, ZERO } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
@@ -148,7 +148,7 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(48000000000)));
 		assert.ok(market.amm.baseAssetAmountLong.eq(new BN(48000000000)));
 		assert.ok(market.amm.baseAssetAmountShort.eq(ZERO));
-		assert.ok(market.numberOfUsers.eq(ONE));
+		assert.ok(market.numberOfUsers === 1);
 		assert.ok(market.amm.totalFee.eq(new BN(48001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(48001)));
 
@@ -205,7 +205,7 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(24000000000)));
 		assert.ok(market.amm.baseAssetAmountLong.eq(new BN(24000000000)));
 		assert.ok(market.amm.baseAssetAmountShort.eq(ZERO));
-		assert.ok(market.numberOfUsers.eq(ONE));
+		assert.ok(market.numberOfUsers === 1);
 		assert.ok(market.amm.totalFee.eq(new BN(72001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(72001)));
 
@@ -259,7 +259,7 @@ describe('clearing_house', () => {
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(-24000000000)));
 		assert.ok(market.amm.baseAssetAmountLong.eq(ZERO));
 		assert.ok(market.amm.baseAssetAmountShort.eq(new BN(-24000000000)));
-		assert.ok(market.numberOfUsers.eq(ONE));
+		assert.ok(market.numberOfUsers === 1);
 		assert.ok(market.amm.totalFee.eq(new BN(120001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120001)));
 

@@ -1,7 +1,7 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::ids::mock_pyth_program;
 use crate::ids::pyth_program;
-use crate::math::constants::PRICE_PRECISION_I128;
+use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};
 use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource};
 use crate::state::state::OracleGuardRails;
@@ -72,7 +72,7 @@ impl<'a> OracleMap<'a> {
     pub fn get_price_data_and_validity(
         &mut self,
         pubkey: &Pubkey,
-        last_oracle_price_twap: i128,
+        last_oracle_price_twap: i64,
     ) -> ClearingHouseResult<(&OraclePriceData, OracleValidity)> {
         if pubkey == &Pubkey::default() {
             return Ok((&self.quote_asset_price_data, OracleValidity::Valid));
@@ -189,7 +189,7 @@ impl<'a> OracleMap<'a> {
             slot,
             oracle_guard_rails: ogr,
             quote_asset_price_data: OraclePriceData {
-                price: PRICE_PRECISION_I128,
+                price: PRICE_PRECISION_I64,
                 confidence: 1,
                 delay: 0,
                 has_sufficient_number_of_data_points: true,
@@ -229,7 +229,7 @@ impl<'a> OracleMap<'a> {
             slot,
             oracle_guard_rails: ogr,
             quote_asset_price_data: OraclePriceData {
-                price: PRICE_PRECISION_I128,
+                price: PRICE_PRECISION_I64,
                 confidence: 1,
                 delay: 0,
                 has_sufficient_number_of_data_points: true,
@@ -247,7 +247,7 @@ impl<'a> OracleMap<'a> {
             slot: 0,
             oracle_guard_rails: OracleGuardRails::default(),
             quote_asset_price_data: OraclePriceData {
-                price: PRICE_PRECISION_I128,
+                price: PRICE_PRECISION_I64,
                 confidence: 1,
                 delay: 0,
                 has_sufficient_number_of_data_points: true,

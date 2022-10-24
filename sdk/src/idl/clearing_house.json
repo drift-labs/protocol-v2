@@ -1034,6 +1034,12 @@
         {
           "name": "liquidatorMaxBaseAssetAmount",
           "type": "u64"
+        },
+        {
+          "name": "limitPrice",
+          "type": {
+            "option": "u64"
+          }
         }
       ]
     },
@@ -1900,27 +1906,27 @@
         },
         {
           "name": "initialAssetWeight",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "maintenanceAssetWeight",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "initialLiabilityWeight",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "maintenanceLiabilityWeight",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "imfFactor",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "liquidationFee",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "activeStatus",
@@ -2082,7 +2088,7 @@
         },
         {
           "name": "liquidationFee",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "activeStatus",
@@ -2402,15 +2408,15 @@
       "args": [
         {
           "name": "unrealizedMaxImbalance",
-          "type": "u128"
+          "type": "u64"
         },
         {
           "name": "maxRevenueWithdrawPerPeriod",
-          "type": "u128"
+          "type": "u64"
         },
         {
           "name": "quoteMaxInsurance",
-          "type": "u128"
+          "type": "u64"
         }
       ]
     },
@@ -2436,11 +2442,11 @@
       "args": [
         {
           "name": "liquidatorFee",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "ifLiquidationFee",
-          "type": "u128"
+          "type": "u32"
         }
       ]
     },
@@ -2492,11 +2498,11 @@
       "args": [
         {
           "name": "liquidatorFee",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "ifLiquidationFee",
-          "type": "u128"
+          "type": "u32"
         }
       ]
     },
@@ -2664,23 +2670,23 @@
       "args": [
         {
           "name": "initialAssetWeight",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "maintenanceAssetWeight",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "initialLiabilityWeight",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "maintenanceLiabilityWeight",
-          "type": "u128"
+          "type": "u32"
         },
         {
           "name": "imfFactor",
-          "type": "u128"
+          "type": "u32"
         }
       ]
     },
@@ -2825,7 +2831,7 @@
       "args": [
         {
           "name": "imfFactor",
-          "type": "u128"
+          "type": "u32"
         }
       ]
     },
@@ -3081,7 +3087,7 @@
       "args": [
         {
           "name": "baseSpread",
-          "type": "u16"
+          "type": "u32"
         }
       ]
     },
@@ -3566,41 +3572,21 @@
             }
           },
           {
-            "name": "expiryPrice",
-            "type": "i128"
-          },
-          {
-            "name": "numberOfUsers",
-            "type": "u128"
-          },
-          {
-            "name": "imfFactor",
-            "type": "u128"
-          },
-          {
-            "name": "unrealizedPnlImfFactor",
-            "type": "u128"
-          },
-          {
-            "name": "unrealizedPnlMaxImbalance",
-            "type": "u128"
-          },
-          {
-            "name": "liquidatorFee",
-            "type": "u128"
-          },
-          {
-            "name": "ifLiquidationFee",
-            "type": "u128"
-          },
-          {
             "name": "insuranceClaim",
             "type": {
               "defined": "InsuranceClaim"
             }
           },
           {
+            "name": "unrealizedPnlMaxImbalance",
+            "type": "u64"
+          },
+          {
             "name": "expiryTs",
+            "type": "i64"
+          },
+          {
+            "name": "expiryPrice",
             "type": "i64"
           },
           {
@@ -3616,6 +3602,22 @@
             "type": "u64"
           },
           {
+            "name": "imfFactor",
+            "type": "u32"
+          },
+          {
+            "name": "unrealizedPnlImfFactor",
+            "type": "u32"
+          },
+          {
+            "name": "liquidatorFee",
+            "type": "u32"
+          },
+          {
+            "name": "ifLiquidationFee",
+            "type": "u32"
+          },
+          {
             "name": "marginRatioInitial",
             "type": "u32"
           },
@@ -3629,6 +3631,10 @@
           },
           {
             "name": "unrealizedPnlMaintenanceAssetWeight",
+            "type": "u32"
+          },
+          {
+            "name": "numberOfUsers",
             "type": "u32"
           },
           {
@@ -3658,7 +3664,7 @@
             "type": {
               "array": [
                 "u8",
-                3
+                7
               ]
             }
           }
@@ -3715,34 +3721,6 @@
             "type": {
               "defined": "InsuranceFund"
             }
-          },
-          {
-            "name": "initialAssetWeight",
-            "type": "u128"
-          },
-          {
-            "name": "maintenanceAssetWeight",
-            "type": "u128"
-          },
-          {
-            "name": "initialLiabilityWeight",
-            "type": "u128"
-          },
-          {
-            "name": "maintenanceLiabilityWeight",
-            "type": "u128"
-          },
-          {
-            "name": "imfFactor",
-            "type": "u128"
-          },
-          {
-            "name": "liquidatorFee",
-            "type": "u128"
-          },
-          {
-            "name": "ifLiquidationFee",
-            "type": "u128"
           },
           {
             "name": "withdrawGuardThreshold",
@@ -3817,6 +3795,34 @@
             "type": "u64"
           },
           {
+            "name": "initialAssetWeight",
+            "type": "u32"
+          },
+          {
+            "name": "maintenanceAssetWeight",
+            "type": "u32"
+          },
+          {
+            "name": "initialLiabilityWeight",
+            "type": "u32"
+          },
+          {
+            "name": "maintenanceLiabilityWeight",
+            "type": "u32"
+          },
+          {
+            "name": "imfFactor",
+            "type": "u32"
+          },
+          {
+            "name": "liquidatorFee",
+            "type": "u32"
+          },
+          {
+            "name": "ifLiquidationFee",
+            "type": "u32"
+          },
+          {
             "name": "optimalUtilization",
             "type": "u32"
           },
@@ -3829,12 +3835,12 @@
             "type": "u32"
           },
           {
-            "name": "marketIndex",
-            "type": "u16"
+            "name": "decimals",
+            "type": "u32"
           },
           {
-            "name": "decimals",
-            "type": "u8"
+            "name": "marketIndex",
+            "type": "u16"
           },
           {
             "name": "oracleSource",
@@ -3859,7 +3865,7 @@
             "type": {
               "array": [
                 "u8",
-                6
+                7
               ]
             }
           }
@@ -4335,7 +4341,7 @@
           },
           {
             "name": "oraclePrice",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "baseAssetAmount",
@@ -4379,7 +4385,7 @@
           },
           {
             "name": "assetPrice",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "assetTransfer",
@@ -4391,7 +4397,7 @@
           },
           {
             "name": "liabilityPrice",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "liabilityTransfer",
@@ -4415,7 +4421,7 @@
           },
           {
             "name": "marketOraclePrice",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "pnlTransfer",
@@ -4427,7 +4433,7 @@
           },
           {
             "name": "liabilityPrice",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "liabilityTransfer",
@@ -4447,7 +4453,7 @@
           },
           {
             "name": "marketOraclePrice",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "pnlTransfer",
@@ -4459,7 +4465,7 @@
           },
           {
             "name": "assetPrice",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "assetTransfer",
@@ -4523,11 +4529,11 @@
         "fields": [
           {
             "name": "lastOraclePrice",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "lastOracleConf",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastOracleDelay",
@@ -4535,11 +4541,11 @@
           },
           {
             "name": "lastOraclePriceTwap",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "lastOraclePriceTwap5min",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "lastOraclePriceTwapTs",
@@ -4555,19 +4561,19 @@
         "fields": [
           {
             "name": "lastIndexBidPrice",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastIndexAskPrice",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastIndexPriceTwap",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastIndexPriceTwap5min",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastIndexPriceTwapTs",
@@ -4583,19 +4589,19 @@
         "fields": [
           {
             "name": "revenueWithdrawSinceLastSettle",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "maxRevenueWithdrawPerPeriod",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "quoteMaxInsurance",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "quoteSettledInsurance",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastRevenueWithdrawTs",
@@ -4657,14 +4663,6 @@
             "type": {
               "defined": "PoolBalance"
             }
-          },
-          {
-            "name": "lastOracleNormalisedPrice",
-            "type": "i128"
-          },
-          {
-            "name": "lastOracleReservePriceSpreadPct",
-            "type": "i128"
           },
           {
             "name": "baseAssetReserve",
@@ -4740,19 +4738,19 @@
           },
           {
             "name": "lastFundingRate",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "lastFundingRateLong",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "lastFundingRateShort",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "last24hAvgFundingRate",
-            "type": "i128"
+            "type": "i64"
           },
           {
             "name": "totalFee",
@@ -4791,14 +4789,6 @@
             "type": "i128"
           },
           {
-            "name": "longSpread",
-            "type": "u128"
-          },
-          {
-            "name": "shortSpread",
-            "type": "u128"
-          },
-          {
             "name": "askBaseAssetReserve",
             "type": "u128"
           },
@@ -4815,20 +4805,28 @@
             "type": "u128"
           },
           {
+            "name": "lastOracleNormalisedPrice",
+            "type": "i64"
+          },
+          {
+            "name": "lastOracleReservePriceSpreadPct",
+            "type": "i64"
+          },
+          {
             "name": "lastBidPriceTwap",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastAskPriceTwap",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastMarkPriceTwap",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastMarkPriceTwap5min",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "lastUpdateSlot",
@@ -4891,7 +4889,27 @@
             "type": "i64"
           },
           {
+            "name": "baseSpread",
+            "type": "u32"
+          },
+          {
             "name": "maxSpread",
+            "type": "u32"
+          },
+          {
+            "name": "longSpread",
+            "type": "u32"
+          },
+          {
+            "name": "shortSpread",
+            "type": "u32"
+          },
+          {
+            "name": "longIntensityCount",
+            "type": "u32"
+          },
+          {
+            "name": "shortIntensityCount",
             "type": "u32"
           },
           {
@@ -4900,18 +4918,6 @@
           },
           {
             "name": "maxSlippageRatio",
-            "type": "u16"
-          },
-          {
-            "name": "baseSpread",
-            "type": "u16"
-          },
-          {
-            "name": "longIntensityCount",
-            "type": "u16"
-          },
-          {
-            "name": "shortIntensityCount",
             "type": "u16"
           },
           {
@@ -4931,15 +4937,6 @@
           {
             "name": "lastOracleValid",
             "type": "bool"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                6
-              ]
-            }
           }
         ]
       }
@@ -5043,11 +5040,11 @@
           },
           {
             "name": "confidenceIntervalMaxSize",
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "tooVolatileRatio",
-            "type": "i128"
+            "type": "i64"
           }
         ]
       }
@@ -5733,7 +5730,7 @@
             "name": "AMM",
             "fields": [
               {
-                "option": "u128"
+                "option": "u64"
               }
             ]
           },
@@ -6087,7 +6084,7 @@
         },
         {
           "name": "oraclePrice",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
@@ -6249,7 +6246,7 @@
         },
         {
           "name": "fundingRate",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
@@ -6274,12 +6271,12 @@
         },
         {
           "name": "oraclePriceTwap",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "markPriceTwap",
-          "type": "u128",
+          "type": "u64",
           "index": false
         },
         {
@@ -6310,11 +6307,6 @@
         {
           "name": "recordId",
           "type": "u64",
-          "index": false
-        },
-        {
-          "name": "marketIndex",
-          "type": "u16",
           "index": false
         },
         {
@@ -6373,11 +6365,6 @@
           "index": false
         },
         {
-          "name": "numberOfUsers",
-          "type": "u128",
-          "index": false
-        },
-        {
           "name": "totalFee",
           "type": "i128",
           "index": false
@@ -6394,12 +6381,22 @@
         },
         {
           "name": "oraclePrice",
-          "type": "i128",
+          "type": "i64",
           "index": false
         },
         {
           "name": "fillRecord",
           "type": "u128",
+          "index": false
+        },
+        {
+          "name": "numberOfUsers",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u16",
           "index": false
         }
       ]
@@ -6620,7 +6617,7 @@
         },
         {
           "name": "oraclePrice",
-          "type": "i128",
+          "type": "i64",
           "index": false
         }
       ]
@@ -6808,7 +6805,7 @@
         },
         {
           "name": "settlePrice",
-          "type": "i128",
+          "type": "i64",
           "index": false
         }
       ]
@@ -7621,6 +7618,11 @@
       "code": 6136,
       "name": "CantResolvePerpBankruptcy",
       "msg": "Cant Resolve Perp Bankruptcy"
+    },
+    {
+      "code": 6137,
+      "name": "LiquidationDoesntSatisfyLimitPrice",
+      "msg": "Liquidation Doesnt Satisfy Limit Price"
     }
   ]
 }

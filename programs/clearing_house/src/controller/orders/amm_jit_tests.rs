@@ -33,7 +33,7 @@ pub mod amm_jit {
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
-    use crate::math::constants::PRICE_PRECISION_I128;
+    use crate::math::constants::PRICE_PRECISION_I64;
     use crate::math::constants::QUOTE_PRECISION_I64;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
@@ -88,9 +88,9 @@ pub mod amm_jit {
                 long_spread: 20000,
                 short_spread: 20000,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
 
                     ..HistoricalOracleData::default()
                 },
@@ -275,9 +275,9 @@ pub mod amm_jit {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
 
                     ..HistoricalOracleData::default()
                 },
@@ -398,7 +398,7 @@ pub mod amm_jit {
             &mut oracle_map,
             &fee_structure,
             0,
-            Some(PRICE_PRECISION as i128),
+            Some(PRICE_PRECISION_I64),
             now,
             slot,
             false,
@@ -458,9 +458,9 @@ pub mod amm_jit {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
 
                     ..HistoricalOracleData::default()
                 },
@@ -581,7 +581,7 @@ pub mod amm_jit {
             &mut oracle_map,
             &fee_structure,
             0,
-            Some(200 * PRICE_PRECISION as i128),
+            Some(200 * PRICE_PRECISION_I64),
             now,
             slot,
             false,
@@ -641,9 +641,9 @@ pub mod amm_jit {
                 long_spread: 20000,
                 short_spread: 20000,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
 
                     ..HistoricalOracleData::default()
                 },
@@ -832,9 +832,9 @@ pub mod amm_jit {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
 
                     ..HistoricalOracleData::default()
                 },
@@ -1028,9 +1028,9 @@ pub mod amm_jit {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
 
                     ..HistoricalOracleData::default()
                 },
@@ -1149,7 +1149,7 @@ pub mod amm_jit {
         assert_eq!(market.amm.total_fee_withdrawn, 0);
 
         let reserve_price_before = market.amm.reserve_price().unwrap();
-        assert_eq!(reserve_price_before, 100 * PRICE_PRECISION);
+        assert_eq!(reserve_price_before, 100 * PRICE_PRECISION_U64);
 
         fulfill_perp_order(
             &mut taker,
@@ -1227,9 +1227,9 @@ pub mod amm_jit {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
 
                     ..HistoricalOracleData::default()
                 },
@@ -1434,9 +1434,9 @@ pub mod amm_jit {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
 
                     ..HistoricalOracleData::default()
                 },
@@ -1556,7 +1556,7 @@ pub mod amm_jit {
             &mut oracle_map,
             &fee_structure,
             0,
-            Some(200 * PRICE_PRECISION_I128),
+            Some(200 * PRICE_PRECISION_I64),
             now,
             slot,
             false,
@@ -1615,9 +1615,9 @@ pub mod amm_jit {
                 short_spread: 50000,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
 
                     ..HistoricalOracleData::default()
                 },
@@ -1880,9 +1880,9 @@ pub mod amm_jit {
                 short_spread: 50000,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i128,
-                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i128,
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
 
                     ..HistoricalOracleData::default()
                 },
@@ -2059,7 +2059,7 @@ pub mod amm_jit {
                 &mut oracle_map,
                 &fee_structure,
                 0,
-                Some(200 * PRICE_PRECISION as i128),
+                Some(200 * PRICE_PRECISION_I64),
                 now,
                 slot,
                 false,

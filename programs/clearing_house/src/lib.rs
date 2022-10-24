@@ -233,8 +233,14 @@ pub mod clearing_house {
         ctx: Context<LiquidatePerp>,
         market_index: u16,
         liquidator_max_base_asset_amount: u64,
+        limit_price: Option<u64>,
     ) -> Result<()> {
-        handle_liquidate_perp(ctx, market_index, liquidator_max_base_asset_amount)
+        handle_liquidate_perp(
+            ctx,
+            market_index,
+            liquidator_max_base_asset_amount,
+            limit_price,
+        )
     }
 
     pub fn liquidate_spot(
@@ -388,12 +394,12 @@ pub mod clearing_house {
         optimal_borrow_rate: u32,
         max_borrow_rate: u32,
         oracle_source: OracleSource,
-        initial_asset_weight: u128,
-        maintenance_asset_weight: u128,
-        initial_liability_weight: u128,
-        maintenance_liability_weight: u128,
-        imf_factor: u128,
-        liquidation_fee: u128,
+        initial_asset_weight: u32,
+        maintenance_asset_weight: u32,
+        initial_liability_weight: u32,
+        maintenance_liability_weight: u32,
+        imf_factor: u32,
+        liquidation_fee: u32,
         active_status: bool,
     ) -> Result<()> {
         handle_initialize_spot_market(
@@ -432,7 +438,7 @@ pub mod clearing_house {
         oracle_source: OracleSource,
         margin_ratio_initial: u32,
         margin_ratio_maintenance: u32,
-        liquidation_fee: u128,
+        liquidation_fee: u32,
         active_status: bool,
         name: [u8; 32],
     ) -> Result<()> {
@@ -506,9 +512,9 @@ pub mod clearing_house {
 
     pub fn update_perp_market_max_imbalances(
         ctx: Context<AdminUpdatePerpMarket>,
-        unrealized_max_imbalance: u128,
-        max_revenue_withdraw_per_period: u128,
-        quote_max_insurance: u128,
+        unrealized_max_imbalance: u64,
+        max_revenue_withdraw_per_period: u64,
+        quote_max_insurance: u64,
     ) -> Result<()> {
         handle_update_perp_market_max_imbalances(
             ctx,
@@ -520,8 +526,8 @@ pub mod clearing_house {
 
     pub fn update_perp_liquidation_fee(
         ctx: Context<AdminUpdatePerpMarket>,
-        liquidator_fee: u128,
-        if_liquidation_fee: u128,
+        liquidator_fee: u32,
+        if_liquidation_fee: u32,
     ) -> Result<()> {
         handle_update_perp_liquidation_fee(ctx, liquidator_fee, if_liquidation_fee)
     }
@@ -535,15 +541,15 @@ pub mod clearing_house {
 
     pub fn update_spot_market_liquidation_fee(
         ctx: Context<AdminUpdateSpotMarket>,
-        liquidator_fee: u128,
-        if_liquidation_fee: u128,
+        liquidator_fee: u32,
+        if_liquidation_fee: u32,
     ) -> Result<()> {
         handle_update_spot_market_liquidation_fee(ctx, liquidator_fee, if_liquidation_fee)
     }
 
     pub fn update_withdraw_guard_threshold(
         ctx: Context<AdminUpdateSpotMarket>,
-        withdraw_guard_threshold: u128,
+        withdraw_guard_threshold: u64,
     ) -> Result<()> {
         handle_update_withdraw_guard_threshold(ctx, withdraw_guard_threshold)
     }
@@ -580,11 +586,11 @@ pub mod clearing_house {
 
     pub fn update_spot_market_margin_weights(
         ctx: Context<AdminUpdateSpotMarket>,
-        initial_asset_weight: u128,
-        maintenance_asset_weight: u128,
-        initial_liability_weight: u128,
-        maintenance_liability_weight: u128,
-        imf_factor: u128,
+        initial_asset_weight: u32,
+        maintenance_asset_weight: u32,
+        initial_liability_weight: u32,
+        maintenance_liability_weight: u32,
+        imf_factor: u32,
     ) -> Result<()> {
         handle_update_spot_market_margin_weights(
             ctx,
@@ -598,7 +604,7 @@ pub mod clearing_house {
 
     pub fn update_spot_market_max_token_deposits(
         ctx: Context<AdminUpdateSpotMarket>,
-        max_token_deposits: u128,
+        max_token_deposits: u64,
     ) -> Result<()> {
         handle_update_spot_market_max_token_deposits(ctx, max_token_deposits)
     }
@@ -627,7 +633,7 @@ pub mod clearing_house {
 
     pub fn update_perp_market_imf_factor(
         ctx: Context<AdminUpdatePerpMarket>,
-        imf_factor: u128,
+        imf_factor: u32,
     ) -> Result<()> {
         handle_update_perp_market_imf_factor(ctx, imf_factor)
     }
@@ -703,7 +709,7 @@ pub mod clearing_house {
 
     pub fn update_perp_market_base_spread(
         ctx: Context<AdminUpdatePerpMarket>,
-        base_spread: u16,
+        base_spread: u32,
     ) -> Result<()> {
         handle_update_perp_market_base_spread(ctx, base_spread)
     }

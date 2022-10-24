@@ -7,7 +7,8 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+    AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION_U128, MARGIN_PRECISION_U128,
+    PRICE_PRECISION_I64, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
@@ -18,10 +19,7 @@ use crate::math::stats;
 
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
-use crate::{
-    AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, MARGIN_PRECISION,
-    MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION,
-};
+use crate::{AMM_TO_QUOTE_PRECISION_RATIO, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION};
 use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
@@ -77,28 +75,28 @@ pub struct PerpMarket {
     pub pubkey: Pubkey,
     pub amm: AMM,
     pub pnl_pool: PoolBalance,
-    pub name: [u8; 32],        // 256 bits
-    pub expiry_price: i128,    // iff market has expired, price users can settle position
-    pub number_of_users: u128, // number of users in a position
-    pub imf_factor: u128,
-    pub unrealized_pnl_imf_factor: u128,
-    pub unrealized_pnl_max_imbalance: u128,
-    pub liquidator_fee: u128,
-    pub if_liquidation_fee: u128,
+    pub name: [u8; 32], // 256 bits
     pub insurance_claim: InsuranceClaim,
-    pub expiry_ts: i64, // iff market in reduce only mode
+    pub unrealized_pnl_max_imbalance: u64,
+    pub expiry_ts: i64,    // iff market in reduce only mode
+    pub expiry_price: i64, // iff market has expired, price users can settle position
     pub next_fill_record_id: u64,
     pub next_funding_rate_record_id: u64,
     pub next_curve_record_id: u64,
+    pub imf_factor: u32,
+    pub unrealized_pnl_imf_factor: u32,
+    pub liquidator_fee: u32,
+    pub if_liquidation_fee: u32,
     pub margin_ratio_initial: u32,
     pub margin_ratio_maintenance: u32,
     pub unrealized_pnl_initial_asset_weight: u32,
     pub unrealized_pnl_maintenance_asset_weight: u32,
+    pub number_of_users: u32, // number of users in a position
     pub market_index: u16,
     pub status: MarketStatus,
     pub contract_type: ContractType,
     pub contract_tier: ContractTier,
-    pub padding: [u8; 3],
+    pub padding: [u8; 7],
 }
 
 impl PerpMarket {
@@ -115,11 +113,11 @@ impl PerpMarket {
         Ok(self.status == MarketStatus::ReduceOnly)
     }
 
-    pub fn get_sanitize_clamp_denominator(self) -> ClearingHouseResult<Option<i128>> {
+    pub fn get_sanitize_clamp_denominator(self) -> ClearingHouseResult<Option<i64>> {
         Ok(match self.contract_tier {
-            ContractTier::A => Some(10_i128),  // 10%
-            ContractTier::B => Some(5_i128),   // 20%
-            ContractTier::C => Some(2_i128),   // 50%
+            ContractTier::A => Some(10_i64),   // 10%
+            ContractTier::B => Some(5_i64),    // 20%
+            ContractTier::C => Some(2_i64),    // 50%
             ContractTier::Speculative => None, // DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR
             ContractTier::Isolated => None,    // DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR
         })
@@ -135,29 +133,30 @@ impl PerpMarket {
         }
 
         let default_margin_ratio = match margin_type {
-            MarginRequirementType::Initial => self.margin_ratio_initial.cast::<u128>()?,
-            MarginRequirementType::Maintenance => self.margin_ratio_maintenance.cast::<u128>()?,
+            MarginRequirementType::Initial => self.margin_ratio_initial,
+            MarginRequirementType::Maintenance => self.margin_ratio_maintenance,
         };
 
         let size_adj_margin_ratio = calculate_size_premium_liability_weight(
             size,
             self.imf_factor,
             default_margin_ratio,
-            MARGIN_PRECISION,
+            MARGIN_PRECISION_U128,
         )?;
 
         let margin_ratio = default_margin_ratio.max(size_adj_margin_ratio);
 
-        margin_ratio.cast()
+        Ok(margin_ratio)
     }
 
     pub fn get_initial_leverage_ratio(&self, margin_type: MarginRequirementType) -> u128 {
         match margin_type {
             MarginRequirementType::Initial => {
-                MARGIN_PRECISION * MARGIN_PRECISION / self.margin_ratio_initial as u128
+                MARGIN_PRECISION_U128 * MARGIN_PRECISION_U128 / self.margin_ratio_initial as u128
             }
             MarginRequirementType::Maintenance => {
-                MARGIN_PRECISION * MARGIN_PRECISION / self.margin_ratio_maintenance as u128
+                MARGIN_PRECISION_U128 * MARGIN_PRECISION_U128
+                    / self.margin_ratio_maintenance as u128
             }
         }
     }
@@ -187,12 +186,10 @@ impl PerpMarket {
         &self,
         unrealized_pnl: i128,
         margin_type: MarginRequirementType,
-    ) -> ClearingHouseResult<u128> {
+    ) -> ClearingHouseResult<u32> {
         let mut margin_asset_weight = match margin_type {
-            MarginRequirementType::Initial => self.unrealized_pnl_initial_asset_weight as u128,
-            MarginRequirementType::Maintenance => {
-                self.unrealized_pnl_maintenance_asset_weight as u128
-            }
+            MarginRequirementType::Initial => self.unrealized_pnl_initial_asset_weight,
+            MarginRequirementType::Maintenance => self.unrealized_pnl_maintenance_asset_weight,
         };
 
         if margin_type == MarginRequirementType::Initial && self.unrealized_pnl_max_imbalance > 0 {
@@ -200,10 +197,13 @@ impl PerpMarket {
                 &self.amm,
                 self.amm.historical_oracle_data.last_oracle_price,
             )?;
+
             if net_unsettled_pnl > self.unrealized_pnl_max_imbalance.cast::<i128>()? {
                 margin_asset_weight = margin_asset_weight
-                    .safe_mul(self.unrealized_pnl_max_imbalance)?
+                    .cast::<u128>()?
+                    .safe_mul(self.unrealized_pnl_max_imbalance.cast()?)?
                     .safe_div(net_unsettled_pnl.unsigned_abs())?
+                    .cast()?;
             }
         }
 
@@ -222,26 +222,13 @@ impl PerpMarket {
                     self.unrealized_pnl_imf_factor,
                     margin_asset_weight,
                 )?,
-                MarginRequirementType::Maintenance => {
-                    self.unrealized_pnl_maintenance_asset_weight as u128
-                }
+                MarginRequirementType::Maintenance => self.unrealized_pnl_maintenance_asset_weight,
             }
         } else {
             SPOT_WEIGHT_PRECISION
         };
 
         Ok(unrealized_asset_weight)
-    }
-
-    pub fn get_liquidation_fee_multiplier(
-        &self,
-        base_asset_amount: i128,
-    ) -> ClearingHouseResult<u128> {
-        if base_asset_amount >= 0 {
-            LIQUIDATION_FEE_PRECISION.safe_sub(self.liquidator_fee)
-        } else {
-            LIQUIDATION_FEE_PRECISION.safe_add(self.liquidator_fee)
-        }
     }
 
     pub fn get_open_interest(&self) -> u128 {
@@ -257,10 +244,10 @@ impl PerpMarket {
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct InsuranceClaim {
-    pub revenue_withdraw_since_last_settle: u128,
-    pub max_revenue_withdraw_per_period: u128,
-    pub quote_max_insurance: u128,
-    pub quote_settled_insurance: u128,
+    pub revenue_withdraw_since_last_settle: u64,
+    pub max_revenue_withdraw_per_period: u64,
+    pub quote_max_insurance: u64,
+    pub quote_settled_insurance: u64,
     pub last_revenue_withdraw_ts: i64,
 }
 
@@ -310,8 +297,6 @@ pub struct AMM {
     pub base_asset_amount_per_lp: i128,
     pub quote_asset_amount_per_lp: i128,
     pub fee_pool: PoolBalance,
-    pub last_oracle_normalised_price: i128,
-    pub last_oracle_reserve_price_spread_pct: i128,
     pub base_asset_reserve: u128,
     pub quote_asset_reserve: u128,
     pub concentration_coef: u128,
@@ -330,10 +315,10 @@ pub struct AMM {
     pub quote_entry_amount_long: i128,
     pub quote_entry_amount_short: i128,
     pub user_lp_shares: u128,
-    pub last_funding_rate: i128,
-    pub last_funding_rate_long: i128,
-    pub last_funding_rate_short: i128,
-    pub last_24h_avg_funding_rate: i128,
+    pub last_funding_rate: i64,
+    pub last_funding_rate_long: i64,
+    pub last_funding_rate_short: i64,
+    pub last_24h_avg_funding_rate: i64,
     pub total_fee: i128,
     pub total_mm_fee: i128,
     pub total_exchange_fee: u128,
@@ -343,16 +328,16 @@ pub struct AMM {
     pub cumulative_funding_rate_long: i128,
     pub cumulative_funding_rate_short: i128,
     pub cumulative_social_loss: i128,
-    pub long_spread: u128,
-    pub short_spread: u128,
     pub ask_base_asset_reserve: u128,
     pub ask_quote_asset_reserve: u128,
     pub bid_base_asset_reserve: u128,
     pub bid_quote_asset_reserve: u128,
-    pub last_bid_price_twap: u128,
-    pub last_ask_price_twap: u128,
-    pub last_mark_price_twap: u128,
-    pub last_mark_price_twap_5min: u128,
+    pub last_oracle_normalised_price: i64,
+    pub last_oracle_reserve_price_spread_pct: i64,
+    pub last_bid_price_twap: u64,
+    pub last_ask_price_twap: u64,
+    pub last_mark_price_twap: u64,
+    pub last_mark_price_twap_5min: u64,
     pub last_update_slot: u64,
     pub last_oracle_conf_pct: u64,
     pub net_revenue_since_last_funding: i64,
@@ -368,17 +353,18 @@ pub struct AMM {
     pub last_trade_ts: i64,
     pub mark_std: u64,
     pub last_mark_price_twap_ts: i64,
+    pub base_spread: u32,
     pub max_spread: u32,
+    pub long_spread: u32,
+    pub short_spread: u32,
+    pub long_intensity_count: u32,
+    pub short_intensity_count: u32,
     pub max_fill_reserve_fraction: u16,
     pub max_slippage_ratio: u16,
-    pub base_spread: u16,
-    pub long_intensity_count: u16,
-    pub short_intensity_count: u16,
     pub curve_update_intensity: u8,
     pub amm_jit_intensity: u8,
     pub oracle_source: OracleSource,
     pub last_oracle_valid: bool,
-    pub padding: [u8; 6],
 }
 
 impl AMM {
@@ -398,7 +384,7 @@ impl AMM {
             peg_multiplier: crate::math::constants::PEG_PRECISION,
             max_spread: 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: PRICE_PRECISION as i128,
+                last_oracle_price: PRICE_PRECISION_I64,
                 ..HistoricalOracleData::default()
             },
             last_oracle_valid: true,
@@ -425,8 +411,8 @@ impl AMM {
             quote_asset_amount_long: 0,
             quote_asset_amount_short: 19_000_000_000, // short 1 BTC @ $19000
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: (19_400 * PRICE_PRECISION) as i128,
-                last_oracle_price_twap: (19_400 * PRICE_PRECISION) as i128,
+                last_oracle_price: 19_400 * PRICE_PRECISION_I64,
+                last_oracle_price_twap: 19_400 * PRICE_PRECISION_I64,
                 last_oracle_price_twap_ts: 1662800000_i64,
                 ..HistoricalOracleData::default()
             },
@@ -446,7 +432,7 @@ impl AMM {
         self.amm_jit_intensity > 0
     }
 
-    pub fn reserve_price(&self) -> ClearingHouseResult<u128> {
+    pub fn reserve_price(&self) -> ClearingHouseResult<u64> {
         amm::calculate_price(
             self.quote_asset_reserve,
             self.base_asset_reserve,
@@ -454,23 +440,23 @@ impl AMM {
         )
     }
 
-    pub fn bid_price(&self, reserve_price: u128) -> ClearingHouseResult<u128> {
-        let bid_price = reserve_price
-            .safe_mul(BID_ASK_SPREAD_PRECISION.safe_sub(self.short_spread)?)?
-            .safe_div(BID_ASK_SPREAD_PRECISION)?;
-
-        Ok(bid_price)
+    pub fn bid_price(&self, reserve_price: u64) -> ClearingHouseResult<u64> {
+        reserve_price
+            .cast::<u128>()?
+            .safe_mul(BID_ASK_SPREAD_PRECISION_U128.safe_sub(self.short_spread.cast()?)?)?
+            .safe_div(BID_ASK_SPREAD_PRECISION_U128)?
+            .cast()
     }
 
-    pub fn ask_price(&self, reserve_price: u128) -> ClearingHouseResult<u128> {
-        let ask_price = reserve_price
-            .safe_mul(BID_ASK_SPREAD_PRECISION.safe_add(self.long_spread)?)?
-            .safe_div(BID_ASK_SPREAD_PRECISION)?;
-
-        Ok(ask_price)
+    pub fn ask_price(&self, reserve_price: u64) -> ClearingHouseResult<u64> {
+        reserve_price
+            .cast::<u128>()?
+            .safe_mul(BID_ASK_SPREAD_PRECISION_U128.safe_add(self.long_spread.cast()?)?)?
+            .safe_div(BID_ASK_SPREAD_PRECISION_U128)?
+            .cast::<u64>()
     }
 
-    pub fn bid_ask_price(&self, reserve_price: u128) -> ClearingHouseResult<(u128, u128)> {
+    pub fn bid_ask_price(&self, reserve_price: u64) -> ClearingHouseResult<(u64, u64)> {
         let bid_price = self.bid_price(reserve_price)?;
         let ask_price = self.ask_price(reserve_price)?;
         Ok((bid_price, ask_price))
@@ -481,7 +467,7 @@ impl AMM {
         Ok(can_lower)
     }
 
-    pub fn get_oracle_twap(&self, price_oracle: &AccountInfo) -> ClearingHouseResult<Option<i128>> {
+    pub fn get_oracle_twap(&self, price_oracle: &AccountInfo) -> ClearingHouseResult<Option<i64>> {
         match self.oracle_source {
             OracleSource::Pyth => Ok(Some(self.get_pyth_twap(price_oracle)?)),
             OracleSource::Switchboard => Ok(None),
@@ -489,15 +475,15 @@ impl AMM {
         }
     }
 
-    pub fn get_pyth_twap(&self, price_oracle: &AccountInfo) -> ClearingHouseResult<i128> {
+    pub fn get_pyth_twap(&self, price_oracle: &AccountInfo) -> ClearingHouseResult<i64> {
         let pyth_price_data = price_oracle
             .try_borrow_data()
             .or(Err(ErrorCode::UnableToLoadOracle))?;
         let price_data = pyth_client::cast::<pyth_client::Price>(&pyth_price_data);
 
-        let oracle_twap = price_data.twap.val.cast::<i128>()?;
+        let oracle_twap = price_data.twap.val;
 
-        assert!(oracle_twap > price_data.agg.price.cast::<i128>()? / 10);
+        assert!(oracle_twap > price_data.agg.price / 10);
 
         let oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
 
@@ -510,11 +496,11 @@ impl AMM {
             oracle_scale_mult = PRICE_PRECISION.safe_div(oracle_precision)?;
         }
 
-        let oracle_twap_scaled = (oracle_twap)
+        oracle_twap
+            .cast::<i128>()?
             .safe_mul(oracle_scale_mult.cast()?)?
-            .safe_div(oracle_scale_div.cast()?)?;
-
-        Ok(oracle_twap_scaled)
+            .safe_div(oracle_scale_div.cast()?)?
+            .cast::<i64>()
     }
 
     pub fn update_volume_24h(
@@ -523,7 +509,7 @@ impl AMM {
         position_direction: PositionDirection,
         now: i64,
     ) -> ClearingHouseResult {
-        let since_last = max(1, now.safe_sub(self.last_trade_ts)?).cast::<i128>()?;
+        let since_last = max(1_i64, now.safe_sub(self.last_trade_ts)?);
 
         amm::update_amm_long_short_intensity(self, now, quote_asset_amount, position_direction)?;
 
@@ -531,7 +517,7 @@ impl AMM {
             self.volume_24h,
             quote_asset_amount,
             since_last,
-            TWENTY_FOUR_HOUR as i128,
+            TWENTY_FOUR_HOUR,
         )?;
 
         self.last_trade_ts = now;

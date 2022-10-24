@@ -9,7 +9,7 @@ use solana_program::msg;
 pub fn validate_margin(
     margin_ratio_initial: u32,
     margin_ratio_maintenance: u32,
-    liquidation_fee: u128,
+    liquidation_fee: u32,
     max_spread: u32,
 ) -> ClearingHouseResult {
     if !(MIN_MARGIN_RATIO..=MAX_MARGIN_RATIO).contains(&margin_ratio_initial) {
@@ -25,14 +25,13 @@ pub fn validate_margin(
     }
 
     validate!(
-        (margin_ratio_maintenance as u128) * LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO
-            > liquidation_fee,
+        margin_ratio_maintenance * LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO > liquidation_fee,
         ErrorCode::InvalidMarginRatio,
         "margin_ratio_maintenance must be greater than liquidation fee"
     )?;
 
     validate!(
-        (margin_ratio_initial as u128) * 100 > max_spread as u128,
+        margin_ratio_initial * 100 > max_spread,
         ErrorCode::InvalidMarginRatio,
         "margin_ratio_initial must be greater than max_spread (or must lower max_spread first)"
     )?;
@@ -42,11 +41,11 @@ pub fn validate_margin(
 
 pub fn validate_margin_weights(
     spot_market_index: u16,
-    initial_asset_weight: u128,
-    maintenance_asset_weight: u128,
-    initial_liability_weight: u128,
-    maintenance_liability_weight: u128,
-    imf_factor: u128,
+    initial_asset_weight: u32,
+    maintenance_asset_weight: u32,
+    initial_liability_weight: u32,
+    maintenance_liability_weight: u32,
+    imf_factor: u32,
 ) -> ClearingHouseResult {
     if spot_market_index == 0 {
         validate!(

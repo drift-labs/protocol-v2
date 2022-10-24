@@ -49,7 +49,7 @@ pub fn get_best_bid_and_ask<'a>(
     asks_account_info: &'a AccountInfo,
     program_id: &'a Pubkey,
     base_decimals: u32,
-) -> ClearingHouseResult<(Option<u128>, Option<u128>)> {
+) -> ClearingHouseResult<(Option<u64>, Option<u64>)> {
     let mut market = load_serum_market(market_state_account_info, program_id)?;
 
     let mut bids = market.load_bids_mut(bids_account_info).map_err(|e| {

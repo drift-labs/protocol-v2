@@ -1,7 +1,8 @@
 mod calculate_base_asset_amount_to_cover_margin_shortage {
     use crate::math::constants::{
         AMM_TO_QUOTE_PRECISION_RATIO, BASE_PRECISION_U64, LIQUIDATION_FEE_PRECISION,
-        MARGIN_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128, QUOTE_PRECISION,
+        LIQUIDATION_FEE_PRECISION_U128, MARGIN_PRECISION, MARGIN_PRECISION_U128, PRICE_PRECISION,
+        PRICE_PRECISION_I64, QUOTE_PRECISION,
     };
     use crate::math::liquidation::calculate_base_asset_amount_to_cover_margin_shortage;
 
@@ -10,7 +11,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
         let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
         let margin_ratio = MARGIN_PRECISION as u32 / 10; // 10x leverage
         let liquidation_fee = 0; // 0 percent
-        let oracle_price = 100 * PRICE_PRECISION_I128; // $100 / base
+        let oracle_price = 100 * PRICE_PRECISION_I64; // $100 / base
         let base_asset_amount = calculate_base_asset_amount_to_cover_margin_shortage(
             margin_shortage,
             margin_ratio,
@@ -28,7 +29,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
         let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
         let margin_ratio = MARGIN_PRECISION as u32 / 10; // 10x leverage
         let liquidation_fee = LIQUIDATION_FEE_PRECISION / 100; // 1 percent
-        let oracle_price = 100 * PRICE_PRECISION_I128; // $100 / base
+        let oracle_price = 100 * PRICE_PRECISION_I64; // $100 / base
         let base_asset_amount = calculate_base_asset_amount_to_cover_margin_shortage(
             margin_shortage,
             margin_ratio,
@@ -38,17 +39,17 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
         )
         .unwrap();
 
-        let freed_collateral = (base_asset_amount as u128) * oracle_price.unsigned_abs()
+        let freed_collateral = (base_asset_amount as u128) * (oracle_price as u128)
             / PRICE_PRECISION
             / AMM_TO_QUOTE_PRECISION_RATIO
             * margin_ratio as u128
-            / MARGIN_PRECISION;
+            / MARGIN_PRECISION_U128;
 
-        let negative_pnl = (base_asset_amount as u128) * oracle_price.unsigned_abs()
+        let negative_pnl = (base_asset_amount as u128) * (oracle_price as u128)
             / PRICE_PRECISION
             / AMM_TO_QUOTE_PRECISION_RATIO
-            * liquidation_fee
-            / LIQUIDATION_FEE_PRECISION;
+            * liquidation_fee as u128
+            / LIQUIDATION_FEE_PRECISION_U128;
 
         assert_eq!(freed_collateral - negative_pnl, 10000000); // ~$10
 
@@ -60,7 +61,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
         let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
         let margin_ratio = MARGIN_PRECISION as u32 / 10; // 10x leverage
         let liquidation_fee = LIQUIDATION_FEE_PRECISION / 100; // 1 percent
-        let oracle_price = 100 * PRICE_PRECISION_I128; // $100 / base
+        let oracle_price = 100 * PRICE_PRECISION_I64; // $100 / base
         let if_liquidation_fee = LIQUIDATION_FEE_PRECISION / 100; // 1 percent
         let base_asset_amount = calculate_base_asset_amount_to_cover_margin_shortage(
             margin_shortage,
@@ -71,23 +72,23 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
         )
         .unwrap();
 
-        let if_fee = (base_asset_amount as u128) * oracle_price.unsigned_abs()
+        let if_fee = (base_asset_amount as u128) * (oracle_price as u128)
             / PRICE_PRECISION
             / AMM_TO_QUOTE_PRECISION_RATIO
-            * if_liquidation_fee
-            / LIQUIDATION_FEE_PRECISION;
+            * if_liquidation_fee as u128
+            / LIQUIDATION_FEE_PRECISION_U128;
 
-        let freed_collateral = (base_asset_amount as u128) * oracle_price.unsigned_abs()
+        let freed_collateral = (base_asset_amount as u128) * (oracle_price as u128)
             / PRICE_PRECISION
             / AMM_TO_QUOTE_PRECISION_RATIO
             * margin_ratio as u128
-            / MARGIN_PRECISION;
+            / MARGIN_PRECISION_U128;
 
-        let negative_pnl = (base_asset_amount as u128) * oracle_price.unsigned_abs()
+        let negative_pnl = (base_asset_amount as u128) * (oracle_price as u128)
             / PRICE_PRECISION
             / AMM_TO_QUOTE_PRECISION_RATIO
-            * liquidation_fee
-            / LIQUIDATION_FEE_PRECISION;
+            * liquidation_fee as u128
+            / LIQUIDATION_FEE_PRECISION_U128;
 
         let if_fee_consume_collateral = if_fee;
 
@@ -102,8 +103,8 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
 
 mod calculate_liability_transfer_to_cover_margin_shortage {
     use crate::math::constants::{
-        LIQUIDATION_FEE_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128, QUOTE_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_PRECISION_U128, PRICE_PRECISION,
+        PRICE_PRECISION_I64, QUOTE_PRECISION, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_U128,
     };
     use crate::math::liquidation::calculate_liability_transfer_to_cover_margin_shortage;
 
@@ -115,7 +116,7 @@ mod calculate_liability_transfer_to_cover_margin_shortage {
         let liability_weight = 12 * SPOT_WEIGHT_PRECISION / 10; // 1.2
         let liability_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
         let liability_decimals = 9;
-        let liability_price = 100 * PRICE_PRECISION_I128;
+        let liability_price = 100 * PRICE_PRECISION_I64;
 
         let liability_transfer = calculate_liability_transfer_to_cover_margin_shortage(
             margin_shortage,
@@ -140,7 +141,7 @@ mod calculate_liability_transfer_to_cover_margin_shortage {
         let liability_weight = 12 * SPOT_WEIGHT_PRECISION / 10; // 1.2
         let liability_liquidation_multiplier = 90 * LIQUIDATION_FEE_PRECISION / 100;
         let liability_decimals = 9;
-        let liability_price = 100 * PRICE_PRECISION_I128;
+        let liability_price = 100 * PRICE_PRECISION_I64;
 
         let liability_transfer = calculate_liability_transfer_to_cover_margin_shortage(
             margin_shortage,
@@ -165,7 +166,7 @@ mod calculate_liability_transfer_to_cover_margin_shortage {
         let liability_weight = 12 * SPOT_WEIGHT_PRECISION / 10; // 1.2
         let liability_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
         let liability_decimals = 9;
-        let liability_price = 100 * PRICE_PRECISION_I128;
+        let liability_price = 100 * PRICE_PRECISION_I64;
         let if_liquidation_fee = LIQUIDATION_FEE_PRECISION / 100;
 
         let liability_transfer = calculate_liability_transfer_to_cover_margin_shortage(
@@ -180,16 +181,17 @@ mod calculate_liability_transfer_to_cover_margin_shortage {
         )
         .unwrap();
 
-        let if_fee = liability_transfer * if_liquidation_fee / LIQUIDATION_FEE_PRECISION;
+        let if_fee =
+            liability_transfer * if_liquidation_fee as u128 / LIQUIDATION_FEE_PRECISION_U128;
 
         let liability_transfer_freed_collateral =
-            liability_transfer * liability_price.unsigned_abs() / PRICE_PRECISION / 1000
-                * (liability_weight - asset_weight)
-                / SPOT_WEIGHT_PRECISION;
+            liability_transfer * (liability_price as u128) / PRICE_PRECISION / 1000
+                * (liability_weight - asset_weight) as u128
+                / SPOT_WEIGHT_PRECISION_U128;
 
         let if_fee_consumed_collateral =
-            if_fee * liability_price.unsigned_abs() / PRICE_PRECISION / 1000 * liability_weight
-                / SPOT_WEIGHT_PRECISION;
+            if_fee * (liability_price as u128) / PRICE_PRECISION / 1000 * liability_weight as u128
+                / SPOT_WEIGHT_PRECISION_U128;
 
         assert_eq!(
             liability_transfer_freed_collateral - if_fee_consumed_collateral,
@@ -206,7 +208,7 @@ mod calculate_liability_transfer_to_cover_margin_shortage {
         let liability_weight = 12 * SPOT_WEIGHT_PRECISION / 10; // 1.2
         let liability_liquidation_multiplier = 90 * LIQUIDATION_FEE_PRECISION / 100;
         let liability_decimals = 9;
-        let liability_price = 100 * PRICE_PRECISION_I128;
+        let liability_price = 100 * PRICE_PRECISION_I64;
         let if_liquidation_fee = LIQUIDATION_FEE_PRECISION / 100;
 
         let liability_transfer = calculate_liability_transfer_to_cover_margin_shortage(
@@ -221,18 +223,20 @@ mod calculate_liability_transfer_to_cover_margin_shortage {
         )
         .unwrap();
 
-        let if_fee = liability_transfer * if_liquidation_fee / LIQUIDATION_FEE_PRECISION;
+        let if_fee =
+            liability_transfer * (if_liquidation_fee as u128) / LIQUIDATION_FEE_PRECISION_U128;
 
         let liability_transfer_freed_collateral =
-            liability_transfer * liability_price.unsigned_abs() / PRICE_PRECISION / 1000
-                * (liability_weight
-                    - asset_weight * asset_liquidation_multiplier
-                        / liability_liquidation_multiplier)
-                / SPOT_WEIGHT_PRECISION;
+            liability_transfer * (liability_price as u128) / PRICE_PRECISION / 1000
+                * (liability_weight as u128
+                    - asset_weight as u128 * asset_liquidation_multiplier as u128
+                        / liability_liquidation_multiplier as u128)
+                / SPOT_WEIGHT_PRECISION_U128;
 
         let if_fee_consumed_collateral =
-            if_fee * liability_price.unsigned_abs() / PRICE_PRECISION / 1000 * liability_weight
-                / SPOT_WEIGHT_PRECISION;
+            if_fee * (liability_price as u128) / PRICE_PRECISION / 1000
+                * (liability_weight as u128)
+                / SPOT_WEIGHT_PRECISION_U128;
 
         assert_eq!(
             liability_transfer_freed_collateral - if_fee_consumed_collateral,
@@ -243,19 +247,17 @@ mod calculate_liability_transfer_to_cover_margin_shortage {
 }
 
 mod calculate_liability_transfer_implied_by_asset_amount {
-    use crate::math::constants::{
-        LIQUIDATION_FEE_PRECISION, PRICE_PRECISION_I128, QUOTE_PRECISION,
-    };
+    use crate::math::constants::{LIQUIDATION_FEE_PRECISION, PRICE_PRECISION_I64, QUOTE_PRECISION};
     use crate::math::liquidation::calculate_liability_transfer_implied_by_asset_amount;
 
     #[test]
     pub fn zero_asset_and_liability_fee() {
         let asset_transfer = 10 * QUOTE_PRECISION; // $10
         let asset_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
-        let asset_price = PRICE_PRECISION_I128;
+        let asset_price = PRICE_PRECISION_I64;
         let liability_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
         let liability_decimals = 9;
-        let liability_price = 100 * PRICE_PRECISION_I128;
+        let liability_price = 100 * PRICE_PRECISION_I64;
 
         let liability_transfer = calculate_liability_transfer_implied_by_asset_amount(
             asset_transfer,
@@ -275,10 +277,10 @@ mod calculate_liability_transfer_implied_by_asset_amount {
     pub fn one_percent_asset_and_liability_fee() {
         let asset_transfer = 10 * QUOTE_PRECISION; // $10
         let asset_liquidation_multiplier = 101 * LIQUIDATION_FEE_PRECISION / 100;
-        let asset_price = PRICE_PRECISION_I128;
+        let asset_price = PRICE_PRECISION_I64;
         let liability_liquidation_multiplier = 99 * LIQUIDATION_FEE_PRECISION / 100;
         let liability_decimals = 9;
-        let liability_price = 100 * PRICE_PRECISION_I128;
+        let liability_price = 100 * PRICE_PRECISION_I64;
 
         let liability_transfer = calculate_liability_transfer_implied_by_asset_amount(
             asset_transfer,
@@ -297,7 +299,7 @@ mod calculate_liability_transfer_implied_by_asset_amount {
 
 mod calculate_asset_transfer_for_liability_transfer {
     use crate::math::constants::{
-        BASE_PRECISION, LIQUIDATION_FEE_PRECISION, PRICE_PRECISION_I128, QUOTE_PRECISION,
+        BASE_PRECISION, LIQUIDATION_FEE_PRECISION, PRICE_PRECISION_I64, QUOTE_PRECISION,
     };
     use crate::math::liquidation::calculate_asset_transfer_for_liability_transfer;
 
@@ -305,11 +307,11 @@ mod calculate_asset_transfer_for_liability_transfer {
     pub fn zero_asset_and_liability_fee() {
         let asset_amount = 100 * QUOTE_PRECISION;
         let asset_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
-        let asset_price = PRICE_PRECISION_I128;
+        let asset_price = PRICE_PRECISION_I64;
         let liability_transfer = BASE_PRECISION;
         let liability_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
         let liability_decimals = 9;
-        let liability_price = 100 * PRICE_PRECISION_I128;
+        let liability_price = 100 * PRICE_PRECISION_I64;
 
         let asset_transfer = calculate_asset_transfer_for_liability_transfer(
             asset_amount,
@@ -330,11 +332,11 @@ mod calculate_asset_transfer_for_liability_transfer {
     pub fn one_percent_asset_and_liability_fee() {
         let asset_amount = 200 * QUOTE_PRECISION;
         let asset_liquidation_multiplier = 101 * LIQUIDATION_FEE_PRECISION / 100;
-        let asset_price = PRICE_PRECISION_I128;
+        let asset_price = PRICE_PRECISION_I64;
         let liability_transfer = BASE_PRECISION;
         let liability_liquidation_multiplier = 99 * LIQUIDATION_FEE_PRECISION / 100;
         let liability_decimals = 9;
-        let liability_price = 100 * PRICE_PRECISION_I128;
+        let liability_price = 100 * PRICE_PRECISION_I64;
 
         let asset_transfer = calculate_asset_transfer_for_liability_transfer(
             asset_amount,
@@ -434,7 +436,7 @@ mod calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy {
 
 mod auto_deleveraging {
     use crate::math::constants::{
-        BASE_PRECISION_I128, BASE_PRECISION_I64, PRICE_PRECISION_I128,
+        BASE_PRECISION_I128, BASE_PRECISION_I64, PRICE_PRECISION_I64,
         PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
     };
     use crate::math::liquidation::{calculate_perp_market_deleverage_payment, DeleverageUserStats};
@@ -462,7 +464,7 @@ mod auto_deleveraging {
         };
 
         let delev_payment =
-            calculate_perp_market_deleverage_payment(0, dus, &market, 100 * PRICE_PRECISION_I128)
+            calculate_perp_market_deleverage_payment(0, dus, &market, 100 * PRICE_PRECISION_I64)
                 .unwrap();
         assert_eq!(delev_payment, 0);
 
@@ -470,7 +472,7 @@ mod auto_deleveraging {
             -QUOTE_PRECISION_I128,
             dus,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 0);
@@ -479,7 +481,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128,
             dus,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 0);
@@ -520,7 +522,7 @@ mod auto_deleveraging {
             -QUOTE_PRECISION_I128,
             dus,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, QUOTE_PRECISION_I128);
@@ -529,7 +531,7 @@ mod auto_deleveraging {
             -QUOTE_PRECISION_I128 / 2,
             dus,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, QUOTE_PRECISION_I128 / 2);
@@ -538,7 +540,7 @@ mod auto_deleveraging {
             -QUOTE_PRECISION_I128 * 200,
             dus,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, QUOTE_PRECISION_I128);
@@ -547,7 +549,7 @@ mod auto_deleveraging {
             -QUOTE_PRECISION_I128 * 200,
             dus_neg,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 0);
@@ -557,7 +559,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * 200,
             dus_neg,
             &market,
-            -100 * PRICE_PRECISION_I128,
+            -100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 0);
@@ -593,7 +595,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 0);
@@ -610,7 +612,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus,
             &market,
-            101 * PRICE_PRECISION_I128,
+            101 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 0);
@@ -627,7 +629,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus,
             &market,
-            101 * PRICE_PRECISION_I128,
+            101 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 8019801);
@@ -644,7 +646,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus,
             &market,
-            101 * PRICE_PRECISION_I128,
+            101 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 8669747);
@@ -661,7 +663,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus,
             &market,
-            101 * PRICE_PRECISION_I128,
+            101 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 2000000);
@@ -696,7 +698,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 0);
@@ -713,7 +715,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus,
             &market,
-            101 * PRICE_PRECISION_I128,
+            101 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 0);
@@ -730,7 +732,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus,
             &market,
-            101 * PRICE_PRECISION_I128,
+            101 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 8019802); // todo: 1 more than long version?
@@ -747,7 +749,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus,
             &market,
-            101 * PRICE_PRECISION_I128,
+            101 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 8764603);
@@ -764,7 +766,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus,
             &market,
-            101 * PRICE_PRECISION_I128,
+            101 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 2000000);
@@ -883,7 +885,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus1,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 116_861_522);
@@ -892,7 +894,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus1,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 116_861_522);
@@ -901,7 +903,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus2,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 3_095_384);
@@ -910,7 +912,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus3,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 189_581_550);
@@ -919,7 +921,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus4,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 0);
@@ -928,7 +930,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus5,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 0);
@@ -937,7 +939,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus6,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 0);
@@ -946,7 +948,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus7,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 0);
@@ -963,7 +965,7 @@ mod auto_deleveraging {
             QUOTE_PRECISION_I128 * -200,
             dus8,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 200000000);
@@ -1084,7 +1086,7 @@ mod auto_deleveraging {
             remaining_levered_loss,
             dus1,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 116_861_522);
@@ -1113,7 +1115,7 @@ mod auto_deleveraging {
             remaining_levered_loss,
             dus1,
             &market,
-            100 * PRICE_PRECISION_I128,
+            100 * PRICE_PRECISION_I64,
         )
         .unwrap();
         assert_eq!(delev_payment, 0);

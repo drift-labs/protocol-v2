@@ -735,12 +735,12 @@ pub fn resolve_perp_pnl_deficit(
     market.insurance_claim.revenue_withdraw_since_last_settle = market
         .insurance_claim
         .revenue_withdraw_since_last_settle
-        .safe_add(insurance_withdraw.unsigned_abs())?;
+        .safe_add(insurance_withdraw.cast()?)?;
 
     market.insurance_claim.quote_settled_insurance = market
         .insurance_claim
         .quote_settled_insurance
-        .safe_add(insurance_withdraw.unsigned_abs())?;
+        .safe_add(insurance_withdraw.cast()?)?;
 
     validate!(
         market.insurance_claim.quote_settled_insurance
@@ -754,7 +754,7 @@ pub fn resolve_perp_pnl_deficit(
     market.insurance_claim.last_revenue_withdraw_ts = now;
 
     update_spot_balances(
-        insurance_withdraw.unsigned_abs(),
+        insurance_withdraw.cast()?,
         &SpotBalanceType::Deposit,
         spot_market,
         &mut market.pnl_pool,

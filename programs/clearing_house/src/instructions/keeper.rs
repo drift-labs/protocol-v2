@@ -443,6 +443,7 @@ pub fn handle_liquidate_perp(
     ctx: Context<LiquidatePerp>,
     market_index: u16,
     liquidator_max_base_asset_amount: u64,
+    limit_price: Option<u64>,
 ) -> Result<()> {
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
@@ -477,6 +478,7 @@ pub fn handle_liquidate_perp(
     controller::liquidation::liquidate_perp(
         market_index,
         liquidator_max_base_asset_amount,
+        limit_price,
         user,
         &user_key,
         user_stats,
