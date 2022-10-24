@@ -401,19 +401,14 @@ pub fn calculate_perp_market_deleverage_payment(
             .safe_div(BASE_PRECISION_I128)?
     };
 
+    // never let deleveraging put user into liquidation territory
     let max_user_payment = if deleverage_user_stats.base_asset_amount == 0 {
-        deleverage_user_stats.quote_asset_amount
+        deleverage_user_stats
+            .quote_asset_amount
+            .min(deleverage_user_stats.free_collateral.cast()?)
     } else {
         deleverage_user_stats.free_collateral.cast()?
     };
-
-    // dlog!(
-    //     cost_basis_above_mean,
-    //     profit_above_mean,
-    //     alt_max_deleverage,
-    //     max_user_payment,
-    //     loss_to_socialize,
-    // );
 
     let deleverage_payment = profit_above_mean
         .min(max_user_payment.cast()?)

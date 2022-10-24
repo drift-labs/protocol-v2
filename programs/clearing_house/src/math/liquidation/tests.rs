@@ -506,7 +506,7 @@ mod auto_deleveraging {
             quote_asset_amount: QUOTE_PRECISION_I64,
             quote_entry_amount: 0,
             // unrealized_pnl: QUOTE_PRECISION_I128,
-            free_collateral: 0,
+            free_collateral: QUOTE_PRECISION_I128 * 2,
         };
 
         // user has negative upnl
