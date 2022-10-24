@@ -252,7 +252,7 @@ pub fn handle_deposit(
 
     validate!(
         spot_market.max_token_deposits == 0
-            || deposits_token_amount <= spot_market.max_token_deposits,
+            || deposits_token_amount <= spot_market.max_token_deposits.cast()?,
         ErrorCode::MaxDeposit,
         "max deposits: {} new deposits {}",
         spot_market.max_token_deposits,

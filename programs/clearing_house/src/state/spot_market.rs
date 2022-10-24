@@ -32,16 +32,16 @@ pub struct SpotMarket {
     pub revenue_pool: PoolBalance,  // in base asset
     pub spot_fee_pool: PoolBalance, // in quote asset
     pub insurance_fund: InsuranceFund,
-    pub withdraw_guard_threshold: u128, // no withdraw limits/guards when deposits below this threshold
     pub total_spot_fee: u128,
     pub deposit_balance: u128,
     pub borrow_balance: u128,
-    pub max_token_deposits: u128,
-    pub deposit_token_twap: u128, // 24 hour twap
-    pub borrow_token_twap: u128,  // 24 hour twap
-    pub utilization_twap: u128,   // 24 hour twap
     pub cumulative_deposit_interest: u128,
     pub cumulative_borrow_interest: u128,
+    pub withdraw_guard_threshold: u64, // no withdraw limits/guards when deposits below this threshold
+    pub max_token_deposits: u64,
+    pub deposit_token_twap: u64, // 24 hour twap
+    pub borrow_token_twap: u64,  // 24 hour twap
+    pub utilization_twap: u64,   // 24 hour twap
     pub last_interest_ts: u64,
     pub last_twap_ts: u64,
     pub expiry_ts: i64, // iff market in reduce only mode

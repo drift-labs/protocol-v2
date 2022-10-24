@@ -27,7 +27,7 @@ import {
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { ClearingHouse } from './clearingHouse';
-import { PEG_PRECISION, ZERO } from './constants/numericConstants';
+import { PEG_PRECISION } from './constants/numericConstants';
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 

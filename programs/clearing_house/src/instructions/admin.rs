@@ -1357,7 +1357,7 @@ pub fn handle_update_spot_market_liquidation_fee(
 
 pub fn handle_update_withdraw_guard_threshold(
     ctx: Context<AdminUpdateSpotMarket>,
-    withdraw_guard_threshold: u128,
+    withdraw_guard_threshold: u64,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     msg!(
@@ -1484,7 +1484,7 @@ pub fn handle_update_spot_market_margin_weights(
 
 pub fn handle_update_spot_market_max_token_deposits(
     ctx: Context<AdminUpdateSpotMarket>,
-    max_token_deposits: u128,
+    max_token_deposits: u64,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     spot_market.max_token_deposits = max_token_deposits;

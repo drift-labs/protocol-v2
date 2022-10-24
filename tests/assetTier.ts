@@ -11,7 +11,6 @@ import {
 	ClearingHouse,
 	EventSubscriber,
 	ZERO,
-	ONE,
 	// SPOT_MARKET_RATE_PRECISION,
 	// SpotBalanceType,
 	isVariant,

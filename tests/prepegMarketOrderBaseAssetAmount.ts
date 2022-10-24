@@ -4,7 +4,6 @@ import {
 	BN,
 	calculateEffectiveLeverage,
 	getMarketOrderParams,
-	ONE,
 	OracleSource,
 	ZERO,
 	calculatePrice,

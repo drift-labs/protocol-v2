@@ -1,6 +1,6 @@
 import * as anchor from '@project-serum/anchor';
 import { assert } from 'chai';
-import { BN, getMarketOrderParams, ONE, OracleSource, ZERO } from '../sdk';
+import { BN, getMarketOrderParams, OracleSource, ZERO } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 

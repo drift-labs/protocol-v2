@@ -542,7 +542,7 @@ pub mod clearing_house {
 
     pub fn update_withdraw_guard_threshold(
         ctx: Context<AdminUpdateSpotMarket>,
-        withdraw_guard_threshold: u128,
+        withdraw_guard_threshold: u64,
     ) -> Result<()> {
         handle_update_withdraw_guard_threshold(ctx, withdraw_guard_threshold)
     }
@@ -597,7 +597,7 @@ pub mod clearing_house {
 
     pub fn update_spot_market_max_token_deposits(
         ctx: Context<AdminUpdateSpotMarket>,
-        max_token_deposits: u128,
+        max_token_deposits: u64,
     ) -> Result<()> {
         handle_update_spot_market_max_token_deposits(ctx, max_token_deposits)
     }
