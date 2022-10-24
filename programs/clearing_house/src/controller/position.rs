@@ -144,8 +144,16 @@ pub fn update_position_and_market(
 
     // Update Market open interest
     if let PositionUpdateType::Open = update_type {
+        if position.quote_asset_amount == 0 && new_quote_asset_amount != 0 {
+            market.number_of_users_with_quote = market.number_of_users_with_quote.safe_add(1)?;
+        }
+
         market.number_of_users = market.number_of_users.safe_add(1)?;
     } else if let PositionUpdateType::Close = update_type {
+        if position.quote_asset_amount != 0 && new_quote_asset_amount == 0 {
+            market.number_of_users_with_quote = market.number_of_users_with_quote.safe_sub(1)?;
+        }
+
         market.number_of_users = market.number_of_users.safe_sub(1)?;
     }
 
@@ -485,6 +493,10 @@ pub fn update_quote_asset_amount(
     market: &mut PerpMarket,
     delta: i64,
 ) -> ClearingHouseResult<()> {
+    if position.quote_asset_amount == 0 {
+        market.number_of_users_with_quote = market.number_of_users_with_quote.safe_add(1)?;
+    }
+
     position.quote_asset_amount = position.quote_asset_amount.safe_add(delta)?;
 
     match position.get_direction() {
@@ -498,6 +510,10 @@ pub fn update_quote_asset_amount(
                 .quote_asset_amount_short
                 .safe_add(delta.cast()?)?
         }
+    }
+
+    if position.quote_asset_amount == 0 {
+        market.number_of_users_with_quote = market.number_of_users_with_quote.safe_sub(1)?;
     }
 
     Ok(())

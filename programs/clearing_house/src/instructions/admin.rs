@@ -513,6 +513,7 @@ pub fn handle_initialize_perp_market(
         pubkey: *perp_market_pubkey,
         market_index,
         number_of_users: 0,
+        number_of_users_with_quote: 0,
         margin_ratio_initial, // unit is 20% (+2 decimal places)
         margin_ratio_maintenance,
         imf_factor: 0,
@@ -527,7 +528,7 @@ pub fn handle_initialize_perp_market(
         unrealized_pnl_max_imbalance: 0,
         liquidator_fee: liquidation_fee,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
-        padding: [0; 3],
+        padding: [0; 7],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
