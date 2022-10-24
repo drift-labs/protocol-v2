@@ -2412,6 +2412,7 @@ pub mod delisting_test {
             liquidate_perp(
                 0,
                 shorter.perp_positions[0].base_asset_amount.unsigned_abs(),
+                None,
                 &mut shorter,
                 &maker_key,
                 &mut shorter_user_stats,

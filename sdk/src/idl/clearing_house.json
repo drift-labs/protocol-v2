@@ -1034,6 +1034,12 @@
         {
           "name": "liquidatorMaxBaseAssetAmount",
           "type": "u64"
+        },
+        {
+          "name": "limitPrice",
+          "type": {
+            "option": "u64"
+          }
         }
       ]
     },
@@ -7621,6 +7627,11 @@
       "code": 6136,
       "name": "CantResolvePerpBankruptcy",
       "msg": "Cant Resolve Perp Bankruptcy"
+    },
+    {
+      "code": 6137,
+      "name": "LiquidationDoesntSatisfyLimitPrice",
+      "msg": "Liquidation Doesnt Satisfy Limit Price"
     }
   ]
 }

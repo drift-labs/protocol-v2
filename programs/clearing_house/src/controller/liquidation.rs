@@ -7,7 +7,7 @@ use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
 use crate::controller::orders;
 use crate::controller::position::{
-    get_position_index, update_position_and_market, update_quote_asset_amount,
+    get_position_index, update_position_and_market, update_quote_asset_amount, PositionDirection,
 };
 use crate::controller::repeg::update_amm_and_check_validity;
 use crate::controller::spot_balance::{
@@ -58,6 +58,7 @@ mod tests;
 pub fn liquidate_perp(
     market_index: u16,
     liquidator_max_base_asset_amount: u64,
+    limit_price: Option<u64>,
     user: &mut User,
     user_key: &Pubkey,
     user_stats: &mut UserStats,
@@ -298,6 +299,32 @@ pub fn liquidate_perp(
             LiquidationMultiplierType::Premium // premium if user is short
         },
     )?;
+
+    // Make sure liquidator enters at better than limit price
+    if let Some(limit_price) = limit_price {
+        let liquidation_price = oracle_price
+            .unsigned_abs()
+            .safe_mul(liquidation_multiplier)?
+            .safe_div(LIQUIDATION_FEE_PRECISION)?;
+
+        match user.perp_positions[position_index].get_direction() {
+            PositionDirection::Long => validate!(
+                liquidation_price <= limit_price.cast()?,
+                ErrorCode::LiquidationDoesntSatisfyLimitPrice,
+                "limit price ({}) > liquidation price ({})",
+                limit_price,
+                liquidation_price
+            )?,
+            PositionDirection::Short => validate!(
+                liquidation_price >= limit_price.cast()?,
+                ErrorCode::LiquidationDoesntSatisfyLimitPrice,
+                "limit price ({}) < liquidation price ({})",
+                limit_price,
+                liquidation_price
+            )?,
+        }
+    }
+
     let base_asset_value =
         calculate_base_asset_value_with_oracle_price(base_asset_amount.cast()?, oracle_price)?;
     let quote_asset_amount = base_asset_value

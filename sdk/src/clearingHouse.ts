@@ -2745,7 +2745,8 @@ export class ClearingHouse {
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		marketIndex: number,
-		maxBaseAssetAmount: BN
+		maxBaseAssetAmount: BN,
+		limitPrice?: BN
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
@@ -2753,7 +2754,8 @@ export class ClearingHouse {
 					userAccountPublicKey,
 					userAccount,
 					marketIndex,
-					maxBaseAssetAmount
+					maxBaseAssetAmount,
+					limitPrice
 				)
 			),
 			[],
@@ -2767,7 +2769,8 @@ export class ClearingHouse {
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
 		marketIndex: number,
-		maxBaseAssetAmount: BN
+		maxBaseAssetAmount: BN,
+		limitPrice?: BN
 	): Promise<TransactionInstruction> {
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
@@ -2786,6 +2789,7 @@ export class ClearingHouse {
 		return await this.program.instruction.liquidatePerp(
 			marketIndex,
 			maxBaseAssetAmount,
+			limitPrice ?? null,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
