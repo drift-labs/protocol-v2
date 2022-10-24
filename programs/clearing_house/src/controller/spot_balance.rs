@@ -35,13 +35,8 @@ pub fn update_spot_market_twap_stats(
     oracle_price_data: Option<&OraclePriceData>,
     now: i64,
 ) -> ClearingHouseResult {
-    let since_last = max(1, now.safe_sub(spot_market.last_twap_ts.cast()?)?).cast::<i128>()?;
-    let from_start = max(
-        1,
-        SPOT_MARKET_TOKEN_TWAP_WINDOW
-            .cast::<i128>()?
-            .safe_sub(since_last)?,
-    );
+    let since_last = max(1_i64, now.safe_sub(spot_market.last_twap_ts.cast()?)?);
+    let from_start = max(1_i64, SPOT_MARKET_TOKEN_TWAP_WINDOW.safe_sub(since_last)?);
 
     let deposit_token_amount = get_token_amount(
         spot_market.deposit_balance,
@@ -74,7 +69,7 @@ pub fn update_spot_market_twap_stats(
     let utilization = calculate_utilization(deposit_token_amount, borrow_token_amount)?;
 
     spot_market.utilization_twap = calculate_weighted_average(
-        utilization.cast::<i128>()?,
+        utilization.cast()?,
         spot_market.utilization_twap.cast()?,
         since_last,
         from_start,
@@ -84,7 +79,7 @@ pub fn update_spot_market_twap_stats(
     if let Some(oracle_price_data) = oracle_price_data {
         let sanitize_clamp_denominator = spot_market.get_sanitize_clamp_denominator()?;
 
-        let capped_oracle_update_price: i128 = sanitize_new_price(
+        let capped_oracle_update_price: i64 = sanitize_new_price(
             oracle_price_data.price,
             spot_market.historical_oracle_data.last_oracle_price_twap,
             sanitize_clamp_denominator,

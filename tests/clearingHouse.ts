@@ -136,7 +136,7 @@ describe('clearing_house', () => {
 
 		assert.ok(JSON.stringify(market.status) === JSON.stringify({ active: {} }));
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(0)));
-		assert.ok(market.numberOfUsers.eq(new BN(0)));
+		assert.ok(market.numberOfUsers === 0);
 
 		const ammD = market.amm;
 		console.log(ammD.oracle.toString());

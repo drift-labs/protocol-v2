@@ -4,7 +4,6 @@ import {
 	BN,
 	calculateEffectiveLeverage,
 	getMarketOrderParams,
-	ONE,
 	OracleSource,
 	ZERO,
 	calculatePrice,
@@ -269,7 +268,7 @@ describe('prepeg', () => {
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(49745050000)));
 		assert.ok(market.amm.baseAssetAmountLong.eq(new BN(49745050000)));
 		assert.ok(market.amm.baseAssetAmountShort.eq(ZERO));
-		assert.ok(market.numberOfUsers.eq(ONE));
+		assert.ok(market.numberOfUsers === 1);
 		assert.ok(market.amm.totalFee.gt(new BN(49750)));
 		assert.ok(market.amm.totalFeeMinusDistributions.gt(new BN(49750)));
 		assert.ok(market.amm.totalExchangeFee.eq(new BN(49999 + 1)));
@@ -460,11 +459,11 @@ describe('prepeg', () => {
 		assert(actualDist.sub(estDist).abs().lte(new BN(4))); // cost is near equal
 		assert(market.amm.sqrtK.lt(market0.amm.sqrtK)); // k was lowered
 
-		console.log(market.amm.longSpread.toString());
-		console.log(market.amm.shortSpread.toString());
+		console.log(market.amm.longSpread);
+		console.log(market.amm.shortSpread);
 
-		assert(market.amm.longSpread.eq(new BN('26784')));
-		assert(market.amm.shortSpread.eq(new BN(500)));
+		assert(market.amm.longSpread === 26784);
+		assert(market.amm.shortSpread === 500);
 
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];

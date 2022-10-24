@@ -193,7 +193,7 @@ pub fn update_spread_reserves(amm: &mut AMM) -> ClearingHouseResult {
     Ok(())
 }
 
-pub fn update_spreads(amm: &mut AMM, reserve_price: u128) -> ClearingHouseResult<(u128, u128)> {
+pub fn update_spreads(amm: &mut AMM, reserve_price: u64) -> ClearingHouseResult<(u32, u32)> {
     let (long_spread, short_spread) = if amm.curve_update_intensity > 0 {
         amm_spread::calculate_spread(
             amm.base_spread,
@@ -211,7 +211,7 @@ pub fn update_spreads(amm: &mut AMM, reserve_price: u128) -> ClearingHouseResult
             amm.max_base_asset_reserve,
         )?
     } else {
-        let half_base_spread = amm.base_spread.safe_div(2)?.cast::<u128>()?;
+        let half_base_spread = amm.base_spread.safe_div(2)?;
         (half_base_spread, half_base_spread)
     };
 
@@ -285,9 +285,7 @@ pub fn formulaic_update_k(
     // calculate budget
     let budget = if funding_imbalance_cost_i64 < 0 {
         // negative cost is period revenue, if spread is low give back half in k increase
-        if max(market.amm.long_spread, market.amm.short_spread)
-            <= market.amm.base_spread.cast::<u128>()?
-        {
+        if max(market.amm.long_spread, market.amm.short_spread) <= market.amm.base_spread {
             funding_imbalance_cost_i64.safe_div(2)?.abs()
         } else {
             0
@@ -460,7 +458,8 @@ pub fn update_pool_balances(
             let max_revenue_withdraw_allowed = market
                 .insurance_claim
                 .max_revenue_withdraw_per_period
-                .safe_sub(market.insurance_claim.revenue_withdraw_since_last_settle)?;
+                .safe_sub(market.insurance_claim.revenue_withdraw_since_last_settle)?
+                .cast::<u128>()?;
 
             if max_revenue_withdraw_allowed > 0 {
                 let spot_market_revenue_pool_amount = get_token_amount(
@@ -490,7 +489,7 @@ pub fn update_pool_balances(
                 market.insurance_claim.revenue_withdraw_since_last_settle = market
                     .insurance_claim
                     .revenue_withdraw_since_last_settle
-                    .safe_add(revenue_pool_transfer)?;
+                    .safe_add(revenue_pool_transfer.cast()?)?;
 
                 market.insurance_claim.last_revenue_withdraw_ts = now;
             }

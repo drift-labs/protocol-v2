@@ -378,7 +378,7 @@ pub fn settle_expired_market(
     )?;
 
     validate!(
-        10_u128.pow(spot_market.decimals as u32) == QUOTE_PRECISION,
+        10_u128.pow(spot_market.decimals) == QUOTE_PRECISION,
         ErrorCode::DefaultError,
         "Only support bank.decimals == QUOTE_PRECISION"
     )?;

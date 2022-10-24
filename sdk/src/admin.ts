@@ -27,7 +27,7 @@ import {
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { ClearingHouse } from './clearingHouse';
-import { PEG_PRECISION, ZERO } from './constants/numericConstants';
+import { PEG_PRECISION } from './constants/numericConstants';
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 
@@ -76,12 +76,12 @@ export class Admin extends ClearingHouse {
 		maxRate: number,
 		oracle: PublicKey,
 		oracleSource: OracleSource,
-		initialAssetWeight: BN,
-		maintenanceAssetWeight: BN,
-		initialLiabilityWeight: BN,
-		maintenanceLiabilityWeight: BN,
-		imfFactor = new BN(0),
-		liquidationFee = ZERO,
+		initialAssetWeight: number,
+		maintenanceAssetWeight: number,
+		initialLiabilityWeight: number,
+		maintenanceLiabilityWeight: number,
+		imfFactor = 0,
+		liquidationFee = 0,
 		activeStatus = true
 	): Promise<TransactionSignature> {
 		const spotMarketIndex = this.getStateAccount().numberOfSpotMarkets;
@@ -184,7 +184,7 @@ export class Admin extends ClearingHouse {
 		oracleSource: OracleSource = OracleSource.PYTH,
 		marginRatioInitial = 2000,
 		marginRatioMaintenance = 500,
-		liquidationFee = ZERO,
+		liquidationFee = 0,
 		activeStatus = true,
 		name = DEFAULT_MARKET_NAME
 	): Promise<TransactionSignature> {
@@ -827,11 +827,11 @@ export class Admin extends ClearingHouse {
 
 	public async updateSpotMarketMarginWeights(
 		spotMarketIndex: number,
-		initialAssetWeight: BN,
-		maintenanceAssetWeight: BN,
-		initialLiabilityWeight: BN,
-		maintenanceLiabilityWeight: BN,
-		imfFactor = new BN(0)
+		initialAssetWeight: number,
+		maintenanceAssetWeight: number,
+		initialLiabilityWeight: number,
+		maintenanceLiabilityWeight: number,
+		imfFactor = 0
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updateSpotMarketMarginWeights(
 			initialAssetWeight,

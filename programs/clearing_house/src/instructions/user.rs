@@ -15,7 +15,7 @@ use crate::load_mut;
 use crate::math::casting::Cast;
 use crate::math::margin::{
     calculate_max_withdrawable_amount, meets_initial_margin_requirement,
-    meets_withdraw_margin_requirement,
+    meets_withdraw_margin_requirement, validate_spot_margin_trading,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
@@ -252,7 +252,7 @@ pub fn handle_deposit(
 
     validate!(
         spot_market.max_token_deposits == 0
-            || deposits_token_amount <= spot_market.max_token_deposits,
+            || deposits_token_amount <= spot_market.max_token_deposits.cast()?,
         ErrorCode::MaxDeposit,
         "max deposits: {} new deposits {}",
         spot_market.max_token_deposits,
@@ -350,6 +350,8 @@ pub fn handle_withdraw(
     };
 
     meets_withdraw_margin_requirement(user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
+
+    validate_spot_margin_trading(user, &spot_market_map, &mut oracle_map)?;
 
     user.is_being_liquidated = false;
 
@@ -479,6 +481,8 @@ pub fn handle_transfer_deposit(
         ErrorCode::InsufficientCollateral,
         "From user does not meet initial margin requirement"
     )?;
+
+    validate_spot_margin_trading(from_user, &spot_market_map, &mut oracle_map)?;
 
     from_user.is_being_liquidated = false;
 

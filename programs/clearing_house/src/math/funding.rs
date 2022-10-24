@@ -6,8 +6,8 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::bn;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO, AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_RATE_BUFFER, ONE_HOUR,
-    PRICE_PRECISION, QUOTE_TO_BASE_AMT_FUNDING_PRECISION,
+    AMM_TO_QUOTE_PRECISION_RATIO, AMM_TO_QUOTE_PRECISION_RATIO_I128, FUNDING_RATE_BUFFER,
+    ONE_HOUR_I128, PRICE_PRECISION, QUOTE_TO_BASE_AMT_FUNDING_PRECISION,
 };
 use crate::math::repeg::{calculate_fee_pool, get_total_fee_lower_bound};
 use crate::math::safe_math::SafeMath;
@@ -27,8 +27,8 @@ pub fn calculate_funding_rate(
     // low periodicity => quickly updating/settled funding rates
     //                 => lower funding rate payment per interval
     let period_adjustment = (24_i128)
-        .safe_mul(ONE_HOUR)?
-        .safe_div(max(ONE_HOUR, funding_period as i128))?;
+        .safe_mul(ONE_HOUR_I128)?
+        .safe_div(max(ONE_HOUR_I128, funding_period as i128))?;
 
     let price_spread = mid_price_twap.cast::<i128>()?.safe_sub(oracle_price_twap)?;
 

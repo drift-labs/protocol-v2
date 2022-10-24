@@ -9,8 +9,8 @@ pub fn determine_perp_fulfillment_methods(
     taker_order: &Order,
     maker_order: Option<&Order>,
     amm: &AMM,
-    amm_reserve_price: u128,
-    valid_oracle_price: Option<i128>,
+    amm_reserve_price: u64,
+    valid_oracle_price: Option<i64>,
     amm_is_available: bool,
     slot: u64,
 ) -> ClearingHouseResult<Vec<PerpFulfillmentMethod>> {
