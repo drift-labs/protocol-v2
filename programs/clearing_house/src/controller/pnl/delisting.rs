@@ -26,7 +26,7 @@ pub mod delisting_test {
     use crate::math::amm::calculate_net_user_pnl;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64, PEG_PRECISION,
-        PRICE_PRECISION, PRICE_PRECISION_I128, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
+        PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
         QUOTE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION,
         SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
@@ -214,7 +214,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount_long: -(QUOTE_PRECISION_I128 * 50), //longs have $100 cost basis
@@ -328,7 +328,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount_long: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
@@ -445,7 +445,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
                 total_fee_minus_distributions: -(100000 * QUOTE_PRECISION_I128), // down $100k
@@ -563,7 +563,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
                 total_fee_minus_distributions: -(100000 * QUOTE_PRECISION_I128), // down $100k
@@ -677,7 +677,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount_long: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
@@ -894,7 +894,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount_long: (QUOTE_PRECISION_I128 * 10), //longs have -$20 cost basis
@@ -1114,7 +1114,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount_long: (QUOTE_PRECISION_I128 * 20 * 2000), //longs have -$20 cost basis
@@ -1318,7 +1318,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount_long: -(QUOTE_PRECISION_I128 * 20 * 2000 - QUOTE_PRECISION_I128), // longs have ~$20 cost basis
@@ -1374,7 +1374,7 @@ pub mod delisting_test {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (oracle_price.agg.price * 99 / 100) as i64,
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -1742,7 +1742,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount_long: (QUOTE_PRECISION_I128 * 200), // longs have -$1 cost basis
@@ -1799,7 +1799,7 @@ pub mod delisting_test {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (oracle_price.agg.price * 99 / 100) as i64,
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2120,7 +2120,7 @@ pub mod delisting_test {
                 oracle: oracle_price_key,
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i128,
+                    last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount_long: (QUOTE_PRECISION_I128 * 200), // longs have -$1 cost basis
@@ -2177,7 +2177,7 @@ pub mod delisting_test {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (oracle_price.agg.price * 99 / 100) as i64,
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2865,7 +2865,7 @@ pub mod delisting_test {
             );
 
             let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
-            assert_eq!(oracle_price_data.price, 100 * PRICE_PRECISION_I128);
+            assert_eq!(oracle_price_data.price, 100 * PRICE_PRECISION_I64);
             let net_pnl = calculate_net_user_pnl(&market.amm, oracle_price_data.price).unwrap();
             assert_eq!(net_pnl, 0);
 

@@ -56,7 +56,8 @@ impl<'a> SpotMarketMap<'a> {
                 .try_borrow_data()
                 .or(Err(ErrorCode::CouldNotLoadSpotMarketData))?;
 
-            if data.len() < std::mem::size_of::<SpotMarket>() + 8 {
+            let expected_data_len = std::mem::size_of::<SpotMarket>() + 8;
+            if data.len() < expected_data_len {
                 break;
             }
 
@@ -65,7 +66,7 @@ impl<'a> SpotMarketMap<'a> {
                 break;
             }
 
-            let market_index = u16::from_le_bytes(*array_ref![data, 796, 2]);
+            let market_index = u16::from_le_bytes(*array_ref![data, expected_data_len - 12, 2]);
 
             let account_info = account_info_iter.next().unwrap();
             let is_writable = account_info.is_writable;
@@ -97,7 +98,8 @@ impl<'a> SpotMarketMap<'a> {
             .try_borrow_data()
             .or(Err(ErrorCode::CouldNotLoadSpotMarketData))?;
 
-        if data.len() < std::mem::size_of::<SpotMarket>() + 8 {
+        let expected_data_len = std::mem::size_of::<SpotMarket>() + 8;
+        if data.len() < expected_data_len {
             return Err(ErrorCode::CouldNotLoadSpotMarketData);
         }
 
@@ -106,7 +108,7 @@ impl<'a> SpotMarketMap<'a> {
             return Err(ErrorCode::CouldNotLoadSpotMarketData);
         }
 
-        let market_index = u16::from_le_bytes(*array_ref![data, 796, 2]);
+        let market_index = u16::from_le_bytes(*array_ref![data, expected_data_len - 12, 2]);
 
         let is_writable = account_info.is_writable;
         let account_loader: AccountLoader<SpotMarket> =
@@ -134,7 +136,8 @@ impl<'a> SpotMarketMap<'a> {
                 .try_borrow_data()
                 .or(Err(ErrorCode::CouldNotLoadSpotMarketData))?;
 
-            if data.len() < std::mem::size_of::<SpotMarket>() + 8 {
+            let expected_data_len = std::mem::size_of::<SpotMarket>() + 8;
+            if data.len() < expected_data_len {
                 return Err(ErrorCode::CouldNotLoadSpotMarketData);
             }
 
@@ -143,7 +146,7 @@ impl<'a> SpotMarketMap<'a> {
                 return Err(ErrorCode::CouldNotLoadSpotMarketData);
             }
 
-            let market_index = u16::from_le_bytes(*array_ref![data, 796, 2]);
+            let market_index = u16::from_le_bytes(*array_ref![data, expected_data_len - 12, 2]);
 
             let is_writable = account_info.is_writable;
             let account_loader: AccountLoader<SpotMarket> =

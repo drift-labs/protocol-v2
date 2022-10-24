@@ -9,8 +9,9 @@ use crate::math::bn::U192;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
-    BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, DEFAULT_LARGE_BID_ASK_FACTOR,
-    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128,
+    BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
+    DEFAULT_LARGE_BID_ASK_FACTOR, MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION,
+    PRICE_PRECISION, PRICE_PRECISION_I128,
 };
 use crate::math::safe_math::SafeMath;
 
@@ -22,7 +23,7 @@ mod tests;
 
 pub fn calculate_base_asset_amount_to_trade_to_price(
     amm: &AMM,
-    limit_price: u128,
+    limit_price: u64,
     direction: PositionDirection,
 ) -> ClearingHouseResult<(u64, PositionDirection)> {
     let invariant_sqrt_u192 = U192::from(amm.sqrt_k);
@@ -61,10 +62,10 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
 }
 
 pub fn cap_to_max_spread(
-    mut long_spread: u128,
-    mut short_spread: u128,
-    max_spread: u128,
-) -> ClearingHouseResult<(u128, u128)> {
+    mut long_spread: u64,
+    mut short_spread: u64,
+    max_spread: u64,
+) -> ClearingHouseResult<(u64, u64)> {
     let total_spread = long_spread.safe_add(short_spread)?;
 
     if total_spread > max_spread {
@@ -92,22 +93,22 @@ pub fn cap_to_max_spread(
 
 #[allow(clippy::comparison_chain)]
 pub fn calculate_spread(
-    base_spread: u16,
-    last_oracle_reserve_price_spread_pct: i128,
+    base_spread: u32,
+    last_oracle_reserve_price_spread_pct: i64,
     last_oracle_conf_pct: u64,
     max_spread: u32,
     quote_asset_reserve: u128,
     terminal_quote_asset_reserve: u128,
     peg_multiplier: u128,
     base_asset_amount_with_amm: i128,
-    reserve_price: u128,
+    reserve_price: u64,
     total_fee_minus_distributions: i128,
     base_asset_reserve: u128,
     min_base_asset_reserve: u128,
     max_base_asset_reserve: u128,
-) -> ClearingHouseResult<(u128, u128)> {
-    let mut long_spread = (base_spread / 2) as u128;
-    let mut short_spread = (base_spread / 2) as u128;
+) -> ClearingHouseResult<(u32, u32)> {
+    let mut long_spread = (base_spread / 2) as u64;
+    let mut short_spread = (base_spread / 2) as u64;
 
     // oracle retreat
     // if mark - oracle < 0 (mark below oracle) and user going long then increase spread
@@ -116,14 +117,14 @@ pub fn calculate_spread(
             long_spread,
             last_oracle_reserve_price_spread_pct
                 .unsigned_abs()
-                .safe_add(last_oracle_conf_pct.cast::<u128>()?)?,
+                .safe_add(last_oracle_conf_pct)?,
         );
     } else {
         short_spread = max(
             short_spread,
             last_oracle_reserve_price_spread_pct
                 .unsigned_abs()
-                .safe_add(last_oracle_conf_pct.cast::<u128>()?)?,
+                .safe_add(last_oracle_conf_pct)?,
         );
     }
 
@@ -144,7 +145,7 @@ pub fn calculate_spread(
 
     let inventory_scale_capped = min(
         MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
-        BID_ASK_SPREAD_PRECISION.safe_add(inventory_scale)?,
+        BID_ASK_SPREAD_PRECISION.safe_add(inventory_scale.cast()?)?,
     );
 
     if base_asset_amount_with_amm > 0 {
@@ -174,7 +175,7 @@ pub fn calculate_spread(
 
     let effective_leverage_capped = min(
         MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
-        BID_ASK_SPREAD_PRECISION.safe_add(max(0, effective_leverage).cast::<u128>()? + 1)?,
+        BID_ASK_SPREAD_PRECISION.safe_add(max(0, effective_leverage).cast::<u64>()? + 1)?,
     );
 
     if total_fee_minus_distributions <= 0 {
@@ -197,11 +198,11 @@ pub fn calculate_spread(
         long_spread,
         short_spread,
         max_spread
-            .cast::<u128>()?
+            .cast::<u64>()?
             .max(last_oracle_reserve_price_spread_pct.unsigned_abs()),
     )?;
 
-    Ok((long_spread, short_spread))
+    Ok((long_spread.cast::<u32>()?, short_spread.cast::<u32>()?))
 }
 
 pub fn get_spread_reserves(
@@ -227,7 +228,7 @@ pub fn calculate_spread_reserves(
 
     let quote_asset_reserve_delta = if spread > 0 {
         amm.quote_asset_reserve
-            .safe_div(BID_ASK_SPREAD_PRECISION / (spread / 2))?
+            .safe_div(BID_ASK_SPREAD_PRECISION_U128 / (spread.cast::<u128>()? / 2))?
     } else {
         0
     };

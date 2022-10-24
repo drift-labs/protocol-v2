@@ -11,7 +11,6 @@ import {
 	ClearingHouse,
 	EventSubscriber,
 	ZERO,
-	ONE,
 	// SPOT_MARKET_RATE_PRECISION,
 	// SpotBalanceType,
 	isVariant,
@@ -232,10 +231,10 @@ describe('asset tiers', () => {
 		try {
 			await clearingHouse.updateSpotMarketMarginWeights(
 				2,
-				ZERO,
-				ONE,
-				SPOT_MARKET_WEIGHT_PRECISION.mul(new BN(2)),
-				SPOT_MARKET_WEIGHT_PRECISION.mul(new BN(10)).div(new BN(9))
+				0,
+				1,
+				SPOT_MARKET_WEIGHT_PRECISION.mul(new BN(2)).toNumber(),
+				SPOT_MARKET_WEIGHT_PRECISION.mul(new BN(10)).div(new BN(9)).toNumber()
 			);
 
 			await clearingHouse.updateSpotMarketAssetTier(2, AssetTier.ISOLATED);

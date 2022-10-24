@@ -1487,7 +1487,7 @@ export class ClearingHouseUser {
 
 		const amountWithdrawable = freeCollateral
 			.mul(MARGIN_PRECISION)
-			.div(spotMarket.initialAssetWeight)
+			.div(new BN(spotMarket.initialAssetWeight))
 			.mul(PRICE_PRECISION)
 			.div(oracleData.price)
 			.mul(precisionIncrease);
@@ -1526,7 +1526,7 @@ export class ClearingHouseUser {
 
 			const maxLiabilityAllowed = freeCollatAfterWithdraw
 				.mul(MARGIN_PRECISION)
-				.div(spotMarket.initialLiabilityWeight)
+				.div(new BN(spotMarket.initialLiabilityWeight))
 				.mul(PRICE_PRECISION)
 				.div(oracleData.price)
 				.mul(precisionIncrease);

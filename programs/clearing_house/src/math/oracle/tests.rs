@@ -1,5 +1,7 @@
 use crate::math::amm::update_oracle_price_twap;
-use crate::math::constants::{AMM_RESERVE_PRECISION, PEG_PRECISION, PRICE_PRECISION};
+use crate::math::constants::{
+    AMM_RESERVE_PRECISION, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_U64,
+};
 use crate::math::oracle::*;
 use crate::state::oracle::HistoricalOracleData;
 use crate::state::state::{OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails};
@@ -16,8 +18,8 @@ fn calculate_oracle_valid() {
         quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
         peg_multiplier: 33 * PEG_PRECISION,
         historical_oracle_data: HistoricalOracleData {
-            last_oracle_price_twap_5min: px as i128,
-            last_oracle_price_twap: (px as i128) - 1000,
+            last_oracle_price_twap_5min: px as i64,
+            last_oracle_price_twap: (px as i64) - 1000,
             last_oracle_price_twap_ts: prev,
             ..HistoricalOracleData::default()
         },
@@ -27,8 +29,8 @@ fn calculate_oracle_valid() {
         ..AMM::default()
     };
     let mut oracle_price_data = OraclePriceData {
-        price: (34 * PRICE_PRECISION) as i128,
-        confidence: PRICE_PRECISION / 100,
+        price: (34 * PRICE_PRECISION) as i64,
+        confidence: PRICE_PRECISION_U64 / 100,
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
@@ -61,12 +63,12 @@ fn calculate_oracle_valid() {
         update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
     assert_eq!(
         amm.historical_oracle_data.last_oracle_price_twap,
-        (34 * PRICE_PRECISION - PRICE_PRECISION / 100) as i128
+        (34 * PRICE_PRECISION - PRICE_PRECISION / 100) as i64
     );
 
     oracle_price_data = OraclePriceData {
-        price: (34 * PRICE_PRECISION) as i128,
-        confidence: PRICE_PRECISION / 100,
+        price: (34 * PRICE_PRECISION) as i64,
+        confidence: PRICE_PRECISION_U64 / 100,
         delay: 11,
         has_sufficient_number_of_data_points: true,
     };
@@ -75,20 +77,20 @@ fn calculate_oracle_valid() {
     assert!(oracle_status.oracle_validity != OracleValidity::Valid);
 
     oracle_price_data.delay = 8;
-    amm.historical_oracle_data.last_oracle_price_twap_5min = 32 * PRICE_PRECISION as i128;
-    amm.historical_oracle_data.last_oracle_price_twap = 21 * PRICE_PRECISION as i128;
+    amm.historical_oracle_data.last_oracle_price_twap_5min = 32 * PRICE_PRECISION as i64;
+    amm.historical_oracle_data.last_oracle_price_twap = 21 * PRICE_PRECISION as i64;
     oracle_status =
         get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
     assert!(oracle_status.oracle_validity == OracleValidity::Valid);
     assert!(!oracle_status.mark_too_divergent);
 
-    amm.historical_oracle_data.last_oracle_price_twap_5min = 29 * PRICE_PRECISION as i128;
+    amm.historical_oracle_data.last_oracle_price_twap_5min = 29 * PRICE_PRECISION as i64;
     oracle_status =
         get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
     assert!(oracle_status.mark_too_divergent);
     assert!(oracle_status.oracle_validity == OracleValidity::Valid);
 
-    oracle_price_data.confidence = PRICE_PRECISION;
+    oracle_price_data.confidence = PRICE_PRECISION_U64;
     oracle_status =
         get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
     assert!(oracle_status.mark_too_divergent);

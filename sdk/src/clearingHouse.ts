@@ -749,21 +749,23 @@ export class ClearingHouse {
 			}
 		}
 
-		for (const readableSpotMarketIndex of params.readableSpotMarketIndexes) {
-			const spotMarketAccount = this.getSpotMarketAccount(
-				readableSpotMarketIndex
-			);
-			spotMarketAccountMap.set(readableSpotMarketIndex, {
-				pubkey: spotMarketAccount.pubkey,
-				isSigner: false,
-				isWritable: false,
-			});
-			if (spotMarketAccount.marketIndex !== 0) {
-				oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
-					pubkey: spotMarketAccount.oracle,
+		if (params.readableSpotMarketIndexes !== undefined) {
+			for (const readableSpotMarketIndex of params.readableSpotMarketIndexes) {
+				const spotMarketAccount = this.getSpotMarketAccount(
+					readableSpotMarketIndex
+				);
+				spotMarketAccountMap.set(readableSpotMarketIndex, {
+					pubkey: spotMarketAccount.pubkey,
 					isSigner: false,
 					isWritable: false,
 				});
+				if (spotMarketAccount.marketIndex !== 0) {
+					oracleAccountMap.set(spotMarketAccount.oracle.toString(), {
+						pubkey: spotMarketAccount.oracle,
+						isSigner: false,
+						isWritable: false,
+					});
+				}
 			}
 		}
 

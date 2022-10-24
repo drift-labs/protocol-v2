@@ -1,7 +1,7 @@
 use crate::controller::amm::*;
 use crate::controller::insurance::settle_revenue_to_insurance_fund;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION, QUOTE_PRECISION,
+    AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64, QUOTE_PRECISION,
     QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
 };
 use crate::state::perp_market::PoolBalance;
@@ -121,7 +121,7 @@ fn formualic_k_tests() {
     // let reserve_price = market.amm.reserve_price().unwrap();
     let now = 10000;
     let oracle_price_data = OraclePriceData {
-        price: (50 * PRICE_PRECISION) as i128,
+        price: 50 * PRICE_PRECISION_I64,
         confidence: 0,
         delay: 2,
         has_sufficient_number_of_data_points: true,

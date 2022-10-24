@@ -5,8 +5,8 @@ use crate::math::amm;
 use crate::math::amm::calculate_quote_asset_amount_swapped;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO,
-    PRICE_PRECISION, PRICE_TO_QUOTE_PRECISION_RATIO,
+    AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO, PRICE_PRECISION,
+    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
 };
 use crate::math::helpers::get_proportion_u128;
 use crate::math::pnl::calculate_pnl;
@@ -105,7 +105,7 @@ pub fn calculate_base_asset_value(
 
 pub fn calculate_base_asset_value_with_oracle_price(
     base_asset_amount: i128,
-    oracle_price: i128,
+    oracle_price: i64,
 ) -> ClearingHouseResult<u128> {
     if base_asset_amount == 0 {
         return Ok(0);
@@ -119,13 +119,13 @@ pub fn calculate_base_asset_value_with_oracle_price(
 
     base_asset_amount
         .unsigned_abs()
-        .safe_mul(oracle_price)?
-        .safe_div(AMM_RESERVE_PRECISION * PRICE_TO_QUOTE_PRECISION_RATIO)
+        .safe_mul(oracle_price.cast()?)?
+        .safe_div(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
 }
 
 pub fn calculate_base_asset_value_and_pnl_with_oracle_price(
     market_position: &PerpPosition,
-    oracle_price: i128,
+    oracle_price: i64,
 ) -> ClearingHouseResult<(u128, i128)> {
     if market_position.base_asset_amount == 0 {
         return Ok((0, market_position.quote_asset_amount.cast()?));
@@ -140,7 +140,7 @@ pub fn calculate_base_asset_value_and_pnl_with_oracle_price(
     let base_asset_value = market_position
         .base_asset_amount
         .cast::<i128>()?
-        .safe_mul(oracle_price)?
+        .safe_mul(oracle_price.cast()?)?
         .safe_div(AMM_RESERVE_PRECISION_I128)?;
 
     let pnl = base_asset_value.safe_add(market_position.quote_asset_amount.cast()?)?;
@@ -150,7 +150,7 @@ pub fn calculate_base_asset_value_and_pnl_with_oracle_price(
 
 pub fn calculate_base_asset_value_with_expiry_price(
     market_position: &PerpPosition,
-    expiry_price: i128,
+    expiry_price: i64,
 ) -> ClearingHouseResult<i64> {
     if market_position.base_asset_amount == 0 {
         return Ok(0);
@@ -159,8 +159,8 @@ pub fn calculate_base_asset_value_with_expiry_price(
     market_position
         .base_asset_amount
         .cast::<i128>()?
-        .safe_mul(expiry_price)?
-        .safe_div(AMM_RESERVE_PRECISION_I128 * PRICE_TO_QUOTE_PRECISION_RATIO.cast::<i128>()?)?
+        .safe_mul(expiry_price.cast()?)?
+        .safe_div(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128)?
         .cast::<i64>()
 }
 

@@ -647,10 +647,10 @@ pub fn fill_perp_order(
         }
     }
 
-    let reserve_price_before: u128;
-    let oracle_reserve_price_spread_pct_before: i128;
+    let reserve_price_before: u64;
+    let oracle_reserve_price_spread_pct_before: i64;
     let is_oracle_valid: bool;
-    let oracle_price: i128;
+    let oracle_price: i64;
     let market_is_reduce_only: bool;
     let mut amm_is_available = state.exchange_status != ExchangeStatus::AmmPaused;
 
@@ -724,8 +724,8 @@ pub fn fill_perp_order(
             oracle_price,
             slot,
             market.amm.order_tick_size,
-            market.margin_ratio_initial as u128,
-            market.margin_ratio_maintenance as u128,
+            market.margin_ratio_initial,
+            market.margin_ratio_maintenance,
         )?
     };
 
@@ -889,7 +889,7 @@ pub fn validate_market_within_price_band(
     market: &PerpMarket,
     state: &State,
     potentially_risk_increasing: bool,
-    oracle_reserve_price_spread_pct_before: Option<i128>,
+    oracle_reserve_price_spread_pct_before: Option<i64>,
 ) -> ClearingHouseResult<bool> {
     let reserve_price_after = market.amm.reserve_price()?;
 
@@ -958,7 +958,7 @@ fn sanitize_maker_order<'a>(
     filler: &mut Option<&mut User>,
     filler_key: &Pubkey,
     filler_reward: u64,
-    oracle_price: i128,
+    oracle_price: i64,
     now: i64,
     slot: u64,
 ) -> ClearingHouseResult<(
@@ -1020,8 +1020,8 @@ fn sanitize_maker_order<'a>(
             oracle_price,
             slot,
             market.amm.order_tick_size,
-            market.margin_ratio_initial as u128,
-            market.margin_ratio_maintenance as u128,
+            market.margin_ratio_initial,
+            market.margin_ratio_maintenance,
         )?
     };
 
@@ -1136,8 +1136,8 @@ fn fulfill_perp_order(
     perp_market_map: &PerpMarketMap,
     oracle_map: &mut OracleMap,
     fee_structure: &FeeStructure,
-    reserve_price_before: u128,
-    valid_oracle_price: Option<i128>,
+    reserve_price_before: u64,
+    valid_oracle_price: Option<i64>,
     now: i64,
     slot: u64,
     market_is_reduce_only: bool,
@@ -1363,10 +1363,10 @@ pub fn fulfill_perp_order_with_amm(
     order_index: usize,
     market: &mut PerpMarket,
     oracle_map: &mut OracleMap,
-    reserve_price_before: u128,
+    reserve_price_before: u64,
     now: i64,
     slot: u64,
-    valid_oracle_price: Option<i128>,
+    valid_oracle_price: Option<i64>,
     user_key: &Pubkey,
     filler_key: &Pubkey,
     filler: &mut Option<&mut User>,
@@ -1376,7 +1376,7 @@ pub fn fulfill_perp_order_with_amm(
     fee_structure: &FeeStructure,
     order_records: &mut Vec<OrderActionRecord>,
     override_base_asset_amount: Option<u64>,
-    override_fill_price: Option<u128>,
+    override_fill_price: Option<u64>,
     split_with_lps: bool,
 ) -> ClearingHouseResult<(u64, u64)> {
     // Determine the base asset amount the market can fill
@@ -1629,8 +1629,8 @@ pub fn fulfill_perp_order_with_match(
     filler_key: &Pubkey,
     referrer: &mut Option<&mut User>,
     referrer_stats: &mut Option<&mut UserStats>,
-    reserve_price_before: u128,
-    valid_oracle_price: Option<i128>,
+    reserve_price_before: u64,
+    valid_oracle_price: Option<i64>,
     now: i64,
     slot: u64,
     fee_structure: &FeeStructure,
@@ -1985,7 +1985,7 @@ fn get_valid_oracle_price(
     market: &PerpMarket,
     order: &Order,
     validity_guardrails: &ValidityGuardRails,
-) -> ClearingHouseResult<Option<i128>> {
+) -> ClearingHouseResult<Option<i64>> {
     let price = {
         let oracle_validity = oracle::oracle_validity(
             market.amm.historical_oracle_data.last_oracle_price_twap,
@@ -3099,7 +3099,7 @@ pub fn fulfill_spot_order_with_match(
         maker_base_asset_amount,
         maker_price,
         taker_base_asset_amount,
-        base_market.decimals as u32,
+        base_market.decimals,
         maker_direction,
     )?;
 
@@ -3354,7 +3354,7 @@ pub fn fulfill_spot_order_with_serum(
         serum_new_order_accounts.serum_bids,
         serum_new_order_accounts.serum_asks,
         serum_new_order_accounts.serum_program_id.key,
-        base_market.decimals as u32,
+        base_market.decimals,
     )?;
 
     let mut mid_price = 0;
@@ -3435,7 +3435,7 @@ pub fn fulfill_spot_order_with_serum(
     let serum_limit_price = calculate_serum_limit_price(
         taker_price,
         market_state_before.pc_lot_size,
-        base_market.decimals as u32,
+        base_market.decimals,
         market_state_before.coin_lot_size,
     )?;
 

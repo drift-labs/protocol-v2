@@ -12,9 +12,9 @@ pub mod liquidate_perp {
     use crate::error::ErrorCode;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
-        LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, PEG_PRECISION, PRICE_PRECISION_U64,
-        QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, MARGIN_PRECISION_U128, PEG_PRECISION,
+        PRICE_PRECISION_U64, QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::liquidation::is_user_being_liquidated;
     use crate::math::margin::{
@@ -66,9 +66,7 @@ pub mod liquidate_perp {
                 quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                historical_oracle_data: HistoricalOracleData::default_price(
-                    oracle_price.agg.price as i128,
-                ),
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -209,9 +207,7 @@ pub mod liquidate_perp {
                 quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                historical_oracle_data: HistoricalOracleData::default_price(
-                    oracle_price.agg.price as i128,
-                ),
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -352,9 +348,7 @@ pub mod liquidate_perp {
                 quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                historical_oracle_data: HistoricalOracleData::default_price(
-                    oracle_price.agg.price as i128,
-                ),
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -484,9 +478,7 @@ pub mod liquidate_perp {
                 quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                historical_oracle_data: HistoricalOracleData::default_price(
-                    oracle_price.agg.price as i128,
-                ),
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -625,9 +617,7 @@ pub mod liquidate_perp {
                 quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                historical_oracle_data: HistoricalOracleData::default_price(
-                    oracle_price.agg.price as i128,
-                ),
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -751,7 +741,7 @@ pub mod liquidate_perp {
         )
         .unwrap();
 
-        let margin_ratio = total_collateral.unsigned_abs() * MARGIN_PRECISION / perp_value;
+        let margin_ratio = total_collateral.unsigned_abs() * MARGIN_PRECISION_U128 / perp_value;
 
         assert_eq!(margin_ratio, 700);
 
@@ -795,9 +785,7 @@ pub mod liquidate_perp {
                 quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                historical_oracle_data: HistoricalOracleData::default_price(
-                    oracle_price.agg.price as i128,
-                ),
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -984,9 +972,7 @@ pub mod liquidate_perp {
                 quote_asset_amount_long: -150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                historical_oracle_data: HistoricalOracleData::default_price(
-                    oracle_price.agg.price as i128,
-                ),
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1109,9 +1095,7 @@ pub mod liquidate_perp {
                 quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
                 oracle: oracle_price_key,
-                historical_oracle_data: HistoricalOracleData::default_price(
-                    oracle_price.agg.price as i128,
-                ),
+                historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -1213,7 +1197,7 @@ pub mod liquidate_spot {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, SPOT_BALANCE_PRECISION,
+        LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION, MARGIN_PRECISION_U128, SPOT_BALANCE_PRECISION,
         SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::{
@@ -1276,7 +1260,7 @@ pub mod liquidate_spot {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -1400,7 +1384,7 @@ pub mod liquidate_spot {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (sol_oracle_price.agg.price * 1442 / 10000) as i128,
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 1442 / 10000),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -1469,7 +1453,7 @@ pub mod liquidate_spot {
             .get_ref_mut(&sol_market.market_index)
             .unwrap();
         market1.historical_oracle_data.last_oracle_price_twap =
-            (sol_oracle_price.agg.price * 6744 / 10000) as i128;
+            sol_oracle_price.agg.price * 6744 / 10000;
         drop(market1);
 
         liquidate_spot(
@@ -1551,7 +1535,7 @@ pub mod liquidate_spot {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -1672,7 +1656,7 @@ pub mod liquidate_spot {
         assert_eq!(strict_token_value_3, -(token_value * 2)); // if liability and strict would value as twap
 
         let margin_ratio =
-            total_collateral.unsigned_abs() * MARGIN_PRECISION / token_value.unsigned_abs();
+            total_collateral.unsigned_abs() * MARGIN_PRECISION_U128 / token_value.unsigned_abs();
 
         assert_eq!(margin_ratio, 11200); // 112%
 
@@ -1716,8 +1700,9 @@ pub mod liquidate_borrow_for_perp_pnl {
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
-        PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION,
-        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        MARGIN_PRECISION_U128, PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
+        SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral, MarginRequirementType,
@@ -1808,7 +1793,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -1955,7 +1940,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2044,7 +2029,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         let token_value = get_token_value(token_amount as i128, 6, oracle_price_data).unwrap();
 
         let margin_ratio =
-            total_collateral.unsigned_abs() * MARGIN_PRECISION / token_value.unsigned_abs();
+            total_collateral.unsigned_abs() * MARGIN_PRECISION_U128 / token_value.unsigned_abs();
 
         assert_eq!(margin_ratio, 11200); // ~112%
 
@@ -2139,7 +2124,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2311,7 +2296,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             borrow_balance: 0,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2458,7 +2443,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             borrow_balance: 0,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2607,7 +2592,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             borrow_balance: 0,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100) as i128,
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()

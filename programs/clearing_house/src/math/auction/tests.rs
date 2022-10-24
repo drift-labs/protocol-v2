@@ -1,13 +1,13 @@
 mod calculate_auction_prices {
     use crate::controller::position::PositionDirection;
     use crate::math::auction::calculate_auction_prices;
-    use crate::math::constants::PRICE_PRECISION_I128;
+    use crate::math::constants::PRICE_PRECISION_I64;
     use crate::state::oracle::OraclePriceData;
 
     #[test]
     fn no_limit_price_long() {
         let oracle_price_data = OraclePriceData {
-            price: 100 * PRICE_PRECISION_I128,
+            price: 100 * PRICE_PRECISION_I64,
             ..OraclePriceData::default()
         };
         let position_direction = PositionDirection::Long;
@@ -23,7 +23,7 @@ mod calculate_auction_prices {
     #[test]
     fn no_limit_price_short() {
         let oracle_price_data = OraclePriceData {
-            price: 100 * PRICE_PRECISION_I128,
+            price: 100 * PRICE_PRECISION_I64,
             ..OraclePriceData::default()
         };
         let position_direction = PositionDirection::Short;
@@ -39,7 +39,7 @@ mod calculate_auction_prices {
     #[test]
     fn limit_price_much_better_than_oracle_long() {
         let oracle_price_data = OraclePriceData {
-            price: 100 * PRICE_PRECISION_I128,
+            price: 100 * PRICE_PRECISION_I64,
             ..OraclePriceData::default()
         };
         let position_direction = PositionDirection::Long;
@@ -55,7 +55,7 @@ mod calculate_auction_prices {
     #[test]
     fn limit_price_slightly_better_than_oracle_long() {
         let oracle_price_data = OraclePriceData {
-            price: 100 * PRICE_PRECISION_I128,
+            price: 100 * PRICE_PRECISION_I64,
             ..OraclePriceData::default()
         };
         let position_direction = PositionDirection::Long;
@@ -71,7 +71,7 @@ mod calculate_auction_prices {
     #[test]
     fn limit_price_much_worse_than_oracle_long() {
         let oracle_price_data = OraclePriceData {
-            price: 100 * PRICE_PRECISION_I128,
+            price: 100 * PRICE_PRECISION_I64,
             ..OraclePriceData::default()
         };
         let position_direction = PositionDirection::Long;
@@ -87,7 +87,7 @@ mod calculate_auction_prices {
     #[test]
     fn limit_price_slightly_worse_than_oracle_long() {
         let oracle_price_data = OraclePriceData {
-            price: 100 * PRICE_PRECISION_I128,
+            price: 100 * PRICE_PRECISION_I64,
             ..OraclePriceData::default()
         };
         let position_direction = PositionDirection::Long;
@@ -103,7 +103,7 @@ mod calculate_auction_prices {
     #[test]
     fn limit_price_much_better_than_oracle_short() {
         let oracle_price_data = OraclePriceData {
-            price: 100 * PRICE_PRECISION_I128,
+            price: 100 * PRICE_PRECISION_I64,
             ..OraclePriceData::default()
         };
         let position_direction = PositionDirection::Short;
@@ -119,7 +119,7 @@ mod calculate_auction_prices {
     #[test]
     fn limit_price_slightly_better_than_oracle_short() {
         let oracle_price_data = OraclePriceData {
-            price: 100 * PRICE_PRECISION_I128,
+            price: 100 * PRICE_PRECISION_I64,
             ..OraclePriceData::default()
         };
         let position_direction = PositionDirection::Short;
@@ -135,7 +135,7 @@ mod calculate_auction_prices {
     #[test]
     fn limit_price_much_worse_than_oracle_short() {
         let oracle_price_data = OraclePriceData {
-            price: 100 * PRICE_PRECISION_I128,
+            price: 100 * PRICE_PRECISION_I64,
             ..OraclePriceData::default()
         };
         let position_direction = PositionDirection::Short;
@@ -151,7 +151,7 @@ mod calculate_auction_prices {
     #[test]
     fn limit_price_slightly_worse_than_oracle_short() {
         let oracle_price_data = OraclePriceData {
-            price: 100 * PRICE_PRECISION_I128,
+            price: 100 * PRICE_PRECISION_I64,
             ..OraclePriceData::default()
         };
         let position_direction = PositionDirection::Short;

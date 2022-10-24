@@ -16,8 +16,8 @@ mod tests;
 pub fn calculate_jit_base_asset_amount(
     market: &PerpMarket,
     maker_base_asset_amount: u64,
-    auction_price: u128,
-    valid_oracle_price: Option<i128>,
+    auction_price: u64,
+    valid_oracle_price: Option<i64>,
     taker_direction: PositionDirection,
 ) -> ClearingHouseResult<u64> {
     // only take up to 50% of what the maker is making
@@ -25,7 +25,7 @@ pub fn calculate_jit_base_asset_amount(
 
     // check for wash trade
     if let Some(oracle_price) = valid_oracle_price {
-        let oracle_price = oracle_price.cast::<u128>()?;
+        let oracle_price = oracle_price.cast::<u64>()?;
 
         // maker taking a short below oracle = likely to be a wash
         // so we want to take less than 50%

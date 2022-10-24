@@ -2,7 +2,8 @@
 mod test {
     use crate::math::amm_spread::*;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I128,
+        AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I64,
+        QUOTE_PRECISION, QUOTE_PRECISION_I128,
     };
 
     #[test]
@@ -71,8 +72,8 @@ mod test {
             max_base_asset_reserve,
         )
         .unwrap();
-        assert_eq!(long_spread1, (base_spread * 10 / 2) as u128);
-        assert_eq!(short_spread1, (base_spread * 10 / 2) as u128);
+        assert_eq!(long_spread1, (base_spread * 10 / 2));
+        assert_eq!(short_spread1, (base_spread * 10 / 2));
 
         // even at imbalance with 0 fee, be max spread
         terminal_quote_asset_reserve -= AMM_RESERVE_PRECISION;
@@ -94,11 +95,11 @@ mod test {
             max_base_asset_reserve,
         )
         .unwrap();
-        assert_eq!(long_spread2, (base_spread * 10) as u128);
-        assert_eq!(short_spread2, (base_spread * 10 / 2) as u128);
+        assert_eq!(long_spread2, (base_spread * 10));
+        assert_eq!(short_spread2, (base_spread * 10 / 2));
 
         // oracle retreat * skew that increases long spread
-        last_oracle_reserve_price_spread_pct = BID_ASK_SPREAD_PRECISION_I128 / 20; //5%
+        last_oracle_reserve_price_spread_pct = BID_ASK_SPREAD_PRECISION_I64 / 20; //5%
         last_oracle_conf_pct = (BID_ASK_SPREAD_PRECISION / 100) as u64; //1%
         total_fee_minus_distributions = QUOTE_PRECISION as i128;
         let (long_spread3, short_spread3) = calculate_spread(
@@ -126,7 +127,7 @@ mod test {
         // assert_eq!(short_spread3, 1010000);
         assert_eq!(short_spread3, 60000); // hitting max spread
 
-        last_oracle_reserve_price_spread_pct = -BID_ASK_SPREAD_PRECISION_I128 / 777;
+        last_oracle_reserve_price_spread_pct = -BID_ASK_SPREAD_PRECISION_I64 / 777;
         last_oracle_conf_pct = 1;
         let (long_spread4, short_spread4) = calculate_spread(
             base_spread,

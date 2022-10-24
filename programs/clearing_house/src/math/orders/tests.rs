@@ -196,7 +196,7 @@ mod is_order_risk_increase {
 
 mod order_breaches_oracle_price_limits {
     use crate::controller::position::PositionDirection;
-    use crate::math::constants::{MARGIN_PRECISION, PRICE_PRECISION_I128, PRICE_PRECISION_U64};
+    use crate::math::constants::{MARGIN_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
     use crate::math::orders::order_breaches_oracle_price_limits;
     use crate::state::perp_market::PerpMarket;
     use crate::state::user::Order;
@@ -213,7 +213,7 @@ mod order_breaches_oracle_price_limits {
             ..Order::default()
         };
 
-        let oracle_price = 100 * PRICE_PRECISION_I128;
+        let oracle_price = 100 * PRICE_PRECISION_I64;
 
         let slot = 0;
         let tick_size = 1;
@@ -245,7 +245,7 @@ mod order_breaches_oracle_price_limits {
             ..Order::default()
         };
 
-        let oracle_price = 100 * PRICE_PRECISION_I128;
+        let oracle_price = 100 * PRICE_PRECISION_I64;
 
         let slot = 0;
         let tick_size = 1;
@@ -279,7 +279,7 @@ mod order_breaches_oracle_price_limits {
             ..Order::default()
         };
 
-        let oracle_price = 100 * PRICE_PRECISION_I128;
+        let oracle_price = 100 * PRICE_PRECISION_I64;
 
         let slot = 0;
         let tick_size = 1;
@@ -313,7 +313,7 @@ mod order_breaches_oracle_price_limits {
             ..Order::default()
         };
 
-        let oracle_price = 100 * PRICE_PRECISION_I128;
+        let oracle_price = 100 * PRICE_PRECISION_I64;
 
         let slot = 0;
         let tick_size = 1;
@@ -347,7 +347,7 @@ mod order_breaches_oracle_price_limits {
             ..Order::default()
         };
 
-        let oracle_price = 100 * PRICE_PRECISION_I128;
+        let oracle_price = 100 * PRICE_PRECISION_I64;
 
         let slot = 0;
         let tick_size = 1;
@@ -381,7 +381,7 @@ mod order_breaches_oracle_price_limits {
             ..Order::default()
         };
 
-        let oracle_price = 100 * PRICE_PRECISION_I128;
+        let oracle_price = 100 * PRICE_PRECISION_I64;
 
         let slot = 0;
         let tick_size = 1;

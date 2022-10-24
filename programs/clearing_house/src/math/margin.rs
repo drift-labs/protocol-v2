@@ -1,8 +1,8 @@
 use crate::error::ClearingHouseResult;
 use crate::error::ErrorCode;
 use crate::math::constants::{
-    MARGIN_PRECISION, MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PRICE_PRECISION, SPOT_IMF_PRECISION,
-    SPOT_WEIGHT_PRECISION,
+    MARGIN_PRECISION_U128, MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PRICE_PRECISION,
+    SPOT_IMF_PRECISION_U128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_U128,
 };
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
@@ -44,25 +44,30 @@ pub enum MarginRequirementType {
 
 pub fn calculate_size_premium_liability_weight(
     size: u128, // AMM_RESERVE_PRECISION
-    imf_factor: u128,
-    liability_weight: u128,
+    imf_factor: u32,
+    liability_weight: u32,
     precision: u128,
-) -> ClearingHouseResult<u128> {
+) -> ClearingHouseResult<u32> {
     if imf_factor == 0 {
         return Ok(liability_weight);
     }
 
     let size_sqrt = ((size * 10) + 1).nth_root(2); //1e9 -> 1e10 -> 1e5
 
-    let liability_weight_numerator = liability_weight
-        .safe_sub(liability_weight.safe_div(max(1, SPOT_IMF_PRECISION / imf_factor))?)?;
+    let imf_factor_u128 = imf_factor.cast::<u128>()?;
+    let liability_weight_u128 = liability_weight.cast::<u128>()?;
+    let liability_weight_numerator = liability_weight_u128.safe_sub(
+        liability_weight_u128.safe_div(max(1, SPOT_IMF_PRECISION_U128 / imf_factor_u128))?,
+    )?;
 
     // increases
-    let size_premium_liability_weight = liability_weight_numerator.safe_add(
-        size_sqrt // 1e5
-            .safe_mul(imf_factor)?
-            .safe_div(100_000 * SPOT_IMF_PRECISION / precision)?, // 1e5 * 1e2
-    )?;
+    let size_premium_liability_weight = liability_weight_numerator
+        .safe_add(
+            size_sqrt // 1e5
+                .safe_mul(imf_factor_u128)?
+                .safe_div(100_000 * SPOT_IMF_PRECISION_U128 / precision)?, // 1e5 * 1e2
+        )?
+        .cast::<u32>()?;
 
     let max_liability_weight = max(liability_weight, size_premium_liability_weight);
     Ok(max_liability_weight)
@@ -70,19 +75,23 @@ pub fn calculate_size_premium_liability_weight(
 
 pub fn calculate_size_discount_asset_weight(
     size: u128, // AMM_RESERVE_PRECISION
-    imf_factor: u128,
-    asset_weight: u128,
-) -> ClearingHouseResult<u128> {
+    imf_factor: u32,
+    asset_weight: u32,
+) -> ClearingHouseResult<u32> {
     if imf_factor == 0 {
         return Ok(asset_weight);
     }
 
     let size_sqrt = ((size * 10) + 1).nth_root(2); //1e9 -> 1e10 -> 1e5
-    let imf_numerator = SPOT_IMF_PRECISION + SPOT_IMF_PRECISION / 10;
+    let imf_numerator = SPOT_IMF_PRECISION_U128 + SPOT_IMF_PRECISION_U128 / 10;
 
-    let size_discount_asset_weight = imf_numerator.safe_mul(SPOT_WEIGHT_PRECISION)?.safe_div(
-        SPOT_IMF_PRECISION.safe_add(size_sqrt.safe_mul(imf_factor)?.safe_div(100_000)?)?,
-    )?;
+    let size_discount_asset_weight = imf_numerator
+        .safe_mul(SPOT_WEIGHT_PRECISION_U128)?
+        .safe_div(
+            SPOT_IMF_PRECISION_U128
+                .safe_add(size_sqrt.safe_mul(imf_factor.cast()?)?.safe_div(100_000)?)?,
+        )?
+        .cast::<u32>()?;
 
     let min_asset_weight = min(asset_weight, size_discount_asset_weight);
 
@@ -100,11 +109,19 @@ pub fn calculate_spot_position_value(
 
     let balance_equity_value = match spot_position.balance_type {
         SpotBalanceType::Deposit => balance_value
-            .safe_mul(spot_market.get_asset_weight(token_amount, &margin_requirement_type)?)?
-            .safe_div(SPOT_WEIGHT_PRECISION)?,
+            .safe_mul(
+                spot_market
+                    .get_asset_weight(token_amount, &margin_requirement_type)?
+                    .cast()?,
+            )?
+            .safe_div(SPOT_WEIGHT_PRECISION_U128)?,
         SpotBalanceType::Borrow => balance_value
-            .safe_mul(spot_market.get_liability_weight(token_amount, &margin_requirement_type)?)?
-            .safe_div(SPOT_WEIGHT_PRECISION)?,
+            .safe_mul(
+                spot_market
+                    .get_liability_weight(token_amount, &margin_requirement_type)?
+                    .cast()?,
+            )?
+            .safe_div(SPOT_WEIGHT_PRECISION_U128)?,
     };
 
     Ok(balance_equity_value)
@@ -115,7 +132,7 @@ pub fn calculate_perp_position_value_and_pnl(
     market: &PerpMarket,
     oracle_price_data: &OraclePriceData,
     margin_requirement_type: MarginRequirementType,
-    user_custom_margin_ratio: u128,
+    user_custom_margin_ratio: u32,
     with_bounds: bool,
 ) -> ClearingHouseResult<(u128, i128, u128)> {
     let unrealized_funding = calculate_funding_payment(
@@ -190,14 +207,14 @@ pub fn calculate_perp_position_value_and_pnl(
     let margin_ratio = user_custom_margin_ratio.max(market.get_margin_ratio(
         worst_case_base_asset_amount.unsigned_abs(),
         margin_requirement_type,
-    )? as u128);
+    )?);
 
     let margin_requirement = if market.status == MarketStatus::Settlement {
         0
     } else {
         worse_case_base_asset_value
-            .safe_mul(margin_ratio)?
-            .safe_div(MARGIN_PRECISION)?
+            .safe_mul(margin_ratio.cast()?)?
+            .safe_div(MARGIN_PRECISION_U128)?
     };
 
     let unrealized_asset_weight =
@@ -236,9 +253,9 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     let mut with_isolated_liability: bool = false;
 
     let user_custom_margin_ratio = if margin_requirement_type == MarginRequirementType::Initial {
-        user.max_margin_ratio as u128
+        user.max_margin_ratio
     } else {
-        0_u128
+        0_u32
     };
 
     for spot_position in user.spot_positions.iter() {
@@ -266,8 +283,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 SpotBalanceType::Borrow => {
                     let liability_weight = user_custom_margin_ratio.max(SPOT_WEIGHT_PRECISION);
                     let weighted_token_value = token_amount
-                        .safe_mul(liability_weight)?
-                        .safe_div(SPOT_WEIGHT_PRECISION)?;
+                        .safe_mul(liability_weight.cast()?)?
+                        .safe_div(SPOT_WEIGHT_PRECISION_U128)?;
 
                     margin_requirement = margin_requirement.safe_add(weighted_token_value)?;
 
@@ -312,11 +329,15 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 Ordering::Greater => {
                     let weighted_token_value = worst_case_token_value
                         .unsigned_abs()
-                        .safe_mul(spot_market.get_asset_weight(
-                            worst_case_token_amount.unsigned_abs(),
-                            &margin_requirement_type,
-                        )?)?
-                        .safe_div(SPOT_WEIGHT_PRECISION)?;
+                        .safe_mul(
+                            spot_market
+                                .get_asset_weight(
+                                    worst_case_token_amount.unsigned_abs(),
+                                    &margin_requirement_type,
+                                )?
+                                .cast()?,
+                        )?
+                        .safe_div(SPOT_WEIGHT_PRECISION_U128)?;
 
                     total_collateral =
                         total_collateral.safe_add(weighted_token_value.cast::<i128>()?)?;
@@ -330,8 +351,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
                     let weighted_token_value = worst_case_token_value
                         .unsigned_abs()
-                        .safe_mul(liability_weight)?
-                        .safe_div(SPOT_WEIGHT_PRECISION)?;
+                        .safe_mul(liability_weight.cast()?)?
+                        .safe_div(SPOT_WEIGHT_PRECISION_U128)?;
 
                     margin_requirement = margin_requirement.safe_add(weighted_token_value)?;
 
@@ -360,8 +381,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     let liability_weight = user_custom_margin_ratio.max(SPOT_WEIGHT_PRECISION);
                     let weighted_token_value = worst_cast_quote_token_amount
                         .unsigned_abs()
-                        .safe_mul(liability_weight)?
-                        .safe_div(SPOT_WEIGHT_PRECISION)?;
+                        .safe_mul(liability_weight.cast()?)?
+                        .safe_div(SPOT_WEIGHT_PRECISION_U128)?;
 
                     margin_requirement = margin_requirement.safe_add(weighted_token_value)?;
 
@@ -527,7 +548,7 @@ fn calculate_margin_requirement_with_buffer(
     liability_value: u128,
     buffer_ratio: u128,
 ) -> ClearingHouseResult<u128> {
-    margin_requirement.safe_add(liability_value.safe_mul(buffer_ratio)? / MARGIN_PRECISION)
+    margin_requirement.safe_add(liability_value.safe_mul(buffer_ratio)? / MARGIN_PRECISION_U128)
 }
 
 pub fn meets_place_order_margin_requirement(
@@ -641,15 +662,15 @@ pub fn calculate_max_withdrawable_amount(
 
     let spot_market = &mut spot_market_map.get_ref(&market_index)?;
 
-    let precision_increase = 10u128.pow((spot_market.decimals - 6) as u32);
+    let precision_increase = 10u128.pow(spot_market.decimals - 6);
 
     let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
 
     free_collateral
-        .safe_mul(MARGIN_PRECISION)?
-        .safe_div(spot_market.initial_asset_weight)?
+        .safe_mul(MARGIN_PRECISION_U128)?
+        .safe_div(spot_market.initial_asset_weight.cast()?)?
         .safe_mul(PRICE_PRECISION)?
-        .safe_div(oracle_price.unsigned_abs())?
+        .safe_div(oracle_price.cast()?)?
         .safe_mul(precision_increase)?
         .cast()
 }

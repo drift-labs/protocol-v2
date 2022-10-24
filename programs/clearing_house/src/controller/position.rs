@@ -416,7 +416,7 @@ pub fn update_position_with_base_asset_amount(
     market: &mut PerpMarket,
     user: &mut User,
     position_index: usize,
-    fill_price: Option<u128>,
+    fill_price: Option<u64>,
 ) -> ClearingHouseResult<(u64, i64, i64)> {
     let swap_direction = match direction {
         PositionDirection::Long => SwapDirection::Remove,
@@ -459,7 +459,7 @@ fn calculate_quote_asset_amount_surplus(
     position_direction: PositionDirection,
     quote_asset_swapped: u64,
     base_asset_amount: u64,
-    fill_price: u128,
+    fill_price: u64,
 ) -> ClearingHouseResult<(u64, i64)> {
     let quote_asset_amount = calculate_quote_asset_amount_for_maker_order(
         base_asset_amount,

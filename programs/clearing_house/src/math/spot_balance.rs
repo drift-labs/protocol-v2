@@ -15,7 +15,7 @@ pub fn get_spot_balance(
     balance_type: &SpotBalanceType,
     round_up: bool,
 ) -> ClearingHouseResult<u128> {
-    let precision_increase = 10_u128.pow(19_u8.safe_sub(spot_market.decimals)?.into());
+    let precision_increase = 10_u128.pow(19_u32.safe_sub(spot_market.decimals)?);
 
     let cumulative_interest = match balance_type {
         SpotBalanceType::Deposit => spot_market.cumulative_deposit_interest,
@@ -38,7 +38,7 @@ pub fn get_token_amount(
     spot_market: &SpotMarket,
     balance_type: &SpotBalanceType,
 ) -> ClearingHouseResult<u128> {
-    let precision_decrease = 10_u128.pow(19_u8.safe_sub(spot_market.decimals)?.into());
+    let precision_decrease = 10_u128.pow(19_u32.safe_sub(spot_market.decimals)?);
 
     let cumulative_interest = match balance_type {
         SpotBalanceType::Deposit => spot_market.cumulative_deposit_interest,
@@ -69,7 +69,7 @@ pub fn get_interest_token_amount(
     spot_market: &SpotMarket,
     interest: u128,
 ) -> ClearingHouseResult<u128> {
-    let precision_decrease = 10_u128.pow(19_u8.safe_sub(spot_market.decimals)?.into());
+    let precision_decrease = 10_u128.pow(19_u32.safe_sub(spot_market.decimals)?);
 
     let token_amount = balance.safe_mul(interest)?.safe_div(precision_decrease)?;
 
@@ -193,7 +193,7 @@ pub fn get_balance_value_and_token_amount(
 ) -> ClearingHouseResult<(u128, u128)> {
     let token_amount = spot_position.get_token_amount(spot_market)?;
 
-    let precision_decrease = 10_u128.pow(spot_market.decimals as u32);
+    let precision_decrease = 10_u128.pow(spot_market.decimals);
 
     let value = token_amount
         .safe_mul(oracle_price_data.price.cast()?)?
@@ -204,15 +204,15 @@ pub fn get_balance_value_and_token_amount(
 
 pub fn get_strict_token_value(
     token_amount: i128,
-    spot_decimals: u8,
+    spot_decimals: u32,
     oracle_price_data: &OraclePriceData,
-    oracle_price_twap: i128,
+    oracle_price_twap: i64,
 ) -> ClearingHouseResult<i128> {
     if token_amount == 0 {
         return Ok(0);
     }
 
-    let precision_decrease = 10_i128.pow(spot_decimals as u32);
+    let precision_decrease = 10_i128.pow(spot_decimals);
 
     validate!(
         oracle_price_twap > 0,
@@ -228,22 +228,24 @@ pub fn get_strict_token_value(
         oracle_price_data.price.max(oracle_price_twap)
     };
 
-    token_amount.safe_mul(price)?.safe_div(precision_decrease)
+    token_amount
+        .safe_mul(price.cast()?)?
+        .safe_div(precision_decrease)
 }
 
 pub fn get_token_value(
     token_amount: i128,
-    spot_decimals: u8,
+    spot_decimals: u32,
     oracle_price_data: &OraclePriceData,
 ) -> ClearingHouseResult<i128> {
     if token_amount == 0 {
         return Ok(0);
     }
 
-    let precision_decrease = 10_i128.pow(spot_decimals as u32);
+    let precision_decrease = 10_i128.pow(spot_decimals);
 
     token_amount
-        .safe_mul(oracle_price_data.price)?
+        .safe_mul(oracle_price_data.price.cast()?)?
         .safe_div(precision_decrease)
 }
 

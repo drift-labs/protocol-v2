@@ -8,7 +8,7 @@ use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, PRICE_PRECISION_I128,
-    QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY_I128,
+    QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
 };
 use crate::math::orders::standardize_price;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
@@ -166,12 +166,12 @@ impl User {
     pub fn increment_total_deposits(
         &mut self,
         amount: u64,
-        price: i128,
+        price: i64,
         precision: u128,
     ) -> ClearingHouseResult {
         let value = amount
             .cast::<u128>()?
-            .safe_mul(price.unsigned_abs())?
+            .safe_mul(price.cast::<u128>()?)?
             .safe_div(precision)?
             .cast::<u64>()?;
         self.total_deposits = self.total_deposits.saturating_add(value);
@@ -182,12 +182,12 @@ impl User {
     pub fn increment_total_withdraws(
         &mut self,
         amount: u64,
-        price: i128,
+        price: i64,
         precision: u128,
     ) -> ClearingHouseResult {
         let value = amount
             .cast::<u128>()?
-            .safe_mul(price.unsigned_abs())?
+            .safe_mul(price.cast()?)?
             .safe_div(precision)?
             .cast::<u64>()?;
         self.total_withdraws = self.total_withdraws.saturating_add(value);
@@ -408,7 +408,7 @@ impl PerpPosition {
             .safe_div(self.base_asset_amount.cast()?)
     }
 
-    pub fn get_unrealized_pnl(&self, oracle_price: i128) -> ClearingHouseResult<i128> {
+    pub fn get_unrealized_pnl(&self, oracle_price: i64) -> ClearingHouseResult<i128> {
         let (_, unrealized_pnl) =
             calculate_base_asset_value_and_pnl_with_oracle_price(self, oracle_price)?;
 
@@ -417,7 +417,7 @@ impl PerpPosition {
 
     pub fn get_claimable_pnl(
         &self,
-        oracle_price: i128,
+        oracle_price: i64,
         pnl_pool_excess: i128,
     ) -> ClearingHouseResult<i128> {
         let (_, unrealized_pnl) =
@@ -487,10 +487,10 @@ impl Order {
     /// Always returns a price, even if order.price is 0, which can be the case for market orders
     pub fn get_limit_price(
         &self,
-        valid_oracle_price: Option<i128>,
+        valid_oracle_price: Option<i64>,
         slot: u64,
         tick_size: u64,
-    ) -> ClearingHouseResult<u128> {
+    ) -> ClearingHouseResult<u64> {
         // the limit price can be hardcoded on order or derived based on oracle/slot
         let price = if self.has_oracle_price_offset() {
             if let Some(oracle_price) = valid_oracle_price {
@@ -502,7 +502,6 @@ impl Order {
                 }
 
                 standardize_price(limit_price.cast::<u64>()?, tick_size, self.direction)?
-                    .cast::<u128>()?
             } else {
                 msg!("Could not find oracle too calculate oracle offset limit price");
                 return Err(crate::error::ErrorCode::OracleNotFound);
@@ -512,9 +511,9 @@ impl Order {
             OrderType::Market | OrderType::TriggerMarket
         ) {
             if !is_auction_complete(self.slot, self.auction_duration, slot)? {
-                calculate_auction_price(self, slot, tick_size)? as u128
+                calculate_auction_price(self, slot, tick_size)?
             } else if self.price != 0 {
-                self.price as u128
+                self.price
             } else {
                 let oracle_price = valid_oracle_price
                     .ok_or_else(|| {
@@ -530,10 +529,10 @@ impl Order {
                     PositionDirection::Short => oracle_price.safe_sub(oracle_price_1pct)?,
                 };
 
-                standardize_price(price.cast()?, tick_size, self.direction)?.cast::<u128>()?
+                standardize_price(price.cast()?, tick_size, self.direction)?
             }
         } else {
-            self.price as u128
+            self.price
         };
 
         Ok(price)
@@ -542,10 +541,10 @@ impl Order {
     /// Unlike get_limit_price, returns None if order.price is 0, which can be the case for market orders
     pub fn get_optional_limit_price(
         &self,
-        valid_oracle_price: Option<i128>,
+        valid_oracle_price: Option<i64>,
         slot: u64,
         tick_size: u64,
-    ) -> ClearingHouseResult<Option<u128>> {
+    ) -> ClearingHouseResult<Option<u64>> {
         if self.has_limit_price(slot)? {
             self.get_limit_price(valid_oracle_price, slot, tick_size)
                 .map(Some)
@@ -711,13 +710,13 @@ impl UserStats {
         quote_asset_amount: u64,
         now: i64,
     ) -> ClearingHouseResult {
-        let since_last = max(1, now.safe_sub(self.last_maker_volume_30d_ts)?).cast::<i128>()?;
+        let since_last = max(1_i64, now.safe_sub(self.last_maker_volume_30d_ts)?);
 
         self.maker_volume_30d = calculate_rolling_sum(
             self.maker_volume_30d,
             quote_asset_amount,
             since_last,
-            THIRTY_DAY_I128,
+            THIRTY_DAY,
         )?;
         self.last_maker_volume_30d_ts = now;
 
@@ -729,13 +728,13 @@ impl UserStats {
         quote_asset_amount: u64,
         now: i64,
     ) -> ClearingHouseResult {
-        let since_last = max(1, now.safe_sub(self.last_taker_volume_30d_ts)?).cast::<i128>()?;
+        let since_last = max(1_i64, now.safe_sub(self.last_taker_volume_30d_ts)?);
 
         self.taker_volume_30d = calculate_rolling_sum(
             self.taker_volume_30d,
             quote_asset_amount,
             since_last,
-            THIRTY_DAY_I128,
+            THIRTY_DAY,
         )?;
         self.last_taker_volume_30d_ts = now;
 
@@ -747,13 +746,13 @@ impl UserStats {
         quote_asset_amount: u64,
         now: i64,
     ) -> ClearingHouseResult {
-        let since_last = max(1, now.safe_sub(self.last_filler_volume_30d_ts)?).cast::<i128>()?;
+        let since_last = max(1_i64, now.safe_sub(self.last_filler_volume_30d_ts)?);
 
         self.filler_volume_30d = calculate_rolling_sum(
             self.filler_volume_30d,
             quote_asset_amount,
             since_last,
-            THIRTY_DAY_I128,
+            THIRTY_DAY,
         )?;
 
         self.last_filler_volume_30d_ts = now;

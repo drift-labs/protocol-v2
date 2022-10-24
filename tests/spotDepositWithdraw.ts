@@ -115,10 +115,10 @@ describe('spot deposit and withdraw', () => {
 		).toNumber(); // 50% utilization
 		const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)).toNumber(); // 2000% APR
 		const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(50)).toNumber(); // 5000% APR
-		const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION;
-		const maintenanceAssetWeight = SPOT_MARKET_WEIGHT_PRECISION;
-		const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION;
-		const maintenanceLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION;
+		const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
+		const maintenanceAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
+		const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
+		const maintenanceLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
 		await admin.initializeSpotMarket(
 			usdcMint.publicKey,
 			optimalUtilization,
@@ -152,10 +152,10 @@ describe('spot deposit and withdraw', () => {
 				SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION
 			)
 		);
-		assert(spotMarket.initialAssetWeight.eq(initialAssetWeight));
-		assert(spotMarket.maintenanceAssetWeight.eq(maintenanceAssetWeight));
-		assert(spotMarket.initialLiabilityWeight.eq(initialLiabilityWeight));
-		assert(spotMarket.maintenanceAssetWeight.eq(maintenanceAssetWeight));
+		assert(spotMarket.initialAssetWeight === initialAssetWeight);
+		assert(spotMarket.maintenanceAssetWeight === maintenanceAssetWeight);
+		assert(spotMarket.initialLiabilityWeight === initialLiabilityWeight);
+		assert(spotMarket.maintenanceAssetWeight === maintenanceAssetWeight);
 
 		assert(admin.getStateAccount().numberOfSpotMarkets === 1);
 	});
@@ -166,18 +166,20 @@ describe('spot deposit and withdraw', () => {
 		).toNumber(); // 50% utilization
 		const optimalRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(20)).toNumber(); // 2000% APR
 		const maxRate = SPOT_MARKET_RATE_PRECISION.mul(new BN(50)).toNumber(); // 5000% APR
-		const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(new BN(8)).div(
-			new BN(10)
-		);
-		const maintenanceAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(
-			new BN(9)
-		).div(new BN(10));
-		const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(
-			new BN(12)
-		).div(new BN(10));
+		const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(new BN(8))
+			.div(new BN(10))
+			.toNumber();
+		const maintenanceAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(new BN(9))
+			.div(new BN(10))
+			.toNumber();
+		const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(new BN(12))
+			.div(new BN(10))
+			.toNumber();
 		const maintenanceLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.mul(
 			new BN(11)
-		).div(new BN(10));
+		)
+			.div(new BN(10))
+			.toNumber();
 
 		await admin.initializeSpotMarket(
 			NATIVE_MINT,
@@ -213,10 +215,10 @@ describe('spot deposit and withdraw', () => {
 				SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION
 			)
 		);
-		assert(spotMarket.initialAssetWeight.eq(initialAssetWeight));
-		assert(spotMarket.maintenanceAssetWeight.eq(maintenanceAssetWeight));
-		assert(spotMarket.initialLiabilityWeight.eq(initialLiabilityWeight));
-		assert(spotMarket.maintenanceAssetWeight.eq(maintenanceAssetWeight));
+		assert(spotMarket.initialAssetWeight === initialAssetWeight);
+		assert(spotMarket.maintenanceAssetWeight === maintenanceAssetWeight);
+		assert(spotMarket.initialLiabilityWeight === initialLiabilityWeight);
+		assert(spotMarket.maintenanceAssetWeight === maintenanceAssetWeight);
 
 		console.log(spotMarket.historicalOracleData);
 		assert(spotMarket.historicalOracleData.lastOraclePriceTwapTs.eq(ZERO));

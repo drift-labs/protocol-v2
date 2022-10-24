@@ -1,6 +1,7 @@
 use crate::controller::repeg::*;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I128, QUOTE_PRECISION,
+    AMM_RESERVE_PRECISION, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I64,
+    PRICE_PRECISION_U64, QUOTE_PRECISION,
 };
 use crate::math::oracle::OracleValidity;
 use crate::math::repeg::{
@@ -23,7 +24,7 @@ pub fn update_amm_test() {
             mark_std: PRICE_PRECISION as u64,
             last_mark_price_twap_ts: 0,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: 19_400 * PRICE_PRECISION_I128,
+                last_oracle_price_twap: 19_400 * PRICE_PRECISION_I64,
                 ..HistoricalOracleData::default()
             },
             base_spread: 250,
@@ -57,7 +58,7 @@ pub fn update_amm_test() {
     let now = 10000;
     let slot = 81680085;
     let oracle_price_data = OraclePriceData {
-        price: (12_400 * PRICE_PRECISION) as i128,
+        price: (12_400 * PRICE_PRECISION) as i64,
         confidence: 0,
         delay: 2,
         has_sufficient_number_of_data_points: true,
@@ -139,11 +140,11 @@ pub fn update_amm_test() {
     assert!(reserve_price <= ask);
     assert_eq!(
         market.amm.long_spread + market.amm.short_spread,
-        (market.margin_ratio_initial * 100) as u128
+        (market.margin_ratio_initial * 100) as u32
     );
 
     assert_eq!(bid, 12361804899);
-    assert!(bid < (oracle_price_data.price as u128));
+    assert!(bid < (oracle_price_data.price as u64));
 
     assert_eq!(ask, 13088199999);
     assert_eq!(reserve_price, 13088199999);
@@ -164,7 +165,7 @@ pub fn update_amm_test_bad_oracle() {
             mark_std: PRICE_PRECISION as u64,
             last_mark_price_twap_ts: 0,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: 19_400 * PRICE_PRECISION_I128,
+                last_oracle_price_twap: 19_400 * PRICE_PRECISION_I64,
                 ..HistoricalOracleData::default()
             },
             base_spread: 250,
@@ -196,7 +197,7 @@ pub fn update_amm_test_bad_oracle() {
     let now = 10000;
     let slot = 81680085;
     let oracle_price_data = OraclePriceData {
-        price: (12_400 * PRICE_PRECISION) as i128,
+        price: (12_400 * PRICE_PRECISION) as i64,
         confidence: 0,
         delay: 12,
         has_sufficient_number_of_data_points: true,
@@ -244,7 +245,7 @@ pub fn update_amm_larg_conf_test() {
     assert_eq!(reserve_price_before, 18807668638);
 
     let oracle_price_data = OraclePriceData {
-        price: (18_850 * PRICE_PRECISION) as i128,
+        price: (18_850 * PRICE_PRECISION) as i64,
         confidence: 0,
         delay: 9,
         has_sufficient_number_of_data_points: true,
@@ -264,8 +265,8 @@ pub fn update_amm_larg_conf_test() {
 
     // add large confidence
     let oracle_price_data = OraclePriceData {
-        price: (18_850 * PRICE_PRECISION) as i128,
-        confidence: 100 * PRICE_PRECISION,
+        price: (18_850 * PRICE_PRECISION) as i64,
+        confidence: 100 * PRICE_PRECISION_U64,
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
@@ -285,8 +286,8 @@ pub fn update_amm_larg_conf_test() {
 
     // add move lower
     let oracle_price_data = OraclePriceData {
-        price: (18_820 * PRICE_PRECISION) as i128,
-        confidence: 100 * PRICE_PRECISION,
+        price: (18_820 * PRICE_PRECISION) as i64,
+        confidence: 100 * PRICE_PRECISION_U64,
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
@@ -298,7 +299,7 @@ pub fn update_amm_larg_conf_test() {
     let optimal_peg = calculate_peg_from_target_price(
         market.amm.quote_asset_reserve,
         market.amm.base_asset_reserve,
-        oracle_price_data.price as u128,
+        oracle_price_data.price as u64,
     )
     .unwrap();
     assert_eq!(market.amm.peg_multiplier, 19443664550);
@@ -321,8 +322,8 @@ pub fn update_amm_larg_conf_test() {
 
     // add move lower
     let oracle_price_data = OraclePriceData {
-        price: (18_823 * PRICE_PRECISION) as i128,
-        confidence: 121 * PRICE_PRECISION,
+        price: (18_823 * PRICE_PRECISION) as i64,
+        confidence: 121 * PRICE_PRECISION_U64,
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
@@ -370,7 +371,7 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
     assert_eq!(reserve_price_before, 18807668638);
 
     let oracle_price_data = OraclePriceData {
-        price: (18_850 * PRICE_PRECISION) as i128,
+        price: (18_850 * PRICE_PRECISION) as i64,
         confidence: 0,
         delay: 9,
         has_sufficient_number_of_data_points: true,
@@ -389,8 +390,8 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
 
     // add large confidence
     let oracle_price_data = OraclePriceData {
-        price: (18_850 * PRICE_PRECISION) as i128,
-        confidence: 100 * PRICE_PRECISION,
+        price: (18_850 * PRICE_PRECISION) as i64,
+        confidence: 100 * PRICE_PRECISION_U64,
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
@@ -410,8 +411,8 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
 
     // add move lower
     let oracle_price_data = OraclePriceData {
-        price: (18_820 * PRICE_PRECISION) as i128,
-        confidence: 100 * PRICE_PRECISION,
+        price: (18_820 * PRICE_PRECISION) as i64,
+        confidence: 100 * PRICE_PRECISION_U64,
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
@@ -423,7 +424,7 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
     let optimal_peg = calculate_peg_from_target_price(
         market.amm.quote_asset_reserve,
         market.amm.base_asset_reserve,
-        oracle_price_data.price as u128,
+        oracle_price_data.price as u64,
     )
     .unwrap();
     assert_eq!(market.amm.peg_multiplier, 19443664550);
@@ -446,8 +447,8 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
 
     // add move lower
     let oracle_price_data = OraclePriceData {
-        price: (18_823 * PRICE_PRECISION) as i128,
-        confidence: 121 * PRICE_PRECISION,
+        price: (18_823 * PRICE_PRECISION) as i64,
+        confidence: 121 * PRICE_PRECISION_U64,
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };

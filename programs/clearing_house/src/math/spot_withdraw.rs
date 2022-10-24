@@ -54,7 +54,10 @@ pub fn check_user_exception_to_withdraw_limits(
                 )?;
 
                 if user_deposit_token_amount.safe_add(token_amount_withdrawn)?
-                    < spot_market.withdraw_guard_threshold / 10
+                    < spot_market
+                        .withdraw_guard_threshold
+                        .cast::<u128>()?
+                        .safe_div(10)?
                 {
                     valid_user_withdraw = true;
                 }
@@ -83,13 +86,13 @@ pub fn check_withdraw_limits(
 
     let max_borrow_token = calculate_max_borrow_token(
         deposit_token_amount,
-        spot_market.borrow_token_twap,
-        spot_market.withdraw_guard_threshold,
+        spot_market.borrow_token_twap.cast()?,
+        spot_market.withdraw_guard_threshold.cast()?,
     )?;
 
     let min_deposit_token = calculate_min_deposit_token(
-        spot_market.deposit_token_twap,
-        spot_market.withdraw_guard_threshold,
+        spot_market.deposit_token_twap.cast()?,
+        spot_market.withdraw_guard_threshold.cast()?,
     )?;
 
     let valid_global_withdrawal =

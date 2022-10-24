@@ -14,7 +14,7 @@ use crate::validate;
 pub fn validate_order(
     order: &Order,
     market: &PerpMarket,
-    valid_oracle_price: Option<i128>,
+    valid_oracle_price: Option<i64>,
     slot: u64,
 ) -> ClearingHouseResult {
     match order.order_type {
@@ -90,7 +90,7 @@ fn validate_market_order(
 fn validate_limit_order(
     order: &Order,
     market: &PerpMarket,
-    valid_oracle_price: Option<i128>,
+    valid_oracle_price: Option<i64>,
     slot: u64,
 ) -> ClearingHouseResult {
     validate_base_asset_amount(
@@ -123,8 +123,8 @@ fn validate_limit_order(
             valid_oracle_price.ok_or(ErrorCode::InvalidOracle)?,
             slot,
             market.amm.order_tick_size,
-            market.margin_ratio_initial as u128,
-            market.margin_ratio_maintenance as u128,
+            market.margin_ratio_initial,
+            market.margin_ratio_maintenance,
         )?;
 
         if order_breaches_oracle_price_limits {
@@ -138,7 +138,7 @@ fn validate_limit_order(
 fn validate_post_only_order(
     order: &Order,
     market: &PerpMarket,
-    valid_oracle_price: Option<i128>,
+    valid_oracle_price: Option<i64>,
     slot: u64,
 ) -> ClearingHouseResult {
     let base_asset_amount_market_can_fill = calculate_base_asset_amount_to_fill_up_to_limit_price(
@@ -253,12 +253,12 @@ fn validate_base_asset_amount(
 
 pub fn validate_spot_order(
     order: &Order,
-    valid_oracle_price: Option<i128>,
+    valid_oracle_price: Option<i64>,
     slot: u64,
     step_size: u64,
     tick_size: u64,
-    margin_ratio_initial: u128,
-    margin_ratio_maintenance: u128,
+    margin_ratio_initial: u32,
+    margin_ratio_maintenance: u32,
     min_order_size: u64,
 ) -> ClearingHouseResult {
     match order.order_type {
@@ -284,13 +284,13 @@ pub fn validate_spot_order(
 
 fn validate_spot_limit_order(
     order: &Order,
-    valid_oracle_price: Option<i128>,
+    valid_oracle_price: Option<i64>,
     slot: u64,
     step_size: u64,
     tick_size: u64,
     min_order_size: u64,
-    margin_ratio_initial: u128,
-    margin_ratio_maintenance: u128,
+    margin_ratio_initial: u32,
+    margin_ratio_maintenance: u32,
 ) -> ClearingHouseResult {
     validate_base_asset_amount(order, step_size, min_order_size, order.reduce_only)?;
 

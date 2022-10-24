@@ -5,8 +5,9 @@ mod test {
     use crate::amm::calculate_swap_output;
     use crate::controller::amm::SwapDirection;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I64,
-        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
+        AMM_RESERVE_PRECISION, PRICE_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION,
+        QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_IMF_PRECISION,
     };
     use crate::math::margin::{
         calculate_perp_position_value_and_pnl, calculate_spot_position_value, MarginRequirementType,
@@ -131,7 +132,7 @@ mod test {
 
         // btc
         let oracle_price_data = OraclePriceData {
-            price: (22050 * PRICE_PRECISION) as i128,
+            price: (22050 * PRICE_PRECISION) as i64,
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
@@ -148,7 +149,7 @@ mod test {
         .unwrap();
 
         let quote_asset_oracle_price_data = OraclePriceData {
-            price: PRICE_PRECISION as i128,
+            price: PRICE_PRECISION as i64,
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
@@ -210,7 +211,7 @@ mod test {
 
         // btc
         let mut oracle_price_data = OraclePriceData {
-            price: (22050 * PRICE_PRECISION) as i128,
+            price: (22050 * PRICE_PRECISION) as i64,
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
@@ -225,7 +226,7 @@ mod test {
 
         let margin_requirement_type = MarginRequirementType::Initial;
         let quote_asset_oracle_price_data = OraclePriceData {
-            price: PRICE_PRECISION as i128,
+            price: PRICE_PRECISION as i64,
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
@@ -267,8 +268,8 @@ mod test {
         assert!(pmr > 0);
         assert_eq!(pmr, 13867100408);
 
-        oracle_price_data.price = (21050 * PRICE_PRECISION) as i128; // lower by $1000 (in favor of user)
-        oracle_price_data.confidence = PRICE_PRECISION;
+        oracle_price_data.price = (21050 * PRICE_PRECISION) as i64; // lower by $1000 (in favor of user)
+        oracle_price_data.confidence = PRICE_PRECISION_U64;
 
         let (_, position_unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
             &market_position,
@@ -383,7 +384,7 @@ mod test {
         };
 
         let oracle_price_data = OraclePriceData {
-            price: (2 * PRICE_PRECISION) as i128,
+            price: (2 * PRICE_PRECISION) as i64,
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
@@ -452,7 +453,7 @@ mod test {
         };
 
         let oracle_price_data = OraclePriceData {
-            price: (2 * PRICE_PRECISION) as i128,
+            price: (2 * PRICE_PRECISION) as i64,
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
