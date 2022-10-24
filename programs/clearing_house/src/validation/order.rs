@@ -151,8 +151,16 @@ fn validate_post_only_order(
     if base_asset_amount_market_can_fill != 0 {
         msg!(
             "Post-only order can immediately fill {} base asset amount",
-            base_asset_amount_market_can_fill
+            base_asset_amount_market_can_fill,
         );
+
+        if market.amm.last_update_slot != slot {
+            msg!(
+                "market.amm.last_update_slot={} behind current slot={}",
+                market.amm.last_update_slot,
+                slot
+            );
+        }
 
         if !order.is_jit_maker() {
             let mut invalid = true;
@@ -169,7 +177,7 @@ fn validate_post_only_order(
             }
 
             if invalid {
-                return Err(ErrorCode::InvalidOrder);
+                return Err(ErrorCode::PlacePostOnlyLimitFailure);
             }
         }
     }
