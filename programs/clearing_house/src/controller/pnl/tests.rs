@@ -318,6 +318,7 @@ pub fn user_unsettled_negative_pnl() {
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
         number_of_users: 1,
+        number_of_users_with_quote: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
@@ -371,6 +372,7 @@ pub fn user_unsettled_negative_pnl() {
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 100 * SPOT_BALANCE_PRECISION;
     expected_market.amm.quote_asset_amount_long = -100 * QUOTE_PRECISION_I128;
+    expected_market.number_of_users_with_quote = 0;
 
     settle_pnl(
         0,
@@ -578,6 +580,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
         number_of_users: 1,
+        number_of_users_with_quote: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
@@ -631,6 +634,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 25 * SPOT_BALANCE_PRECISION;
     expected_market.amm.quote_asset_amount_long = -175 * QUOTE_PRECISION_I128;
+    expected_market.number_of_users_with_quote = 0;
 
     settle_pnl(
         0,
@@ -709,6 +713,7 @@ pub fn market_fee_pool_receives_portion() {
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
         number_of_users: 1,
+        number_of_users_with_quote: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
@@ -763,6 +768,7 @@ pub fn market_fee_pool_receives_portion() {
     expected_market.pnl_pool.scaled_balance = 149 * SPOT_BALANCE_PRECISION;
     expected_market.amm.fee_pool.scaled_balance = SPOT_BALANCE_PRECISION;
     expected_market.amm.quote_asset_amount_long = -50 * QUOTE_PRECISION_I128;
+    expected_market.number_of_users_with_quote = 0;
 
     settle_pnl(
         0,
@@ -846,6 +852,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
         number_of_users: 1,
+        number_of_users_with_quote: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
@@ -900,6 +907,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
     expected_market.pnl_pool.scaled_balance = 151 * SPOT_BALANCE_PRECISION;
     expected_market.amm.fee_pool.scaled_balance = SPOT_BALANCE_PRECISION;
     expected_market.amm.quote_asset_amount_long = -50 * QUOTE_PRECISION_I128;
+    expected_market.number_of_users_with_quote = 0;
 
     settle_pnl(
         0,

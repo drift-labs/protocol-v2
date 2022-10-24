@@ -686,6 +686,7 @@ pub mod delisting_test {
                 ..AMM::default()
             },
             number_of_users: 1,
+            number_of_users_with_quote: 1,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -903,6 +904,7 @@ pub mod delisting_test {
                 ..AMM::default()
             },
             number_of_users: 1,
+            number_of_users_with_quote: 1,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -1123,6 +1125,7 @@ pub mod delisting_test {
                 ..AMM::default()
             },
             number_of_users: 1,
+            number_of_users_with_quote: 1,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -1327,6 +1330,7 @@ pub mod delisting_test {
                 ..AMM::default()
             },
             number_of_users: 2,
+            number_of_users_with_quote: 3,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -2129,6 +2133,7 @@ pub mod delisting_test {
                 ..AMM::default()
             },
             number_of_users: 2,
+            number_of_users_with_quote: 2,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -2819,7 +2824,7 @@ pub mod delisting_test {
             .unwrap();
             assert_eq!(longer_funding_payment, -3449991000);
 
-            assert_eq!(market.amm.quote_asset_amount_long, 39800020000);
+            assert_eq!(market.amm.quote_asset_amount_long, 43250011000);
             assert_eq!(market.amm.quote_asset_amount_short, -43050011000);
             assert_eq!(market.amm.cumulative_social_loss, -3449991000);
 
@@ -2854,14 +2859,14 @@ pub mod delisting_test {
 
             assert_eq!(market.amm.base_asset_amount_with_amm, 0);
 
-            assert_eq!(market.amm.quote_asset_amount_long, 39600020000);
+            assert_eq!(market.amm.quote_asset_amount_long, 43050011000);
             assert_eq!(market.amm.quote_asset_amount_short, -43050011000);
 
             assert_eq!(market.amm.cumulative_social_loss, -3449991000);
 
             assert_eq!(
                 market.amm.quote_asset_amount_long + market.amm.quote_asset_amount_short,
-                market.amm.cumulative_social_loss
+                0
             );
 
             let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();

@@ -2735,6 +2735,7 @@ pub mod resolve_perp_bankruptcy {
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            number_of_users_with_quote: 1,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2798,6 +2799,8 @@ pub mod resolve_perp_bankruptcy {
         expected_market.amm.cumulative_funding_rate_long = 1010 * FUNDING_RATE_PRECISION_I128;
         expected_market.amm.cumulative_funding_rate_short = -1010 * FUNDING_RATE_PRECISION_I128;
         expected_market.amm.cumulative_social_loss = -100000000;
+        expected_market.amm.quote_asset_amount_long = -50 * QUOTE_PRECISION_I128;
+        expected_market.number_of_users_with_quote = 0;
 
         resolve_perp_bankruptcy(
             0,
