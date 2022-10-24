@@ -86,7 +86,7 @@ type RemainingAccountParams = {
 	writablePerpMarketIndexes?: number[];
 	writableSpotMarketIndexes?: number[];
 	readablePerpMarketIndex?: number;
-	readableSpotMarketIndex?: number;
+	readableSpotMarketIndexes?: number[];
 	useMarketLastSlotCache?: boolean;
 };
 
@@ -108,7 +108,8 @@ export class ClearingHouse {
 	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
 	_isSubscribed = false;
 	txSender: TxSender;
-	marketLastSlotCache = new Map<number, number>();
+	perpMarketLastSlotCache = new Map<number, number>();
+	spotMarketLastSlotCache = new Map<number, number>();
 	authority: PublicKey;
 
 	public get isSubscribed() {
@@ -664,11 +665,14 @@ export class ClearingHouse {
 			this.getRemainingAccountMapsForUsers(params.userAccounts);
 
 		if (params.useMarketLastSlotCache) {
-			const lastUserPositionsSlot = this.getUserAccountAndSlot()?.slot;
-			for (const [marketIndex, slot] of this.marketLastSlotCache.entries()) {
+			const lastUserSlot = this.getUserAccountAndSlot()?.slot;
+			for (const [
+				marketIndex,
+				slot,
+			] of this.perpMarketLastSlotCache.entries()) {
 				// if cache has more recent slot than user positions account slot, add market to remaining accounts
 				// otherwise remove from slot
-				if (slot > lastUserPositionsSlot) {
+				if (slot > lastUserSlot) {
 					const marketAccount = this.getPerpMarketAccount(marketIndex);
 					perpMarketAccountMap.set(marketIndex, {
 						pubkey: marketAccount.pubkey,
@@ -681,7 +685,32 @@ export class ClearingHouse {
 						isWritable: false,
 					});
 				} else {
-					this.marketLastSlotCache.delete(marketIndex);
+					this.perpMarketLastSlotCache.delete(marketIndex);
+				}
+			}
+
+			for (const [
+				marketIndex,
+				slot,
+			] of this.spotMarketLastSlotCache.entries()) {
+				// if cache has more recent slot than user positions account slot, add market to remaining accounts
+				// otherwise remove from slot
+				if (slot > lastUserSlot) {
+					const marketAccount = this.getSpotMarketAccount(marketIndex);
+					spotMarketAccountMap.set(marketIndex, {
+						pubkey: marketAccount.pubkey,
+						isSigner: false,
+						isWritable: false,
+					});
+					if (!marketAccount.oracle.equals(PublicKey.default)) {
+						oracleAccountMap.set(marketAccount.oracle.toString(), {
+							pubkey: marketAccount.oracle,
+							isSigner: false,
+							isWritable: false,
+						});
+					}
+				} else {
+					this.spotMarketLastSlotCache.delete(marketIndex);
 				}
 			}
 		}
@@ -720,11 +749,11 @@ export class ClearingHouse {
 			}
 		}
 
-		if (params.readableSpotMarketIndex !== undefined) {
+		for (const readableSpotMarketIndex of params.readableSpotMarketIndexes) {
 			const spotMarketAccount = this.getSpotMarketAccount(
-				params.readableSpotMarketIndex
+				readableSpotMarketIndex
 			);
-			spotMarketAccountMap.set(params.readableSpotMarketIndex, {
+			spotMarketAccountMap.set(readableSpotMarketIndex, {
 				pubkey: spotMarketAccount.pubkey,
 				isSigner: false,
 				isWritable: false,
@@ -789,6 +818,17 @@ export class ClearingHouse {
 					if (!spotMarket.oracle.equals(PublicKey.default)) {
 						oracleAccountMap.set(spotMarket.oracle.toString(), {
 							pubkey: spotMarket.oracle,
+							isSigner: false,
+							isWritable: false,
+						});
+					}
+
+					if (
+						!spotPosition.openAsks.eq(ZERO) ||
+						!spotPosition.openBids.eq(ZERO)
+					) {
+						spotMarketAccountMap.set(spotPosition.marketIndex, {
+							pubkey: this.getQuoteSpotMarketAccount().pubkey,
 							isSigner: false,
 							isWritable: false,
 						});
@@ -894,11 +934,12 @@ export class ClearingHouse {
 			);
 		}
 
-		const { txSig } = await this.txSender.send(
+		const { txSig, slot } = await this.txSender.send(
 			tx,
 			additionalSigners,
 			this.opts
 		);
+		this.spotMarketLastSlotCache.set(marketIndex, slot);
 		return txSig;
 	}
 
@@ -1119,12 +1160,12 @@ export class ClearingHouse {
 			);
 		}
 
-		const { txSig } = await this.txSender.send(
+		const { txSig, slot } = await this.txSender.send(
 			tx,
 			additionalSigners,
 			this.opts
 		);
-
+		this.spotMarketLastSlotCache.set(marketIndex, slot);
 		return [txSig, userAccountPublicKey];
 	}
 
@@ -1242,11 +1283,12 @@ export class ClearingHouse {
 			);
 		}
 
-		const { txSig } = await this.txSender.send(
+		const { txSig, slot } = await this.txSender.send(
 			tx,
 			additionalSigners,
 			this.opts
 		);
+		this.spotMarketLastSlotCache.set(marketIndex, slot);
 		return txSig;
 	}
 
@@ -1293,7 +1335,7 @@ export class ClearingHouse {
 		fromSubAccountId: number,
 		toSubAccountId: number
 	): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(
+		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
 				await this.getTransferDepositIx(
 					amount,
@@ -1305,6 +1347,12 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
+		if (
+			fromSubAccountId === this.activeSubAccountId ||
+			toSubAccountId === this.activeSubAccountId
+		) {
+			this.spotMarketLastSlotCache.set(marketIndex, slot);
+		}
 		return txSig;
 	}
 
@@ -1530,7 +1578,7 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
-		this.marketLastSlotCache.set(marketIndex, slot);
+		this.perpMarketLastSlotCache.set(marketIndex, slot);
 		return txSig;
 	}
 
@@ -1619,7 +1667,7 @@ export class ClearingHouse {
 			true
 		);
 
-		this.marketLastSlotCache.set(orderParams.marketIndex, slot);
+		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 
 		return { txSig, signedFillTx };
 	}
@@ -1632,7 +1680,7 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
-		this.marketLastSlotCache.set(orderParams.marketIndex, slot);
+		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 		return txSig;
 	}
 
@@ -1993,11 +2041,13 @@ export class ClearingHouse {
 	public async placeSpotOrder(
 		orderParams: OptionalOrderParams
 	): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(
+		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(await this.getPlaceSpotOrderIx(orderParams)),
 			[],
 			this.opts
 		);
+		this.spotMarketLastSlotCache.set(orderParams.marketIndex, slot);
+		this.spotMarketLastSlotCache.set(QUOTE_SPOT_MARKET_INDEX, slot);
 		return txSig;
 	}
 
@@ -2010,7 +2060,10 @@ export class ClearingHouse {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount()],
 			useMarketLastSlotCache: true,
-			readableSpotMarketIndex: orderParams.marketIndex,
+			readableSpotMarketIndexes: [
+				orderParams.marketIndex,
+				QUOTE_SPOT_MARKET_INDEX,
+			],
 		});
 
 		return await this.program.instruction.placeSpotOrder(orderParams, {
@@ -2291,7 +2344,7 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
-		this.marketLastSlotCache.set(orderParams.marketIndex, slot);
+		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 		return txSig;
 	}
 
@@ -2374,7 +2427,7 @@ export class ClearingHouse {
 			this.opts
 		);
 
-		this.marketLastSlotCache.set(orderParams.marketIndex, slot);
+		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 
 		return txSig;
 	}
@@ -2431,7 +2484,7 @@ export class ClearingHouse {
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(
+		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
 				await this.getPlaceAndTakeSpotOrderIx(
 					orderParams,
@@ -2443,6 +2496,8 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
+		this.spotMarketLastSlotCache.set(orderParams.marketIndex, slot);
+		this.spotMarketLastSlotCache.set(QUOTE_SPOT_MARKET_INDEX, slot);
 		return txSig;
 	}
 
@@ -2526,7 +2581,7 @@ export class ClearingHouse {
 		takerInfo: TakerInfo,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(
+		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
 				await this.getPlaceAndMakeSpotOrderIx(
 					orderParams,
@@ -2537,7 +2592,8 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
-
+		this.spotMarketLastSlotCache.set(orderParams.marketIndex, slot);
+		this.spotMarketLastSlotCache.set(QUOTE_SPOT_MARKET_INDEX, slot);
 		return txSig;
 	}
 
@@ -2703,7 +2759,7 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
-		this.marketLastSlotCache.set(marketIndex, slot);
+		this.perpMarketLastSlotCache.set(marketIndex, slot);
 		return txSig;
 	}
 
@@ -2751,7 +2807,7 @@ export class ClearingHouse {
 		liabilityMarketIndex: number,
 		maxLiabilityTransfer: BN
 	): Promise<TransactionSignature> {
-		const { txSig } = await this.txSender.send(
+		const { txSig, slot } = await this.txSender.send(
 			wrapInTx(
 				await this.getLiquidateSpotIx(
 					userAccountPublicKey,
@@ -2764,6 +2820,8 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
+		this.spotMarketLastSlotCache.set(assetMarketIndex, slot);
+		this.spotMarketLastSlotCache.set(liabilityMarketIndex, slot);
 		return txSig;
 	}
 
@@ -2826,7 +2884,8 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
-		this.marketLastSlotCache.set(perpMarketIndex, slot);
+		this.perpMarketLastSlotCache.set(perpMarketIndex, slot);
+		this.spotMarketLastSlotCache.set(liabilityMarketIndex, slot);
 		return txSig;
 	}
 
@@ -2889,7 +2948,8 @@ export class ClearingHouse {
 			[],
 			this.opts
 		);
-		this.marketLastSlotCache.set(perpMarketIndex, slot);
+		this.perpMarketLastSlotCache.set(perpMarketIndex, slot);
+		this.spotMarketLastSlotCache.set(assetMarketIndex, slot);
 		return txSig;
 	}
 
