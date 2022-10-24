@@ -664,13 +664,11 @@ pub fn validate_spot_margin_trading(
     }
 
     let mut total_open_bids_value = 0_i128;
-    for position_index in 0..user.spot_positions.len() {
-        let asks = user.spot_positions[position_index].open_asks;
+    for spot_position in &user.spot_positions {
+        let asks = spot_position.open_asks;
         if asks < 0 {
-            let spot_market =
-                spot_market_map.get_ref(&user.spot_positions[position_index].market_index)?;
-            let signed_token_amount =
-                user.spot_positions[position_index].get_signed_token_amount(&spot_market)?;
+            let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
+            let signed_token_amount = spot_position.get_signed_token_amount(&spot_market)?;
             // The user can have:
             // 1. no open asks with an existing short
             // 2. open asks with a larger existing long
@@ -678,14 +676,13 @@ pub fn validate_spot_margin_trading(
                 signed_token_amount.safe_add(asks.cast()?)? >= 0,
                 ErrorCode::MarginTradingDisabled,
                 "Open asks can lead to increased borrow in spot market {}",
-                user.spot_positions[position_index].market_index
+                spot_position.market_index
             )?;
         }
 
-        let bids = user.spot_positions[position_index].open_bids;
+        let bids = spot_position.open_bids;
         if bids > 0 {
-            let spot_market =
-                spot_market_map.get_ref(&user.spot_positions[position_index].market_index)?;
+            let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
             let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
             let open_bids_value =
                 get_token_value(-bids as i128, spot_market.decimals, oracle_price_data)?;
