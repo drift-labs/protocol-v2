@@ -1090,11 +1090,13 @@ mod auto_deleveraging {
         dus1.quote_asset_amount -= delev_payment as i64;
         dus1.quote_entry_amount -= delev_payment as i64;
         market.amm.quote_asset_amount_long -= delev_payment;
-        remaining_levered_loss -= delev_payment;
+        market.amm.quote_entry_amount_long -= delev_payment;
+        remaining_levered_loss += delev_payment;
 
         assert_eq!(dus1.quote_asset_amount, -763209977);
         assert_eq!(dus1.quote_entry_amount, -719999977);
         assert_eq!(dus1.base_asset_amount, 30600000000);
+        assert_eq!(remaining_levered_loss, -176_000_023);
 
         assert_eq!(
             dus1.quote_entry_amount * PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128 as i64
@@ -1109,6 +1111,31 @@ mod auto_deleveraging {
             100 * PRICE_PRECISION_I64,
         )
         .unwrap();
-        assert_eq!(delev_payment, 44799995);
+        assert_eq!(delev_payment, 7_199_996);
+
+        dus1.quote_asset_amount -= delev_payment as i64;
+        dus1.quote_entry_amount -= delev_payment as i64;
+        market.amm.quote_asset_amount_long -= delev_payment;
+        market.amm.quote_entry_amount_long -= delev_payment;
+        remaining_levered_loss += delev_payment;
+
+        assert_eq!(dus1.quote_asset_amount, -770409973);
+        assert_eq!(dus1.quote_entry_amount, -727199973);
+        assert_eq!(dus1.base_asset_amount, 30600000000);
+
+        assert_eq!(
+            dus1.quote_entry_amount * PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128 as i64
+                / dus1.base_asset_amount,
+            -23764705
+        );
+
+        let delev_payment = calculate_perp_market_deleverage_payment(
+            remaining_levered_loss,
+            dus1,
+            &market,
+            100 * PRICE_PRECISION_I64,
+        )
+        .unwrap();
+        assert_eq!(delev_payment, 2_159_992);
     }
 }

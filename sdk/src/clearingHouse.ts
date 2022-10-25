@@ -3037,10 +3037,12 @@ export class ClearingHouse {
 		});
 
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		const deleveraging = false; // todo
 
 		return await this.program.instruction.resolvePerpBankruptcy(
 			QUOTE_SPOT_MARKET_INDEX,
 			marketIndex,
+			deleveraging,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
