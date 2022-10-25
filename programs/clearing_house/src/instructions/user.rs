@@ -19,6 +19,7 @@ use crate::math::margin::{
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
+use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::math_error;
 use crate::print_error;
 use crate::safe_decrement;
@@ -1007,7 +1008,7 @@ pub fn handle_place_and_take_spot_order<'info>(
 
     let is_immediate_or_cancel = params.immediate_or_cancel;
 
-    let serum_fulfillment_params = match fulfillment_type {
+    let mut serum_fulfillment_params = match fulfillment_type {
         Some(SpotFulfillmentType::SerumV3) => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
@@ -1048,7 +1049,7 @@ pub fn handle_place_and_take_spot_order<'info>(
         maker_stats.as_ref(),
         maker_order_id,
         &Clock::get()?,
-        serum_fulfillment_params,
+        &mut serum_fulfillment_params,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -1064,6 +1065,19 @@ pub fn handle_place_and_take_spot_order<'info>(
             &spot_market_map,
             &mut oracle_map,
             &Clock::get()?,
+        )?;
+    }
+
+    if let Some(serum_fulfillment_params) = serum_fulfillment_params {
+        let base_market = spot_market_map.get_ref(&market_index)?;
+        validate_spot_market_vault_amount(
+            &base_market,
+            serum_fulfillment_params.base_market_vault.amount,
+        )?;
+        let quote_market = spot_market_map.get_quote_spot_market()?;
+        validate_spot_market_vault_amount(
+            &quote_market,
+            serum_fulfillment_params.quote_market_vault.amount,
         )?;
     }
 
@@ -1127,7 +1141,7 @@ pub fn handle_place_and_make_spot_order<'info>(
         Some(&ctx.accounts.user_stats),
         Some(order_id),
         clock,
-        None,
+        &mut None,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?

@@ -4977,7 +4977,7 @@ pub mod fulfill_spot_order {
             Some(&maker_stats_account_loader),
             Some(1),
             &clock,
-            None,
+            &mut None,
         )
         .unwrap();
 
@@ -5240,7 +5240,7 @@ pub mod fulfill_spot_order {
             Some(&maker_stats_account_loader),
             Some(1),
             &clock,
-            None,
+            &mut None,
         )
         .unwrap();
 
@@ -5426,7 +5426,7 @@ pub mod fill_spot_order {
             Some(&maker_stats_account_loader),
             Some(1),
             &clock,
-            None,
+            &mut None,
         )
         .unwrap();
 
@@ -5583,7 +5583,7 @@ pub mod fill_spot_order {
             Some(&maker_stats_account_loader),
             Some(1),
             &clock,
-            None,
+            &mut None,
         )
         .unwrap();
 

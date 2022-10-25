@@ -2560,7 +2560,7 @@ pub fn fill_spot_order(
     maker_stats: Option<&AccountLoader<UserStats>>,
     maker_order_id: Option<u32>,
     clock: &Clock,
-    serum_fulfillment_params: Option<SerumFulfillmentParams>,
+    serum_fulfillment_params: &mut Option<SerumFulfillmentParams>,
 ) -> ClearingHouseResult<u64> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -2884,7 +2884,7 @@ fn fulfill_spot_order(
     now: i64,
     slot: u64,
     fee_structure: &FeeStructure,
-    mut serum_fulfillment_params: Option<SerumFulfillmentParams>,
+    serum_fulfillment_params: &mut Option<SerumFulfillmentParams>,
 ) -> ClearingHouseResult<(u64, bool)> {
     let free_collateral =
         calculate_free_collateral(user, perp_market_map, spot_market_map, oracle_map)?;
@@ -2982,7 +2982,7 @@ fn fulfill_spot_order(
                 oracle_map,
                 fee_structure,
                 &mut order_records,
-                &mut serum_fulfillment_params,
+                serum_fulfillment_params,
             )?,
         };
 
