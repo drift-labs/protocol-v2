@@ -2528,7 +2528,7 @@
       "args": [
         {
           "name": "withdrawGuardThreshold",
-          "type": "u128"
+          "type": "u64"
         }
       ]
     },
@@ -2712,7 +2712,7 @@
       "args": [
         {
           "name": "maxTokenDeposits",
-          "type": "u128"
+          "type": "u64"
         }
       ]
     },
@@ -3723,10 +3723,6 @@
             }
           },
           {
-            "name": "withdrawGuardThreshold",
-            "type": "u128"
-          },
-          {
             "name": "totalSpotFee",
             "type": "u128"
           },
@@ -3739,28 +3735,32 @@
             "type": "u128"
           },
           {
-            "name": "maxTokenDeposits",
-            "type": "u128"
-          },
-          {
-            "name": "depositTokenTwap",
-            "type": "u128"
-          },
-          {
-            "name": "borrowTokenTwap",
-            "type": "u128"
-          },
-          {
-            "name": "utilizationTwap",
-            "type": "u128"
-          },
-          {
             "name": "cumulativeDepositInterest",
             "type": "u128"
           },
           {
             "name": "cumulativeBorrowInterest",
             "type": "u128"
+          },
+          {
+            "name": "withdrawGuardThreshold",
+            "type": "u64"
+          },
+          {
+            "name": "maxTokenDeposits",
+            "type": "u64"
+          },
+          {
+            "name": "depositTokenTwap",
+            "type": "u64"
+          },
+          {
+            "name": "borrowTokenTwap",
+            "type": "u64"
+          },
+          {
+            "name": "utilizationTwap",
+            "type": "u64"
           },
           {
             "name": "lastInterestTs",
@@ -4150,11 +4150,15 @@
             "type": "bool"
           },
           {
+            "name": "isMarginTradingEnabled",
+            "type": "bool"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                3
+                2
               ]
             }
           }
@@ -7596,33 +7600,308 @@
     },
     {
       "code": 6132,
-      "name": "AssetTierViolation",
-      "msg": "Action violates the asset tier rules"
+      "name": "ProtectedAssetTierViolation",
+      "msg": "Action violates the Protected Asset Tier rules"
     },
     {
       "code": 6133,
+      "name": "IsolatedAssetTierViolation",
+      "msg": "Action violates the Isolated Asset Tier rules"
+    },
+    {
+      "code": 6134,
       "name": "UserCantBeDeleted",
       "msg": "User Cant Be Deleted"
     },
     {
-      "code": 6134,
+      "code": 6135,
       "name": "ReduceOnlyWithdrawIncreasedRisk",
       "msg": "Reduce Only Withdraw Increased Risk"
     },
     {
-      "code": 6135,
+      "code": 6136,
       "name": "MaxOpenInterest",
       "msg": "Max Open Interest"
     },
     {
-      "code": 6136,
+      "code": 6137,
       "name": "CantResolvePerpBankruptcy",
       "msg": "Cant Resolve Perp Bankruptcy"
     },
     {
-      "code": 6137,
+      "code": 6138,
       "name": "LiquidationDoesntSatisfyLimitPrice",
       "msg": "Liquidation Doesnt Satisfy Limit Price"
+    },
+    {
+      "code": 6139,
+      "name": "MarginTradingDisabled",
+      "msg": "Margin Trading Disabled"
+    },
+    {
+      "code": 6140,
+      "name": "InvalidMarketStatusToSettlePnl",
+      "msg": "Invalid Market Status to Settle Perp Pnl"
+    },
+    {
+      "code": 6141,
+      "name": "PerpMarketNotInSettlement",
+      "msg": "PerpMarketNotInSettlement"
+    },
+    {
+      "code": 6142,
+      "name": "PerpMarketNotInReduceOnly",
+      "msg": "PerpMarketNotInReduceOnly"
+    },
+    {
+      "code": 6143,
+      "name": "PerpMarketSettlementBufferNotReached",
+      "msg": "PerpMarketSettlementBufferNotReached"
+    },
+    {
+      "code": 6144,
+      "name": "PerpMarketSettlementUserHasOpenOrders",
+      "msg": "PerpMarketSettlementUserHasOpenOrders"
+    },
+    {
+      "code": 6145,
+      "name": "PerpMarketSettlementUserHasActiveLP",
+      "msg": "PerpMarketSettlementUserHasActiveLP"
+    },
+    {
+      "code": 6146,
+      "name": "UnableToSettleExpiredUserPosition",
+      "msg": "UnableToSettleExpiredUserPosition"
+    },
+    {
+      "code": 6147,
+      "name": "UnequalMarketIndexForSpotTransfer",
+      "msg": "UnequalMarketIndexForSpotTransfer"
+    },
+    {
+      "code": 6148,
+      "name": "InvalidPerpPositionDetected",
+      "msg": "InvalidPerpPositionDetected"
+    },
+    {
+      "code": 6149,
+      "name": "InvalidSpotPositionDetected",
+      "msg": "InvalidSpotPositionDetected"
+    },
+    {
+      "code": 6150,
+      "name": "InvalidAmmDetected",
+      "msg": "InvalidAmmDetected"
+    },
+    {
+      "code": 6151,
+      "name": "InvalidAmmForFillDetected",
+      "msg": "InvalidAmmForFillDetected"
+    },
+    {
+      "code": 6152,
+      "name": "InvalidAmmLimitPriceOverride",
+      "msg": "InvalidAmmLimitPriceOverride"
+    },
+    {
+      "code": 6153,
+      "name": "InvalidOrderFillPrice",
+      "msg": "InvalidOrderFillPrice"
+    },
+    {
+      "code": 6154,
+      "name": "SpotMarketBalanceInvariantViolated",
+      "msg": "SpotMarketBalanceInvariantViolated"
+    },
+    {
+      "code": 6155,
+      "name": "SpotMarketVaultInvariantViolated",
+      "msg": "SpotMarketVaultInvariantViolated"
+    },
+    {
+      "code": 6156,
+      "name": "InvalidPDA",
+      "msg": "InvalidPDA"
+    },
+    {
+      "code": 6157,
+      "name": "InvalidPDASigner",
+      "msg": "InvalidPDASigner"
+    },
+    {
+      "code": 6158,
+      "name": "RevenueSettingsCannotSettleToIF",
+      "msg": "RevenueSettingsCannotSettleToIF"
+    },
+    {
+      "code": 6159,
+      "name": "NoRevenueToSettleToIF",
+      "msg": "NoRevenueToSettleToIF"
+    },
+    {
+      "code": 6160,
+      "name": "NoAmmPerpPnlDeficit",
+      "msg": "NoAmmPerpPnlDeficit"
+    },
+    {
+      "code": 6161,
+      "name": "SufficientPerpPnlPool",
+      "msg": "SufficientPerpPnlPool"
+    },
+    {
+      "code": 6162,
+      "name": "PerpPnlDeficitBelowThreshold",
+      "msg": "PerpPnlDeficitBelowThreshold"
+    },
+    {
+      "code": 6163,
+      "name": "MaxRevenueWithdrawPerPeriodReached",
+      "msg": "MaxRevenueWithdrawPerPeriodReached"
+    },
+    {
+      "code": 6164,
+      "name": "MaxIFWithdrawReached",
+      "msg": "InvalidSpotPositionDetected"
+    },
+    {
+      "code": 6165,
+      "name": "NoIFWithdrawAvailable",
+      "msg": "NoIFWithdrawAvailable"
+    },
+    {
+      "code": 6166,
+      "name": "InvalidIFUnstake",
+      "msg": "InvalidIFUnstake"
+    },
+    {
+      "code": 6167,
+      "name": "InvalidIFUnstakeSize",
+      "msg": "InvalidIFUnstakeSize"
+    },
+    {
+      "code": 6168,
+      "name": "InvalidIFUnstakeCancel",
+      "msg": "InvalidIFUnstakeCancel"
+    },
+    {
+      "code": 6169,
+      "name": "InvalidIFForNewStakes",
+      "msg": "InvalidIFForNewStakes"
+    },
+    {
+      "code": 6170,
+      "name": "InvalidIFRebase",
+      "msg": "InvalidIFRebase"
+    },
+    {
+      "code": 6171,
+      "name": "InvalidInsuranceUnstakeSize",
+      "msg": "InvalidInsuranceUnstakeSize"
+    },
+    {
+      "code": 6172,
+      "name": "InvalidOrderLimitPrice",
+      "msg": "InvalidOrderLimitPrice"
+    },
+    {
+      "code": 6173,
+      "name": "InvalidIFDetected",
+      "msg": "InvalidIFDetected"
+    },
+    {
+      "code": 6174,
+      "name": "InvalidAmmMaxSpreadDetected",
+      "msg": "InvalidAmmMaxSpreadDetected"
+    },
+    {
+      "code": 6175,
+      "name": "InvalidConcentrationCoef",
+      "msg": "InvalidConcentrationCoef"
+    },
+    {
+      "code": 6176,
+      "name": "InvalidSrmVault",
+      "msg": "InvalidSrmVault"
+    },
+    {
+      "code": 6177,
+      "name": "InvalidVaultOwner",
+      "msg": "InvalidVaultOwner"
+    },
+    {
+      "code": 6178,
+      "name": "InvalidMarketStatusForFills",
+      "msg": "InvalidMarketStatusForFills"
+    },
+    {
+      "code": 6179,
+      "name": "IFWithdrawRequestInProgress",
+      "msg": "IFWithdrawRequestInProgress"
+    },
+    {
+      "code": 6180,
+      "name": "NoIFWithdrawRequestInProgress",
+      "msg": "NoIFWithdrawRequestInProgress"
+    },
+    {
+      "code": 6181,
+      "name": "IFWithdrawRequestTooSmall",
+      "msg": "IFWithdrawRequestTooSmall"
+    },
+    {
+      "code": 6182,
+      "name": "IncorrectSpotMarketAccountPassed",
+      "msg": "IncorrectSpotMarketAccountPassed"
+    },
+    {
+      "code": 6183,
+      "name": "BlockchainClockInconsistency",
+      "msg": "BlockchainClockInconsistency"
+    },
+    {
+      "code": 6184,
+      "name": "InvalidIFSharesDetected",
+      "msg": "InvalidIFSharesDetected"
+    },
+    {
+      "code": 6185,
+      "name": "NewLPSizeTooSmall",
+      "msg": "NewLPSizeTooSmall"
+    },
+    {
+      "code": 6186,
+      "name": "MarketStatusInvalidForNewLP",
+      "msg": "MarketStatusInvalidForNewLP"
+    },
+    {
+      "code": 6187,
+      "name": "InvalidMarkTwapUpdateDetected",
+      "msg": "InvalidMarkTwapUpdateDetected"
+    },
+    {
+      "code": 6188,
+      "name": "MarketSettlementAttemptOnActiveMarket",
+      "msg": "MarketSettlementAttemptOnActiveMarket"
+    },
+    {
+      "code": 6189,
+      "name": "MarketSettlementRequiresSettledLP",
+      "msg": "MarketSettlementRequiresSettledLP"
+    },
+    {
+      "code": 6190,
+      "name": "MarketSettlementAttemptTooEarly",
+      "msg": "MarketSettlementAttemptTooEarly"
+    },
+    {
+      "code": 6191,
+      "name": "MarketSettlementTargetPriceInvalid",
+      "msg": "MarketSettlementTargetPriceInvalid"
+    },
+    {
+      "code": 6192,
+      "name": "UnsupportedSpotMarket",
+      "msg": "UnsupportedSpotMarket"
     }
   ]
 }

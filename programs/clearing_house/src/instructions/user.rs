@@ -456,8 +456,18 @@ pub fn handle_transfer_deposit(
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         validate!(
-            spot_market.status != MarketStatus::WithdrawPaused,
-            ErrorCode::DailyWithdrawLimit
+            matches!(
+                spot_market.status,
+                MarketStatus::Active
+                    | MarketStatus::AmmPaused
+                    | MarketStatus::FundingPaused
+                    | MarketStatus::FillPaused
+                    | MarketStatus::ReduceOnly
+                    | MarketStatus::Settlement
+            ),
+            ErrorCode::MarketActionPaused,
+            "Spot Market {} withdraws are currently paused",
+            spot_market.market_index
         )?;
 
         let from_spot_position = from_user.force_get_spot_position_mut(spot_market.market_index)?;
@@ -1265,7 +1275,7 @@ pub fn handle_remove_perp_lp_shares_in_expiring_market(
         let market = perp_market_map.get_ref(&market_index)?;
         validate!(
             market.is_reduce_only()?,
-            ErrorCode::DefaultError,
+            ErrorCode::PerpMarketNotInReduceOnly,
             "Can only permissionless burn when market is in reduce only"
         )?;
     }
