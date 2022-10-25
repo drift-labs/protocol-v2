@@ -6,8 +6,8 @@ import {
 	ZERO,
 } from '../constants/numericConstants';
 import { PerpMarketAccount, isVariant } from '../types';
-import { calculateReservePrice } from './market';
 import { OraclePriceData } from '../oracles/types';
+import { calculateBidAskPrice } from './amm';
 
 /**
  *
@@ -48,10 +48,8 @@ export async function calculateAllEstimatedFundingRate(
 		secondsInHour,
 		BN.max(ZERO, secondsInHour.sub(timeSinceLastMarkChange))
 	);
-	const baseAssetPriceWithMantissa = calculateReservePrice(
-		market,
-		oraclePriceData
-	);
+	const [bid, ask] = calculateBidAskPrice(market.amm, oraclePriceData);
+	const baseAssetPriceWithMantissa = bid.add(ask).div(new BN(2));
 
 	const markTwapWithMantissa = markTwapTimeSinceLastUpdate
 		.mul(lastMarkTwapWithMantissa)

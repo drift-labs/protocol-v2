@@ -209,13 +209,18 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 		return ZERO;
 	}
 
-	const limitPrice = getLimitPrice(order, oraclePriceData, slot);
-	const baseAssetAmount = calculateBaseAssetAmountToFillUpToLimitPrice(
-		order,
-		market,
-		limitPrice,
-		oraclePriceData
-	);
+	const limitPrice = getOptionalLimitPrice(order, oraclePriceData, slot);
+	let baseAssetAmount;
+	if (limitPrice !== undefined) {
+		baseAssetAmount = calculateBaseAssetAmountToFillUpToLimitPrice(
+			order,
+			market,
+			limitPrice,
+			oraclePriceData
+		);
+	} else {
+		baseAssetAmount = order.baseAssetAmount.sub(order.baseAssetAmountFilled);
+	}
 
 	const maxBaseAssetAmount = calculateMaxBaseAssetAmountFillable(
 		market.amm,
@@ -249,8 +254,11 @@ export function calculateBaseAssetAmountToFillUpToLimitPrice(
 		return ZERO;
 	}
 
-	return baseAssetAmount.gt(order.baseAssetAmount)
-		? order.baseAssetAmount
+	const baseAssetAmountUnfilled = order.baseAssetAmount.sub(
+		order.baseAssetAmountFilled
+	);
+	return baseAssetAmount.gt(baseAssetAmountUnfilled)
+		? baseAssetAmountUnfilled
 		: baseAssetAmount;
 }
 
