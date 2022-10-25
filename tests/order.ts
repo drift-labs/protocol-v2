@@ -448,11 +448,12 @@ describe('orders', () => {
 		assert(firstPosition.openBids.eq(new BN(0)));
 
 		const expectedQuoteAssetAmount = new BN(-1000003);
+		const expectedQuoteEntryAmount = new BN(-1001004);
 		// console.log(convertToNumber(firstPosition.quoteAssetAmount, QUOTE_PRECISION),
 		//  '!=',
 		//  convertToNumber(expectedQuoteAssetAmount, QUOTE_PRECISION),
 		//  );
-		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
+		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteEntryAmount));
 
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));

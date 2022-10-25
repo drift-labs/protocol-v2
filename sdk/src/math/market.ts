@@ -208,9 +208,7 @@ export function calculateNetUserPnl(
 		.div(BASE_PRECISION)
 		.div(PRICE_TO_QUOTE_PRECISION);
 
-	const netUserCostBasis = perpMarket.amm.quoteAssetAmountLong
-		.add(perpMarket.amm.quoteAssetAmountShort)
-		.sub(perpMarket.amm.cumulativeSocialLoss);
+	const netUserCostBasis = perpMarket.amm.quoteAssetAmount;
 
 	const netUserPnl = netUserPositionValue.add(netUserCostBasis);
 

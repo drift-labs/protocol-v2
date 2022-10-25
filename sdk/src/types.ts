@@ -446,6 +446,7 @@ export type PerpMarketAccount = {
 	pubkey: PublicKey;
 	name: number[];
 	amm: AMM;
+	numberOfUsersWithBase: number;
 	numberOfUsers: number;
 	marginRatioInitial: number;
 	marginRatioMaintenance: number;
@@ -587,8 +588,7 @@ export type AMM = {
 	baseAssetAmountWithAmm: BN;
 	baseAssetAmountLong: BN;
 	baseAssetAmountShort: BN;
-	quoteAssetAmountLong: BN;
-	quoteAssetAmountShort: BN;
+	quoteAssetAmount: BN;
 	terminalQuoteAssetReserve: BN;
 	feePool: PoolBalance;
 	totalExchangeFee: BN;

@@ -91,8 +91,8 @@ pub struct PerpMarket {
     pub margin_ratio_maintenance: u32,
     pub unrealized_pnl_initial_asset_weight: u32,
     pub unrealized_pnl_maintenance_asset_weight: u32,
-    pub number_of_users: u32, // number of users in a position
-    pub number_of_users_with_quote: u32,
+    pub number_of_users_with_base: u32, // number of users in a position
+    pub number_of_users: u32,           // number of users in a position (base) or pnl (quote)
     pub market_index: u16,
     pub status: MarketStatus,
     pub contract_type: ContractType,

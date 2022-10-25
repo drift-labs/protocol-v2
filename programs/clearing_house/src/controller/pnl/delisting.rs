@@ -680,8 +680,8 @@ pub mod delisting_test {
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
+            number_of_users_with_base: 1,
             number_of_users: 1,
-            number_of_users_with_quote: 1,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -897,8 +897,8 @@ pub mod delisting_test {
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
+            number_of_users_with_base: 1,
             number_of_users: 1,
-            number_of_users_with_quote: 1,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -1117,8 +1117,8 @@ pub mod delisting_test {
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
+            number_of_users_with_base: 1,
             number_of_users: 1,
-            number_of_users_with_quote: 1,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -1321,8 +1321,8 @@ pub mod delisting_test {
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
-            number_of_users: 2,
-            number_of_users_with_quote: 3,
+            number_of_users_with_base: 2,
+            number_of_users: 3,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -1655,7 +1655,7 @@ pub mod delisting_test {
         assert_eq!(liq.perp_positions[0].quote_entry_amount, 0);
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.number_of_users, 0);
+        assert_eq!(market.number_of_users_with_base, 0);
         assert_eq!(market.amm.quote_asset_amount, 2000000);
         drop(market);
         settle_expired_position(
@@ -1671,7 +1671,7 @@ pub mod delisting_test {
         )
         .unwrap();
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.number_of_users, 0);
+        assert_eq!(market.number_of_users_with_base, 0);
         drop(market);
 
         assert_eq!(liq.perp_positions[0].base_asset_amount, 0);
@@ -1682,7 +1682,7 @@ pub mod delisting_test {
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.amm.base_asset_amount_long, 0);
         assert_eq!(market.amm.base_asset_amount_short, 0);
-        assert_eq!(market.number_of_users, 0);
+        assert_eq!(market.number_of_users_with_base, 0);
         assert_eq!(market.amm.base_asset_amount_with_amm, 0);
         assert_eq!(market.amm.quote_asset_amount, 0);
         assert_eq!(market.amm.cumulative_social_loss, 0);
@@ -1740,7 +1740,7 @@ pub mod delisting_test {
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
-            number_of_users: 2,
+            number_of_users_with_base: 2,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -2117,8 +2117,8 @@ pub mod delisting_test {
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
+            number_of_users_with_base: 2,
             number_of_users: 2,
-            number_of_users_with_quote: 2,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -2805,7 +2805,7 @@ pub mod delisting_test {
             assert_eq!(market.pnl_pool.scaled_balance, 144300801000); // fees collected
             assert_eq!(market.amm.fee_pool.scaled_balance, 0);
 
-            assert_eq!(market.number_of_users, 0);
+            assert_eq!(market.number_of_users_with_base, 0);
             assert_eq!(market.amm.base_asset_amount_long, 0);
             assert_eq!(market.amm.base_asset_amount_short, 0);
 

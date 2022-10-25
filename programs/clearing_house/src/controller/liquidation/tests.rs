@@ -71,7 +71,7 @@ pub mod liquidate_perp {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            number_of_users: 1,
+            number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
@@ -212,7 +212,7 @@ pub mod liquidate_perp {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            number_of_users: 1,
+            number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
@@ -353,7 +353,7 @@ pub mod liquidate_perp {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            number_of_users: 1,
+            number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
@@ -483,7 +483,7 @@ pub mod liquidate_perp {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            number_of_users: 1,
+            number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
@@ -622,7 +622,7 @@ pub mod liquidate_perp {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            number_of_users: 1,
+            number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
@@ -790,7 +790,7 @@ pub mod liquidate_perp {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            number_of_users: 1,
+            number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             imf_factor: 1000, // SPOT_IMF_PRECISION == 1e6
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
@@ -977,7 +977,7 @@ pub mod liquidate_perp {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            number_of_users: 1,
+            number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
@@ -1100,7 +1100,7 @@ pub mod liquidate_perp {
             },
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
-            number_of_users: 1,
+            number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
@@ -1758,7 +1758,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             margin_ratio_maintenance: 500,
             unrealized_pnl_initial_asset_weight: 9000,
             unrealized_pnl_maintenance_asset_weight: 10000,
-            number_of_users: 1,
+            number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
@@ -1904,7 +1904,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             margin_ratio_maintenance: 500,
             unrealized_pnl_initial_asset_weight: 9000,
             unrealized_pnl_maintenance_asset_weight: 10000,
-            number_of_users: 1,
+            number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
@@ -2089,7 +2089,7 @@ pub mod liquidate_borrow_for_perp_pnl {
             margin_ratio_initial: 1000,
             unrealized_pnl_initial_asset_weight: 9000,
             unrealized_pnl_maintenance_asset_weight: 10000,
-            number_of_users: 1,
+            number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
@@ -2261,7 +2261,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             margin_ratio_maintenance: 500,
             unrealized_pnl_initial_asset_weight: 9000,
             unrealized_pnl_maintenance_asset_weight: 10000,
-            number_of_users: 1,
+            number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
@@ -2407,7 +2407,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             margin_ratio_maintenance: 500,
             unrealized_pnl_initial_asset_weight: 9000,
             unrealized_pnl_maintenance_asset_weight: 10000,
-            number_of_users: 1,
+            number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
@@ -2557,7 +2557,7 @@ pub mod liquidate_perp_pnl_for_deposit {
             margin_ratio_maintenance: 500,
             unrealized_pnl_initial_asset_weight: 9000,
             unrealized_pnl_maintenance_asset_weight: 10000,
-            number_of_users: 1,
+            number_of_users_with_base: 1,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
             ..PerpMarket::default()
@@ -2735,7 +2735,7 @@ pub mod resolve_perp_bankruptcy {
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
-            number_of_users_with_quote: 1,
+            number_of_users: 1,
             ..PerpMarket::default()
         };
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -2801,7 +2801,7 @@ pub mod resolve_perp_bankruptcy {
         expected_market.amm.cumulative_funding_rate_short = -1010 * FUNDING_RATE_PRECISION_I128;
         expected_market.amm.cumulative_social_loss = -100000000;
         expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
-        expected_market.number_of_users_with_quote = 0;
+        expected_market.number_of_users = 0;
 
         resolve_perp_bankruptcy(
             0,

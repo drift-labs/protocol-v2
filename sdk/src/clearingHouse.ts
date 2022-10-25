@@ -1306,6 +1306,7 @@ export class ClearingHouse {
 			userAccounts: [this.getUserAccount()],
 			useMarketLastSlotCache: true,
 			writableSpotMarketIndexes: [marketIndex],
+			readableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 		});
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
