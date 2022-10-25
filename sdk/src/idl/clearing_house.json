@@ -44,7 +44,7 @@
       "args": [
         {
           "name": "subAccountId",
-          "type": "u8"
+          "type": "u16"
         },
         {
           "name": "name",
@@ -236,7 +236,7 @@
         },
         {
           "name": "spotMarketVault",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         }
       ],
@@ -695,7 +695,7 @@
       "args": [
         {
           "name": "subAccountId",
-          "type": "u8"
+          "type": "u16"
         },
         {
           "name": "name",
@@ -725,7 +725,7 @@
       "args": [
         {
           "name": "subAccountId",
-          "type": "u8"
+          "type": "u16"
         },
         {
           "name": "marginRatio",
@@ -750,7 +750,7 @@
       "args": [
         {
           "name": "subAccountId",
-          "type": "u8"
+          "type": "u16"
         },
         {
           "name": "delegate",
@@ -941,7 +941,7 @@
         },
         {
           "name": "spotMarketVault",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         }
       ],
@@ -4157,7 +4157,7 @@
           },
           {
             "name": "subAccountId",
-            "type": "u8"
+            "type": "u16"
           },
           {
             "name": "isBeingLiquidated",
@@ -4176,7 +4176,7 @@
             "type": {
               "array": [
                 "u8",
-                2
+                1
               ]
             }
           }
@@ -4236,7 +4236,11 @@
           },
           {
             "name": "numberOfSubAccounts",
-            "type": "u8"
+            "type": "u16"
+          },
+          {
+            "name": "maxSubAccountId",
+            "type": "u16"
           },
           {
             "name": "isReferrer",
@@ -4247,7 +4251,7 @@
             "type": {
               "array": [
                 "u8",
-                6
+                3
               ]
             }
           }
@@ -6049,7 +6053,7 @@
         },
         {
           "name": "subAccountId",
-          "type": "u8",
+          "type": "u16",
           "index": false
         },
         {

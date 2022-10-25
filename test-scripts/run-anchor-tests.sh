@@ -31,7 +31,7 @@ test_files=(
    placeAndMakeSpotOrder.ts
    roundInFavorBaseAsset.ts
    marketOrderBaseAssetAmount.ts oracleOffsetOrders.ts
-   userDelegate.ts subaccounts.ts pyth.ts userAccount.ts 
+   userDelegate.ts subaccounts.ts pyth.ts userAccount.ts
    admin.ts
    assetTier.ts
    pauseExchange.ts 
