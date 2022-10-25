@@ -495,12 +495,6 @@ describe('amm spread: market order', () => {
 			true
 		);
 
-		const expectedQuoteAssetAmount = calculateQuoteAssetAmountSwapped(
-			tradeAcquiredAmountsWithSpread[1].abs(),
-			clearingHouse.getPerpMarketAccount(marketIndex).amm.pegMultiplier,
-			getSwapDirection('base', direction)
-		).neg();
-
 		const txSig = await clearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
 			clearingHouseUser.getUserAccount(),
@@ -572,21 +566,6 @@ describe('amm spread: market order', () => {
 			0
 		);
 		assert(expectedBaseAssetAmount.eq(AMM_RESERVE_PRECISION));
-
-		const tradeAcquiredAmountsWithSpread = calculateTradeAcquiredAmounts(
-			direction,
-			baseAssetAmount,
-			clearingHouse.getPerpMarketAccount(0),
-			'base',
-			undefined,
-			true
-		);
-
-		const expectedQuoteAssetAmount = calculateQuoteAssetAmountSwapped(
-			tradeAcquiredAmountsWithSpread[1].abs(),
-			clearingHouse.getPerpMarketAccount(marketIndex).amm.pegMultiplier,
-			getSwapDirection('base', direction)
-		);
 
 		const txSig = await clearingHouse.fillPerpOrder(
 			await clearingHouseUser.getUserAccountPublicKey(),
