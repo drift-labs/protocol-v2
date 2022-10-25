@@ -95,6 +95,8 @@ describe('subaccounts', () => {
 		const userStats = clearingHouse.getUserStats().getAccount();
 
 		assert(userStats.numberOfSubAccounts === 2);
+		console.log(userStats.maxSubAccountId.toString());
+		assert(userStats.maxSubAccountId === 1);
 	});
 
 	it('Fetch all user account', async () => {

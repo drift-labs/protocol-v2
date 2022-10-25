@@ -39,7 +39,7 @@ use crate::{controller, math};
 
 pub fn handle_initialize_user(
     ctx: Context<InitializeUser>,
-    sub_account_id: u8,
+    sub_account_id: u16,
     name: [u8; 32],
 ) -> Result<()> {
     let user_key = ctx.accounts.user.key();
@@ -91,6 +91,8 @@ pub fn handle_initialize_user(
             &ctx.accounts.authority.key(),
         )?;
     }
+
+    user_stats.max_sub_account_id = user_stats.max_sub_account_id.max(sub_account_id);
 
     emit!(NewUserRecord {
         ts: Clock::get()?.unix_timestamp,
@@ -1327,7 +1329,7 @@ pub fn handle_remove_perp_lp_shares(
 
 pub fn handle_update_user_name(
     ctx: Context<UpdateUser>,
-    _sub_account_id: u8,
+    _sub_account_id: u16,
     name: [u8; 32],
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -1337,7 +1339,7 @@ pub fn handle_update_user_name(
 
 pub fn handle_update_user_custom_margin_ratio(
     ctx: Context<UpdateUser>,
-    _sub_account_id: u8,
+    _sub_account_id: u16,
     margin_ratio: u32,
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -1347,7 +1349,7 @@ pub fn handle_update_user_custom_margin_ratio(
 
 pub fn handle_update_user_delegate(
     ctx: Context<UpdateUser>,
-    _sub_account_id: u8,
+    _sub_account_id: u16,
     delegate: Pubkey,
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -1368,7 +1370,7 @@ pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
 
 #[derive(Accounts)]
 #[instruction(
-    sub_account_id: u8,
+    sub_account_id: u16,
 )]
 pub struct InitializeUser<'info> {
     #[account(
@@ -1578,7 +1580,7 @@ pub struct RemoveLiquidityInExpiredMarket<'info> {
 
 #[derive(Accounts)]
 #[instruction(
-    sub_account_id: u8,
+    sub_account_id: u16,
 )]
 pub struct UpdateUser<'info> {
     #[account(
@@ -1605,74 +1607,4 @@ pub struct DeleteUser<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
-}
-
-pub fn initialize_user(
-    ctx: Context<InitializeUser>,
-    sub_account_id: u8,
-    name: [u8; 32],
-) -> Result<()> {
-    let user_key = ctx.accounts.user.key();
-    let mut user = ctx
-        .accounts
-        .user
-        .load_init()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-    *user = User {
-        authority: ctx.accounts.authority.key(),
-        sub_account_id,
-        name,
-        next_order_id: 1,
-        next_liquidation_id: 1,
-        ..User::default()
-    };
-
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
-    let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
-    user_stats.number_of_sub_accounts = user_stats.number_of_sub_accounts.safe_add(1)?;
-
-    // Only try to add referrer if it is the first user
-    if user_stats.number_of_sub_accounts == 1 {
-        let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
-        let referrer = if let (Some(referrer), Some(referrer_stats)) = (referrer, referrer_stats) {
-            let referrer = load!(referrer)?;
-            let mut referrer_stats = load_mut!(referrer_stats)?;
-
-            validate!(referrer.sub_account_id == 0, ErrorCode::InvalidReferrer)?;
-
-            validate!(
-                referrer.authority == referrer_stats.authority,
-                ErrorCode::ReferrerAndReferrerStatsAuthorityUnequal
-            )?;
-
-            referrer_stats.is_referrer = true;
-
-            referrer.authority
-        } else {
-            Pubkey::default()
-        };
-
-        user_stats.referrer = referrer;
-    }
-
-    let whitelist_mint = &ctx.accounts.state.whitelist_mint;
-    if !whitelist_mint.eq(&Pubkey::default()) {
-        validate_whitelist_token(
-            get_whitelist_token(remaining_accounts_iter)?,
-            whitelist_mint,
-            &ctx.accounts.authority.key(),
-        )?;
-    }
-
-    emit!(NewUserRecord {
-        ts: Clock::get()?.unix_timestamp,
-        user_authority: ctx.accounts.authority.key(),
-        user: user_key,
-        sub_account_id,
-        name,
-        referrer: user_stats.referrer
-    });
-
-    Ok(())
 }
