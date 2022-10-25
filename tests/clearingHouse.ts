@@ -282,7 +282,7 @@ describe('clearing_house', () => {
 				.data.fees.totalFeePaid.eq(new BN(48001))
 		);
 
-		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(-48000001)));
+		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(-48048002)));
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(48000000000)));
 
 		const market = clearingHouse.getPerpMarketAccount(0);
@@ -363,7 +363,7 @@ describe('clearing_house', () => {
 		);
 
 		assert.ok(user.perpPositions[0].quoteAssetAmount.eq(new BN(-24072002)));
-		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(-24000001)));
+		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(-24048001)));
 
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(24000000000)));
 		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
@@ -440,7 +440,7 @@ describe('clearing_house', () => {
 		);
 		console.log(user.perpPositions[0].quoteEntryAmount.toString());
 
-		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(24000000)));
+		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(24048000)));
 		assert.ok(user.perpPositions[0].quoteAssetAmount.eq(new BN(24000000)));
 		console.log(user.perpPositions[0].baseAssetAmount.toString());
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(-24000000000)));
@@ -526,7 +526,7 @@ describe('clearing_house', () => {
 			userAccountPublicKey
 		);
 		console.log(user.perpPositions[0].quoteEntryAmount.toString());
-		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(47999999)));
+		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(48047999)));
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(-48000000000)));
 
 		const market = clearingHouse.getPerpMarketAccount(0);

@@ -225,7 +225,7 @@ describe('market order', () => {
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
 
 		const expectedQuoteAssetAmount = new BN(-1000001);
-		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
+		assert(firstPosition.quoteEntryAmount.eq(new BN(-1001002)));
 
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];
