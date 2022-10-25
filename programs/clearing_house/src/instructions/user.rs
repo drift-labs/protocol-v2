@@ -1091,6 +1091,7 @@ pub fn handle_place_and_make_spot_order<'info>(
     ctx: Context<PlaceAndMake>,
     params: OrderParams,
     taker_order_id: u32,
+    fulfillment_type: Option<SpotFulfillmentType>,
 ) -> Result<()> {
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
@@ -1114,6 +1115,21 @@ pub fn handle_place_and_make_spot_order<'info>(
         msg!("place_and_make must use IOC post only limit order");
         return Err(print_error!(ErrorCode::InvalidOrder)().into());
     }
+
+    let market_index = params.market_index;
+    let mut serum_fulfillment_params = match fulfillment_type {
+        Some(SpotFulfillmentType::SerumV3) => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            get_serum_fulfillment_accounts(
+                remaining_accounts_iter,
+                &ctx.accounts.state,
+                &base_market,
+                &quote_market,
+            )?
+        }
+        _ => None,
+    };
 
     controller::orders::place_spot_order(
         state,
@@ -1141,7 +1157,7 @@ pub fn handle_place_and_make_spot_order<'info>(
         Some(&ctx.accounts.user_stats),
         Some(order_id),
         clock,
-        &mut None,
+        &mut serum_fulfillment_params,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -1157,6 +1173,19 @@ pub fn handle_place_and_make_spot_order<'info>(
             &spot_market_map,
             &mut oracle_map,
             clock,
+        )?;
+    }
+
+    if let Some(serum_fulfillment_params) = serum_fulfillment_params {
+        let base_market = spot_market_map.get_ref(&market_index)?;
+        validate_spot_market_vault_amount(
+            &base_market,
+            serum_fulfillment_params.base_market_vault.amount,
+        )?;
+        let quote_market = spot_market_map.get_quote_spot_market()?;
+        validate_spot_market_vault_amount(
+            &quote_market,
+            serum_fulfillment_params.quote_market_vault.amount,
         )?;
     }
 
