@@ -33,7 +33,8 @@ pub mod fulfill_order_with_maker_order {
     use crate::controller::orders::fulfill_perp_order_with_match;
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{
-        BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64, PRICE_PRECISION_U64, QUOTE_PRECISION_U64,
+        BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64, PRICE_PRECISION_U64,
+        QUOTE_PRECISION_U64,
     };
     use crate::state::perp_market::PerpMarket;
     use crate::state::user::{Order, OrderType, PerpPosition, User, UserStats};

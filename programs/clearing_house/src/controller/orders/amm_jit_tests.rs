@@ -34,7 +34,7 @@ pub mod amm_jit {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::PRICE_PRECISION_I64;
-    
+
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
         PEG_PRECISION, PRICE_PRECISION, SPOT_BALANCE_PRECISION_U64,
