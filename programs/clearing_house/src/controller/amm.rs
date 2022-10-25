@@ -528,7 +528,7 @@ pub fn update_pool_balances(
         user_unsettled_pnl
     };
 
-    let pnl_fraction_for_amm = if fraction_for_amm > 0 {
+    let pnl_fraction_for_amm = if fraction_for_amm > 0 && pnl_to_settle_with_user < 0 {
         let pnl_fraction_for_amm = pnl_to_settle_with_user.safe_div(fraction_for_amm)?;
         update_spot_balances(
             pnl_fraction_for_amm.unsigned_abs(),

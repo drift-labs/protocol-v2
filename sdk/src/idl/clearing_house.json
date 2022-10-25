@@ -233,6 +233,11 @@
           "name": "state",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
@@ -577,6 +582,14 @@
         {
           "name": "takerOrderId",
           "type": "u32"
+        },
+        {
+          "name": "fulfillmentType",
+          "type": {
+            "option": {
+              "defined": "SpotFulfillmentType"
+            }
+          }
         }
       ]
     },
@@ -925,6 +938,11 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [

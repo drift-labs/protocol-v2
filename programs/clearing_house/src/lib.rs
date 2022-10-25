@@ -134,8 +134,9 @@ pub mod clearing_house {
         ctx: Context<PlaceAndMake>,
         params: OrderParams,
         taker_order_id: u32,
+        fulfillment_type: Option<SpotFulfillmentType>,
     ) -> Result<()> {
-        handle_place_and_make_spot_order(ctx, params, taker_order_id)
+        handle_place_and_make_spot_order(ctx, params, taker_order_id, fulfillment_type)
     }
 
     pub fn add_perp_lp_shares(
