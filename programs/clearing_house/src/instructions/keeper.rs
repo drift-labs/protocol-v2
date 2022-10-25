@@ -10,6 +10,7 @@ use crate::instructions::optional_accounts::{
 use crate::load_mut;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::insurance::if_shares_to_vault_amount;
+use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
@@ -341,6 +342,9 @@ pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<(
             state,
         )?;
     }
+
+    let spot_market = spot_market_map.get_quote_spot_market()?;
+    validate_spot_market_vault_amount(&spot_market, ctx.accounts.spot_market_vault.amount)?;
 
     Ok(())
 }
@@ -1219,6 +1223,12 @@ pub struct SettlePNL<'info> {
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
 }
 
 #[derive(Accounts)]

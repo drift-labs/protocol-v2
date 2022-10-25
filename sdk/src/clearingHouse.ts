@@ -1406,6 +1406,7 @@ export class ClearingHouse {
 				toUser,
 				userStats: this.getUserStatsAccountPublicKey(),
 				state: await this.getStatePublicKey(),
+				spotMarketVault: this.getQuoteSpotMarketAccount().vault,
 			},
 			remainingAccounts,
 		});
@@ -2738,6 +2739,7 @@ export class ClearingHouse {
 				state: await this.getStatePublicKey(),
 				authority: this.wallet.publicKey,
 				user: settleeUserAccountPublicKey,
+				spotMarketVault: this.getQuoteSpotMarketAccount().vault,
 			},
 			remainingAccounts: remainingAccounts,
 		});

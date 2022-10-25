@@ -225,6 +225,8 @@ pub fn handle_deposit(
         &ctx.accounts.authority,
         amount,
     )?;
+    ctx.accounts.spot_market_vault.reload()?;
+
     let oracle_price = oracle_price_data.price;
     let deposit_record = DepositRecord {
         ts: now,
@@ -257,6 +259,11 @@ pub fn handle_deposit(
         "max deposits: {} new deposits {}",
         spot_market.max_token_deposits,
         deposits_token_amount
+    )?;
+
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        spot_market,
+        ctx.accounts.spot_market_vault.amount,
     )?;
 
     Ok(())
@@ -560,6 +567,12 @@ pub fn handle_transfer_deposit(
         };
         emit!(deposit_record);
     }
+
+    let spot_market = spot_market_map.get_ref(&market_index)?;
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        &spot_market,
+        ctx.accounts.spot_market_vault.amount,
+    )?;
 
     Ok(())
 }
@@ -1495,6 +1508,12 @@ pub struct TransferDeposit<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
     pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
 }
 
 #[derive(Accounts)]

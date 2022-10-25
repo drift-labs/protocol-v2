@@ -17,6 +17,7 @@ use crate::math::position::calculate_base_asset_value_with_expiry_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 
+use crate::math::spot_withdraw::validate_spot_balances;
 use crate::state::events::{OrderActionExplanation, SettlePnlRecord};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
@@ -112,6 +113,8 @@ pub fn settle_pnl(
     let user_unsettled_pnl: i128 =
         user.perp_positions[position_index].get_claimable_pnl(oracle_price, max_pnl_pool_excess)?;
 
+    msg!("user_unsettled_pnl {}", user_unsettled_pnl);
+    validate_spot_balances(spot_market)?;
     let pnl_to_settle_with_user =
         update_pool_balances(perp_market, spot_market, user_unsettled_pnl, now)?;
     if user_unsettled_pnl == 0 {
