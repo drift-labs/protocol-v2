@@ -598,7 +598,7 @@ mod auto_deleveraging {
             100 * PRICE_PRECISION_I64,
         )
         .unwrap();
-        assert_eq!(delev_payment, 0);
+        assert_eq!(delev_payment, 66666666);
 
         // user has positive lifetime upnl but below  mean ex-loss_to_socialize
         let dus = DeleverageUserStats {
@@ -615,7 +615,7 @@ mod auto_deleveraging {
             101 * PRICE_PRECISION_I64,
         )
         .unwrap();
-        assert_eq!(delev_payment, 0);
+        assert_eq!(delev_payment, 1000000);
 
         // user has positive lifetime upnl but above mean ex-loss_to_socialize
         let dus = DeleverageUserStats {
@@ -632,7 +632,7 @@ mod auto_deleveraging {
             101 * PRICE_PRECISION_I64,
         )
         .unwrap();
-        assert_eq!(delev_payment, 8019801);
+        assert_eq!(delev_payment, 10_000_000);
 
         // user has odd-lot base and positive lifetime upnl but above mean ex-loss_to_socialize
         let dus = DeleverageUserStats {
@@ -649,7 +649,7 @@ mod auto_deleveraging {
             101 * PRICE_PRECISION_I64,
         )
         .unwrap();
-        assert_eq!(delev_payment, 8669747);
+        assert_eq!(delev_payment, 10822138);
 
         // user has odd-lot base and positive lifetime upnl but above mean ex-loss_to_socialize and near liq
         let dus = DeleverageUserStats {
@@ -735,7 +735,7 @@ mod auto_deleveraging {
             101 * PRICE_PRECISION_I64,
         )
         .unwrap();
-        assert_eq!(delev_payment, 8019802); // todo: 1 more than long version?
+        assert_eq!(delev_payment, 0); // todo: 1 more than long version?
 
         // user has odd-lot base and positive lifetime upnl but above mean ex-loss_to_socialize
         let dus = DeleverageUserStats {
@@ -752,7 +752,7 @@ mod auto_deleveraging {
             101 * PRICE_PRECISION_I64,
         )
         .unwrap();
-        assert_eq!(delev_payment, 8764603);
+        assert_eq!(delev_payment, 0);
 
         // user has odd-lot base and positive lifetime upnl but above mean ex-loss_to_socialize and near liq
         let dus = DeleverageUserStats {
@@ -769,7 +769,7 @@ mod auto_deleveraging {
             101 * PRICE_PRECISION_I64,
         )
         .unwrap();
-        assert_eq!(delev_payment, 2000000);
+        assert_eq!(delev_payment, 0);
     }
 
     #[test]
@@ -888,16 +888,7 @@ mod auto_deleveraging {
             100 * PRICE_PRECISION_I64,
         )
         .unwrap();
-        assert_eq!(delev_payment, 116_861_522);
-
-        let delev_payment = calculate_perp_market_deleverage_payment(
-            QUOTE_PRECISION_I128 * -200,
-            dus1,
-            &market,
-            100 * PRICE_PRECISION_I64,
-        )
-        .unwrap();
-        assert_eq!(delev_payment, 116_861_522);
+        assert_eq!(delev_payment, 23_999_977);
 
         let delev_payment = calculate_perp_market_deleverage_payment(
             QUOTE_PRECISION_I128 * -200,
@@ -906,7 +897,7 @@ mod auto_deleveraging {
             100 * PRICE_PRECISION_I64,
         )
         .unwrap();
-        assert_eq!(delev_payment, 3_095_384);
+        assert_eq!(delev_payment, 40_000_000);
 
         let delev_payment = calculate_perp_market_deleverage_payment(
             QUOTE_PRECISION_I128 * -200,
@@ -915,7 +906,7 @@ mod auto_deleveraging {
             100 * PRICE_PRECISION_I64,
         )
         .unwrap();
-        assert_eq!(delev_payment, 189_581_550);
+        assert_eq!(delev_payment, 40000000);
 
         let delev_payment = calculate_perp_market_deleverage_payment(
             QUOTE_PRECISION_I128 * -200,
@@ -1089,7 +1080,7 @@ mod auto_deleveraging {
             100 * PRICE_PRECISION_I64,
         )
         .unwrap();
-        assert_eq!(delev_payment, 116_861_522);
+        assert_eq!(delev_payment, 23_999_977);
         assert_eq!(
             dus1.quote_entry_amount * PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128 as i64
                 / dus1.base_asset_amount,
@@ -1101,14 +1092,14 @@ mod auto_deleveraging {
         market.amm.quote_asset_amount_long -= delev_payment;
         remaining_levered_loss -= delev_payment;
 
-        assert_eq!(dus1.quote_asset_amount, -856071522);
-        assert_eq!(dus1.quote_entry_amount, -812861522);
+        assert_eq!(dus1.quote_asset_amount, -763209977);
+        assert_eq!(dus1.quote_entry_amount, -719999977);
         assert_eq!(dus1.base_asset_amount, 30600000000);
 
         assert_eq!(
             dus1.quote_entry_amount * PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128 as i64
                 / dus1.base_asset_amount,
-            -26564102
+            -23529411
         );
 
         let delev_payment = calculate_perp_market_deleverage_payment(
@@ -1118,6 +1109,6 @@ mod auto_deleveraging {
             100 * PRICE_PRECISION_I64,
         )
         .unwrap();
-        assert_eq!(delev_payment, 0);
+        assert_eq!(delev_payment, 44799995);
     }
 }

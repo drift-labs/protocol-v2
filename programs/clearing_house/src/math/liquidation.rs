@@ -1,7 +1,8 @@
 use crate::error::{ClearingHouseResult, ErrorCode};
+use crate::math::amm::calculate_net_user_cost_basis;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128, BASE_PRECISION_I128,
+    AMM_RESERVE_PRECISION_I128, BASE_PRECISION_I128,
     FUNDING_RATE_TO_QUOTE_PRECISION_PRECISION_RATIO, LIQUIDATION_FEE_PRECISION,
     LIQUIDATION_FEE_PRECISION_U128, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, PRICE_PRECISION,
     PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
@@ -23,7 +24,7 @@ use crate::state::user::User;
 use crate::validate;
 use solana_program::msg;
 
-use super::constants::PRICE_PRECISION_I128;
+use super::constants::PRICE_TO_QUOTE_PRECISION_RATIO;
 
 #[cfg(test)]
 mod tests;
@@ -314,74 +315,67 @@ pub fn calculate_perp_market_deleverage_payment(
     market: &PerpMarket,
     oracle_price: i64,
 ) -> ClearingHouseResult<i128> {
-    let base_amount =
-        (-market.amm.base_asset_amount_short).safe_add(market.amm.base_asset_amount_long)?;
-
-    let cost_basis_above_mean = if deleverage_user_stats.base_asset_amount != 0 {
-        let quote_entry = (-market.amm.quote_entry_amount_long)
-            .safe_add(market.amm.quote_entry_amount_short)?
-            .safe_add(
-                loss_to_socialize
-                    .safe_mul(deleverage_user_stats.base_asset_amount.signum().cast()?)?,
-            )?;
-
-        let mean_entry_basis = if base_amount != 0 {
-            (quote_entry)
-                .safe_mul(PRICE_PRECISION_I128)?
-                .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
-                .safe_div(base_amount)?
-        } else {
-            0
-        };
-
-        let user_entry_basis: i128 = if deleverage_user_stats.base_asset_amount != 0 {
-            PRICE_PRECISION_I128
-                .safe_mul(-(deleverage_user_stats.quote_entry_amount).cast()?)?
-                .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
-                .safe_div(deleverage_user_stats.base_asset_amount.cast()?)?
-        } else {
-            0_i128
-        };
-
-        let basis_above_mean: i128 = if deleverage_user_stats.base_asset_amount > 0
-            && oracle_price > user_entry_basis.cast()?
-        {
-            mean_entry_basis.safe_sub(user_entry_basis.cast()?)?
-        } else if deleverage_user_stats.base_asset_amount < 0
-            && oracle_price < user_entry_basis.cast()?
-        {
-            -(mean_entry_basis.safe_sub(user_entry_basis.cast()?)?)
-        } else {
-            -1
-        };
-
-        dlog!(
-            quote_entry,
-            base_amount,
-            mean_entry_basis,
-            user_entry_basis,
-            basis_above_mean
-        );
-
-        basis_above_mean
+    let mean_short_entry_basis = if market.amm.base_asset_amount_short != 0 {
+        market
+            .amm
+            .quote_entry_amount_short
+            .safe_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128)?
+            .safe_div(market.amm.base_asset_amount_short)?
     } else {
         0
     };
 
+    let mean_short_pnl_per_base = mean_short_entry_basis
+        .safe_sub(oracle_price.cast()?)?
+        .safe_div(PRICE_TO_QUOTE_PRECISION_RATIO.cast()?)?;
+
+    let mean_long_entry_basis = if market.amm.base_asset_amount_long != 0 {
+        market
+            .amm
+            .quote_entry_amount_long
+            .safe_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128)?
+            .safe_div(market.amm.base_asset_amount_long)?
+    } else {
+        0
+    };
+
+    let mean_long_pnl_per_base = mean_long_entry_basis
+        .safe_add(oracle_price.cast()?)?
+        .safe_div(PRICE_TO_QUOTE_PRECISION_RATIO.cast()?)?;
+
+    let mean_entry_basis: i128 = if deleverage_user_stats.base_asset_amount > 0 {
+        mean_long_entry_basis
+    } else if deleverage_user_stats.base_asset_amount < 0 {
+        mean_short_entry_basis
+    } else {
+        0
+    };
+
+    let user_entry_basis: i128 = if deleverage_user_stats.base_asset_amount != 0 {
+        PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128
+            .safe_mul(deleverage_user_stats.quote_entry_amount.cast()?)?
+            .safe_div(deleverage_user_stats.base_asset_amount.cast()?)?
+    } else {
+        0
+    };
+
+    let exit_basis = oracle_price
+        .safe_mul(deleverage_user_stats.base_asset_amount.signum().cast()?)?
+        .safe_div(PRICE_TO_QUOTE_PRECISION_RATIO.cast()?)?;
+
+    let mean_pnl_per_base = mean_entry_basis.safe_add(exit_basis.cast()?)?;
+    let user_pnl_per_base = user_entry_basis.safe_add(exit_basis.cast()?)?;
+
     let profit_above_mean = if deleverage_user_stats.base_asset_amount == 0 {
+        msg!("user has no base");
+
         if deleverage_user_stats.quote_asset_amount != 0 {
             let mean_quote = (market.amm.base_asset_amount_short)
                 .safe_add(market.amm.base_asset_amount_long)?
                 .safe_mul(oracle_price.cast()?)?
                 .safe_div(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128)?
-                .safe_add(
-                    market
-                        .amm
-                        .quote_asset_amount_long
-                        .safe_add(market.amm.quote_asset_amount_short)?
-                        .safe_sub(market.amm.cumulative_social_loss)?
-                        .safe_add(loss_to_socialize)?,
-                )?
+                .safe_add(calculate_net_user_cost_basis(&market.amm)?)?
+                .safe_add(loss_to_socialize)?
                 .safe_div(market.number_of_users.max(1).cast()?)?;
 
             dlog!(mean_quote);
@@ -390,17 +384,36 @@ pub fn calculate_perp_market_deleverage_payment(
         } else {
             0
         }
-    } else if cost_basis_above_mean == 0 {
+    } else if user_pnl_per_base > mean_pnl_per_base && user_pnl_per_base > 0 {
+        msg!("user pays profit surplus");
+
+        user_entry_basis
+            .safe_sub(mean_entry_basis)?
+            .safe_mul(deleverage_user_stats.base_asset_amount.cast()?)?
+            .safe_div(BASE_PRECISION_I128)?
+    } else if user_pnl_per_base == mean_pnl_per_base && user_pnl_per_base > 0 {
+        msg!("user pays loss_to_socialize / N users");
+
         loss_to_socialize
             .abs()
             .safe_div(market.number_of_users.max(1).cast()?)?
             .max(1)
-    } else {
-        cost_basis_above_mean
-            .safe_mul(deleverage_user_stats.base_asset_amount.abs().cast()?)?
-            .safe_div(BASE_PRECISION_I128)?
-    };
+    } else if (mean_long_pnl_per_base > mean_short_pnl_per_base
+        && deleverage_user_stats.base_asset_amount < 0)
+        || (mean_long_pnl_per_base < mean_short_pnl_per_base
+            && deleverage_user_stats.base_asset_amount > 0)
+    {
+        msg!("user on side that does not owe");
 
+        0
+    } else {
+        msg!("user pays loss_to_socialize / N users (despite not in profit)");
+
+        loss_to_socialize
+            .abs()
+            .safe_div(market.number_of_users.max(1).cast()?)?
+            .max(1)
+    };
     // never let deleveraging put user into liquidation territory
     let max_user_payment = if deleverage_user_stats.base_asset_amount == 0 {
         deleverage_user_stats
@@ -414,6 +427,16 @@ pub fn calculate_perp_market_deleverage_payment(
         .min(max_user_payment.cast()?)
         .min(-loss_to_socialize)
         .max(0);
+
+    dlog!(
+        mean_entry_basis,
+        user_entry_basis,
+        mean_pnl_per_base,
+        user_pnl_per_base,
+        profit_above_mean,
+        max_user_payment,
+        deleverage_payment
+    );
 
     Ok(deleverage_payment)
 }
