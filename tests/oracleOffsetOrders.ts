@@ -193,7 +193,7 @@ describe('oracle offset', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
-		assert(entryPrice.eq(new BN(909093)));
+		assert(entryPrice.eq(new BN(910003)));
 
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();
@@ -269,6 +269,7 @@ describe('oracle offset', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
+		console.log(entryPrice.toString());
 		const expectedEntryPrice = new BN(950000);
 		console.log(entryPrice.toString(), 'vs', expectedEntryPrice.toString());
 		assert(entryPrice.eq(expectedEntryPrice));
@@ -345,7 +346,7 @@ describe('oracle offset', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
-		assert(entryPrice.eq(new BN(1099997)));
+		assert(entryPrice.eq(new BN(1101097)));
 
 		await clearingHouse.unsubscribe();
 		await clearingHouseUser.unsubscribe();
@@ -420,6 +421,7 @@ describe('oracle offset', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		const entryPrice = calculateEntryPrice(position);
+		console.log(entryPrice.toString());
 		const expectedEntryPrice = PRICE_PRECISION.add(priceOffset);
 		console.log(entryPrice.toString());
 		assert(entryPrice.eq(expectedEntryPrice));
