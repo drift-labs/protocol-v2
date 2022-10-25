@@ -1237,7 +1237,6 @@ pub struct SettlePNL<'info> {
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
     #[account(
-        mut,
         seeds = [b"spot_market_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
         bump
     )]

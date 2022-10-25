@@ -262,11 +262,6 @@ pub fn handle_deposit(
         deposits_token_amount
     )?;
 
-    math::spot_withdraw::validate_spot_market_vault_amount(
-        spot_market,
-        ctx.accounts.spot_market_vault.amount,
-    )?;
-
     Ok(())
 }
 
@@ -1552,7 +1547,6 @@ pub struct TransferDeposit<'info> {
     pub authority: Signer<'info>,
     pub state: Box<Account<'info, State>>,
     #[account(
-        mut,
         seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
