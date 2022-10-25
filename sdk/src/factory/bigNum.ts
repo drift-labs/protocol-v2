@@ -2,18 +2,17 @@ import { BN } from '@project-serum/anchor';
 import { assert } from '../assert/assert';
 import { ZERO } from './../constants/numericConstants';
 
-const locale =
-	(typeof window !== 'undefined' && window.navigator?.languages?.[0]) ||
-	'en-US';
-const localeDelimiter = (1.1).toLocaleString(locale).slice(1, 2) || '.';
-const localeSplitter = (1000).toLocaleString(locale).slice(1, 2) || ',';
-
 export class BigNum {
 	val: BN;
 	precision: BN;
 
-	static delim = localeDelimiter;
-	static spacer = localeSplitter;
+	static delim = '.';
+	static spacer = ',';
+
+	public static setLocale(locale: string): void {
+		BigNum.delim = (1.1).toLocaleString(locale).slice(1, 2) || '.';
+		BigNum.spacer = (1000).toLocaleString(locale).slice(1, 2) || ',';
+	}
 
 	constructor(
 		val: BN | number | string,
