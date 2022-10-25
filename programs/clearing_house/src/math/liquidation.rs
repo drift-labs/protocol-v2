@@ -367,8 +367,7 @@ pub fn calculate_perp_market_deleverage_payment(
     let user_pnl_per_base = user_entry_basis.safe_add(exit_basis.cast()?)?;
 
     let profit_above_mean = if deleverage_user_stats.base_asset_amount == 0 {
-        msg!("user has no base");
-
+        // msg!("user has no base");
         if deleverage_user_stats.quote_asset_amount != 0 {
             let mean_quote = (market.amm.base_asset_amount_short)
                 .safe_add(market.amm.base_asset_amount_long)?
@@ -385,14 +384,14 @@ pub fn calculate_perp_market_deleverage_payment(
             0
         }
     } else if user_pnl_per_base > mean_pnl_per_base && user_pnl_per_base > 0 {
-        msg!("user pays profit surplus");
+        // msg!("user pays profit surplus");
 
         user_entry_basis
             .safe_sub(mean_entry_basis)?
             .safe_mul(deleverage_user_stats.base_asset_amount.cast()?)?
             .safe_div(BASE_PRECISION_I128)?
     } else if user_pnl_per_base == mean_pnl_per_base && user_pnl_per_base > 0 {
-        msg!("user pays loss_to_socialize / N users");
+        // msg!("user pays loss_to_socialize / N users");
 
         loss_to_socialize
             .abs()
@@ -403,17 +402,18 @@ pub fn calculate_perp_market_deleverage_payment(
         || (mean_long_pnl_per_base < mean_short_pnl_per_base
             && deleverage_user_stats.base_asset_amount > 0)
     {
-        msg!("user on side that does not owe");
-
+        // msg!("user on side that does not owe");
         0
     } else {
-        msg!("user pays loss_to_socialize / N users (despite not in profit)");
-
-        loss_to_socialize
-            .abs()
-            .safe_div(market.number_of_users.max(1).cast()?)?
-            .max(1)
+        // msg!("user pays loss_to_socialize / N users (despite not in excess profit)");
+        // msg!("user not above mean excess profit");
+        0
+        // loss_to_socialize
+        //     .abs()
+        //     .safe_div(market.number_of_users.max(1).cast()?)?
+        //     .max(1)
     };
+
     // never let deleveraging put user into liquidation territory
     let max_user_payment = if deleverage_user_stats.base_asset_amount == 0 {
         deleverage_user_stats
@@ -428,15 +428,15 @@ pub fn calculate_perp_market_deleverage_payment(
         .min(-loss_to_socialize)
         .max(0);
 
-    dlog!(
-        mean_entry_basis,
-        user_entry_basis,
-        mean_pnl_per_base,
-        user_pnl_per_base,
-        profit_above_mean,
-        max_user_payment,
-        deleverage_payment
-    );
+    // dlog!(
+    //     mean_entry_basis,
+    //     user_entry_basis,
+    //     mean_pnl_per_base,
+    //     user_pnl_per_base,
+    //     profit_above_mean,
+    //     max_user_payment,
+    //     deleverage_payment
+    // );
 
     Ok(deleverage_payment)
 }
