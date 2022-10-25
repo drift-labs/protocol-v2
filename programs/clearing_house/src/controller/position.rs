@@ -455,6 +455,15 @@ fn calculate_quote_asset_amount_surplus(
     Ok((quote_asset_amount, quote_asset_amount_surplus))
 }
 
+pub fn update_quote_asset_and_entry_amount(
+    position: &mut PerpPosition,
+    market: &mut PerpMarket,
+    delta: i64,
+) -> ClearingHouseResult {
+    update_quote_asset_amount(position, market, delta)?;
+    update_quote_entry_amount(position, market, delta)
+}
+
 pub fn update_quote_asset_amount(
     position: &mut PerpPosition,
     market: &mut PerpMarket,
@@ -474,6 +483,33 @@ pub fn update_quote_asset_amount(
 
     if position.quote_asset_amount == 0 {
         market.number_of_users_with_quote = market.number_of_users_with_quote.safe_sub(1)?;
+    }
+
+    Ok(())
+}
+
+pub fn update_quote_entry_amount(
+    position: &mut PerpPosition,
+    market: &mut PerpMarket,
+    delta: i64,
+) -> ClearingHouseResult<()> {
+    if delta == 0 || position.base_asset_amount == 0 {
+        return Ok(());
+    }
+
+    match position.get_direction() {
+        PositionDirection::Long => {
+            position.quote_entry_amount = position.quote_entry_amount.safe_add(delta)?;
+            market.amm.quote_entry_amount_long =
+                market.amm.quote_entry_amount_long.safe_add(delta.cast()?)?
+        }
+        PositionDirection::Short => {
+            position.quote_entry_amount = position.quote_entry_amount.safe_sub(delta)?;
+            market.amm.quote_entry_amount_short = market
+                .amm
+                .quote_entry_amount_short
+                .safe_sub(delta.cast()?)?
+        }
     }
 
     Ok(())
