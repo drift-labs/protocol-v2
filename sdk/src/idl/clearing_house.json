@@ -44,7 +44,7 @@
       "args": [
         {
           "name": "subAccountId",
-          "type": "u8"
+          "type": "u16"
         },
         {
           "name": "name",
@@ -682,7 +682,7 @@
       "args": [
         {
           "name": "subAccountId",
-          "type": "u8"
+          "type": "u16"
         },
         {
           "name": "name",
@@ -712,7 +712,7 @@
       "args": [
         {
           "name": "subAccountId",
-          "type": "u8"
+          "type": "u16"
         },
         {
           "name": "marginRatio",
@@ -737,7 +737,7 @@
       "args": [
         {
           "name": "subAccountId",
-          "type": "u8"
+          "type": "u16"
         },
         {
           "name": "delegate",
@@ -2528,7 +2528,7 @@
       "args": [
         {
           "name": "withdrawGuardThreshold",
-          "type": "u128"
+          "type": "u64"
         }
       ]
     },
@@ -2712,7 +2712,7 @@
       "args": [
         {
           "name": "maxTokenDeposits",
-          "type": "u128"
+          "type": "u64"
         }
       ]
     },
@@ -3723,10 +3723,6 @@
             }
           },
           {
-            "name": "withdrawGuardThreshold",
-            "type": "u128"
-          },
-          {
             "name": "totalSpotFee",
             "type": "u128"
           },
@@ -3739,28 +3735,32 @@
             "type": "u128"
           },
           {
-            "name": "maxTokenDeposits",
-            "type": "u128"
-          },
-          {
-            "name": "depositTokenTwap",
-            "type": "u128"
-          },
-          {
-            "name": "borrowTokenTwap",
-            "type": "u128"
-          },
-          {
-            "name": "utilizationTwap",
-            "type": "u128"
-          },
-          {
             "name": "cumulativeDepositInterest",
             "type": "u128"
           },
           {
             "name": "cumulativeBorrowInterest",
             "type": "u128"
+          },
+          {
+            "name": "withdrawGuardThreshold",
+            "type": "u64"
+          },
+          {
+            "name": "maxTokenDeposits",
+            "type": "u64"
+          },
+          {
+            "name": "depositTokenTwap",
+            "type": "u64"
+          },
+          {
+            "name": "borrowTokenTwap",
+            "type": "u64"
+          },
+          {
+            "name": "utilizationTwap",
+            "type": "u64"
           },
           {
             "name": "lastInterestTs",
@@ -4139,7 +4139,7 @@
           },
           {
             "name": "subAccountId",
-            "type": "u8"
+            "type": "u16"
           },
           {
             "name": "isBeingLiquidated",
@@ -4150,11 +4150,15 @@
             "type": "bool"
           },
           {
+            "name": "isMarginTradingEnabled",
+            "type": "bool"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                3
+                1
               ]
             }
           }
@@ -4214,7 +4218,11 @@
           },
           {
             "name": "numberOfSubAccounts",
-            "type": "u8"
+            "type": "u16"
+          },
+          {
+            "name": "maxSubAccountId",
+            "type": "u16"
           },
           {
             "name": "isReferrer",
@@ -4225,7 +4233,7 @@
             "type": {
               "array": [
                 "u8",
-                6
+                3
               ]
             }
           }
@@ -6027,7 +6035,7 @@
         },
         {
           "name": "subAccountId",
-          "type": "u8",
+          "type": "u16",
           "index": false
         },
         {
@@ -7623,6 +7631,11 @@
       "code": 6137,
       "name": "LiquidationDoesntSatisfyLimitPrice",
       "msg": "Liquidation Doesnt Satisfy Limit Price"
+    },
+    {
+      "code": 6138,
+      "name": "MarginTradingDisabled",
+      "msg": "Margin Trading Disabled"
     }
   ]
 }
