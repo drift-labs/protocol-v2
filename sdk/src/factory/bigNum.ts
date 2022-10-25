@@ -9,6 +9,11 @@ export class BigNum {
 	static delim = '.';
 	static spacer = ',';
 
+	public static setLocale(locale: string): void {
+		BigNum.delim = (1.1).toLocaleString(locale).slice(1, 2) || '.';
+		BigNum.spacer = (1000).toLocaleString(locale).slice(1, 2) || ',';
+	}
+
 	constructor(
 		val: BN | number | string,
 		precisionVal: BN | number | string = new BN(0)
@@ -566,7 +571,21 @@ export class BigNum {
 	 * @returns
 	 */
 	public toNum() {
-		return parseFloat(this.print());
+		let printedValue = this.print();
+
+		// Must convert any non-US delimiters and spacers to US format before using parseFloat
+		if (BigNum.delim !== '.' || BigNum.spacer !== ',') {
+			printedValue = printedValue
+				.split('')
+				.map((char) => {
+					if (char === BigNum.delim) return '.';
+					if (char === BigNum.spacer) return ',';
+					return char;
+				})
+				.join('');
+		}
+
+		return parseFloat(printedValue);
 	}
 
 	static fromJSON(json: { val: string; precision: string }) {
@@ -599,12 +618,16 @@ export class BigNum {
 	static fromPrint(val: string, precisionShift?: BN): BigNum {
 		// Handle empty number edge cases
 		if (!val) return BigNum.from(ZERO, precisionShift);
-		if (!val.replace(BigNum.delim, ''))
+		if (!val.replace(BigNum.delim, '')) {
 			return BigNum.from(ZERO, precisionShift);
+		}
 
-		const [leftSide, rightSide] = val.split(BigNum.delim);
+		const sides = val.split(BigNum.delim);
+		const rightSide = sides[1];
+		const leftSide = sides[0].replace(/\D/g, '');
+		const bnInput = `${leftSide ?? ''}${rightSide ?? ''}`;
 
-		const rawBn = new BN(`${leftSide ?? ''}${rightSide ?? ''}`);
+		const rawBn = new BN(bnInput);
 
 		const rightSideLength = rightSide?.length ?? 0;
 
