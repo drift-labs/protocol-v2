@@ -1407,6 +1407,7 @@ export class ClearingHouse {
 				toUser,
 				userStats: this.getUserStatsAccountPublicKey(),
 				state: await this.getStatePublicKey(),
+				spotMarketVault: this.getQuoteSpotMarketAccount().vault,
 			},
 			remainingAccounts,
 		});
@@ -2582,6 +2583,7 @@ export class ClearingHouse {
 	public async placeAndMakeSpotOrder(
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
+		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
@@ -2589,6 +2591,7 @@ export class ClearingHouse {
 				await this.getPlaceAndMakeSpotOrderIx(
 					orderParams,
 					takerInfo,
+					fulfillmentConfig,
 					referrerInfo
 				)
 			),
@@ -2603,6 +2606,7 @@ export class ClearingHouse {
 	public async getPlaceAndMakeSpotOrderIx(
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
+		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
 		orderParams = this.getOrderParams(orderParams, MarketType.SPOT);
@@ -2631,10 +2635,19 @@ export class ClearingHouse {
 			});
 		}
 
+		if (fulfillmentConfig) {
+			this.addSerumRemainingAccounts(
+				orderParams.marketIndex,
+				remainingAccounts,
+				fulfillmentConfig
+			);
+		}
+
 		const takerOrderId = takerInfo.order.orderId;
 		return await this.program.instruction.placeAndMakeSpotOrder(
 			orderParams,
 			takerOrderId,
+			fulfillmentConfig ? fulfillmentConfig.fulfillmentType : null,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -2739,6 +2752,7 @@ export class ClearingHouse {
 				state: await this.getStatePublicKey(),
 				authority: this.wallet.publicKey,
 				user: settleeUserAccountPublicKey,
+				spotMarketVault: this.getQuoteSpotMarketAccount().vault,
 			},
 			remainingAccounts: remainingAccounts,
 		});

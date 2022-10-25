@@ -44,11 +44,11 @@ pub struct User {
     pub next_order_id: u32,
     pub max_margin_ratio: u32,
     pub next_liquidation_id: u16,
-    pub sub_account_id: u8,
+    pub sub_account_id: u16,
     pub is_being_liquidated: bool,
     pub is_bankrupt: bool,
     pub is_margin_trading_enabled: bool,
-    pub padding: [u8; 2],
+    pub padding: [u8; 1],
 }
 
 impl User {
@@ -699,9 +699,10 @@ pub struct UserStats {
     pub last_filler_volume_30d_ts: i64,
 
     pub if_staked_quote_asset_amount: u64,
-    pub number_of_sub_accounts: u8,
+    pub number_of_sub_accounts: u16,
+    pub max_sub_account_id: u16,
     pub is_referrer: bool,
-    pub padding: [u8; 6],
+    pub padding: [u8; 3],
 }
 
 impl UserStats {

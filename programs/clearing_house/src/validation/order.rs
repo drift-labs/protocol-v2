@@ -3,6 +3,7 @@ use solana_program::msg;
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
 
+use crate::math::casting::Cast;
 use crate::math::orders::{
     calculate_base_asset_amount_to_fill_up_to_limit_price, is_multiple_of_step_size,
     order_breaches_oracle_price_limits,
@@ -141,20 +142,43 @@ fn validate_post_only_order(
     valid_oracle_price: Option<i64>,
     slot: u64,
 ) -> ClearingHouseResult {
-    let base_asset_amount_market_can_fill = calculate_base_asset_amount_to_fill_up_to_limit_price(
-        order,
-        market,
-        order.get_optional_limit_price(valid_oracle_price, slot, market.amm.order_tick_size)?,
-    )?;
+    let limit_price =
+        order.get_optional_limit_price(valid_oracle_price, slot, market.amm.order_tick_size)?;
+
+    let base_asset_amount_market_can_fill =
+        calculate_base_asset_amount_to_fill_up_to_limit_price(order, market, limit_price)?;
 
     if base_asset_amount_market_can_fill != 0 {
         msg!(
             "Post-only order can immediately fill {} base asset amount",
-            base_asset_amount_market_can_fill
+            base_asset_amount_market_can_fill,
         );
 
+        if market.amm.last_update_slot != slot {
+            msg!(
+                "market.amm.last_update_slot={} behind current slot={}",
+                market.amm.last_update_slot,
+                slot
+            );
+        }
+
         if !order.is_jit_maker() {
-            return Err(ErrorCode::InvalidOrder);
+            let mut invalid = true;
+            if let Some(valid_oracle_price) = valid_oracle_price {
+                if let Some(limit_price) = limit_price {
+                    if (valid_oracle_price > limit_price.cast()?
+                        && order.direction == PositionDirection::Long)
+                        || (valid_oracle_price < limit_price.cast()?
+                            && order.direction == PositionDirection::Short)
+                    {
+                        invalid = false;
+                    }
+                }
+            }
+
+            if invalid {
+                return Err(ErrorCode::PlacePostOnlyLimitFailure);
+            }
         }
     }
 
