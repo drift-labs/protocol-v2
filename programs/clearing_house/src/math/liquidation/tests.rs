@@ -1362,4 +1362,222 @@ mod auto_deleveraging {
         assert_eq!(zaps, 155);
         assert_eq!(v, [83070095, 6026159, 110903746, 0, 0, 0, 0]);
     }
+
+    #[test]
+    fn bully_one_users_adl_automated_sequence_test() {
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_amount_long: BASE_PRECISION_I128 * 102,
+                base_asset_amount_short: -BASE_PRECISION_I128 * 54,
+                quote_asset_amount_long: -QUOTE_PRECISION_I128 * 30 * 9 / 10 * 102
+                    + QUOTE_PRECISION_I128 * 5
+                    + (200 * QUOTE_PRECISION_I128),
+                quote_asset_amount_short: QUOTE_PRECISION_I128 * 30 * 11 / 10,
+                quote_entry_amount_long: -QUOTE_PRECISION_I128 * 30 * 100 * 8 / 10,
+                quote_entry_amount_short: QUOTE_PRECISION_I128 * 30 * 54 * 12 / 10,
+                ..AMM::default()
+            },
+            number_of_users: 5, // at least 6 with base or quote including the loss
+            ..PerpMarket::default()
+        };
+
+        let mut dus1 = DeleverageUserStats {
+            base_asset_amount: (market.amm.base_asset_amount_long * 30 / 100) as i64,
+            quote_asset_amount: (market.amm.quote_asset_amount_long * 29 / 100) as i64,
+            quote_entry_amount: (market.amm.quote_entry_amount_long * 29 / 100) as i64,
+            free_collateral: 1000 * QUOTE_PRECISION_I128,
+        };
+
+        // tiny
+        let mut dus2 = DeleverageUserStats {
+            base_asset_amount: (market.amm.base_asset_amount_long / 100) as i64,
+            quote_asset_amount: (market.amm.quote_asset_amount_long / 100) as i64,
+            quote_entry_amount: (market.amm.quote_entry_amount_long / 100) as i64,
+            free_collateral: 100 * QUOTE_PRECISION_I128,
+        };
+
+        let mut dus3 = DeleverageUserStats {
+            base_asset_amount: (market.amm.base_asset_amount_long * 69 / 100) as i64,
+            quote_asset_amount: (market.amm.quote_asset_amount_long * 70 / 100) as i64 - 100,
+            quote_entry_amount: (market.amm.quote_entry_amount_long * 70 / 100) as i64,
+            free_collateral: 5000 * QUOTE_PRECISION_I128,
+        };
+
+        let mut dus4 = DeleverageUserStats {
+            base_asset_amount: (market.amm.base_asset_amount_short * 50 / 100) as i64,
+            quote_asset_amount: ((market.amm.quote_asset_amount_short + 200 * QUOTE_PRECISION_I128)
+                * 49
+                / 100) as i64,
+            quote_entry_amount: (market.amm.quote_entry_amount_short * 49 / 100) as i64,
+            free_collateral: 1000 * QUOTE_PRECISION_I128,
+        };
+
+        let mut dus5 = DeleverageUserStats {
+            base_asset_amount: (market.amm.base_asset_amount_short * 50 / 100) as i64,
+            quote_asset_amount: ((market.amm.quote_asset_amount_short + 200 * QUOTE_PRECISION_I128)
+                * 51
+                / 100) as i64,
+            quote_entry_amount: (market.amm.quote_entry_amount_short * 51 / 100) as i64,
+            free_collateral: 1000 * QUOTE_PRECISION_I128,
+        };
+
+        // levered loss
+        let mut dus6 = DeleverageUserStats {
+            base_asset_amount: 0,
+            quote_asset_amount: -(200 * QUOTE_PRECISION_I128) as i64,
+            quote_entry_amount: 0,
+            free_collateral: 0,
+        };
+
+        // filler
+        let mut dus7 = DeleverageUserStats {
+            base_asset_amount: 0,
+            quote_asset_amount: 100_i64,
+            quote_entry_amount: 0,
+            free_collateral: 10 * QUOTE_PRECISION_I128,
+        };
+
+        assert_eq!(
+            dus1.base_asset_amount
+                + dus2.base_asset_amount
+                + dus3.base_asset_amount
+                + dus7.base_asset_amount,
+            market.amm.base_asset_amount_long as i64
+        );
+        assert_eq!(
+            dus1.quote_asset_amount
+                + dus2.quote_asset_amount
+                + dus3.quote_asset_amount
+                + dus7.quote_asset_amount,
+            market.amm.quote_asset_amount_long as i64
+        );
+        assert_eq!(
+            dus1.quote_entry_amount
+                + dus2.quote_entry_amount
+                + dus3.quote_entry_amount
+                + dus7.quote_entry_amount,
+            market.amm.quote_entry_amount_long as i64
+        );
+
+        assert_eq!(
+            dus4.base_asset_amount + dus5.base_asset_amount + dus6.base_asset_amount,
+            market.amm.base_asset_amount_short as i64
+        );
+        assert_eq!(
+            dus4.quote_asset_amount + dus5.quote_asset_amount + dus6.quote_asset_amount,
+            market.amm.quote_asset_amount_short as i64
+        );
+        assert_eq!(
+            dus4.quote_entry_amount + dus5.quote_entry_amount + dus6.quote_entry_amount,
+            market.amm.quote_entry_amount_short as i64
+        );
+
+        let mut remaining_levered_loss = QUOTE_PRECISION_I128 * -200;
+
+        // let mut dus_list: Vec<&mut DeleverageUserStats> = vec![];
+        // dus_list.push(&mut dus1);
+        // dus_list.push(&mut dus2);
+        // dus_list.push(&mut dus3);
+        // dus_list.push(&mut dus4);
+        // dus_list.push(&mut dus5);
+        // dus_list.push(&mut dus6);
+        // dus_list.push(&mut dus7);
+
+        let mut v = Vec::new();
+        let l = 7;
+        v.resize(l, 0_i128);
+
+        let mut count = 0;
+        let mut zaps = 0;
+        while remaining_levered_loss < 0 && count < 1000 {
+            let idx = 0;
+            let delev_payment = calculate_perp_market_deleverage_payment(
+                remaining_levered_loss,
+                dus1,
+                &market,
+                100 * PRICE_PRECISION_I64,
+            )
+            .unwrap();
+
+            if delev_payment > 0 {
+                msg!("{}: delev_payment={}", count, delev_payment);
+                dus1.quote_asset_amount -= delev_payment as i64;
+                dus1.quote_entry_amount -= delev_payment as i64;
+                market.amm.quote_asset_amount_long -= delev_payment;
+                market.amm.quote_entry_amount_long -= delev_payment;
+                remaining_levered_loss += delev_payment;
+                zaps += 1;
+            }
+
+            count += 1;
+            v[idx] += delev_payment;
+            // idx += 1;
+        }
+        assert_eq!(remaining_levered_loss, -132571414);
+        assert_eq!(v, [67428586, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(zaps, 14);
+        assert_eq!(count, 1000);
+
+        let mut count = 0;
+        let mut zaps = 0;
+        while remaining_levered_loss < 0 && count < 1000 {
+            let idx = 1;
+            let delev_payment = calculate_perp_market_deleverage_payment(
+                remaining_levered_loss,
+                dus2,
+                &market,
+                100 * PRICE_PRECISION_I64,
+            )
+            .unwrap();
+
+            if delev_payment > 0 {
+                msg!("{}: delev_payment={}", count, delev_payment);
+                dus2.quote_asset_amount -= delev_payment as i64;
+                dus2.quote_entry_amount -= delev_payment as i64;
+                market.amm.quote_asset_amount_long -= delev_payment;
+                market.amm.quote_entry_amount_long -= delev_payment;
+                remaining_levered_loss += delev_payment;
+                zaps += 1;
+            }
+
+            count += 1;
+            v[idx] += delev_payment;
+            // idx += 1;
+        }
+        assert_eq!(remaining_levered_loss, -105512254);
+        assert_eq!(v, [67428586, 27059160, 0, 0, 0, 0, 0]);
+        assert_eq!(zaps, 5);
+        assert_eq!(count, 1000);
+
+        let mut count = 0;
+        let mut zaps = 0;
+        while remaining_levered_loss < 0 && count < 1000 {
+            let idx = 2;
+            let delev_payment = calculate_perp_market_deleverage_payment(
+                remaining_levered_loss,
+                dus3,
+                &market,
+                100 * PRICE_PRECISION_I64,
+            )
+            .unwrap();
+
+            if delev_payment > 0 {
+                msg!("{}: delev_payment={}", count, delev_payment);
+                dus3.quote_asset_amount -= delev_payment as i64;
+                dus3.quote_entry_amount -= delev_payment as i64;
+                market.amm.quote_asset_amount_long -= delev_payment;
+                market.amm.quote_entry_amount_long -= delev_payment;
+                remaining_levered_loss += delev_payment;
+                zaps += 1;
+            }
+
+            count += 1;
+            v[idx] += delev_payment;
+            // idx += 1;
+        }
+        assert_eq!(remaining_levered_loss, 0);
+        assert_eq!(v, [67428586, 27059160, 105512254, 0, 0, 0, 0]);
+        assert_eq!(zaps, 5);
+        assert_eq!(count, 5);
+    }
 }
