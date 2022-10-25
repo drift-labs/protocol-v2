@@ -29,7 +29,11 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
     let invariant_sqrt_u192 = U192::from(amm.sqrt_k);
     let invariant = invariant_sqrt_u192.safe_mul(invariant_sqrt_u192)?;
 
-    validate!(limit_price > 0, ErrorCode::DefaultError, "limit_price <= 0")?;
+    validate!(
+        limit_price > 0,
+        ErrorCode::InvalidOrderLimitPrice,
+        "limit_price <= 0"
+    )?;
 
     let new_base_asset_reserve_squared = invariant
         .safe_mul(U192::from(PRICE_PRECISION))?
@@ -82,7 +86,7 @@ pub fn cap_to_max_spread(
 
     validate!(
         new_total_spread <= max_spread,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidAmmMaxSpreadDetected,
         "new_total_spread({}) > max_spread({})",
         new_total_spread,
         max_spread

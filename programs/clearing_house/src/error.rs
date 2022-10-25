@@ -269,8 +269,10 @@ pub enum ErrorCode {
     InsufficientIFShares,
     #[msg("the Market has paused this action")]
     MarketActionPaused,
-    #[msg("Action violates the asset tier rules")]
-    AssetTierViolation,
+    #[msg("Action violates the Protected Asset Tier rules")]
+    ProtectedAssetTierViolation,
+    #[msg("Action violates the Isolated Asset Tier rules")]
+    IsolatedAssetTierViolation,
     #[msg("User Cant Be Deleted")]
     UserCantBeDeleted,
     #[msg("Reduce Only Withdraw Increased Risk")]
@@ -283,6 +285,112 @@ pub enum ErrorCode {
     LiquidationDoesntSatisfyLimitPrice,
     #[msg("Margin Trading Disabled")]
     MarginTradingDisabled,
+    #[msg("Invalid Market Status to Settle Perp Pnl")]
+    InvalidMarketStatusToSettlePnl,
+    #[msg("PerpMarketNotInSettlement")]
+    PerpMarketNotInSettlement,
+    #[msg("PerpMarketNotInReduceOnly")]
+    PerpMarketNotInReduceOnly,
+    #[msg("PerpMarketSettlementBufferNotReached")]
+    PerpMarketSettlementBufferNotReached,
+    #[msg("PerpMarketSettlementUserHasOpenOrders")]
+    PerpMarketSettlementUserHasOpenOrders,
+    #[msg("PerpMarketSettlementUserHasActiveLP")]
+    PerpMarketSettlementUserHasActiveLP,
+    #[msg("UnableToSettleExpiredUserPosition")]
+    UnableToSettleExpiredUserPosition,
+    #[msg("UnequalMarketIndexForSpotTransfer")]
+    UnequalMarketIndexForSpotTransfer,
+    #[msg("InvalidPerpPositionDetected")]
+    InvalidPerpPositionDetected,
+    #[msg("InvalidSpotPositionDetected")]
+    InvalidSpotPositionDetected,
+    #[msg("InvalidAmmDetected")]
+    InvalidAmmDetected,
+    #[msg("InvalidAmmForFillDetected")]
+    InvalidAmmForFillDetected,
+    #[msg("InvalidAmmLimitPriceOverride")]
+    InvalidAmmLimitPriceOverride,
+    #[msg("InvalidOrderFillPrice")]
+    InvalidOrderFillPrice,
+    #[msg("SpotMarketBalanceInvariantViolated")]
+    SpotMarketBalanceInvariantViolated,
+    #[msg("SpotMarketVaultInvariantViolated")]
+    SpotMarketVaultInvariantViolated,
+    #[msg("InvalidPDA")]
+    InvalidPDA,
+    #[msg("InvalidPDASigner")]
+    InvalidPDASigner,
+    #[msg("RevenueSettingsCannotSettleToIF")]
+    RevenueSettingsCannotSettleToIF,
+    #[msg("NoRevenueToSettleToIF")]
+    NoRevenueToSettleToIF,
+    #[msg("NoAmmPerpPnlDeficit")]
+    NoAmmPerpPnlDeficit,
+    #[msg("SufficientPerpPnlPool")]
+    SufficientPerpPnlPool,
+    #[msg("PerpPnlDeficitBelowThreshold")]
+    PerpPnlDeficitBelowThreshold,
+    #[msg("MaxRevenueWithdrawPerPeriodReached")]
+    MaxRevenueWithdrawPerPeriodReached,
+    #[msg("InvalidSpotPositionDetected")]
+    MaxIFWithdrawReached,
+    #[msg("NoIFWithdrawAvailable")]
+    NoIFWithdrawAvailable,
+    #[msg("InvalidIFUnstake")]
+    InvalidIFUnstake,
+    #[msg("InvalidIFUnstakeSize")]
+    InvalidIFUnstakeSize,
+    #[msg("InvalidIFUnstakeCancel")]
+    InvalidIFUnstakeCancel,
+    #[msg("InvalidIFForNewStakes")]
+    InvalidIFForNewStakes,
+    #[msg("InvalidIFRebase")]
+    InvalidIFRebase,
+    #[msg("InvalidInsuranceUnstakeSize")]
+    InvalidInsuranceUnstakeSize,
+    #[msg("InvalidOrderLimitPrice")]
+    InvalidOrderLimitPrice,
+    #[msg("InvalidIFDetected")]
+    InvalidIFDetected,
+    #[msg("InvalidAmmMaxSpreadDetected")]
+    InvalidAmmMaxSpreadDetected,
+    #[msg("InvalidConcentrationCoef")]
+    InvalidConcentrationCoef,
+    #[msg("InvalidSrmVault")]
+    InvalidSrmVault,
+    #[msg("InvalidVaultOwner")]
+    InvalidVaultOwner,
+    #[msg("InvalidMarketStatusForFills")]
+    InvalidMarketStatusForFills,
+    #[msg("IFWithdrawRequestInProgress")]
+    IFWithdrawRequestInProgress,
+    #[msg("NoIFWithdrawRequestInProgress")]
+    NoIFWithdrawRequestInProgress,
+    #[msg("IFWithdrawRequestTooSmall")]
+    IFWithdrawRequestTooSmall,
+    #[msg("IncorrectSpotMarketAccountPassed")]
+    IncorrectSpotMarketAccountPassed,
+    #[msg("BlockchainClockInconsistency")]
+    BlockchainClockInconsistency,
+    #[msg("InvalidIFSharesDetected")]
+    InvalidIFSharesDetected,
+    #[msg("NewLPSizeTooSmall")]
+    NewLPSizeTooSmall,
+    #[msg("MarketStatusInvalidForNewLP")]
+    MarketStatusInvalidForNewLP,
+    #[msg("InvalidMarkTwapUpdateDetected")]
+    InvalidMarkTwapUpdateDetected,
+    #[msg("MarketSettlementAttemptOnActiveMarket")]
+    MarketSettlementAttemptOnActiveMarket,
+    #[msg("MarketSettlementRequiresSettledLP")]
+    MarketSettlementRequiresSettledLP,
+    #[msg("MarketSettlementAttemptTooEarly")]
+    MarketSettlementAttemptTooEarly,
+    #[msg("MarketSettlementTargetPriceInvalid")]
+    MarketSettlementTargetPriceInvalid,
+    #[msg("UnsupportedSpotMarket")]
+    UnsupportedSpotMarket,
 }
 
 #[macro_export]

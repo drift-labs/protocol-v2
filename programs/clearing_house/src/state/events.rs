@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::controller::position::PositionDirection;
-use crate::error::{ClearingHouseResult, ErrorCode::DefaultError};
+use crate::error::{ClearingHouseResult, ErrorCode::InvalidOrder};
 use crate::math::casting::Cast;
 use crate::state::user::{MarketType, Order};
 use anchor_lang::Discriminator;
@@ -191,7 +191,7 @@ pub fn get_order_action_record(
         } else if let Some(maker_order) = maker_order {
             maker_order.market_type
         } else {
-            return Err(DefaultError);
+            return Err(InvalidOrder);
         },
         filler,
         filler_reward,

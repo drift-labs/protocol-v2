@@ -1182,13 +1182,13 @@ pub fn handle_add_perp_lp_shares<'info>(
                     | MarketStatus::FillPaused
                     | MarketStatus::WithdrawPaused
             ),
-            ErrorCode::DefaultError,
+            ErrorCode::MarketStatusInvalidForNewLP,
             "Market Status doesn't allow for new LP liquidity"
         )?;
 
         validate!(
             n_shares >= market.amm.order_step_size,
-            ErrorCode::DefaultError,
+            ErrorCode::NewLPSizeTooSmall,
             "minting {} shares is less than step size {}",
             n_shares,
             market.amm.order_step_size,

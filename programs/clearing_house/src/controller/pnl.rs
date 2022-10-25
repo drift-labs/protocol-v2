@@ -90,7 +90,7 @@ pub fn settle_pnl(
 
     validate!(
         perp_market.status == MarketStatus::Active,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidMarketStatusToSettlePnl,
         "Cannot settle pnl under current market status"
     )?;
 
@@ -224,7 +224,7 @@ pub fn settle_expired_position(
     let perp_market = &mut perp_market_map.get_ref_mut(&perp_market_index)?;
     validate!(
         perp_market.status == MarketStatus::Settlement,
-        ErrorCode::DefaultError,
+        ErrorCode::PerpMarketNotInSettlement,
         "Perp Market isn't in settlement, expiry_ts={}",
         perp_market.expiry_ts
     )?;
@@ -235,20 +235,20 @@ pub fn settle_expired_position(
 
     validate!(
         now > position_settlement_ts,
-        ErrorCode::DefaultError,
+        ErrorCode::PerpMarketSettlementBufferNotReached,
         "Market requires {} seconds buffer to settle after expiry_ts",
         state.settlement_duration
     )?;
 
     validate!(
         user.perp_positions[position_index].open_orders == 0,
-        ErrorCode::DefaultError,
+        ErrorCode::PerpMarketSettlementUserHasOpenOrders,
         "User must first cancel open orders for expired market"
     )?;
 
     validate!(
         user.perp_positions[position_index].lp_shares == 0,
-        ErrorCode::DefaultError,
+        ErrorCode::PerpMarketSettlementUserHasActiveLP,
         "User must first burn lp shares for expired market"
     )?;
 
@@ -314,7 +314,7 @@ pub fn settle_expired_position(
 
     validate!(
         user.perp_positions[position_index].is_available(),
-        ErrorCode::DefaultError,
+        ErrorCode::UnableToSettleExpiredUserPosition,
         "Issue occurred in expired settlement"
     )?;
 

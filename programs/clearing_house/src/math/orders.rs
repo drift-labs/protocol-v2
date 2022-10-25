@@ -37,7 +37,7 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
                 (limit_price >= override_limit_price && order.direction == PositionDirection::Long)
                     || (limit_price <= override_limit_price
                         && order.direction == PositionDirection::Short),
-                ErrorCode::DefaultError,
+                ErrorCode::InvalidAmmLimitPriceOverride,
                 "override_limit_price={} not better than order_limit_price={}",
                 override_limit_price,
                 limit_price
@@ -435,7 +435,7 @@ pub fn validate_fill_price(
             order_limit_price,
             is_taker
         );
-        return Err(ErrorCode::DefaultError);
+        return Err(ErrorCode::InvalidOrderFillPrice);
     }
 
     if order_direction == PositionDirection::Short && fill_price < order_limit_price {
@@ -447,7 +447,7 @@ pub fn validate_fill_price(
             order_limit_price,
             is_taker
         );
-        return Err(ErrorCode::DefaultError);
+        return Err(ErrorCode::InvalidOrderFillPrice);
     }
 
     Ok(())

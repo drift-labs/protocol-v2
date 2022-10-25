@@ -224,7 +224,11 @@ pub fn update_spreads(amm: &mut AMM, reserve_price: u64) -> ClearingHouseResult<
 }
 
 pub fn update_concentration_coef(amm: &mut AMM, scale: u128) -> ClearingHouseResult {
-    validate!(scale > 0, ErrorCode::DefaultError, "invalid scale",)?;
+    validate!(
+        scale > 0,
+        ErrorCode::InvalidConcentrationCoef,
+        "invalid scale",
+    )?;
 
     let new_concentration_coef =
         CONCENTRATION_PRECISION + (MAX_CONCENTRATION_COEFFICIENT - CONCENTRATION_PRECISION) / scale;
@@ -232,7 +236,7 @@ pub fn update_concentration_coef(amm: &mut AMM, scale: u128) -> ClearingHouseRes
     validate!(
         new_concentration_coef > CONCENTRATION_PRECISION
             && new_concentration_coef <= MAX_CONCENTRATION_COEFFICIENT,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidConcentrationCoef,
         "invalid new_concentration_coef",
     )?;
 
@@ -243,7 +247,7 @@ pub fn update_concentration_coef(amm: &mut AMM, scale: u128) -> ClearingHouseRes
 
     validate!(
         terminal_quote_reserves == amm.terminal_quote_asset_reserve,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidAmmDetected,
         "invalid terminal_quote_reserves",
     )?;
 
@@ -262,7 +266,7 @@ pub fn update_concentration_coef(amm: &mut AMM, scale: u128) -> ClearingHouseRes
     let (max_bids, max_asks) = amm::calculate_market_open_bids_asks(amm)?;
     validate!(
         max_bids > amm.base_asset_amount_with_amm && max_asks < amm.base_asset_amount_with_amm,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidConcentrationCoef,
         "amm.base_asset_amount_with_amm exceeds the unload liquidity available after concentration adjustment"
     )?;
 
@@ -630,7 +634,7 @@ pub fn move_price(
 
     validate!(
         (quote_asset_reserve.cast::<i128>()? - amm.quote_asset_reserve.cast::<i128>()?).abs() < 100,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidAmmDetected,
         "quote_asset_reserve passed doesnt reconcile enough"
     )?;
 
