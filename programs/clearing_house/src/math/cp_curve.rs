@@ -246,14 +246,9 @@ pub fn get_update_k_result(
 
     if bound_update
         && new_sqrt_k < old_sqrt_k
-        && market.amm.base_asset_amount_with_amm.unsigned_abs() > sqrt_k.safe_div(3)?
+        && market.amm.base_asset_amount_with_amm.unsigned_abs() > sqrt_k
     {
         // todo, check less lp_tokens as well
-        msg!("new_sqrt_k too small relative to market imbalance");
-        return Err(ErrorCode::InvalidUpdateK);
-    }
-
-    if bound_update && market.amm.base_asset_amount_with_amm.unsigned_abs() > sqrt_k {
         msg!("new_sqrt_k too small relative to market imbalance");
         return Err(ErrorCode::InvalidUpdateK);
     }
