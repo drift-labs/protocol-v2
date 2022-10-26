@@ -282,7 +282,7 @@ pub mod amm_jit {
                     ..HistoricalOracleData::default()
                 },
                 user_lp_shares: 10 * AMM_RESERVE_PRECISION, // some lps exist
-                concentration_coef: CONCENTRATION_PRECISION,
+                concentration_coef: CONCENTRATION_PRECISION + 1,
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
