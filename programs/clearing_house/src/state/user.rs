@@ -312,6 +312,7 @@ pub struct PerpPosition {
     pub last_cumulative_funding_rate: i64,
     pub base_asset_amount: i64,
     pub quote_asset_amount: i64,
+    pub quote_break_even_amount: i64,
     pub quote_entry_amount: i64,
     pub open_bids: i64,
     pub open_asks: i64,
@@ -384,17 +385,6 @@ impl PerpPosition {
         } else {
             PositionDirection::Long
         }
-    }
-
-    pub fn get_entry_price(&self) -> ClearingHouseResult<i128> {
-        if self.base_asset_amount == 0 {
-            return Ok(0);
-        }
-
-        (-self.quote_entry_amount.cast::<i128>()?)
-            .safe_mul(PRICE_PRECISION_I128)?
-            .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
-            .safe_div(self.base_asset_amount.cast()?)
     }
 
     pub fn get_cost_basis(&self) -> ClearingHouseResult<i128> {

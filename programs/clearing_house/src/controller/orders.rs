@@ -1535,7 +1535,7 @@ pub fn fulfill_perp_order_with_amm(
 
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
 
-    controller::position::update_quote_asset_amount(
+    controller::position::update_quote_asset_and_break_even_amount(
         &mut user.perp_positions[position_index],
         market,
         -user_fee.cast()?,
@@ -1853,7 +1853,7 @@ pub fn fulfill_perp_order_with_match(
         .net_revenue_since_last_funding
         .safe_add(fee_to_market)?;
 
-    controller::position::update_quote_asset_amount(
+    controller::position::update_quote_asset_and_break_even_amount(
         &mut taker.perp_positions[taker_position_index],
         market,
         -taker_fee.cast()?,
@@ -1862,7 +1862,7 @@ pub fn fulfill_perp_order_with_match(
     taker_stats.increment_total_fees(taker_fee)?;
     taker_stats.increment_total_referee_discount(referee_discount)?;
 
-    controller::position::update_quote_asset_amount(
+    controller::position::update_quote_asset_and_break_even_amount(
         &mut maker.perp_positions[maker_position_index],
         market,
         maker_rebate.cast()?,
@@ -2217,7 +2217,7 @@ pub fn pay_keeper_flat_reward_for_perps(
 ) -> ClearingHouseResult<u64> {
     let filler_reward = if let Some(filler) = filler {
         let user_position = user.get_perp_position_mut(market.market_index)?;
-        controller::position::update_quote_asset_amount(
+        controller::position::update_quote_asset_and_break_even_amount(
             user_position,
             market,
             -filler_reward.cast()?,

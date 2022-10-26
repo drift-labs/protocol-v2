@@ -512,6 +512,7 @@ pub fn handle_initialize_perp_market(
         expiry_ts: 0,
         pubkey: *perp_market_pubkey,
         market_index,
+        number_of_users_with_base: 0,
         number_of_users: 0,
         margin_ratio_initial, // unit is 20% (+2 decimal places)
         margin_ratio_maintenance,
@@ -527,7 +528,7 @@ pub fn handle_initialize_perp_market(
         unrealized_pnl_max_imbalance: 0,
         liquidator_fee: liquidation_fee,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
-        padding: [0; 7],
+        padding: [0; 3],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -588,10 +589,11 @@ pub fn handle_initialize_perp_market(
             base_asset_amount_with_amm: 0,
             base_asset_amount_long: 0,
             base_asset_amount_short: 0,
-            quote_asset_amount_long: 0,
-            quote_asset_amount_short: 0,
+            quote_asset_amount: 0,
             quote_entry_amount_long: 0,
             quote_entry_amount_short: 0,
+            quote_break_even_amount_long: 0,
+            quote_break_even_amount_short: 0,
             max_open_interest: 0,
             mark_std: 0,
             volume_24h: 0,
@@ -732,7 +734,7 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
     validate!(
         perp_market.amm.base_asset_amount_long == 0
             && perp_market.amm.base_asset_amount_short == 0
-            && perp_market.number_of_users == 0,
+            && perp_market.number_of_users_with_base == 0,
         ErrorCode::DefaultError,
         "outstanding base_asset_amounts must be balanced"
     )?;
@@ -1017,7 +1019,7 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
     let base_asset_amount_long = perp_market.amm.base_asset_amount_long.unsigned_abs();
     let base_asset_amount_short = perp_market.amm.base_asset_amount_short.unsigned_abs();
     let base_asset_amount_with_amm = perp_market.amm.base_asset_amount_with_amm;
-    let number_of_users = perp_market.number_of_users;
+    let number_of_users = perp_market.number_of_users_with_base;
 
     let price_before = math::amm::calculate_price(
         perp_market.amm.quote_asset_reserve,

@@ -33,8 +33,8 @@ pub mod amm_jit {
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
-    use crate::math::constants::PRICE_PRECISION_I64;
-    use crate::math::constants::QUOTE_PRECISION_I64;
+    use crate::math::constants::{PRICE_PRECISION_I64, QUOTE_PRECISION_I64};
+
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
         PEG_PRECISION, PRICE_PRECISION, SPOT_BALANCE_PRECISION_U64,
@@ -790,6 +790,7 @@ pub mod amm_jit {
         assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I64 / 2);
         assert_eq!(maker_position.quote_asset_amount, -49985000);
         assert_eq!(maker_position.quote_entry_amount, -50 * QUOTE_PRECISION_I64);
+        assert_eq!(maker_position.quote_break_even_amount, -49985000);
         assert_eq!(maker_position.open_orders, 0);
 
         let market_after = market_map.get_ref(&0).unwrap();
@@ -1370,12 +1371,18 @@ pub mod amm_jit {
         );
         assert_eq!(maker_position.quote_asset_amount, 5001500 / 2);
         assert_eq!(maker_position.quote_entry_amount, 2500000);
+        assert_eq!(maker_position.quote_break_even_amount, 2499250);
         assert_eq!(maker_position.open_orders, 1);
         assert_eq!(maker_position.open_asks, -250000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 1500 / 2);
         assert_eq!(maker_stats.maker_volume_30d, 2500000);
         assert_eq!(
             maker_position.quote_entry_amount as i128 + maker_stats.fees.total_fee_rebate as i128,
+            maker_position.quote_asset_amount as i128
+        );
+        assert_eq!(
+            maker_position.quote_break_even_amount as i128
+                + (maker_stats.fees.total_fee_rebate as i128 * 2),
             maker_position.quote_asset_amount as i128
         );
 

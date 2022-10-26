@@ -7,7 +7,8 @@ use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
 use crate::controller::orders;
 use crate::controller::position::{
-    get_position_index, update_position_and_market, update_quote_asset_amount, PositionDirection,
+    get_position_index, update_position_and_market, update_quote_asset_amount,
+    update_quote_asset_and_break_even_amount, PositionDirection,
 };
 use crate::controller::repeg::update_amm_and_check_validity;
 use crate::controller::spot_balance::{
@@ -358,7 +359,7 @@ pub fn liquidate_perp(
 
         let user_position = user.get_perp_position_mut(market_index).unwrap();
         update_position_and_market(user_position, &mut market, &user_position_delta)?;
-        update_quote_asset_amount(user_position, &mut market, if_fee)?;
+        update_quote_asset_and_break_even_amount(user_position, &mut market, if_fee)?;
 
         let liquidator_position = liquidator
             .force_get_perp_position_mut(market_index)
@@ -1603,10 +1604,13 @@ pub fn resolve_perp_bankruptcy(
     // socialize loss
     if loss_to_socialize < 0 {
         {
-            let user = user.get_perp_position_mut(market_index).unwrap();
-            user.quote_asset_amount = 0;
-
             let mut market = perp_market_map.get_ref_mut(&market_index)?;
+            let perp_position = user.force_get_perp_position_mut(market_index)?;
+            update_quote_asset_amount(
+                perp_position,
+                &mut market,
+                -perp_position.quote_asset_amount,
+            )?;
 
             market.amm.cumulative_social_loss = market
                 .amm

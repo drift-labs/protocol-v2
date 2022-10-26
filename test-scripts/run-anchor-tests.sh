@@ -25,8 +25,8 @@ test_files=(
   repegAndSpread.ts
    clearingHouse.ts
    ordersWithSpread.ts
-   marketOrder.ts 
-   triggerOrders.ts 
+   marketOrder.ts
+   triggerOrders.ts
    stopLimits.ts userOrderId.ts postOnly.ts
    placeAndMakeSpotOrder.ts
    roundInFavorBaseAsset.ts

@@ -1,7 +1,7 @@
 use crate::math::amm::*;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I64,
-    PRICE_PRECISION_U64, QUOTE_PRECISION, QUOTE_PRECISION_I128,
+    PRICE_PRECISION_U64, QUOTE_PRECISION,
 };
 use crate::state::oracle::HistoricalOracleData;
 use crate::state::perp_market::PerpMarket;
@@ -14,7 +14,7 @@ fn calculate_net_user_pnl_test() {
 
     let px = 32 * PRICE_PRECISION;
 
-    let mut amm = AMM {
+    let amm = AMM {
         base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
         quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
         peg_multiplier: PEG_PRECISION,
@@ -39,10 +39,6 @@ fn calculate_net_user_pnl_test() {
 
     let net_user_pnl = calculate_net_user_pnl(&amm, oracle_price_data.price).unwrap();
     assert_eq!(net_user_pnl, 0);
-
-    amm.cumulative_social_loss = -QUOTE_PRECISION_I128;
-    let net_user_pnl = calculate_net_user_pnl(&amm, oracle_price_data.price).unwrap();
-    assert_eq!(net_user_pnl, QUOTE_PRECISION_I128);
 
     let market = PerpMarket::default_btc_test();
     let net_user_pnl = calculate_net_user_pnl(
@@ -86,7 +82,7 @@ fn calculate_expiry_price_long_imbalance_with_loss_test() {
             peg_multiplier: 22_100_000_000,
             base_asset_amount_with_amm: (12295081967_i128),
             max_spread: 1000,
-            quote_asset_amount_long: market_position.quote_asset_amount as i128 * 2,
+            quote_asset_amount: market_position.quote_asset_amount as i128 * 2,
             // assume someone else has other half same entry,
             ..AMM::default()
         },
@@ -168,7 +164,7 @@ fn calculate_expiry_price_long_imbalance_test() {
             peg_multiplier: 22_100_000_000,
             base_asset_amount_with_amm: (12295081967_i128),
             max_spread: 1000,
-            quote_asset_amount_long: market_position.quote_asset_amount as i128 * 2,
+            quote_asset_amount: market_position.quote_asset_amount as i128 * 2,
             // assume someone else has other half same entry,
             ..AMM::default()
         },
@@ -283,7 +279,7 @@ fn calculate_expiry_price_test() {
             peg_multiplier: 22_100_000_000,
             base_asset_amount_with_amm: -(12295081967_i128),
             max_spread: 1000,
-            quote_asset_amount_short: market_position.quote_asset_amount as i128 * 2,
+            quote_asset_amount: market_position.quote_asset_amount as i128 * 2,
             // assume someone else has other half same entry,
             ..AMM::default()
         },

@@ -61,7 +61,7 @@ fn test_daily_withdraw_limits() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
+            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
@@ -69,7 +69,7 @@ fn test_daily_withdraw_limits() {
         },
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
-        number_of_users: 1,
+        number_of_users_with_base: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         ..PerpMarket::default()
@@ -490,7 +490,7 @@ fn check_fee_collection() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
+            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
@@ -498,7 +498,7 @@ fn check_fee_collection() {
         },
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
-        number_of_users: 1,
+        number_of_users_with_base: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         ..PerpMarket::default()
@@ -829,7 +829,7 @@ fn check_fee_collection_larger_nums() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
+            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
@@ -837,7 +837,7 @@ fn check_fee_collection_larger_nums() {
         },
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
-        number_of_users: 1,
+        number_of_users_with_base: 1,
         status: MarketStatus::Initialized,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         ..PerpMarket::default()
@@ -1115,7 +1115,7 @@ fn attempt_borrow_with_massive_upnl() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
+            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
@@ -1125,7 +1125,7 @@ fn attempt_borrow_with_massive_upnl() {
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION as u32,
         margin_ratio_initial: 1000,    //10x
         margin_ratio_maintenance: 500, //20x
-        number_of_users: 1,
+        number_of_users_with_base: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         ..PerpMarket::default()
@@ -1189,6 +1189,7 @@ fn attempt_borrow_with_massive_upnl() {
             base_asset_amount: 1000 * BASE_PRECISION_I64,
             quote_asset_amount: -100 * QUOTE_PRECISION_I64, // got in at 10 cents
             quote_entry_amount: -100 * QUOTE_PRECISION_I64,
+            quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
 
             ..PerpPosition::default()
         }),

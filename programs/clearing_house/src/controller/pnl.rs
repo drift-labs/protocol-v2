@@ -2,8 +2,8 @@ use crate::controller::amm::{update_pnl_pool_and_user_balance, update_pool_balan
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::orders::{cancel_orders, validate_market_within_price_band};
 use crate::controller::position::{
-    get_position_index, update_position_and_market, update_quote_asset_amount, update_settled_pnl,
-    PositionDelta,
+    get_position_index, update_position_and_market, update_quote_asset_amount,
+    update_quote_asset_and_break_even_amount, update_settled_pnl, PositionDelta,
 };
 use crate::controller::spot_balance::{
     update_spot_balances, update_spot_market_cumulative_interest,
@@ -275,7 +275,7 @@ pub fn settle_expired_position(
         .safe_mul(fee_structure.fee_tiers[0].fee_numerator as i64)?
         .safe_div(fee_structure.fee_tiers[0].fee_denominator as i64)?;
 
-    update_quote_asset_amount(
+    update_quote_asset_and_break_even_amount(
         &mut user.perp_positions[position_index],
         perp_market,
         -fee.abs(),
