@@ -6837,7 +6837,7 @@
           "index": false
         },
         {
-          "name": "quoteBreakEvenAmount",
+          "name": "quoteEntryAmount",
           "type": "i64",
           "index": false
         },
