@@ -91,6 +91,8 @@ pub enum ErrorCode {
     CastingFailure,
     #[msg("Invalid Order")]
     InvalidOrder,
+    #[msg("Failed to Place Post-Only Limit Order")]
+    PlacePostOnlyLimitFailure,
     #[msg("User has no order")]
     UserHasNoOrder,
     #[msg("Order Amount Too Small")]
@@ -279,6 +281,10 @@ pub enum ErrorCode {
     MaxOpenInterest,
     #[msg("Cant Resolve Perp Bankruptcy")]
     CantResolvePerpBankruptcy,
+    #[msg("Liquidation Doesnt Satisfy Limit Price")]
+    LiquidationDoesntSatisfyLimitPrice,
+    #[msg("Margin Trading Disabled")]
+    MarginTradingDisabled,
 }
 
 #[macro_export]

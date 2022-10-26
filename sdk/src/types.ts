@@ -446,15 +446,16 @@ export type PerpMarketAccount = {
 	pubkey: PublicKey;
 	name: number[];
 	amm: AMM;
-	numberOfUsers: BN;
+	numberOfUsersWithBase: number;
+	numberOfUsers: number;
 	marginRatioInitial: number;
 	marginRatioMaintenance: number;
 	nextFillRecordId: BN;
 	pnlPool: PoolBalance;
-	liquidatorFee: BN;
-	ifLiquidationFee: BN;
-	imfFactor: BN;
-	unrealizedPnlImfFactor: BN;
+	liquidatorFee: number;
+	ifLiquidationFee: number;
+	imfFactor: number;
+	unrealizedPnlImfFactor: number;
 	unrealizedPnlMaxImbalance: BN;
 	unrealizedPnlInitialAssetWeight: number;
 	unrealizedPnlMaintenanceAssetWeight: number;
@@ -512,7 +513,7 @@ export type SpotMarketAccount = {
 
 	revenuePool: PoolBalance;
 
-	ifLiquidationFee: BN;
+	ifLiquidationFee: number;
 
 	decimals: number;
 	optimalUtilization: number;
@@ -526,12 +527,12 @@ export type SpotMarketAccount = {
 
 	lastInterestTs: BN;
 	lastTwapTs: BN;
-	initialAssetWeight: BN;
-	maintenanceAssetWeight: BN;
-	initialLiabilityWeight: BN;
-	maintenanceLiabilityWeight: BN;
-	liquidatorFee: BN;
-	imfFactor: BN;
+	initialAssetWeight: number;
+	maintenanceAssetWeight: number;
+	initialLiabilityWeight: number;
+	maintenanceLiabilityWeight: number;
+	liquidatorFee: number;
+	imfFactor: number;
 
 	withdrawGuardThreshold: BN;
 	depositTokenTwap: BN;
@@ -587,8 +588,7 @@ export type AMM = {
 	baseAssetAmountWithAmm: BN;
 	baseAssetAmountLong: BN;
 	baseAssetAmountShort: BN;
-	quoteAssetAmountLong: BN;
-	quoteAssetAmountShort: BN;
+	quoteAssetAmount: BN;
 	terminalQuoteAssetReserve: BN;
 	feePool: PoolBalance;
 	totalExchangeFee: BN;
@@ -598,8 +598,8 @@ export type AMM = {
 	lastOracleValid: boolean;
 	lastBidPriceTwap: BN;
 	lastAskPriceTwap: BN;
-	longSpread: BN;
-	shortSpread: BN;
+	longSpread: number;
+	shortSpread: number;
 	maxSpread: number;
 
 	baseAssetAmountPerLp: BN;
@@ -618,6 +618,7 @@ export type PerpPosition = {
 	marketIndex: number;
 	quoteAssetAmount: BN;
 	quoteEntryAmount: BN;
+	quoteBreakEvenAmount: BN;
 	openOrders: number;
 	openBids: BN;
 	openAsks: BN;
@@ -630,6 +631,7 @@ export type PerpPosition = {
 
 export type UserStatsAccount = {
 	numberOfSubAccounts: number;
+	maxSubAccountId: number;
 	makerVolume30D: BN;
 	takerVolume30D: BN;
 	fillerVolume30D: BN;

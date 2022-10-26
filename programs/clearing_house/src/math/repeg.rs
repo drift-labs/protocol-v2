@@ -6,12 +6,11 @@ use solana_program::msg;
 use crate::error::*;
 use crate::math::amm;
 use crate::math::bn;
-use crate::math::casting::{cast_to_i128, cast_to_u128};
+use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128, BID_ASK_SPREAD_PRECISION,
-    ONE_HOUR, PEG_PRECISION_I128, PRICE_PRECISION_I128, PRICE_TO_PEG_PRECISION_RATIO,
-    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
-    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR, TWENTY_FOUR_HOUR,
+    AMM_RESERVE_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128, PEG_PRECISION_I128,
+    PRICE_TO_PEG_PRECISION_RATIO, SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_DENOMINATOR,
+    SHARE_OF_FEES_ALLOCATED_TO_CLEARING_HOUSE_NUMERATOR,
 };
 use crate::math::cp_curve;
 use crate::math::oracle;
@@ -30,7 +29,7 @@ mod tests;
 pub fn calculate_repeg_validity_from_oracle_account(
     market: &PerpMarket,
     oracle_account_info: &AccountInfo,
-    terminal_price_before: u128,
+    terminal_price_before: u64,
     clock_slot: u64,
     oracle_guard_rails: &OracleGuardRails,
 ) -> ClearingHouseResult<(bool, bool, bool, bool)> {
@@ -62,7 +61,7 @@ pub fn calculate_repeg_validity(
     market: &PerpMarket,
     oracle_price_data: &OraclePriceData,
     oracle_is_valid: bool,
-    terminal_price_before: u128,
+    terminal_price_before: u64,
 ) -> ClearingHouseResult<(bool, bool, bool, bool)> {
     let OraclePriceData {
         price: oracle_price,
@@ -71,7 +70,7 @@ pub fn calculate_repeg_validity(
         has_sufficient_number_of_data_points: _,
     } = *oracle_price_data;
 
-    let oracle_price_u128 = cast_to_u128(oracle_price)?;
+    let oracle_price_u128 = oracle_price.cast::<u64>()?;
 
     let (terminal_price_after, _terminal_quote_reserves, _terminal_base_reserves) =
         amm::calculate_terminal_price_and_reserves(&market.amm)?;
@@ -153,7 +152,7 @@ pub fn calculate_repeg_validity(
 pub fn calculate_peg_from_target_price(
     quote_asset_reserve: u128,
     base_asset_reserve: u128,
-    target_price: u128,
+    target_price: u64,
 ) -> ClearingHouseResult<u128> {
     let new_peg = bn::U192::from(target_price)
         .safe_mul(bn::U192::from(base_asset_reserve))?
@@ -166,15 +165,12 @@ pub fn calculate_peg_from_target_price(
 
 pub fn calculate_amm_target_price(
     amm: &AMM,
-    current_price: u128,
+    current_price: u64,
     oracle_price_data: &OraclePriceData,
-) -> ClearingHouseResult<u128> {
+) -> ClearingHouseResult<u64> {
     // calculates peg_multiplier that changing to would cost no more than budget
-    let oracle_price_normalised = cast_to_u128(amm::normalise_oracle_price(
-        amm,
-        oracle_price_data,
-        Some(current_price),
-    )?)?;
+    let oracle_price_normalised =
+        amm::normalise_oracle_price(amm, oracle_price_data, Some(current_price))?.cast::<u64>()?;
 
     let weight_denom = 100_u128;
 
@@ -185,19 +181,22 @@ pub fn calculate_amm_target_price(
             .safe_mul(max(1, oracle_price_data.delay.safe_div(2)?))?,
     );
 
-    let oracle_price_weight: u128 = cast_to_u128(max(0, 100_i64.safe_sub(delay_penalty)?))?;
+    let oracle_price_weight: u128 = max(0, 100_i64.safe_sub(delay_penalty)?).cast()?;
 
     let target_price = if oracle_price_weight > 0 {
         let current_price_weight: u128 = weight_denom.safe_sub(oracle_price_weight)?;
 
         oracle_price_normalised
+            .cast::<u128>()?
             .safe_mul(oracle_price_weight)?
             .safe_div(weight_denom)?
             .safe_add(
                 current_price
+                    .cast::<u128>()?
                     .safe_mul(current_price_weight)?
                     .safe_div(weight_denom)?,
             )?
+            .cast::<u64>()?
     } else {
         current_price
     };
@@ -237,12 +236,15 @@ pub fn adjust_peg_cost(
 }
 
 pub fn calculate_repeg_cost(amm: &AMM, new_peg: u128) -> ClearingHouseResult<i128> {
-    let cost = cast_to_i128(amm.quote_asset_reserve)?
-        .safe_sub(cast_to_i128(amm.terminal_quote_asset_reserve)?)?
-        .safe_mul(cast_to_i128(new_peg)?.safe_sub(cast_to_i128(amm.peg_multiplier)?)?)?
-        .safe_div(AMM_RESERVE_PRECISION_I128)?;
-
-    Ok(cost)
+    amm.quote_asset_reserve
+        .cast::<i128>()?
+        .safe_sub(amm.terminal_quote_asset_reserve.cast()?)?
+        .safe_mul(
+            new_peg
+                .cast::<i128>()?
+                .safe_sub(amm.peg_multiplier.cast()?)?,
+        )?
+        .safe_div(AMM_RESERVE_PRECISION_I128)
 }
 
 pub fn calculate_per_peg_cost(
@@ -251,8 +253,9 @@ pub fn calculate_per_peg_cost(
 ) -> ClearingHouseResult<i128> {
     // returns a signed per_peg_cost relative to delta peg
     let per_peg_cost = if quote_asset_reserve != terminal_quote_asset_reserve {
-        cast_to_i128(quote_asset_reserve)?
-            .safe_sub(cast_to_i128(terminal_quote_asset_reserve)?)?
+        quote_asset_reserve
+            .cast::<i128>()?
+            .safe_sub(terminal_quote_asset_reserve.cast::<i128>()?)?
             .safe_div(AMM_RESERVE_PRECISION_I128 / PEG_PRECISION_I128)?
             .safe_add(1)?
     } else {
@@ -268,22 +271,23 @@ pub fn adjust_amm(
     budget: u128,
     adjust_k: bool,
 ) -> ClearingHouseResult<(Box<PerpMarket>, i128)> {
-    let curve_update_intensity = cast_to_i128(min(market.amm.curve_update_intensity, 100_u8))?;
+    let curve_update_intensity = min(market.amm.curve_update_intensity, 100_u8).cast::<i128>()?;
 
     // return early
     if optimal_peg == market.amm.peg_multiplier || curve_update_intensity == 0 {
         return Ok((Box::new(*market), 0));
     }
 
-    let delta_peg =
-        cast_to_i128(optimal_peg)?.safe_sub(cast_to_i128(market.amm.peg_multiplier)?)?; // PEG_PRECISION
+    let delta_peg = optimal_peg
+        .cast::<i128>()?
+        .safe_sub(market.amm.peg_multiplier.cast()?)?; // PEG_PRECISION
 
     let mut per_peg_cost = calculate_per_peg_cost(
         market.amm.quote_asset_reserve,
         market.amm.terminal_quote_asset_reserve,
     )?; // PEG_PRECISION
 
-    let budget_i128 = cast_to_i128(budget)?;
+    let budget_i128 = budget.cast::<i128>()?;
 
     let mut market_clone = Box::new(*market);
     let mut budget_delta_peg: i128;
@@ -375,8 +379,8 @@ pub fn calculate_optimal_peg_and_budget(
     let reserve_price_before = market.amm.reserve_price()?;
 
     let mut fee_budget = calculate_fee_pool(market)?;
-    let target_price_i128 = oracle_price_data.price;
-    let target_price = cast_to_u128(target_price_i128)?;
+    let target_price_i64 = oracle_price_data.price;
+    let target_price = target_price_i64.cast()?;
     let mut optimal_peg = calculate_peg_from_target_price(
         market.amm.quote_asset_reserve,
         market.amm.base_asset_reserve,
@@ -386,17 +390,19 @@ pub fn calculate_optimal_peg_and_budget(
     let optimal_peg_cost = calculate_repeg_cost(&market.amm, optimal_peg)?;
 
     let mut check_lower_bound = true;
-    if fee_budget < cast_to_u128(max(0, optimal_peg_cost))? {
-        let max_price_spread = cast_to_i128(
-            target_price
-                .safe_mul(cast_to_u128(market.amm.max_spread)?)?
-                .safe_div(BID_ASK_SPREAD_PRECISION)?,
-        )?;
+    if fee_budget < max(0, optimal_peg_cost).cast()? {
+        let max_price_spread = target_price
+            .cast::<u128>()?
+            .safe_mul(market.amm.max_spread.cast()?)?
+            .safe_div(BID_ASK_SPREAD_PRECISION_U128)?
+            .cast::<i64>()?;
 
-        let target_price_gap = cast_to_i128(reserve_price_before)?.safe_sub(target_price_i128)?;
+        let target_price_gap = reserve_price_before
+            .cast::<i64>()?
+            .safe_sub(target_price_i64)?;
 
         if target_price_gap.abs() > max_price_spread {
-            let mark_adj = cast_to_u128(target_price_gap.abs().safe_sub(max_price_spread)?)?;
+            let mark_adj = target_price_gap.abs().safe_sub(max_price_spread)?.cast()?;
 
             let target_price = if target_price_gap < 0 {
                 reserve_price_before.safe_add(mark_adj)?
@@ -406,9 +412,9 @@ pub fn calculate_optimal_peg_and_budget(
             optimal_peg = calculate_peg_from_target_price(
                 market.amm.quote_asset_reserve,
                 market.amm.base_asset_reserve,
-                target_price,
+                target_price.cast()?,
             )?;
-            fee_budget = cast_to_u128(calculate_repeg_cost(&market.amm, optimal_peg)?)?;
+            fee_budget = calculate_repeg_cost(&market.amm, optimal_peg)?.cast::<u128>()?;
             check_lower_bound = false;
         }
     }
@@ -416,47 +422,16 @@ pub fn calculate_optimal_peg_and_budget(
     Ok((optimal_peg, fee_budget, check_lower_bound))
 }
 
-pub fn calculate_expected_excess_funding_payment(
-    market: &PerpMarket,
-    oracle_price: i128,
-    reserve_price: u128,
-) -> ClearingHouseResult<i128> {
-    let oracle_reserve_price_spread = cast_to_i128(reserve_price)?.safe_sub(oracle_price)?;
-
-    let oracle_mark_twap_spread = cast_to_i128(market.amm.last_mark_price_twap)?
-        .safe_sub(market.amm.historical_oracle_data.last_oracle_price_twap)?;
-
-    let expected_excess_funding = oracle_reserve_price_spread.safe_sub(oracle_mark_twap_spread)?;
-
-    let period_adjustment =
-        cast_to_i128(TWENTY_FOUR_HOUR.safe_div(max(ONE_HOUR as i64, market.amm.funding_period))?)?;
-
-    let base_asset_amount = market
-        .amm
-        .base_asset_amount_with_amm
-        .safe_div(AMM_TO_QUOTE_PRECISION_RATIO_I128)?;
-
-    let adjusted_excess_funding = expected_excess_funding
-        .safe_div(period_adjustment)?
-        .safe_div(PRICE_PRECISION_I128)?;
-
-    let expected_excess_funding_payment = base_asset_amount.safe_mul(adjusted_excess_funding)?;
-
-    Ok(expected_excess_funding_payment)
-}
-
 pub fn calculate_fee_pool(market: &PerpMarket) -> ClearingHouseResult<u128> {
-    let total_fee_minus_distributions_lower_bound =
-        cast_to_i128(get_total_fee_lower_bound(market)?)?;
+    let total_fee_minus_distributions_lower_bound = get_total_fee_lower_bound(market)?.cast()?;
 
     let fee_pool =
         if market.amm.total_fee_minus_distributions > total_fee_minus_distributions_lower_bound {
-            cast_to_u128(
-                market
-                    .amm
-                    .total_fee_minus_distributions
-                    .safe_sub(total_fee_minus_distributions_lower_bound)?,
-            )?
+            market
+                .amm
+                .total_fee_minus_distributions
+                .safe_sub(total_fee_minus_distributions_lower_bound)?
+                .cast()?
         } else {
             0
         };

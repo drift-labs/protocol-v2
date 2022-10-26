@@ -4,7 +4,7 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm;
 use crate::math::bn;
 use crate::math::bn::U192;
-use crate::math::casting::{cast_to_i128, cast_to_u128};
+use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_TO_QUOTE_PRECISION_RATIO_I128, K_BPS_UPDATE_SCALE,
     MAX_K_BPS_DECREASE, PEG_PRECISION, PERCENTAGE_PRECISION_I128, QUOTE_PRECISION,
@@ -61,14 +61,14 @@ pub fn _calculate_budgeted_k_scale(
 ) -> ClearingHouseResult<(u128, u128)> {
     // let curve_update_intensity = curve_update_intensity as i128;
     let c = -budget;
-    let q = cast_to_i128(q)?;
+    let q = q.cast::<i128>()?;
 
     let c_sign: i128 = if c > 0 { 1 } else { -1 };
     let d_sign: i128 = if d > 0 { 1 } else { -1 };
 
     let rounding_bias: i128 = c_sign.safe_mul(d_sign)?;
 
-    let x_d = cast_to_i128(x)?.safe_add(d)?;
+    let x_d = x.cast::<i128>()?.safe_add(d)?;
 
     let amm_reserve_precision_u192 = U192::from(AMM_RESERVE_PRECISION);
     let x_times_x_d_u192 = U192::from(x)
@@ -88,22 +88,21 @@ pub fn _calculate_budgeted_k_scale(
         .safe_div(amm_reserve_precision_u192)?
         .try_to_u128()?;
 
-    let pegged_quote_times_dd = cast_to_i128(
-        U192::from(y)
-            .safe_mul(U192::from(d.unsigned_abs()))?
-            .safe_div(amm_reserve_precision_u192)?
-            .safe_mul(U192::from(d.unsigned_abs()))?
-            .safe_div(amm_reserve_precision_u192)?
-            .safe_mul(U192::from(q))?
-            .safe_div(U192::from(PEG_PRECISION))?
-            .try_to_u128()?,
-    )?;
+    let pegged_quote_times_dd = U192::from(y)
+        .safe_mul(U192::from(d.unsigned_abs()))?
+        .safe_div(amm_reserve_precision_u192)?
+        .safe_mul(U192::from(d.unsigned_abs()))?
+        .safe_div(amm_reserve_precision_u192)?
+        .safe_mul(U192::from(q))?
+        .safe_div(U192::from(PEG_PRECISION))?
+        .try_to_u128()?
+        .cast::<i128>()?;
 
     let numer1 = pegged_quote_times_dd;
 
-    let numer2 = cast_to_i128(c_times_x_d_d)?.safe_mul(rounding_bias)?;
+    let numer2 = c_times_x_d_d.cast::<i128>()?.safe_mul(rounding_bias)?;
 
-    let denom1 = cast_to_i128(x_times_x_d_c)?.safe_mul(c_sign)?;
+    let denom1 = x_times_x_d_c.cast::<i128>()?.safe_mul(c_sign)?;
 
     let denom2 = pegged_quote_times_dd;
 
@@ -114,8 +113,8 @@ pub fn _calculate_budgeted_k_scale(
             msg!("cost exceeds possible amount to spend");
             msg!("k * {:?}/{:?}", k_pct_upper_bound, K_BPS_UPDATE_SCALE);
             return Ok((
-                cast_to_u128(k_pct_upper_bound)?,
-                cast_to_u128(K_BPS_UPDATE_SCALE)?,
+                k_pct_upper_bound.cast::<u128>()?,
+                K_BPS_UPDATE_SCALE.cast::<u128>()?,
             ));
         }
     }
@@ -161,7 +160,7 @@ pub fn _calculate_budgeted_k_scale(
         }
     };
 
-    Ok((cast_to_u128(numerator)?, cast_to_u128(denominator)?))
+    Ok((numerator.cast::<u128>()?, denominator.cast::<u128>()?))
 }
 
 /// To find the cost of adjusting k, compare the the net market value before and after adjusting k

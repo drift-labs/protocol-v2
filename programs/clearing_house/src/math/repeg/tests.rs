@@ -1,6 +1,7 @@
 use crate::controller::amm::SwapDirection;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION, QUOTE_PRECISION,
+    AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION, PRICE_PRECISION_U64,
+    QUOTE_PRECISION,
 };
 use crate::math::repeg::*;
 
@@ -19,7 +20,7 @@ fn calc_peg_tests() {
     new_peg = calculate_peg_from_target_price(qar / 2, bar * 2, px).unwrap();
     assert_eq!(new_peg, 77604501824);
 
-    let px2 = PRICE_PRECISION + (PRICE_PRECISION / 10000) * 5;
+    let px2 = PRICE_PRECISION_U64 + (PRICE_PRECISION_U64 / 10000) * 5;
     new_peg = calculate_peg_from_target_price(qar, bar, px2).unwrap();
     assert_eq!(new_peg, 1000500);
     new_peg = calculate_peg_from_target_price(qar, bar, px2 - 1).unwrap();
@@ -55,7 +56,7 @@ fn calculate_optimal_peg_and_budget_test() {
 
     // positive target_price_gap exceeding max_spread
     let oracle_price_data = OraclePriceData {
-        price: (12_400 * PRICE_PRECISION) as i128,
+        price: (12_400 * PRICE_PRECISION) as i64,
         confidence: 0,
         delay: 2,
         has_sufficient_number_of_data_points: true,
@@ -70,7 +71,7 @@ fn calculate_optimal_peg_and_budget_test() {
 
     // positive target_price_gap within max_spread
     let oracle_price_data = OraclePriceData {
-        price: (18_901 * PRICE_PRECISION) as i128,
+        price: (18_901 * PRICE_PRECISION) as i64,
         confidence: 167,
         delay: 21,
         has_sufficient_number_of_data_points: true,
@@ -84,7 +85,7 @@ fn calculate_optimal_peg_and_budget_test() {
 
     // positive target_price_gap 2 within max_spread?
     let oracle_price_data = OraclePriceData {
-        price: (18_601 * PRICE_PRECISION) as i128,
+        price: (18_601 * PRICE_PRECISION) as i64,
         confidence: 167,
         delay: 21,
         has_sufficient_number_of_data_points: true,
@@ -98,7 +99,7 @@ fn calculate_optimal_peg_and_budget_test() {
 
     // negative target_price_gap within max_spread
     let oracle_price_data = OraclePriceData {
-        price: (20_400 * PRICE_PRECISION) as i128,
+        price: (20_400 * PRICE_PRECISION) as i64,
         confidence: 1234567,
         delay: 21,
         has_sufficient_number_of_data_points: true,
@@ -112,7 +113,7 @@ fn calculate_optimal_peg_and_budget_test() {
 
     // negative target_price_gap exceeding max_spread (in favor of vAMM)
     let oracle_price_data = OraclePriceData {
-        price: (42_400 * PRICE_PRECISION) as i128,
+        price: (42_400 * PRICE_PRECISION) as i64,
         confidence: 0,
         delay: 2,
         has_sufficient_number_of_data_points: true,
@@ -143,7 +144,7 @@ fn calculate_optimal_peg_and_budget_test() {
 
     // negative target_price_gap exceeding max_spread (not in favor of vAMM)
     let oracle_price_data = OraclePriceData {
-        price: (42_400 * PRICE_PRECISION) as i128,
+        price: (42_400 * PRICE_PRECISION) as i64,
         confidence: 0,
         delay: 2,
         has_sufficient_number_of_data_points: true,
@@ -226,7 +227,7 @@ fn calc_adjust_amm_tests_sufficent_fee_for_repeg() {
         ..PerpMarket::default()
     };
 
-    let px = 35768 * PRICE_PRECISION / 1000;
+    let px = 35768 * PRICE_PRECISION_U64 / 1000;
     let optimal_peg = calculate_peg_from_target_price(
         market.amm.quote_asset_reserve,
         market.amm.base_asset_reserve,

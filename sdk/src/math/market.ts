@@ -131,7 +131,7 @@ export function calculateMarketMarginRatio(
 		case 'Initial':
 			marginRatio = calculateSizePremiumLiabilityWeight(
 				size,
-				market.imfFactor,
+				new BN(market.imfFactor),
 				new BN(market.marginRatioInitial),
 				MARGIN_PRECISION
 			).toNumber();
@@ -139,7 +139,7 @@ export function calculateMarketMarginRatio(
 		case 'Maintenance':
 			marginRatio = calculateSizePremiumLiabilityWeight(
 				size,
-				market.imfFactor,
+				new BN(market.imfFactor),
 				new BN(market.marginRatioMaintenance),
 				MARGIN_PRECISION
 			).toNumber();
@@ -176,7 +176,7 @@ export function calculateUnrealizedAssetWeight(
 
 			assetWeight = calculateSizeDiscountAssetWeight(
 				unrealizedPnl,
-				market.unrealizedPnlImfFactor,
+				new BN(market.unrealizedPnlImfFactor),
 				assetWeight
 			);
 			break;
@@ -208,9 +208,7 @@ export function calculateNetUserPnl(
 		.div(BASE_PRECISION)
 		.div(PRICE_TO_QUOTE_PRECISION);
 
-	const netUserCostBasis = perpMarket.amm.quoteAssetAmountLong
-		.add(perpMarket.amm.quoteAssetAmountShort)
-		.sub(perpMarket.amm.cumulativeSocialLoss);
+	const netUserCostBasis = perpMarket.amm.quoteAssetAmount;
 
 	const netUserPnl = netUserPositionValue.add(netUserCostBasis);
 

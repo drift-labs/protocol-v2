@@ -10,7 +10,7 @@ use crate::create_account_info;
 use crate::create_anchor_account_info;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION,
-    PEG_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
+    PEG_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, QUOTE_PRECISION_U64,
     SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
     SPOT_RATE_PRECISION_U32, SPOT_UTILIZATION_PRECISION, SPOT_UTILIZATION_PRECISION_U32,
     SPOT_WEIGHT_PRECISION,
@@ -61,17 +61,15 @@ fn test_daily_withdraw_limits() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
+            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            historical_oracle_data: HistoricalOracleData::default_price(
-                oracle_price.agg.price as i128,
-            ),
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
-        number_of_users: 1,
+        number_of_users_with_base: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         ..PerpMarket::default()
@@ -90,7 +88,7 @@ fn test_daily_withdraw_limits() {
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         deposit_balance: SPOT_BALANCE_PRECISION,
         borrow_balance: 0,
-        deposit_token_twap: QUOTE_PRECISION / 2,
+        deposit_token_twap: QUOTE_PRECISION_U64 / 2,
         status: MarketStatus::Active,
 
         ..SpotMarket::default()
@@ -394,7 +392,7 @@ fn test_check_withdraw_limits() {
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         deposit_balance: SPOT_BALANCE_PRECISION,
         borrow_balance: 0,
-        deposit_token_twap: QUOTE_PRECISION / 2,
+        deposit_token_twap: QUOTE_PRECISION_U64 / 2,
         status: MarketStatus::Active,
 
         ..SpotMarket::default()
@@ -492,17 +490,15 @@ fn check_fee_collection() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
+            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            historical_oracle_data: HistoricalOracleData::default_price(
-                oracle_price.agg.price as i128,
-            ),
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
-        number_of_users: 1,
+        number_of_users_with_base: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         ..PerpMarket::default()
@@ -520,7 +516,7 @@ fn check_fee_collection() {
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         deposit_balance: SPOT_BALANCE_PRECISION,
         borrow_balance: 0,
-        deposit_token_twap: QUOTE_PRECISION / 2,
+        deposit_token_twap: QUOTE_PRECISION_U64 / 2,
 
         optimal_utilization: SPOT_UTILIZATION_PRECISION_U32 / 2,
         optimal_borrow_rate: SPOT_RATE_PRECISION_U32 * 20,
@@ -749,7 +745,8 @@ fn check_fee_collection() {
     assert_eq!(spot_market.borrow_token_twap, 751403);
     assert_eq!(spot_market.deposit_token_twap, 1626397);
     assert_eq!(
-        spot_market.borrow_token_twap * SPOT_UTILIZATION_PRECISION / spot_market.deposit_token_twap,
+        spot_market.borrow_token_twap * (SPOT_UTILIZATION_PRECISION as u64)
+            / spot_market.deposit_token_twap,
         462004
     ); // 47.4%
 
@@ -790,7 +787,8 @@ fn check_fee_collection() {
     assert_eq!(spot_market.deposit_token_twap, 1663857);
 
     assert_eq!(
-        spot_market.borrow_token_twap * SPOT_UTILIZATION_PRECISION / spot_market.deposit_token_twap,
+        spot_market.borrow_token_twap * (SPOT_UTILIZATION_PRECISION as u64)
+            / spot_market.deposit_token_twap,
         474493
     ); // 47.4%
     assert_eq!(spot_market.utilization_twap, 474492); // 47.4%
@@ -831,17 +829,15 @@ fn check_fee_collection_larger_nums() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
+            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            historical_oracle_data: HistoricalOracleData::default_price(
-                oracle_price.agg.price as i128,
-            ),
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
             ..AMM::default()
         },
         margin_ratio_initial: 1000,
         margin_ratio_maintenance: 500,
-        number_of_users: 1,
+        number_of_users_with_base: 1,
         status: MarketStatus::Initialized,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         ..PerpMarket::default()
@@ -859,7 +855,7 @@ fn check_fee_collection_larger_nums() {
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         deposit_balance: 1000000 * SPOT_BALANCE_PRECISION,
         borrow_balance: 0,
-        deposit_token_twap: QUOTE_PRECISION / 2,
+        deposit_token_twap: QUOTE_PRECISION_U64 / 2,
 
         optimal_utilization: SPOT_UTILIZATION_PRECISION_U32 / 2,
         optimal_borrow_rate: SPOT_RATE_PRECISION_U32 * 20,
@@ -1119,19 +1115,17 @@ fn attempt_borrow_with_massive_upnl() {
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount_short: 50 * QUOTE_PRECISION_I128,
+            quote_asset_amount: 50 * QUOTE_PRECISION_I128,
             base_asset_amount_with_amm: BASE_PRECISION_I128,
             oracle: oracle_price_key,
-            historical_oracle_data: HistoricalOracleData::default_price(
-                oracle_price.agg.price as i128,
-            ),
+            historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
             ..AMM::default()
         },
         unrealized_pnl_initial_asset_weight: 0,
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION as u32,
         margin_ratio_initial: 1000,    //10x
         margin_ratio_maintenance: 500, //20x
-        number_of_users: 1,
+        number_of_users_with_base: 1,
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         ..PerpMarket::default()
@@ -1150,7 +1144,7 @@ fn attempt_borrow_with_massive_upnl() {
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         deposit_balance: 100_000_000 * SPOT_BALANCE_PRECISION, //$100M usdc
         borrow_balance: 0,
-        deposit_token_twap: QUOTE_PRECISION / 2,
+        deposit_token_twap: QUOTE_PRECISION_U64 / 2,
         status: MarketStatus::Active,
 
         ..SpotMarket::default()
@@ -1195,6 +1189,7 @@ fn attempt_borrow_with_massive_upnl() {
             base_asset_amount: 1000 * BASE_PRECISION_I64,
             quote_asset_amount: -100 * QUOTE_PRECISION_I64, // got in at 10 cents
             quote_entry_amount: -100 * QUOTE_PRECISION_I64,
+            quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
 
             ..PerpPosition::default()
         }),

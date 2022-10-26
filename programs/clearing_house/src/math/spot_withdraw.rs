@@ -1,7 +1,7 @@
 use solana_program::msg;
 
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::{cast, cast_to_u128};
+use crate::math::casting::Cast;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::safe_math::SafeMath;
 
@@ -48,13 +48,16 @@ pub fn check_user_exception_to_withdraw_limits(
         {
             if let Some(token_amount_withdrawn) = token_amount_withdrawn {
                 let user_deposit_token_amount = get_token_amount(
-                    cast_to_u128(spot_position.scaled_balance)?,
+                    spot_position.scaled_balance.cast::<u128>()?,
                     spot_market,
                     &spot_position.balance_type,
                 )?;
 
                 if user_deposit_token_amount.safe_add(token_amount_withdrawn)?
-                    < spot_market.withdraw_guard_threshold / 10
+                    < spot_market
+                        .withdraw_guard_threshold
+                        .cast::<u128>()?
+                        .safe_div(10)?
                 {
                     valid_user_withdraw = true;
                 }
@@ -83,13 +86,13 @@ pub fn check_withdraw_limits(
 
     let max_borrow_token = calculate_max_borrow_token(
         deposit_token_amount,
-        spot_market.borrow_token_twap,
-        spot_market.withdraw_guard_threshold,
+        spot_market.borrow_token_twap.cast()?,
+        spot_market.withdraw_guard_threshold.cast()?,
     )?;
 
     let min_deposit_token = calculate_min_deposit_token(
-        spot_market.deposit_token_twap,
-        spot_market.withdraw_guard_threshold,
+        spot_market.deposit_token_twap.cast()?,
+        spot_market.withdraw_guard_threshold.cast()?,
     )?;
 
     let valid_global_withdrawal =
@@ -114,16 +117,18 @@ pub fn check_withdraw_limits(
 }
 
 pub fn validate_spot_balances(spot_market: &SpotMarket) -> ClearingHouseResult<u64> {
-    let depositors_amount: u64 = cast(get_token_amount(
+    let depositors_amount: u64 = get_token_amount(
         spot_market.deposit_balance,
         spot_market,
         &SpotBalanceType::Deposit,
-    )?)?;
-    let borrowers_amount: u64 = cast(get_token_amount(
+    )?
+    .cast()?;
+    let borrowers_amount: u64 = get_token_amount(
         spot_market.borrow_balance,
         spot_market,
         &SpotBalanceType::Borrow,
-    )?)?;
+    )?
+    .cast()?;
 
     validate!(
         depositors_amount >= borrowers_amount,
@@ -133,11 +138,12 @@ pub fn validate_spot_balances(spot_market: &SpotMarket) -> ClearingHouseResult<u
         borrowers_amount
     )?;
 
-    let revenue_amount: u64 = cast(get_token_amount(
+    let revenue_amount: u64 = get_token_amount(
         spot_market.revenue_pool.scaled_balance,
         spot_market,
         &SpotBalanceType::Deposit,
-    )?)?;
+    )?
+    .cast()?;
 
     let depositors_claim = depositors_amount - borrowers_amount;
 

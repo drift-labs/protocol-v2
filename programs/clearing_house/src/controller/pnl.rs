@@ -2,16 +2,15 @@ use crate::controller::amm::{update_pnl_pool_and_user_balance, update_pool_balan
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::orders::{cancel_orders, validate_market_within_price_band};
 use crate::controller::position::{
-    get_position_index, update_position_and_market, update_quote_asset_amount, update_settled_pnl,
-    PositionDelta,
+    get_position_index, update_position_and_market, update_quote_asset_amount,
+    update_quote_asset_and_break_even_amount, update_settled_pnl, PositionDelta,
 };
 use crate::controller::spot_balance::{
     update_spot_balances, update_spot_market_cumulative_interest,
 };
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::math::amm::calculate_net_user_pnl;
-use crate::math::casting::cast_to_i128;
-use crate::math::casting::cast_to_i64;
+
 use crate::math::casting::Cast;
 use crate::math::margin::meets_maintenance_margin_requirement;
 use crate::math::position::calculate_base_asset_value_with_expiry_price;
@@ -97,11 +96,12 @@ pub fn settle_pnl(
 
     let oracle_price = oracle_map.get_price_data(&perp_market.amm.oracle)?.price;
 
-    let pnl_pool_token_amount = cast_to_i128(get_token_amount(
+    let pnl_pool_token_amount = get_token_amount(
         perp_market.pnl_pool.scaled_balance,
         spot_market,
         perp_market.pnl_pool.balance_type(),
-    )?)?;
+    )?
+    .cast()?;
     let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, oracle_price)?;
     let max_pnl_pool_excess = if net_user_pnl < pnl_pool_token_amount {
         pnl_pool_token_amount.safe_sub(net_user_pnl.max(0))?
@@ -231,7 +231,7 @@ pub fn settle_expired_position(
 
     let position_settlement_ts = perp_market
         .expiry_ts
-        .safe_add(cast_to_i64(state.settlement_duration)?)?;
+        .safe_add(state.settlement_duration.cast()?)?;
 
     validate!(
         now > position_settlement_ts,
@@ -275,7 +275,7 @@ pub fn settle_expired_position(
         .safe_mul(fee_structure.fee_tiers[0].fee_numerator as i64)?
         .safe_div(fee_structure.fee_tiers[0].fee_denominator as i64)?;
 
-    update_quote_asset_amount(
+    update_quote_asset_and_break_even_amount(
         &mut user.perp_positions[position_index],
         perp_market,
         -fee.abs(),

@@ -1,6 +1,6 @@
 use crate::error::ClearingHouseResult;
 use crate::math::amm::calculate_market_open_bids_asks;
-use crate::math::casting::{cast, cast_to_i128, Cast};
+use crate::math::casting::Cast;
 use crate::math::constants::AMM_RESERVE_PRECISION_I128;
 use crate::math::helpers;
 use crate::math::orders::standardize_base_asset_amount_with_remainder_i128;
@@ -47,7 +47,7 @@ pub fn calculate_settled_lp_base_quote(
     position: &PerpPosition,
 ) -> ClearingHouseResult<(i128, i128)> {
     let n_shares = position.lp_shares;
-    let n_shares_i128 = cast_to_i128(n_shares)?;
+    let n_shares_i128 = n_shares.cast::<i128>()?;
 
     // give them slice of the damm market position
     let amm_net_base_asset_amount_per_lp = amm
@@ -82,5 +82,5 @@ pub fn calculate_lp_open_bids_asks(
     let open_asks = helpers::get_proportion_i128(max_asks, lp_shares.cast()?, total_lp_shares)?;
     let open_bids = helpers::get_proportion_i128(max_bids, lp_shares.cast()?, total_lp_shares)?;
 
-    Ok((cast(open_bids)?, cast(open_asks)?))
+    Ok((open_bids.cast()?, open_asks.cast()?))
 }

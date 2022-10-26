@@ -3,7 +3,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode::DefaultError};
-use crate::math::casting::{cast, cast_to_u64};
+use crate::math::casting::Cast;
 use crate::state::user::{MarketType, Order};
 use anchor_lang::Discriminator;
 use std::io::Write;
@@ -13,7 +13,7 @@ pub struct NewUserRecord {
     pub ts: i64,
     pub user_authority: Pubkey,
     pub user: Pubkey,
-    pub sub_account_id: u8,
+    pub sub_account_id: u16,
     pub name: [u8; 32],
     pub referrer: Pubkey,
 }
@@ -26,7 +26,7 @@ pub struct DepositRecord {
     pub direction: DepositDirection,
     pub amount: u64,
     pub market_index: u16,
-    pub oracle_price: i128,
+    pub oracle_price: i64,
     pub market_deposit_balance: u128,
     pub market_withdraw_balance: u128,
     pub market_cumulative_deposit_interest: u128,
@@ -80,13 +80,13 @@ pub struct FundingRateRecord {
     pub ts: i64,
     pub record_id: u64,
     pub market_index: u16,
-    pub funding_rate: i128,
+    pub funding_rate: i64,
     pub funding_rate_long: i128,
     pub funding_rate_short: i128,
     pub cumulative_funding_rate_long: i128,
     pub cumulative_funding_rate_short: i128,
-    pub oracle_price_twap: i128,
-    pub mark_price_twap: u128,
+    pub oracle_price_twap: i64,
+    pub mark_price_twap: u64,
     pub period_revenue: i64,
     pub base_asset_amount_with_amm: i128,
     pub base_asset_amount_with_unsettled_lp: i128,
@@ -96,7 +96,6 @@ pub struct FundingRateRecord {
 pub struct CurveRecord {
     pub ts: i64,
     pub record_id: u64,
-    pub market_index: u16,
     pub peg_multiplier_before: u128,
     pub base_asset_reserve_before: u128,
     pub quote_asset_reserve_before: u128,
@@ -108,12 +107,13 @@ pub struct CurveRecord {
     pub base_asset_amount_long: u128,
     pub base_asset_amount_short: u128,
     pub base_asset_amount_with_amm: i128,
-    pub number_of_users: u128,
     pub total_fee: i128,
     pub total_fee_minus_distributions: i128,
     pub adjustment_cost: i128,
-    pub oracle_price: i128,
+    pub oracle_price: i64,
     pub fill_record: u128,
+    pub number_of_users: u32,
+    pub market_index: u16,
 }
 
 #[event]
@@ -157,7 +157,7 @@ pub struct OrderActionRecord {
     pub maker_order_cumulative_base_asset_amount_filled: Option<u64>,
     pub maker_order_cumulative_quote_asset_amount_filled: Option<u64>,
 
-    pub oracle_price: i128,
+    pub oracle_price: i64,
 }
 
 pub fn get_order_action_record(
@@ -179,7 +179,7 @@ pub fn get_order_action_record(
     taker_order: Option<Order>,
     maker: Option<Pubkey>,
     maker_order: Option<Order>,
-    oracle_price: i128,
+    oracle_price: i64,
 ) -> ClearingHouseResult<OrderActionRecord> {
     Ok(OrderActionRecord {
         ts,
@@ -200,11 +200,11 @@ pub fn get_order_action_record(
         quote_asset_amount_filled,
         taker_fee,
         maker_fee: match maker_rebate {
-            Some(maker_rebate) => Some(-cast(maker_rebate)?),
+            Some(maker_rebate) => Some(-maker_rebate.cast()?),
             None => None,
         },
         referrer_reward: match referrer_reward {
-            Some(referrer_reward) if referrer_reward > 0 => Some(cast(referrer_reward)?),
+            Some(referrer_reward) if referrer_reward > 0 => Some(referrer_reward.cast()?),
             _ => None,
         },
         quote_asset_amount_surplus,
@@ -215,10 +215,9 @@ pub fn get_order_action_record(
         taker_order_base_asset_amount: taker_order.map(|order| order.base_asset_amount),
         taker_order_cumulative_base_asset_amount_filled: taker_order
             .map(|order| order.base_asset_amount_filled),
-        taker_order_cumulative_quote_asset_amount_filled: match &taker_order {
-            Some(order) => Some(cast_to_u64(order.quote_asset_amount_filled)?),
-            None => None,
-        },
+        taker_order_cumulative_quote_asset_amount_filled: taker_order
+            .as_ref()
+            .map(|order| order.quote_asset_amount_filled),
         maker,
         maker_order_id: maker_order.map(|order| order.order_id),
         maker_order_direction: maker_order.map(|order| order.direction),
@@ -326,7 +325,7 @@ impl Default for LiquidationType {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
 pub struct LiquidatePerpRecord {
     pub market_index: u16,
-    pub oracle_price: i128,
+    pub oracle_price: i64,
     pub base_asset_amount: i64,
     pub quote_asset_amount: i64,
     pub lp_shares: u64,
@@ -339,10 +338,10 @@ pub struct LiquidatePerpRecord {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
 pub struct LiquidateSpotRecord {
     pub asset_market_index: u16,
-    pub asset_price: i128,
+    pub asset_price: i64,
     pub asset_transfer: u128,
     pub liability_market_index: u16,
-    pub liability_price: i128,
+    pub liability_price: i64,
     pub liability_transfer: u128,
     pub if_fee: u64,
 }
@@ -350,20 +349,20 @@ pub struct LiquidateSpotRecord {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
 pub struct LiquidateBorrowForPerpPnlRecord {
     pub perp_market_index: u16,
-    pub market_oracle_price: i128,
+    pub market_oracle_price: i64,
     pub pnl_transfer: u128,
     pub liability_market_index: u16,
-    pub liability_price: i128,
+    pub liability_price: i64,
     pub liability_transfer: u128,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
 pub struct LiquidatePerpPnlForDepositRecord {
     pub perp_market_index: u16,
-    pub market_oracle_price: i128,
+    pub market_oracle_price: i64,
     pub pnl_transfer: u128,
     pub asset_market_index: u16,
-    pub asset_price: i128,
+    pub asset_price: i64,
     pub asset_transfer: u128,
 }
 
@@ -393,7 +392,7 @@ pub struct SettlePnlRecord {
     pub base_asset_amount: i64,
     pub quote_asset_amount_after: i64,
     pub quote_entry_amount: i64,
-    pub settle_price: i128,
+    pub settle_price: i64,
 }
 
 #[event]

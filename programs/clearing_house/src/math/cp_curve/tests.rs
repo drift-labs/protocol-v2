@@ -170,7 +170,7 @@ fn calculate_k_tests() {
     // new terminal reserves are balanced, terminal price = peg)
     assert_eq!(t_qar, 500 * AMM_RESERVE_PRECISION);
     assert_eq!(t_bar, 500 * AMM_RESERVE_PRECISION);
-    assert_eq!(t_price, market.amm.peg_multiplier);
+    assert_eq!(t_price as u128, market.amm.peg_multiplier);
 
     assert_eq!(update_k_up.sqrt_k, 501 * AMM_RESERVE_PRECISION);
     assert_eq!(update_k_up.base_asset_reserve, 513319672130);

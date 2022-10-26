@@ -14,7 +14,7 @@ use crate::instructions::constraints::*;
 use crate::instructions::keeper::SpotFulfillmentType;
 use crate::load;
 use crate::load_mut;
-use crate::math::casting::{cast, cast_to_i128, cast_to_i64, cast_to_u128, cast_to_u32, Cast};
+use crate::math::casting::Cast;
 use crate::math::constants::{
     DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
     DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE, IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX,
@@ -87,12 +87,12 @@ pub fn handle_initialize_spot_market(
     optimal_borrow_rate: u32,
     max_borrow_rate: u32,
     oracle_source: OracleSource,
-    initial_asset_weight: u128,
-    maintenance_asset_weight: u128,
-    initial_liability_weight: u128,
-    maintenance_liability_weight: u128,
-    imf_factor: u128,
-    liquidation_fee: u128,
+    initial_asset_weight: u32,
+    maintenance_asset_weight: u32,
+    initial_liability_weight: u32,
+    maintenance_liability_weight: u32,
+    imf_factor: u32,
+    liquidation_fee: u32,
     active_status: bool,
 ) -> Result<()> {
     let state = &mut ctx.accounts.state;
@@ -135,7 +135,7 @@ pub fn handle_initialize_spot_market(
     let oracle_price_data = get_oracle_price(
         &oracle_source,
         &ctx.accounts.oracle,
-        cast(Clock::get()?.unix_timestamp)?,
+        Clock::get()?.unix_timestamp.cast()?,
     );
 
     let (historical_oracle_data_default, historical_index_data_default) =
@@ -193,10 +193,13 @@ pub fn handle_initialize_spot_market(
 
     let spot_market = &mut ctx.accounts.spot_market.load_init()?;
     let clock = Clock::get()?;
-    let now = cast(clock.unix_timestamp).or(Err(ErrorCode::UnableToCastUnixTime))?;
+    let now = clock
+        .unix_timestamp
+        .cast()
+        .or(Err(ErrorCode::UnableToCastUnixTime))?;
 
-    let decimals = ctx.accounts.spot_market_mint.decimals;
-    let order_step_size = 10_u64.pow(2 + (decimals - 6) as u32); // 10 for usdc/btc, 10000 for sol
+    let decimals = ctx.accounts.spot_market_mint.decimals.cast::<u32>()?;
+    let order_step_size = 10_u64.pow(2 + decimals - 6); // 10 for usdc/btc, 10000 for sol
 
     **spot_market = SpotMarket {
         market_index: spot_market_index,
@@ -223,7 +226,7 @@ pub fn handle_initialize_spot_market(
             market_index: spot_market_index,
             ..PoolBalance::default()
         }, // in base asset
-        decimals: ctx.accounts.spot_market_mint.decimals,
+        decimals,
         optimal_utilization,
         optimal_borrow_rate,
         max_borrow_rate,
@@ -252,7 +255,7 @@ pub fn handle_initialize_spot_market(
         next_fill_record_id: 1,
         spot_fee_pool: PoolBalance::default(), // in quote asset
         total_spot_fee: 0,
-        padding: [0; 6],
+        padding: [0; 7],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             ..InsuranceFund::default()
@@ -425,7 +428,7 @@ pub fn handle_initialize_perp_market(
     oracle_source: OracleSource,
     margin_ratio_initial: u32,
     margin_ratio_maintenance: u32,
-    liquidation_fee: u128,
+    liquidation_fee: u32,
     active_status: bool,
     name: [u8; 32],
 ) -> Result<()> {
@@ -445,7 +448,7 @@ pub fn handle_initialize_perp_market(
         amm_peg_multiplier,
     )?;
 
-    assert_eq!(amm_peg_multiplier, init_reserve_price);
+    assert_eq!(amm_peg_multiplier, init_reserve_price.cast::<u128>()?);
 
     let concentration_coef = MAX_CONCENTRATION_COEFFICIENT;
 
@@ -475,11 +478,11 @@ pub fn handle_initialize_perp_market(
         OracleSource::QuoteAsset => panic!(),
     };
 
-    let max_spread = (margin_ratio_initial - margin_ratio_maintenance) * (100 - 5);
+    let max_spread = ((margin_ratio_initial - margin_ratio_maintenance) * (100 - 5)) as u32;
 
     // todo? should ensure peg within 1 cent of current oracle?
     // validate!(
-    //     cast_to_i128(amm_peg_multiplier)?
+    //     amm_peg_multiplier.cast::<i128>()?
     //         .safe_sub(oracle_price)
     //         ?
     //         .unsigned_abs()
@@ -509,6 +512,7 @@ pub fn handle_initialize_perp_market(
         expiry_ts: 0,
         pubkey: *perp_market_pubkey,
         market_index,
+        number_of_users_with_base: 0,
         number_of_users: 0,
         margin_ratio_initial, // unit is 20% (+2 decimal places)
         margin_ratio_maintenance,
@@ -518,8 +522,8 @@ pub fn handle_initialize_perp_market(
         next_curve_record_id: 1,
         pnl_pool: PoolBalance::default(),
         insurance_claim: InsuranceClaim::default(),
-        unrealized_pnl_initial_asset_weight: cast(SPOT_WEIGHT_PRECISION)?, // 100%
-        unrealized_pnl_maintenance_asset_weight: cast(SPOT_WEIGHT_PRECISION)?, // 100%
+        unrealized_pnl_initial_asset_weight: SPOT_WEIGHT_PRECISION.cast()?, // 100%
+        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast()?, // 100%
         unrealized_pnl_imf_factor: 0,
         unrealized_pnl_max_imbalance: 0,
         liquidator_fee: liquidation_fee,
@@ -585,10 +589,11 @@ pub fn handle_initialize_perp_market(
             base_asset_amount_with_amm: 0,
             base_asset_amount_long: 0,
             base_asset_amount_short: 0,
-            quote_asset_amount_long: 0,
-            quote_asset_amount_short: 0,
+            quote_asset_amount: 0,
             quote_entry_amount_long: 0,
             quote_entry_amount_short: 0,
+            quote_break_even_amount_long: 0,
+            quote_break_even_amount_short: 0,
             max_open_interest: 0,
             mark_std: 0,
             volume_24h: 0,
@@ -609,8 +614,6 @@ pub fn handle_initialize_perp_market(
             amm_jit_intensity: 0, // turn it off at the start
 
             last_oracle_valid: false,
-
-            padding: [0; 6],
         },
     };
 
@@ -731,7 +734,7 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
     validate!(
         perp_market.amm.base_asset_amount_long == 0
             && perp_market.amm.base_asset_amount_short == 0
-            && perp_market.number_of_users == 0,
+            && perp_market.number_of_users_with_base == 0,
         ErrorCode::DefaultError,
         "outstanding base_asset_amounts must be balanced"
     )?;
@@ -751,10 +754,12 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
 
     let escrow_period_before_transfer = if state.settlement_duration > 1 {
         // minimum of TWENTY_FOUR_HOUR to examine settlement process
-        TWENTY_FOUR_HOUR.safe_add(cast_to_i64(state.settlement_duration - 1)?)?
+        TWENTY_FOUR_HOUR
+            .safe_add(state.settlement_duration.cast()?)?
+            .safe_sub(1)?
     } else {
         // for testing / expediting if settlement_duration not default but 1
-        cast_to_i64(state.settlement_duration)?
+        state.settlement_duration.cast::<i64>()?
     };
 
     validate!(
@@ -766,17 +771,19 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
         escrow_period_before_transfer
     )?;
 
-    let depositors_amount_before: u64 = cast(get_token_amount(
+    let depositors_amount_before: u64 = get_token_amount(
         spot_market.deposit_balance,
         spot_market,
         &SpotBalanceType::Deposit,
-    )?)?;
+    )?
+    .cast()?;
 
-    let borrowers_amount_before: u64 = cast(get_token_amount(
+    let borrowers_amount_before: u64 = get_token_amount(
         spot_market.borrow_balance,
         spot_market,
         &SpotBalanceType::Borrow,
-    )?)?;
+    )?
+    .cast()?;
 
     let fee_pool_token_amount = get_token_amount(
         perp_market.amm.fee_pool.scaled_balance,
@@ -811,17 +818,19 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
         spot_market,
     )?;
 
-    let depositors_amount_after: u64 = cast(get_token_amount(
+    let depositors_amount_after: u64 = get_token_amount(
         spot_market.deposit_balance,
         spot_market,
         &SpotBalanceType::Deposit,
-    )?)?;
+    )?
+    .cast()?;
 
-    let borrowers_amount_after: u64 = cast(get_token_amount(
+    let borrowers_amount_after: u64 = get_token_amount(
         spot_market.borrow_balance,
         spot_market,
         &SpotBalanceType::Borrow,
-    )?)?;
+    )?
+    .cast()?;
 
     validate!(
         borrowers_amount_before == borrowers_amount_after
@@ -849,12 +858,12 @@ pub fn handle_deposit_into_perp_market_fee_pool(
     perp_market.amm.total_fee_minus_distributions = perp_market
         .amm
         .total_fee_minus_distributions
-        .safe_add(cast(amount)?)?;
+        .safe_add(amount.cast()?)?;
 
     let quote_spot_market = &mut load_mut!(ctx.accounts.quote_spot_market)?;
 
     controller::spot_balance::update_spot_balances(
-        cast_to_u128(amount)?,
+        amount.cast::<u128>()?,
         &SpotBalanceType::Deposit,
         quote_spot_market,
         &mut perp_market.amm.fee_pool,
@@ -950,15 +959,22 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
     let oracle_twap = perp_market.amm.get_oracle_twap(price_oracle)?;
 
     if let Some(oracle_twap) = oracle_twap {
-        let oracle_mark_gap_before = cast_to_i128(perp_market.amm.last_mark_price_twap)?.safe_sub(
-            perp_market
-                .amm
-                .historical_oracle_data
-                .last_oracle_price_twap,
-        )?;
+        let oracle_mark_gap_before = perp_market
+            .amm
+            .last_mark_price_twap
+            .cast::<i64>()?
+            .safe_sub(
+                perp_market
+                    .amm
+                    .historical_oracle_data
+                    .last_oracle_price_twap,
+            )?;
 
-        let oracle_mark_gap_after =
-            cast_to_i128(perp_market.amm.last_mark_price_twap)?.safe_sub(oracle_twap)?;
+        let oracle_mark_gap_after = perp_market
+            .amm
+            .last_mark_price_twap
+            .cast::<i64>()?
+            .safe_sub(oracle_twap)?;
 
         if (oracle_mark_gap_after > 0 && oracle_mark_gap_before < 0)
             || (oracle_mark_gap_after < 0 && oracle_mark_gap_before > 0)
@@ -966,7 +982,7 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
             perp_market
                 .amm
                 .historical_oracle_data
-                .last_oracle_price_twap = cast_to_i128(perp_market.amm.last_mark_price_twap)?;
+                .last_oracle_price_twap = perp_market.amm.last_mark_price_twap.cast::<i64>()?;
             perp_market
                 .amm
                 .historical_oracle_data
@@ -1003,7 +1019,7 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
     let base_asset_amount_long = perp_market.amm.base_asset_amount_long.unsigned_abs();
     let base_asset_amount_short = perp_market.amm.base_asset_amount_short.unsigned_abs();
     let base_asset_amount_with_amm = perp_market.amm.base_asset_amount_with_amm;
-    let number_of_users = perp_market.number_of_users;
+    let number_of_users = perp_market.number_of_users_with_base;
 
     let price_before = math::amm::calculate_price(
         perp_market.amm.quote_asset_reserve,
@@ -1044,8 +1060,8 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         let max_cost = perp_market
             .amm
             .total_fee_minus_distributions
-            .safe_sub(cast_to_i128(get_total_fee_lower_bound(perp_market)?)?)?
-            .safe_sub(cast_to_i128(perp_market.amm.total_fee_withdrawn)?)?;
+            .safe_sub(get_total_fee_lower_bound(perp_market)?.cast()?)?
+            .safe_sub(perp_market.amm.total_fee_withdrawn.cast()?)?;
         if adjustment_cost > max_cost {
             return Err(ErrorCode::InvalidUpdateK.into());
         }
@@ -1069,8 +1085,9 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         amm.peg_multiplier,
     )?;
 
-    let price_change_too_large = cast_to_i128(price_before)?
-        .safe_sub(cast_to_i128(price_after)?)?
+    let price_change_too_large = price_before
+        .cast::<i128>()?
+        .safe_sub(price_after.cast::<i128>()?)?
         .unsigned_abs()
         .gt(&MAX_UPDATE_K_PRICE_CHANGE);
 
@@ -1089,7 +1106,9 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         .integer_sqrt()
         .try_to_u128()?;
 
-    let k_err = cast_to_i128(k_sqrt_check)?.safe_sub(cast_to_i128(amm.sqrt_k)?)?;
+    let k_err = k_sqrt_check
+        .cast::<i128>()?
+        .safe_sub(amm.sqrt_k.cast::<i128>()?)?;
 
     if k_err.unsigned_abs() > 100 {
         msg!("k_err={:?}, {:?} != {:?}", k_err, k_sqrt_check, amm.sqrt_k);
@@ -1173,7 +1192,7 @@ pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
         perp_market
             .amm
             .historical_oracle_data
-            .last_oracle_price_twap = cast_to_i128(perp_market.amm.last_mark_price_twap)?;
+            .last_oracle_price_twap = perp_market.amm.last_mark_price_twap.cast::<i64>()?;
         perp_market
             .amm
             .historical_oracle_data
@@ -1209,9 +1228,9 @@ pub fn handle_update_perp_market_margin_ratio(
 )]
 pub fn handle_update_perp_market_max_imbalances(
     ctx: Context<AdminUpdatePerpMarket>,
-    unrealized_max_imbalance: u128,
-    max_revenue_withdraw_per_period: u128,
-    quote_max_insurance: u128,
+    unrealized_max_imbalance: u64,
+    max_revenue_withdraw_per_period: u64,
+    quote_max_insurance: u64,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
 
@@ -1278,8 +1297,8 @@ pub fn handle_update_perp_market_name(
 )]
 pub fn handle_update_perp_liquidation_fee(
     ctx: Context<AdminUpdatePerpMarket>,
-    liquidator_fee: u128,
-    if_liquidation_fee: u128,
+    liquidator_fee: u32,
+    if_liquidation_fee: u32,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     validate!(
@@ -1317,8 +1336,8 @@ pub fn handle_update_insurance_fund_unstaking_period(
 
 pub fn handle_update_spot_market_liquidation_fee(
     ctx: Context<AdminUpdateSpotMarket>,
-    liquidator_fee: u128,
-    if_liquidation_fee: u128,
+    liquidator_fee: u32,
+    if_liquidation_fee: u32,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     validate!(
@@ -1340,7 +1359,7 @@ pub fn handle_update_spot_market_liquidation_fee(
 
 pub fn handle_update_withdraw_guard_threshold(
     ctx: Context<AdminUpdateSpotMarket>,
-    withdraw_guard_threshold: u128,
+    withdraw_guard_threshold: u64,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     msg!(
@@ -1373,7 +1392,7 @@ pub fn handle_update_spot_market_if_factor(
     )?;
 
     validate!(
-        total_if_factor <= cast_to_u32(IF_FACTOR_PRECISION)?,
+        total_if_factor <= IF_FACTOR_PRECISION.cast()?,
         ErrorCode::DefaultError,
         "total_if_factor must be <= 100%"
     )?;
@@ -1439,11 +1458,11 @@ pub fn handle_update_spot_market_asset_tier(
 
 pub fn handle_update_spot_market_margin_weights(
     ctx: Context<AdminUpdateSpotMarket>,
-    initial_asset_weight: u128,
-    maintenance_asset_weight: u128,
-    initial_liability_weight: u128,
-    maintenance_liability_weight: u128,
-    imf_factor: u128,
+    initial_asset_weight: u32,
+    maintenance_asset_weight: u32,
+    initial_liability_weight: u32,
+    maintenance_liability_weight: u32,
+    imf_factor: u32,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 
@@ -1467,7 +1486,7 @@ pub fn handle_update_spot_market_margin_weights(
 
 pub fn handle_update_spot_market_max_token_deposits(
     ctx: Context<AdminUpdateSpotMarket>,
-    max_token_deposits: u128,
+    max_token_deposits: u64,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     spot_market.max_token_deposits = max_token_deposits;
@@ -1509,7 +1528,7 @@ pub fn handle_update_perp_market_contract_tier(
 )]
 pub fn handle_update_perp_market_imf_factor(
     ctx: Context<AdminUpdatePerpMarket>,
-    imf_factor: u128,
+    imf_factor: u32,
 ) -> Result<()> {
     validate!(
         imf_factor <= SPOT_IMF_PRECISION,
@@ -1530,12 +1549,12 @@ pub fn handle_update_perp_market_unrealized_asset_weight(
     unrealized_maintenance_asset_weight: u32,
 ) -> Result<()> {
     validate!(
-        unrealized_initial_asset_weight <= cast(SPOT_WEIGHT_PRECISION)?,
+        unrealized_initial_asset_weight <= SPOT_WEIGHT_PRECISION.cast()?,
         ErrorCode::DefaultError,
         "invalid unrealized_initial_asset_weight",
     )?;
     validate!(
-        unrealized_maintenance_asset_weight <= cast(SPOT_WEIGHT_PRECISION)?,
+        unrealized_maintenance_asset_weight <= SPOT_WEIGHT_PRECISION.cast()?,
         ErrorCode::DefaultError,
         "invalid unrealized_maintenance_asset_weight",
     )?;
@@ -1672,12 +1691,12 @@ pub fn handle_update_perp_market_oracle(
 )]
 pub fn handle_update_perp_market_base_spread(
     ctx: Context<AdminUpdatePerpMarket>,
-    base_spread: u16,
+    base_spread: u32,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     perp_market.amm.base_spread = base_spread;
-    perp_market.amm.long_spread = (base_spread / 2) as u128;
-    perp_market.amm.short_spread = (base_spread / 2) as u128;
+    perp_market.amm.long_spread = base_spread / 2;
+    perp_market.amm.short_spread = base_spread / 2;
     Ok(())
 }
 
@@ -1709,7 +1728,7 @@ pub fn handle_update_perp_market_max_spread(
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     validate!(
-        (max_spread >= perp_market.amm.base_spread as u32),
+        max_spread >= perp_market.amm.base_spread,
         ErrorCode::DefaultError,
         "invalid max_spread < base_spread",
     )?;

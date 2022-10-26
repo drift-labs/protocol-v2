@@ -1,4 +1,6 @@
-use crate::math::constants::{AMM_RESERVE_PRECISION, PRICE_PRECISION, QUOTE_PRECISION};
+use crate::math::constants::{
+    AMM_RESERVE_PRECISION, PRICE_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION,
+};
 use crate::math::funding::*;
 use crate::state::oracle::HistoricalOracleData;
 use crate::state::perp_market::{PerpMarket, AMM};
@@ -18,9 +20,9 @@ fn capped_sym_funding_test() {
             total_exchange_fee: QUOTE_PRECISION / 2,
             total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
 
-            last_mark_price_twap: 50 * PRICE_PRECISION,
+            last_mark_price_twap: 50 * PRICE_PRECISION_U64,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (49 * PRICE_PRECISION) as i128,
+                last_oracle_price_twap: (49 * PRICE_PRECISION) as i64,
 
                 ..HistoricalOracleData::default()
             },
@@ -32,8 +34,8 @@ fn capped_sym_funding_test() {
     };
 
     let balanced_funding = calculate_funding_rate(
-        market.amm.last_mark_price_twap,
-        market.amm.historical_oracle_data.last_oracle_price_twap,
+        market.amm.last_mark_price_twap as u128,
+        market.amm.historical_oracle_data.last_oracle_price_twap as i128,
         market.amm.funding_period,
     )
     .unwrap();
@@ -62,9 +64,9 @@ fn capped_sym_funding_test() {
             base_asset_amount_short: -12295081967,
             total_exchange_fee: QUOTE_PRECISION / 2,
             total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
-            last_mark_price_twap: 50 * PRICE_PRECISION,
+            last_mark_price_twap: 50 * PRICE_PRECISION_U64,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (49 * PRICE_PRECISION) as i128,
+                last_oracle_price_twap: (49 * PRICE_PRECISION) as i64,
 
                 ..HistoricalOracleData::default()
             },
@@ -109,9 +111,9 @@ fn funding_unsettled_lps_amm_win_test() {
             total_exchange_fee: QUOTE_PRECISION / 2,
             total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
 
-            last_mark_price_twap: 50 * PRICE_PRECISION,
+            last_mark_price_twap: 50 * PRICE_PRECISION_U64,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (49 * PRICE_PRECISION) as i128,
+                last_oracle_price_twap: (49 * PRICE_PRECISION) as i64,
 
                 ..HistoricalOracleData::default()
             },
@@ -123,8 +125,8 @@ fn funding_unsettled_lps_amm_win_test() {
     };
 
     let balanced_funding = calculate_funding_rate(
-        market.amm.last_mark_price_twap,
-        market.amm.historical_oracle_data.last_oracle_price_twap,
+        market.amm.last_mark_price_twap as u128,
+        market.amm.historical_oracle_data.last_oracle_price_twap as i128,
         market.amm.funding_period,
     )
     .unwrap();
@@ -173,9 +175,9 @@ fn funding_unsettled_lps_amm_win_test() {
             base_asset_amount_with_unsettled_lp: (AMM_RESERVE_PRECISION * 500) as i128, //wowsers
             total_exchange_fee: QUOTE_PRECISION / 2,
             total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
-            last_mark_price_twap: 50 * PRICE_PRECISION,
+            last_mark_price_twap: 50 * PRICE_PRECISION_U64,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (49 * PRICE_PRECISION) as i128,
+                last_oracle_price_twap: (49 * PRICE_PRECISION) as i64,
 
                 ..HistoricalOracleData::default()
             },
@@ -187,8 +189,8 @@ fn funding_unsettled_lps_amm_win_test() {
     };
 
     let balanced_funding = calculate_funding_rate(
-        market.amm.last_mark_price_twap,
-        market.amm.historical_oracle_data.last_oracle_price_twap,
+        market.amm.last_mark_price_twap as u128,
+        market.amm.historical_oracle_data.last_oracle_price_twap as i128,
         market.amm.funding_period,
     )
     .unwrap();
@@ -227,9 +229,9 @@ fn funding_unsettled_lps_amm_lose_test() {
             total_exchange_fee: QUOTE_PRECISION / 2,
             total_fee_minus_distributions: ((QUOTE_PRECISION * 99999) as i128),
 
-            last_mark_price_twap: 50 * PRICE_PRECISION,
+            last_mark_price_twap: 50 * PRICE_PRECISION_U64,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (49 * PRICE_PRECISION) as i128,
+                last_oracle_price_twap: (49 * PRICE_PRECISION) as i64,
 
                 ..HistoricalOracleData::default()
             },
@@ -241,8 +243,8 @@ fn funding_unsettled_lps_amm_lose_test() {
     };
 
     let balanced_funding = calculate_funding_rate(
-        market.amm.last_mark_price_twap,
-        market.amm.historical_oracle_data.last_oracle_price_twap,
+        market.amm.last_mark_price_twap as u128,
+        market.amm.historical_oracle_data.last_oracle_price_twap as i128,
         market.amm.funding_period,
     )
     .unwrap();
@@ -294,9 +296,9 @@ fn funding_unsettled_lps_amm_lose_test() {
             base_asset_amount_with_unsettled_lp: -((AMM_RESERVE_PRECISION * 500) as i128), //wowsers
             total_exchange_fee: QUOTE_PRECISION / 2,
             total_fee_minus_distributions: (QUOTE_PRECISION as i128) / 2,
-            last_mark_price_twap: 50 * PRICE_PRECISION,
+            last_mark_price_twap: 50 * PRICE_PRECISION_U64,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (49 * PRICE_PRECISION) as i128,
+                last_oracle_price_twap: (49 * PRICE_PRECISION) as i64,
 
                 ..HistoricalOracleData::default()
             },
@@ -308,8 +310,8 @@ fn funding_unsettled_lps_amm_lose_test() {
     };
 
     let balanced_funding = calculate_funding_rate(
-        market.amm.last_mark_price_twap,
-        market.amm.historical_oracle_data.last_oracle_price_twap,
+        market.amm.last_mark_price_twap as u128,
+        market.amm.historical_oracle_data.last_oracle_price_twap as i128,
         market.amm.funding_period,
     )
     .unwrap();

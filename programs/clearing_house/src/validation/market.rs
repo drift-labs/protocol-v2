@@ -1,6 +1,6 @@
 use crate::controller::position::PositionDirection;
 use crate::error::{ClearingHouseResult, ErrorCode};
-use crate::math::casting::cast_to_i128;
+use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
 
 use crate::state::perp_market::{PerpMarket, AMM};
@@ -64,8 +64,9 @@ pub fn validate_perp_market(market: &PerpMarket) -> ClearingHouseResult {
         .safe_div(crate::bn::U192::from(market.amm.base_asset_reserve))?
         .try_to_u128()?;
 
-    let rounding_diff = cast_to_i128(quote_asset_reserve)?
-        .safe_sub(cast_to_i128(market.amm.quote_asset_reserve)?)?
+    let rounding_diff = quote_asset_reserve
+        .cast::<i128>()?
+        .safe_sub(market.amm.quote_asset_reserve.cast()?)?
         .abs();
 
     validate!(
@@ -107,7 +108,7 @@ pub fn validate_perp_market(market: &PerpMarket) -> ClearingHouseResult {
     }
 
     validate!(
-        market.amm.long_spread + market.amm.short_spread >= market.amm.base_spread as u128,
+        market.amm.long_spread + market.amm.short_spread >= market.amm.base_spread,
         ErrorCode::DefaultError,
         "long_spread + short_spread < base_spread: {} + {} < {}",
         market.amm.long_spread,
@@ -116,8 +117,12 @@ pub fn validate_perp_market(market: &PerpMarket) -> ClearingHouseResult {
     )?;
 
     validate!(
-        market.amm.long_spread + market.amm.short_spread
-            <= (market.amm.max_spread as u128).max(
+        market
+            .amm
+            .long_spread
+            .safe_add(market.amm.short_spread)?
+            .cast::<u64>()?
+            <= market.amm.max_spread.cast::<u64>()?.max(
                 market
                     .amm
                     .last_oracle_reserve_price_spread_pct
@@ -162,8 +167,8 @@ pub fn validate_perp_market(market: &PerpMarket) -> ClearingHouseResult {
 
     if market.amm.base_spread > 0 {
         validate!(
-            (market.amm.max_spread > market.amm.base_spread as u32)
-                && (market.amm.max_spread < market.margin_ratio_initial * 100),
+            market.amm.max_spread > market.amm.base_spread
+                && market.amm.max_spread < market.margin_ratio_initial * 100,
             ErrorCode::DefaultError,
             "invalid max_spread",
         )?;

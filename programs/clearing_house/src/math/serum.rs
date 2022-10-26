@@ -1,5 +1,5 @@
 use crate::error::ClearingHouseResult;
-use crate::math::casting::{cast, cast_to_u128};
+use crate::math::casting::Cast;
 use crate::math::constants::PRICE_TO_QUOTE_PRECISION_RATIO;
 use crate::math::safe_math::SafeMath;
 
@@ -13,7 +13,7 @@ pub fn calculate_serum_max_coin_qty(
 
 // calculate limit price in serum lot sizes
 pub fn calculate_serum_limit_price(
-    limit_price: u128,
+    limit_price: u64,
     pc_lot_size: u64,
     coin_decimals: u32,
     coin_lot_size: u64,
@@ -21,9 +21,10 @@ pub fn calculate_serum_limit_price(
     let coin_precision = 10_u128.pow(coin_decimals);
 
     limit_price
+        .cast::<u128>()?
         .safe_div(PRICE_TO_QUOTE_PRECISION_RATIO)?
-        .safe_mul(cast(coin_lot_size)?)?
-        .safe_div(cast_to_u128(pc_lot_size)?.safe_mul(coin_precision)?)
+        .safe_mul(coin_lot_size.cast()?)?
+        .safe_div(pc_lot_size.cast::<u128>()?.safe_mul(coin_precision)?)
         .map(|limit_price| limit_price as u64)
 }
 
@@ -46,11 +47,13 @@ pub fn calculate_price_from_serum_limit_price(
     pc_lot_size: u64,
     coin_decimals: u32,
     coin_lot_size: u64,
-) -> ClearingHouseResult<u128> {
+) -> ClearingHouseResult<u64> {
     let coin_precision = 10_u128.pow(coin_decimals);
 
-    cast_to_u128(limit_price)?
-        .safe_mul(cast_to_u128(pc_lot_size)?.safe_mul(coin_precision)?)?
+    limit_price
+        .cast::<u128>()?
+        .safe_mul(pc_lot_size.cast::<u128>()?.safe_mul(coin_precision)?)?
         .safe_mul(PRICE_TO_QUOTE_PRECISION_RATIO)?
-        .safe_div(cast(coin_lot_size)?)
+        .safe_div(coin_lot_size.cast()?)?
+        .cast()
 }

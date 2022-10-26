@@ -2,7 +2,7 @@ mod get_claimable_pnl {
     use crate::math::amm::calculate_net_user_pnl;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I64, MAX_CONCENTRATION_COEFFICIENT,
-        PRICE_PRECISION_I128, QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
+        PRICE_PRECISION_I64, QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
         QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
         SPOT_WEIGHT_PRECISION,
     };
@@ -21,11 +21,12 @@ mod get_claimable_pnl {
                 base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 quote_entry_amount: -100 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
         };
-        let oracle_price = 50 * PRICE_PRECISION_I128;
+        let oracle_price = 50 * PRICE_PRECISION_I64;
         let unsettled_pnl = user.perp_positions[0]
             .get_claimable_pnl(oracle_price, 0)
             .unwrap();
@@ -43,7 +44,7 @@ mod get_claimable_pnl {
             }),
             ..User::default()
         };
-        let oracle_price = 150 * PRICE_PRECISION_I128;
+        let oracle_price = 150 * PRICE_PRECISION_I64;
         let unsettled_pnl = user.perp_positions[0]
             .get_claimable_pnl(oracle_price, 0)
             .unwrap();
@@ -61,7 +62,7 @@ mod get_claimable_pnl {
             }),
             ..User::default()
         };
-        let oracle_price = 150 * PRICE_PRECISION_I128;
+        let oracle_price = 150 * PRICE_PRECISION_I64;
         let (base_asset_value, unrealized_pnl) =
             calculate_base_asset_value_and_pnl_with_oracle_price(
                 &user.perp_positions[0],
@@ -89,7 +90,7 @@ mod get_claimable_pnl {
             }),
             ..User::default()
         };
-        let oracle_price = 75 * PRICE_PRECISION_I128;
+        let oracle_price = 75 * PRICE_PRECISION_I64;
         let unsettled_pnl = user.perp_positions[0]
             .get_claimable_pnl(oracle_price, 0)
             .unwrap();
@@ -107,7 +108,7 @@ mod get_claimable_pnl {
             }),
             ..User::default()
         };
-        let oracle_price = 75 * PRICE_PRECISION_I128;
+        let oracle_price = 75 * PRICE_PRECISION_I64;
         let unsettled_pnl = user.perp_positions[0]
             .get_claimable_pnl(oracle_price, QUOTE_PRECISION_I128)
             .unwrap();
@@ -121,11 +122,12 @@ mod get_claimable_pnl {
                 base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -150 * QUOTE_PRECISION_I64,
                 quote_entry_amount: -100 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
         };
-        let oracle_price = 150 * PRICE_PRECISION_I128;
+        let oracle_price = 150 * PRICE_PRECISION_I64;
         let unsettled_pnl = user.perp_positions[0]
             .get_claimable_pnl(oracle_price, 0)
             .unwrap();
@@ -139,11 +141,12 @@ mod get_claimable_pnl {
                 base_asset_amount: -BASE_PRECISION_I64,
                 quote_asset_amount: 100 * QUOTE_PRECISION_I64,
                 quote_entry_amount: 100 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
         };
-        let oracle_price = 150 * PRICE_PRECISION_I128;
+        let oracle_price = 150 * PRICE_PRECISION_I64;
         let unsettled_pnl = user.perp_positions[0]
             .get_claimable_pnl(oracle_price, 0)
             .unwrap();
@@ -161,7 +164,7 @@ mod get_claimable_pnl {
             }),
             ..User::default()
         };
-        let oracle_price = 50 * PRICE_PRECISION_I128;
+        let oracle_price = 50 * PRICE_PRECISION_I64;
         let unsettled_pnl = user.perp_positions[0]
             .get_claimable_pnl(oracle_price, 0)
             .unwrap();
@@ -175,11 +178,12 @@ mod get_claimable_pnl {
                 base_asset_amount: -BASE_PRECISION_I64,
                 quote_asset_amount: 150 * QUOTE_PRECISION_I64,
                 quote_entry_amount: 100 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
         };
-        let oracle_price = 125 * PRICE_PRECISION_I128;
+        let oracle_price = 125 * PRICE_PRECISION_I64;
         let unsettled_pnl = user.perp_positions[0]
             .get_claimable_pnl(oracle_price, 0)
             .unwrap();
@@ -193,11 +197,12 @@ mod get_claimable_pnl {
                 base_asset_amount: -BASE_PRECISION_I64,
                 quote_asset_amount: 150 * QUOTE_PRECISION_I64,
                 quote_entry_amount: 100 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
         };
-        let oracle_price = 150 * PRICE_PRECISION_I128;
+        let oracle_price = 150 * PRICE_PRECISION_I64;
         let unsettled_pnl = user.perp_positions[0]
             .get_claimable_pnl(oracle_price, 0)
             .unwrap();
@@ -228,8 +233,7 @@ mod get_claimable_pnl {
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
                 curve_update_intensity: 100,
                 base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
-                quote_asset_amount_long: -250 * QUOTE_PRECISION_I128,
-                quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: -100 * QUOTE_PRECISION_I128,
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
@@ -245,6 +249,7 @@ mod get_claimable_pnl {
                 base_asset_amount: -BASE_PRECISION_I64,
                 quote_asset_amount: 150 * QUOTE_PRECISION_I64,
                 quote_entry_amount: 100 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -255,6 +260,7 @@ mod get_claimable_pnl {
                 base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -150 * QUOTE_PRECISION_I64,
                 quote_entry_amount: -50 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: -50 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -265,12 +271,13 @@ mod get_claimable_pnl {
                 base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 quote_entry_amount: -100 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
         };
 
-        let oracle_price = 150 * PRICE_PRECISION_I128;
+        let oracle_price = 150 * PRICE_PRECISION_I64;
 
         let pnl_pool_token_amount = get_token_amount(
             perp_market.pnl_pool.scaled_balance,
@@ -332,8 +339,7 @@ mod get_claimable_pnl {
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
                 curve_update_intensity: 100,
                 base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
-                quote_asset_amount_long: -249 * QUOTE_PRECISION_I128,
-                quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: -99 * QUOTE_PRECISION_I128,
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
@@ -349,6 +355,7 @@ mod get_claimable_pnl {
                 base_asset_amount: -BASE_PRECISION_I64,
                 quote_asset_amount: 150 * QUOTE_PRECISION_I64,
                 quote_entry_amount: 100 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -359,6 +366,7 @@ mod get_claimable_pnl {
                 base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -149 * QUOTE_PRECISION_I64,
                 quote_entry_amount: -150 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: -150 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -369,12 +377,13 @@ mod get_claimable_pnl {
                 base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 quote_entry_amount: -100 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
         };
 
-        let oracle_price = 150 * PRICE_PRECISION_I128;
+        let oracle_price = 150 * PRICE_PRECISION_I64;
 
         let pnl_pool_token_amount = get_token_amount(
             perp_market.pnl_pool.scaled_balance,
@@ -431,7 +440,7 @@ mod get_claimable_pnl {
         );
         assert_eq!(unsettled_pnl3, 9_000_000);
 
-        perp_market.amm.quote_asset_amount_long = -250 * QUOTE_PRECISION_I128;
+        perp_market.amm.quote_asset_amount = -100 * QUOTE_PRECISION_I128;
         let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, oracle_price).unwrap();
         assert_eq!(net_user_pnl, 50000000);
         let max_pnl_pool_excess = if net_user_pnl < pnl_pool_token_amount {
@@ -481,8 +490,7 @@ mod get_claimable_pnl {
                 total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
                 curve_update_intensity: 100,
                 base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
-                quote_asset_amount_long: -250 * QUOTE_PRECISION_I128,
-                quote_asset_amount_short: 150 * QUOTE_PRECISION_I128,
+                quote_asset_amount: -100 * QUOTE_PRECISION_I128,
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
@@ -498,6 +506,7 @@ mod get_claimable_pnl {
                 base_asset_amount: -BASE_PRECISION_I64,
                 quote_asset_amount: 150 * QUOTE_PRECISION_I64,
                 quote_entry_amount: 100 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: 100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -508,6 +517,7 @@ mod get_claimable_pnl {
                 base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -150 * QUOTE_PRECISION_I64,
                 quote_entry_amount: -160 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: -160 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -518,12 +528,13 @@ mod get_claimable_pnl {
                 base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I64,
                 quote_entry_amount: -100 * QUOTE_PRECISION_I64,
+                quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
                 ..PerpPosition::default()
             }),
             ..User::default()
         };
 
-        let oracle_price = 160 * PRICE_PRECISION_I128;
+        let oracle_price = 160 * PRICE_PRECISION_I64;
 
         let pnl_pool_token_amount = get_token_amount(
             perp_market.pnl_pool.scaled_balance,
@@ -584,7 +595,7 @@ mod get_claimable_pnl {
 
 mod get_worst_case_token_amounts {
     use crate::math::constants::{
-        PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION_U64,
+        PRICE_PRECISION_I64, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION,
     };
     use crate::state::oracle::{OraclePriceData, OracleSource};
@@ -612,7 +623,7 @@ mod get_worst_case_token_amounts {
         };
 
         let oracle_price_data = OraclePriceData {
-            price: 100 * PRICE_PRECISION_I128,
+            price: 100 * PRICE_PRECISION_I64,
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
@@ -647,7 +658,7 @@ mod get_worst_case_token_amounts {
         };
 
         let oracle_price_data = OraclePriceData {
-            price: 100 * PRICE_PRECISION_I128,
+            price: 100 * PRICE_PRECISION_I64,
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
@@ -682,7 +693,7 @@ mod get_worst_case_token_amounts {
         };
 
         let oracle_price_data = OraclePriceData {
-            price: 100 * PRICE_PRECISION_I128,
+            price: 100 * PRICE_PRECISION_I64,
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
@@ -717,7 +728,7 @@ mod get_worst_case_token_amounts {
         };
 
         let oracle_price_data = OraclePriceData {
-            price: 100 * PRICE_PRECISION_I128,
+            price: 100 * PRICE_PRECISION_I64,
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
@@ -752,7 +763,7 @@ mod get_worst_case_token_amounts {
         };
 
         let oracle_price_data = OraclePriceData {
-            price: 100 * PRICE_PRECISION_I128,
+            price: 100 * PRICE_PRECISION_I64,
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
@@ -788,7 +799,7 @@ mod get_worst_case_token_amounts {
         };
 
         let oracle_price_data = OraclePriceData {
-            price: 100 * PRICE_PRECISION_I128,
+            price: 100 * PRICE_PRECISION_I64,
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
@@ -824,7 +835,7 @@ mod get_worst_case_token_amounts {
         };
 
         let oracle_price_data = OraclePriceData {
-            price: 100 * PRICE_PRECISION_I128,
+            price: 100 * PRICE_PRECISION_I64,
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
@@ -860,7 +871,7 @@ mod get_worst_case_token_amounts {
         };
 
         let oracle_price_data = OraclePriceData {
-            price: 100 * PRICE_PRECISION_I128,
+            price: 100 * PRICE_PRECISION_I64,
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,

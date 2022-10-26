@@ -567,7 +567,7 @@ describe('repeg and spread amm', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].quoteEntryAmount.toString() == '0'
+				.perpPositions[0].quoteBreakEvenAmount.toString() == '0'
 		);
 
 		console.log(
@@ -610,7 +610,7 @@ describe('repeg and spread amm', () => {
 		console.log(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].quoteEntryAmount.toString()
+				.perpPositions[0].quoteBreakEvenAmount.toString()
 		);
 		// assert(
 		// 	clearingHouse.getUserAccount().perpPositions[0].quoteAssetAmount.toString() ==
@@ -619,7 +619,7 @@ describe('repeg and spread amm', () => {
 		assert(
 			clearingHouse
 				.getUserAccount()
-				.perpPositions[0].quoteEntryAmount.toString() == '0'
+				.perpPositions[0].quoteBreakEvenAmount.toString() == '0'
 		);
 
 		await depositToFeePoolFromIF(157.476328, clearingHouse, userUSDCAccount);
@@ -755,7 +755,7 @@ describe('repeg and spread amm', () => {
 				.getUserAccount()
 				.perpPositions.reduce((unsettledPnl, position) => {
 					return unsettledPnl.add(
-						position.quoteAssetAmount.add(position.quoteEntryAmount)
+						position.quoteAssetAmount.add(position.quoteBreakEvenAmount)
 					);
 				}, ZERO),
 			QUOTE_PRECISION

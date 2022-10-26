@@ -5,13 +5,13 @@ use solana_program::clock::UnixTimestamp;
 
 use crate::controller::amm::formulaic_update_k;
 use crate::controller::position::{
-    get_position_index, update_quote_asset_amount, PositionDirection,
+    get_position_index, update_quote_asset_and_break_even_amount, PositionDirection,
 };
 use crate::error::ClearingHouseResult;
 use crate::get_then_update_id;
 use crate::math::amm;
-use crate::math::casting::{cast, cast_to_i128, Cast};
-use crate::math::constants::{FUNDING_RATE_BUFFER, ONE_HOUR, TWENTY_FOUR_HOUR};
+use crate::math::casting::Cast;
+use crate::math::constants::{FUNDING_RATE_BUFFER, ONE_HOUR_I128, TWENTY_FOUR_HOUR};
 use crate::math::funding::{calculate_funding_payment, calculate_funding_rate_long_short};
 use crate::math::helpers::on_the_hour_update;
 use crate::math::safe_math::SafeMath;
@@ -68,7 +68,7 @@ pub fn settle_funding_payment(
         });
 
         market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate.cast()?;
-        update_quote_asset_amount(market_position, market, market_funding_payment)?;
+        update_quote_asset_and_break_even_amount(market_position, market, market_funding_payment)?;
     }
 
     Ok(())
@@ -111,7 +111,11 @@ pub fn settle_funding_payments(
             });
 
             market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate.cast()?;
-            update_quote_asset_amount(market_position, market, market_funding_payment)?;
+            update_quote_asset_and_break_even_amount(
+                market_position,
+                market,
+                market_funding_payment,
+            )?;
         }
     }
 
@@ -126,7 +130,7 @@ pub fn update_funding_rate(
     now: UnixTimestamp,
     guard_rails: &OracleGuardRails,
     funding_paused: bool,
-    precomputed_reserve_price: Option<u128>,
+    precomputed_reserve_price: Option<u64>,
 ) -> ClearingHouseResult<bool> {
     let reserve_price = match precomputed_reserve_price {
         Some(reserve_price) => reserve_price,
@@ -187,22 +191,24 @@ pub fn update_funding_rate(
         )?;
 
         let period_adjustment = (24_i128)
-            .safe_mul(ONE_HOUR)?
-            .safe_div(max(ONE_HOUR, market.amm.funding_period as i128))?;
+            .safe_mul(ONE_HOUR_I128)?
+            .safe_div(max(ONE_HOUR_I128, market.amm.funding_period as i128))?;
         // funding period = 1 hour, window = 1 day
         // low periodicity => quickly updating/settled funding rates => lower funding rate payment per interval
-        let price_spread = cast_to_i128(mid_price_twap)?.safe_sub(oracle_price_twap)?;
+        let price_spread = mid_price_twap.cast::<i64>()?.safe_sub(oracle_price_twap)?;
 
         // clamp price divergence to 3% for funding rate calculation
         let max_price_spread = oracle_price_twap.safe_div(33)?; // 3%
         let clamped_price_spread = max(-max_price_spread, min(price_spread, max_price_spread));
 
         let funding_rate = clamped_price_spread
-            .safe_mul(cast(FUNDING_RATE_BUFFER)?)?
-            .safe_div(cast(period_adjustment)?)?;
+            .cast::<i128>()?
+            .safe_mul(FUNDING_RATE_BUFFER.cast()?)?
+            .safe_div(period_adjustment.cast()?)?
+            .cast::<i64>()?;
 
         let (funding_rate_long, funding_rate_short, funding_imbalance_cost) =
-            calculate_funding_rate_long_short(market, funding_rate)?;
+            calculate_funding_rate_long_short(market, funding_rate.cast()?)?;
 
         // todo: finish robust tests
         if market.amm.curve_update_intensity > 0 {
@@ -220,8 +226,8 @@ pub fn update_funding_rate(
             .safe_add(funding_rate_short)?;
 
         market.amm.last_funding_rate = funding_rate;
-        market.amm.last_funding_rate_long = funding_rate_long;
-        market.amm.last_funding_rate_short = funding_rate_short;
+        market.amm.last_funding_rate_long = funding_rate_long.cast()?;
+        market.amm.last_funding_rate_short = funding_rate_short.cast()?;
         market.amm.last_24h_avg_funding_rate = calculate_new_twap(
             funding_rate,
             now,

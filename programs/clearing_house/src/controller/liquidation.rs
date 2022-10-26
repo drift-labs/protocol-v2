@@ -8,6 +8,7 @@ use crate::controller::lp::burn_lp_shares;
 use crate::controller::orders;
 use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount,
+    update_quote_asset_and_break_even_amount, PositionDirection,
 };
 use crate::controller::repeg::update_amm_and_check_validity;
 use crate::controller::spot_balance::{
@@ -19,8 +20,8 @@ use crate::controller::spot_position::{
 use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::get_then_update_id;
 use crate::math::bankruptcy::is_user_bankrupt;
-use crate::math::casting::{cast, cast_to_i128, cast_to_u128, cast_to_u64, Cast};
-use crate::math::constants::{LIQUIDATION_FEE_PRECISION, SPOT_WEIGHT_PRECISION};
+use crate::math::casting::Cast;
+use crate::math::constants::{LIQUIDATION_FEE_PRECISION_U128, SPOT_WEIGHT_PRECISION};
 use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
     calculate_base_asset_amount_to_cover_margin_shortage,
@@ -58,6 +59,7 @@ mod tests;
 pub fn liquidate_perp(
     market_index: u16,
     liquidator_max_base_asset_amount: u64,
+    limit_price: Option<u64>,
     user: &mut User,
     user_key: &Pubkey,
     user_stats: &mut UserStats,
@@ -125,9 +127,10 @@ pub fn liquidate_perp(
             Some(liquidation_margin_buffer_ratio as u128),
         )?;
 
-    if !user.is_being_liquidated && total_collateral >= cast(margin_requirement)? {
+    if !user.is_being_liquidated && total_collateral >= margin_requirement.cast()? {
         return Err(ErrorCode::SufficientCollateral);
-    } else if user.is_being_liquidated && total_collateral >= cast(margin_requirement_plus_buffer)?
+    } else if user.is_being_liquidated
+        && total_collateral >= margin_requirement_plus_buffer.cast()?
     {
         user.is_being_liquidated = false;
         return Ok(());
@@ -202,7 +205,9 @@ pub fn liquidate_perp(
                     Some(liquidation_margin_buffer_ratio as u128),
                 )?;
 
-            if intermediate_total_collateral >= cast(intermediate_margin_requirement_plus_buffer)? {
+            if intermediate_total_collateral
+                >= intermediate_margin_requirement_plus_buffer.cast()?
+            {
                 emit!(LiquidationRecord {
                     ts: now,
                     liquidation_id,
@@ -259,7 +264,8 @@ pub fn liquidate_perp(
 
     let margin_ratio_with_buffer = margin_ratio.safe_add(liquidation_margin_buffer_ratio)?;
 
-    let margin_shortage = cast_to_i128(intermediate_margin_requirement_with_buffer)?
+    let margin_shortage = intermediate_margin_requirement_with_buffer
+        .cast::<i128>()?
         .safe_sub(intermediate_total_collateral)?
         .unsigned_abs();
 
@@ -294,16 +300,43 @@ pub fn liquidate_perp(
             LiquidationMultiplierType::Premium // premium if user is short
         },
     )?;
+
+    // Make sure liquidator enters at better than limit price
+    if let Some(limit_price) = limit_price {
+        let liquidation_price = oracle_price
+            .cast::<u128>()?
+            .safe_mul(liquidation_multiplier.cast()?)?
+            .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
+            .cast::<u64>()?;
+
+        match user.perp_positions[position_index].get_direction() {
+            PositionDirection::Long => validate!(
+                liquidation_price <= limit_price.cast()?,
+                ErrorCode::LiquidationDoesntSatisfyLimitPrice,
+                "limit price ({}) > liquidation price ({})",
+                limit_price,
+                liquidation_price
+            )?,
+            PositionDirection::Short => validate!(
+                liquidation_price >= limit_price.cast()?,
+                ErrorCode::LiquidationDoesntSatisfyLimitPrice,
+                "limit price ({}) < liquidation price ({})",
+                limit_price,
+                liquidation_price
+            )?,
+        }
+    }
+
     let base_asset_value =
-        calculate_base_asset_value_with_oracle_price(cast(base_asset_amount)?, oracle_price)?;
+        calculate_base_asset_value_with_oracle_price(base_asset_amount.cast()?, oracle_price)?;
     let quote_asset_amount = base_asset_value
-        .safe_mul(liquidation_multiplier)?
-        .safe_div(LIQUIDATION_FEE_PRECISION)?
+        .safe_mul(liquidation_multiplier.cast()?)?
+        .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
         .cast::<u64>()?;
 
     let if_fee = -base_asset_value
-        .safe_mul(if_liquidation_fee)?
-        .safe_div(LIQUIDATION_FEE_PRECISION)?
+        .safe_mul(if_liquidation_fee.cast()?)?
+        .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
         .cast::<i64>()?;
 
     user_stats.update_taker_volume_30d(quote_asset_amount, now)?;
@@ -326,7 +359,7 @@ pub fn liquidate_perp(
 
         let user_position = user.get_perp_position_mut(market_index).unwrap();
         update_position_and_market(user_position, &mut market, &user_position_delta)?;
-        update_quote_asset_amount(user_position, &mut market, if_fee)?;
+        update_quote_asset_and_break_even_amount(user_position, &mut market, if_fee)?;
 
         let liquidator_position = liquidator
             .force_get_perp_position_mut(market_index)
@@ -381,7 +414,7 @@ pub fn liquidate_perp(
             user_order_id,
             liquidator_order_id,
             fill_record_id,
-            if_fee: cast(if_fee.abs())?,
+            if_fee: if_fee.abs().cast()?,
         },
         ..LiquidationRecord::default()
     });
@@ -535,9 +568,10 @@ pub fn liquidate_spot(
             Some(liquidation_margin_buffer_ratio as u128),
         )?;
 
-    if !user.is_being_liquidated && total_collateral >= cast(margin_requirement)? {
+    if !user.is_being_liquidated && total_collateral >= margin_requirement.cast()? {
         return Err(ErrorCode::SufficientCollateral);
-    } else if user.is_being_liquidated && total_collateral >= cast(margin_requirement_plus_buffer)?
+    } else if user.is_being_liquidated
+        && total_collateral >= margin_requirement_plus_buffer.cast()?
     {
         user.is_being_liquidated = false;
         return Ok(());
@@ -573,7 +607,9 @@ pub fn liquidate_spot(
                     Some(liquidation_margin_buffer_ratio as u128),
                 )?;
 
-            if intermediate_total_collateral >= cast(intermediate_margin_requirement_plus_buffer)? {
+            if intermediate_total_collateral
+                >= intermediate_margin_requirement_plus_buffer.cast()?
+            {
                 emit!(LiquidationRecord {
                     ts: now,
                     liquidation_id,
@@ -608,12 +644,13 @@ pub fn liquidate_spot(
             (total_collateral, margin_requirement_plus_buffer)
         };
 
-    let margin_shortage = cast_to_i128(intermediate_margin_requirement_with_buffer)?
+    let margin_shortage = intermediate_margin_requirement_with_buffer
+        .cast::<i128>()?
         .safe_sub(intermediate_total_collateral)?
         .unsigned_abs();
 
     let liability_weight_with_buffer =
-        liability_weight.safe_add(liquidation_margin_buffer_ratio as u128)?;
+        liability_weight.safe_add(liquidation_margin_buffer_ratio)?;
 
     // Determine what amount of borrow to transfer to reduce margin shortage to 0
     let liability_transfer_to_cover_margin_shortage =
@@ -658,8 +695,8 @@ pub fn liquidate_spot(
     )?;
 
     let if_fee = liability_transfer
-        .safe_mul(liquidation_if_fee)?
-        .safe_div(LIQUIDATION_FEE_PRECISION)?;
+        .safe_mul(liquidation_if_fee.cast()?)?
+        .safe_div(LIQUIDATION_FEE_PRECISION_U128)?;
     {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
 
@@ -689,7 +726,7 @@ pub fn liquidate_spot(
     {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
         transfer_spot_position_deposit(
-            cast_to_i128(asset_transfer)?,
+            asset_transfer.cast::<i128>()?,
             &mut asset_market,
             user.get_spot_position_mut(asset_market_index).unwrap(),
             liquidator
@@ -729,7 +766,7 @@ pub fn liquidate_spot(
             liability_market_index,
             liability_price,
             liability_transfer,
-            if_fee: cast(if_fee)?,
+            if_fee: if_fee.cast()?,
         },
         ..LiquidationRecord::default()
     });
@@ -845,7 +882,7 @@ pub fn liquidate_borrow_for_perp_pnl(
         (
             pnl.unsigned_abs(),
             quote_price,
-            6_u8,
+            6_u32,
             pnl_asset_weight,
             calculate_liquidation_multiplier(
                 market.liquidator_fee,
@@ -905,9 +942,10 @@ pub fn liquidate_borrow_for_perp_pnl(
             Some(liquidation_margin_buffer_ratio as u128),
         )?;
 
-    if !user.is_being_liquidated && total_collateral >= cast(margin_requirement)? {
+    if !user.is_being_liquidated && total_collateral >= margin_requirement.cast()? {
         return Err(ErrorCode::SufficientCollateral);
-    } else if user.is_being_liquidated && total_collateral >= cast(margin_requirement_plus_buffer)?
+    } else if user.is_being_liquidated
+        && total_collateral >= margin_requirement_plus_buffer.cast()?
     {
         user.is_being_liquidated = false;
         return Ok(());
@@ -943,7 +981,9 @@ pub fn liquidate_borrow_for_perp_pnl(
                     Some(liquidation_margin_buffer_ratio as u128),
                 )?;
 
-            if intermediate_total_collateral >= cast(intermediate_margin_requirement_plus_buffer)? {
+            if intermediate_total_collateral
+                >= intermediate_margin_requirement_plus_buffer.cast()?
+            {
                 let market = perp_market_map.get_ref(&perp_market_index)?;
                 let market_oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
 
@@ -980,18 +1020,19 @@ pub fn liquidate_borrow_for_perp_pnl(
             (total_collateral, margin_requirement_plus_buffer)
         };
 
-    let margin_shortage = cast_to_i128(intermediate_margin_requirement_with_buffer)?
+    let margin_shortage = intermediate_margin_requirement_with_buffer
+        .cast::<i128>()?
         .safe_sub(intermediate_total_collateral)?
         .unsigned_abs();
 
     let liability_weight_with_buffer =
-        liability_weight.safe_add(liquidation_margin_buffer_ratio as u128)?;
+        liability_weight.safe_add(liquidation_margin_buffer_ratio)?;
 
     // Determine what amount of borrow to transfer to reduce margin shortage to 0
     let liability_transfer_to_cover_margin_shortage =
         calculate_liability_transfer_to_cover_margin_shortage(
             margin_shortage,
-            pnl_asset_weight as u128,
+            pnl_asset_weight,
             pnl_liquidation_multiplier,
             liability_weight_with_buffer,
             liability_liquidation_multiplier,
@@ -1031,7 +1072,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
         transfer_spot_position_deposit(
-            -cast_to_i128(liability_transfer)?,
+            -liability_transfer.cast::<i128>()?,
             &mut liability_market,
             user.get_spot_position_mut(liability_market_index).unwrap(),
             liquidator
@@ -1238,7 +1279,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         (
             unsettled_pnl.unsigned_abs(),
             quote_price,
-            6_u8,
+            6_u32,
             SPOT_WEIGHT_PRECISION,
             calculate_liquidation_multiplier(
                 market.liquidator_fee,
@@ -1257,9 +1298,10 @@ pub fn liquidate_perp_pnl_for_deposit(
             Some(liquidation_margin_buffer_ratio as u128),
         )?;
 
-    if !user.is_being_liquidated && total_collateral >= cast(margin_requirement)? {
+    if !user.is_being_liquidated && total_collateral >= margin_requirement.cast()? {
         return Err(ErrorCode::SufficientCollateral);
-    } else if user.is_being_liquidated && total_collateral >= cast(margin_requirement_plus_buffer)?
+    } else if user.is_being_liquidated
+        && total_collateral >= margin_requirement_plus_buffer.cast()?
     {
         user.is_being_liquidated = false;
         return Ok(());
@@ -1295,7 +1337,9 @@ pub fn liquidate_perp_pnl_for_deposit(
                     Some(liquidation_margin_buffer_ratio as u128),
                 )?;
 
-            if intermediate_total_collateral >= cast(intermediate_margin_requirement_plus_buffer)? {
+            if intermediate_total_collateral
+                >= intermediate_margin_requirement_plus_buffer.cast()?
+            {
                 let market = perp_market_map.get_ref(&perp_market_index)?;
                 let market_oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
 
@@ -1332,7 +1376,8 @@ pub fn liquidate_perp_pnl_for_deposit(
             (total_collateral, margin_requirement_plus_buffer)
         };
 
-    let margin_shortage = cast_to_i128(intermediate_margin_requirement_with_buffer)?
+    let margin_shortage = intermediate_margin_requirement_with_buffer
+        .cast::<i128>()?
         .safe_sub(intermediate_total_collateral)?
         .unsigned_abs();
 
@@ -1533,23 +1578,23 @@ pub fn resolve_perp_bankruptcy(
         let max_insurance_withdraw = market
             .insurance_claim
             .quote_max_insurance
-            .safe_sub(market.insurance_claim.quote_settled_insurance)?;
+            .safe_sub(market.insurance_claim.quote_settled_insurance)?
+            .cast::<u128>()?;
 
-        let _if_payment = loss
+        let if_payment = loss
             .unsigned_abs()
-            .min(cast_to_u128(
-                insurance_fund_vault_balance.saturating_sub(1),
-            )?)
+            .min(insurance_fund_vault_balance.saturating_sub(1).cast()?)
             .min(max_insurance_withdraw);
 
         market.insurance_claim.quote_settled_insurance = market
             .insurance_claim
             .quote_settled_insurance
-            .safe_add(_if_payment)?;
-        _if_payment
+            .safe_add(if_payment.cast()?)?;
+
+        if_payment
     };
 
-    let loss_to_socialize = loss.safe_add(cast_to_i128(if_payment)?)?;
+    let loss_to_socialize = loss.safe_add(if_payment.cast::<i128>()?)?;
 
     let cumulative_funding_rate_delta = calculate_funding_rate_deltas_to_resolve_bankruptcy(
         loss_to_socialize,
@@ -1559,10 +1604,13 @@ pub fn resolve_perp_bankruptcy(
     // socialize loss
     if loss_to_socialize < 0 {
         {
-            let user = user.get_perp_position_mut(market_index).unwrap();
-            user.quote_asset_amount = 0;
-
             let mut market = perp_market_map.get_ref_mut(&market_index)?;
+            let perp_position = user.force_get_perp_position_mut(market_index)?;
+            update_quote_asset_amount(
+                perp_position,
+                &mut market,
+                -perp_position.quote_asset_amount,
+            )?;
 
             market.amm.cumulative_social_loss = market
                 .amm
@@ -1607,7 +1655,7 @@ pub fn resolve_perp_bankruptcy(
         ..LiquidationRecord::default()
     });
 
-    cast_to_u64(if_payment)
+    if_payment.cast()
 }
 
 pub fn resolve_spot_bankruptcy(
@@ -1676,9 +1724,7 @@ pub fn resolve_spot_bankruptcy(
 
     // todo: add market's insurance fund draw attempt here (before social loss)
     // subtract 1 so insurance_fund_vault_balance always stays >= 1
-    let if_payment = borrow_amount.min(cast_to_u128(
-        insurance_fund_vault_balance.saturating_sub(1),
-    )?);
+    let if_payment = borrow_amount.min(insurance_fund_vault_balance.saturating_sub(1).cast()?);
 
     let loss_to_socialize = borrow_amount.safe_sub(if_payment)?;
 
@@ -1731,5 +1777,5 @@ pub fn resolve_spot_bankruptcy(
         ..LiquidationRecord::default()
     });
 
-    cast_to_u64(if_payment)
+    if_payment.cast()
 }

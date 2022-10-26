@@ -4,7 +4,6 @@ import {
 	BN,
 	calculateEffectiveLeverage,
 	getMarketOrderParams,
-	ONE,
 	OracleSource,
 	ZERO,
 	calculatePrice,
@@ -251,9 +250,15 @@ describe('prepeg', () => {
 		const position0 = clearingHouse.getUserAccount().perpPositions[0];
 
 		console.log(position0.quoteAssetAmount.toString());
-		console.log('quoteEntryAmount:', position0.quoteEntryAmount.toString());
+		console.log('quoteEntryAmount:', position0.quoteBreakEvenAmount.toString());
 		assert.ok(position0.quoteEntryAmount.eq(new BN(-49999074)));
 		assert.ok(acquiredQuoteAssetAmount.eq(position0.quoteEntryAmount.abs()));
+		assert.ok(position0.quoteBreakEvenAmount.eq(new BN(-50049074)));
+		assert.ok(
+			acquiredQuoteAssetAmount.eq(
+				position0.quoteBreakEvenAmount.add(market.amm.totalExchangeFee).abs()
+			)
+		);
 
 		console.log(
 			clearingHouse.getUserAccount().perpPositions[0].baseAssetAmount.toString()
@@ -269,7 +274,7 @@ describe('prepeg', () => {
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(49745050000)));
 		assert.ok(market.amm.baseAssetAmountLong.eq(new BN(49745050000)));
 		assert.ok(market.amm.baseAssetAmountShort.eq(ZERO));
-		assert.ok(market.numberOfUsers.eq(ONE));
+		assert.ok(market.numberOfUsersWithBase === 1);
 		assert.ok(market.amm.totalFee.gt(new BN(49750)));
 		assert.ok(market.amm.totalFeeMinusDistributions.gt(new BN(49750)));
 		assert.ok(market.amm.totalExchangeFee.eq(new BN(49999 + 1)));
@@ -290,6 +295,7 @@ describe('prepeg', () => {
 				position0.quoteEntryAmount.sub(market.amm.totalExchangeFee)
 			)
 		);
+		assert.ok(position0.quoteAssetAmount.eq(position0.quoteBreakEvenAmount));
 	});
 
 	it('Long even more', async () => {
@@ -460,11 +466,11 @@ describe('prepeg', () => {
 		assert(actualDist.sub(estDist).abs().lte(new BN(4))); // cost is near equal
 		assert(market.amm.sqrtK.lt(market0.amm.sqrtK)); // k was lowered
 
-		console.log(market.amm.longSpread.toString());
-		console.log(market.amm.shortSpread.toString());
+		console.log(market.amm.longSpread);
+		console.log(market.amm.shortSpread);
 
-		assert(market.amm.longSpread.eq(new BN('26784')));
-		assert(market.amm.shortSpread.eq(new BN(500)));
+		assert(market.amm.longSpread === 26784);
+		assert(market.amm.shortSpread === 500);
 
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];
@@ -527,8 +533,13 @@ describe('prepeg', () => {
 			'position0.quoteAssetAmount:',
 			position0.quoteAssetAmount.toNumber()
 		);
+		console.log(
+			'position0.quoteEntryAmount:',
+			position0.quoteBreakEvenAmount.toNumber()
+		);
 
 		assert.ok(position0qea.eq(new BN(-51026883)));
+		assert.ok(position0.quoteBreakEvenAmount.eq(new BN(-51077911)));
 		assert.ok(position0.quoteAssetAmount.eq(new BN(-51077911)));
 	});
 
