@@ -214,7 +214,7 @@ export class ClearingHouseUser {
 	 */
 	public getLPBidAsks(marketIndex: number): [BN, BN] {
 		const position = this.getUserPosition(marketIndex);
-		if (position.lpShares.eq(ZERO)) {
+		if (position === undefined || position.lpShares.eq(ZERO)) {
 			return [ZERO, ZERO];
 		}
 
