@@ -1306,6 +1306,7 @@ export class ClearingHouse {
 			userAccounts: [this.getUserAccount()],
 			useMarketLastSlotCache: true,
 			writableSpotMarketIndexes: [marketIndex],
+			readableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 		});
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
@@ -1406,6 +1407,7 @@ export class ClearingHouse {
 				toUser,
 				userStats: this.getUserStatsAccountPublicKey(),
 				state: await this.getStatePublicKey(),
+				spotMarketVault: this.getQuoteSpotMarketAccount().vault,
 			},
 			remainingAccounts,
 		});
@@ -2581,6 +2583,7 @@ export class ClearingHouse {
 	public async placeAndMakeSpotOrder(
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
+		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.txSender.send(
@@ -2588,6 +2591,7 @@ export class ClearingHouse {
 				await this.getPlaceAndMakeSpotOrderIx(
 					orderParams,
 					takerInfo,
+					fulfillmentConfig,
 					referrerInfo
 				)
 			),
@@ -2602,6 +2606,7 @@ export class ClearingHouse {
 	public async getPlaceAndMakeSpotOrderIx(
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
+		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
 		referrerInfo?: ReferrerInfo
 	): Promise<TransactionInstruction> {
 		orderParams = this.getOrderParams(orderParams, MarketType.SPOT);
@@ -2630,10 +2635,19 @@ export class ClearingHouse {
 			});
 		}
 
+		if (fulfillmentConfig) {
+			this.addSerumRemainingAccounts(
+				orderParams.marketIndex,
+				remainingAccounts,
+				fulfillmentConfig
+			);
+		}
+
 		const takerOrderId = takerInfo.order.orderId;
 		return await this.program.instruction.placeAndMakeSpotOrder(
 			orderParams,
 			takerOrderId,
+			fulfillmentConfig ? fulfillmentConfig.fulfillmentType : null,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -2670,6 +2684,66 @@ export class ClearingHouse {
 			reduceOnly: true,
 			price: limitPrice,
 		});
+	}
+
+	/**
+	 * Modifies an open order by closing it and replacing it with a new order.
+	 * @param orderId: The open order to modify
+	 * @param newBaseAmount: The new base amount for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
+	 * @param newLimitPice: The new limit price for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
+	 * @param newOraclePriceOffset: The new oracle price offset for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
+	 * @returns
+	 */
+	public async modifyPerpOrder(
+		orderId: number,
+		newBaseAmount?: BN,
+		newLimitPrice?: BN,
+		newOraclePriceOffset?: number
+	): Promise<TransactionSignature> {
+		if (!newBaseAmount && !newLimitPrice && !newOraclePriceOffset) {
+			throw new Error(
+				`Must provide newBaseAmount or newLimitPrice or newOraclePriceOffset to modify order`
+			);
+		}
+
+		const openOrder = this.getUser().getOrder(orderId);
+		if (!openOrder) {
+			throw new Error(`No open order with id ${orderId.toString()}`);
+		}
+		const cancelOrderIx = await this.getCancelOrderIx(orderId);
+
+		const newOrderParams: OptionalOrderParams = {
+			orderType: openOrder.orderType,
+			marketType: openOrder.marketType,
+			direction: openOrder.direction,
+			baseAssetAmount: newBaseAmount || openOrder.baseAssetAmount,
+			price: newLimitPrice || openOrder.price,
+			marketIndex: openOrder.marketIndex,
+			reduceOnly: openOrder.reduceOnly,
+			postOnly: openOrder.postOnly,
+			immediateOrCancel: openOrder.immediateOrCancel,
+			triggerPrice: openOrder.triggerPrice,
+			triggerCondition: openOrder.triggerCondition,
+			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
+			auctionDuration: openOrder.auctionDuration,
+			maxTs: openOrder.maxTs,
+			auctionStartPrice: openOrder.auctionStartPrice,
+			auctionEndPrice: openOrder.auctionEndPrice,
+		};
+		const placeOrderIx = await this.getPlacePerpOrderIx(newOrderParams);
+
+		const tx = new Transaction();
+		tx.add(
+			ComputeBudgetProgram.requestUnits({
+				units: 1_000_000,
+				additionalFee: 0,
+			})
+		);
+		tx.add(cancelOrderIx);
+		tx.add(placeOrderIx);
+		const { txSig, slot } = await this.txSender.send(tx, [], this.opts);
+		this.perpMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
+		return txSig;
 	}
 
 	public async settlePNLs(
@@ -2738,6 +2812,7 @@ export class ClearingHouse {
 				state: await this.getStatePublicKey(),
 				authority: this.wallet.publicKey,
 				user: settleeUserAccountPublicKey,
+				spotMarketVault: this.getQuoteSpotMarketAccount().vault,
 			},
 			remainingAccounts: remainingAccounts,
 		});

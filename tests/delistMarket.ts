@@ -279,16 +279,11 @@ describe('delist market', () => {
 		console.log(winnerUser.perpPositions[0].quoteAssetAmount.toString());
 		console.log(loserUser.perpPositions[0].quoteAssetAmount.toString());
 
-		// TODO: quoteAssetAmountShort!= sum of users
 		assert(
-			market0.amm.quoteAssetAmountShort.eq(
-				winnerUser.perpPositions[0].quoteAssetAmount
-			)
-		);
-
-		assert(
-			market0.amm.quoteAssetAmountLong.eq(
-				loserUser.perpPositions[0].quoteAssetAmount
+			market0.amm.quoteAssetAmount.eq(
+				winnerUser.perpPositions[0].quoteAssetAmount.add(
+					loserUser.perpPositions[0].quoteAssetAmount
+				)
 			)
 		);
 	});
@@ -615,9 +610,7 @@ describe('delist market', () => {
 	it('put settle market pools to revenue pool', async () => {
 		const marketIndex = 0;
 		const market = clearingHouse.getPerpMarketAccount(marketIndex);
-		const userCostBasis = market.amm.quoteAssetAmountLong
-			.add(market.amm.quoteAssetAmountShort)
-			.add(market.amm.cumulativeSocialLoss);
+		const userCostBasis = market.amm.quoteAssetAmount;
 
 		console.log('userCostBasis:', userCostBasis.toString());
 		assert(userCostBasis.eq(ZERO));

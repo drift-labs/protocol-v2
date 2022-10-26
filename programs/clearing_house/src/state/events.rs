@@ -13,7 +13,7 @@ pub struct NewUserRecord {
     pub ts: i64,
     pub user_authority: Pubkey,
     pub user: Pubkey,
-    pub sub_account_id: u8,
+    pub sub_account_id: u16,
     pub name: [u8; 32],
     pub referrer: Pubkey,
 }

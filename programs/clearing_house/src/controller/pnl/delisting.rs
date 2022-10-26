@@ -217,8 +217,7 @@ pub mod delisting_test {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
-                quote_asset_amount_long: -(QUOTE_PRECISION_I128 * 50), //longs have $100 cost basis
-                quote_asset_amount_short: 0,                           // no shorts
+                quote_asset_amount: -(QUOTE_PRECISION_I128 * 50), //longs have $100 cost basis
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -331,8 +330,7 @@ pub mod delisting_test {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
-                quote_asset_amount_long: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
-                quote_asset_amount_short: 0,                           // no shorts
+                quote_asset_amount: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -449,8 +447,7 @@ pub mod delisting_test {
                     ..HistoricalOracleData::default()
                 },
                 total_fee_minus_distributions: -(100000 * QUOTE_PRECISION_I128), // down $100k
-                quote_asset_amount_long: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
-                quote_asset_amount_short: 0,                           // no shorts
+                quote_asset_amount: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -567,8 +564,7 @@ pub mod delisting_test {
                     ..HistoricalOracleData::default()
                 },
                 total_fee_minus_distributions: -(100000 * QUOTE_PRECISION_I128), // down $100k
-                quote_asset_amount_long: 0,
-                quote_asset_amount_short: (QUOTE_PRECISION_I128 * 10), //shorts have $20 cost basis
+                quote_asset_amount: (QUOTE_PRECISION_I128 * 10), //shorts have $20 cost basis
                 ..AMM::default()
             },
             margin_ratio_initial: 1000,
@@ -680,11 +676,11 @@ pub mod delisting_test {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
-                quote_asset_amount_long: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
-                quote_asset_amount_short: 0,                           // no shorts
+                quote_asset_amount: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
+            number_of_users_with_base: 1,
             number_of_users: 1,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
@@ -850,6 +846,7 @@ pub mod delisting_test {
         assert_eq!(taker.perp_positions[0].base_asset_amount, 0);
         assert_eq!(taker.perp_positions[0].quote_asset_amount, 0);
         assert_eq!(taker.perp_positions[0].quote_entry_amount, 0);
+        assert_eq!(taker.perp_positions[0].quote_break_even_amount, 0);
     }
 
     #[test]
@@ -897,11 +894,11 @@ pub mod delisting_test {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
-                quote_asset_amount_long: (QUOTE_PRECISION_I128 * 10), //longs have -$20 cost basis
-                quote_asset_amount_short: 0,                          // no shorts
+                quote_asset_amount: (QUOTE_PRECISION_I128 * 10), //longs have -$20 cost basis
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
+            number_of_users_with_base: 1,
             number_of_users: 1,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
@@ -1067,6 +1064,7 @@ pub mod delisting_test {
         assert_eq!(taker.perp_positions[0].base_asset_amount, 0);
         assert_eq!(taker.perp_positions[0].quote_asset_amount, 0);
         assert_eq!(taker.perp_positions[0].quote_entry_amount, 0);
+        assert_eq!(taker.perp_positions[0].quote_break_even_amount, 0);
     }
 
     #[test]
@@ -1117,11 +1115,11 @@ pub mod delisting_test {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
-                quote_asset_amount_long: (QUOTE_PRECISION_I128 * 20 * 2000), //longs have -$20 cost basis
-                quote_asset_amount_short: 0,                                 // no shorts
+                quote_asset_amount: (QUOTE_PRECISION_I128 * 20 * 2000), //longs have -$20 cost basis
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
+            number_of_users_with_base: 1,
             number_of_users: 1,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
@@ -1273,6 +1271,7 @@ pub mod delisting_test {
         assert_eq!(taker.perp_positions[0].base_asset_amount, 0);
         assert_eq!(taker.perp_positions[0].quote_asset_amount, 0);
         assert_eq!(taker.perp_positions[0].quote_entry_amount, 0);
+        assert_eq!(taker.perp_positions[0].quote_break_even_amount, 0);
     }
 
     #[test]
@@ -1321,12 +1320,12 @@ pub mod delisting_test {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
-                quote_asset_amount_long: -(QUOTE_PRECISION_I128 * 20 * 2000 - QUOTE_PRECISION_I128), // longs have ~$20 cost basis
-                quote_asset_amount_short: (QUOTE_PRECISION_I128 * 20 * 1000), // shorts have $20 cost basis
+                quote_asset_amount: -(QUOTE_PRECISION_I128 * 20 * 1000 - QUOTE_PRECISION_I128),
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
-            number_of_users: 2,
+            number_of_users_with_base: 2,
+            number_of_users: 3,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -1405,6 +1404,7 @@ pub mod delisting_test {
                 open_bids: BASE_PRECISION_I64,
                 base_asset_amount: (BASE_PRECISION_I64 * 2000),
                 quote_entry_amount: -(QUOTE_PRECISION_I64 * 20 * 2000 + QUOTE_PRECISION_I64), //longs have $19 cost basis,
+                quote_break_even_amount: -(QUOTE_PRECISION_I64 * 20 * 2000 + QUOTE_PRECISION_I64), //longs have $19 cost basis,
                 quote_asset_amount: -(QUOTE_PRECISION_I64 * 20 * 2000 + QUOTE_PRECISION_I64), //longs have $19 cost basis,
                 ..PerpPosition::default()
             }),
@@ -1434,6 +1434,7 @@ pub mod delisting_test {
                 open_asks: -BASE_PRECISION_I64 / 2,
                 base_asset_amount: -(BASE_PRECISION_I64 * 1000),
                 quote_entry_amount: (QUOTE_PRECISION_I64 * 20 * 1000), //shorts have $20 cost basis,
+                quote_break_even_amount: (QUOTE_PRECISION_I64 * 20 * 1000), //shorts have $20 cost basis,
                 quote_asset_amount: (QUOTE_PRECISION_I64 * 20 * 1000), //shorts have $20 cost basis,
                 ..PerpPosition::default()
             }),
@@ -1461,7 +1462,7 @@ pub mod delisting_test {
                 open_bids: 0,
                 base_asset_amount: 0,
                 quote_asset_amount: QUOTE_PRECISION_I64 * 2,
-                quote_entry_amount: 0,
+                quote_break_even_amount: 0,
                 ..PerpPosition::default()
             }),
             ..User::default()
@@ -1602,6 +1603,7 @@ pub mod delisting_test {
             assert_eq!(shorter.perp_positions[0].base_asset_amount, 0);
             assert_eq!(shorter.perp_positions[0].quote_asset_amount, 0);
             assert_eq!(shorter.perp_positions[0].quote_entry_amount, 0);
+            assert_eq!(shorter.perp_positions[0].quote_break_even_amount, 0);
         }
 
         let (margin_requirement, total_collateral, _, _) =
@@ -1649,6 +1651,7 @@ pub mod delisting_test {
         assert_eq!(longer.perp_positions[0].base_asset_amount, 0);
         assert_eq!(longer.perp_positions[0].quote_asset_amount, 0);
         assert_eq!(longer.perp_positions[0].quote_entry_amount, 0);
+        assert_eq!(longer.perp_positions[0].quote_break_even_amount, 0);
 
         assert_eq!(liq.spot_positions[0].scaled_balance, 0);
         assert_eq!(liq.perp_positions[0].base_asset_amount, 0);
@@ -1656,12 +1659,11 @@ pub mod delisting_test {
             liq.perp_positions[0].quote_asset_amount,
             QUOTE_PRECISION_I64 * 2
         );
-        assert_eq!(liq.perp_positions[0].quote_entry_amount, 0);
+        assert_eq!(liq.perp_positions[0].quote_break_even_amount, 0);
 
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.number_of_users, 0);
-        assert_eq!(market.amm.quote_asset_amount_long, 1000999000);
-        assert_eq!(market.amm.quote_asset_amount_short, -998999000);
+        assert_eq!(market.number_of_users_with_base, 0);
+        assert_eq!(market.amm.quote_asset_amount, 2000000);
         drop(market);
         settle_expired_position(
             0,
@@ -1676,25 +1678,21 @@ pub mod delisting_test {
         )
         .unwrap();
         let market = market_map.get_ref_mut(&0).unwrap();
-        assert_eq!(market.amm.quote_asset_amount_long, 998999000);
-        assert_eq!(market.amm.quote_asset_amount_short, -998999000);
-        assert_eq!(market.number_of_users, 0);
+        assert_eq!(market.number_of_users_with_base, 0);
         drop(market);
 
         assert_eq!(liq.perp_positions[0].base_asset_amount, 0);
         assert_eq!(liq.perp_positions[0].quote_asset_amount, 0);
         assert_eq!(liq.perp_positions[0].quote_entry_amount, 0);
+        assert_eq!(liq.perp_positions[0].quote_break_even_amount, 0);
         assert_eq!(liq.spot_positions[0].scaled_balance > 0, true);
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.amm.base_asset_amount_long, 0);
         assert_eq!(market.amm.base_asset_amount_short, 0);
-        assert_eq!(market.number_of_users, 0);
+        assert_eq!(market.number_of_users_with_base, 0);
         assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(
-            market.amm.quote_asset_amount_long + market.amm.quote_asset_amount_short,
-            0
-        );
+        assert_eq!(market.amm.quote_asset_amount, 0);
         assert_eq!(market.amm.cumulative_social_loss, 0);
         drop(market);
     }
@@ -1745,12 +1743,12 @@ pub mod delisting_test {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
-                quote_asset_amount_long: (QUOTE_PRECISION_I128 * 200), // longs have -$1 cost basis
-                quote_asset_amount_short: (QUOTE_PRECISION_I128 * 97 * 1000), // shorts have $97 cost basis
+                quote_asset_amount: (QUOTE_PRECISION_I128 * 200)
+                    + (QUOTE_PRECISION_I128 * 97 * 1000),
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
-            number_of_users: 2,
+            number_of_users_with_base: 2,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
@@ -1830,6 +1828,7 @@ pub mod delisting_test {
                 open_bids: BASE_PRECISION_I64,
                 base_asset_amount: (BASE_PRECISION_I64 * 200),
                 quote_entry_amount: (QUOTE_PRECISION_I64 * 2000), //longs have -$1 cost basis,
+                quote_break_even_amount: (QUOTE_PRECISION_I64 * 2000), //longs have -$1 cost basis,
                 quote_asset_amount: (QUOTE_PRECISION_I64 * 2000), //longs have -$1 cost basis,
                 ..PerpPosition::default()
             }),
@@ -1859,6 +1858,7 @@ pub mod delisting_test {
                 open_asks: -BASE_PRECISION_I64 / 2,
                 base_asset_amount: -(BASE_PRECISION_I64 * 1000),
                 quote_entry_amount: (QUOTE_PRECISION_I64 * 97 * 1000), //shorts have $20 cost basis,
+                quote_break_even_amount: (QUOTE_PRECISION_I64 * 97 * 1000), //shorts have $20 cost basis,
                 quote_asset_amount: (QUOTE_PRECISION_I64 * 97 * 1000), //shorts have $20 cost basis,
                 ..PerpPosition::default()
             }),
@@ -2073,7 +2073,7 @@ pub mod delisting_test {
         //     assert_eq!(shorter.perp_positions[0].open_orders, 0);
         //     assert_eq!(shorter.perp_positions[0].base_asset_amount, 0);
         //     assert_eq!(shorter.perp_positions[0].quote_asset_amount, 0);
-        //     assert_eq!(shorter.perp_positions[0].quote_entry_amount, 0);
+        //     assert_eq!(shorter.perp_positions[0].quote_break_even_amount, 0);
         // }
     }
 
@@ -2123,11 +2123,11 @@ pub mod delisting_test {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
-                quote_asset_amount_long: (QUOTE_PRECISION_I128 * 200), // longs have -$1 cost basis
-                quote_asset_amount_short: (QUOTE_PRECISION_I128 * 97 * 1000), // shorts have $97 cost basis
+                quote_asset_amount: QUOTE_PRECISION_I128 * (97 * 1000 + 200),
                 total_fee_minus_distributions: 0,
                 ..AMM::default()
             },
+            number_of_users_with_base: 2,
             number_of_users: 2,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
@@ -2208,6 +2208,7 @@ pub mod delisting_test {
                 open_bids: BASE_PRECISION_I64,
                 base_asset_amount: (BASE_PRECISION_I64 * 200),
                 quote_entry_amount: (QUOTE_PRECISION_I64 * 200), //longs have -$1 cost basis,
+                quote_break_even_amount: (QUOTE_PRECISION_I64 * 200), //longs have -$1 cost basis,
                 quote_asset_amount: (QUOTE_PRECISION_I64 * 200), //longs have -$1 cost basis,
                 ..PerpPosition::default()
             }),
@@ -2237,6 +2238,7 @@ pub mod delisting_test {
                 open_asks: -BASE_PRECISION_I64 / 2,
                 base_asset_amount: -(BASE_PRECISION_I64 * 1000),
                 quote_entry_amount: (QUOTE_PRECISION_I64 * 97 * 1000), //shorts have $20 cost basis,
+                quote_break_even_amount: (QUOTE_PRECISION_I64 * 97 * 1000), //shorts have $20 cost basis,
                 quote_asset_amount: (QUOTE_PRECISION_I64 * 97 * 1000), //shorts have $20 cost basis,
                 ..PerpPosition::default()
             }),
@@ -2383,20 +2385,12 @@ pub mod delisting_test {
 
             assert_eq!(longer.spot_positions[0].scaled_balance, 20000000000000);
             assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
-            assert_eq!(97000000000, market.amm.quote_asset_amount_short);
-            assert_eq!(
-                longer.perp_positions[0].quote_asset_amount as i128,
-                market.amm.quote_asset_amount_long
-            );
 
             assert_eq!(
                 market.amm.base_asset_amount_long + market.amm.base_asset_amount_short,
                 -800000000000
             );
-            assert_eq!(
-                market.amm.quote_asset_amount_long + market.amm.quote_asset_amount_short,
-                97200000000
-            );
+            assert_eq!(market.amm.quote_asset_amount, 97200000000);
 
             drop(market);
 
@@ -2463,10 +2457,7 @@ pub mod delisting_test {
                     market.amm.base_asset_amount_long + market.amm.base_asset_amount_short,
                     -800000000000
                 );
-                assert_eq!(
-                    market.amm.quote_asset_amount_long + market.amm.quote_asset_amount_short,
-                    97200000000
-                );
+                assert_eq!(market.amm.quote_asset_amount, 97200000000);
 
                 assert_eq!(shorter.perp_positions[0].base_asset_amount, 0);
                 assert_eq!(shorter.perp_positions[0].quote_asset_amount, -23250001000);
@@ -2485,13 +2476,8 @@ pub mod delisting_test {
                     longer.perp_positions[0].base_asset_amount as i128,
                     market.amm.base_asset_amount_long
                 );
-                assert_eq!(
-                    longer.perp_positions[0].quote_asset_amount as i128,
-                    market.amm.quote_asset_amount_long
-                );
 
-                assert_eq!(market.amm.quote_asset_amount_long, 200000000);
-                assert_eq!(market.amm.quote_asset_amount_short, 97000000000);
+                assert_eq!(market.amm.quote_asset_amount, 97200000000);
 
                 drop(market);
             }
@@ -2520,8 +2506,7 @@ pub mod delisting_test {
                 let mut market = market_map.get_ref_mut(&0).unwrap();
                 let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
 
-                assert_eq!(market.amm.quote_asset_amount_long, 201000000);
-                assert_eq!(market.amm.quote_asset_amount_short, 96999000000);
+                assert_eq!(market.amm.quote_asset_amount, 97200000000);
 
                 assert_eq!(market.amm.cumulative_funding_rate_long, 0);
                 assert_eq!(market.amm.cumulative_funding_rate_short, 0);
@@ -2554,10 +2539,7 @@ pub mod delisting_test {
                     market.amm.base_asset_amount_long + market.amm.base_asset_amount_short,
                     -800000000000
                 );
-                assert_eq!(
-                    market.amm.quote_asset_amount_long + market.amm.quote_asset_amount_short,
-                    97200000000
-                );
+                assert_eq!(market.amm.quote_asset_amount, 97200000000);
 
                 assert_eq!(shorter.perp_positions[0].base_asset_amount, 0);
                 assert_eq!(shorter.perp_positions[0].quote_asset_amount, -23249001000);
@@ -2566,10 +2548,9 @@ pub mod delisting_test {
                     liquidator.perp_positions[0].base_asset_amount as i128,
                     market.amm.base_asset_amount_short
                 );
-                assert_eq!(market.amm.quote_asset_amount_short, 96999000000);
+
                 assert_eq!(
                     liquidator.perp_positions[0].quote_asset_amount,
-                    // market.amm.quote_asset_amount_short,
                     120249001000
                 );
 
@@ -2579,8 +2560,7 @@ pub mod delisting_test {
                 );
                 assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
 
-                assert_eq!(market.amm.quote_asset_amount_long, 201000000);
-                assert_eq!(market.amm.quote_asset_amount_short, 96999000000);
+                assert_eq!(market.amm.quote_asset_amount, 201000000 + 96999000000);
 
                 // add a liq fee now
                 market.liquidator_fee = 10000;
@@ -2612,8 +2592,7 @@ pub mod delisting_test {
                 let market = market_map.get_ref_mut(&0).unwrap();
                 let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
 
-                assert_eq!(market.amm.quote_asset_amount_long, 20000010000);
-                assert_eq!(market.amm.quote_asset_amount_short, 77199990000);
+                assert_eq!(market.amm.quote_asset_amount, 20000010000 + 77199990000);
 
                 assert_eq!(market.amm.cumulative_funding_rate_long, 0);
                 assert_eq!(market.amm.cumulative_funding_rate_short, 0);
@@ -2646,10 +2625,7 @@ pub mod delisting_test {
                     market.amm.base_asset_amount_long + market.amm.base_asset_amount_short,
                     -800000000000
                 );
-                assert_eq!(
-                    market.amm.quote_asset_amount_long + market.amm.quote_asset_amount_short,
-                    97200000000
-                );
+                assert_eq!(market.amm.quote_asset_amount, 97200000000);
 
                 assert_eq!(shorter.perp_positions[0].base_asset_amount, 0);
                 assert_eq!(shorter.perp_positions[0].quote_asset_amount, -3449991000);
@@ -2658,10 +2634,8 @@ pub mod delisting_test {
                     liquidator.perp_positions[0].base_asset_amount as i128,
                     market.amm.base_asset_amount_short
                 );
-                assert_eq!(market.amm.quote_asset_amount_short, 77199990000);
                 assert_eq!(
                     liquidator.perp_positions[0].quote_asset_amount,
-                    // market.amm.quote_asset_amount_short,
                     100449991000
                 );
 
@@ -2669,14 +2643,9 @@ pub mod delisting_test {
                     longer.perp_positions[0].base_asset_amount as i128,
                     market.amm.base_asset_amount_long
                 );
-                assert_eq!(
-                    longer.perp_positions[0].quote_asset_amount,
-                    200000000,
-                    // market.amm.quote_asset_amount_long - 20000000000
-                );
+                assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000,);
 
-                assert_eq!(market.amm.quote_asset_amount_long, 20000010000);
-                assert_eq!(market.amm.quote_asset_amount_short, 77199990000);
+                assert_eq!(market.amm.quote_asset_amount, 20000010000 + 77199990000);
                 assert_eq!(market.amm.cumulative_social_loss, 0);
 
                 drop(market);
@@ -2697,6 +2666,10 @@ pub mod delisting_test {
             );
             assert_eq!(
                 liquidator.perp_positions[0].quote_entry_amount,
+                120250001000
+            );
+            assert_eq!(
+                liquidator.perp_positions[0].quote_break_even_amount,
                 120250001000
             );
             assert_eq!(liquidator.perp_positions[0].open_orders, 0);
@@ -2762,8 +2735,9 @@ pub mod delisting_test {
 
             assert_eq!(shorter.perp_positions[0].open_orders, 0);
             assert_eq!(shorter.perp_positions[0].base_asset_amount, 0);
-            assert_eq!(shorter.perp_positions[0].quote_asset_amount, 0);
             assert_eq!(shorter.perp_positions[0].quote_entry_amount, 0);
+            assert_eq!(shorter.perp_positions[0].quote_asset_amount, 0);
+            assert_eq!(shorter.perp_positions[0].quote_break_even_amount, 0);
 
             assert_eq!(longer.perp_positions[0].quote_asset_amount, 200000000);
         }
@@ -2819,8 +2793,7 @@ pub mod delisting_test {
             .unwrap();
             assert_eq!(longer_funding_payment, -3449991000);
 
-            assert_eq!(market.amm.quote_asset_amount_long, 39800020000);
-            assert_eq!(market.amm.quote_asset_amount_short, -43050011000);
+            assert_eq!(market.amm.quote_asset_amount, 200000000);
             assert_eq!(market.amm.cumulative_social_loss, -3449991000);
 
             drop(market);
@@ -2848,21 +2821,15 @@ pub mod delisting_test {
             assert_eq!(market.pnl_pool.scaled_balance, 144300801000); // fees collected
             assert_eq!(market.amm.fee_pool.scaled_balance, 0);
 
-            assert_eq!(market.number_of_users, 0);
+            assert_eq!(market.number_of_users_with_base, 0);
             assert_eq!(market.amm.base_asset_amount_long, 0);
             assert_eq!(market.amm.base_asset_amount_short, 0);
 
             assert_eq!(market.amm.base_asset_amount_with_amm, 0);
 
-            assert_eq!(market.amm.quote_asset_amount_long, 39600020000);
-            assert_eq!(market.amm.quote_asset_amount_short, -43050011000);
+            assert_eq!(market.amm.quote_asset_amount, 0);
 
             assert_eq!(market.amm.cumulative_social_loss, -3449991000);
-
-            assert_eq!(
-                market.amm.quote_asset_amount_long + market.amm.quote_asset_amount_short,
-                market.amm.cumulative_social_loss
-            );
 
             let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
             assert_eq!(oracle_price_data.price, 100 * PRICE_PRECISION_I64);
@@ -2875,6 +2842,7 @@ pub mod delisting_test {
             assert_eq!(longer.perp_positions[0].base_asset_amount, 0);
             assert_eq!(longer.perp_positions[0].quote_asset_amount, 0);
             assert_eq!(longer.perp_positions[0].quote_entry_amount, 0);
+            assert_eq!(longer.perp_positions[0].quote_break_even_amount, 0);
             assert_eq!(longer.perp_positions[0].last_cumulative_funding_rate, 0);
         }
     }

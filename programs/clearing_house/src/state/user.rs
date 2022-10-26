@@ -44,11 +44,11 @@ pub struct User {
     pub next_order_id: u32,
     pub max_margin_ratio: u32,
     pub next_liquidation_id: u16,
-    pub sub_account_id: u8,
+    pub sub_account_id: u16,
     pub is_being_liquidated: bool,
     pub is_bankrupt: bool,
     pub is_margin_trading_enabled: bool,
-    pub padding: [u8; 2],
+    pub padding: [u8; 1],
 }
 
 impl User {
@@ -312,6 +312,7 @@ pub struct PerpPosition {
     pub last_cumulative_funding_rate: i64,
     pub base_asset_amount: i64,
     pub quote_asset_amount: i64,
+    pub quote_break_even_amount: i64,
     pub quote_entry_amount: i64,
     pub open_bids: i64,
     pub open_asks: i64,
@@ -384,17 +385,6 @@ impl PerpPosition {
         } else {
             PositionDirection::Long
         }
-    }
-
-    pub fn get_entry_price(&self) -> ClearingHouseResult<i128> {
-        if self.base_asset_amount == 0 {
-            return Ok(0);
-        }
-
-        (-self.quote_entry_amount.cast::<i128>()?)
-            .safe_mul(PRICE_PRECISION_I128)?
-            .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
-            .safe_div(self.base_asset_amount.cast()?)
     }
 
     pub fn get_cost_basis(&self) -> ClearingHouseResult<i128> {
@@ -699,9 +689,10 @@ pub struct UserStats {
     pub last_filler_volume_30d_ts: i64,
 
     pub if_staked_quote_asset_amount: u64,
-    pub number_of_sub_accounts: u8,
+    pub number_of_sub_accounts: u16,
+    pub max_sub_account_id: u16,
     pub is_referrer: bool,
-    pub padding: [u8; 6],
+    pub padding: [u8; 3],
 }
 
 impl UserStats {

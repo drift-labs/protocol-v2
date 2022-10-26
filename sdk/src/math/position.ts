@@ -205,7 +205,24 @@ export function positionIsAvailable(position: PerpPosition): boolean {
 /**
  *
  * @param userPosition
- * @returns Precision: PRICE_PRECISION (10^10)
+ * @returns Precision: PRICE_PRECISION (10^6)
+ */
+export function calculateBreakEvenPrice(userPosition: PerpPosition): BN {
+	if (userPosition.baseAssetAmount.eq(ZERO)) {
+		return ZERO;
+	}
+
+	return userPosition.quoteBreakEvenAmount
+		.mul(PRICE_PRECISION)
+		.mul(AMM_TO_QUOTE_PRECISION_RATIO)
+		.div(userPosition.baseAssetAmount)
+		.abs();
+}
+
+/**
+ *
+ * @param userPosition
+ * @returns Precision: PRICE_PRECISION (10^6)
  */
 export function calculateEntryPrice(userPosition: PerpPosition): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {

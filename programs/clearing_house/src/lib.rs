@@ -34,7 +34,7 @@ mod validation;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("BJG3o4CURrokB7huNyiHptYepAtHXj4YfefJiPgzUULV");
+declare_id!("jAEeKs9twxAJmXZHqS2p459xW7FMDjoyvuqthRo9qGS");
 
 #[program]
 pub mod clearing_house {
@@ -44,7 +44,7 @@ pub mod clearing_house {
 
     pub fn initialize_user(
         ctx: Context<InitializeUser>,
-        sub_account_id: u8,
+        sub_account_id: u16,
         name: [u8; 32],
     ) -> Result<()> {
         handle_initialize_user(ctx, sub_account_id, name)
@@ -134,8 +134,9 @@ pub mod clearing_house {
         ctx: Context<PlaceAndMake>,
         params: OrderParams,
         taker_order_id: u32,
+        fulfillment_type: Option<SpotFulfillmentType>,
     ) -> Result<()> {
-        handle_place_and_make_spot_order(ctx, params, taker_order_id)
+        handle_place_and_make_spot_order(ctx, params, taker_order_id, fulfillment_type)
     }
 
     pub fn add_perp_lp_shares(
@@ -164,7 +165,7 @@ pub mod clearing_house {
 
     pub fn update_user_name(
         ctx: Context<UpdateUser>,
-        _sub_account_id: u8,
+        _sub_account_id: u16,
         name: [u8; 32],
     ) -> Result<()> {
         handle_update_user_name(ctx, _sub_account_id, name)
@@ -172,7 +173,7 @@ pub mod clearing_house {
 
     pub fn update_user_custom_margin_ratio(
         ctx: Context<UpdateUser>,
-        _sub_account_id: u8,
+        _sub_account_id: u16,
         margin_ratio: u32,
     ) -> Result<()> {
         handle_update_user_custom_margin_ratio(ctx, _sub_account_id, margin_ratio)
@@ -180,7 +181,7 @@ pub mod clearing_house {
 
     pub fn update_user_delegate(
         ctx: Context<UpdateUser>,
-        _sub_account_id: u8,
+        _sub_account_id: u16,
         delegate: Pubkey,
     ) -> Result<()> {
         handle_update_user_delegate(ctx, _sub_account_id, delegate)
