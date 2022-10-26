@@ -753,6 +753,43 @@ export class Admin extends ClearingHouse {
 		});
 	}
 
+	public async updateSpotMarketStepSizeAndTickSize(
+		spotMarketIndex: number,
+		stepSize: BN,
+		tickSize: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSpotMarketStepSizeAndTickSize(
+			stepSize,
+			tickSize,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
+	}
+
+	public async updateSpotMarketMinOrderSize(
+		spotMarketIndex: number,
+		orderSize: BN
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSpotMarketMinOrderSize(orderSize, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				spotMarket: await getSpotMarketPublicKey(
+					this.program.programId,
+					spotMarketIndex
+				),
+			},
+		});
+	}
+
 	public async updatePerpMarketExpiry(
 		perpMarketIndex: number,
 		expiryTs: BN
@@ -839,6 +876,29 @@ export class Admin extends ClearingHouse {
 			initialLiabilityWeight,
 			maintenanceLiabilityWeight,
 			imfFactor,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
+	}
+
+	public async updateSpotMarketBorrowRate(
+		spotMarketIndex: number,
+		optimalUtilization: number,
+		optimalBorrowRate: number,
+		optimalMaxRate: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSpotMarketBorrowRate(
+			optimalUtilization,
+			optimalBorrowRate,
+			optimalMaxRate,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,

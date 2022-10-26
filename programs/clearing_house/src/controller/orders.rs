@@ -658,7 +658,7 @@ pub fn fill_perp_order(
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         market_is_reduce_only = market.is_reduce_only()?;
         amm_is_available &= market.status != MarketStatus::AmmPaused;
-        validation::market::validate_perp_market(market)?;
+        validation::perp_market::validate_perp_market(market)?;
         validate!(
             market.is_active(now)?,
             ErrorCode::MarketActionPaused,
@@ -1422,7 +1422,7 @@ pub fn fulfill_perp_order_with_amm(
     let (order_post_only, order_slot, order_direction) =
         get_struct_values!(user.orders[order_index], post_only, slot, direction);
 
-    validation::market::validate_amm_account_for_fill(&market.amm, order_direction)?;
+    validation::perp_market::validate_amm_account_for_fill(&market.amm, order_direction)?;
 
     let market_side_price = match order_direction {
         PositionDirection::Long => market.amm.ask_price(reserve_price_before)?,

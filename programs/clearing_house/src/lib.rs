@@ -602,6 +602,20 @@ pub mod clearing_house {
         )
     }
 
+    pub fn update_spot_market_borrow_rate(
+        ctx: Context<AdminUpdateSpotMarket>,
+        optimal_utilization: u32,
+        optimal_borrow_rate: u32,
+        max_borrow_rate: u32,
+    ) -> Result<()> {
+        handle_update_spot_market_borrow_rate(
+            ctx,
+            optimal_utilization,
+            optimal_borrow_rate,
+            max_borrow_rate,
+        )
+    }
+
     pub fn update_spot_market_max_token_deposits(
         ctx: Context<AdminUpdateSpotMarket>,
         max_token_deposits: u64,
@@ -615,6 +629,21 @@ pub mod clearing_house {
         oracle_source: OracleSource,
     ) -> Result<()> {
         handle_update_spot_market_oracle(ctx, oracle, oracle_source)
+    }
+
+    pub fn update_spot_market_step_size_and_tick_size(
+        ctx: Context<AdminUpdateSpotMarket>,
+        step_size: u64,
+        tick_size: u64,
+    ) -> Result<()> {
+        handle_update_spot_market_step_size_and_tick_size(ctx, step_size, tick_size)
+    }
+
+    pub fn update_spot_market_min_order_size(
+        ctx: Context<AdminUpdateSpotMarket>,
+        order_size: u64,
+    ) -> Result<()> {
+        handle_update_spot_market_min_order_size(ctx, order_size)
     }
 
     pub fn update_perp_market_status(
