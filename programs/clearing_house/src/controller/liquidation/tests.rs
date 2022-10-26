@@ -105,6 +105,7 @@ pub mod liquidate_perp {
                 market_index: 0,
                 base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -150 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -150 * QUOTE_PRECISION_I64,
                 quote_break_even_amount: -150 * QUOTE_PRECISION_I64,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I64,
@@ -246,6 +247,7 @@ pub mod liquidate_perp {
                 market_index: 0,
                 base_asset_amount: -BASE_PRECISION_I64,
                 quote_asset_amount: 50 * QUOTE_PRECISION_I64,
+                quote_entry_amount: 50 * QUOTE_PRECISION_I64,
                 quote_break_even_amount: 50 * QUOTE_PRECISION_I64,
                 open_orders: 1,
                 open_asks: -BASE_PRECISION_I64,
@@ -517,6 +519,7 @@ pub mod liquidate_perp {
                 market_index: 0,
                 base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -150 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -150 * QUOTE_PRECISION_I64,
                 quote_break_even_amount: -150 * QUOTE_PRECISION_I64,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I64,
@@ -570,6 +573,7 @@ pub mod liquidate_perp {
             BASE_PRECISION_I64 / 2
         );
         assert_eq!(user.perp_positions[0].quote_asset_amount, -101000000);
+        assert_eq!(user.perp_positions[0].quote_entry_amount, -75000000);
         assert_eq!(user.perp_positions[0].quote_break_even_amount, -75500000);
         assert_eq!(user.perp_positions[0].open_orders, 0);
         assert_eq!(user.perp_positions[0].open_bids, 0);
@@ -657,6 +661,7 @@ pub mod liquidate_perp {
                 market_index: 0,
                 base_asset_amount: 2 * BASE_PRECISION_I64,
                 quote_asset_amount: -200 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -200 * QUOTE_PRECISION_I64,
                 quote_break_even_amount: -200 * QUOTE_PRECISION_I64,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I64,
@@ -712,6 +717,7 @@ pub mod liquidate_perp {
 
         assert_eq!(user.perp_positions[0].base_asset_amount, 200000000);
         assert_eq!(user.perp_positions[0].quote_asset_amount, -23600000);
+        assert_eq!(user.perp_positions[0].quote_entry_amount, -20000000);
         assert_eq!(user.perp_positions[0].quote_break_even_amount, -21800000);
         assert_eq!(user.perp_positions[0].open_orders, 0);
         assert_eq!(user.perp_positions[0].open_bids, 0);
@@ -825,6 +831,7 @@ pub mod liquidate_perp {
                 market_index: 0,
                 base_asset_amount: BASE_PRECISION_I64 * 10000,
                 quote_asset_amount: -150 * QUOTE_PRECISION_I64 * 10000,
+                quote_entry_amount: -150 * QUOTE_PRECISION_I64 * 10000,
                 quote_break_even_amount: -150 * QUOTE_PRECISION_I64 * 10000,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I64,
@@ -1011,6 +1018,7 @@ pub mod liquidate_perp {
                 market_index: 0,
                 base_asset_amount: BASE_PRECISION_I64,
                 quote_asset_amount: -150 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -150 * QUOTE_PRECISION_I64,
                 quote_break_even_amount: -150 * QUOTE_PRECISION_I64,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I64,
@@ -1134,6 +1142,7 @@ pub mod liquidate_perp {
                 market_index: 0,
                 base_asset_amount: -BASE_PRECISION_I64,
                 quote_asset_amount: 50 * QUOTE_PRECISION_I64,
+                quote_entry_amount: 50 * QUOTE_PRECISION_I64,
                 quote_break_even_amount: 50 * QUOTE_PRECISION_I64,
                 open_orders: 1,
                 open_asks: -BASE_PRECISION_I64,
@@ -2766,6 +2775,7 @@ pub mod resolve_perp_bankruptcy {
                 market_index: 0,
                 base_asset_amount: 0,
                 quote_asset_amount: -100 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -100 * QUOTE_PRECISION_I64,
                 quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
                 open_orders: 1,
                 open_bids: BASE_PRECISION_I64,
@@ -2827,6 +2837,7 @@ pub mod resolve_perp_bankruptcy {
                 base_asset_amount: 5 * BASE_PRECISION_I64,
                 quote_asset_amount: -500 * QUOTE_PRECISION_I64,
                 quote_break_even_amount: -500 * QUOTE_PRECISION_I64,
+                quote_entry_amount: -500 * QUOTE_PRECISION_I64,
                 open_bids: BASE_PRECISION_I64,
                 last_cumulative_funding_rate: 1000 * FUNDING_RATE_PRECISION_I64,
                 ..PerpPosition::default()
@@ -2862,6 +2873,7 @@ pub mod resolve_perp_bankruptcy {
                 market_index: 0,
                 base_asset_amount: -5 * BASE_PRECISION_I64,
                 quote_asset_amount: 500 * QUOTE_PRECISION_I64,
+                quote_entry_amount: 500 * QUOTE_PRECISION_I64,
                 quote_break_even_amount: 500 * QUOTE_PRECISION_I64,
                 open_bids: BASE_PRECISION_I64,
                 last_cumulative_funding_rate: -1000 * FUNDING_RATE_PRECISION_I64,

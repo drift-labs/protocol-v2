@@ -1016,6 +1016,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
             market_index: 0,
             base_asset_amount: BASE_PRECISION_I64,
             quote_asset_amount: -50 * QUOTE_PRECISION_I64,
+            quote_entry_amount: -100 * QUOTE_PRECISION_I64,
             quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
             ..PerpPosition::default()
         }),
@@ -1148,6 +1149,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
             market_index: 0,
             base_asset_amount: BASE_PRECISION_I64,
             quote_asset_amount: -50 * QUOTE_PRECISION_I64,
+            quote_entry_amount: -100 * QUOTE_PRECISION_I64,
             quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
             ..PerpPosition::default()
         }),
@@ -1277,6 +1279,7 @@ pub fn user_long_negative_unrealized_pnl() {
             market_index: 0,
             base_asset_amount: BASE_PRECISION_I64,
             quote_asset_amount: -100 * QUOTE_PRECISION_I64,
+            quote_entry_amount: -100 * QUOTE_PRECISION_I64,
             quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
             ..PerpPosition::default()
         }),
@@ -1409,6 +1412,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
             market_index: 0,
             base_asset_amount: -BASE_PRECISION_I64,
             quote_asset_amount: 100 * QUOTE_PRECISION_I64,
+            quote_entry_amount: 50 * QUOTE_PRECISION_I64,
             quote_break_even_amount: 50 * QUOTE_PRECISION_I64,
             ..PerpPosition::default()
         }),
@@ -1541,6 +1545,7 @@ pub fn user_short_negative_unrealized_pnl() {
             market_index: 0,
             base_asset_amount: -BASE_PRECISION_I64,
             quote_asset_amount: 50 * QUOTE_PRECISION_I64,
+            quote_entry_amount: 50 * QUOTE_PRECISION_I64,
             quote_break_even_amount: 50 * QUOTE_PRECISION_I64,
             ..PerpPosition::default()
         }),

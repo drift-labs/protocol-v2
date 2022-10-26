@@ -34,7 +34,7 @@ pub mod fulfill_order_with_maker_order {
     use crate::controller::position::PositionDirection;
     use crate::math::constants::{
         BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64, PRICE_PRECISION_U64,
-        QUOTE_PRECISION_U64,
+        QUOTE_PRECISION_I64, QUOTE_PRECISION_U64,
     };
     use crate::state::perp_market::PerpMarket;
     use crate::state::user::{Order, OrderType, PerpPosition, User, UserStats};
@@ -127,6 +127,10 @@ pub mod fulfill_order_with_maker_order {
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
         assert_eq!(taker_position.quote_asset_amount, -100050000);
+        assert_eq!(
+            taker_position.quote_entry_amount,
+            -100 * QUOTE_PRECISION_I64
+        );
         assert_eq!(taker_position.quote_break_even_amount, -100050000);
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
@@ -139,6 +143,7 @@ pub mod fulfill_order_with_maker_order {
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(maker_position.quote_asset_amount, 100030000);
+        assert_eq!(maker_position.quote_entry_amount, 100 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.quote_break_even_amount, 99970000);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
@@ -239,6 +244,10 @@ pub mod fulfill_order_with_maker_order {
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
         assert_eq!(taker_position.quote_asset_amount, -160080000);
+        assert_eq!(
+            taker_position.quote_entry_amount,
+            -160 * QUOTE_PRECISION_I64
+        );
         assert_eq!(taker_position.quote_break_even_amount, -160080000);
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
@@ -251,6 +260,7 @@ pub mod fulfill_order_with_maker_order {
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(maker_position.quote_asset_amount, 160048000);
+        assert_eq!(maker_position.quote_entry_amount, 160 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.quote_break_even_amount, 159952000);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
@@ -351,6 +361,7 @@ pub mod fulfill_order_with_maker_order {
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(taker_position.quote_asset_amount, 179910000);
+        assert_eq!(taker_position.quote_entry_amount, 180 * QUOTE_PRECISION_I64);
         assert_eq!(taker_position.quote_break_even_amount, 180090000);
         assert_eq!(taker_position.open_asks, 0);
         assert_eq!(taker_position.open_orders, 0);
@@ -363,6 +374,10 @@ pub mod fulfill_order_with_maker_order {
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I64);
         assert_eq!(maker_position.quote_asset_amount, -179946000);
+        assert_eq!(
+            maker_position.quote_entry_amount,
+            -180 * QUOTE_PRECISION_I64
+        );
         assert_eq!(maker_position.quote_break_even_amount, -179946000);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_bids, 0);
@@ -463,6 +478,7 @@ pub mod fulfill_order_with_maker_order {
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(taker_position.quote_asset_amount, 139930000);
+        assert_eq!(taker_position.quote_entry_amount, 140 * QUOTE_PRECISION_I64);
         assert_eq!(taker_position.quote_break_even_amount, 140070000);
         assert_eq!(taker_position.open_asks, 0);
         assert_eq!(taker_position.open_orders, 0);
@@ -475,6 +491,10 @@ pub mod fulfill_order_with_maker_order {
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I64);
         assert_eq!(maker_position.quote_asset_amount, -139958000);
+        assert_eq!(
+            maker_position.quote_entry_amount,
+            -140 * QUOTE_PRECISION_I64
+        );
         assert_eq!(maker_position.quote_break_even_amount, -139958000);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_bids, 0);
@@ -910,12 +930,17 @@ pub mod fulfill_order_with_maker_order {
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
         assert_eq!(taker_position.quote_asset_amount, -120120000);
+        assert_eq!(
+            taker_position.quote_entry_amount,
+            -120 * QUOTE_PRECISION_I64
+        );
         assert_eq!(taker_position.quote_break_even_amount, -120120000);
         assert_eq!(taker_stats.taker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(maker_position.quote_asset_amount, 120072000);
+        assert_eq!(maker_position.quote_entry_amount, 120 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.quote_break_even_amount, 119928000);
         assert_eq!(maker_stats.maker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
@@ -1009,12 +1034,17 @@ pub mod fulfill_order_with_maker_order {
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
         assert_eq!(taker_position.quote_asset_amount, -120120000);
+        assert_eq!(
+            taker_position.quote_entry_amount,
+            -120 * QUOTE_PRECISION_I64
+        );
         assert_eq!(taker_position.quote_break_even_amount, -120120000);
         assert_eq!(taker_stats.taker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(maker_position.quote_asset_amount, 120072000);
+        assert_eq!(maker_position.quote_entry_amount, 120 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.quote_break_even_amount, 119928000);
         assert_eq!(maker_stats.maker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
@@ -1111,6 +1141,10 @@ pub mod fulfill_order_with_maker_order {
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
         assert_eq!(taker_position.quote_asset_amount, -150075000);
+        assert_eq!(
+            taker_position.quote_entry_amount,
+            -150 * QUOTE_PRECISION_I64
+        );
         assert_eq!(taker_position.quote_break_even_amount, -150075000);
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
@@ -1123,6 +1157,7 @@ pub mod fulfill_order_with_maker_order {
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(maker_position.quote_asset_amount, 150045000);
+        assert_eq!(maker_position.quote_entry_amount, 150 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.quote_break_even_amount, 149955000);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
@@ -1220,6 +1255,7 @@ pub mod fulfill_order_with_maker_order {
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(maker_position.quote_asset_amount, 100030000);
+        assert_eq!(maker_position.quote_entry_amount, 100 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.quote_break_even_amount, 99970000);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
@@ -1230,6 +1266,10 @@ pub mod fulfill_order_with_maker_order {
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
         assert_eq!(taker_position.quote_asset_amount, -100050000);
+        assert_eq!(
+            taker_position.quote_entry_amount,
+            -100 * QUOTE_PRECISION_I64
+        );
         assert_eq!(taker_position.quote_break_even_amount, -100050000);
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
@@ -1330,6 +1370,10 @@ pub mod fulfill_order_with_maker_order {
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, BASE_PRECISION_I64);
         assert_eq!(maker_position.quote_asset_amount, -99970000);
+        assert_eq!(
+            maker_position.quote_entry_amount,
+            -100 * QUOTE_PRECISION_I64
+        );
         assert_eq!(maker_position.quote_break_even_amount, -99970000);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_bids, 0);
@@ -1340,6 +1384,7 @@ pub mod fulfill_order_with_maker_order {
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, -BASE_PRECISION_I64);
         assert_eq!(taker_position.quote_asset_amount, 99950000);
+        assert_eq!(taker_position.quote_entry_amount, 100 * QUOTE_PRECISION_I64);
         assert_eq!(taker_position.quote_break_even_amount, 100050000);
         assert_eq!(taker_position.open_asks, 0);
         assert_eq!(taker_position.open_orders, 0);
@@ -1369,7 +1414,7 @@ pub mod fulfill_order {
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64,
         BID_ASK_SPREAD_PRECISION_I64, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I64,
-        PRICE_PRECISION_U64, QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION_U64,
+        PRICE_PRECISION_U64, QUOTE_PRECISION_I64, QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
@@ -1653,6 +1698,7 @@ pub mod fulfill_order {
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
         assert_eq!(taker_position.quote_asset_amount, -100306387);
+        assert_eq!(taker_position.quote_entry_amount, -100256258);
         assert_eq!(taker_position.quote_break_even_amount, -100306387);
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
@@ -1665,6 +1711,7 @@ pub mod fulfill_order {
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64 / 2);
         assert_eq!(maker_position.quote_break_even_amount, 49989999);
+        assert_eq!(maker_position.quote_entry_amount, 50_005_000);
         assert_eq!(maker_position.quote_asset_amount, 50_020_001); // 50_005_000 + 50_005_000 * .0003
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
@@ -1863,6 +1910,7 @@ pub mod fulfill_order {
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
         assert_eq!(taker_position.quote_asset_amount, -100331524);
+        assert_eq!(taker_position.quote_entry_amount, -100281382);
         assert_eq!(taker_position.quote_break_even_amount, -100331524);
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
@@ -1875,6 +1923,7 @@ pub mod fulfill_order {
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64 / 2);
         assert_eq!(maker_position.quote_break_even_amount, 49989999);
+        assert_eq!(maker_position.quote_entry_amount, 50_005_000);
         assert_eq!(maker_position.quote_asset_amount, 50_020_001); // 50_005_000 + 50_005_000 * .0003
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
@@ -2051,6 +2100,7 @@ pub mod fulfill_order {
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64 / 2);
         assert_eq!(taker_position.quote_asset_amount, -50025000);
+        assert_eq!(taker_position.quote_entry_amount, -50 * QUOTE_PRECISION_I64);
         assert_eq!(taker_position.quote_break_even_amount, -50025000);
         assert_eq!(taker_position.open_bids, BASE_PRECISION_I64 / 2);
         assert_eq!(taker_position.open_orders, 1);
@@ -2062,6 +2112,7 @@ pub mod fulfill_order {
         let maker_position = &maker.perp_positions[0];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64 / 2);
         assert_eq!(maker_position.quote_asset_amount, 50015000);
+        assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.quote_break_even_amount, 49985000);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);
@@ -2210,6 +2261,7 @@ pub mod fulfill_order {
         let taker_position = &taker.perp_positions[0];
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64);
         assert_eq!(taker_position.quote_asset_amount, -104133674);
+        assert_eq!(taker_position.quote_entry_amount, -104081633);
         assert_eq!(taker_position.quote_break_even_amount, -104133674);
         assert_eq!(taker_position.open_bids, 0);
         assert_eq!(taker_position.open_orders, 0);
@@ -2599,6 +2651,7 @@ pub mod fulfill_order {
         let taker_position = &taker.perp_positions[0].clone();
         assert_eq!(taker_position.base_asset_amount, BASE_PRECISION_I64 / 2);
         assert_eq!(taker_position.quote_asset_amount, -50025000);
+        assert_eq!(taker_position.quote_entry_amount, -50 * QUOTE_PRECISION_I64);
         assert_eq!(taker_position.quote_break_even_amount, -50025000);
         assert_eq!(taker_position.open_bids, BASE_PRECISION_I64 / 2);
         assert_eq!(taker_position.open_orders, 1);
@@ -2618,6 +2671,7 @@ pub mod fulfill_order {
         let maker_position = &maker.perp_positions[1];
         assert_eq!(maker_position.base_asset_amount, -BASE_PRECISION_I64 / 2);
         assert_eq!(maker_position.quote_asset_amount, 50015000);
+        assert_eq!(maker_position.quote_entry_amount, 50 * QUOTE_PRECISION_I64);
         assert_eq!(maker_position.quote_break_even_amount, 49985000);
         assert_eq!(maker_position.open_orders, 0);
         assert_eq!(maker_position.open_asks, 0);

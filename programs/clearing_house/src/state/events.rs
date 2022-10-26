@@ -391,7 +391,7 @@ pub struct SettlePnlRecord {
     pub pnl: i128,
     pub base_asset_amount: i64,
     pub quote_asset_amount_after: i64,
-    pub quote_break_even_amount: i64,
+    pub quote_entry_amount: i64,
     pub settle_price: i64,
 }
 

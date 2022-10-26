@@ -155,7 +155,7 @@ pub fn settle_pnl(
 
     let base_asset_amount = user.perp_positions[position_index].base_asset_amount;
     let quote_asset_amount_after = user.perp_positions[position_index].quote_asset_amount;
-    let quote_break_even_amount = user.perp_positions[position_index].quote_break_even_amount;
+    let quote_entry_amount = user.perp_positions[position_index].quote_entry_amount;
 
     emit!(SettlePnlRecord {
         ts: now,
@@ -164,7 +164,7 @@ pub fn settle_pnl(
         pnl: pnl_to_settle_with_user,
         base_asset_amount,
         quote_asset_amount_after,
-        quote_break_even_amount,
+        quote_entry_amount,
         settle_price: oracle_price,
     });
 
@@ -258,7 +258,7 @@ pub fn settle_expired_position(
     )?;
 
     let base_asset_amount = user.perp_positions[position_index].base_asset_amount;
-    let quote_break_even_amount = user.perp_positions[position_index].quote_break_even_amount;
+    let quote_entry_amount = user.perp_positions[position_index].quote_entry_amount;
 
     let position_delta = PositionDelta {
         quote_asset_amount: base_asset_value,
@@ -308,7 +308,7 @@ pub fn settle_expired_position(
         pnl: pnl_to_settle_with_user,
         base_asset_amount,
         quote_asset_amount_after,
-        quote_break_even_amount,
+        quote_entry_amount,
         settle_price: perp_market.expiry_price,
     });
 
