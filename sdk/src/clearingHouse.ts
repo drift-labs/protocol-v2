@@ -2166,13 +2166,11 @@ export class ClearingHouse {
 		const orderId = order.orderId;
 		const makerOrderId = makerInfo ? makerInfo.order.orderId : null;
 
-		if (fulfillmentConfig) {
-			this.addSerumRemainingAccounts(
-				marketIndex,
-				remainingAccounts,
-				fulfillmentConfig
-			);
-		}
+		this.addSpotFulfillmentAccounts(
+			marketIndex,
+			remainingAccounts,
+			fulfillmentConfig
+		);
 
 		return await this.program.instruction.fillSpotOrder(
 			orderId,
@@ -2190,6 +2188,31 @@ export class ClearingHouse {
 				remainingAccounts,
 			}
 		);
+	}
+
+	addSpotFulfillmentAccounts(
+		marketIndex: number,
+		remainingAccounts: AccountMeta[],
+		fulfillmentConfig?: SerumV3FulfillmentConfigAccount
+	) {
+		if (fulfillmentConfig) {
+			this.addSerumRemainingAccounts(
+				marketIndex,
+				remainingAccounts,
+				fulfillmentConfig
+			);
+		} else {
+			remainingAccounts.push({
+				pubkey: this.getSpotMarketAccount(marketIndex).vault,
+				isWritable: false,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: this.getQuoteSpotMarketAccount().vault,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
 	}
 
 	addSerumRemainingAccounts(
@@ -2556,13 +2579,11 @@ export class ClearingHouse {
 			});
 		}
 
-		if (fulfillmentConfig) {
-			this.addSerumRemainingAccounts(
-				orderParams.marketIndex,
-				remainingAccounts,
-				fulfillmentConfig
-			);
-		}
+		this.addSpotFulfillmentAccounts(
+			orderParams.marketIndex,
+			remainingAccounts,
+			fulfillmentConfig
+		);
 
 		return await this.program.instruction.placeAndTakeSpotOrder(
 			orderParams,
@@ -2635,13 +2656,11 @@ export class ClearingHouse {
 			});
 		}
 
-		if (fulfillmentConfig) {
-			this.addSerumRemainingAccounts(
-				orderParams.marketIndex,
-				remainingAccounts,
-				fulfillmentConfig
-			);
-		}
+		this.addSpotFulfillmentAccounts(
+			orderParams.marketIndex,
+			remainingAccounts,
+			fulfillmentConfig
+		);
 
 		const takerOrderId = takerInfo.order.orderId;
 		return await this.program.instruction.placeAndMakeSpotOrder(
