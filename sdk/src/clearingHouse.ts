@@ -2688,18 +2688,20 @@ export class ClearingHouse {
 	/**
 	 * Modifies an open order by closing it and replacing it with a new order.
 	 * @param orderId: The open order to modify
-	 * @param newBaseAmount: The new base amount for the order. One of newBaseAmount or newLimitPrice must be provided.
-	 * @param newLimitPice: The new limit price for the order. One of newBaseAmount or newLimitPrice must be provided.
+	 * @param newBaseAmount: The new base amount for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
+	 * @param newLimitPice: The new limit price for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
+	 * @param newOraclePriceOffset: The new oracle price offset for the order. One of [newBaseAmount|newLimitPrice|newOraclePriceOffset] must be provided.
 	 * @returns
 	 */
 	public async modifyPerpOrder(
 		orderId: number,
 		newBaseAmount?: BN,
-		newLimitPrice?: BN
+		newLimitPrice?: BN,
+		newOraclePriceOffset?: number
 	): Promise<TransactionSignature> {
-		if (!newBaseAmount && !newLimitPrice) {
+		if (!newBaseAmount && !newLimitPrice && !newOraclePriceOffset) {
 			throw new Error(
-				`Must provide newBaseAmount or newLimitPrice to modify order`
+				`Must provide newBaseAmount or newLimitPrice or newOraclePriceOffset to modify order`
 			);
 		}
 
@@ -2709,9 +2711,9 @@ export class ClearingHouse {
 		}
 		const cancelOrderIx = await this.getCancelOrderIx(orderId);
 
-		const newOrderParams = {
+		const newOrderParams: OptionalOrderParams = {
 			orderType: openOrder.orderType,
-			MarketType: openOrder.marketType,
+			marketType: openOrder.marketType,
 			direction: openOrder.direction,
 			baseAssetAmount: newBaseAmount || openOrder.baseAssetAmount,
 			price: newLimitPrice || openOrder.price,
@@ -2721,12 +2723,13 @@ export class ClearingHouse {
 			immediateOrCancel: openOrder.immediateOrCancel,
 			triggerPrice: openOrder.triggerPrice,
 			triggerCondition: openOrder.triggerCondition,
-			oraclePriceOffset: openOrder.oraclePriceOffset,
+			oraclePriceOffset: newOraclePriceOffset || openOrder.oraclePriceOffset,
 			auctionDuration: openOrder.auctionDuration,
-			timeInforce: openOrder.timeInForce,
+			maxTs: openOrder.maxTs,
 			auctionStartPrice: openOrder.auctionStartPrice,
+			auctionEndPrice: openOrder.auctionEndPrice,
 		};
-		const placeOrderIx = await this.getPlaceOrderIx(newOrderParams);
+		const placeOrderIx = await this.getPlacePerpOrderIx(newOrderParams);
 
 		const tx = new Transaction();
 		tx.add(
@@ -2738,7 +2741,7 @@ export class ClearingHouse {
 		tx.add(cancelOrderIx);
 		tx.add(placeOrderIx);
 		const { txSig, slot } = await this.txSender.send(tx, [], this.opts);
-		this.marketLastSlotCache.set(newOrderParams.marketIndex, slot);
+		this.perpMarketLastSlotCache.set(newOrderParams.marketIndex, slot);
 		return txSig;
 	}
 
