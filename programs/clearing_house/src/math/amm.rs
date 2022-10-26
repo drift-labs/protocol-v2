@@ -44,6 +44,13 @@ pub fn calculate_bid_ask_bounds(
     concentration_coef: u128,
     sqrt_k: u128,
 ) -> ClearingHouseResult<(u128, u128)> {
+    validate!(
+        concentration_coef > CONCENTRATION_PRECISION,
+        ErrorCode::DefaultError,
+        "concentration_coef={} <= CONCENTRATION_PRECISION={}",
+        concentration_coef,
+        CONCENTRATION_PRECISION
+    )?;
     // worse case if all asks are filled (max reserve)
     let ask_bounded_base =
         get_proportion_u128(sqrt_k, concentration_coef, CONCENTRATION_PRECISION)?;

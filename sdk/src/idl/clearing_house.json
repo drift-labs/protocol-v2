@@ -2709,6 +2709,40 @@
       ]
     },
     {
+      "name": "updateSpotMarketBorrowRate",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "optimalUtilization",
+          "type": "u32"
+        },
+        {
+          "name": "optimalBorrowRate",
+          "type": "u32"
+        },
+        {
+          "name": "maxBorrowRate",
+          "type": "u32"
+        }
+      ]
+    },
+    {
       "name": "updateSpotMarketMaxTokenDeposits",
       "accounts": [
         {
@@ -2768,6 +2802,62 @@
           "type": {
             "defined": "OracleSource"
           }
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketStepSizeAndTickSize",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "stepSize",
+          "type": "u64"
+        },
+        {
+          "name": "tickSize",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketMinOrderSize",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "orderSize",
+          "type": "u64"
         }
       ]
     },

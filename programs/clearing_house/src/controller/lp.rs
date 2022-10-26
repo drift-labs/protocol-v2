@@ -54,7 +54,7 @@ pub fn mint_lp_shares(
 
     market.amm.user_lp_shares = market.amm.user_lp_shares.safe_add(n_shares.cast()?)?;
 
-    crate::validation::market::validate_perp_market(market)?;
+    crate::validation::perp_market::validate_perp_market(market)?;
     crate::validation::position::validate_perp_position_with_perp_market(position, market)?;
 
     Ok(())
@@ -101,7 +101,7 @@ pub fn settle_lp_position(
     position.last_net_base_asset_amount_per_lp = market.amm.base_asset_amount_per_lp.cast()?;
     position.last_net_quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp.cast()?;
 
-    crate::validation::market::validate_perp_market(market)?;
+    crate::validation::perp_market::validate_perp_market(market)?;
     crate::validation::position::validate_perp_position_with_perp_market(position, market)?;
 
     Ok((position_delta, pnl))
@@ -216,7 +216,7 @@ pub fn burn_lp_shares(
     let update_k_result = get_update_k_result(market, new_sqrt_k_u192, false)?;
     update_k(market, &update_k_result)?;
 
-    crate::validation::market::validate_perp_market(market)?;
+    crate::validation::perp_market::validate_perp_market(market)?;
     crate::validation::position::validate_perp_position_with_perp_market(position, market)?;
 
     Ok((position_delta, pnl))

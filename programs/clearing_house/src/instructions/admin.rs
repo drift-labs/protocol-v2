@@ -20,8 +20,8 @@ use crate::math::constants::{
     DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE, IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX,
     INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION,
     MAX_CONCENTRATION_COEFFICIENT, MAX_UPDATE_K_PRICE_CHANGE, QUOTE_SPOT_MARKET_INDEX,
-    SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_UTILIZATION_PRECISION,
-    SPOT_UTILIZATION_PRECISION_U32, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+    SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION,
+    TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
@@ -48,7 +48,8 @@ use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State}
 use crate::validate;
 use crate::validation::fee_structure::validate_fee_structure;
 use crate::validation::margin::{validate_margin, validate_margin_weights};
-use crate::validation::market::validate_perp_market;
+use crate::validation::perp_market::validate_perp_market;
+use crate::validation::spot_market::validate_borrow_rate;
 use crate::{math, safe_increment};
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -108,12 +109,7 @@ pub fn handle_initialize_spot_market(
         return Err(ErrorCode::InvalidInsuranceFundAuthority.into());
     }
 
-    validate!(
-        optimal_utilization <= SPOT_UTILIZATION_PRECISION_U32,
-        ErrorCode::InvalidSpotMarketInitialization,
-        "For spot market, optimal_utilization must be < {}",
-        SPOT_UTILIZATION_PRECISION
-    )?;
+    validate_borrow_rate(optimal_utilization, optimal_borrow_rate, max_borrow_rate)?;
 
     let spot_market_index = get_then_update_id!(state, number_of_spot_markets);
 
@@ -322,27 +318,33 @@ pub fn handle_initialize_serum_fulfillment_config(
     let serum_signer_nonce = market_state.vault_signer_nonce;
 
     let market_step_size = market_state.coin_lot_size;
-    let valid_step_size = market_step_size >= base_spot_market.order_step_size
-        && market_step_size.rem_euclid(base_spot_market.order_step_size) == 0;
+    let valid_step_size = base_spot_market.order_step_size >= market_step_size
+        && base_spot_market
+            .order_step_size
+            .rem_euclid(market_step_size)
+            == 0;
 
     validate!(
         valid_step_size,
         ErrorCode::InvalidSerumMarket,
-        "serum step size ({}) not a multiple of base market step size ({})",
-        market_step_size,
-        base_spot_market.order_step_size
+        "base market step size ({}) not a multiple of serum step size ({})",
+        base_spot_market.order_step_size,
+        market_step_size
     )?;
 
     let market_tick_size = market_state.pc_lot_size;
-    let valid_tick_size = market_step_size >= base_spot_market.order_tick_size
-        && market_tick_size.rem_euclid(base_spot_market.order_tick_size) == 0;
+    let valid_tick_size = base_spot_market.order_tick_size >= market_tick_size
+        && base_spot_market
+            .order_tick_size
+            .rem_euclid(market_tick_size)
+            == 0;
 
     validate!(
         valid_tick_size,
         ErrorCode::InvalidSerumMarket,
-        "serum tick size ({}) not a multiple of base market tick size ({})",
-        market_tick_size,
-        base_spot_market.order_tick_size
+        "base market tick size ({}) not a multiple of serum tick size ({})",
+        base_spot_market.order_tick_size,
+        market_tick_size
     )?;
 
     drop(market_state);
@@ -1484,6 +1486,20 @@ pub fn handle_update_spot_market_margin_weights(
     Ok(())
 }
 
+pub fn handle_update_spot_market_borrow_rate(
+    ctx: Context<AdminUpdateSpotMarket>,
+    optimal_utilization: u32,
+    optimal_borrow_rate: u32,
+    max_borrow_rate: u32,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    validate_borrow_rate(optimal_utilization, optimal_borrow_rate, max_borrow_rate)?;
+    spot_market.optimal_utilization = optimal_utilization;
+    spot_market.optimal_borrow_rate = optimal_borrow_rate;
+    spot_market.max_borrow_rate = max_borrow_rate;
+    Ok(())
+}
+
 pub fn handle_update_spot_market_max_token_deposits(
     ctx: Context<AdminUpdateSpotMarket>,
     max_token_deposits: u64,
@@ -1769,6 +1785,34 @@ pub fn handle_update_perp_market_min_order_size(
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     validate!(order_size > 0, ErrorCode::DefaultError)?;
     perp_market.amm.min_order_size = order_size;
+    Ok(())
+}
+
+pub fn handle_update_spot_market_step_size_and_tick_size(
+    ctx: Context<AdminUpdateSpotMarket>,
+    step_size: u64,
+    tick_size: u64,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    validate!(
+        spot_market.market_index == 0 || step_size > 0 && tick_size > 0,
+        ErrorCode::DefaultError
+    )?;
+    spot_market.order_step_size = step_size;
+    spot_market.order_tick_size = tick_size;
+    Ok(())
+}
+
+pub fn handle_update_spot_market_min_order_size(
+    ctx: Context<AdminUpdateSpotMarket>,
+    order_size: u64,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    validate!(
+        spot_market.market_index == 0 || order_size > 0,
+        ErrorCode::DefaultError
+    )?;
+    spot_market.min_order_size = order_size;
     Ok(())
 }
 
