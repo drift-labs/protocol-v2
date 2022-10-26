@@ -1188,7 +1188,7 @@ fn attempt_borrow_with_massive_upnl() {
             market_index: 0,
             base_asset_amount: 1000 * BASE_PRECISION_I64,
             quote_asset_amount: -100 * QUOTE_PRECISION_I64, // got in at 10 cents
-            quote_entry_amount: -100 * QUOTE_PRECISION_I64,
+            quote_break_even_amount: -100 * QUOTE_PRECISION_I64,
 
             ..PerpPosition::default()
         }),

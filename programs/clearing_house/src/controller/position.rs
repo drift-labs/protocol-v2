@@ -99,13 +99,17 @@ pub fn update_position_and_market(
         .base_asset_amount
         .safe_add(delta.base_asset_amount)?;
 
-    let (new_quote_entry_amount, pnl) = match update_type {
+    let (new_quote_entry_amount, new_quote_break_even_amount, pnl) = match update_type {
         PositionUpdateType::Open | PositionUpdateType::Increase => {
             let new_quote_entry_amount = position
                 .quote_entry_amount
                 .safe_add(delta.quote_asset_amount)?;
 
-            (new_quote_entry_amount, 0_i64)
+            let new_quote_break_even_amount = position
+                .quote_break_even_amount
+                .safe_add(delta.quote_asset_amount)?;
+
+            (new_quote_entry_amount, new_quote_break_even_amount, 0_i64)
         }
         PositionUpdateType::Reduce | PositionUpdateType::Close => {
             let new_quote_entry_amount = position.quote_entry_amount.safe_sub(
@@ -117,15 +121,25 @@ pub fn update_position_and_market(
                     .cast()?,
             )?;
 
+            let new_quote_break_even_amount = position.quote_break_even_amount.safe_sub(
+                position
+                    .quote_break_even_amount
+                    .cast::<i128>()?
+                    .safe_mul(delta.base_asset_amount.abs().cast()?)?
+                    .safe_div(position.base_asset_amount.abs().cast()?)?
+                    .cast()?,
+            )?;
+
             let pnl = position
                 .quote_entry_amount
                 .safe_sub(new_quote_entry_amount)?
                 .safe_add(delta.quote_asset_amount)?;
 
-            (new_quote_entry_amount, pnl)
+            (new_quote_entry_amount, new_quote_break_even_amount, pnl)
         }
         PositionUpdateType::Flip => {
-            let new_quote_entry_amount = delta.quote_asset_amount.safe_sub(
+            // same calculation for new_quote_entry_amount
+            let new_quote_break_even_amount = delta.quote_asset_amount.safe_sub(
                 delta
                     .quote_asset_amount
                     .cast::<i128>()?
@@ -134,11 +148,17 @@ pub fn update_position_and_market(
                     .cast()?,
             )?;
 
-            let pnl = position
-                .quote_entry_amount
-                .safe_add(delta.quote_asset_amount.safe_sub(new_quote_entry_amount)?)?;
+            let pnl = position.quote_entry_amount.safe_add(
+                delta
+                    .quote_asset_amount
+                    .safe_sub(new_quote_break_even_amount)?,
+            )?;
 
-            (new_quote_entry_amount.cast::<i64>()?, pnl)
+            (
+                new_quote_break_even_amount,
+                new_quote_break_even_amount,
+                pnl,
+            )
         }
     };
 
@@ -173,6 +193,11 @@ pub fn update_position_and_market(
                     .amm
                     .quote_entry_amount_long
                     .safe_add(delta.quote_asset_amount.cast()?)?;
+                market.amm.quote_break_even_amount_long =
+                    market
+                        .amm
+                        .quote_break_even_amount_long
+                        .safe_add(delta.quote_asset_amount.cast()?)?;
             } else {
                 market.amm.base_asset_amount_short = market
                     .amm
@@ -181,6 +206,10 @@ pub fn update_position_and_market(
                 market.amm.quote_entry_amount_short = market
                     .amm
                     .quote_entry_amount_short
+                    .safe_add(delta.quote_asset_amount.cast()?)?;
+                market.amm.quote_break_even_amount_short = market
+                    .amm
+                    .quote_break_even_amount_short
                     .safe_add(delta.quote_asset_amount.cast()?)?;
             }
         }
@@ -196,6 +225,13 @@ pub fn update_position_and_market(
                         .safe_sub(new_quote_entry_amount)?
                         .cast()?,
                 )?;
+                market.amm.quote_break_even_amount_long =
+                    market.amm.quote_break_even_amount_long.safe_sub(
+                        position
+                            .quote_break_even_amount
+                            .safe_sub(new_quote_break_even_amount)?
+                            .cast()?,
+                    )?;
             } else {
                 market.amm.base_asset_amount_short = market
                     .amm
@@ -206,6 +242,13 @@ pub fn update_position_and_market(
                         position
                             .quote_entry_amount
                             .safe_sub(new_quote_entry_amount)?
+                            .cast()?,
+                    )?;
+                market.amm.quote_break_even_amount_short =
+                    market.amm.quote_break_even_amount_short.safe_sub(
+                        position
+                            .quote_break_even_amount
+                            .safe_sub(new_quote_break_even_amount)?
                             .cast()?,
                     )?;
             }
@@ -229,6 +272,16 @@ pub fn update_position_and_market(
                     .amm
                     .quote_entry_amount_long
                     .safe_add(new_quote_entry_amount.cast()?)?;
+
+                market.amm.quote_break_even_amount_short = market
+                    .amm
+                    .quote_break_even_amount_short
+                    .safe_sub(position.quote_break_even_amount.cast()?)?;
+                market.amm.quote_break_even_amount_long =
+                    market
+                        .amm
+                        .quote_break_even_amount_long
+                        .safe_add(new_quote_break_even_amount.cast()?)?;
             } else {
                 market.amm.base_asset_amount_long = market
                     .amm
@@ -247,6 +300,16 @@ pub fn update_position_and_market(
                     .amm
                     .quote_entry_amount_short
                     .safe_add(new_quote_entry_amount.cast()?)?;
+
+                market.amm.quote_break_even_amount_long =
+                    market
+                        .amm
+                        .quote_break_even_amount_long
+                        .safe_sub(position.quote_break_even_amount.cast()?)?;
+                market.amm.quote_break_even_amount_short = market
+                    .amm
+                    .quote_break_even_amount_short
+                    .safe_add(new_quote_break_even_amount.cast()?)?;
             }
         }
     }
@@ -303,6 +366,7 @@ pub fn update_position_and_market(
 
     position.quote_asset_amount = new_quote_asset_amount;
     position.quote_entry_amount = new_quote_entry_amount;
+    position.quote_break_even_amount = new_quote_break_even_amount;
     position.base_asset_amount = new_base_asset_amount;
 
     Ok(pnl)
@@ -455,13 +519,13 @@ fn calculate_quote_asset_amount_surplus(
     Ok((quote_asset_amount, quote_asset_amount_surplus))
 }
 
-pub fn update_quote_asset_and_entry_amount(
+pub fn update_quote_asset_and_break_even_amount(
     position: &mut PerpPosition,
     market: &mut PerpMarket,
     delta: i64,
 ) -> ClearingHouseResult {
     update_quote_asset_amount(position, market, delta)?;
-    update_quote_entry_amount(position, market, delta)
+    update_quote_break_even_amount(position, market, delta)
 }
 
 pub fn update_quote_asset_amount(
@@ -488,7 +552,7 @@ pub fn update_quote_asset_amount(
     Ok(())
 }
 
-pub fn update_quote_entry_amount(
+pub fn update_quote_break_even_amount(
     position: &mut PerpPosition,
     market: &mut PerpMarket,
     delta: i64,
@@ -499,15 +563,17 @@ pub fn update_quote_entry_amount(
 
     match position.get_direction() {
         PositionDirection::Long => {
-            position.quote_entry_amount = position.quote_entry_amount.safe_add(delta)?;
-            market.amm.quote_entry_amount_long =
-                market.amm.quote_entry_amount_long.safe_add(delta.cast()?)?
+            position.quote_break_even_amount = position.quote_break_even_amount.safe_add(delta)?;
+            market.amm.quote_break_even_amount_long = market
+                .amm
+                .quote_break_even_amount_long
+                .safe_add(delta.cast()?)?
         }
         PositionDirection::Short => {
-            position.quote_entry_amount = position.quote_entry_amount.safe_sub(delta)?;
-            market.amm.quote_entry_amount_short = market
+            position.quote_break_even_amount = position.quote_break_even_amount.safe_sub(delta)?;
+            market.amm.quote_break_even_amount_short = market
                 .amm
-                .quote_entry_amount_short
+                .quote_break_even_amount_short
                 .safe_sub(delta.cast()?)?
         }
     }

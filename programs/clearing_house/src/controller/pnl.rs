@@ -3,7 +3,7 @@ use crate::controller::funding::settle_funding_payment;
 use crate::controller::orders::{cancel_orders, validate_market_within_price_band};
 use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount,
-    update_quote_asset_and_entry_amount, update_settled_pnl, PositionDelta,
+    update_quote_asset_and_break_even_amount, update_settled_pnl, PositionDelta,
 };
 use crate::controller::spot_balance::{
     update_spot_balances, update_spot_market_cumulative_interest,
@@ -155,7 +155,7 @@ pub fn settle_pnl(
 
     let base_asset_amount = user.perp_positions[position_index].base_asset_amount;
     let quote_asset_amount_after = user.perp_positions[position_index].quote_asset_amount;
-    let quote_entry_amount = user.perp_positions[position_index].quote_entry_amount;
+    let quote_break_even_amount = user.perp_positions[position_index].quote_break_even_amount;
 
     emit!(SettlePnlRecord {
         ts: now,
@@ -164,7 +164,7 @@ pub fn settle_pnl(
         pnl: pnl_to_settle_with_user,
         base_asset_amount,
         quote_asset_amount_after,
-        quote_entry_amount,
+        quote_break_even_amount,
         settle_price: oracle_price,
     });
 
@@ -258,7 +258,7 @@ pub fn settle_expired_position(
     )?;
 
     let base_asset_amount = user.perp_positions[position_index].base_asset_amount;
-    let quote_entry_amount = user.perp_positions[position_index].quote_entry_amount;
+    let quote_break_even_amount = user.perp_positions[position_index].quote_break_even_amount;
 
     let position_delta = PositionDelta {
         quote_asset_amount: base_asset_value,
@@ -275,7 +275,7 @@ pub fn settle_expired_position(
         .safe_mul(fee_structure.fee_tiers[0].fee_numerator as i64)?
         .safe_div(fee_structure.fee_tiers[0].fee_denominator as i64)?;
 
-    update_quote_asset_and_entry_amount(
+    update_quote_asset_and_break_even_amount(
         &mut user.perp_positions[position_index],
         perp_market,
         -fee.abs(),
@@ -308,7 +308,7 @@ pub fn settle_expired_position(
         pnl: pnl_to_settle_with_user,
         base_asset_amount,
         quote_asset_amount_after,
-        quote_entry_amount,
+        quote_break_even_amount,
         settle_price: perp_market.expiry_price,
     });
 

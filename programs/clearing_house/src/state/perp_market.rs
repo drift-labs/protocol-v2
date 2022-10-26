@@ -314,6 +314,8 @@ pub struct AMM {
     pub quote_asset_amount: i128,
     pub quote_entry_amount_long: i128,
     pub quote_entry_amount_short: i128,
+    pub quote_break_even_amount_long: i128,
+    pub quote_break_even_amount_short: i128,
     pub user_lp_shares: u128,
     pub last_funding_rate: i64,
     pub last_funding_rate_long: i64,

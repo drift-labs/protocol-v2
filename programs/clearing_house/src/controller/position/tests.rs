@@ -122,6 +122,7 @@ fn increase_long_from_no_position() {
 
     assert_eq!(existing_position.base_asset_amount, 1);
     assert_eq!(existing_position.quote_asset_amount, -1);
+    assert_eq!(existing_position.quote_break_even_amount, -1);
     assert_eq!(existing_position.quote_entry_amount, -1);
     assert_eq!(pnl, 0);
     assert_eq!(existing_position.last_cumulative_funding_rate, 1);
@@ -133,6 +134,8 @@ fn increase_long_from_no_position() {
     assert_eq!(market.amm.quote_asset_amount, -1);
     assert_eq!(market.amm.quote_entry_amount_long, -1);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
+    assert_eq!(market.amm.quote_break_even_amount_long, -1);
+    assert_eq!(market.amm.quote_break_even_amount_short, 0);
 }
 
 #[test]
@@ -156,6 +159,7 @@ fn increase_short_from_no_position() {
 
     assert_eq!(existing_position.base_asset_amount, -1);
     assert_eq!(existing_position.quote_asset_amount, 1);
+    assert_eq!(existing_position.quote_break_even_amount, 1);
     assert_eq!(existing_position.quote_entry_amount, 1);
     assert_eq!(pnl, 0);
     assert_eq!(existing_position.last_cumulative_funding_rate, 1);
@@ -166,6 +170,8 @@ fn increase_short_from_no_position() {
     assert_eq!(market.amm.quote_asset_amount, 1);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 1);
+    assert_eq!(market.amm.quote_break_even_amount_long, 0);
+    assert_eq!(market.amm.quote_break_even_amount_short, 1);
 }
 
 #[test]
@@ -173,6 +179,7 @@ fn increase_long() {
     let mut existing_position = PerpPosition {
         base_asset_amount: 1,
         quote_asset_amount: -1,
+        quote_break_even_amount: -2,
         quote_entry_amount: -1,
         last_cumulative_funding_rate: 1,
         ..PerpPosition::default()
@@ -187,6 +194,7 @@ fn increase_long() {
             base_asset_amount_long: 1,
             base_asset_amount_short: 0,
             quote_asset_amount: -1,
+            quote_break_even_amount_long: -2,
             quote_entry_amount_long: -1,
             cumulative_funding_rate_long: 1,
             ..AMM::default_test()
@@ -200,6 +208,7 @@ fn increase_long() {
 
     assert_eq!(existing_position.base_asset_amount, 2);
     assert_eq!(existing_position.quote_asset_amount, -2);
+    assert_eq!(existing_position.quote_break_even_amount, -3);
     assert_eq!(existing_position.quote_entry_amount, -2);
     assert_eq!(pnl, 0);
     assert_eq!(existing_position.last_cumulative_funding_rate, 1);
@@ -210,6 +219,8 @@ fn increase_long() {
     assert_eq!(market.amm.quote_asset_amount, -2);
     assert_eq!(market.amm.quote_entry_amount_long, -2);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
+    assert_eq!(market.amm.quote_break_even_amount_long, -3);
+    assert_eq!(market.amm.quote_break_even_amount_short, 0);
 
     assert_eq!(market.amm.base_asset_amount_with_amm, 1); // todo: update_position_and_market doesnt modify this properly?
 }
@@ -219,6 +230,7 @@ fn increase_short() {
     let mut existing_position = PerpPosition {
         base_asset_amount: -1,
         quote_asset_amount: 1,
+        quote_break_even_amount: 2,
         quote_entry_amount: 1,
         last_cumulative_funding_rate: 1,
         ..PerpPosition::default()
@@ -233,6 +245,7 @@ fn increase_short() {
             base_asset_amount_long: 0,
             quote_asset_amount: 1,
             quote_entry_amount_short: 1,
+            quote_break_even_amount_short: 2,
             cumulative_funding_rate_short: 1,
             ..AMM::default_test()
         },
@@ -246,6 +259,7 @@ fn increase_short() {
     assert_eq!(existing_position.base_asset_amount, -2);
     assert_eq!(existing_position.quote_asset_amount, 2);
     assert_eq!(existing_position.quote_entry_amount, 2);
+    assert_eq!(existing_position.quote_break_even_amount, 3);
     assert_eq!(pnl, 0);
     assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
@@ -255,6 +269,8 @@ fn increase_short() {
     assert_eq!(market.amm.quote_asset_amount, 2);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 2);
+    assert_eq!(market.amm.quote_break_even_amount_long, 0);
+    assert_eq!(market.amm.quote_break_even_amount_short, 3);
 }
 
 #[test]
@@ -263,6 +279,7 @@ fn reduce_long_profitable() {
         base_asset_amount: 10,
         quote_asset_amount: -10,
         quote_entry_amount: -10,
+        quote_break_even_amount: -12,
         last_cumulative_funding_rate: 1,
         ..PerpPosition::default()
     };
@@ -277,6 +294,7 @@ fn reduce_long_profitable() {
             base_asset_amount_short: 0,
             quote_asset_amount: -10,
             quote_entry_amount_long: -10,
+            quote_break_even_amount_long: -12,
             cumulative_funding_rate_long: 1,
             ..AMM::default_test()
         },
@@ -290,6 +308,7 @@ fn reduce_long_profitable() {
     assert_eq!(existing_position.base_asset_amount, 9);
     assert_eq!(existing_position.quote_asset_amount, -5);
     assert_eq!(existing_position.quote_entry_amount, -9);
+    assert_eq!(existing_position.quote_break_even_amount, -11);
     assert_eq!(pnl, 4);
     assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
@@ -300,6 +319,8 @@ fn reduce_long_profitable() {
     assert_eq!(market.amm.quote_asset_amount, -5);
     assert_eq!(market.amm.quote_entry_amount_long, -9);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
+    assert_eq!(market.amm.quote_break_even_amount_long, -11);
+    assert_eq!(market.amm.quote_break_even_amount_short, 0);
 }
 
 #[test]
@@ -308,6 +329,7 @@ fn reduce_long_unprofitable() {
         base_asset_amount: 10,
         quote_asset_amount: -100,
         quote_entry_amount: -100,
+        quote_break_even_amount: -200,
         last_cumulative_funding_rate: 1,
         ..PerpPosition::default()
     };
@@ -322,6 +344,7 @@ fn reduce_long_unprofitable() {
             base_asset_amount_short: 0,
             quote_asset_amount: -100,
             quote_entry_amount_long: -100,
+            quote_break_even_amount_long: -200,
             cumulative_funding_rate_long: 1,
             ..AMM::default_test()
         },
@@ -335,6 +358,7 @@ fn reduce_long_unprofitable() {
     assert_eq!(existing_position.base_asset_amount, 9);
     assert_eq!(existing_position.quote_asset_amount, -95);
     assert_eq!(existing_position.quote_entry_amount, -90);
+    assert_eq!(existing_position.quote_break_even_amount, -180);
     assert_eq!(pnl, -5);
     assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
@@ -345,6 +369,8 @@ fn reduce_long_unprofitable() {
     assert_eq!(market.amm.quote_asset_amount, -95);
     assert_eq!(market.amm.quote_entry_amount_long, -90);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
+    assert_eq!(market.amm.quote_break_even_amount_long, -180);
+    assert_eq!(market.amm.quote_break_even_amount_short, 0);
 }
 
 #[test]
@@ -353,6 +379,7 @@ fn flip_long_to_short_profitable() {
         base_asset_amount: 10,
         quote_asset_amount: -10,
         quote_entry_amount: -10,
+        quote_break_even_amount: -12,
         last_cumulative_funding_rate: 1,
         ..PerpPosition::default()
     };
@@ -366,6 +393,7 @@ fn flip_long_to_short_profitable() {
             base_asset_amount_long: 10,
             base_asset_amount_short: 0,
             quote_asset_amount: -10,
+            quote_break_even_amount_long: -12,
             quote_entry_amount_long: -10,
             cumulative_funding_rate_short: 2,
             cumulative_funding_rate_long: 1,
@@ -381,6 +409,7 @@ fn flip_long_to_short_profitable() {
     assert_eq!(existing_position.base_asset_amount, -1);
     assert_eq!(existing_position.quote_asset_amount, 12);
     assert_eq!(existing_position.quote_entry_amount, 2);
+    assert_eq!(existing_position.quote_break_even_amount, 2);
     assert_eq!(pnl, 10);
     assert_eq!(existing_position.last_cumulative_funding_rate, 2);
 
@@ -389,6 +418,8 @@ fn flip_long_to_short_profitable() {
     assert_eq!(market.amm.base_asset_amount_short, -1);
     // assert_eq!(market.amm.base_asset_amount_with_amm, -1);
     assert_eq!(market.amm.quote_asset_amount, 12);
+    assert_eq!(market.amm.quote_break_even_amount_long, 0);
+    assert_eq!(market.amm.quote_break_even_amount_short, 2);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 2);
 }
@@ -399,6 +430,7 @@ fn flip_long_to_short_unprofitable() {
         base_asset_amount: 10,
         quote_asset_amount: -10,
         quote_entry_amount: -10,
+        quote_break_even_amount: -12,
         last_cumulative_funding_rate: 1,
         ..PerpPosition::default()
     };
@@ -412,6 +444,7 @@ fn flip_long_to_short_unprofitable() {
             base_asset_amount_long: 10,
             base_asset_amount_short: 0,
             quote_asset_amount: -10,
+            quote_break_even_amount_long: -12,
             quote_entry_amount_long: -10,
             cumulative_funding_rate_short: 2,
             cumulative_funding_rate_long: 1,
@@ -427,6 +460,7 @@ fn flip_long_to_short_unprofitable() {
 
     assert_eq!(existing_position.base_asset_amount, -1);
     assert_eq!(existing_position.quote_asset_amount, 0);
+    assert_eq!(existing_position.quote_break_even_amount, 1);
     assert_eq!(existing_position.quote_entry_amount, 1);
     assert_eq!(pnl, -1);
     assert_eq!(existing_position.last_cumulative_funding_rate, 2);
@@ -436,6 +470,8 @@ fn flip_long_to_short_unprofitable() {
     assert_eq!(market.amm.base_asset_amount_short, -1);
     // assert_eq!(market.amm.base_asset_amount_with_amm, -1);
     assert_eq!(market.amm.quote_asset_amount, 0);
+    assert_eq!(market.amm.quote_break_even_amount_long, 0);
+    assert_eq!(market.amm.quote_break_even_amount_short, 1);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 1);
 }
@@ -446,6 +482,7 @@ fn reduce_short_profitable() {
         base_asset_amount: -10,
         quote_asset_amount: 100,
         quote_entry_amount: 100,
+        quote_break_even_amount: 200,
         last_cumulative_funding_rate: 1,
         ..PerpPosition::default()
     };
@@ -459,6 +496,7 @@ fn reduce_short_profitable() {
             base_asset_amount_short: -10,
             quote_asset_amount: 100,
             quote_entry_amount_short: 100,
+            quote_break_even_amount_short: 200,
             cumulative_funding_rate_short: 1,
             ..AMM::default_test()
         },
@@ -472,6 +510,7 @@ fn reduce_short_profitable() {
     assert_eq!(existing_position.base_asset_amount, -9);
     assert_eq!(existing_position.quote_asset_amount, 95);
     assert_eq!(existing_position.quote_entry_amount, 90);
+    assert_eq!(existing_position.quote_break_even_amount, 180);
     assert_eq!(pnl, 5);
     assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
@@ -481,6 +520,8 @@ fn reduce_short_profitable() {
     assert_eq!(market.amm.quote_asset_amount, 95);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 90);
+    assert_eq!(market.amm.quote_break_even_amount_long, 0);
+    assert_eq!(market.amm.quote_break_even_amount_short, 180);
 }
 
 #[test]
@@ -489,6 +530,7 @@ fn decrease_short_unprofitable() {
         base_asset_amount: -10,
         quote_asset_amount: 100,
         quote_entry_amount: 100,
+        quote_break_even_amount: 200,
         last_cumulative_funding_rate: 1,
         ..PerpPosition::default()
     };
@@ -502,6 +544,7 @@ fn decrease_short_unprofitable() {
             base_asset_amount_short: -10,
             quote_asset_amount: 100,
             quote_entry_amount_short: 100,
+            quote_break_even_amount_short: 200,
             cumulative_funding_rate_short: 1,
             ..AMM::default_test()
         },
@@ -515,6 +558,7 @@ fn decrease_short_unprofitable() {
     assert_eq!(existing_position.base_asset_amount, -9);
     assert_eq!(existing_position.quote_asset_amount, 85);
     assert_eq!(existing_position.quote_entry_amount, 90);
+    assert_eq!(existing_position.quote_break_even_amount, 180);
     assert_eq!(pnl, -5);
     assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
@@ -524,6 +568,8 @@ fn decrease_short_unprofitable() {
     assert_eq!(market.amm.quote_asset_amount, 85);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 90);
+    assert_eq!(market.amm.quote_break_even_amount_long, 0);
+    assert_eq!(market.amm.quote_break_even_amount_short, 180);
 }
 
 #[test]
@@ -532,6 +578,7 @@ fn flip_short_to_long_profitable() {
         base_asset_amount: -10,
         quote_asset_amount: 100,
         quote_entry_amount: 100,
+        quote_break_even_amount: 200,
         last_cumulative_funding_rate: 1,
         ..PerpPosition::default()
     };
@@ -546,6 +593,7 @@ fn flip_short_to_long_profitable() {
             base_asset_amount_short: -10,
             quote_asset_amount: 100,
             quote_entry_amount_short: 100,
+            quote_break_even_amount_short: 200,
             cumulative_funding_rate_long: 2,
             cumulative_funding_rate_short: 1,
             ..AMM::default_test()
@@ -559,6 +607,7 @@ fn flip_short_to_long_profitable() {
 
     assert_eq!(existing_position.base_asset_amount, 1);
     assert_eq!(existing_position.quote_asset_amount, 40);
+    assert_eq!(existing_position.quote_break_even_amount, -6);
     assert_eq!(existing_position.quote_entry_amount, -6);
     assert_eq!(pnl, 46);
     assert_eq!(existing_position.last_cumulative_funding_rate, 2);
@@ -570,6 +619,8 @@ fn flip_short_to_long_profitable() {
     assert_eq!(market.amm.quote_asset_amount, 40);
     assert_eq!(market.amm.quote_entry_amount_long, -6);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
+    assert_eq!(market.amm.quote_break_even_amount_long, -6);
+    assert_eq!(market.amm.quote_break_even_amount_short, 0);
 }
 
 #[test]
@@ -577,6 +628,7 @@ fn flip_short_to_long_unprofitable() {
     let mut existing_position = PerpPosition {
         base_asset_amount: -10,
         quote_asset_amount: 100,
+        quote_break_even_amount: 200,
         quote_entry_amount: 100,
         last_cumulative_funding_rate: 1,
         ..PerpPosition::default()
@@ -592,6 +644,7 @@ fn flip_short_to_long_unprofitable() {
             base_asset_amount_short: -10,
             quote_asset_amount: 100,
             quote_entry_amount_short: 100,
+            quote_break_even_amount_short: 200,
             cumulative_funding_rate_long: 2,
             cumulative_funding_rate_short: 1,
             ..AMM::default_test()
@@ -606,6 +659,7 @@ fn flip_short_to_long_unprofitable() {
     assert_eq!(existing_position.base_asset_amount, 1);
     assert_eq!(existing_position.quote_asset_amount, -20);
     assert_eq!(existing_position.quote_entry_amount, -11);
+    assert_eq!(existing_position.quote_break_even_amount, -11);
     assert_eq!(pnl, -9);
     assert_eq!(existing_position.last_cumulative_funding_rate, 2);
 
@@ -616,6 +670,8 @@ fn flip_short_to_long_unprofitable() {
     assert_eq!(market.amm.quote_asset_amount, -20);
     assert_eq!(market.amm.quote_entry_amount_long, -11);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
+    assert_eq!(market.amm.quote_break_even_amount_long, -11);
+    assert_eq!(market.amm.quote_break_even_amount_short, 0);
 }
 
 #[test]
@@ -624,6 +680,7 @@ fn close_long_profitable() {
         base_asset_amount: 10,
         quote_asset_amount: -10,
         quote_entry_amount: -10,
+        quote_break_even_amount: -12,
         last_cumulative_funding_rate: 1,
         ..PerpPosition::default()
     };
@@ -637,6 +694,7 @@ fn close_long_profitable() {
             base_asset_amount_long: 11,
             quote_asset_amount: -11,
             quote_entry_amount_long: -11,
+            quote_break_even_amount_long: -13,
             cumulative_funding_rate_long: 1,
             ..AMM::default_test()
         },
@@ -650,6 +708,7 @@ fn close_long_profitable() {
     assert_eq!(existing_position.base_asset_amount, 0);
     assert_eq!(existing_position.quote_asset_amount, 5);
     assert_eq!(existing_position.quote_entry_amount, 0);
+    assert_eq!(existing_position.quote_break_even_amount, 0);
     assert_eq!(pnl, 5);
     assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
@@ -661,6 +720,8 @@ fn close_long_profitable() {
     assert_eq!(market.amm.quote_asset_amount, 4);
     assert_eq!(market.amm.quote_entry_amount_long, -1);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
+    assert_eq!(market.amm.quote_break_even_amount_long, -1);
+    assert_eq!(market.amm.quote_break_even_amount_short, 0);
 }
 
 #[test]
@@ -669,6 +730,7 @@ fn close_long_unprofitable() {
         base_asset_amount: 10,
         quote_asset_amount: -10,
         quote_entry_amount: -10,
+        quote_break_even_amount: -12,
         last_cumulative_funding_rate: 1,
         ..PerpPosition::default()
     };
@@ -682,6 +744,7 @@ fn close_long_unprofitable() {
             base_asset_amount_long: 11,
             quote_asset_amount: -11,
             quote_entry_amount_long: -11,
+            quote_break_even_amount_long: -13,
             cumulative_funding_rate_long: 1,
             ..AMM::default_test()
         },
@@ -695,6 +758,7 @@ fn close_long_unprofitable() {
     assert_eq!(existing_position.base_asset_amount, 0);
     assert_eq!(existing_position.quote_asset_amount, -5);
     assert_eq!(existing_position.quote_entry_amount, 0);
+    assert_eq!(existing_position.quote_break_even_amount, 0);
     assert_eq!(pnl, -5);
     assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
@@ -705,6 +769,8 @@ fn close_long_unprofitable() {
     assert_eq!(market.amm.quote_asset_amount, -6);
     assert_eq!(market.amm.quote_entry_amount_long, -1);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
+    assert_eq!(market.amm.quote_break_even_amount_long, -1);
+    assert_eq!(market.amm.quote_break_even_amount_short, 0);
 }
 
 #[test]
@@ -713,6 +779,7 @@ fn close_short_profitable() {
         base_asset_amount: -10,
         quote_asset_amount: 10,
         quote_entry_amount: 10,
+        quote_break_even_amount: 12,
         last_cumulative_funding_rate: 1,
         ..PerpPosition::default()
     };
@@ -725,6 +792,7 @@ fn close_short_profitable() {
             base_asset_amount_short: -11,
             quote_asset_amount: 11,
             quote_entry_amount_short: 11,
+            quote_break_even_amount_short: 13,
             cumulative_funding_rate_short: 1,
             ..AMM::default_test()
         },
@@ -737,6 +805,7 @@ fn close_short_profitable() {
 
     assert_eq!(existing_position.base_asset_amount, 0);
     assert_eq!(existing_position.quote_asset_amount, 5);
+    assert_eq!(existing_position.quote_break_even_amount, 0);
     assert_eq!(existing_position.quote_entry_amount, 0);
     assert_eq!(pnl, 5);
     assert_eq!(existing_position.last_cumulative_funding_rate, 0);
@@ -747,6 +816,8 @@ fn close_short_profitable() {
     assert_eq!(market.amm.quote_asset_amount, 6);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 1);
+    assert_eq!(market.amm.quote_break_even_amount_long, 0);
+    assert_eq!(market.amm.quote_break_even_amount_short, 1);
 }
 
 #[test]
@@ -755,6 +826,7 @@ fn close_short_unprofitable() {
         base_asset_amount: -10,
         quote_asset_amount: 10,
         quote_entry_amount: 10,
+        quote_break_even_amount: 12,
         last_cumulative_funding_rate: 1,
         ..PerpPosition::default()
     };
@@ -767,6 +839,7 @@ fn close_short_unprofitable() {
             base_asset_amount_short: -11,
             quote_asset_amount: 11,
             quote_entry_amount_short: 11,
+            quote_break_even_amount_short: 13,
             cumulative_funding_rate_short: 1,
             ..AMM::default_test()
         },
@@ -779,6 +852,7 @@ fn close_short_unprofitable() {
 
     assert_eq!(existing_position.base_asset_amount, 0);
     assert_eq!(existing_position.quote_asset_amount, -5);
+    assert_eq!(existing_position.quote_break_even_amount, 0);
     assert_eq!(existing_position.quote_entry_amount, 0);
     assert_eq!(pnl, -5);
     assert_eq!(existing_position.last_cumulative_funding_rate, 0);
@@ -789,14 +863,17 @@ fn close_short_unprofitable() {
     assert_eq!(market.amm.quote_asset_amount, -4);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 1);
+    assert_eq!(market.amm.quote_break_even_amount_long, 0);
+    assert_eq!(market.amm.quote_break_even_amount_short, 1);
 }
 
 #[test]
-fn close_long_with_quote_entry_amount_less_than_quote_asset_amount() {
+fn close_long_with_quote_break_even_amount_less_than_quote_asset_amount() {
     let mut existing_position = PerpPosition {
         base_asset_amount: 10,
         quote_asset_amount: -10,
         quote_entry_amount: -8,
+        quote_break_even_amount: -9,
         last_cumulative_funding_rate: 1,
         ..PerpPosition::default()
     };
@@ -810,6 +887,7 @@ fn close_long_with_quote_entry_amount_less_than_quote_asset_amount() {
             base_asset_amount_long: 11,
             quote_asset_amount: -11,
             quote_entry_amount_long: -8,
+            quote_break_even_amount_long: -9,
             cumulative_funding_rate_long: 1,
             order_step_size: 1,
             ..AMM::default()
@@ -824,6 +902,7 @@ fn close_long_with_quote_entry_amount_less_than_quote_asset_amount() {
     assert_eq!(existing_position.base_asset_amount, 0);
     assert_eq!(existing_position.quote_asset_amount, -5);
     assert_eq!(existing_position.quote_entry_amount, 0);
+    assert_eq!(existing_position.quote_break_even_amount, 0);
     assert_eq!(pnl, -3);
     assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
@@ -834,14 +913,17 @@ fn close_long_with_quote_entry_amount_less_than_quote_asset_amount() {
     assert_eq!(market.amm.quote_asset_amount, -6);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
+    assert_eq!(market.amm.quote_break_even_amount_long, 0);
+    assert_eq!(market.amm.quote_break_even_amount_short, 0);
 }
 
 #[test]
-fn close_short_with_quote_entry_amount_more_than_quote_asset_amount() {
+fn close_short_with_quote_break_even_amount_more_than_quote_asset_amount() {
     let mut existing_position = PerpPosition {
         base_asset_amount: -10,
         quote_asset_amount: 10,
         quote_entry_amount: 15,
+        quote_break_even_amount: 17,
         last_cumulative_funding_rate: 1,
         ..PerpPosition::default()
     };
@@ -854,6 +936,7 @@ fn close_short_with_quote_entry_amount_more_than_quote_asset_amount() {
             base_asset_amount_short: -11,
             quote_asset_amount: 11,
             quote_entry_amount_short: 15,
+            quote_break_even_amount_short: 17,
             cumulative_funding_rate_short: 1,
             order_step_size: 1,
             ..AMM::default()
@@ -868,6 +951,7 @@ fn close_short_with_quote_entry_amount_more_than_quote_asset_amount() {
     assert_eq!(existing_position.base_asset_amount, 0);
     assert_eq!(existing_position.quote_asset_amount, -5);
     assert_eq!(existing_position.quote_entry_amount, 0);
+    assert_eq!(existing_position.quote_break_even_amount, 0);
     assert_eq!(pnl, 0);
     assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
@@ -877,4 +961,6 @@ fn close_short_with_quote_entry_amount_more_than_quote_asset_amount() {
     assert_eq!(market.amm.quote_asset_amount, -4);
     assert_eq!(market.amm.quote_entry_amount_long, 0);
     assert_eq!(market.amm.quote_entry_amount_short, 0);
+    assert_eq!(market.amm.quote_break_even_amount_long, 0);
+    assert_eq!(market.amm.quote_break_even_amount_short, 0);
 }

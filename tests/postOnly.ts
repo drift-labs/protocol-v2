@@ -202,7 +202,7 @@ describe('post only', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.eq(baseAssetAmount));
-		console.log(position.quoteEntryAmount.toString());
+		console.log(position.quoteBreakEvenAmount.toString());
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
 		assert(
 			clearingHouse.getUserStats().getAccount().fees.totalFeePaid.eq(ZERO)
@@ -290,7 +290,7 @@ describe('post only', () => {
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.abs().eq(baseAssetAmount));
-		assert(position.quoteEntryAmount.eq(new BN(1000000)));
+		assert(position.quoteBreakEvenAmount.eq(new BN(1000000)));
 		assert(clearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
 		assert(
 			clearingHouse.getUserStats().getAccount().fees.totalFeePaid.eq(ZERO)

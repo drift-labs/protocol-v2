@@ -250,11 +250,13 @@ describe('prepeg', () => {
 		const position0 = clearingHouse.getUserAccount().perpPositions[0];
 
 		console.log(position0.quoteAssetAmount.toString());
-		console.log('quoteEntryAmount:', position0.quoteEntryAmount.toString());
-		assert.ok(position0.quoteEntryAmount.eq(new BN(-50049074)));
+		console.log('quoteEntryAmount:', position0.quoteBreakEvenAmount.toString());
+		assert.ok(position0.quoteEntryAmount.eq(new BN(-49999074)));
+		assert.ok(acquiredQuoteAssetAmount.eq(position0.quoteEntryAmount.abs()));
+		assert.ok(position0.quoteBreakEvenAmount.eq(new BN(-50049074)));
 		assert.ok(
 			acquiredQuoteAssetAmount.eq(
-				position0.quoteEntryAmount.add(market.amm.totalExchangeFee).abs()
+				position0.quoteBreakEvenAmount.add(market.amm.totalExchangeFee).abs()
 			)
 		);
 
@@ -288,7 +290,12 @@ describe('prepeg', () => {
 		console.log(position0.quoteAssetAmount.toNumber());
 
 		assert.ok(position0.quoteAssetAmount.eq(new BN(-50049074)));
-		assert.ok(position0.quoteAssetAmount.eq(position0.quoteEntryAmount));
+		assert.ok(
+			position0.quoteAssetAmount.eq(
+				position0.quoteEntryAmount.sub(market.amm.totalExchangeFee)
+			)
+		);
+		assert.ok(position0.quoteAssetAmount.eq(position0.quoteBreakEvenAmount));
 	});
 
 	it('Long even more', async () => {
@@ -528,10 +535,11 @@ describe('prepeg', () => {
 		);
 		console.log(
 			'position0.quoteEntryAmount:',
-			position0.quoteEntryAmount.toNumber()
+			position0.quoteBreakEvenAmount.toNumber()
 		);
 
-		assert.ok(position0qea.eq(new BN(-51077911)));
+		assert.ok(position0qea.eq(new BN(-51026883)));
+		assert.ok(position0.quoteBreakEvenAmount.eq(new BN(-51077911)));
 		assert.ok(position0.quoteAssetAmount.eq(new BN(-51077911)));
 	});
 

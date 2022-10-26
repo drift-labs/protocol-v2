@@ -618,6 +618,7 @@ export type PerpPosition = {
 	marketIndex: number;
 	quoteAssetAmount: BN;
 	quoteEntryAmount: BN;
+	quoteBreakEvenAmount: BN;
 	openOrders: number;
 	openBids: BN;
 	openAsks: BN;

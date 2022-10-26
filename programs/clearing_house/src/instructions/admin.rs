@@ -592,6 +592,8 @@ pub fn handle_initialize_perp_market(
             quote_asset_amount: 0,
             quote_entry_amount_long: 0,
             quote_entry_amount_short: 0,
+            quote_break_even_amount_long: 0,
+            quote_break_even_amount_short: 0,
             max_open_interest: 0,
             mark_std: 0,
             volume_24h: 0,

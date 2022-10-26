@@ -4759,6 +4759,14 @@
             "type": "i128"
           },
           {
+            "name": "quoteBreakEvenAmountLong",
+            "type": "i128"
+          },
+          {
+            "name": "quoteBreakEvenAmountShort",
+            "type": "i128"
+          },
+          {
             "name": "userLpShares",
             "type": "u128"
           },
@@ -5262,6 +5270,10 @@
           },
           {
             "name": "quoteAssetAmount",
+            "type": "i64"
+          },
+          {
+            "name": "quoteBreakEvenAmount",
             "type": "i64"
           },
           {
@@ -6825,7 +6837,7 @@
           "index": false
         },
         {
-          "name": "quoteEntryAmount",
+          "name": "quoteBreakEvenAmount",
           "type": "i64",
           "index": false
         },
