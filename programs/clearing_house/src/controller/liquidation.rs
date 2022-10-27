@@ -1618,7 +1618,7 @@ pub fn resolve_perp_bankruptcy(
             let deleverage_user_stats = DeleverageUserStats {
                 base_asset_amount: deleverage_user_position.base_asset_amount,
                 quote_asset_amount: deleverage_user_position.quote_asset_amount,
-                quote_entry_amount: deleverage_user_position.quote_entry_amount,
+                quote_break_even_amount: deleverage_user_position.quote_break_even_amount,
                 free_collateral,
             };
 

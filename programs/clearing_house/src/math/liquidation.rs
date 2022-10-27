@@ -305,7 +305,7 @@ pub fn calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(
 pub struct DeleverageUserStats {
     pub base_asset_amount: i64,
     pub quote_asset_amount: i64,
-    pub quote_entry_amount: i64,
+    pub quote_break_even_amount: i64,
     pub free_collateral: i128,
 }
 
@@ -318,7 +318,7 @@ pub fn calculate_perp_market_deleverage_payment(
     let mean_short_entry_basis = if market.amm.base_asset_amount_short != 0 {
         market
             .amm
-            .quote_entry_amount_short
+            .quote_break_even_amount_short
             .safe_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128)?
             .safe_div(market.amm.base_asset_amount_short)?
     } else {
@@ -332,7 +332,7 @@ pub fn calculate_perp_market_deleverage_payment(
     let mean_long_entry_basis = if market.amm.base_asset_amount_long != 0 {
         market
             .amm
-            .quote_entry_amount_long
+            .quote_break_even_amount_long
             .safe_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128)?
             .safe_div(market.amm.base_asset_amount_long)?
     } else {
@@ -353,7 +353,7 @@ pub fn calculate_perp_market_deleverage_payment(
 
     let user_entry_basis: i128 = if deleverage_user_stats.base_asset_amount != 0 {
         PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128
-            .safe_mul(deleverage_user_stats.quote_entry_amount.cast()?)?
+            .safe_mul(deleverage_user_stats.quote_break_even_amount.cast()?)?
             .safe_div(deleverage_user_stats.base_asset_amount.cast()?)?
     } else {
         0
