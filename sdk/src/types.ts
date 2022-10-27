@@ -545,6 +545,8 @@ export type SpotMarketAccount = {
 	nextFillRecordId: BN;
 	spotFeePool: PoolBalance;
 	totalSpotFee: BN;
+
+	ordersEnabled: boolean;
 };
 
 export type PoolBalance = {

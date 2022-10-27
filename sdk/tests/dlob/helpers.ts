@@ -261,6 +261,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		orderTickSize: new BN(0),
 		nextFillRecordId: new BN(0),
 		nextDepositRecordId: new BN(0),
+		ordersEnabled: true,
 		spotFeePool: {
 			scaledBalance: new BN(0),
 			marketIndex: 0,
@@ -332,6 +333,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		orderTickSize: new BN(0),
 		nextFillRecordId: new BN(0),
 		nextDepositRecordId: new BN(0),
+		ordersEnabled: true,
 		spotFeePool: {
 			scaledBalance: new BN(0),
 			marketIndex: 0,
@@ -403,6 +405,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		orderTickSize: new BN(0),
 		nextFillRecordId: new BN(0),
 		nextDepositRecordId: new BN(0),
+		ordersEnabled: true,
 		spotFeePool: {
 			scaledBalance: new BN(0),
 			marketIndex: 0,

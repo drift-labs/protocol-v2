@@ -251,7 +251,11 @@ pub fn place_perp_order(
         quote_asset_amount_filled: 0,
         direction: params.direction,
         reduce_only: params.reduce_only || force_reduce_only,
-        trigger_price: params.trigger_price.unwrap_or(0),
+        trigger_price: standardize_price(
+            params.trigger_price.unwrap_or(0),
+            market.amm.order_tick_size,
+            params.direction,
+        )?,
         trigger_condition: params.trigger_condition,
         triggered: false,
         post_only: params.post_only,
@@ -2430,6 +2434,8 @@ pub fn place_spot_order(
         (0_u64, 0_u64)
     };
 
+    validate!(spot_market.orders_enabled, ErrorCode::SpotOrdersDisabled)?;
+
     validate!(
         params.market_index != QUOTE_SPOT_MARKET_INDEX,
         ErrorCode::InvalidOrderBaseQuoteAsset,
@@ -2470,7 +2476,11 @@ pub fn place_spot_order(
         quote_asset_amount_filled: 0,
         direction: params.direction,
         reduce_only: params.reduce_only || force_reduce_only,
-        trigger_price: params.trigger_price.unwrap_or(0),
+        trigger_price: standardize_price(
+            params.trigger_price.unwrap_or(0),
+            spot_market.order_tick_size,
+            params.direction,
+        )?,
         trigger_condition: params.trigger_condition,
         triggered: false,
         post_only: params.post_only,
