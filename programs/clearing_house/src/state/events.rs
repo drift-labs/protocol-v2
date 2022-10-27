@@ -251,6 +251,7 @@ pub enum OrderActionExplanation {
     OrderFilledWithAMMJit,
     OrderFilledWithMatch,
     MarketExpired,
+    RiskingIncreasingOrder,
 }
 
 impl Default for OrderAction {

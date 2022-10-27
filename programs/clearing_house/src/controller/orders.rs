@@ -1,7 +1,7 @@
 use std::cell::RefMut;
 use std::cmp::max;
 use std::num::NonZeroU64;
-use std::ops::{Deref, DerefMut};
+use std::ops::DerefMut;
 
 use anchor_lang::prelude::*;
 use serum_dex::instruction::{NewOrderInstructionV3, SelfTradeBehavior};
@@ -1158,9 +1158,7 @@ fn fulfill_perp_order(
         position_base_asset_amount_before.cast()?,
     )?;
 
-    let free_collateral =
-        calculate_free_collateral(user, perp_market_map, spot_market_map, oracle_map)?;
-    if !risk_decreasing && (free_collateral < 0 || market_is_reduce_only) {
+    if !risk_decreasing && market_is_reduce_only {
         cancel_risk_increasing_order(
             user,
             user_order_index,
@@ -1352,7 +1350,7 @@ fn cancel_risk_increasing_order(
         oracle_map,
         now,
         slot,
-        OrderActionExplanation::InsufficientFreeCollateral,
+        OrderActionExplanation::RiskingIncreasingOrder,
         Some(filler_key),
         filler_reward,
         false,
@@ -2900,49 +2898,7 @@ fn fulfill_spot_order(
     fee_structure: &FeeStructure,
     serum_fulfillment_params: &mut Option<SerumFulfillmentParams>,
 ) -> ClearingHouseResult<(u64, bool)> {
-    let free_collateral =
-        calculate_free_collateral(user, perp_market_map, spot_market_map, oracle_map)?;
-
     let base_market = user.orders[user_order_index].market_index;
-    let spot_position_index = user.get_spot_position_index(base_market)?;
-    let token_amount = user.spot_positions[spot_position_index]
-        .get_token_amount(spot_market_map.get_ref(&base_market)?.deref())?;
-    let spot_balance_type: SpotBalanceType = user.spot_positions[spot_position_index].balance_type;
-
-    let risk_decreasing = is_spot_order_risk_decreasing(
-        &user.orders[user_order_index],
-        &spot_balance_type,
-        token_amount,
-    )?;
-
-    if free_collateral < 0 && !risk_decreasing {
-        let filler_reward = {
-            let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
-            pay_keeper_flat_reward_for_spot(
-                user,
-                filler.as_deref_mut(),
-                &mut quote_market,
-                fee_structure.flat_filler_fee,
-            )?
-        };
-
-        cancel_order(
-            user_order_index,
-            user,
-            user_key,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            now,
-            slot,
-            OrderActionExplanation::InsufficientFreeCollateral,
-            Some(filler_key),
-            filler_reward,
-            false,
-        )?;
-
-        return Ok((0, true));
-    }
 
     let fulfillment_methods = determine_spot_fulfillment_methods(
         &user.orders[user_order_index],
