@@ -3911,6 +3911,10 @@
             "type": "u64"
           },
           {
+            "name": "nextDepositRecordId",
+            "type": "u64"
+          },
+          {
             "name": "initialAssetWeight",
             "type": "u32"
           },
@@ -6208,6 +6212,11 @@
           "type": {
             "defined": "DepositDirection"
           },
+          "index": false
+        },
+        {
+          "name": "depositRecordId",
+          "type": "u64",
           "index": false
         },
         {
