@@ -30,7 +30,7 @@ pub fn vault_amount_to_if_shares(
         // must be case that total_if_shares == 0 for nice result for user
         validate!(
             total_if_shares == 0,
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidIFSharesDetected,
             "assumes total_if_shares == 0",
         )?;
 
@@ -47,7 +47,7 @@ pub fn if_shares_to_vault_amount(
 ) -> ClearingHouseResult<u64> {
     validate!(
         n_shares <= total_if_shares,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidIFSharesDetected,
         "n_shares({}) > total_if_shares({})",
         n_shares,
         total_if_shares
@@ -103,7 +103,7 @@ pub fn calculate_if_shares_lost(
 
         validate!(
             new_n_shares <= n_shares,
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidIFSharesDetected,
             "Issue calculating delta if_shares after canceling request {} < {}",
             new_n_shares,
             n_shares

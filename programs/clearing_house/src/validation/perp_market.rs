@@ -13,7 +13,7 @@ pub fn validate_perp_market(market: &PerpMarket) -> ClearingHouseResult {
         (market.amm.base_asset_amount_long + market.amm.base_asset_amount_short)
             == market.amm.base_asset_amount_with_amm
                 + market.amm.base_asset_amount_with_unsettled_lp,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidAmmDetected,
         "Market NET_BAA Error: 
         market.amm.base_asset_amount_long={}, 
         + market.amm.base_asset_amount_short={} 
@@ -28,7 +28,7 @@ pub fn validate_perp_market(market: &PerpMarket) -> ClearingHouseResult {
 
     validate!(
         market.amm.peg_multiplier > 0,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidAmmDetected,
         "peg_multiplier out of wack"
     )?;
 
@@ -45,7 +45,7 @@ pub fn validate_perp_market(market: &PerpMarket) -> ClearingHouseResult {
     validate!(
         market.amm.sqrt_k >= market.amm.base_asset_reserve
             || market.amm.sqrt_k >= market.amm.quote_asset_reserve,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidAmmDetected,
         "k out of wack: k={}, bar={}, qar={}",
         market.amm.sqrt_k,
         market.amm.base_asset_reserve,
@@ -54,7 +54,7 @@ pub fn validate_perp_market(market: &PerpMarket) -> ClearingHouseResult {
 
     validate!(
         market.amm.sqrt_k >= market.amm.user_lp_shares,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidAmmDetected,
         "market.amm.sqrt_k < market.amm.user_lp_shares: {} < {}",
         market.amm.sqrt_k,
         market.amm.user_lp_shares,
@@ -73,7 +73,7 @@ pub fn validate_perp_market(market: &PerpMarket) -> ClearingHouseResult {
 
     validate!(
         rounding_diff <= 10,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidAmmDetected,
         "qar/bar/k out of wack: k={}, bar={}, qar={}, qar'={} (rounding: {})",
         invariant,
         market.amm.base_asset_reserve,
@@ -88,7 +88,7 @@ pub fn validate_perp_market(market: &PerpMarket) -> ClearingHouseResult {
         validate!(
             market.amm.bid_base_asset_reserve >= market.amm.base_asset_reserve
                 && market.amm.bid_quote_asset_reserve <= market.amm.quote_asset_reserve,
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidAmmDetected,
             "bid reserves out of wack: {} -> {}, quote: {} -> {}",
             market.amm.bid_base_asset_reserve,
             market.amm.base_asset_reserve,
@@ -100,7 +100,7 @@ pub fn validate_perp_market(market: &PerpMarket) -> ClearingHouseResult {
         validate!(
             market.amm.ask_base_asset_reserve <= market.amm.base_asset_reserve
                 && market.amm.ask_quote_asset_reserve >= market.amm.quote_asset_reserve,
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidAmmDetected,
             "ask reserves out of wack base: {} -> {}, quote: {} -> {}",
             market.amm.ask_base_asset_reserve,
             market.amm.base_asset_reserve,
@@ -111,7 +111,7 @@ pub fn validate_perp_market(market: &PerpMarket) -> ClearingHouseResult {
 
     validate!(
         market.amm.long_spread + market.amm.short_spread >= market.amm.base_spread,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidAmmDetected,
         "long_spread + short_spread < base_spread: {} + {} < {}",
         market.amm.long_spread,
         market.amm.short_spread,
@@ -130,7 +130,7 @@ pub fn validate_perp_market(market: &PerpMarket) -> ClearingHouseResult {
                     .last_oracle_reserve_price_spread_pct
                     .unsigned_abs()
             ),
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidAmmDetected,
         "long_spread + short_spread > max_spread: {} + {} < {}.max({})",
         market.amm.long_spread,
         market.amm.short_spread,
@@ -146,13 +146,13 @@ pub fn validate_perp_market(market: &PerpMarket) -> ClearingHouseResult {
         // bid quote/base < reserve q/b
         validate!(
             market.amm.terminal_quote_asset_reserve < market.amm.quote_asset_reserve,
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidAmmDetected,
             "terminal_quote_asset_reserve out of wack"
         )?;
     } else if market.amm.base_asset_amount_with_amm < 0 {
         validate!(
             market.amm.terminal_quote_asset_reserve > market.amm.quote_asset_reserve,
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidAmmDetected,
             "terminal_quote_asset_reserve out of wack (terminal <) {} > {}",
             market.amm.terminal_quote_asset_reserve,
             market.amm.quote_asset_reserve
@@ -160,7 +160,7 @@ pub fn validate_perp_market(market: &PerpMarket) -> ClearingHouseResult {
     } else {
         validate!(
             market.amm.terminal_quote_asset_reserve == market.amm.quote_asset_reserve,
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidAmmDetected,
             "terminal_quote_asset_reserve out of wack {}!={}",
             market.amm.terminal_quote_asset_reserve,
             market.amm.quote_asset_reserve
@@ -171,7 +171,7 @@ pub fn validate_perp_market(market: &PerpMarket) -> ClearingHouseResult {
         validate!(
             market.amm.max_spread > market.amm.base_spread
                 && market.amm.max_spread < market.margin_ratio_initial * 100,
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidAmmDetected,
             "invalid max_spread",
         )?;
     }
@@ -187,7 +187,7 @@ pub fn validate_amm_account_for_fill(
     if direction == PositionDirection::Long {
         validate!(
             amm.base_asset_reserve >= amm.min_base_asset_reserve,
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidAmmForFillDetected,
             "Market baa below min_base_asset_reserve: {} < {}",
             amm.base_asset_reserve,
             amm.min_base_asset_reserve,
@@ -197,7 +197,7 @@ pub fn validate_amm_account_for_fill(
     if direction == PositionDirection::Short {
         validate!(
             amm.base_asset_reserve <= amm.max_base_asset_reserve,
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidAmmForFillDetected,
             "Market baa above max_base_asset_reserve"
         )?;
     }

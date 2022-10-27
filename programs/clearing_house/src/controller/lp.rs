@@ -164,7 +164,7 @@ pub fn burn_lp_shares(
     if shares_to_burn as u128 == market.amm.user_lp_shares && unsettled_remainder != 0 {
         crate::validate!(
             unsettled_remainder.unsigned_abs() <= market.amm.order_step_size as u128,
-            ErrorCode::DefaultError,
+            ErrorCode::UnableToBurnLPTokens,
             "unsettled baa on final burn too big rel to stepsize {}: {}",
             market.amm.order_step_size,
             market.amm.base_asset_amount_with_unsettled_lp,

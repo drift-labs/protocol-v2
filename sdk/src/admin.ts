@@ -81,7 +81,7 @@ export class Admin extends ClearingHouse {
 		initialLiabilityWeight: number,
 		maintenanceLiabilityWeight: number,
 		imfFactor = 0,
-		liquidationFee = 0,
+		liquidatorFee = 0,
 		activeStatus = true
 	): Promise<TransactionSignature> {
 		const spotMarketIndex = this.getStateAccount().numberOfSpotMarkets;
@@ -110,7 +110,7 @@ export class Admin extends ClearingHouse {
 			initialLiabilityWeight,
 			maintenanceLiabilityWeight,
 			imfFactor,
-			liquidationFee,
+			liquidatorFee,
 			activeStatus,
 			{
 				accounts: {
@@ -184,7 +184,7 @@ export class Admin extends ClearingHouse {
 		oracleSource: OracleSource = OracleSource.PYTH,
 		marginRatioInitial = 2000,
 		marginRatioMaintenance = 500,
-		liquidationFee = 0,
+		liquidatorFee = 0,
 		activeStatus = true,
 		name = DEFAULT_MARKET_NAME
 	): Promise<TransactionSignature> {
@@ -203,7 +203,7 @@ export class Admin extends ClearingHouse {
 				oracleSource,
 				marginRatioInitial,
 				marginRatioMaintenance,
-				liquidationFee,
+				liquidatorFee,
 				activeStatus,
 				nameBuffer,
 				{
@@ -461,6 +461,27 @@ export class Admin extends ClearingHouse {
 		return await this.program.rpc.updatePerpMarketMarginRatio(
 			marginRatioInitial,
 			marginRatioMaintenance,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			}
+		);
+	}
+
+	public async updatePerpMarketImfFactor(
+		perpMarketIndex: number,
+		imfFactor: number,
+		unrealizedPnlImfFactor: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketImfFactor(
+			imfFactor,
+			unrealizedPnlImfFactor,
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
@@ -1025,7 +1046,10 @@ export class Admin extends ClearingHouse {
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
-					perpMarket: this.getPerpMarketAccount(perpMarketIndex).pubkey,
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
 				},
 			}
 		);
@@ -1042,6 +1066,27 @@ export class Admin extends ClearingHouse {
 				perpMarket: this.getPerpMarketAccount(perpMarketIndex).pubkey,
 			},
 		});
+	}
+
+	public async updatePerpMarketUnrealizedAssetWeight(
+		perpMarketIndex: number,
+		unrealizedInitialAssetWeight: number,
+		unrealizedMaintenanceAssetWeight: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketUnrealizedAssetWeight(
+			unrealizedInitialAssetWeight,
+			unrealizedMaintenanceAssetWeight,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			}
+		);
 	}
 
 	public async updatePerpMarketMaxImbalances(
@@ -1096,5 +1141,47 @@ export class Admin extends ClearingHouse {
 				srmVault: srmVault,
 			},
 		});
+	}
+
+	public async updatePerpMarketLiquidationFee(
+		perpMarketIndex: number,
+		liquidatorFee: number,
+		ifLiquidationFee: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketLiquidationFee(
+			liquidatorFee,
+			ifLiquidationFee,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			}
+		);
+	}
+
+	public async updateSpotMarketLiquidationFee(
+		spotMarketIndex: number,
+		liquidatorFee: number,
+		ifLiquidationFee: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updateSpotMarketLiquidationFee(
+			liquidatorFee,
+			ifLiquidationFee,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
 	}
 }
