@@ -89,8 +89,36 @@ pub enum ErrorCode {
     InvalidFundingProfitability,
     #[msg("Casting Failure")]
     CastingFailure,
-    #[msg("Invalid Order")]
+    #[msg("InvalidOrder")]
     InvalidOrder,
+    #[msg("InvalidOrderMaxTs")]
+    InvalidOrderMaxTs,
+    #[msg("InvalidOrderMarketType")]
+    InvalidOrderMarketType,
+    #[msg("InvalidOrderForInitialMarginReq")]
+    InvalidOrderForInitialMarginReq,
+    #[msg("InvalidOrderNotRiskReducing")]
+    InvalidOrderNotRiskReducing,
+    #[msg("InvalidOrderSizeTooSmall")]
+    InvalidOrderSizeTooSmall,
+    #[msg("InvalidOrderNotStepSizeMultiple")]
+    InvalidOrderNotStepSizeMultiple,
+    #[msg("InvalidOrderBaseQuoteAsset")]
+    InvalidOrderBaseQuoteAsset,
+    #[msg("InvalidOrderIOC")]
+    InvalidOrderIOC,
+    #[msg("InvalidOrderPostOnly")]
+    InvalidOrderPostOnly,
+    #[msg("InvalidOrderIOCPostOnly")]
+    InvalidOrderIOCPostOnly,
+    #[msg("InvalidOrderTrigger")]
+    InvalidOrderTrigger,
+    #[msg("InvalidOrderAuction")]
+    InvalidOrderAuction,
+    #[msg("InvalidOrderOracleOffset")]
+    InvalidOrderOracleOffset,
+    #[msg("InvalidOrderMinOrderSize")]
+    InvalidOrderMinOrderSize,
     #[msg("Failed to Place Post-Only Limit Order")]
     PlacePostOnlyLimitFailure,
     #[msg("User has no order")]
@@ -271,6 +299,12 @@ pub enum ErrorCode {
     InsufficientIFShares,
     #[msg("the Market has paused this action")]
     MarketActionPaused,
+    #[msg("the Market status doesnt allow placing orders")]
+    MarketPlaceOrderPaused,
+    #[msg("the Market status doesnt allow filling orders")]
+    MarketFillOrderPaused,
+    #[msg("the Market status doesnt allow withdraws")]
+    MarketWithdrawPaused,
     #[msg("Action violates the Protected Asset Tier rules")]
     ProtectedAssetTierViolation,
     #[msg("Action violates the Isolated Asset Tier rules")]
@@ -331,6 +365,8 @@ pub enum ErrorCode {
     NoAmmPerpPnlDeficit,
     #[msg("SufficientPerpPnlPool")]
     SufficientPerpPnlPool,
+    #[msg("InsufficientPerpPnlPool")]
+    InsufficientPerpPnlPool,
     #[msg("PerpPnlDeficitBelowThreshold")]
     PerpPnlDeficitBelowThreshold,
     #[msg("MaxRevenueWithdrawPerPeriodReached")]

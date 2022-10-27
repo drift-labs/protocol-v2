@@ -450,7 +450,7 @@ pub fn update_pool_balances(
                 > market.insurance_claim.last_revenue_withdraw_ts
             {
                 validate!(now >= market.insurance_claim.last_revenue_withdraw_ts && now >= spot_market.insurance_fund.last_revenue_settle_ts,
-                    ErrorCode::DefaultError,
+                    ErrorCode::BlockchainClockInconsistency,
                     "issue with clock unix timestamp {} < market.insurance_claim.last_revenue_withdraw_ts={}/spot_market.last_revenue_settle_ts={}",
                     now,
                     market.insurance_claim.last_revenue_withdraw_ts,
@@ -586,7 +586,7 @@ pub fn update_pnl_pool_and_user_balance(
 
     validate!(
         unrealized_pnl_with_fee == pnl_to_settle_with_user,
-        ErrorCode::DefaultError,
+        ErrorCode::InsufficientPerpPnlPool,
         "pnl_pool_amount doesnt have enough ({} < {})",
         pnl_to_settle_with_user,
         unrealized_pnl_with_fee

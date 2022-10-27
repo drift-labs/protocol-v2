@@ -470,7 +470,7 @@ pub fn handle_transfer_deposit(
                     | MarketStatus::ReduceOnly
                     | MarketStatus::Settlement
             ),
-            ErrorCode::MarketActionPaused,
+            ErrorCode::MarketWithdrawPaused,
             "Spot Market {} withdraws are currently paused",
             spot_market.market_index
         )?;
@@ -627,7 +627,7 @@ pub fn handle_place_perp_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
 
     if params.immediate_or_cancel {
         msg!("immediate_or_cancel order must be in place_and_make or place_and_take");
-        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        return Err(print_error!(ErrorCode::InvalidOrderIOC)().into());
     }
 
     controller::orders::place_perp_order(
@@ -781,7 +781,7 @@ pub fn handle_place_and_take_perp_order<'info>(
 
     if params.post_only {
         msg!("post_only cant be used in place_and_take");
-        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
     }
 
     let (maker, maker_stats) = match maker_order_id {
@@ -882,7 +882,7 @@ pub fn handle_place_and_make_perp_order<'info>(
 
     if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit {
         msg!("place_and_make must use IOC post only limit order");
-        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
     }
 
     controller::repeg::update_amm(
@@ -957,7 +957,7 @@ pub fn handle_place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
 
     if params.immediate_or_cancel {
         msg!("immediate_or_cancel order must be in place_and_make or place_and_take");
-        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        return Err(print_error!(ErrorCode::InvalidOrderIOC)().into());
     }
 
     controller::orders::place_spot_order(
@@ -1000,7 +1000,7 @@ pub fn handle_place_and_take_spot_order<'info>(
 
     if params.post_only {
         msg!("post_only cant be used in place_and_take");
-        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
     }
 
     let (maker, maker_stats) = match maker_order_id {
@@ -1130,7 +1130,7 @@ pub fn handle_place_and_make_spot_order<'info>(
 
     if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit {
         msg!("place_and_make must use IOC post only limit order");
-        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
     }
 
     let market_index = params.market_index;

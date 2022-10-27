@@ -42,7 +42,7 @@ impl InsuranceFundStake {
     fn validate_base(&self, spot_market: &SpotMarket) -> ClearingHouseResult {
         validate!(
             self.if_base == spot_market.insurance_fund.shares_base,
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidIFRebase,
             "if stake bases mismatch. user base: {} market base {}",
             self.if_base,
             spot_market.insurance_fund.shares_base

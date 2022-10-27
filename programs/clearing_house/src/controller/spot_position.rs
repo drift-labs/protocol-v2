@@ -130,7 +130,7 @@ pub fn update_spot_balances_and_cumulative_deposits_with_limits(
                 | MarketStatus::ReduceOnly
                 | MarketStatus::Settlement
         ),
-        ErrorCode::MarketActionPaused,
+        ErrorCode::MarketWithdrawPaused,
         "Spot Market {} withdraws are currently paused",
         spot_market.market_index
     )?;

@@ -46,7 +46,7 @@ pub fn calculate_bid_ask_bounds(
 ) -> ClearingHouseResult<(u128, u128)> {
     validate!(
         concentration_coef > CONCENTRATION_PRECISION,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidConcentrationCoef,
         "concentration_coef={} <= CONCENTRATION_PRECISION={}",
         concentration_coef,
         CONCENTRATION_PRECISION

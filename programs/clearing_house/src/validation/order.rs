@@ -52,7 +52,7 @@ fn validate_market_order(
                 order.auction_start_price,
                 order.auction_end_price
             );
-            return Err(ErrorCode::InvalidOrder);
+            return Err(ErrorCode::InvalidOrderAuction);
         }
         PositionDirection::Short if order.auction_start_price <= order.auction_end_price => {
             msg!(
@@ -60,29 +60,29 @@ fn validate_market_order(
                 order.auction_start_price,
                 order.auction_end_price
             );
-            return Err(ErrorCode::InvalidOrder);
+            return Err(ErrorCode::InvalidOrderAuction);
         }
         _ => {}
     }
 
     if order.trigger_price > 0 {
         msg!("Market should not have trigger price");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderTrigger);
     }
 
     if order.post_only {
         msg!("Market order can not be post only");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderPostOnly);
     }
 
     if order.has_oracle_price_offset() {
         msg!("Market order can not have oracle offset");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderOracleOffset);
     }
 
     if order.immediate_or_cancel {
         msg!("Market order can not be immediate or cancel");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderIOC);
     }
 
     Ok(())
@@ -103,17 +103,17 @@ fn validate_limit_order(
 
     if order.price == 0 && !order.has_oracle_price_offset() {
         msg!("Limit order price == 0");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderLimitPrice);
     }
 
     if order.has_oracle_price_offset() && order.price != 0 {
         msg!("Limit order price must be 0 for taker oracle offset order");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderLimitPrice);
     }
 
     if order.trigger_price > 0 {
         msg!("Limit order should not have trigger price");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderTrigger);
     }
 
     if order.post_only {
@@ -194,22 +194,22 @@ fn validate_trigger_limit_order(
 
     if order.price == 0 {
         msg!("Trigger limit order price == 0");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderLimitPrice);
     }
 
     if order.trigger_price == 0 {
         msg!("Trigger price == 0");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderTrigger);
     }
 
     if order.post_only {
         msg!("Trigger limit order can not be post only");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderPostOnly);
     }
 
     if order.has_oracle_price_offset() {
         msg!("Trigger limit can not have oracle offset");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderOracleOffset);
     }
 
     Ok(())
@@ -224,22 +224,22 @@ fn validate_trigger_market_order(
 
     if order.price > 0 {
         msg!("Trigger market order should not have price");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderLimitPrice);
     }
 
     if order.trigger_price == 0 {
         msg!("Trigger market order trigger_price == 0");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderTrigger);
     }
 
     if order.post_only {
         msg!("Trigger market order can not be post only");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderPostOnly);
     }
 
     if order.has_oracle_price_offset() {
         msg!("Trigger market order can not have oracle offset");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderOracleOffset);
     }
 
     Ok(())
@@ -253,12 +253,12 @@ fn validate_base_asset_amount(
 ) -> ClearingHouseResult {
     if order.base_asset_amount == 0 {
         msg!("Order base_asset_amount cant be 0");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderSizeTooSmall);
     }
 
     validate!(
         is_multiple_of_step_size(order.base_asset_amount, step_size)?,
-        ErrorCode::InvalidOrder,
+        ErrorCode::InvalidOrderNotStepSizeMultiple,
         "Order base asset amount ({}) not a multiple of the step size ({})",
         order.base_asset_amount,
         step_size
@@ -266,7 +266,7 @@ fn validate_base_asset_amount(
 
     validate!(
         reduce_only || order.base_asset_amount >= min_order_size,
-        ErrorCode::InvalidOrder,
+        ErrorCode::InvalidOrderMinOrderSize,
         "Order base_asset_amount ({}) < min_order_size ({})",
         order.base_asset_amount,
         min_order_size
@@ -320,17 +320,17 @@ fn validate_spot_limit_order(
 
     if order.price == 0 && !order.has_oracle_price_offset() {
         msg!("Limit order price == 0");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderLimitPrice);
     }
 
     if order.has_oracle_price_offset() && order.price != 0 {
         msg!("Limit order price must be 0 for taker oracle offset order");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderOracleOffset);
     }
 
     if order.trigger_price > 0 {
         msg!("Limit order should not have trigger price");
-        return Err(ErrorCode::InvalidOrder);
+        return Err(ErrorCode::InvalidOrderTrigger);
     }
 
     if order.post_only {

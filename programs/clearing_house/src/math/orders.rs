@@ -145,7 +145,7 @@ pub fn calculate_base_asset_amount_for_reduce_only_order(
         || (order_direction == PositionDirection::Short && existing_position <= 0)
     {
         msg!("Reduce Only Order must decrease existing position size");
-        Err(ErrorCode::InvalidOrder)
+        Err(ErrorCode::InvalidOrderNotRiskReducing)
     } else {
         Ok(min(
             proposed_base_asset_amount,
