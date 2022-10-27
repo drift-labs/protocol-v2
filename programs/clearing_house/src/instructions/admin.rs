@@ -249,6 +249,7 @@ pub fn handle_initialize_spot_market(
         min_order_size: order_step_size,
         max_position_size: 0,
         next_fill_record_id: 1,
+        next_deposit_record_id: 1,
         spot_fee_pool: PoolBalance::default(), // in quote asset
         total_spot_fee: 0,
         orders_enabled: spot_market_index != 0,

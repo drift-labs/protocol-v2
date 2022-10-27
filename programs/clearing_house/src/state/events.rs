@@ -24,6 +24,7 @@ pub struct DepositRecord {
     pub user_authority: Pubkey,
     pub user: Pubkey,
     pub direction: DepositDirection,
+    pub deposit_record_id: u64,
     pub amount: u64,
     pub market_index: u16,
     pub oracle_price: i64,

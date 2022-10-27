@@ -50,6 +50,7 @@ pub struct SpotMarket {
     pub min_order_size: u64,
     pub max_position_size: u64,
     pub next_fill_record_id: u64,
+    pub next_deposit_record_id: u64,
     pub initial_asset_weight: u32,
     pub maintenance_asset_weight: u32,
     pub initial_liability_weight: u32,
