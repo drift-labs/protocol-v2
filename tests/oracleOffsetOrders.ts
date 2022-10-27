@@ -17,9 +17,9 @@ import {
 	getLimitOrderParams,
 	MarketStatus,
 	AMM_RESERVE_PRECISION,
-	calculateEntryPrice,
 	OracleSource,
 	ZERO,
+	calculateBreakEvenPrice,
 } from '../sdk/src';
 
 import {
@@ -29,6 +29,7 @@ import {
 	setFeedPrice,
 	initializeQuoteSpotMarket,
 } from './testHelpers';
+import { calculateEntryPrice } from '../sdk';
 
 describe('oracle offset', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -192,7 +193,9 @@ describe('oracle offset', () => {
 
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
+		const breakEvenPrice = calculateBreakEvenPrice(position);
 		const entryPrice = calculateEntryPrice(position);
+		assert(breakEvenPrice.eq(new BN(910003)));
 		assert(entryPrice.eq(new BN(909093)));
 
 		await clearingHouse.unsubscribe();
@@ -268,9 +271,12 @@ describe('oracle offset', () => {
 
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
-		const entryPrice = calculateEntryPrice(position);
+		const breakEvenPrice = calculateBreakEvenPrice(position);
+		console.log(breakEvenPrice.toString());
 		const expectedEntryPrice = new BN(950000);
-		console.log(entryPrice.toString(), 'vs', expectedEntryPrice.toString());
+		console.log(breakEvenPrice.toString(), 'vs', expectedEntryPrice.toString());
+		assert(breakEvenPrice.eq(expectedEntryPrice));
+		const entryPrice = calculateEntryPrice(position);
 		assert(entryPrice.eq(expectedEntryPrice));
 
 		await clearingHouse.unsubscribe();
@@ -344,7 +350,11 @@ describe('oracle offset', () => {
 
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
+		const breakEvenPrice = calculateBreakEvenPrice(position);
 		const entryPrice = calculateEntryPrice(position);
+		console.log(breakEvenPrice.toString());
+		console.log(entryPrice.toString());
+		assert(breakEvenPrice.eq(new BN(1101097)));
 		assert(entryPrice.eq(new BN(1099997)));
 
 		await clearingHouse.unsubscribe();
@@ -419,7 +429,8 @@ describe('oracle offset', () => {
 
 		await clearingHouseUser.fetchAccounts();
 		const position = clearingHouseUser.getUserPosition(marketIndex);
-		const entryPrice = calculateEntryPrice(position);
+		const entryPrice = calculateBreakEvenPrice(position);
+		console.log(entryPrice.toString());
 		const expectedEntryPrice = PRICE_PRECISION.add(priceOffset);
 		console.log(entryPrice.toString());
 		assert(entryPrice.eq(expectedEntryPrice));

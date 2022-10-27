@@ -388,14 +388,10 @@ describe('delist market, liquidation of expired position', () => {
 
 		// TODO: quoteAssetAmountShort!= sum of users
 		assert(
-			market0.amm.quoteAssetAmountShort.eq(
-				winnerUser.perpPositions[0].quoteAssetAmount
-			)
-		);
-
-		assert(
-			market0.amm.quoteAssetAmountLong.eq(
-				loserUser.perpPositions[0].quoteAssetAmount
+			market0.amm.quoteAssetAmount.eq(
+				winnerUser.perpPositions[0].quoteAssetAmount.add(
+					loserUser.perpPositions[0].quoteAssetAmount
+				)
 			)
 		);
 	});
@@ -722,7 +718,7 @@ describe('delist market, liquidation of expired position', () => {
 		assert(liqUser.perpPositions[0].quoteAssetAmount.eq(new BN(0)));
 		const marketAfter0 = clearingHouse.getPerpMarketAccount(marketIndex);
 		console.log(marketAfter0);
-		assert(marketAfter0.numberOfUsers === 0);
+		assert(marketAfter0.numberOfUsersWithBase === 0);
 
 		// old 1415296436
 		const finalPnlResultMin0 = new BN(2270702294000 - 11090000);

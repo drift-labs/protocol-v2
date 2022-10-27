@@ -34,7 +34,7 @@ mod validation;
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dammHkt7jmytvbS3nHTxQNEcP59aE57nxwV21YdqEDN");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("BJG3o4CURrokB7huNyiHptYepAtHXj4YfefJiPgzUULV");
+declare_id!("jAEeKs9twxAJmXZHqS2p459xW7FMDjoyvuqthRo9qGS");
 
 #[program]
 pub mod clearing_house {
@@ -44,7 +44,7 @@ pub mod clearing_house {
 
     pub fn initialize_user(
         ctx: Context<InitializeUser>,
-        sub_account_id: u8,
+        sub_account_id: u16,
         name: [u8; 32],
     ) -> Result<()> {
         handle_initialize_user(ctx, sub_account_id, name)
@@ -134,8 +134,9 @@ pub mod clearing_house {
         ctx: Context<PlaceAndMake>,
         params: OrderParams,
         taker_order_id: u32,
+        fulfillment_type: Option<SpotFulfillmentType>,
     ) -> Result<()> {
-        handle_place_and_make_spot_order(ctx, params, taker_order_id)
+        handle_place_and_make_spot_order(ctx, params, taker_order_id, fulfillment_type)
     }
 
     pub fn add_perp_lp_shares(
@@ -164,7 +165,7 @@ pub mod clearing_house {
 
     pub fn update_user_name(
         ctx: Context<UpdateUser>,
-        _sub_account_id: u8,
+        _sub_account_id: u16,
         name: [u8; 32],
     ) -> Result<()> {
         handle_update_user_name(ctx, _sub_account_id, name)
@@ -172,7 +173,7 @@ pub mod clearing_house {
 
     pub fn update_user_custom_margin_ratio(
         ctx: Context<UpdateUser>,
-        _sub_account_id: u8,
+        _sub_account_id: u16,
         margin_ratio: u32,
     ) -> Result<()> {
         handle_update_user_custom_margin_ratio(ctx, _sub_account_id, margin_ratio)
@@ -180,7 +181,7 @@ pub mod clearing_house {
 
     pub fn update_user_delegate(
         ctx: Context<UpdateUser>,
-        _sub_account_id: u8,
+        _sub_account_id: u16,
         delegate: Pubkey,
     ) -> Result<()> {
         handle_update_user_delegate(ctx, _sub_account_id, delegate)
@@ -398,7 +399,7 @@ pub mod clearing_house {
         initial_liability_weight: u32,
         maintenance_liability_weight: u32,
         imf_factor: u32,
-        liquidation_fee: u32,
+        liquidator_fee: u32,
         active_status: bool,
     ) -> Result<()> {
         handle_initialize_spot_market(
@@ -412,7 +413,7 @@ pub mod clearing_house {
             initial_liability_weight,
             maintenance_liability_weight,
             imf_factor,
-            liquidation_fee,
+            liquidator_fee,
             active_status,
         )
     }
@@ -437,7 +438,7 @@ pub mod clearing_house {
         oracle_source: OracleSource,
         margin_ratio_initial: u32,
         margin_ratio_maintenance: u32,
-        liquidation_fee: u32,
+        liquidator_fee: u32,
         active_status: bool,
         name: [u8; 32],
     ) -> Result<()> {
@@ -450,7 +451,7 @@ pub mod clearing_house {
             oracle_source,
             margin_ratio_initial,
             margin_ratio_maintenance,
-            liquidation_fee,
+            liquidator_fee,
             active_status,
             name,
         )
@@ -523,7 +524,7 @@ pub mod clearing_house {
         )
     }
 
-    pub fn update_perp_liquidation_fee(
+    pub fn update_perp_market_liquidation_fee(
         ctx: Context<AdminUpdatePerpMarket>,
         liquidator_fee: u32,
         if_liquidation_fee: u32,
@@ -601,6 +602,20 @@ pub mod clearing_house {
         )
     }
 
+    pub fn update_spot_market_borrow_rate(
+        ctx: Context<AdminUpdateSpotMarket>,
+        optimal_utilization: u32,
+        optimal_borrow_rate: u32,
+        max_borrow_rate: u32,
+    ) -> Result<()> {
+        handle_update_spot_market_borrow_rate(
+            ctx,
+            optimal_utilization,
+            optimal_borrow_rate,
+            max_borrow_rate,
+        )
+    }
+
     pub fn update_spot_market_max_token_deposits(
         ctx: Context<AdminUpdateSpotMarket>,
         max_token_deposits: u64,
@@ -614,6 +629,21 @@ pub mod clearing_house {
         oracle_source: OracleSource,
     ) -> Result<()> {
         handle_update_spot_market_oracle(ctx, oracle, oracle_source)
+    }
+
+    pub fn update_spot_market_step_size_and_tick_size(
+        ctx: Context<AdminUpdateSpotMarket>,
+        step_size: u64,
+        tick_size: u64,
+    ) -> Result<()> {
+        handle_update_spot_market_step_size_and_tick_size(ctx, step_size, tick_size)
+    }
+
+    pub fn update_spot_market_min_order_size(
+        ctx: Context<AdminUpdateSpotMarket>,
+        order_size: u64,
+    ) -> Result<()> {
+        handle_update_spot_market_min_order_size(ctx, order_size)
     }
 
     pub fn update_perp_market_status(
@@ -633,8 +663,9 @@ pub mod clearing_house {
     pub fn update_perp_market_imf_factor(
         ctx: Context<AdminUpdatePerpMarket>,
         imf_factor: u32,
+        unrealized_pnl_imf_factor: u32,
     ) -> Result<()> {
-        handle_update_perp_market_imf_factor(ctx, imf_factor)
+        handle_update_perp_market_imf_factor(ctx, imf_factor, unrealized_pnl_imf_factor)
     }
 
     pub fn update_perp_market_unrealized_asset_weight(

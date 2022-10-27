@@ -3,6 +3,9 @@ use crate::controller::lp::burn_lp_shares;
 use crate::controller::lp::mint_lp_shares;
 use crate::controller::lp::settle_lp_position;
 use crate::controller::position::PositionDirection;
+use crate::math::amm::calculate_bid_ask_bounds;
+use crate::math::constants::BASE_PRECISION;
+use crate::math::constants::CONCENTRATION_PRECISION;
 use crate::math::constants::{
     BASE_PRECISION_U64, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, QUOTE_PRECISION_I64,
 };
@@ -437,4 +440,42 @@ fn calculate_k_with_lps_tests() {
     // let cost2 = adjust_k_cost(&mut market, &update_k_up).unwrap();
     // assert!(cost2 > cost);
     // assert_eq!(cost2, 249999999999850000000001);
+}
+
+#[test]
+fn calculate_bid_ask_per_lp_token() {
+    let (bound1_s, bound2_s) =
+        calculate_bid_ask_bounds(MAX_CONCENTRATION_COEFFICIENT, 24704615072091).unwrap();
+
+    assert_eq!(bound1_s, 17468968372288);
+    assert_eq!(bound2_s, 34937266634951);
+
+    let (bound1, bound2) = calculate_bid_ask_bounds(
+        MAX_CONCENTRATION_COEFFICIENT,
+        24704615072091 + BASE_PRECISION,
+    )
+    .unwrap();
+
+    assert_eq!(bound1 - bound1_s, 707113563);
+    assert_eq!(bound2 - bound2_s, 1414200000);
+
+    let more_conc =
+        CONCENTRATION_PRECISION + (MAX_CONCENTRATION_COEFFICIENT - CONCENTRATION_PRECISION) / 20;
+
+    let (bound1_s, bound2_s) = calculate_bid_ask_bounds(more_conc, 24704615072091).unwrap();
+
+    assert_eq!(bound1_s, 24203363415750);
+    assert_eq!(bound2_s, 25216247650234);
+
+    let (bound1, bound2) =
+        calculate_bid_ask_bounds(more_conc, 24704615072091 + BASE_PRECISION).unwrap();
+
+    assert_eq!(bound1 - bound1_s, 979710202);
+    assert_eq!(bound2 - bound2_s, 1020710000);
+
+    let (bound1_3, bound2_3) =
+        calculate_bid_ask_bounds(more_conc, 24704615072091 + 2 * BASE_PRECISION).unwrap();
+
+    assert_eq!(bound1_3 - bound1_s, 979710202 * 2);
+    assert_eq!(bound2_3 - bound2_s, 1020710000 * 2);
 }

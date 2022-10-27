@@ -5,11 +5,12 @@ use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
     get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
-    load_maps, AccountMaps,
+    get_spot_market_vaults, load_maps, AccountMaps,
 };
 use crate::load_mut;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::insurance::if_shares_to_vault_amount;
+use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
@@ -197,7 +198,7 @@ fn fill_spot_order(
 
     let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
-    let serum_fulfillment_params = match fulfillment_type {
+    let mut serum_fulfillment_params = match fulfillment_type {
         Some(SpotFulfillmentType::SerumV3) => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
@@ -225,8 +226,31 @@ fn fill_spot_order(
         maker_stats.as_ref(),
         maker_order_id,
         &Clock::get()?,
-        serum_fulfillment_params,
+        &mut serum_fulfillment_params,
     )?;
+
+    match serum_fulfillment_params {
+        Some(serum_fulfillment_params) => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            validate_spot_market_vault_amount(
+                &base_market,
+                serum_fulfillment_params.base_market_vault.amount,
+            )?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            validate_spot_market_vault_amount(
+                &quote_market,
+                serum_fulfillment_params.quote_market_vault.amount,
+            )?;
+        }
+        None => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            let (base_market_vault, quote_market_vault) =
+                get_spot_market_vaults(remaining_accounts_iter, &base_market, &quote_market)?;
+            validate_spot_market_vault_amount(&base_market, base_market_vault.amount)?;
+            validate_spot_market_vault_amount(&quote_market, quote_market_vault.amount)?;
+        }
+    }
 
     Ok(())
 }
@@ -341,6 +365,9 @@ pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<(
             state,
         )?;
     }
+
+    let spot_market = spot_market_map.get_quote_spot_market()?;
+    validate_spot_market_vault_amount(&spot_market, ctx.accounts.spot_market_vault.amount)?;
 
     Ok(())
 }
@@ -1219,6 +1246,11 @@ pub struct SettlePNL<'info> {
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
+    #[account(
+        seeds = [b"spot_market_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
 }
 
 #[derive(Accounts)]

@@ -91,6 +91,8 @@ pub enum ErrorCode {
     CastingFailure,
     #[msg("Invalid Order")]
     InvalidOrder,
+    #[msg("Failed to Place Post-Only Limit Order")]
+    PlacePostOnlyLimitFailure,
     #[msg("User has no order")]
     UserHasNoOrder,
     #[msg("Order Amount Too Small")]

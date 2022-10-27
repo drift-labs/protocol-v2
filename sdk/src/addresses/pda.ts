@@ -26,7 +26,7 @@ export async function getUserAccountPublicKeyAndNonce(
 		[
 			Buffer.from(anchor.utils.bytes.utf8.encode('user')),
 			authority.toBuffer(),
-			Uint8Array.from([subAccountId]),
+			new anchor.BN(subAccountId).toArrayLike(Buffer, 'le', 2),
 		],
 		programId
 	);
@@ -51,7 +51,7 @@ export function getUserAccountPublicKeySync(
 		[
 			Buffer.from(anchor.utils.bytes.utf8.encode('user')),
 			authority.toBuffer(),
-			Uint8Array.from([subAccountId]),
+			new anchor.BN(subAccountId).toArrayLike(Buffer, 'le', 2),
 		],
 		programId
 	)[0];

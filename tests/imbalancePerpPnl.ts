@@ -535,16 +535,11 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		console.log(winnerUser.perpPositions[0].quoteAssetAmount.toString());
 		console.log(loserUser.perpPositions[0].quoteAssetAmount.toString());
 
-		// TODO: quoteAssetAmountShort!= sum of users
 		assert(
-			market0.amm.quoteAssetAmountShort.eq(
-				winnerUser.perpPositions[0].quoteAssetAmount
-			)
-		);
-
-		assert(
-			market0.amm.quoteAssetAmountLong.eq(
-				loserUser.perpPositions[0].quoteAssetAmount
+			market0.amm.quoteAssetAmount.eq(
+				winnerUser.perpPositions[0].quoteAssetAmount.add(
+					loserUser.perpPositions[0].quoteAssetAmount
+				)
 			)
 		);
 		const oraclePriceData0 = clearingHouse.getOracleDataForPerpMarket(
