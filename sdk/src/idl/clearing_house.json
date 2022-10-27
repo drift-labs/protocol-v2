@@ -5789,6 +5789,9 @@
           },
           {
             "name": "MarketExpired"
+          },
+          {
+            "name": "RiskingIncreasingOrder"
           }
         ]
       }
@@ -7282,760 +7285,850 @@
     {
       "code": 6042,
       "name": "InvalidOrder",
-      "msg": "Invalid Order"
+      "msg": "InvalidOrder"
     },
     {
       "code": 6043,
+      "name": "InvalidOrderMaxTs",
+      "msg": "InvalidOrderMaxTs"
+    },
+    {
+      "code": 6044,
+      "name": "InvalidOrderMarketType",
+      "msg": "InvalidOrderMarketType"
+    },
+    {
+      "code": 6045,
+      "name": "InvalidOrderForInitialMarginReq",
+      "msg": "InvalidOrderForInitialMarginReq"
+    },
+    {
+      "code": 6046,
+      "name": "InvalidOrderNotRiskReducing",
+      "msg": "InvalidOrderNotRiskReducing"
+    },
+    {
+      "code": 6047,
+      "name": "InvalidOrderSizeTooSmall",
+      "msg": "InvalidOrderSizeTooSmall"
+    },
+    {
+      "code": 6048,
+      "name": "InvalidOrderNotStepSizeMultiple",
+      "msg": "InvalidOrderNotStepSizeMultiple"
+    },
+    {
+      "code": 6049,
+      "name": "InvalidOrderBaseQuoteAsset",
+      "msg": "InvalidOrderBaseQuoteAsset"
+    },
+    {
+      "code": 6050,
+      "name": "InvalidOrderIOC",
+      "msg": "InvalidOrderIOC"
+    },
+    {
+      "code": 6051,
+      "name": "InvalidOrderPostOnly",
+      "msg": "InvalidOrderPostOnly"
+    },
+    {
+      "code": 6052,
+      "name": "InvalidOrderIOCPostOnly",
+      "msg": "InvalidOrderIOCPostOnly"
+    },
+    {
+      "code": 6053,
+      "name": "InvalidOrderTrigger",
+      "msg": "InvalidOrderTrigger"
+    },
+    {
+      "code": 6054,
+      "name": "InvalidOrderAuction",
+      "msg": "InvalidOrderAuction"
+    },
+    {
+      "code": 6055,
+      "name": "InvalidOrderOracleOffset",
+      "msg": "InvalidOrderOracleOffset"
+    },
+    {
+      "code": 6056,
+      "name": "InvalidOrderMinOrderSize",
+      "msg": "InvalidOrderMinOrderSize"
+    },
+    {
+      "code": 6057,
       "name": "PlacePostOnlyLimitFailure",
       "msg": "Failed to Place Post-Only Limit Order"
     },
     {
-      "code": 6044,
+      "code": 6058,
       "name": "UserHasNoOrder",
       "msg": "User has no order"
     },
     {
-      "code": 6045,
+      "code": 6059,
       "name": "OrderAmountTooSmall",
       "msg": "Order Amount Too Small"
     },
     {
-      "code": 6046,
+      "code": 6060,
       "name": "MaxNumberOfOrders",
       "msg": "Max number of orders taken"
     },
     {
-      "code": 6047,
+      "code": 6061,
       "name": "OrderDoesNotExist",
       "msg": "Order does not exist"
     },
     {
-      "code": 6048,
+      "code": 6062,
       "name": "OrderNotOpen",
       "msg": "Order not open"
     },
     {
-      "code": 6049,
+      "code": 6063,
       "name": "FillOrderDidNotUpdateState",
       "msg": "FillOrderDidNotUpdateState"
     },
     {
-      "code": 6050,
+      "code": 6064,
       "name": "ReduceOnlyOrderIncreasedRisk",
       "msg": "Reduce only order increased risk"
     },
     {
-      "code": 6051,
+      "code": 6065,
       "name": "UnableToLoadAccountLoader",
       "msg": "Unable to load AccountLoader"
     },
     {
-      "code": 6052,
+      "code": 6066,
       "name": "TradeSizeTooLarge",
       "msg": "Trade Size Too Large"
     },
     {
-      "code": 6053,
+      "code": 6067,
       "name": "UserCantReferThemselves",
       "msg": "User cant refer themselves"
     },
     {
-      "code": 6054,
+      "code": 6068,
       "name": "DidNotReceiveExpectedReferrer",
       "msg": "Did not receive expected referrer"
     },
     {
-      "code": 6055,
+      "code": 6069,
       "name": "CouldNotDeserializeReferrer",
       "msg": "Could not deserialize referrer"
     },
     {
-      "code": 6056,
+      "code": 6070,
       "name": "CouldNotDeserializeReferrerStats",
       "msg": "Could not deserialize referrer stats"
     },
     {
-      "code": 6057,
+      "code": 6071,
       "name": "UserOrderIdAlreadyInUse",
       "msg": "User Order Id Already In Use"
     },
     {
-      "code": 6058,
+      "code": 6072,
       "name": "NoPositionsLiquidatable",
       "msg": "No positions liquidatable"
     },
     {
-      "code": 6059,
+      "code": 6073,
       "name": "InvalidMarginRatio",
       "msg": "Invalid Margin Ratio"
     },
     {
-      "code": 6060,
+      "code": 6074,
       "name": "CantCancelPostOnlyOrder",
       "msg": "Cant Cancel Post Only Order"
     },
     {
-      "code": 6061,
+      "code": 6075,
       "name": "InvalidOracleOffset",
       "msg": "InvalidOracleOffset"
     },
     {
-      "code": 6062,
+      "code": 6076,
       "name": "CantExpireOrders",
       "msg": "CantExpireOrders"
     },
     {
-      "code": 6063,
+      "code": 6077,
       "name": "CouldNotLoadMarketData",
       "msg": "CouldNotLoadMarketData"
     },
     {
-      "code": 6064,
+      "code": 6078,
       "name": "MarketNotFound",
       "msg": "MarketNotFound"
     },
     {
-      "code": 6065,
+      "code": 6079,
       "name": "InvalidMarketAccount",
       "msg": "InvalidMarketAccount"
     },
     {
-      "code": 6066,
+      "code": 6080,
       "name": "UnableToLoadMarketAccount",
       "msg": "UnableToLoadMarketAccount"
     },
     {
-      "code": 6067,
+      "code": 6081,
       "name": "MarketWrongMutability",
       "msg": "MarketWrongMutability"
     },
     {
-      "code": 6068,
+      "code": 6082,
       "name": "UnableToCastUnixTime",
       "msg": "UnableToCastUnixTime"
     },
     {
-      "code": 6069,
+      "code": 6083,
       "name": "CouldNotFindSpotPosition",
       "msg": "CouldNotFindSpotPosition"
     },
     {
-      "code": 6070,
+      "code": 6084,
       "name": "NoSpotPositionAvailable",
       "msg": "NoSpotPositionAvailable"
     },
     {
-      "code": 6071,
+      "code": 6085,
       "name": "InvalidSpotMarketInitialization",
       "msg": "InvalidSpotMarketInitialization"
     },
     {
-      "code": 6072,
+      "code": 6086,
       "name": "CouldNotLoadSpotMarketData",
       "msg": "CouldNotLoadSpotMarketData"
     },
     {
-      "code": 6073,
+      "code": 6087,
       "name": "SpotMarketNotFound",
       "msg": "SpotMarketNotFound"
     },
     {
-      "code": 6074,
+      "code": 6088,
       "name": "InvalidSpotMarketAccount",
       "msg": "InvalidSpotMarketAccount"
     },
     {
-      "code": 6075,
+      "code": 6089,
       "name": "UnableToLoadSpotMarketAccount",
       "msg": "UnableToLoadSpotMarketAccount"
     },
     {
-      "code": 6076,
+      "code": 6090,
       "name": "SpotMarketWrongMutability",
       "msg": "SpotMarketWrongMutability"
     },
     {
-      "code": 6077,
+      "code": 6091,
       "name": "SpotMarketInterestNotUpToDate",
       "msg": "SpotInterestNotUpToDate"
     },
     {
-      "code": 6078,
+      "code": 6092,
       "name": "SpotMarketInsufficientDeposits",
       "msg": "SpotMarketInsufficientDeposits"
     },
     {
-      "code": 6079,
+      "code": 6093,
       "name": "UserMustSettleTheirOwnPositiveUnsettledPNL",
       "msg": "UserMustSettleTheirOwnPositiveUnsettledPNL"
     },
     {
-      "code": 6080,
+      "code": 6094,
       "name": "CantUpdatePoolBalanceType",
       "msg": "CantUpdatePoolBalanceType"
     },
     {
-      "code": 6081,
+      "code": 6095,
       "name": "InsufficientCollateralForSettlingPNL",
       "msg": "InsufficientCollateralForSettlingPNL"
     },
     {
-      "code": 6082,
+      "code": 6096,
       "name": "AMMNotUpdatedInSameSlot",
       "msg": "AMMNotUpdatedInSameSlot"
     },
     {
-      "code": 6083,
+      "code": 6097,
       "name": "AuctionNotComplete",
       "msg": "AuctionNotComplete"
     },
     {
-      "code": 6084,
+      "code": 6098,
       "name": "MakerNotFound",
       "msg": "MakerNotFound"
     },
     {
-      "code": 6085,
+      "code": 6099,
       "name": "MakerStatsNotFound",
       "msg": "MakerNotFound"
     },
     {
-      "code": 6086,
+      "code": 6100,
       "name": "MakerMustBeWritable",
       "msg": "MakerMustBeWritable"
     },
     {
-      "code": 6087,
+      "code": 6101,
       "name": "MakerStatsMustBeWritable",
       "msg": "MakerMustBeWritable"
     },
     {
-      "code": 6088,
+      "code": 6102,
       "name": "MakerOrderNotFound",
       "msg": "MakerOrderNotFound"
     },
     {
-      "code": 6089,
+      "code": 6103,
       "name": "CouldNotDeserializeMaker",
       "msg": "CouldNotDeserializeMaker"
     },
     {
-      "code": 6090,
+      "code": 6104,
       "name": "CouldNotDeserializeMakerStats",
       "msg": "CouldNotDeserializeMaker"
     },
     {
-      "code": 6091,
+      "code": 6105,
       "name": "AuctionPriceDoesNotSatisfyMaker",
       "msg": "AuctionPriceDoesNotSatisfyMaker"
     },
     {
-      "code": 6092,
+      "code": 6106,
       "name": "MakerCantFulfillOwnOrder",
       "msg": "MakerCantFulfillOwnOrder"
     },
     {
-      "code": 6093,
+      "code": 6107,
       "name": "MakerOrderMustBePostOnly",
       "msg": "MakerOrderMustBePostOnly"
     },
     {
-      "code": 6094,
+      "code": 6108,
       "name": "CantMatchTwoPostOnlys",
       "msg": "CantMatchTwoPostOnlys"
     },
     {
-      "code": 6095,
+      "code": 6109,
       "name": "OrderBreachesOraclePriceLimits",
       "msg": "OrderBreachesOraclePriceLimits"
     },
     {
-      "code": 6096,
+      "code": 6110,
       "name": "OrderMustBeTriggeredFirst",
       "msg": "OrderMustBeTriggeredFirst"
     },
     {
-      "code": 6097,
+      "code": 6111,
       "name": "OrderNotTriggerable",
       "msg": "OrderNotTriggerable"
     },
     {
-      "code": 6098,
+      "code": 6112,
       "name": "OrderDidNotSatisfyTriggerCondition",
       "msg": "OrderDidNotSatisfyTriggerCondition"
     },
     {
-      "code": 6099,
+      "code": 6113,
       "name": "PositionAlreadyBeingLiquidated",
       "msg": "PositionAlreadyBeingLiquidated"
     },
     {
-      "code": 6100,
+      "code": 6114,
       "name": "PositionDoesntHaveOpenPositionOrOrders",
       "msg": "PositionDoesntHaveOpenPositionOrOrders"
     },
     {
-      "code": 6101,
+      "code": 6115,
       "name": "AllOrdersAreAlreadyLiquidations",
       "msg": "AllOrdersAreAlreadyLiquidations"
     },
     {
-      "code": 6102,
+      "code": 6116,
       "name": "CantCancelLiquidationOrder",
       "msg": "CantCancelLiquidationOrder"
     },
     {
-      "code": 6103,
+      "code": 6117,
       "name": "UserIsBeingLiquidated",
       "msg": "UserIsBeingLiquidated"
     },
     {
-      "code": 6104,
+      "code": 6118,
       "name": "LiquidationsOngoing",
       "msg": "LiquidationsOngoing"
     },
     {
-      "code": 6105,
+      "code": 6119,
       "name": "WrongSpotBalanceType",
       "msg": "WrongSpotBalanceType"
     },
     {
-      "code": 6106,
+      "code": 6120,
       "name": "UserCantLiquidateThemself",
       "msg": "UserCantLiquidateThemself"
     },
     {
-      "code": 6107,
+      "code": 6121,
       "name": "InvalidPerpPositionToLiquidate",
       "msg": "InvalidPerpPositionToLiquidate"
     },
     {
-      "code": 6108,
+      "code": 6122,
       "name": "InvalidBaseAssetAmountForLiquidatePerp",
       "msg": "InvalidBaseAssetAmountForLiquidatePerp"
     },
     {
-      "code": 6109,
+      "code": 6123,
       "name": "InvalidPositionLastFundingRate",
       "msg": "InvalidPositionLastFundingRate"
     },
     {
-      "code": 6110,
+      "code": 6124,
       "name": "InvalidPositionDelta",
       "msg": "InvalidPositionDelta"
     },
     {
-      "code": 6111,
+      "code": 6125,
       "name": "UserBankrupt",
       "msg": "UserBankrupt"
     },
     {
-      "code": 6112,
+      "code": 6126,
       "name": "UserNotBankrupt",
       "msg": "UserNotBankrupt"
     },
     {
-      "code": 6113,
+      "code": 6127,
       "name": "UserHasInvalidBorrow",
       "msg": "UserHasInvalidBorrow"
     },
     {
-      "code": 6114,
+      "code": 6128,
       "name": "DailyWithdrawLimit",
       "msg": "DailyWithdrawLimit"
     },
     {
-      "code": 6115,
+      "code": 6129,
       "name": "DefaultError",
       "msg": "DefaultError"
     },
     {
-      "code": 6116,
+      "code": 6130,
       "name": "InsufficientLPTokens",
       "msg": "Insufficient LP tokens"
     },
     {
-      "code": 6117,
+      "code": 6131,
       "name": "CantLPWithPerpPosition",
       "msg": "Cant LP with a market position"
     },
     {
-      "code": 6118,
+      "code": 6132,
       "name": "UnableToBurnLPTokens",
       "msg": "Unable to burn LP tokens"
     },
     {
-      "code": 6119,
+      "code": 6133,
       "name": "TryingToRemoveLiquidityTooFast",
       "msg": "Trying to remove liqudity too fast after adding it"
     },
     {
-      "code": 6120,
+      "code": 6134,
       "name": "InvalidSpotMarketVault",
       "msg": "Invalid Spot Market Vault"
     },
     {
-      "code": 6121,
+      "code": 6135,
       "name": "InvalidSpotMarketState",
       "msg": "Invalid Spot Market State"
     },
     {
-      "code": 6122,
+      "code": 6136,
       "name": "InvalidSerumProgram",
       "msg": "InvalidSerumProgram"
     },
     {
-      "code": 6123,
+      "code": 6137,
       "name": "InvalidSerumMarket",
       "msg": "InvalidSerumMarket"
     },
     {
-      "code": 6124,
+      "code": 6138,
       "name": "InvalidSerumBids",
       "msg": "InvalidSerumBids"
     },
     {
-      "code": 6125,
+      "code": 6139,
       "name": "InvalidSerumAsks",
       "msg": "InvalidSerumAsks"
     },
     {
-      "code": 6126,
+      "code": 6140,
       "name": "InvalidSerumOpenOrders",
       "msg": "InvalidSerumOpenOrders"
     },
     {
-      "code": 6127,
+      "code": 6141,
       "name": "FailedSerumCPI",
       "msg": "FailedSerumCPI"
     },
     {
-      "code": 6128,
+      "code": 6142,
       "name": "FailedToFillOnSerum",
       "msg": "FailedToFillOnSerum"
     },
     {
-      "code": 6129,
+      "code": 6143,
       "name": "InvalidSerumFulfillmentConfig",
       "msg": "InvalidSerumFulfillmentConfig"
     },
     {
-      "code": 6130,
+      "code": 6144,
       "name": "InvalidFeeStructure",
       "msg": "InvalidFeeStructure"
     },
     {
-      "code": 6131,
+      "code": 6145,
       "name": "InsufficientIFShares",
       "msg": "Insufficient IF shares"
     },
     {
-      "code": 6132,
+      "code": 6146,
       "name": "MarketActionPaused",
       "msg": "the Market has paused this action"
     },
     {
-      "code": 6133,
+      "code": 6147,
+      "name": "MarketPlaceOrderPaused",
+      "msg": "the Market status doesnt allow placing orders"
+    },
+    {
+      "code": 6148,
+      "name": "MarketFillOrderPaused",
+      "msg": "the Market status doesnt allow filling orders"
+    },
+    {
+      "code": 6149,
+      "name": "MarketWithdrawPaused",
+      "msg": "the Market status doesnt allow withdraws"
+    },
+    {
+      "code": 6150,
       "name": "ProtectedAssetTierViolation",
       "msg": "Action violates the Protected Asset Tier rules"
     },
     {
-      "code": 6134,
+      "code": 6151,
       "name": "IsolatedAssetTierViolation",
       "msg": "Action violates the Isolated Asset Tier rules"
     },
     {
-      "code": 6135,
+      "code": 6152,
       "name": "UserCantBeDeleted",
       "msg": "User Cant Be Deleted"
     },
     {
-      "code": 6136,
+      "code": 6153,
       "name": "ReduceOnlyWithdrawIncreasedRisk",
       "msg": "Reduce Only Withdraw Increased Risk"
     },
     {
-      "code": 6137,
+      "code": 6154,
       "name": "MaxOpenInterest",
       "msg": "Max Open Interest"
     },
     {
-      "code": 6138,
+      "code": 6155,
       "name": "CantResolvePerpBankruptcy",
       "msg": "Cant Resolve Perp Bankruptcy"
     },
     {
-      "code": 6139,
+      "code": 6156,
       "name": "LiquidationDoesntSatisfyLimitPrice",
       "msg": "Liquidation Doesnt Satisfy Limit Price"
     },
     {
-      "code": 6140,
+      "code": 6157,
       "name": "MarginTradingDisabled",
       "msg": "Margin Trading Disabled"
     },
     {
-      "code": 6141,
+      "code": 6158,
       "name": "InvalidMarketStatusToSettlePnl",
       "msg": "Invalid Market Status to Settle Perp Pnl"
     },
     {
-      "code": 6142,
+      "code": 6159,
       "name": "PerpMarketNotInSettlement",
       "msg": "PerpMarketNotInSettlement"
     },
     {
-      "code": 6143,
+      "code": 6160,
       "name": "PerpMarketNotInReduceOnly",
       "msg": "PerpMarketNotInReduceOnly"
     },
     {
-      "code": 6144,
+      "code": 6161,
       "name": "PerpMarketSettlementBufferNotReached",
       "msg": "PerpMarketSettlementBufferNotReached"
     },
     {
-      "code": 6145,
+      "code": 6162,
       "name": "PerpMarketSettlementUserHasOpenOrders",
       "msg": "PerpMarketSettlementUserHasOpenOrders"
     },
     {
-      "code": 6146,
+      "code": 6163,
       "name": "PerpMarketSettlementUserHasActiveLP",
       "msg": "PerpMarketSettlementUserHasActiveLP"
     },
     {
-      "code": 6147,
+      "code": 6164,
       "name": "UnableToSettleExpiredUserPosition",
       "msg": "UnableToSettleExpiredUserPosition"
     },
     {
-      "code": 6148,
+      "code": 6165,
       "name": "UnequalMarketIndexForSpotTransfer",
       "msg": "UnequalMarketIndexForSpotTransfer"
     },
     {
-      "code": 6149,
+      "code": 6166,
       "name": "InvalidPerpPositionDetected",
       "msg": "InvalidPerpPositionDetected"
     },
     {
-      "code": 6150,
+      "code": 6167,
       "name": "InvalidSpotPositionDetected",
       "msg": "InvalidSpotPositionDetected"
     },
     {
-      "code": 6151,
+      "code": 6168,
       "name": "InvalidAmmDetected",
       "msg": "InvalidAmmDetected"
     },
     {
-      "code": 6152,
+      "code": 6169,
       "name": "InvalidAmmForFillDetected",
       "msg": "InvalidAmmForFillDetected"
     },
     {
-      "code": 6153,
+      "code": 6170,
       "name": "InvalidAmmLimitPriceOverride",
       "msg": "InvalidAmmLimitPriceOverride"
     },
     {
-      "code": 6154,
+      "code": 6171,
       "name": "InvalidOrderFillPrice",
       "msg": "InvalidOrderFillPrice"
     },
     {
-      "code": 6155,
+      "code": 6172,
       "name": "SpotMarketBalanceInvariantViolated",
       "msg": "SpotMarketBalanceInvariantViolated"
     },
     {
-      "code": 6156,
+      "code": 6173,
       "name": "SpotMarketVaultInvariantViolated",
       "msg": "SpotMarketVaultInvariantViolated"
     },
     {
-      "code": 6157,
+      "code": 6174,
       "name": "InvalidPDA",
       "msg": "InvalidPDA"
     },
     {
-      "code": 6158,
+      "code": 6175,
       "name": "InvalidPDASigner",
       "msg": "InvalidPDASigner"
     },
     {
-      "code": 6159,
+      "code": 6176,
       "name": "RevenueSettingsCannotSettleToIF",
       "msg": "RevenueSettingsCannotSettleToIF"
     },
     {
-      "code": 6160,
+      "code": 6177,
       "name": "NoRevenueToSettleToIF",
       "msg": "NoRevenueToSettleToIF"
     },
     {
-      "code": 6161,
+      "code": 6178,
       "name": "NoAmmPerpPnlDeficit",
       "msg": "NoAmmPerpPnlDeficit"
     },
     {
-      "code": 6162,
+      "code": 6179,
       "name": "SufficientPerpPnlPool",
       "msg": "SufficientPerpPnlPool"
     },
     {
-      "code": 6163,
+      "code": 6180,
+      "name": "InsufficientPerpPnlPool",
+      "msg": "InsufficientPerpPnlPool"
+    },
+    {
+      "code": 6181,
       "name": "PerpPnlDeficitBelowThreshold",
       "msg": "PerpPnlDeficitBelowThreshold"
     },
     {
-      "code": 6164,
+      "code": 6182,
       "name": "MaxRevenueWithdrawPerPeriodReached",
       "msg": "MaxRevenueWithdrawPerPeriodReached"
     },
     {
-      "code": 6165,
+      "code": 6183,
       "name": "MaxIFWithdrawReached",
       "msg": "InvalidSpotPositionDetected"
     },
     {
-      "code": 6166,
+      "code": 6184,
       "name": "NoIFWithdrawAvailable",
       "msg": "NoIFWithdrawAvailable"
     },
     {
-      "code": 6167,
+      "code": 6185,
       "name": "InvalidIFUnstake",
       "msg": "InvalidIFUnstake"
     },
     {
-      "code": 6168,
+      "code": 6186,
       "name": "InvalidIFUnstakeSize",
       "msg": "InvalidIFUnstakeSize"
     },
     {
-      "code": 6169,
+      "code": 6187,
       "name": "InvalidIFUnstakeCancel",
       "msg": "InvalidIFUnstakeCancel"
     },
     {
-      "code": 6170,
+      "code": 6188,
       "name": "InvalidIFForNewStakes",
       "msg": "InvalidIFForNewStakes"
     },
     {
-      "code": 6171,
+      "code": 6189,
       "name": "InvalidIFRebase",
       "msg": "InvalidIFRebase"
     },
     {
-      "code": 6172,
+      "code": 6190,
       "name": "InvalidInsuranceUnstakeSize",
       "msg": "InvalidInsuranceUnstakeSize"
     },
     {
-      "code": 6173,
+      "code": 6191,
       "name": "InvalidOrderLimitPrice",
       "msg": "InvalidOrderLimitPrice"
     },
     {
-      "code": 6174,
+      "code": 6192,
       "name": "InvalidIFDetected",
       "msg": "InvalidIFDetected"
     },
     {
-      "code": 6175,
+      "code": 6193,
       "name": "InvalidAmmMaxSpreadDetected",
       "msg": "InvalidAmmMaxSpreadDetected"
     },
     {
-      "code": 6176,
+      "code": 6194,
       "name": "InvalidConcentrationCoef",
       "msg": "InvalidConcentrationCoef"
     },
     {
-      "code": 6177,
+      "code": 6195,
       "name": "InvalidSrmVault",
       "msg": "InvalidSrmVault"
     },
     {
-      "code": 6178,
+      "code": 6196,
       "name": "InvalidVaultOwner",
       "msg": "InvalidVaultOwner"
     },
     {
-      "code": 6179,
+      "code": 6197,
       "name": "InvalidMarketStatusForFills",
       "msg": "InvalidMarketStatusForFills"
     },
     {
-      "code": 6180,
+      "code": 6198,
       "name": "IFWithdrawRequestInProgress",
       "msg": "IFWithdrawRequestInProgress"
     },
     {
-      "code": 6181,
+      "code": 6199,
       "name": "NoIFWithdrawRequestInProgress",
       "msg": "NoIFWithdrawRequestInProgress"
     },
     {
-      "code": 6182,
+      "code": 6200,
       "name": "IFWithdrawRequestTooSmall",
       "msg": "IFWithdrawRequestTooSmall"
     },
     {
-      "code": 6183,
+      "code": 6201,
       "name": "IncorrectSpotMarketAccountPassed",
       "msg": "IncorrectSpotMarketAccountPassed"
     },
     {
-      "code": 6184,
+      "code": 6202,
       "name": "BlockchainClockInconsistency",
       "msg": "BlockchainClockInconsistency"
     },
     {
-      "code": 6185,
+      "code": 6203,
       "name": "InvalidIFSharesDetected",
       "msg": "InvalidIFSharesDetected"
     },
     {
-      "code": 6186,
+      "code": 6204,
       "name": "NewLPSizeTooSmall",
       "msg": "NewLPSizeTooSmall"
     },
     {
-      "code": 6187,
+      "code": 6205,
       "name": "MarketStatusInvalidForNewLP",
       "msg": "MarketStatusInvalidForNewLP"
     },
     {
-      "code": 6188,
+      "code": 6206,
       "name": "InvalidMarkTwapUpdateDetected",
       "msg": "InvalidMarkTwapUpdateDetected"
     },
     {
-      "code": 6189,
+      "code": 6207,
       "name": "MarketSettlementAttemptOnActiveMarket",
       "msg": "MarketSettlementAttemptOnActiveMarket"
     },
     {
-      "code": 6190,
+      "code": 6208,
       "name": "MarketSettlementRequiresSettledLP",
       "msg": "MarketSettlementRequiresSettledLP"
     },
     {
-      "code": 6191,
+      "code": 6209,
       "name": "MarketSettlementAttemptTooEarly",
       "msg": "MarketSettlementAttemptTooEarly"
     },
     {
-      "code": 6192,
+      "code": 6210,
       "name": "MarketSettlementTargetPriceInvalid",
       "msg": "MarketSettlementTargetPriceInvalid"
     },
     {
-      "code": 6193,
+      "code": 6211,
       "name": "UnsupportedSpotMarket",
       "msg": "UnsupportedSpotMarket"
     }
