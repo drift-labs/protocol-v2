@@ -6,7 +6,7 @@ use std::panic::Location;
 
 pub trait Cast: Sized {
     #[track_caller]
-    #[inline]
+    #[inline(always)]
     fn cast<T: std::convert::TryFrom<Self>>(self) -> ClearingHouseResult<T> {
         match self.try_into() {
             Ok(result) => Ok(result),
