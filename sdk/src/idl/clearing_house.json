@@ -2940,6 +2940,10 @@
         {
           "name": "imfFactor",
           "type": "u32"
+        },
+        {
+          "name": "unrealizedPnlImfFactor",
+          "type": "u32"
         }
       ]
     },

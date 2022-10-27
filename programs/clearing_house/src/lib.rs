@@ -399,7 +399,7 @@ pub mod clearing_house {
         initial_liability_weight: u32,
         maintenance_liability_weight: u32,
         imf_factor: u32,
-        liquidation_fee: u32,
+        liquidator_fee: u32,
         active_status: bool,
     ) -> Result<()> {
         handle_initialize_spot_market(
@@ -413,7 +413,7 @@ pub mod clearing_house {
             initial_liability_weight,
             maintenance_liability_weight,
             imf_factor,
-            liquidation_fee,
+            liquidator_fee,
             active_status,
         )
     }
@@ -438,7 +438,7 @@ pub mod clearing_house {
         oracle_source: OracleSource,
         margin_ratio_initial: u32,
         margin_ratio_maintenance: u32,
-        liquidation_fee: u32,
+        liquidator_fee: u32,
         active_status: bool,
         name: [u8; 32],
     ) -> Result<()> {
@@ -451,7 +451,7 @@ pub mod clearing_house {
             oracle_source,
             margin_ratio_initial,
             margin_ratio_maintenance,
-            liquidation_fee,
+            liquidator_fee,
             active_status,
             name,
         )
@@ -524,7 +524,7 @@ pub mod clearing_house {
         )
     }
 
-    pub fn update_perp_liquidation_fee(
+    pub fn update_perp_market_liquidation_fee(
         ctx: Context<AdminUpdatePerpMarket>,
         liquidator_fee: u32,
         if_liquidation_fee: u32,
@@ -663,8 +663,9 @@ pub mod clearing_house {
     pub fn update_perp_market_imf_factor(
         ctx: Context<AdminUpdatePerpMarket>,
         imf_factor: u32,
+        unrealized_pnl_imf_factor: u32,
     ) -> Result<()> {
-        handle_update_perp_market_imf_factor(ctx, imf_factor)
+        handle_update_perp_market_imf_factor(ctx, imf_factor, unrealized_pnl_imf_factor)
     }
 
     pub fn update_perp_market_unrealized_asset_weight(

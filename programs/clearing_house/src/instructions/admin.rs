@@ -93,7 +93,7 @@ pub fn handle_initialize_spot_market(
     initial_liability_weight: u32,
     maintenance_liability_weight: u32,
     imf_factor: u32,
-    liquidation_fee: u32,
+    liquidator_fee: u32,
     active_status: bool,
 ) -> Result<()> {
     let state = &mut ctx.accounts.state;
@@ -241,7 +241,7 @@ pub fn handle_initialize_spot_market(
         initial_liability_weight,
         maintenance_liability_weight,
         imf_factor,
-        liquidator_fee: liquidation_fee,
+        liquidator_fee,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
         withdraw_guard_threshold: 0,
         order_step_size,
@@ -430,7 +430,7 @@ pub fn handle_initialize_perp_market(
     oracle_source: OracleSource,
     margin_ratio_initial: u32,
     margin_ratio_maintenance: u32,
-    liquidation_fee: u32,
+    liquidator_fee: u32,
     active_status: bool,
     name: [u8; 32],
 ) -> Result<()> {
@@ -495,7 +495,7 @@ pub fn handle_initialize_perp_market(
     validate_margin(
         margin_ratio_initial,
         margin_ratio_maintenance,
-        liquidation_fee,
+        liquidator_fee,
         max_spread,
     )?;
 
@@ -528,7 +528,7 @@ pub fn handle_initialize_perp_market(
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast()?, // 100%
         unrealized_pnl_imf_factor: 0,
         unrealized_pnl_max_imbalance: 0,
-        liquidator_fee: liquidation_fee,
+        liquidator_fee,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
         padding: [0; 3],
         amm: AMM {
@@ -1545,14 +1545,21 @@ pub fn handle_update_perp_market_contract_tier(
 pub fn handle_update_perp_market_imf_factor(
     ctx: Context<AdminUpdatePerpMarket>,
     imf_factor: u32,
+    unrealized_pnl_imf_factor: u32,
 ) -> Result<()> {
     validate!(
         imf_factor <= SPOT_IMF_PRECISION,
         ErrorCode::DefaultError,
         "invalid imf factor",
     )?;
+    validate!(
+        unrealized_pnl_imf_factor <= SPOT_IMF_PRECISION,
+        ErrorCode::DefaultError,
+        "invalid unrealized pnl imf factor",
+    )?;
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     perp_market.imf_factor = imf_factor;
+    perp_market.unrealized_pnl_imf_factor = unrealized_pnl_imf_factor;
     Ok(())
 }
 
@@ -1608,12 +1615,6 @@ pub fn handle_update_perp_market_concentration_coef(
         prev_concentration_coef,
         new_concentration_coef
     );
-
-    validate!(
-        prev_concentration_coef != new_concentration_coef,
-        ErrorCode::DefaultError,
-        "concentration_coef unchanged",
-    )?;
 
     Ok(())
 }
