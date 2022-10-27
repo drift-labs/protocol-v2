@@ -212,6 +212,10 @@ pub fn standardize_price(
     tick_size: u64,
     direction: PositionDirection,
 ) -> ClearingHouseResult<u64> {
+    if price == 0 {
+        return Ok(0);
+    }
+
     let remainder = price
         .checked_rem_euclid(tick_size)
         .ok_or_else(math_error!())?;
@@ -223,6 +227,44 @@ pub fn standardize_price(
     match direction {
         PositionDirection::Long => price.safe_sub(remainder),
         PositionDirection::Short => price.safe_add(tick_size)?.safe_sub(remainder),
+    }
+}
+
+pub fn standardize_price_i64(
+    price: i64,
+    tick_size: i64,
+    direction: PositionDirection,
+) -> ClearingHouseResult<i64> {
+    if price == 0 {
+        return Ok(0);
+    }
+
+    let remainder = price
+        .checked_rem_euclid(tick_size)
+        .ok_or_else(math_error!())?;
+
+    if remainder == 0 {
+        return Ok(price);
+    }
+
+    match direction {
+        PositionDirection::Long => price.safe_sub(remainder),
+        PositionDirection::Short => price.safe_add(tick_size)?.safe_sub(remainder),
+    }
+}
+
+#[cfg(test)]
+mod test2 {
+    use crate::controller::position::PositionDirection;
+    use crate::math::orders::standardize_price_i64;
+
+    #[test]
+    fn test() {
+        let price = -1001_i64;
+
+        let result = standardize_price_i64(price, 100, PositionDirection::Long).unwrap();
+
+        println!("result {}", result);
     }
 }
 
