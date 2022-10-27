@@ -646,6 +646,13 @@ pub mod clearing_house {
         handle_update_spot_market_min_order_size(ctx, order_size)
     }
 
+    pub fn update_spot_market_orders_enabled(
+        ctx: Context<AdminUpdateSpotMarket>,
+        orders_enabled: bool,
+    ) -> Result<()> {
+        handle_update_spot_market_orders_enabled(ctx, orders_enabled)
+    }
+
     pub fn update_perp_market_status(
         ctx: Context<AdminUpdatePerpMarket>,
         status: MarketStatus,

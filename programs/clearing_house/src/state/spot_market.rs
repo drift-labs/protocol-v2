@@ -62,10 +62,11 @@ pub struct SpotMarket {
     pub max_borrow_rate: u32,
     pub decimals: u32,
     pub market_index: u16,
+    pub orders_enabled: bool,
     pub oracle_source: OracleSource,
     pub status: MarketStatus,
     pub asset_tier: AssetTier,
-    pub padding: [u8; 7],
+    pub padding: [u8; 6],
 }
 
 impl SpotMarket {

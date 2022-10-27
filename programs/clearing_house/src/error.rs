@@ -285,6 +285,8 @@ pub enum ErrorCode {
     LiquidationDoesntSatisfyLimitPrice,
     #[msg("Margin Trading Disabled")]
     MarginTradingDisabled,
+    #[msg("SpotOrdersDisabled")]
+    SpotOrdersDisabled,
 }
 
 #[macro_export]
