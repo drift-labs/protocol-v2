@@ -248,6 +248,7 @@ pub enum OrderActionExplanation {
     OrderExpired,
     CanceledForLiquidation,
     OrderFilledWithAMM,
+    OrderFilledWithAMMJit,
     OrderFilledWithMatch,
     MarketExpired,
 }

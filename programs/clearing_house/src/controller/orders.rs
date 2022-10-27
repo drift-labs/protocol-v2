@@ -1581,10 +1581,16 @@ pub fn fulfill_perp_order_with_amm(
         get_taker_and_maker_for_order_record(user_key, &user.orders[order_index]);
 
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
+    let order_action_explanation =
+        if override_base_asset_amount.is_some() && override_fill_price.is_some() {
+            OrderActionExplanation::OrderFilledWithAMMJit
+        } else {
+            OrderActionExplanation::OrderFilledWithAMM
+        };
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
-        OrderActionExplanation::OrderFilledWithAMM,
+        order_action_explanation,
         market.market_index,
         Some(*filler_key),
         Some(fill_record_id),

@@ -1943,7 +1943,7 @@
           "type": "u32"
         },
         {
-          "name": "liquidationFee",
+          "name": "liquidatorFee",
           "type": "u32"
         },
         {
@@ -2105,7 +2105,7 @@
           "type": "u32"
         },
         {
-          "name": "liquidationFee",
+          "name": "liquidatorFee",
           "type": "u32"
         },
         {
@@ -2439,7 +2439,7 @@
       ]
     },
     {
-      "name": "updatePerpLiquidationFee",
+      "name": "updatePerpMarketLiquidationFee",
       "accounts": [
         {
           "name": "admin",
@@ -5780,6 +5780,9 @@
           },
           {
             "name": "OrderFilledWithAMM"
+          },
+          {
+            "name": "OrderFilledWithAMMJit"
           },
           {
             "name": "OrderFilledWithMatch"
