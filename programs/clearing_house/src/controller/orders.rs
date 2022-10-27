@@ -2434,6 +2434,8 @@ pub fn place_spot_order(
         (0_u64, 0_u64)
     };
 
+    validate!(spot_market.orders_enabled, ErrorCode::SpotOrdersDisabled)?;
+
     validate!(
         params.market_index != QUOTE_SPOT_MARKET_INDEX,
         ErrorCode::InvalidOrderBaseQuoteAsset,

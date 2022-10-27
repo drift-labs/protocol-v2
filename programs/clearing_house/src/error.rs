@@ -429,6 +429,8 @@ pub enum ErrorCode {
     MarketSettlementTargetPriceInvalid,
     #[msg("UnsupportedSpotMarket")]
     UnsupportedSpotMarket,
+    #[msg("SpotOrdersDisabled")]
+    SpotOrdersDisabled,
 }
 
 #[macro_export]
