@@ -44,6 +44,13 @@ pub fn calculate_bid_ask_bounds(
     concentration_coef: u128,
     sqrt_k: u128,
 ) -> ClearingHouseResult<(u128, u128)> {
+    validate!(
+        concentration_coef > CONCENTRATION_PRECISION,
+        ErrorCode::DefaultError,
+        "concentration_coef={} <= CONCENTRATION_PRECISION={}",
+        concentration_coef,
+        CONCENTRATION_PRECISION
+    )?;
     // worse case if all asks are filled (max reserve)
     let ask_bounded_base =
         get_proportion_u128(sqrt_k, concentration_coef, CONCENTRATION_PRECISION)?;
@@ -698,9 +705,7 @@ pub fn calculate_max_base_asset_amount_fillable(
 }
 
 pub fn calculate_net_user_cost_basis(amm: &AMM) -> ClearingHouseResult<i128> {
-    amm.quote_asset_amount_long
-        .safe_add(amm.quote_asset_amount_short)?
-        .safe_sub(amm.cumulative_social_loss)
+    Ok(amm.quote_asset_amount)
 }
 
 pub fn calculate_net_user_pnl(amm: &AMM, oracle_price: i64) -> ClearingHouseResult<i128> {
@@ -733,8 +738,7 @@ pub fn calculate_expiry_price(
     // net_user_unrealized_pnl negative = surplus in market
     // net_user_unrealized_pnl positive = expiry price needs to differ from oracle
     let best_expiry_price = -(amm
-        .quote_asset_amount_long
-        .safe_add(amm.quote_asset_amount_short)?
+        .quote_asset_amount
         .safe_sub(pnl_pool_amount.cast::<i128>()?)?
         .safe_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128)?
         .safe_div(amm.base_asset_amount_with_amm)?)

@@ -7,7 +7,7 @@ use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
     get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
-    get_whitelist_token, load_maps, AccountMaps,
+    get_spot_market_vaults, get_whitelist_token, load_maps, AccountMaps,
 };
 use crate::instructions::SpotFulfillmentType;
 use crate::load;
@@ -19,6 +19,7 @@ use crate::math::margin::{
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
+use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::math_error;
 use crate::print_error;
 use crate::safe_decrement;
@@ -39,7 +40,7 @@ use crate::{controller, math};
 
 pub fn handle_initialize_user(
     ctx: Context<InitializeUser>,
-    sub_account_id: u8,
+    sub_account_id: u16,
     name: [u8; 32],
 ) -> Result<()> {
     let user_key = ctx.accounts.user.key();
@@ -91,6 +92,8 @@ pub fn handle_initialize_user(
             &ctx.accounts.authority.key(),
         )?;
     }
+
+    user_stats.max_sub_account_id = user_stats.max_sub_account_id.max(sub_account_id);
 
     emit!(NewUserRecord {
         ts: Clock::get()?.unix_timestamp,
@@ -225,6 +228,8 @@ pub fn handle_deposit(
         &ctx.accounts.authority,
         amount,
     )?;
+    ctx.accounts.spot_market_vault.reload()?;
+
     let oracle_price = oracle_price_data.price;
     let deposit_record = DepositRecord {
         ts: now,
@@ -560,6 +565,12 @@ pub fn handle_transfer_deposit(
         };
         emit!(deposit_record);
     }
+
+    let spot_market = spot_market_map.get_ref(&market_index)?;
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        &spot_market,
+        ctx.accounts.spot_market_vault.amount,
+    )?;
 
     Ok(())
 }
@@ -994,7 +1005,7 @@ pub fn handle_place_and_take_spot_order<'info>(
 
     let is_immediate_or_cancel = params.immediate_or_cancel;
 
-    let serum_fulfillment_params = match fulfillment_type {
+    let mut serum_fulfillment_params = match fulfillment_type {
         Some(SpotFulfillmentType::SerumV3) => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
@@ -1035,7 +1046,7 @@ pub fn handle_place_and_take_spot_order<'info>(
         maker_stats.as_ref(),
         maker_order_id,
         &Clock::get()?,
-        serum_fulfillment_params,
+        &mut serum_fulfillment_params,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -1054,6 +1065,29 @@ pub fn handle_place_and_take_spot_order<'info>(
         )?;
     }
 
+    match serum_fulfillment_params {
+        Some(serum_fulfillment_params) => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            validate_spot_market_vault_amount(
+                &base_market,
+                serum_fulfillment_params.base_market_vault.amount,
+            )?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            validate_spot_market_vault_amount(
+                &quote_market,
+                serum_fulfillment_params.quote_market_vault.amount,
+            )?;
+        }
+        None => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            let (base_market_vault, quote_market_vault) =
+                get_spot_market_vaults(remaining_accounts_iter, &base_market, &quote_market)?;
+            validate_spot_market_vault_amount(&base_market, base_market_vault.amount)?;
+            validate_spot_market_vault_amount(&quote_market, quote_market_vault.amount)?;
+        }
+    }
+
     Ok(())
 }
 
@@ -1064,6 +1098,7 @@ pub fn handle_place_and_make_spot_order<'info>(
     ctx: Context<PlaceAndMake>,
     params: OrderParams,
     taker_order_id: u32,
+    fulfillment_type: Option<SpotFulfillmentType>,
 ) -> Result<()> {
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
@@ -1087,6 +1122,21 @@ pub fn handle_place_and_make_spot_order<'info>(
         msg!("place_and_make must use IOC post only limit order");
         return Err(print_error!(ErrorCode::InvalidOrder)().into());
     }
+
+    let market_index = params.market_index;
+    let mut serum_fulfillment_params = match fulfillment_type {
+        Some(SpotFulfillmentType::SerumV3) => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            get_serum_fulfillment_accounts(
+                remaining_accounts_iter,
+                &ctx.accounts.state,
+                &base_market,
+                &quote_market,
+            )?
+        }
+        _ => None,
+    };
 
     controller::orders::place_spot_order(
         state,
@@ -1114,7 +1164,7 @@ pub fn handle_place_and_make_spot_order<'info>(
         Some(&ctx.accounts.user_stats),
         Some(order_id),
         clock,
-        None,
+        &mut serum_fulfillment_params,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -1131,6 +1181,29 @@ pub fn handle_place_and_make_spot_order<'info>(
             &mut oracle_map,
             clock,
         )?;
+    }
+
+    match serum_fulfillment_params {
+        Some(serum_fulfillment_params) => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            validate_spot_market_vault_amount(
+                &base_market,
+                serum_fulfillment_params.base_market_vault.amount,
+            )?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            validate_spot_market_vault_amount(
+                &quote_market,
+                serum_fulfillment_params.quote_market_vault.amount,
+            )?;
+        }
+        None => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            let (base_market_vault, quote_market_vault) =
+                get_spot_market_vaults(remaining_accounts_iter, &base_market, &quote_market)?;
+            validate_spot_market_vault_amount(&base_market, base_market_vault.amount)?;
+            validate_spot_market_vault_amount(&quote_market, quote_market_vault.amount)?;
+        }
     }
 
     Ok(())
@@ -1327,7 +1400,7 @@ pub fn handle_remove_perp_lp_shares(
 
 pub fn handle_update_user_name(
     ctx: Context<UpdateUser>,
-    _sub_account_id: u8,
+    _sub_account_id: u16,
     name: [u8; 32],
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -1337,7 +1410,7 @@ pub fn handle_update_user_name(
 
 pub fn handle_update_user_custom_margin_ratio(
     ctx: Context<UpdateUser>,
-    _sub_account_id: u8,
+    _sub_account_id: u16,
     margin_ratio: u32,
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -1347,7 +1420,7 @@ pub fn handle_update_user_custom_margin_ratio(
 
 pub fn handle_update_user_delegate(
     ctx: Context<UpdateUser>,
-    _sub_account_id: u8,
+    _sub_account_id: u16,
     delegate: Pubkey,
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -1368,7 +1441,7 @@ pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
 
 #[derive(Accounts)]
 #[instruction(
-    sub_account_id: u8,
+    sub_account_id: u16,
 )]
 pub struct InitializeUser<'info> {
     #[account(
@@ -1495,6 +1568,11 @@ pub struct TransferDeposit<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
     pub state: Box<Account<'info, State>>,
+    #[account(
+        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
 }
 
 #[derive(Accounts)]
@@ -1578,7 +1656,7 @@ pub struct RemoveLiquidityInExpiredMarket<'info> {
 
 #[derive(Accounts)]
 #[instruction(
-    sub_account_id: u8,
+    sub_account_id: u16,
 )]
 pub struct UpdateUser<'info> {
     #[account(
@@ -1605,74 +1683,4 @@ pub struct DeleteUser<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
-}
-
-pub fn initialize_user(
-    ctx: Context<InitializeUser>,
-    sub_account_id: u8,
-    name: [u8; 32],
-) -> Result<()> {
-    let user_key = ctx.accounts.user.key();
-    let mut user = ctx
-        .accounts
-        .user
-        .load_init()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-    *user = User {
-        authority: ctx.accounts.authority.key(),
-        sub_account_id,
-        name,
-        next_order_id: 1,
-        next_liquidation_id: 1,
-        ..User::default()
-    };
-
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
-    let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
-    user_stats.number_of_sub_accounts = user_stats.number_of_sub_accounts.safe_add(1)?;
-
-    // Only try to add referrer if it is the first user
-    if user_stats.number_of_sub_accounts == 1 {
-        let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
-        let referrer = if let (Some(referrer), Some(referrer_stats)) = (referrer, referrer_stats) {
-            let referrer = load!(referrer)?;
-            let mut referrer_stats = load_mut!(referrer_stats)?;
-
-            validate!(referrer.sub_account_id == 0, ErrorCode::InvalidReferrer)?;
-
-            validate!(
-                referrer.authority == referrer_stats.authority,
-                ErrorCode::ReferrerAndReferrerStatsAuthorityUnequal
-            )?;
-
-            referrer_stats.is_referrer = true;
-
-            referrer.authority
-        } else {
-            Pubkey::default()
-        };
-
-        user_stats.referrer = referrer;
-    }
-
-    let whitelist_mint = &ctx.accounts.state.whitelist_mint;
-    if !whitelist_mint.eq(&Pubkey::default()) {
-        validate_whitelist_token(
-            get_whitelist_token(remaining_accounts_iter)?,
-            whitelist_mint,
-            &ctx.accounts.authority.key(),
-        )?;
-    }
-
-    emit!(NewUserRecord {
-        ts: Clock::get()?.unix_timestamp,
-        user_authority: ctx.accounts.authority.key(),
-        user: user_key,
-        sub_account_id,
-        name,
-        referrer: user_stats.referrer
-    });
-
-    Ok(())
 }

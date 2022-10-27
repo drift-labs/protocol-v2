@@ -136,7 +136,7 @@ describe('clearing_house', () => {
 
 		assert.ok(JSON.stringify(market.status) === JSON.stringify({ active: {} }));
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(0)));
-		assert.ok(market.numberOfUsers === 0);
+		assert.ok(market.numberOfUsersWithBase === 0);
 
 		const ammD = market.amm;
 		console.log(ammD.oracle.toString());
@@ -182,7 +182,7 @@ describe('clearing_house', () => {
 
 		assert.ok(user.perpPositions.length == 8);
 		assert.ok(user.perpPositions[0].baseAssetAmount.toNumber() === 0);
-		assert.ok(user.perpPositions[0].quoteEntryAmount.toNumber() === 0);
+		assert.ok(user.perpPositions[0].quoteBreakEvenAmount.toNumber() === 0);
 		assert.ok(user.perpPositions[0].lastCumulativeFundingRate.toNumber() === 0);
 
 		await eventSubscriber.awaitTx(txSig);
@@ -283,6 +283,7 @@ describe('clearing_house', () => {
 		);
 
 		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(-48000001)));
+		assert.ok(user.perpPositions[0].quoteBreakEvenAmount.eq(new BN(-48048002)));
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(48000000000)));
 
 		const market = clearingHouse.getPerpMarketAccount(0);
@@ -358,12 +359,13 @@ describe('clearing_house', () => {
 			user.perpPositions[0].quoteAssetAmount.toNumber()
 		);
 		console.log(
-			'quoteEntryAmount:',
-			user.perpPositions[0].quoteEntryAmount.toNumber()
+			'quoteBreakEvenAmount:',
+			user.perpPositions[0].quoteBreakEvenAmount.toNumber()
 		);
 
 		assert.ok(user.perpPositions[0].quoteAssetAmount.eq(new BN(-24072002)));
 		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(-24000001)));
+		assert.ok(user.perpPositions[0].quoteBreakEvenAmount.eq(new BN(-24048001)));
 
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(24000000000)));
 		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
@@ -421,8 +423,8 @@ describe('clearing_house', () => {
 			user.perpPositions[0].quoteAssetAmount.toNumber()
 		);
 		console.log(
-			'quoteEntryAmount:',
-			user.perpPositions[0].quoteEntryAmount.toNumber()
+			'quoteBreakEvenAmount:',
+			user.perpPositions[0].quoteBreakEvenAmount.toNumber()
 		);
 		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
 		console.log(
@@ -438,9 +440,10 @@ describe('clearing_house', () => {
 				.getAccountAndSlot()
 				.data.fees.totalFeePaid.eq(new BN(120001))
 		);
-		console.log(user.perpPositions[0].quoteEntryAmount.toString());
+		console.log(user.perpPositions[0].quoteBreakEvenAmount.toString());
 
 		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(24000000)));
+		assert.ok(user.perpPositions[0].quoteBreakEvenAmount.eq(new BN(24048000)));
 		assert.ok(user.perpPositions[0].quoteAssetAmount.eq(new BN(24000000)));
 		console.log(user.perpPositions[0].baseAssetAmount.toString());
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(-24000000000)));
@@ -475,7 +478,7 @@ describe('clearing_house', () => {
 		const user: any = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
-		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(0)));
+		assert.ok(user.perpPositions[0].quoteBreakEvenAmount.eq(new BN(0)));
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(0)));
 		console.log(clearingHouse.getQuoteAssetTokenAmount().toString());
 		assert.ok(clearingHouse.getQuoteAssetTokenAmount().eq(new BN(9855998)));
@@ -525,8 +528,9 @@ describe('clearing_house', () => {
 		const user = await clearingHouse.program.account.user.fetch(
 			userAccountPublicKey
 		);
-		console.log(user.perpPositions[0].quoteEntryAmount.toString());
+		console.log(user.perpPositions[0].quoteBreakEvenAmount.toString());
 		assert.ok(user.perpPositions[0].quoteEntryAmount.eq(new BN(47999999)));
+		assert.ok(user.perpPositions[0].quoteBreakEvenAmount.eq(new BN(48047999)));
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(-48000000000)));
 
 		const market = clearingHouse.getPerpMarketAccount(0);

@@ -25,13 +25,13 @@ test_files=(
   repegAndSpread.ts
    clearingHouse.ts
    ordersWithSpread.ts
-   marketOrder.ts 
-   triggerOrders.ts 
+   marketOrder.ts
+   triggerOrders.ts
    stopLimits.ts userOrderId.ts postOnly.ts
    placeAndMakeSpotOrder.ts
    roundInFavorBaseAsset.ts
    marketOrderBaseAssetAmount.ts oracleOffsetOrders.ts
-   userDelegate.ts subaccounts.ts pyth.ts userAccount.ts 
+   userDelegate.ts subaccounts.ts pyth.ts userAccount.ts
    admin.ts
    assetTier.ts
    pauseExchange.ts 

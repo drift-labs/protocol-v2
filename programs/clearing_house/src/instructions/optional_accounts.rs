@@ -246,6 +246,43 @@ pub fn get_serum_fulfillment_accounts<'a, 'b, 'c>(
     Ok(Some(serum_fulfillment_accounts))
 }
 
+#[allow(clippy::type_complexity)]
+pub fn get_spot_market_vaults<'a, 'b, 'c>(
+    account_info_iter: &'a mut std::iter::Peekable<std::slice::Iter<'b, AccountInfo<'c>>>,
+    base_market: &SpotMarket,
+    quote_market: &SpotMarket,
+) -> ClearingHouseResult<(
+    Box<Account<'c, TokenAccount>>,
+    Box<Account<'c, TokenAccount>>,
+)> {
+    let account_info_vec = account_info_iter.collect::<Vec<_>>();
+    let account_infos = array_ref![account_info_vec, 0, 2];
+    let [base_market_vault, quote_market_vault] = account_infos;
+
+    validate!(
+        &base_market.vault == base_market_vault.key,
+        ErrorCode::InvalidSerumFulfillmentConfig
+    )?;
+
+    validate!(
+        &quote_market.vault == quote_market_vault.key,
+        ErrorCode::InvalidSerumFulfillmentConfig
+    )?;
+
+    let base_market_vault: Box<Account<TokenAccount>> =
+        Box::new(Account::try_from(base_market_vault).map_err(|e| {
+            msg!("{:?}", e);
+            ErrorCode::InvalidSerumFulfillmentConfig
+        })?);
+    let quote_market_vault: Box<Account<TokenAccount>> =
+        Box::new(Account::try_from(quote_market_vault).map_err(|e| {
+            msg!("{:?}", e);
+            ErrorCode::InvalidSerumFulfillmentConfig
+        })?);
+
+    Ok((base_market_vault, quote_market_vault))
+}
+
 pub fn get_whitelist_token<'a>(
     account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
 ) -> ClearingHouseResult<Account<'a, TokenAccount>> {

@@ -658,7 +658,7 @@ pub fn fill_perp_order(
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         market_is_reduce_only = market.is_reduce_only()?;
         amm_is_available &= market.status != MarketStatus::AmmPaused;
-        validation::market::validate_perp_market(market)?;
+        validation::perp_market::validate_perp_market(market)?;
         validate!(
             market.is_active(now)?,
             ErrorCode::MarketActionPaused,
@@ -1427,7 +1427,7 @@ pub fn fulfill_perp_order_with_amm(
     let (order_post_only, order_slot, order_direction) =
         get_struct_values!(user.orders[order_index], post_only, slot, direction);
 
-    validation::market::validate_amm_account_for_fill(&market.amm, order_direction)?;
+    validation::perp_market::validate_amm_account_for_fill(&market.amm, order_direction)?;
 
     let market_side_price = match order_direction {
         PositionDirection::Long => market.amm.ask_price(reserve_price_before)?,
@@ -1540,7 +1540,7 @@ pub fn fulfill_perp_order_with_amm(
 
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
 
-    controller::position::update_quote_asset_amount(
+    controller::position::update_quote_asset_and_break_even_amount(
         &mut user.perp_positions[position_index],
         market,
         -user_fee.cast()?,
@@ -1586,10 +1586,16 @@ pub fn fulfill_perp_order_with_amm(
         get_taker_and_maker_for_order_record(user_key, &user.orders[order_index]);
 
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
+    let order_action_explanation =
+        if override_base_asset_amount.is_some() && override_fill_price.is_some() {
+            OrderActionExplanation::OrderFilledWithAMMJit
+        } else {
+            OrderActionExplanation::OrderFilledWithAMM
+        };
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
-        OrderActionExplanation::OrderFilledWithAMM,
+        order_action_explanation,
         market.market_index,
         Some(*filler_key),
         Some(fill_record_id),
@@ -1858,7 +1864,7 @@ pub fn fulfill_perp_order_with_match(
         .net_revenue_since_last_funding
         .safe_add(fee_to_market)?;
 
-    controller::position::update_quote_asset_amount(
+    controller::position::update_quote_asset_and_break_even_amount(
         &mut taker.perp_positions[taker_position_index],
         market,
         -taker_fee.cast()?,
@@ -1867,7 +1873,7 @@ pub fn fulfill_perp_order_with_match(
     taker_stats.increment_total_fees(taker_fee)?;
     taker_stats.increment_total_referee_discount(referee_discount)?;
 
-    controller::position::update_quote_asset_amount(
+    controller::position::update_quote_asset_and_break_even_amount(
         &mut maker.perp_positions[maker_position_index],
         market,
         maker_rebate.cast()?,
@@ -2222,7 +2228,7 @@ pub fn pay_keeper_flat_reward_for_perps(
 ) -> ClearingHouseResult<u64> {
     let filler_reward = if let Some(filler) = filler {
         let user_position = user.get_perp_position_mut(market.market_index)?;
-        controller::position::update_quote_asset_amount(
+        controller::position::update_quote_asset_and_break_even_amount(
             user_position,
             market,
             -filler_reward.cast()?,
@@ -2565,7 +2571,7 @@ pub fn fill_spot_order(
     maker_stats: Option<&AccountLoader<UserStats>>,
     maker_order_id: Option<u32>,
     clock: &Clock,
-    serum_fulfillment_params: Option<SerumFulfillmentParams>,
+    serum_fulfillment_params: &mut Option<SerumFulfillmentParams>,
 ) -> ClearingHouseResult<u64> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -2889,7 +2895,7 @@ fn fulfill_spot_order(
     now: i64,
     slot: u64,
     fee_structure: &FeeStructure,
-    mut serum_fulfillment_params: Option<SerumFulfillmentParams>,
+    serum_fulfillment_params: &mut Option<SerumFulfillmentParams>,
 ) -> ClearingHouseResult<(u64, bool)> {
     let free_collateral = calculate_free_collateral(
         user,
@@ -2992,7 +2998,7 @@ fn fulfill_spot_order(
                 oracle_map,
                 fee_structure,
                 &mut order_records,
-                &mut serum_fulfillment_params,
+                serum_fulfillment_params,
             )?,
         };
 

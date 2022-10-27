@@ -238,10 +238,11 @@ describe('post only maker order w/ amm fulfillments', () => {
 		const position = clearingHouseUser.getUserPosition(marketIndex);
 		assert(position.baseAssetAmount.eq(baseAssetAmount));
 		console.log(position.quoteAssetAmount.toString());
-		console.log(position.quoteEntryAmount.toString());
+		console.log(position.quoteBreakEvenAmount.toString());
 
 		assert(position.quoteAssetAmount.eq(new BN(-32208912)));
 		assert(position.quoteEntryAmount.eq(new BN(-32176734)));
+		assert(position.quoteBreakEvenAmount.eq(new BN(-32208912)));
 
 		console.log(
 			'clearingHouse.getQuoteAssetTokenAmount:',
@@ -305,9 +306,10 @@ describe('post only maker order w/ amm fulfillments', () => {
 		console.log(positionMaker);
 		assert(positionMaker.baseAssetAmount.eq(new BN(-500000000)));
 		console.log(positionMaker.quoteAssetAmount.toString());
-		console.log(positionMaker.quoteEntryAmount.toString());
+		console.log(positionMaker.quoteBreakEvenAmount.toString());
 		assert(positionMaker.quoteAssetAmount.eq(new BN(16089577)));
 		assert(positionMaker.quoteEntryAmount.eq(new BN(16086360)));
+		assert(positionMaker.quoteBreakEvenAmount.eq(new BN(16083143)));
 
 		await fillerClearingHouse.fetchAccounts();
 		const perpMarket = fillerClearingHouse.getPerpMarketAccount(0);

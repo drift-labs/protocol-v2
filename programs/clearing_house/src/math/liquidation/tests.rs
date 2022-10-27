@@ -572,9 +572,9 @@ mod auto_deleveraging {
             amm: AMM {
                 base_asset_amount_long: BASE_PRECISION_I128 * 100,
                 base_asset_amount_short: -BASE_PRECISION_I128,
-                quote_asset_amount_long: -QUOTE_PRECISION_I128 * 100 * 100
+                quote_break_even_amount_long: -QUOTE_PRECISION_I128 * 100 * 100
                     + QUOTE_PRECISION_I128 * 5,
-                quote_asset_amount_short: QUOTE_PRECISION_I128 * 100,
+                quote_break_even_amount_short: QUOTE_PRECISION_I128 * 100,
                 quote_entry_amount_long: -QUOTE_PRECISION_I128 * 100 * 100,
                 quote_entry_amount_short: QUOTE_PRECISION_I128 * 100,
                 ..AMM::default()
@@ -676,8 +676,9 @@ mod auto_deleveraging {
             amm: AMM {
                 base_asset_amount_long: BASE_PRECISION_I128,
                 base_asset_amount_short: -BASE_PRECISION_I128 * 100,
-                quote_asset_amount_long: -QUOTE_PRECISION_I128 * 100 + QUOTE_PRECISION_I128 * 5,
-                quote_asset_amount_short: QUOTE_PRECISION_I128 * 100 * 100,
+                quote_break_even_amount_long: -QUOTE_PRECISION_I128 * 100
+                    + QUOTE_PRECISION_I128 * 5,
+                quote_break_even_amount_short: QUOTE_PRECISION_I128 * 100 * 100,
                 quote_entry_amount_long: -QUOTE_PRECISION_I128 * 100,
                 quote_entry_amount_short: QUOTE_PRECISION_I128 * 100 * 100,
                 ..AMM::default()
@@ -779,10 +780,10 @@ mod auto_deleveraging {
             amm: AMM {
                 base_asset_amount_long: BASE_PRECISION_I128 * 102,
                 base_asset_amount_short: -BASE_PRECISION_I128 * 54,
-                quote_asset_amount_long: -QUOTE_PRECISION_I128 * 30 * 9 / 10 * 102
+                quote_break_even_amount_long: -QUOTE_PRECISION_I128 * 30 * 9 / 10 * 102
                     + QUOTE_PRECISION_I128 * 5
                     + (200 * QUOTE_PRECISION_I128),
-                quote_asset_amount_short: QUOTE_PRECISION_I128 * 30 * 11 / 10,
+                quote_break_even_amount_short: QUOTE_PRECISION_I128 * 30 * 11 / 10,
                 quote_entry_amount_long: -QUOTE_PRECISION_I128 * 30 * 100 * 8 / 10,
                 quote_entry_amount_short: QUOTE_PRECISION_I128 * 30 * 54 * 12 / 10,
                 ..AMM::default()
@@ -793,7 +794,7 @@ mod auto_deleveraging {
 
         let dus1 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long * 30 / 100) as i64,
-            quote_asset_amount: (market.amm.quote_asset_amount_long * 29 / 100) as i64,
+            quote_asset_amount: (market.amm.quote_break_even_amount_long * 29 / 100) as i64,
             quote_entry_amount: (market.amm.quote_entry_amount_long * 29 / 100) as i64,
             free_collateral: 1000 * QUOTE_PRECISION_I128,
         };
@@ -801,21 +802,22 @@ mod auto_deleveraging {
         // tiny
         let dus2 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long / 100) as i64,
-            quote_asset_amount: (market.amm.quote_asset_amount_long / 100) as i64,
+            quote_asset_amount: (market.amm.quote_break_even_amount_long / 100) as i64,
             quote_entry_amount: (market.amm.quote_entry_amount_long / 100) as i64,
             free_collateral: 100 * QUOTE_PRECISION_I128,
         };
 
         let dus3 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long * 69 / 100) as i64,
-            quote_asset_amount: (market.amm.quote_asset_amount_long * 70 / 100) as i64 - 100,
+            quote_asset_amount: (market.amm.quote_break_even_amount_long * 70 / 100) as i64 - 100,
             quote_entry_amount: (market.amm.quote_entry_amount_long * 70 / 100) as i64,
             free_collateral: 5000 * QUOTE_PRECISION_I128,
         };
 
         let dus4 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_short * 50 / 100) as i64,
-            quote_asset_amount: ((market.amm.quote_asset_amount_short + 200 * QUOTE_PRECISION_I128)
+            quote_asset_amount: ((market.amm.quote_break_even_amount_short
+                + 200 * QUOTE_PRECISION_I128)
                 * 49
                 / 100) as i64,
             quote_entry_amount: (market.amm.quote_entry_amount_short * 49 / 100) as i64,
@@ -824,7 +826,8 @@ mod auto_deleveraging {
 
         let dus5 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_short * 50 / 100) as i64,
-            quote_asset_amount: ((market.amm.quote_asset_amount_short + 200 * QUOTE_PRECISION_I128)
+            quote_asset_amount: ((market.amm.quote_break_even_amount_short
+                + 200 * QUOTE_PRECISION_I128)
                 * 51
                 / 100) as i64,
             quote_entry_amount: (market.amm.quote_entry_amount_short * 51 / 100) as i64,
@@ -859,7 +862,7 @@ mod auto_deleveraging {
                 + dus2.quote_asset_amount
                 + dus3.quote_asset_amount
                 + dus7.quote_asset_amount,
-            market.amm.quote_asset_amount_long as i64
+            market.amm.quote_break_even_amount_long as i64
         );
         assert_eq!(
             dus1.quote_entry_amount
@@ -875,7 +878,7 @@ mod auto_deleveraging {
         );
         assert_eq!(
             dus4.quote_asset_amount + dus5.quote_asset_amount + dus6.quote_asset_amount,
-            market.amm.quote_asset_amount_short as i64
+            market.amm.quote_break_even_amount_short as i64
         );
         assert_eq!(
             dus4.quote_entry_amount + dus5.quote_entry_amount + dus6.quote_entry_amount,
@@ -969,10 +972,10 @@ mod auto_deleveraging {
             amm: AMM {
                 base_asset_amount_long: BASE_PRECISION_I128 * 102,
                 base_asset_amount_short: -BASE_PRECISION_I128 * 54,
-                quote_asset_amount_long: -QUOTE_PRECISION_I128 * 30 * 9 / 10 * 102
+                quote_break_even_amount_long: -QUOTE_PRECISION_I128 * 30 * 9 / 10 * 102
                     + QUOTE_PRECISION_I128 * 5
                     + (200 * QUOTE_PRECISION_I128),
-                quote_asset_amount_short: QUOTE_PRECISION_I128 * 30 * 11 / 10,
+                quote_break_even_amount_short: QUOTE_PRECISION_I128 * 30 * 11 / 10,
                 quote_entry_amount_long: -QUOTE_PRECISION_I128 * 30 * 100 * 8 / 10,
                 quote_entry_amount_short: QUOTE_PRECISION_I128 * 30 * 54 * 12 / 10,
                 ..AMM::default()
@@ -983,7 +986,7 @@ mod auto_deleveraging {
 
         let mut dus1 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long * 30 / 100) as i64,
-            quote_asset_amount: (market.amm.quote_asset_amount_long * 29 / 100) as i64,
+            quote_asset_amount: (market.amm.quote_break_even_amount_long * 29 / 100) as i64,
             quote_entry_amount: (market.amm.quote_entry_amount_long * 29 / 100) as i64,
             free_collateral: 1000 * QUOTE_PRECISION_I128,
         };
@@ -991,21 +994,22 @@ mod auto_deleveraging {
         // tiny
         let mut dus2 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long / 100) as i64,
-            quote_asset_amount: (market.amm.quote_asset_amount_long / 100) as i64,
+            quote_asset_amount: (market.amm.quote_break_even_amount_long / 100) as i64,
             quote_entry_amount: (market.amm.quote_entry_amount_long / 100) as i64,
             free_collateral: 100 * QUOTE_PRECISION_I128,
         };
 
         let mut dus3 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long * 69 / 100) as i64,
-            quote_asset_amount: (market.amm.quote_asset_amount_long * 70 / 100) as i64 - 100,
+            quote_asset_amount: (market.amm.quote_break_even_amount_long * 70 / 100) as i64 - 100,
             quote_entry_amount: (market.amm.quote_entry_amount_long * 70 / 100) as i64,
             free_collateral: 5000 * QUOTE_PRECISION_I128,
         };
 
         let dus4 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_short * 50 / 100) as i64,
-            quote_asset_amount: ((market.amm.quote_asset_amount_short + 200 * QUOTE_PRECISION_I128)
+            quote_asset_amount: ((market.amm.quote_break_even_amount_short
+                + 200 * QUOTE_PRECISION_I128)
                 * 49
                 / 100) as i64,
             quote_entry_amount: (market.amm.quote_entry_amount_short * 49 / 100) as i64,
@@ -1014,7 +1018,8 @@ mod auto_deleveraging {
 
         let dus5 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_short * 50 / 100) as i64,
-            quote_asset_amount: ((market.amm.quote_asset_amount_short + 200 * QUOTE_PRECISION_I128)
+            quote_asset_amount: ((market.amm.quote_break_even_amount_short
+                + 200 * QUOTE_PRECISION_I128)
                 * 51
                 / 100) as i64,
             quote_entry_amount: (market.amm.quote_entry_amount_short * 51 / 100) as i64,
@@ -1049,7 +1054,7 @@ mod auto_deleveraging {
                 + dus2.quote_asset_amount
                 + dus3.quote_asset_amount
                 + dus7.quote_asset_amount,
-            market.amm.quote_asset_amount_long as i64
+            market.amm.quote_break_even_amount_long as i64
         );
         assert_eq!(
             dus1.quote_entry_amount
@@ -1065,7 +1070,7 @@ mod auto_deleveraging {
         );
         assert_eq!(
             dus4.quote_asset_amount + dus5.quote_asset_amount + dus6.quote_asset_amount,
-            market.amm.quote_asset_amount_short as i64
+            market.amm.quote_break_even_amount_short as i64
         );
         assert_eq!(
             dus4.quote_entry_amount + dus5.quote_entry_amount + dus6.quote_entry_amount,
@@ -1090,7 +1095,7 @@ mod auto_deleveraging {
 
         dus1.quote_asset_amount -= delev_payment as i64;
         dus1.quote_entry_amount -= delev_payment as i64;
-        market.amm.quote_asset_amount_long -= delev_payment;
+        market.amm.quote_break_even_amount_long -= delev_payment;
         market.amm.quote_entry_amount_long -= delev_payment;
         remaining_levered_loss += delev_payment;
 
@@ -1116,7 +1121,7 @@ mod auto_deleveraging {
 
         dus1.quote_asset_amount -= delev_payment as i64;
         dus1.quote_entry_amount -= delev_payment as i64;
-        market.amm.quote_asset_amount_long -= delev_payment;
+        market.amm.quote_break_even_amount_long -= delev_payment;
         market.amm.quote_entry_amount_long -= delev_payment;
         remaining_levered_loss += delev_payment;
 
@@ -1157,7 +1162,7 @@ mod auto_deleveraging {
 
         dus2.quote_asset_amount -= delev_payment as i64;
         dus2.quote_entry_amount -= delev_payment as i64;
-        market.amm.quote_asset_amount_long -= delev_payment;
+        market.amm.quote_break_even_amount_long -= delev_payment;
         market.amm.quote_entry_amount_long -= delev_payment;
         remaining_levered_loss += delev_payment;
 
@@ -1183,7 +1188,7 @@ mod auto_deleveraging {
 
         dus3.quote_asset_amount -= delev_payment as i64;
         dus3.quote_entry_amount -= delev_payment as i64;
-        market.amm.quote_asset_amount_long -= delev_payment;
+        market.amm.quote_break_even_amount_long -= delev_payment;
         market.amm.quote_entry_amount_long -= delev_payment;
         remaining_levered_loss += delev_payment;
 
@@ -1197,7 +1202,7 @@ mod auto_deleveraging {
         assert_eq!(delev_payment, 0);
         dus3.quote_asset_amount -= delev_payment as i64;
         dus3.quote_entry_amount -= delev_payment as i64;
-        market.amm.quote_asset_amount_long -= delev_payment;
+        market.amm.quote_break_even_amount_long -= delev_payment;
         market.amm.quote_entry_amount_long -= delev_payment;
         remaining_levered_loss += delev_payment;
 
@@ -1210,10 +1215,10 @@ mod auto_deleveraging {
             amm: AMM {
                 base_asset_amount_long: BASE_PRECISION_I128 * 102,
                 base_asset_amount_short: -BASE_PRECISION_I128 * 54,
-                quote_asset_amount_long: -QUOTE_PRECISION_I128 * 30 * 9 / 10 * 102
+                quote_break_even_amount_long: -QUOTE_PRECISION_I128 * 30 * 9 / 10 * 102
                     + QUOTE_PRECISION_I128 * 5
                     + (200 * QUOTE_PRECISION_I128),
-                quote_asset_amount_short: QUOTE_PRECISION_I128 * 30 * 11 / 10,
+                quote_break_even_amount_short: QUOTE_PRECISION_I128 * 30 * 11 / 10,
                 quote_entry_amount_long: -QUOTE_PRECISION_I128 * 30 * 100 * 8 / 10,
                 quote_entry_amount_short: QUOTE_PRECISION_I128 * 30 * 54 * 12 / 10,
                 ..AMM::default()
@@ -1224,7 +1229,7 @@ mod auto_deleveraging {
 
         let mut dus1 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long * 30 / 100) as i64,
-            quote_asset_amount: (market.amm.quote_asset_amount_long * 29 / 100) as i64,
+            quote_asset_amount: (market.amm.quote_break_even_amount_long * 29 / 100) as i64,
             quote_entry_amount: (market.amm.quote_entry_amount_long * 29 / 100) as i64,
             free_collateral: 1000 * QUOTE_PRECISION_I128,
         };
@@ -1232,21 +1237,22 @@ mod auto_deleveraging {
         // tiny
         let mut dus2 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long / 100) as i64,
-            quote_asset_amount: (market.amm.quote_asset_amount_long / 100) as i64,
+            quote_asset_amount: (market.amm.quote_break_even_amount_long / 100) as i64,
             quote_entry_amount: (market.amm.quote_entry_amount_long / 100) as i64,
             free_collateral: 100 * QUOTE_PRECISION_I128,
         };
 
         let mut dus3 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long * 69 / 100) as i64,
-            quote_asset_amount: (market.amm.quote_asset_amount_long * 70 / 100) as i64 - 100,
+            quote_asset_amount: (market.amm.quote_break_even_amount_long * 70 / 100) as i64 - 100,
             quote_entry_amount: (market.amm.quote_entry_amount_long * 70 / 100) as i64,
             free_collateral: 5000 * QUOTE_PRECISION_I128,
         };
 
         let mut dus4 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_short * 50 / 100) as i64,
-            quote_asset_amount: ((market.amm.quote_asset_amount_short + 200 * QUOTE_PRECISION_I128)
+            quote_asset_amount: ((market.amm.quote_break_even_amount_short
+                + 200 * QUOTE_PRECISION_I128)
                 * 49
                 / 100) as i64,
             quote_entry_amount: (market.amm.quote_entry_amount_short * 49 / 100) as i64,
@@ -1255,7 +1261,8 @@ mod auto_deleveraging {
 
         let mut dus5 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_short * 50 / 100) as i64,
-            quote_asset_amount: ((market.amm.quote_asset_amount_short + 200 * QUOTE_PRECISION_I128)
+            quote_asset_amount: ((market.amm.quote_break_even_amount_short
+                + 200 * QUOTE_PRECISION_I128)
                 * 51
                 / 100) as i64,
             quote_entry_amount: (market.amm.quote_entry_amount_short * 51 / 100) as i64,
@@ -1290,7 +1297,7 @@ mod auto_deleveraging {
                 + dus2.quote_asset_amount
                 + dus3.quote_asset_amount
                 + dus7.quote_asset_amount,
-            market.amm.quote_asset_amount_long as i64
+            market.amm.quote_break_even_amount_long as i64
         );
         assert_eq!(
             dus1.quote_entry_amount
@@ -1306,7 +1313,7 @@ mod auto_deleveraging {
         );
         assert_eq!(
             dus4.quote_asset_amount + dus5.quote_asset_amount + dus6.quote_asset_amount,
-            market.amm.quote_asset_amount_short as i64
+            market.amm.quote_break_even_amount_short as i64
         );
         assert_eq!(
             dus4.quote_entry_amount + dus5.quote_entry_amount + dus6.quote_entry_amount,
@@ -1345,7 +1352,7 @@ mod auto_deleveraging {
                     msg!("{}: delev_payment={}", count, delev_payment);
                     dus.quote_asset_amount -= delev_payment as i64;
                     dus.quote_entry_amount -= delev_payment as i64;
-                    market.amm.quote_asset_amount_long -= delev_payment;
+                    market.amm.quote_break_even_amount_long -= delev_payment;
                     market.amm.quote_entry_amount_long -= delev_payment;
                     remaining_levered_loss += delev_payment;
                     zaps += 1;
@@ -1369,10 +1376,10 @@ mod auto_deleveraging {
             amm: AMM {
                 base_asset_amount_long: BASE_PRECISION_I128 * 102,
                 base_asset_amount_short: -BASE_PRECISION_I128 * 54,
-                quote_asset_amount_long: -QUOTE_PRECISION_I128 * 30 * 9 / 10 * 102
+                quote_break_even_amount_long: -QUOTE_PRECISION_I128 * 30 * 9 / 10 * 102
                     + QUOTE_PRECISION_I128 * 5
                     + (200 * QUOTE_PRECISION_I128),
-                quote_asset_amount_short: QUOTE_PRECISION_I128 * 30 * 11 / 10,
+                quote_break_even_amount_short: QUOTE_PRECISION_I128 * 30 * 11 / 10,
                 quote_entry_amount_long: -QUOTE_PRECISION_I128 * 30 * 100 * 8 / 10,
                 quote_entry_amount_short: QUOTE_PRECISION_I128 * 30 * 54 * 12 / 10,
                 ..AMM::default()
@@ -1383,7 +1390,7 @@ mod auto_deleveraging {
 
         let mut dus1 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long * 30 / 100) as i64,
-            quote_asset_amount: (market.amm.quote_asset_amount_long * 29 / 100) as i64,
+            quote_asset_amount: (market.amm.quote_break_even_amount_long * 29 / 100) as i64,
             quote_entry_amount: (market.amm.quote_entry_amount_long * 29 / 100) as i64,
             free_collateral: 1000 * QUOTE_PRECISION_I128,
         };
@@ -1391,21 +1398,22 @@ mod auto_deleveraging {
         // tiny
         let mut dus2 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long / 100) as i64,
-            quote_asset_amount: (market.amm.quote_asset_amount_long / 100) as i64,
+            quote_asset_amount: (market.amm.quote_break_even_amount_long / 100) as i64,
             quote_entry_amount: (market.amm.quote_entry_amount_long / 100) as i64,
             free_collateral: 100 * QUOTE_PRECISION_I128,
         };
 
         let mut dus3 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long * 69 / 100) as i64,
-            quote_asset_amount: (market.amm.quote_asset_amount_long * 70 / 100) as i64 - 100,
+            quote_asset_amount: (market.amm.quote_break_even_amount_long * 70 / 100) as i64 - 100,
             quote_entry_amount: (market.amm.quote_entry_amount_long * 70 / 100) as i64,
             free_collateral: 5000 * QUOTE_PRECISION_I128,
         };
 
         let mut dus4 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_short * 50 / 100) as i64,
-            quote_asset_amount: ((market.amm.quote_asset_amount_short + 200 * QUOTE_PRECISION_I128)
+            quote_asset_amount: ((market.amm.quote_break_even_amount_short
+                + 200 * QUOTE_PRECISION_I128)
                 * 49
                 / 100) as i64,
             quote_entry_amount: (market.amm.quote_entry_amount_short * 49 / 100) as i64,
@@ -1414,7 +1422,8 @@ mod auto_deleveraging {
 
         let mut dus5 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_short * 50 / 100) as i64,
-            quote_asset_amount: ((market.amm.quote_asset_amount_short + 200 * QUOTE_PRECISION_I128)
+            quote_asset_amount: ((market.amm.quote_break_even_amount_short
+                + 200 * QUOTE_PRECISION_I128)
                 * 51
                 / 100) as i64,
             quote_entry_amount: (market.amm.quote_entry_amount_short * 51 / 100) as i64,
@@ -1449,7 +1458,7 @@ mod auto_deleveraging {
                 + dus2.quote_asset_amount
                 + dus3.quote_asset_amount
                 + dus7.quote_asset_amount,
-            market.amm.quote_asset_amount_long as i64
+            market.amm.quote_break_even_amount_long as i64
         );
         assert_eq!(
             dus1.quote_entry_amount
@@ -1465,7 +1474,7 @@ mod auto_deleveraging {
         );
         assert_eq!(
             dus4.quote_asset_amount + dus5.quote_asset_amount + dus6.quote_asset_amount,
-            market.amm.quote_asset_amount_short as i64
+            market.amm.quote_break_even_amount_short as i64
         );
         assert_eq!(
             dus4.quote_entry_amount + dus5.quote_entry_amount + dus6.quote_entry_amount,
@@ -1503,7 +1512,7 @@ mod auto_deleveraging {
                 msg!("{}: delev_payment={}", count, delev_payment);
                 dus1.quote_asset_amount -= delev_payment as i64;
                 dus1.quote_entry_amount -= delev_payment as i64;
-                market.amm.quote_asset_amount_long -= delev_payment;
+                market.amm.quote_break_even_amount_long -= delev_payment;
                 market.amm.quote_entry_amount_long -= delev_payment;
                 remaining_levered_loss += delev_payment;
                 zaps += 1;
@@ -1534,7 +1543,7 @@ mod auto_deleveraging {
                 msg!("{}: delev_payment={}", count, delev_payment);
                 dus2.quote_asset_amount -= delev_payment as i64;
                 dus2.quote_entry_amount -= delev_payment as i64;
-                market.amm.quote_asset_amount_long -= delev_payment;
+                market.amm.quote_break_even_amount_long -= delev_payment;
                 market.amm.quote_entry_amount_long -= delev_payment;
                 remaining_levered_loss += delev_payment;
                 zaps += 1;
@@ -1565,7 +1574,7 @@ mod auto_deleveraging {
                 msg!("{}: delev_payment={}", count, delev_payment);
                 dus3.quote_asset_amount -= delev_payment as i64;
                 dus3.quote_entry_amount -= delev_payment as i64;
-                market.amm.quote_asset_amount_long -= delev_payment;
+                market.amm.quote_break_even_amount_long -= delev_payment;
                 market.amm.quote_entry_amount_long -= delev_payment;
                 remaining_levered_loss += delev_payment;
                 zaps += 1;

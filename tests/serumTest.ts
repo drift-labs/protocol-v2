@@ -107,6 +107,11 @@ describe('serum spot market', () => {
 
 		await initializeQuoteSpotMarket(makerClearingHouse, usdcMint.publicKey);
 		await initializeSolSpotMarket(makerClearingHouse, solOracle);
+		await makerClearingHouse.updateSpotMarketStepSizeAndTickSize(
+			1,
+			new BN(100000000),
+			new BN(100)
+		);
 		await makerClearingHouse.updateSpotAuctionDuration(0);
 
 		[takerClearingHouse, _takerWSOL, takerUSDC] =

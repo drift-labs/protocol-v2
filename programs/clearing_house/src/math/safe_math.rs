@@ -16,7 +16,7 @@ macro_rules! checked_impl {
     ($t:ty) => {
         impl SafeMath for $t {
             #[track_caller]
-            #[inline]
+            #[inline(always)]
             fn safe_add(self, v: $t) -> ClearingHouseResult<$t> {
                 match self.checked_add(v) {
                     Some(result) => Ok(result),
@@ -29,7 +29,7 @@ macro_rules! checked_impl {
             }
 
             #[track_caller]
-            #[inline]
+            #[inline(always)]
             fn safe_sub(self, v: $t) -> ClearingHouseResult<$t> {
                 match self.checked_sub(v) {
                     Some(result) => Ok(result),
@@ -42,7 +42,7 @@ macro_rules! checked_impl {
             }
 
             #[track_caller]
-            #[inline]
+            #[inline(always)]
             fn safe_mul(self, v: $t) -> ClearingHouseResult<$t> {
                 match self.checked_mul(v) {
                     Some(result) => Ok(result),
@@ -55,7 +55,7 @@ macro_rules! checked_impl {
             }
 
             #[track_caller]
-            #[inline]
+            #[inline(always)]
             fn safe_div(self, v: $t) -> ClearingHouseResult<$t> {
                 match self.checked_div(v) {
                     Some(result) => Ok(result),
@@ -68,7 +68,7 @@ macro_rules! checked_impl {
             }
 
             #[track_caller]
-            #[inline]
+            #[inline(always)]
             fn safe_div_ceil(self, v: $t) -> ClearingHouseResult<$t> {
                 match self.checked_ceil_div(v) {
                     Some(result) => Ok(result),
