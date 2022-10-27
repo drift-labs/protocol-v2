@@ -12,7 +12,7 @@ use crate::math::constants::{
 use crate::math::position::{_calculate_base_asset_value_and_pnl, calculate_base_asset_value};
 use crate::math::safe_math::SafeMath;
 
-use crate::state::perp_market::PerpMarket;
+use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::validate;
 
 #[cfg(test)]
@@ -244,7 +244,8 @@ pub fn get_update_k_result(
 
     let sqrt_k = new_sqrt_k.try_to_u128().unwrap();
 
-    if bound_update
+    // only allow too small when market is in reduce only mode
+    if market.status != MarketStatus::ReduceOnly
         && new_sqrt_k < old_sqrt_k
         && market.amm.base_asset_amount_with_amm.unsigned_abs() > sqrt_k
     {
