@@ -669,6 +669,7 @@ export type UserAccount = {
 	settledPerpPnl: BN;
 	totalDeposits: BN;
 	totalWithdraws: BN;
+	cumulativePerpFunding: BN;
 };
 
 export type SpotPosition = {

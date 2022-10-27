@@ -41,6 +41,7 @@ pub struct User {
     pub settled_perp_pnl: i64,
     // Fees (taker fees, maker rebate, filler reward) for spot
     pub cumulative_spot_fees: i64,
+    pub cumulative_perp_funding: i64,
     pub next_order_id: u32,
     pub max_margin_ratio: u32,
     pub next_liquidation_id: u16,
@@ -197,6 +198,11 @@ impl User {
 
     pub fn update_cumulative_spot_fees(&mut self, amount: i64) -> ClearingHouseResult {
         safe_increment!(self.cumulative_spot_fees, amount);
+        Ok(())
+    }
+
+    pub fn update_cumulative_perp_funding(&mut self, amount: i64) -> ClearingHouseResult {
+        safe_increment!(self.cumulative_perp_funding, amount);
         Ok(())
     }
 }
