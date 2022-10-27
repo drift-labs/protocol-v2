@@ -2853,6 +2853,7 @@ pub mod resolve_perp_bankruptcy {
             -550 * QUOTE_PRECISION_I64; // loses $50
         expected_affected_long_user.perp_positions[0].last_cumulative_funding_rate =
             1010 * FUNDING_RATE_PRECISION_I64;
+        expected_affected_long_user.cumulative_perp_funding = -50 * QUOTE_PRECISION_I64;
 
         {
             let mut market = market_map.get_ref_mut(&0).unwrap();
@@ -2890,6 +2891,7 @@ pub mod resolve_perp_bankruptcy {
             550 * QUOTE_PRECISION_I64; // loses $50
         expected_affected_short_user.perp_positions[0].last_cumulative_funding_rate =
             -1010 * FUNDING_RATE_PRECISION_I64;
+        expected_affected_short_user.cumulative_perp_funding = -50 * QUOTE_PRECISION_I64;
 
         {
             let mut market = market_map.get_ref_mut(&0).unwrap();

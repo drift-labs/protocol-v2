@@ -4246,6 +4246,10 @@
             "type": "i64"
           },
           {
+            "name": "cumulativePerpFunding",
+            "type": "i64"
+          },
+          {
             "name": "nextOrderId",
             "type": "u32"
           },
