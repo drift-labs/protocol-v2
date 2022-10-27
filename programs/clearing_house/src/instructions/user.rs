@@ -461,8 +461,18 @@ pub fn handle_transfer_deposit(
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         validate!(
-            spot_market.status != MarketStatus::WithdrawPaused,
-            ErrorCode::DailyWithdrawLimit
+            matches!(
+                spot_market.status,
+                MarketStatus::Active
+                    | MarketStatus::AmmPaused
+                    | MarketStatus::FundingPaused
+                    | MarketStatus::FillPaused
+                    | MarketStatus::ReduceOnly
+                    | MarketStatus::Settlement
+            ),
+            ErrorCode::MarketWithdrawPaused,
+            "Spot Market {} withdraws are currently paused",
+            spot_market.market_index
         )?;
 
         let from_spot_position = from_user.force_get_spot_position_mut(spot_market.market_index)?;
@@ -617,7 +627,7 @@ pub fn handle_place_perp_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
 
     if params.immediate_or_cancel {
         msg!("immediate_or_cancel order must be in place_and_make or place_and_take");
-        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        return Err(print_error!(ErrorCode::InvalidOrderIOC)().into());
     }
 
     controller::orders::place_perp_order(
@@ -771,7 +781,7 @@ pub fn handle_place_and_take_perp_order<'info>(
 
     if params.post_only {
         msg!("post_only cant be used in place_and_take");
-        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
     }
 
     let (maker, maker_stats) = match maker_order_id {
@@ -872,7 +882,7 @@ pub fn handle_place_and_make_perp_order<'info>(
 
     if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit {
         msg!("place_and_make must use IOC post only limit order");
-        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
     }
 
     controller::repeg::update_amm(
@@ -947,7 +957,7 @@ pub fn handle_place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
 
     if params.immediate_or_cancel {
         msg!("immediate_or_cancel order must be in place_and_make or place_and_take");
-        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        return Err(print_error!(ErrorCode::InvalidOrderIOC)().into());
     }
 
     controller::orders::place_spot_order(
@@ -990,7 +1000,7 @@ pub fn handle_place_and_take_spot_order<'info>(
 
     if params.post_only {
         msg!("post_only cant be used in place_and_take");
-        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
     }
 
     let (maker, maker_stats) = match maker_order_id {
@@ -1120,7 +1130,7 @@ pub fn handle_place_and_make_spot_order<'info>(
 
     if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit {
         msg!("place_and_make must use IOC post only limit order");
-        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
     }
 
     let market_index = params.market_index;
@@ -1255,13 +1265,13 @@ pub fn handle_add_perp_lp_shares<'info>(
                     | MarketStatus::FillPaused
                     | MarketStatus::WithdrawPaused
             ),
-            ErrorCode::DefaultError,
+            ErrorCode::MarketStatusInvalidForNewLP,
             "Market Status doesn't allow for new LP liquidity"
         )?;
 
         validate!(
             n_shares >= market.amm.order_step_size,
-            ErrorCode::DefaultError,
+            ErrorCode::NewLPSizeTooSmall,
             "minting {} shares is less than step size {}",
             n_shares,
             market.amm.order_step_size,
@@ -1338,7 +1348,7 @@ pub fn handle_remove_perp_lp_shares_in_expiring_market(
         let market = perp_market_map.get_ref(&market_index)?;
         validate!(
             market.is_reduce_only()?,
-            ErrorCode::DefaultError,
+            ErrorCode::PerpMarketNotInReduceOnly,
             "Can only permissionless burn when market is in reduce only"
         )?;
     }

@@ -13,7 +13,7 @@ pub fn validate_perp_position_with_perp_market(
 ) -> ClearingHouseResult {
     validate!(
         position.market_index == market.market_index,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidPerpPositionDetected,
         "position/market market_index unequal"
     )?;
 
@@ -22,7 +22,7 @@ pub fn validate_perp_position_with_perp_market(
             position.base_asset_amount.unsigned_abs().cast()?,
             market.amm.order_step_size
         )?,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidPerpPositionDetected,
         "position not multiple of stepsize"
     )?;
 
@@ -32,7 +32,7 @@ pub fn validate_perp_position_with_perp_market(
 pub fn validate_spot_position(position: &SpotPosition) -> ClearingHouseResult {
     validate!(
         position.open_orders <= MAX_OPEN_ORDERS,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidSpotPositionDetected,
         "user spot={} position.open_orders={} is greater than MAX_OPEN_ORDERS={}",
         position.market_index,
         position.open_orders,
@@ -41,7 +41,7 @@ pub fn validate_spot_position(position: &SpotPosition) -> ClearingHouseResult {
 
     validate!(
         position.open_bids >= 0,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidSpotPositionDetected,
         "user spot={} position.open_bids={} is less than 0",
         position.market_index,
         position.open_bids,
@@ -49,7 +49,7 @@ pub fn validate_spot_position(position: &SpotPosition) -> ClearingHouseResult {
 
     validate!(
         position.open_asks <= 0,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidSpotPositionDetected,
         "user spot={} position.open_asks={} is greater than 0",
         position.market_index,
         position.open_asks,

@@ -285,7 +285,7 @@ pub fn transfer_spot_balances(
 ) -> ClearingHouseResult {
     validate!(
         from_spot_balance.market_index() == to_spot_balance.market_index(),
-        ErrorCode::DefaultError,
+        ErrorCode::UnequalMarketIndexForSpotTransfer,
         "transfer market indexes arent equal",
     )?;
 
@@ -327,7 +327,7 @@ pub fn transfer_revenue_pool_to_spot_balance(
 ) -> ClearingHouseResult {
     validate!(
         to_spot_balance.market_index() == spot_market.market_index,
-        ErrorCode::DefaultError,
+        ErrorCode::UnequalMarketIndexForSpotTransfer,
         "transfer market indexes arent equal",
     )?;
 
@@ -351,7 +351,7 @@ pub fn transfer_spot_balance_to_revenue_pool(
 ) -> ClearingHouseResult {
     validate!(
         from_spot_balance.market_index() == spot_market.market_index,
-        ErrorCode::DefaultError,
+        ErrorCode::UnequalMarketIndexForSpotTransfer,
         "transfer market indexes arent equal",
     )?;
 

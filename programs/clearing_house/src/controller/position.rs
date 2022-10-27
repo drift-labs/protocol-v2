@@ -358,7 +358,7 @@ pub fn update_position_and_market(
             position.base_asset_amount.unsigned_abs(),
             market.amm.order_step_size
         )?,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidPerpPositionDetected,
         "update_position_and_market left invalid position before {} after {}",
         position.base_asset_amount,
         new_base_asset_amount
