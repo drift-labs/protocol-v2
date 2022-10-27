@@ -538,6 +538,7 @@ export type SpotMarketAccount = {
 	depositTokenTwap: BN;
 	borrowTokenTwap: BN;
 	utilizationTwap: BN;
+	nextDepositRecordId: BN;
 
 	orderStepSize: BN;
 	orderTickSize: BN;

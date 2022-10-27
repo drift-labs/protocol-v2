@@ -4,6 +4,7 @@ use anchor_spl::token::{Token, TokenAccount};
 use crate::controller::orders::cancel_orders;
 use crate::controller::position::PositionDirection;
 use crate::error::ErrorCode;
+use crate::get_then_update_id;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
     get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
@@ -230,9 +231,11 @@ pub fn handle_deposit(
     )?;
     ctx.accounts.spot_market_vault.reload()?;
 
+    let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
     let oracle_price = oracle_price_data.price;
     let deposit_record = DepositRecord {
         ts: now,
+        deposit_record_id,
         user_authority: user.authority,
         user: user_key,
         direction: DepositDirection::DEPOSIT,
@@ -360,7 +363,7 @@ pub fn handle_withdraw(
 
     user.is_being_liquidated = false;
 
-    let spot_market = spot_market_map.get_ref(&market_index)?;
+    let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
     let oracle_price = oracle_price_data.price;
 
@@ -370,8 +373,10 @@ pub fn handle_withdraw(
         spot_market.get_precision().cast()?,
     )?;
 
+    let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
     let deposit_record = DepositRecord {
         ts: now,
+        deposit_record_id,
         user_authority: user.authority,
         user: user_key,
         direction: DepositDirection::WITHDRAW,
@@ -515,8 +520,10 @@ pub fn handle_transfer_deposit(
             spot_market.get_precision().cast()?,
         )?;
 
+        let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
         let deposit_record = DepositRecord {
             ts: clock.unix_timestamp,
+            deposit_record_id,
             user_authority: *authority_key,
             user: from_user_key,
             direction: DepositDirection::WITHDRAW,
@@ -557,8 +564,10 @@ pub fn handle_transfer_deposit(
             None,
         )?;
 
+        let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
         let deposit_record = DepositRecord {
             ts: clock.unix_timestamp,
+            deposit_record_id,
             user_authority: *authority_key,
             user: to_user_key,
             direction: DepositDirection::DEPOSIT,
