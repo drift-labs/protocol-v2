@@ -800,7 +800,7 @@ pub fn handle_resolve_perp_pnl_deficit(
 
         validate!(
             ctx.accounts.insurance_fund_vault.amount > 0,
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidIFDetected,
             "insurance_fund_vault.amount must remain > 0"
         )?;
     }
@@ -903,7 +903,7 @@ pub fn handle_resolve_perp_bankruptcy(
 
         validate!(
             ctx.accounts.insurance_fund_vault.amount > 0,
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidIFDetected,
             "insurance_fund_vault.amount must remain > 0"
         )?;
     }
@@ -990,7 +990,7 @@ pub fn handle_resolve_spot_bankruptcy(
 
         validate!(
             ctx.accounts.insurance_fund_vault.amount > 0,
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidIFDetected,
             "insurance_fund_vault.amount must remain > 0"
         )?;
     }
@@ -1063,13 +1063,13 @@ pub fn handle_settle_revenue_to_insurance_fund(
 
     validate!(
         spot_market_index == spot_market.market_index,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidSpotMarketAccount,
         "invalid spot_market passed"
     )?;
 
     validate!(
         spot_market.insurance_fund.revenue_settle_period > 0,
-        ErrorCode::DefaultError,
+        ErrorCode::RevenueSettingsCannotSettleToIF,
         "invalid revenue_settle_period settings on spot market"
     )?;
 
@@ -1087,7 +1087,7 @@ pub fn handle_settle_revenue_to_insurance_fund(
 
     validate!(
         time_until_next_update == 0,
-        ErrorCode::DefaultError,
+        ErrorCode::RevenueSettingsCannotSettleToIF,
         "Must wait {} seconds until next available settlement time",
         time_until_next_update
     )?;
@@ -1191,7 +1191,7 @@ pub fn handle_update_user_quote_asset_insurance_stake(
 
     validate!(
         insurance_fund_stake.market_index == 0,
-        ErrorCode::DefaultError,
+        ErrorCode::IncorrectSpotMarketAccountPassed,
         "insurance_fund_stake is not for quote market"
     )?;
 

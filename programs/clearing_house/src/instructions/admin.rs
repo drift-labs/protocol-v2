@@ -266,8 +266,8 @@ pub fn handle_initialize_serum_fulfillment_config(
     market_index: u16,
 ) -> Result<()> {
     validate!(
-        market_index != 0,
-        ErrorCode::DefaultError,
+        market_index != QUOTE_SPOT_MARKET_INDEX,
+        ErrorCode::InvalidSpotMarketAccount,
         "Cant add serum market to quote asset"
     )?;
 
@@ -405,13 +405,13 @@ pub fn handle_update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
     let vault = &ctx.accounts.srm_vault;
     validate!(
         vault.mint == crate::ids::srm_mint::id() || vault.mint == crate::ids::msrm_mint::id(),
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidSrmVault,
         "vault did not hav srm or msrm mint"
     )?;
 
     validate!(
         vault.owner == ctx.accounts.state.signer,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidVaultOwner,
         "vault owner was not program signer"
     )?;
 

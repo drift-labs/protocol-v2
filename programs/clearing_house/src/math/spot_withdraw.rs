@@ -132,7 +132,7 @@ pub fn validate_spot_balances(spot_market: &SpotMarket) -> ClearingHouseResult<u
 
     validate!(
         depositors_amount >= borrowers_amount,
-        ErrorCode::DefaultError,
+        ErrorCode::SpotMarketBalanceInvariantViolated,
         "depositors_amount={} less than borrowers_amount={}",
         depositors_amount,
         borrowers_amount
@@ -149,7 +149,7 @@ pub fn validate_spot_balances(spot_market: &SpotMarket) -> ClearingHouseResult<u
 
     validate!(
         revenue_amount <= depositors_amount,
-        ErrorCode::DefaultError,
+        ErrorCode::SpotMarketVaultInvariantViolated,
         "revenue_amount={} greater or equal to the depositors_amount={} (depositors_claim={}, spot_market.deposit_balance={})",
         revenue_amount,
         depositors_amount,
@@ -168,7 +168,7 @@ pub fn validate_spot_market_vault_amount(
 
     validate!(
         vault_amount >= depositors_claim,
-        ErrorCode::DefaultError,
+        ErrorCode::SpotMarketVaultInvariantViolated,
         "spot market vault ={} holds less than remaining depositor claims = {}",
         vault_amount,
         depositors_claim

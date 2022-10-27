@@ -28,7 +28,7 @@ pub fn calculate_budgeted_k_scale(
 
     validate!(
         increase_max >= K_BPS_UPDATE_SCALE,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidUpdateK,
         "invalid increase_max={} < {}",
         increase_max,
         K_BPS_UPDATE_SCALE

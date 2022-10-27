@@ -139,7 +139,7 @@ pub fn place_perp_order(
 
     validate!(
         market.is_active(now)?,
-        ErrorCode::MarketActionPaused,
+        ErrorCode::MarketPlaceOrderPaused,
         "Market is in settlement mode",
     )?;
 
@@ -156,7 +156,7 @@ pub fn place_perp_order(
 
         validate!(
             params.base_asset_amount >= market.amm.order_step_size,
-            ErrorCode::InvalidOrder,
+            ErrorCode::OrderAmountTooSmall,
             "params.base_asset_amount={} cannot be below market.amm.order_step_size={}",
             params.base_asset_amount,
             market.amm.order_step_size
@@ -218,7 +218,7 @@ pub fn place_perp_order(
 
     validate!(
         params.market_type == MarketType::Perp,
-        ErrorCode::InvalidOrder,
+        ErrorCode::InvalidOrderMarketType,
         "must be perp order"
     )?;
 
@@ -230,7 +230,7 @@ pub fn place_perp_order(
     let max_ts = params.max_ts.unwrap_or(0);
     validate!(
         max_ts == 0 || max_ts > now,
-        ErrorCode::InvalidOrder,
+        ErrorCode::InvalidOrderMaxTs,
         "max_ts ({}) <= now ({})",
         max_ts,
         now
@@ -290,8 +290,12 @@ pub fn place_perp_order(
         risk_decreasing,
     )?;
 
-    if !meets_initial_margin_requirement || (force_reduce_only && !risk_decreasing) {
-        return Err(ErrorCode::InvalidOrder);
+    if !meets_initial_margin_requirement {
+        return Err(ErrorCode::InvalidOrderForInitialMarginReq);
+    }
+
+    if force_reduce_only && !risk_decreasing {
+        return Err(ErrorCode::InvalidOrderNotRiskReducing);
     }
 
     let (taker, taker_order, maker, maker_order) =
@@ -594,7 +598,7 @@ pub fn fill_perp_order(
 
     validate!(
         order_market_type == MarketType::Perp,
-        ErrorCode::InvalidOrder,
+        ErrorCode::InvalidOrderMarketType,
         "must be perp order"
     )?;
 
@@ -610,7 +614,7 @@ pub fn fill_perp_order(
                 | MarketStatus::ReduceOnly
                 | MarketStatus::WithdrawPaused
         ),
-        ErrorCode::DefaultError,
+        ErrorCode::MarketFillOrderPaused,
         "Market unavailable for fills"
     )?;
 
@@ -661,7 +665,7 @@ pub fn fill_perp_order(
         validation::perp_market::validate_perp_market(market)?;
         validate!(
             market.is_active(now)?,
-            ErrorCode::MarketActionPaused,
+            ErrorCode::MarketFillOrderPaused,
             "Market is in settlement mode",
         )?;
 
@@ -1007,7 +1011,7 @@ fn sanitize_maker_order<'a>(
 
         validate!(
             maker_order.market_type == MarketType::Perp,
-            ErrorCode::InvalidOrder,
+            ErrorCode::InvalidOrderMarketType,
             "Maker order not a perp order"
         )?
     }
@@ -2068,7 +2072,7 @@ pub fn trigger_order(
 
     validate!(
         market_type == MarketType::Perp,
-        ErrorCode::InvalidOrder,
+        ErrorCode::InvalidOrderMarketType,
         "Order must be a perp order"
     )?;
 
@@ -2358,7 +2362,7 @@ pub fn place_spot_order(
 
         validate!(
             params.base_asset_amount >= spot_market.order_step_size,
-            ErrorCode::InvalidOrder,
+            ErrorCode::InvalidOrderSizeTooSmall,
             "params.base_asset_amount={} cannot be below spot_market.order_step_size={}",
             params.base_asset_amount,
             spot_market.order_step_size
@@ -2379,7 +2383,7 @@ pub fn place_spot_order(
 
         validate!(
             is_multiple_of_step_size(base_asset_amount, spot_market.order_step_size)?,
-            ErrorCode::InvalidOrder,
+            ErrorCode::InvalidOrderNotStepSizeMultiple,
             "Order base asset amount ({}), is not a multiple of step size ({})",
             base_asset_amount,
             spot_market.order_step_size
@@ -2430,13 +2434,13 @@ pub fn place_spot_order(
 
     validate!(
         params.market_index != QUOTE_SPOT_MARKET_INDEX,
-        ErrorCode::InvalidOrder,
+        ErrorCode::InvalidOrderBaseQuoteAsset,
         "can not place order for quote asset"
     )?;
 
     validate!(
         params.market_type == MarketType::Spot,
-        ErrorCode::InvalidOrder,
+        ErrorCode::InvalidOrderMarketType,
         "must be spot order"
     )?;
 
@@ -2447,7 +2451,7 @@ pub fn place_spot_order(
     let max_ts = params.max_ts.unwrap_or(0);
     validate!(
         max_ts == 0 || max_ts > now,
-        ErrorCode::InvalidOrder,
+        ErrorCode::InvalidOrderMaxTs,
         "max_ts ({}) <= now ({})",
         max_ts,
         now
@@ -2510,8 +2514,12 @@ pub fn place_spot_order(
         risk_decreasing,
     )?;
 
-    if !meets_initial_margin_requirement || (force_reduce_only && !risk_decreasing) {
-        return Err(ErrorCode::InvalidOrder);
+    if !meets_initial_margin_requirement {
+        return Err(ErrorCode::InvalidOrderForInitialMarginReq);
+    }
+
+    if force_reduce_only && !risk_decreasing {
+        return Err(ErrorCode::InvalidOrderNotRiskReducing);
     }
 
     validate_spot_margin_trading(user, spot_market_map, oracle_map)?;
@@ -2595,14 +2603,14 @@ pub fn fill_spot_order(
                     | MarketStatus::ReduceOnly
                     | MarketStatus::WithdrawPaused
             ),
-            ErrorCode::MarketActionPaused,
+            ErrorCode::MarketFillOrderPaused,
             "Market unavailable for fills"
         )?;
     }
 
     validate!(
         order_market_type == MarketType::Spot,
-        ErrorCode::InvalidOrder,
+        ErrorCode::InvalidOrderMarketType,
         "must be spot order"
     )?;
 
@@ -2806,7 +2814,7 @@ fn sanitize_spot_maker_order<'a>(
 
         validate!(
             maker_order.market_type == MarketType::Spot,
-            ErrorCode::InvalidOrder,
+            ErrorCode::InvalidOrderMarketType,
             "Maker order not a spot order"
         )?
     }
@@ -3802,7 +3810,7 @@ pub fn trigger_spot_order(
 
     validate!(
         market_type == MarketType::Spot,
-        ErrorCode::InvalidOrder,
+        ErrorCode::InvalidOrderMarketType,
         "Order must be a spot order"
     )?;
 

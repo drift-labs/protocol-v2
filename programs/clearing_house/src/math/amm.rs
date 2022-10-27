@@ -46,7 +46,7 @@ pub fn calculate_bid_ask_bounds(
 ) -> ClearingHouseResult<(u128, u128)> {
     validate!(
         concentration_coef > CONCENTRATION_PRECISION,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidConcentrationCoef,
         "concentration_coef={} <= CONCENTRATION_PRECISION={}",
         concentration_coef,
         CONCENTRATION_PRECISION
@@ -165,7 +165,7 @@ pub fn update_mark_twap(
 
     validate!(
         best_bid_estimate <= best_ask_estimate,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidMarkTwapUpdateDetected,
         "best_bid_estimate({}, {}) not <= best_ask_estimate({}, {})",
         amm_bid_price,
         best_bid_estimate,
@@ -183,7 +183,7 @@ pub fn update_mark_twap(
 
     validate!(
         bid_price <= ask_price,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidMarkTwapUpdateDetected,
         "bid_price({}, {}) not <= ask_price({}, {}),",
         best_bid_estimate,
         bid_price,
@@ -206,7 +206,7 @@ pub fn update_mark_twap(
 
     validate!(
         bid_price_capped_update <= ask_price_capped_update,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidMarkTwapUpdateDetected,
         "bid_price_capped_update not <= ask_price_capped_update,"
     )?;
 
@@ -711,7 +711,7 @@ pub fn calculate_net_user_cost_basis(amm: &AMM) -> ClearingHouseResult<i128> {
 pub fn calculate_net_user_pnl(amm: &AMM, oracle_price: i64) -> ClearingHouseResult<i128> {
     validate!(
         oracle_price > 0,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidOracle,
         "oracle_price <= 0",
     )?;
 
