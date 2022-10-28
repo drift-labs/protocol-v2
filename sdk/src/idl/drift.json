@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "name": "drift",
   "instructions": [
     {
@@ -176,7 +176,7 @@
           "isSigner": false
         },
         {
-          "name": "clearingHouseSigner",
+          "name": "driftSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -1232,7 +1232,7 @@
           "isSigner": false
         },
         {
-          "name": "clearingHouseSigner",
+          "name": "driftSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -1297,7 +1297,7 @@
           "isSigner": false
         },
         {
-          "name": "clearingHouseSigner",
+          "name": "driftSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -1362,7 +1362,7 @@
           "isSigner": false
         },
         {
-          "name": "clearingHouseSigner",
+          "name": "driftSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -1398,7 +1398,7 @@
           "isSigner": false
         },
         {
-          "name": "clearingHouseSigner",
+          "name": "driftSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -1645,7 +1645,7 @@
           "isSigner": false
         },
         {
-          "name": "clearingHouseSigner",
+          "name": "driftSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -1781,7 +1781,7 @@
           "isSigner": false
         },
         {
-          "name": "clearingHouseSigner",
+          "name": "driftSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -1822,7 +1822,7 @@
           "isSigner": false
         },
         {
-          "name": "clearingHouseSigner",
+          "name": "driftSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -1868,7 +1868,7 @@
           "isSigner": false
         },
         {
-          "name": "clearingHouseSigner",
+          "name": "driftSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -1986,7 +1986,7 @@
           "isSigner": false
         },
         {
-          "name": "clearingHouseSigner",
+          "name": "driftSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -2233,7 +2233,7 @@
           "isSigner": false
         },
         {
-          "name": "clearingHouseSigner",
+          "name": "driftSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -3598,7 +3598,7 @@
           "isSigner": false
         },
         {
-          "name": "clearingHouseSigner",
+          "name": "driftSigner",
           "isMut": false,
           "isSigner": false
         },

@@ -347,7 +347,7 @@ export class DriftClient {
 	}
 
 	/**
-	 * Update the wallet to use for clearing house transactions and linked user account
+	 * Update the wallet to use for drift transactions and linked user account
 	 * @param newWallet
 	 * @param subAccountIds
 	 * @param activeSubAccountId
