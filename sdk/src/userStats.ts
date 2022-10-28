@@ -1,7 +1,7 @@
-import { ClearingHouse } from './clearingHouse';
+import { DriftClient } from './driftClient';
 import { PublicKey } from '@solana/web3.js';
 import { DataAndSlot, UserStatsAccountSubscriber } from './accounts/types';
-import { ClearingHouseUserStatsConfig } from './clearingHouseUserStatsConfig';
+import { UserStatsConfig } from './userStatsConfig';
 import { PollingUserStatsAccountSubscriber } from './accounts/pollingUserStatsAccountSubscriber';
 import { WebSocketUserStatsAccountSubscriber } from './accounts/webSocketUserStatsAccountSubsriber';
 import { ReferrerInfo, UserStatsAccount } from './types';
@@ -10,24 +10,24 @@ import {
 	getUserStatsAccountPublicKey,
 } from './addresses/pda';
 
-export class ClearingHouseUserStats {
-	clearingHouse: ClearingHouse;
+export class UserStats {
+	driftClient: DriftClient;
 	userStatsAccountPublicKey: PublicKey;
 	accountSubscriber: UserStatsAccountSubscriber;
 	isSubscribed: boolean;
 
-	public constructor(config: ClearingHouseUserStatsConfig) {
-		this.clearingHouse = config.clearingHouse;
+	public constructor(config: UserStatsConfig) {
+		this.driftClient = config.driftClient;
 		this.userStatsAccountPublicKey = config.userStatsAccountPublicKey;
 		if (config.accountSubscription?.type === 'polling') {
 			this.accountSubscriber = new PollingUserStatsAccountSubscriber(
-				config.clearingHouse.program,
+				config.driftClient.program,
 				config.userStatsAccountPublicKey,
 				config.accountSubscription.accountLoader
 			);
 		} else {
 			this.accountSubscriber = new WebSocketUserStatsAccountSubscriber(
-				config.clearingHouse.program,
+				config.driftClient.program,
 				config.userStatsAccountPublicKey
 			);
 		}
@@ -61,12 +61,12 @@ export class ClearingHouseUserStats {
 		} else {
 			return {
 				referrer: getUserAccountPublicKeySync(
-					this.clearingHouse.program.programId,
+					this.driftClient.program.programId,
 					this.getAccount().referrer,
 					0
 				),
 				referrerStats: getUserStatsAccountPublicKey(
-					this.clearingHouse.program.programId,
+					this.driftClient.program.programId,
 					this.getAccount().referrer
 				),
 			};

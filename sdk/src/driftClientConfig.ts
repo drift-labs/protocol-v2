@@ -4,11 +4,11 @@ import { OracleInfo } from './oracles/types';
 import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { DriftEnv } from './config';
 
-export type ClearingHouseConfig = {
+export type DriftClientConfig = {
 	connection: Connection;
 	wallet: IWallet;
 	programID: PublicKey;
-	accountSubscription?: ClearingHouseSubscriptionConfig;
+	accountSubscription?: DriftClientSubscriptionConfig;
 	opts?: ConfirmOptions;
 	txSenderConfig?: TxSenderConfig;
 	subAccountIds?: number[];
@@ -21,7 +21,7 @@ export type ClearingHouseConfig = {
 	authority?: PublicKey; // explicitly pass an authority if signer is delegate
 };
 
-type ClearingHouseSubscriptionConfig =
+type DriftClientSubscriptionConfig =
 	| {
 			type: 'websocket';
 	  }

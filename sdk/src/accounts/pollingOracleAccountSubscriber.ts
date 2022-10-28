@@ -2,7 +2,7 @@ import {
 	DataAndSlot,
 	NotSubscribedError,
 	OracleEvents,
-	OracleSubscriber,
+	OracleAccountSubscriber,
 } from './types';
 import { Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
@@ -11,7 +11,7 @@ import { PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { OracleClient, OraclePriceData } from '../oracles/types';
 
-export class PollingOracleSubscriber implements OracleSubscriber {
+export class PollingOracleAccountSubscriber implements OracleAccountSubscriber {
 	isSubscribed: boolean;
 	program: Program;
 	eventEmitter: StrictEventEmitter<EventEmitter, OracleEvents>;

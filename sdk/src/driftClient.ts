@@ -47,8 +47,8 @@ import { TokenFaucet } from './tokenFaucet';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
-	getClearingHouseSignerPublicKey,
-	getClearingHouseStateAccountPublicKey,
+	getDriftSignerPublicKey,
+	getDriftStateAccountPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getPerpMarketPublicKey,
 	getSerumFulfillmentConfigPublicKey,
@@ -59,8 +59,8 @@ import {
 	getUserStatsAccountPublicKey,
 } from './addresses/pda';
 import {
-	ClearingHouseAccountSubscriber,
-	ClearingHouseAccountEvents,
+	DriftClientAccountSubscriber,
+	DriftClientAccountEvents,
 	DataAndSlot,
 } from './accounts/types';
 import { TxSender } from './tx/types';
@@ -70,15 +70,15 @@ import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getTokenAmount } from './math/spotBalance';
 import { DEFAULT_USER_NAME, encodeName } from './userName';
 import { OraclePriceData } from './oracles/types';
-import { ClearingHouseConfig } from './clearingHouseConfig';
-import { PollingClearingHouseAccountSubscriber } from './accounts/pollingClearingHouseAccountSubscriber';
-import { WebSocketClearingHouseAccountSubscriber } from './accounts/webSocketClearingHouseAccountSubscriber';
+import { DriftClientConfig } from './driftClientConfig';
+import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
+import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
 import { RetryTxSender } from './tx/retryTxSender';
-import { ClearingHouseUser } from './clearingHouseUser';
-import { ClearingHouseUserAccountSubscriptionConfig } from './clearingHouseUserConfig';
+import { User } from './user';
+import { UserSubscriptionConfig } from './userConfig';
 import { getMarketsAndOraclesForSubscription } from './config';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
-import { ClearingHouseUserStats } from './clearingHouseUserStats';
+import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
 
 type RemainingAccountParams = {
@@ -91,21 +91,21 @@ type RemainingAccountParams = {
 };
 
 /**
- * # ClearingHouse
+ * # DriftClient
  * This class is the main way to interact with Drift Protocol. It allows you to subscribe to the various accounts where the Market's state is stored, as well as: opening positions, liquidating, settling funding, depositing & withdrawing, and more.
  */
-export class ClearingHouse {
+export class DriftClient {
 	connection: Connection;
 	wallet: IWallet;
 	public program: Program;
 	provider: AnchorProvider;
 	opts?: ConfirmOptions;
-	users = new Map<number, ClearingHouseUser>();
-	userStats?: ClearingHouseUserStats;
+	users = new Map<number, User>();
+	userStats?: UserStats;
 	activeSubAccountId: number;
-	userAccountSubscriptionConfig: ClearingHouseUserAccountSubscriptionConfig;
-	accountSubscriber: ClearingHouseAccountSubscriber;
-	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
+	userAccountSubscriptionConfig: UserSubscriptionConfig;
+	accountSubscriber: DriftClientAccountSubscriber;
+	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
 	_isSubscribed = false;
 	txSender: TxSender;
 	perpMarketLastSlotCache = new Map<number, number>();
@@ -120,7 +120,7 @@ export class ClearingHouse {
 		this._isSubscribed = val;
 	}
 
-	public constructor(config: ClearingHouseConfig) {
+	public constructor(config: DriftClientConfig) {
 		this.connection = config.connection;
 		this.wallet = config.wallet;
 		this.opts = config.opts || AnchorProvider.defaultOptions();
@@ -149,8 +149,8 @@ export class ClearingHouse {
 				  };
 		this.createUsers(subAccountIds, this.userAccountSubscriptionConfig);
 		if (config.userStats) {
-			this.userStats = new ClearingHouseUserStats({
-				clearingHouse: this,
+			this.userStats = new UserStats({
+				driftClient: this,
 				userStatsAccountPublicKey: getUserStatsAccountPublicKey(
 					this.program.programId,
 					this.authority
@@ -178,7 +178,7 @@ export class ClearingHouse {
 		}
 
 		if (config.accountSubscription?.type === 'polling') {
-			this.accountSubscriber = new PollingClearingHouseAccountSubscriber(
+			this.accountSubscriber = new PollingDriftClientAccountSubscriber(
 				this.program,
 				config.accountSubscription.accountLoader,
 				perpMarketIndexes ?? [],
@@ -186,7 +186,7 @@ export class ClearingHouse {
 				oracleInfos ?? []
 			);
 		} else {
-			this.accountSubscriber = new WebSocketClearingHouseAccountSubscriber(
+			this.accountSubscriber = new WebSocketDriftClientAccountSubscriber(
 				this.program,
 				config.perpMarketIndexes ?? [],
 				config.spotMarketIndexes ?? [],
@@ -204,7 +204,7 @@ export class ClearingHouse {
 
 	createUsers(
 		subAccountIds: number[],
-		accountSubscriptionConfig: ClearingHouseUserAccountSubscriptionConfig
+		accountSubscriptionConfig: UserSubscriptionConfig
 	): void {
 		for (const subAccountId of subAccountIds) {
 			const user = this.createUser(subAccountId, accountSubscriptionConfig);
@@ -214,16 +214,16 @@ export class ClearingHouse {
 
 	createUser(
 		subAccountId: number,
-		accountSubscriptionConfig: ClearingHouseUserAccountSubscriptionConfig
-	): ClearingHouseUser {
+		accountSubscriptionConfig: UserSubscriptionConfig
+	): User {
 		const userAccountPublicKey = getUserAccountPublicKeySync(
 			this.program.programId,
 			this.authority,
 			subAccountId
 		);
 
-		return new ClearingHouseUser({
-			clearingHouse: this,
+		return new User({
+			driftClient: this,
 			userAccountPublicKey,
 			accountSubscription: accountSubscriptionConfig,
 		});
@@ -279,7 +279,7 @@ export class ClearingHouse {
 		if (this.statePublicKey) {
 			return this.statePublicKey;
 		}
-		this.statePublicKey = await getClearingHouseStateAccountPublicKey(
+		this.statePublicKey = await getDriftStateAccountPublicKey(
 			this.program.programId
 		);
 		return this.statePublicKey;
@@ -290,9 +290,7 @@ export class ClearingHouse {
 		if (this.signerPublicKey) {
 			return this.signerPublicKey;
 		}
-		this.signerPublicKey = getClearingHouseSignerPublicKey(
-			this.program.programId
-		);
+		this.signerPublicKey = getDriftSignerPublicKey(this.program.programId);
 		return this.signerPublicKey;
 	}
 
@@ -588,7 +586,7 @@ export class ClearingHouse {
 		return txSig;
 	}
 
-	public getUser(subAccountId?: number): ClearingHouseUser {
+	public getUser(subAccountId?: number): User {
 		subAccountId = subAccountId ?? this.activeSubAccountId;
 		if (!this.users.has(subAccountId)) {
 			throw new Error(`Clearing House has no user for user id ${subAccountId}`);
@@ -596,11 +594,11 @@ export class ClearingHouse {
 		return this.users.get(subAccountId);
 	}
 
-	public getUsers(): ClearingHouseUser[] {
+	public getUsers(): User[] {
 		return [...this.users.values()];
 	}
 
-	public getUserStats(): ClearingHouseUserStats {
+	public getUserStats(): UserStats {
 		return this.userStats;
 	}
 
@@ -1320,7 +1318,7 @@ export class ClearingHouse {
 					state: await this.getStatePublicKey(),
 					spotMarket: spotMarketAccount.pubkey,
 					spotMarketVault: spotMarketAccount.vault,
-					clearingHouseSigner: this.getSignerPublicKey(),
+					driftSigner: this.getSignerPublicKey(),
 					user: userAccountPublicKey,
 					userStats: this.getUserStatsAccountPublicKey(),
 					userTokenAccount: userTokenAccount,
@@ -3145,7 +3143,7 @@ export class ClearingHouse {
 					liquidatorStats: liquidatorStatsPublicKey,
 					spotMarketVault: spotMarket.vault,
 					insuranceFundVault: spotMarket.insuranceFund.vault,
-					clearingHouseSigner: this.getSignerPublicKey(),
+					driftSigner: this.getSignerPublicKey(),
 					tokenProgram: TOKEN_PROGRAM_ID,
 				},
 				remainingAccounts: remainingAccounts,
@@ -3202,7 +3200,7 @@ export class ClearingHouse {
 				liquidator: liquidatorPublicKey,
 				spotMarketVault: spotMarket.vault,
 				insuranceFundVault: spotMarket.insuranceFund.vault,
-				clearingHouseSigner: this.getSignerPublicKey(),
+				driftSigner: this.getSignerPublicKey(),
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
 			remainingAccounts: remainingAccounts,
@@ -3277,7 +3275,7 @@ export class ClearingHouse {
 		});
 	}
 
-	public triggerEvent(eventName: keyof ClearingHouseAccountEvents, data?: any) {
+	public triggerEvent(eventName: keyof DriftClientAccountEvents, data?: any) {
 		this.eventEmitter.emit(eventName, data);
 	}
 
@@ -3359,7 +3357,7 @@ export class ClearingHouse {
 				authority: this.wallet.publicKey,
 				spotMarketVault: spotMarket.vault,
 				insuranceFundVault: spotMarket.insuranceFund.vault,
-				clearingHouseSigner: this.getSignerPublicKey(),
+				driftSigner: this.getSignerPublicKey(),
 				userTokenAccount: collateralAccountPublicKey,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
@@ -3458,7 +3456,7 @@ export class ClearingHouse {
 				userStats: this.getUserStatsAccountPublicKey(),
 				authority: this.wallet.publicKey,
 				insuranceFundVault: spotMarketAccount.insuranceFund.vault,
-				clearingHouseSigner: this.getSignerPublicKey(),
+				driftSigner: this.getSignerPublicKey(),
 				userTokenAccount: collateralAccountPublicKey,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
@@ -3482,7 +3480,7 @@ export class ClearingHouse {
 				state: await this.getStatePublicKey(),
 				spotMarket: spotMarketAccount.pubkey,
 				spotMarketVault: spotMarketAccount.vault,
-				clearingHouseSigner: this.getSignerPublicKey(),
+				driftSigner: this.getSignerPublicKey(),
 				insuranceFundVault: spotMarketAccount.insuranceFund.vault,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
@@ -3526,7 +3524,7 @@ export class ClearingHouse {
 					authority: this.wallet.publicKey,
 					spotMarketVault: spotMarket.vault,
 					insuranceFundVault: spotMarket.insuranceFund.vault,
-					clearingHouseSigner: this.getSignerPublicKey(),
+					driftSigner: this.getSignerPublicKey(),
 					tokenProgram: TOKEN_PROGRAM_ID,
 				},
 				remainingAccounts: remainingAccounts,

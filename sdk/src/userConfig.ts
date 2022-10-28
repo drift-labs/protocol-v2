@@ -1,14 +1,14 @@
-import { ClearingHouse } from './clearingHouse';
+import { DriftClient } from './driftClient';
 import { PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 
-export type ClearingHouseUserConfig = {
-	accountSubscription?: ClearingHouseUserAccountSubscriptionConfig;
-	clearingHouse: ClearingHouse;
+export type UserConfig = {
+	accountSubscription?: UserSubscriptionConfig;
+	driftClient: DriftClient;
 	userAccountPublicKey: PublicKey;
 };
 
-export type ClearingHouseUserAccountSubscriptionConfig =
+export type UserSubscriptionConfig =
 	| {
 			type: 'websocket';
 	  }

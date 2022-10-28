@@ -1,6 +1,6 @@
 import {
-	ClearingHouseAccountSubscriber,
-	ClearingHouseAccountEvents,
+	DriftClientAccountSubscriber,
+	DriftClientAccountEvents,
 	DataAndSlot,
 } from './types';
 import { AccountSubscriber, NotSubscribedError } from './types';
@@ -9,7 +9,7 @@ import { Program } from '@project-serum/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
-	getClearingHouseStateAccountPublicKey,
+	getDriftStateAccountPublicKey,
 	getSpotMarketPublicKey,
 	getPerpMarketPublicKey,
 } from '../addresses/pda';
@@ -20,8 +20,8 @@ import { OracleClientCache } from '../oracles/oracleClientCache';
 import * as Buffer from 'buffer';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
 
-export class WebSocketClearingHouseAccountSubscriber
-	implements ClearingHouseAccountSubscriber
+export class WebSocketDriftClientAccountSubscriber
+	implements DriftClientAccountSubscriber
 {
 	isSubscribed: boolean;
 	program: Program;
@@ -30,7 +30,7 @@ export class WebSocketClearingHouseAccountSubscriber
 	oracleInfos: OracleInfo[];
 	oracleClientCache = new OracleClientCache();
 
-	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
+	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
 	stateAccountSubscriber?: AccountSubscriber<StateAccount>;
 	perpMarketAccountSubscribers = new Map<
 		number,
@@ -75,7 +75,7 @@ export class WebSocketClearingHouseAccountSubscriber
 			this.subscriptionPromiseResolver = res;
 		});
 
-		const statePublicKey = await getClearingHouseStateAccountPublicKey(
+		const statePublicKey = await getDriftStateAccountPublicKey(
 			this.program.programId
 		);
 

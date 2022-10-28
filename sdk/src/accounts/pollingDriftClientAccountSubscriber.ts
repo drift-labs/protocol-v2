@@ -1,8 +1,8 @@
 import {
 	DataAndSlot,
 	AccountToPoll,
-	ClearingHouseAccountEvents,
-	ClearingHouseAccountSubscriber,
+	DriftClientAccountEvents,
+	DriftClientAccountSubscriber,
 	NotSubscribedError,
 	OraclesToPoll,
 } from './types';
@@ -16,7 +16,7 @@ import {
 	UserAccount,
 } from '../types';
 import {
-	getClearingHouseStateAccountPublicKey,
+	getDriftStateAccountPublicKey,
 	getSpotMarketPublicKey,
 	getPerpMarketPublicKey,
 } from '../addresses/pda';
@@ -27,8 +27,8 @@ import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
 
-export class PollingClearingHouseAccountSubscriber
-	implements ClearingHouseAccountSubscriber
+export class PollingDriftClientAccountSubscriber
+	implements DriftClientAccountSubscriber
 {
 	isSubscribed: boolean;
 	program: Program;
@@ -37,7 +37,7 @@ export class PollingClearingHouseAccountSubscriber
 	oracleInfos: OracleInfo[];
 	oracleClientCache = new OracleClientCache();
 
-	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
+	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
 
 	accountLoader: BulkAccountLoader;
 	accountsToPoll = new Map<string, AccountToPoll>();
@@ -113,11 +113,13 @@ export class PollingClearingHouseAccountSubscriber
 			return;
 		}
 
-		const accounts = await this.getClearingHouseAccounts();
+		const statePublicKey = await getDriftStateAccountPublicKey(
+			this.program.programId
+		);
 
-		this.accountsToPoll.set(accounts.state.toString(), {
+		this.accountsToPoll.set(statePublicKey.toString(), {
 			key: 'state',
-			publicKey: accounts.state,
+			publicKey: statePublicKey,
 			eventType: 'stateAccountUpdate',
 		});
 
@@ -188,18 +190,6 @@ export class PollingClearingHouseAccountSubscriber
 		});
 
 		return true;
-	}
-
-	async getClearingHouseAccounts(): Promise<ClearingHouseAccounts> {
-		const statePublicKey = await getClearingHouseStateAccountPublicKey(
-			this.program.programId
-		);
-
-		const accounts = {
-			state: statePublicKey,
-		};
-
-		return accounts;
 	}
 
 	async addToAccountLoader(): Promise<void> {
@@ -427,7 +417,3 @@ export class PollingClearingHouseAccountSubscriber
 		return this.oracles.get(oraclePublicKey.toString());
 	}
 }
-
-type ClearingHouseAccounts = {
-	state: PublicKey;
-};

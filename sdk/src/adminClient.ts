@@ -16,7 +16,7 @@ import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
 import {
-	getClearingHouseStateAccountPublicKeyAndNonce,
+	getDriftStateAccountPublicKeyAndNonce,
 	getSpotMarketPublicKey,
 	getSpotMarketVaultPublicKey,
 	getPerpMarketPublicKey,
@@ -26,12 +26,12 @@ import {
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { ClearingHouse } from './clearingHouse';
+import { DriftClient } from './driftClient';
 import { PEG_PRECISION } from './constants/numericConstants';
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 
-export class Admin extends ClearingHouse {
+export class AdminClient extends DriftClient {
 	public async initialize(
 		usdcMint: PublicKey,
 		_adminControlsPrices: boolean
@@ -43,18 +43,17 @@ export class Admin extends ClearingHouse {
 			throw new Error('Clearing house already initialized');
 		}
 
-		const [clearingHouseStatePublicKey] =
-			await getClearingHouseStateAccountPublicKeyAndNonce(
-				this.program.programId
-			);
+		const [driftStatePublicKey] = await getDriftStateAccountPublicKeyAndNonce(
+			this.program.programId
+		);
 
 		const initializeTx = await this.program.transaction.initialize({
 			accounts: {
 				admin: this.wallet.publicKey,
-				state: clearingHouseStatePublicKey,
+				state: driftStatePublicKey,
 				quoteAssetMint: usdcMint,
 				rent: SYSVAR_RENT_PUBKEY,
-				clearingHouseSigner: this.getSignerPublicKey(),
+				driftSigner: this.getSignerPublicKey(),
 				systemProgram: anchor.web3.SystemProgram.programId,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
@@ -119,7 +118,7 @@ export class Admin extends ClearingHouse {
 					spotMarket,
 					spotMarketVault,
 					insuranceFundVault,
-					clearingHouseSigner: this.getSignerPublicKey(),
+					driftSigner: this.getSignerPublicKey(),
 					spotMarketMint: mint,
 					oracle,
 					rent: SYSVAR_RENT_PUBKEY,
@@ -163,7 +162,7 @@ export class Admin extends ClearingHouse {
 					state: await this.getStatePublicKey(),
 					baseSpotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
 					quoteSpotMarket: this.getQuoteSpotMarketAccount().pubkey,
-					clearingHouseSigner: this.getSignerPublicKey(),
+					driftSigner: this.getSignerPublicKey(),
 					serumProgram,
 					serumMarket,
 					serumOpenOrders,
@@ -414,7 +413,7 @@ export class Admin extends ClearingHouse {
 					perpMarketIndex
 				),
 				sourceVault,
-				clearingHouseSigner: this.getSignerPublicKey(),
+				driftSigner: this.getSignerPublicKey(),
 				quoteSpotMarket: spotMarket.pubkey,
 				spotMarketVault: spotMarket.vault,
 				tokenProgram: TOKEN_PROGRAM_ID,

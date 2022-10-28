@@ -1,7 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
-import { ClearingHouse } from './clearingHouse';
+import { DriftClient } from './driftClient';
 import {
 	isVariant,
 	MarginCategory,
@@ -55,15 +55,15 @@ import {
 	calculateWorstCaseBaseAssetAmount,
 } from './math/margin';
 import { OraclePriceData } from './oracles/types';
-import { ClearingHouseUserConfig } from './clearingHouseUserConfig';
+import { UserConfig } from './userConfig';
 import { PollingUserAccountSubscriber } from './accounts/pollingUserAccountSubscriber';
 import { WebSocketUserAccountSubscriber } from './accounts/webSocketUserAccountSubscriber';
 import {
 	getWorstCaseTokenAmounts,
 	isSpotPositionAvailable,
 } from './math/spotPosition';
-export class ClearingHouseUser {
-	clearingHouse: ClearingHouse;
+export class User {
+	driftClient: DriftClient;
 	userAccountPublicKey: PublicKey;
 	accountSubscriber: UserAccountSubscriber;
 	_isSubscribed = false;
@@ -77,18 +77,18 @@ export class ClearingHouseUser {
 		this._isSubscribed = val;
 	}
 
-	public constructor(config: ClearingHouseUserConfig) {
-		this.clearingHouse = config.clearingHouse;
+	public constructor(config: UserConfig) {
+		this.driftClient = config.driftClient;
 		this.userAccountPublicKey = config.userAccountPublicKey;
 		if (config.accountSubscription?.type === 'polling') {
 			this.accountSubscriber = new PollingUserAccountSubscriber(
-				config.clearingHouse.program,
+				config.driftClient.program,
 				config.userAccountPublicKey,
 				config.accountSubscription.accountLoader
 			);
 		} else {
 			this.accountSubscriber = new WebSocketUserAccountSubscriber(
-				config.clearingHouse.program,
+				config.driftClient.program,
 				config.userAccountPublicKey
 			);
 		}
@@ -96,7 +96,7 @@ export class ClearingHouseUser {
 	}
 
 	/**
-	 * Subscribe to ClearingHouseUser state accounts
+	 * Subscribe to User state accounts
 	 * @returns SusbcriptionSuccess result
 	 */
 	public async subscribe(): Promise<boolean> {
@@ -185,7 +185,7 @@ export class ClearingHouseUser {
 
 	public async exists(): Promise<boolean> {
 		const userAccountRPCResponse =
-			await this.clearingHouse.connection.getParsedAccountInfo(
+			await this.driftClient.connection.getParsedAccountInfo(
 				this.userAccountPublicKey
 			);
 		return userAccountRPCResponse.value !== null;
@@ -218,7 +218,7 @@ export class ClearingHouseUser {
 			return [ZERO, ZERO];
 		}
 
-		const market = this.clearingHouse.getPerpMarketAccount(marketIndex);
+		const market = this.driftClient.getPerpMarketAccount(marketIndex);
 		const [marketOpenBids, marketOpenAsks] = calculateMarketOpenBidAsk(
 			market.amm.baseAssetReserve,
 			market.amm.minBaseAssetReserve,
@@ -249,9 +249,7 @@ export class ClearingHouseUser {
 			return [position, ZERO, ZERO];
 		}
 
-		const market = this.clearingHouse.getPerpMarketAccount(
-			position.marketIndex
-		);
+		const market = this.driftClient.getPerpMarketAccount(position.marketIndex);
 		const nShares = position.lpShares;
 
 		const deltaBaa = market.amm.baseAssetAmountPerLp
@@ -408,13 +406,13 @@ export class ClearingHouseUser {
 		marketIndex?: number,
 		withWeightMarginCategory?: MarginCategory
 	): BN {
-		const quoteSpotMarket = this.clearingHouse.getQuoteSpotMarketAccount();
+		const quoteSpotMarket = this.driftClient.getQuoteSpotMarketAccount();
 		return this.getUserAccount()
 			.perpPositions.filter((pos) =>
 				marketIndex ? pos.marketIndex === marketIndex : true
 			)
 			.reduce((unrealizedPnl, perpPosition) => {
-				const market = this.clearingHouse.getPerpMarketAccount(
+				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
 				);
 				const oraclePriceData = this.getOracleDataForPerpMarket(
@@ -458,7 +456,7 @@ export class ClearingHouseUser {
 				marketIndex ? pos.marketIndex === marketIndex : true
 			)
 			.reduce((pnl, perpPosition) => {
-				const market = this.clearingHouse.getPerpMarketAccount(
+				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
 				);
 				return pnl.add(calculatePositionFundingPNL(market, perpPosition));
@@ -482,7 +480,7 @@ export class ClearingHouseUser {
 				}
 
 				const spotMarketAccount: SpotMarketAccount =
-					this.clearingHouse.getSpotMarketAccount(spotPosition.marketIndex);
+					this.driftClient.getSpotMarketAccount(spotPosition.marketIndex);
 
 				if (spotPosition.marketIndex === QUOTE_SPOT_MARKET_INDEX) {
 					if (isVariant(spotPosition.balanceType, 'borrow')) {
@@ -632,7 +630,7 @@ export class ClearingHouseUser {
 
 				// Todo this needs to account for whether it's based on initial or maintenance requirements
 				const spotMarketAccount: SpotMarketAccount =
-					this.clearingHouse.getSpotMarketAccount(spotPosition.marketIndex);
+					this.driftClient.getSpotMarketAccount(spotPosition.marketIndex);
 
 				if (spotPosition.marketIndex === QUOTE_SPOT_MARKET_INDEX) {
 					if (isVariant(spotPosition.balanceType, 'deposit')) {
@@ -757,7 +755,7 @@ export class ClearingHouseUser {
 	): BN {
 		return this.getUserAccount().perpPositions.reduce(
 			(totalPerpValue, perpPosition) => {
-				const market = this.clearingHouse.getPerpMarketAccount(
+				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
 				);
 
@@ -844,7 +842,7 @@ export class ClearingHouseUser {
 	): BN {
 		const userPosition =
 			this.getUserPosition(marketIndex) || this.getEmptyPosition(marketIndex);
-		const market = this.clearingHouse.getPerpMarketAccount(
+		const market = this.driftClient.getPerpMarketAccount(
 			userPosition.marketIndex
 		);
 		return calculateBaseAssetValueWithOracle(
@@ -875,9 +873,7 @@ export class ClearingHouseUser {
 		amountToClose?: BN,
 		useAMMClose = false
 	): [BN, BN] {
-		const market = this.clearingHouse.getPerpMarketAccount(
-			position.marketIndex
-		);
+		const market = this.driftClient.getPerpMarketAccount(position.marketIndex);
 
 		const entryPrice = calculateEntryPrice(position);
 
@@ -967,7 +963,7 @@ export class ClearingHouseUser {
 		marketIndex: number,
 		category: MarginCategory = 'Initial'
 	): BN {
-		const market = this.clearingHouse.getPerpMarketAccount(marketIndex);
+		const market = this.driftClient.getPerpMarketAccount(marketIndex);
 
 		const totalAssetValue = this.getTotalAssetValue();
 		if (totalAssetValue.eq(ZERO)) {
@@ -1018,7 +1014,7 @@ export class ClearingHouseUser {
 		let liquidationBuffer = undefined;
 		if (this.getUserAccount().isBeingLiquidated) {
 			liquidationBuffer = new BN(
-				this.clearingHouse.getStateAccount().liquidationMarginBufferRatio
+				this.driftClient.getStateAccount().liquidationMarginBufferRatio
 			);
 		}
 		const maintenanceRequirement =
@@ -1036,7 +1032,7 @@ export class ClearingHouseUser {
 				continue;
 			}
 
-			const market = this.clearingHouse.getPerpMarketAccount(
+			const market = this.driftClient.getPerpMarketAccount(
 				userPosition.marketIndex
 			);
 			if (
@@ -1114,7 +1110,7 @@ export class ClearingHouseUser {
 
 		if (proposedBaseAssetAmount.eq(ZERO)) return new BN(-1);
 
-		const market = this.clearingHouse.getPerpMarketAccount(
+		const market = this.driftClient.getPerpMarketAccount(
 			proposedPerpPosition.marketIndex
 		);
 
@@ -1132,7 +1128,7 @@ export class ClearingHouseUser {
 			this.getUserAccount().perpPositions.reduce(
 				(totalMarginRequirement, position) => {
 					if (position.marketIndex !== perpPosition.marketIndex) {
-						const market = this.clearingHouse.getPerpMarketAccount(
+						const market = this.driftClient.getPerpMarketAccount(
 							position.marketIndex
 						);
 						const positionValue = calculateBaseAssetValueWithOracle(
@@ -1215,7 +1211,7 @@ export class ClearingHouseUser {
 		let markPriceAfterTrade;
 		if (positionBaseSizeChange.eq(ZERO)) {
 			markPriceAfterTrade = calculateReservePrice(
-				this.clearingHouse.getPerpMarketAccount(perpPosition.marketIndex),
+				this.driftClient.getPerpMarketAccount(perpPosition.marketIndex),
 				this.getOracleDataForPerpMarket(perpPosition.marketIndex)
 			);
 		} else {
@@ -1225,7 +1221,7 @@ export class ClearingHouseUser {
 			markPriceAfterTrade = calculateTradeSlippage(
 				direction,
 				positionBaseSizeChange.abs(),
-				this.clearingHouse.getPerpMarketAccount(perpPosition.marketIndex),
+				this.driftClient.getPerpMarketAccount(perpPosition.marketIndex),
 				'base',
 				this.getOracleDataForPerpMarket(perpPosition.marketIndex)
 			)[3]; // newPrice after swap
@@ -1331,8 +1327,7 @@ export class ClearingHouseUser {
 			// current leverage is greater than max leverage - can only reduce position size
 
 			if (!targetingSameSide) {
-				const market =
-					this.clearingHouse.getPerpMarketAccount(targetMarketIndex);
+				const market = this.driftClient.getPerpMarketAccount(targetMarketIndex);
 				const perpPositionValue = this.getPerpPositionValue(
 					targetMarketIndex,
 					oracleData
@@ -1444,7 +1439,7 @@ export class ClearingHouseUser {
 	 */
 	public calculateFeeForQuoteAmount(quoteAmount: BN): BN {
 		const feeTier =
-			this.clearingHouse.getStateAccount().perpFeeStructure.feeTiers[0];
+			this.driftClient.getStateAccount().perpFeeStructure.feeTiers[0];
 		return quoteAmount
 			.mul(new BN(feeTier.feeNumerator))
 			.div(new BN(feeTier.feeDenominator));
@@ -1458,7 +1453,7 @@ export class ClearingHouseUser {
 	 */
 	public getWithdrawalLimit(marketIndex: number, reduceOnly?: boolean): BN {
 		const nowTs = new BN(Math.floor(Date.now() / 1000));
-		const spotMarket = this.clearingHouse.getSpotMarketAccount(marketIndex);
+		const spotMarket = this.driftClient.getSpotMarketAccount(marketIndex);
 
 		const { borrowLimit, withdrawLimit } = calculateWithdrawLimit(
 			spotMarket,
@@ -1485,7 +1480,7 @@ export class ClearingHouseUser {
 		const userSpotBalance = userSpotPosition
 			? getTokenAmount(
 					userSpotPosition.scaledBalance,
-					this.clearingHouse.getSpotMarketAccount(marketIndex),
+					this.driftClient.getSpotMarketAccount(marketIndex),
 					SpotBalanceType.DEPOSIT
 			  )
 			: ZERO;
@@ -1558,18 +1553,17 @@ export class ClearingHouseUser {
 
 	private getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
 		const oracleKey =
-			this.clearingHouse.getPerpMarketAccount(marketIndex).amm.oracle;
+			this.driftClient.getPerpMarketAccount(marketIndex).amm.oracle;
 		const oracleData =
-			this.clearingHouse.getOraclePriceDataAndSlot(oracleKey).data;
+			this.driftClient.getOraclePriceDataAndSlot(oracleKey).data;
 
 		return oracleData;
 	}
 	private getOracleDataForSpotMarket(marketIndex: number): OraclePriceData {
-		const oracleKey =
-			this.clearingHouse.getSpotMarketAccount(marketIndex).oracle;
+		const oracleKey = this.driftClient.getSpotMarketAccount(marketIndex).oracle;
 
 		const oracleData =
-			this.clearingHouse.getOraclePriceDataAndSlot(oracleKey).data;
+			this.driftClient.getOraclePriceDataAndSlot(oracleKey).data;
 
 		return oracleData;
 	}
