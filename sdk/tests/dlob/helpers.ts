@@ -21,6 +21,7 @@ import {
 	OrderRecord,
 	ExchangeStatus,
 	ZERO,
+	ContractTier,
 } from '../../src';
 
 export const mockPerpPosition: PerpPosition = {
@@ -71,7 +72,6 @@ export const mockAMM: AMM = {
 	fundingPeriod: new BN(0),
 	cumulativeFundingRateLong: new BN(0),
 	cumulativeFundingRateShort: new BN(0),
-	cumulativeFundingRateLp: new BN(0),
 	totalFeeMinusDistributions: new BN(0),
 	totalFeeWithdrawn: new BN(0),
 	totalFee: new BN(0),
@@ -79,6 +79,14 @@ export const mockAMM: AMM = {
 	baseAssetAmountWithUnsettledLp: new BN(0),
 	orderStepSize: new BN(0),
 	orderTickSize: new BN(1),
+	last24hAvgFundingRate: new BN(0),
+	lastFundingRateShort: new BN(0),
+	lastFundingRateLong: new BN(0),
+	concentrationCoef: new BN(0),
+	lastTradeTs: new BN(0),
+	lastOracleNormalisedPrice: new BN(0),
+	maxOpenInterest: new BN(0),
+	totalLiquidationFee: new BN(0),
 	maxFillReserveFraction: 0,
 	baseSpread: 0,
 	curveUpdateIntensity: 0,
@@ -107,6 +115,25 @@ export const mockAMM: AMM = {
 	cumulativeSocialLoss: new BN(0),
 	baseAssetAmountPerLp: new BN(0),
 	quoteAssetAmountPerLp: new BN(0),
+
+	quoteBreakEvenAmountLong: new BN(0),
+	quoteBreakEvenAmountShort: new BN(0),
+	quoteEntryAmountLong: new BN(0),
+	quoteEntryAmountShort: new BN(0),
+
+	markStd: new BN(0),
+	longIntensityCount: 0,
+	longIntensityVolume: new BN(0),
+	shortIntensityCount: 0,
+	shortIntensityVolume: new BN(0),
+	volume24h: new BN(0),
+	minOrderSize: new BN(0),
+	maxPositionSize: new BN(0),
+
+	bidBaseAssetReserve: new BN(0),
+	bidQuoteAssetReserve: new BN(0),
+	askBaseAssetReserve: new BN(0),
+	askQuoteAssetReserve: new BN(0),
 };
 
 export const mockPerpMarkets: Array<PerpMarketAccount> = [
@@ -114,6 +141,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		status: MarketStatus.INITIALIZED,
 		name: [],
 		contractType: ContractType.PERPETUAL,
+		contractTier: ContractTier.A,
 		expiryTs: new BN(0),
 		expiryPrice: new BN(0),
 		marketIndex: 0,
@@ -131,6 +159,8 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		ifLiquidationFee: 0,
 		liquidatorFee: 0,
 		imfFactor: 0,
+		nextFundingRateRecordId: new BN(0),
+		nextCurveRecordId: new BN(0),
 		unrealizedPnlImfFactor: 0,
 		unrealizedPnlMaxImbalance: ZERO,
 		unrealizedPnlInitialAssetWeight: 0,
@@ -145,6 +175,9 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 	},
 	{
 		status: MarketStatus.INITIALIZED,
+		contractTier: ContractTier.A,
+		nextFundingRateRecordId: new BN(0),
+		nextCurveRecordId: new BN(0),
 		name: [],
 		contractType: ContractType.PERPETUAL,
 		expiryTs: new BN(0),
@@ -178,6 +211,9 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 	},
 	{
 		status: MarketStatus.INITIALIZED,
+		contractTier: ContractTier.A,
+		nextFundingRateRecordId: new BN(0),
+		nextCurveRecordId: new BN(0),
 		name: [],
 		contractType: ContractType.PERPETUAL,
 		expiryTs: new BN(0),
