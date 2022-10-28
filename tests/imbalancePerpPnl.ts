@@ -124,7 +124,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
 	let clearingHouse: Admin;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);

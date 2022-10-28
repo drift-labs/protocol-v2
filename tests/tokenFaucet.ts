@@ -19,7 +19,7 @@ describe('token faucet', () => {
 
 	let token: Token;
 
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 	let clearingHouse: Admin;
 
 	const amount = new BN(10 * 10 ** 6);

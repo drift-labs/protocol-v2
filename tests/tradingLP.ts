@@ -87,7 +87,7 @@ describe('liquidity providing', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
 	// ammInvariant == k == x * y
 	const ammInitialBaseAssetReserve = new BN(300).mul(new BN(1e13));

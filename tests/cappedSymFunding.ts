@@ -448,7 +448,7 @@ describe('capped funding', () => {
 
 	anchor.setProvider(provider);
 
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
 	let clearingHouse: Admin;
 	let clearingHouse2: ClearingHouse;

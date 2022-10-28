@@ -26,7 +26,7 @@ import {
 	isVariant,
 } from './types';
 import * as anchor from '@project-serum/anchor';
-import clearingHouseIDL from './idl/clearing_house.json';
+import driftIDL from './idl/drift.json';
 
 import {
 	Connection,
@@ -130,7 +130,7 @@ export class ClearingHouse {
 			this.opts
 		);
 		this.program = new Program(
-			clearingHouseIDL as Idl,
+			driftIDL as Idl,
 			config.programID,
 			this.provider
 		);
@@ -365,7 +365,7 @@ export class ClearingHouse {
 			this.opts
 		);
 		const newProgram = new Program(
-			clearingHouseIDL as Idl,
+			driftIDL as Idl,
 			this.program.programId,
 			newProvider
 		);

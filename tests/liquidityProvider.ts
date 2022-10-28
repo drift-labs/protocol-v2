@@ -140,7 +140,7 @@ describe('liquidity providing', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
 	async function _viewLogs(txsig) {
 		const tx = await connection.getTransaction(txsig, {

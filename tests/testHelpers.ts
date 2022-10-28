@@ -383,7 +383,7 @@ export async function initUserAccounts(
 			ownerWallet.publicKey
 		);
 
-		const chProgram = anchor.workspace.ClearingHouse as anchor.Program; // this.program-ify
+		const chProgram = anchor.workspace.Drift as anchor.Program; // this.program-ify
 
 		const clearingHouse1 = new ClearingHouse({
 			connection: provider.connection,

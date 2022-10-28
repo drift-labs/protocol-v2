@@ -6,7 +6,7 @@ export async function getClearingHouseStateAccountPublicKeyAndNonce(
 	programId: PublicKey
 ): Promise<[PublicKey, number]> {
 	return PublicKey.findProgramAddress(
-		[Buffer.from(anchor.utils.bytes.utf8.encode('clearing_house'))],
+		[Buffer.from(anchor.utils.bytes.utf8.encode('drift_state'))],
 		programId
 	);
 }
@@ -149,7 +149,7 @@ export function getClearingHouseSignerPublicKey(
 	programId: PublicKey
 ): PublicKey {
 	return PublicKey.findProgramAddressSync(
-		[Buffer.from(anchor.utils.bytes.utf8.encode('clearing_house_signer'))],
+		[Buffer.from(anchor.utils.bytes.utf8.encode('drift_signer'))],
 		programId
 	)[0];
 }

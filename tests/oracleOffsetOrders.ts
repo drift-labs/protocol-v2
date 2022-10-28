@@ -38,7 +38,7 @@ describe('oracle offset', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
 	let fillerClearingHouse: Admin;
 	let fillerClearingHouseUser: ClearingHouseUser;

@@ -3911,10 +3911,6 @@
             "type": "u64"
           },
           {
-            "name": "nextDepositRecordId",
-            "type": "u64"
-          },
-          {
             "name": "initialAssetWeight",
             "type": "u32"
           },
@@ -6219,11 +6215,6 @@
           "index": false
         },
         {
-          "name": "depositRecordId",
-          "type": "u64",
-          "index": false
-        },
-        {
           "name": "amount",
           "type": "u64",
           "index": false
@@ -8145,5 +8136,8 @@
       "name": "UnsupportedSpotMarket",
       "msg": "UnsupportedSpotMarket"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "jAEeKs9twxAJmXZHqS2p459xW7FMDjoyvuqthRo9qGS"
+  }
 }
