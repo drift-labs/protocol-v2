@@ -34,7 +34,8 @@ export class ContractTier {
 	static readonly A = { a: {} };
 	static readonly B = { b: {} };
 	static readonly C = { c: {} };
-	static readonly Speculative = { speculative: {} };
+	static readonly SPECULATIVE = { speculative: {} };
+	static readonly ISOLATED = { isolated: {} };
 }
 
 export class AssetTier {
@@ -441,6 +442,7 @@ export type StateAccount = {
 export type PerpMarketAccount = {
 	status: MarketStatus;
 	contractType: ContractType;
+	contractTier: ContractTier;
 	expiryTs: BN;
 	expiryPrice: BN;
 	marketIndex: number;
@@ -452,6 +454,8 @@ export type PerpMarketAccount = {
 	marginRatioInitial: number;
 	marginRatioMaintenance: number;
 	nextFillRecordId: BN;
+	nextFundingRateRecordId: BN;
+	nextCurveRecordId: BN;
 	pnlPool: PoolBalance;
 	liquidatorFee: number;
 	ifLiquidationFee: number;
@@ -564,6 +568,7 @@ export type AMM = {
 	lastMarkPriceTwap: BN;
 	lastMarkPriceTwap5min: BN;
 	lastMarkPriceTwapTs: BN;
+	lastTradeTs: BN;
 
 	oracle: PublicKey;
 	oracleSource: OracleSource;
@@ -577,7 +582,11 @@ export type AMM = {
 	pegMultiplier: BN;
 	cumulativeFundingRateLong: BN;
 	cumulativeFundingRateShort: BN;
-	cumulativeFundingRateLp: BN;
+	last24hAvgFundingRate: BN;
+	lastFundingRateShort: BN;
+	lastFundingRateLong: BN;
+
+	totalLiquidationFee: BN;
 	totalFeeMinusDistributions: BN;
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
@@ -594,11 +603,13 @@ export type AMM = {
 	baseAssetAmountShort: BN;
 	quoteAssetAmount: BN;
 	terminalQuoteAssetReserve: BN;
+	concentrationCoef: BN;
 	feePool: PoolBalance;
 	totalExchangeFee: BN;
 	totalMmFee: BN;
 	netRevenueSinceLastFunding: BN;
 	lastUpdateSlot: BN;
+	lastOracleNormalisedPrice: BN;
 	lastOracleValid: boolean;
 	lastBidPriceTwap: BN;
 	lastAskPriceTwap: BN;
@@ -610,9 +621,29 @@ export type AMM = {
 	quoteAssetAmountPerLp: BN;
 
 	ammJitIntensity: number;
+	maxOpenInterest: BN;
 	maxBaseAssetReserve: BN;
 	minBaseAssetReserve: BN;
 	cumulativeSocialLoss: BN;
+
+	quoteBreakEvenAmountLong: BN;
+	quoteBreakEvenAmountShort: BN;
+	quoteEntryAmountLong: BN;
+	quoteEntryAmountShort: BN;
+
+	markStd: BN;
+	longIntensityCount: number;
+	longIntensityVolume: BN;
+	shortIntensityCount: number;
+	shortIntensityVolume: BN;
+	volume24h: BN;
+	minOrderSize: BN;
+	maxPositionSize: BN;
+
+	bidBaseAssetReserve: BN;
+	bidQuoteAssetReserve: BN;
+	askBaseAssetReserve: BN;
+	askQuoteAssetReserve: BN;
 };
 
 // # User Account Types
