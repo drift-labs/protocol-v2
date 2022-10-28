@@ -4,7 +4,7 @@ import { BN, QUOTE_SPOT_MARKET_INDEX } from '../sdk';
 
 import { Program } from '@project-serum/anchor';
 
-import { Admin, PRICE_PRECISION, PositionDirection } from '../sdk/src';
+import { AdminClient, PRICE_PRECISION, PositionDirection } from '../sdk/src';
 
 import { mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 
@@ -12,9 +12,9 @@ describe('admin withdraw', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const driftProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
+	let driftClient: AdminClient;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -34,32 +34,32 @@ describe('admin withdraw', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
-			programID: chProgram.programId,
+			programID: driftProgram.programId,
 		});
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
 
 		const solUsd = anchor.web3.Keypair.generate();
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await clearingHouse.initializeMarket(
+		await driftClient.initializeMarket(
 			solUsd.publicKey,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity
 		);
 
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
 		const marketIndex = 0;
 		const incrementalUSDCNotionalAmount = usdcAmount.mul(new BN(5));
-		await clearingHouse.openPosition(
+		await driftClient.openPosition(
 			PositionDirection.LONG,
 			incrementalUSDCNotionalAmount,
 			marketIndex
@@ -67,18 +67,18 @@ describe('admin withdraw', () => {
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 	});
 
 	it('Pause exchange', async () => {
-		await clearingHouse.updateExchangePaused(true);
-		const state = clearingHouse.getStateAccount();
+		await driftClient.updateExchangePaused(true);
+		const state = driftClient.getStateAccount();
 		assert(state.exchangePaused);
 	});
 
 	it('Block open position', async () => {
 		try {
-			await clearingHouse.openPosition(PositionDirection.LONG, usdcAmount, 0);
+			await driftClient.openPosition(PositionDirection.LONG, usdcAmount, 0);
 		} catch (e) {
 			assert(e.msg, 'Exchange is paused');
 			return;
@@ -88,7 +88,7 @@ describe('admin withdraw', () => {
 
 	it('Block close position', async () => {
 		try {
-			await clearingHouse.closePosition(0);
+			await driftClient.closePosition(0);
 		} catch (e) {
 			assert(e.msg, 'Exchange is paused');
 			return;
@@ -98,7 +98,7 @@ describe('admin withdraw', () => {
 
 	it('Block withdrawal', async () => {
 		try {
-			await clearingHouse.withdraw(
+			await driftClient.withdraw(
 				usdcAmount,
 				QUOTE_SPOT_MARKET_INDEX,
 				userUSDCAccount.publicKey

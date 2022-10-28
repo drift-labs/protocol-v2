@@ -16,7 +16,7 @@ import { Program } from '@project-serum/anchor';
 
 import { PublicKey } from '@solana/web3.js';
 import {
-	Admin,
+	AdminClient,
 	PRICE_PRECISION,
 	calculateReservePrice,
 	calculateTradeSlippage,
@@ -48,10 +48,10 @@ describe('prepeg', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const driftProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let driftClient: AdminClient;
+	const eventSubscriber = new EventSubscriber(connection, driftProgram);
 	eventSubscriber.subscribe();
 
 	let userAccountPublicKey: PublicKey;
@@ -94,10 +94,10 @@ describe('prepeg', () => {
 			return { publicKey: oracle, source: OracleSource.PYTH };
 		});
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
-			programID: chProgram.programId,
+			programID: driftProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
@@ -107,14 +107,14 @@ describe('prepeg', () => {
 			oracleInfos,
 		});
 
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.updatePerpAuctionDuration(0);
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.updatePerpAuctionDuration(0);
 
-		await clearingHouse.subscribe();
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
+		await driftClient.subscribe();
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
-		await clearingHouse.initializeMarket(
+		await driftClient.initializeMarket(
 			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -123,14 +123,14 @@ describe('prepeg', () => {
 			undefined,
 			1000
 		);
-		await clearingHouse.updateMarketBaseSpread(0, 1000);
-		await clearingHouse.updateCurveUpdateIntensity(0, 100);
-		await clearingHouse.updateMarketBaseAssetAmountStepSize(0, new BN(1));
+		await driftClient.updateMarketBaseSpread(0, 1000);
+		await driftClient.updateCurveUpdateIntensity(0, 100);
+		await driftClient.updateMarketBaseAssetAmountStepSize(0, new BN(1));
 
 		for (let i = 1; i <= 4; i++) {
 			// init more markets
 			const thisUsd = mockOracles[i];
-			await clearingHouse.initializeMarket(
+			await driftClient.initializeMarket(
 				thisUsd,
 				ammInitialBaseAssetAmount,
 				ammInitialQuoteAssetAmount,
@@ -139,20 +139,20 @@ describe('prepeg', () => {
 				undefined,
 				1000
 			);
-			await clearingHouse.updateMarketBaseSpread(i, 2000);
-			await clearingHouse.updateCurveUpdateIntensity(i, 100);
-			await clearingHouse.updateMarketBaseAssetAmountStepSize(i, new BN(1));
+			await driftClient.updateMarketBaseSpread(i, 2000);
+			await driftClient.updateCurveUpdateIntensity(i, 100);
+			await driftClient.updateMarketBaseAssetAmountStepSize(i, new BN(1));
 		}
 
 		[, userAccountPublicKey] =
-			await clearingHouse.initializeUserAccountAndDepositCollateral(
+			await driftClient.initializeUserAccountAndDepositCollateral(
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -160,7 +160,7 @@ describe('prepeg', () => {
 		const marketIndex = 0;
 		const baseAssetAmount = new BN(49745050000);
 		const direction = PositionDirection.LONG;
-		const market0 = clearingHouse.getPerpMarketAccount(0);
+		const market0 = driftClient.getPerpMarketAccount(0);
 
 		// await setFeedPrice(anchor.workspace.Pyth, 1.01, solUsd);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
@@ -169,7 +169,7 @@ describe('prepeg', () => {
 			anchor.workspace.Pyth,
 			solUsd
 		);
-		const position0Before = clearingHouse.getUserAccount().perpPositions[0];
+		const position0Before = driftClient.getUserAccount().perpPositions[0];
 		console.log(position0Before.quoteAssetAmount.eq(ZERO));
 
 		const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
@@ -213,10 +213,10 @@ describe('prepeg', () => {
 			direction,
 			baseAssetAmount,
 		});
-		const txSig = await clearingHouse.placeAndTake(orderParams);
+		const txSig = await driftClient.placeAndTake(orderParams);
 
 		const computeUnits = await findComputeUnitConsumption(
-			clearingHouse.program.programId,
+			driftClient.program.programId,
 			connection,
 			txSig,
 			'confirmed'
@@ -227,7 +227,7 @@ describe('prepeg', () => {
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
 				.logMessages
 		);
-		const market = clearingHouse.getPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 
@@ -240,7 +240,7 @@ describe('prepeg', () => {
 			convertToNumber(calculateReservePrice(market, oraclePriceData))
 		);
 
-		const position0 = clearingHouse.getUserAccount().perpPositions[0];
+		const position0 = driftClient.getUserAccount().perpPositions[0];
 
 		console.log(position0.quoteAssetAmount.toString());
 		console.log('quoteEntryAmount:', position0.quoteEntryAmount.toString());
@@ -248,10 +248,10 @@ describe('prepeg', () => {
 		assert.ok(acquiredQuoteAssetAmount.eq(position0.quoteEntryAmount.abs()));
 
 		console.log(
-			clearingHouse.getUserAccount().perpPositions[0].baseAssetAmount.toString()
+			driftClient.getUserAccount().perpPositions[0].baseAssetAmount.toString()
 		);
 		assert.ok(
-			clearingHouse
+			driftClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(baseAssetAmount)
 		);
@@ -286,7 +286,7 @@ describe('prepeg', () => {
 	it('Long even more', async () => {
 		const marketIndex = 0;
 		const baseAssetAmount = new BN(49745050367 / 50);
-		const market0 = clearingHouse.getPerpMarketAccount(0);
+		const market0 = driftClient.getPerpMarketAccount(0);
 
 		await setFeedPrice(anchor.workspace.Pyth, 1.0281, solUsd);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
@@ -397,9 +397,9 @@ describe('prepeg', () => {
 			baseAssetAmount,
 		});
 
-		const txSig = await clearingHouse.placeAndTake(orderParams);
+		const txSig = await driftClient.placeAndTake(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
-			clearingHouse.program.programId,
+			driftClient.program.programId,
 			connection,
 			txSig,
 			'confirmed'
@@ -410,7 +410,7 @@ describe('prepeg', () => {
 			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
 				.logMessages
 		);
-		const market = clearingHouse.getPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
 			'after trade bid/ask:',
@@ -462,8 +462,8 @@ describe('prepeg', () => {
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
 		// console.log(orderRecord);
 
-		await clearingHouse.fetchAccounts();
-		const position0 = clearingHouse.getUserAccount().perpPositions[0];
+		await driftClient.fetchAccounts();
+		const position0 = driftClient.getUserAccount().perpPositions[0];
 		const position0qea = position0.quoteEntryAmount;
 		console.log(
 			'position0qea:',
@@ -521,7 +521,7 @@ describe('prepeg', () => {
 	it('Reduce long position', async () => {
 		const marketIndex = 0;
 		const baseAssetAmount = new BN(24872525000);
-		const market0 = clearingHouse.getPerpMarketAccount(0);
+		const market0 = driftClient.getPerpMarketAccount(0);
 		const orderParams = getMarketOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
@@ -561,9 +561,9 @@ describe('prepeg', () => {
 			convertToNumber(newPrice)
 		);
 
-		const txSig = await clearingHouse.placeAndTake(orderParams);
+		const txSig = await driftClient.placeAndTake(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
-			clearingHouse.program.programId,
+			driftClient.program.programId,
 			connection,
 			txSig,
 			'confirmed'
@@ -575,7 +575,7 @@ describe('prepeg', () => {
 				.logMessages
 		);
 
-		const market = clearingHouse.getPerpMarketAccount(0);
+		const market = driftClient.getPerpMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 		console.log(
 			'after trade bid/ask:',
@@ -587,7 +587,7 @@ describe('prepeg', () => {
 		);
 
 		console.log(
-			clearingHouse.getUserAccount().perpPositions[0].baseAssetAmount.toNumber()
+			driftClient.getUserAccount().perpPositions[0].baseAssetAmount.toNumber()
 		);
 
 		console.log(market.amm.netBaseAssetAmount.toString());
@@ -605,7 +605,7 @@ describe('prepeg', () => {
 			const thisUsd = mockOracles[i];
 			const marketIndex = i;
 			const baseAssetAmount = new BN(31.02765 * BASE_PRECISION.toNumber());
-			const market0 = clearingHouse.getPerpMarketAccount(i);
+			const market0 = driftClient.getPerpMarketAccount(i);
 			const orderParams = getMarketOrderParams({
 				marketIndex,
 				direction: PositionDirection.LONG,
@@ -639,9 +639,9 @@ describe('prepeg', () => {
 				convertToNumber(newPrice)
 			);
 			try {
-				const txSig = await clearingHouse.placeAndTake(orderParams);
+				const txSig = await driftClient.placeAndTake(orderParams);
 				const computeUnits = await findComputeUnitConsumption(
-					clearingHouse.program.programId,
+					driftClient.program.programId,
 					connection,
 					txSig,
 					'confirmed'
@@ -657,7 +657,7 @@ describe('prepeg', () => {
 				assert(false);
 			}
 
-			const market = clearingHouse.getPerpMarketAccount(i);
+			const market = driftClient.getPerpMarketAccount(i);
 			const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
 			console.log(
 				'after trade bid/ask:',
@@ -672,7 +672,7 @@ describe('prepeg', () => {
 	});
 
 	it('Many market expensive prepeg margin', async () => {
-		const user = clearingHouse.getUserAccount();
+		const user = driftClient.getUserAccount();
 
 		// todo cheapen margin peg enough to make this work w/ 5 positions
 		for (let i = 1; i <= 4; i++) {
@@ -698,9 +698,9 @@ describe('prepeg', () => {
 			baseAssetAmount: user.perpPositions[0].baseAssetAmount.div(new BN(2)),
 		});
 
-		const txSig = await clearingHouse.placeAndTake(orderParams);
+		const txSig = await driftClient.placeAndTake(orderParams);
 		const computeUnits = await findComputeUnitConsumption(
-			clearingHouse.program.programId,
+			driftClient.program.programId,
 			connection,
 			txSig,
 			'confirmed'

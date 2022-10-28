@@ -7,9 +7,9 @@ import { PublicKey, Transaction } from '@solana/web3.js';
 const serumHelper = require('./serumHelper');
 
 import {
-	Admin,
+	AdminClient,
 	BN,
-	ClearingHouse,
+	DriftClient,
 	EventSubscriber,
 	OracleSource,
 	OracleInfo,
@@ -43,12 +43,12 @@ describe('serum spot market', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const driftProgram = anchor.workspace.Drift as Program;
 
-	let makerClearingHouse: Admin;
+	let makerDriftClient: AdminClient;
 	let makerWSOL: PublicKey;
 
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	const eventSubscriber = new EventSubscriber(connection, driftProgram);
 	eventSubscriber.subscribe();
 
 	let solOracle: PublicKey;
@@ -58,7 +58,7 @@ describe('serum spot market', () => {
 	let usdcMint;
 	let makerUSDC;
 
-	let takerClearingHouse: ClearingHouse;
+	let takerDriftClient: DriftClient;
 	let _takerWSOL: PublicKey;
 	let takerUSDC: PublicKey;
 
@@ -87,10 +87,10 @@ describe('serum spot market', () => {
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
 
-		makerClearingHouse = new Admin({
+		makerDriftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
-			programID: chProgram.programId,
+			programID: driftProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
@@ -100,19 +100,19 @@ describe('serum spot market', () => {
 			oracleInfos,
 		});
 
-		await makerClearingHouse.initialize(usdcMint.publicKey, true);
-		await makerClearingHouse.subscribe();
-		await makerClearingHouse.initializeUserAccount();
+		await makerDriftClient.initialize(usdcMint.publicKey, true);
+		await makerDriftClient.subscribe();
+		await makerDriftClient.initializeUserAccount();
 
-		await initializeQuoteSpotMarket(makerClearingHouse, usdcMint.publicKey);
-		await initializeSolSpotMarket(makerClearingHouse, solOracle);
-		await makerClearingHouse.updateSpotAuctionDuration(0);
+		await initializeQuoteSpotMarket(makerDriftClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(makerDriftClient, solOracle);
+		await makerDriftClient.updateSpotAuctionDuration(0);
 
-		[takerClearingHouse, _takerWSOL, takerUSDC] =
+		[takerDriftClient, _takerWSOL, takerUSDC] =
 			await createUserWithUSDCAndWSOLAccount(
 				provider,
 				usdcMint,
-				chProgram,
+				driftProgram,
 				solAmount,
 				usdcAmount,
 				[],
@@ -125,12 +125,12 @@ describe('serum spot market', () => {
 				]
 			);
 
-		await takerClearingHouse.deposit(usdcAmount, 0, takerUSDC);
+		await takerDriftClient.deposit(usdcAmount, 0, takerUSDC);
 	});
 
 	after(async () => {
-		await takerClearingHouse.unsubscribe();
-		await makerClearingHouse.unsubscribe();
+		await takerDriftClient.unsubscribe();
+		await makerDriftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
@@ -146,7 +146,7 @@ describe('serum spot market', () => {
 			feeRateBps: 0,
 		});
 
-		await makerClearingHouse.initializeSerumFulfillmentConfig(
+		await makerDriftClient.initializeSerumFulfillmentConfig(
 			solSpotMarketIndex,
 			serumMarketPublicKey,
 			serumHelper.DEX_PID
@@ -171,9 +171,7 @@ describe('serum spot market', () => {
 		openOrderAccounts.push(makerOpenOrders.publicKey);
 
 		const serumFulfillmentConfigAccount =
-			await makerClearingHouse.getSerumV3FulfillmentConfig(
-				serumMarketPublicKey
-			);
+			await makerDriftClient.getSerumV3FulfillmentConfig(serumMarketPublicKey);
 		openOrderAccounts.push(serumFulfillmentConfigAccount.serumOpenOrders);
 
 		const consumeEventsIx = await market.makeConsumeEventsInstruction(
@@ -198,10 +196,10 @@ describe('serum spot market', () => {
 	it('Fill bid', async () => {
 		const baseAssetAmount = castNumberToSpotPrecision(
 			1,
-			makerClearingHouse.getSpotMarketAccount(solSpotMarketIndex)
+			makerDriftClient.getSpotMarketAccount(solSpotMarketIndex)
 		);
 
-		await takerClearingHouse.placeSpotOrder(
+		await takerDriftClient.placeSpotOrder(
 			getLimitOrderParams({
 				marketIndex: solSpotMarketIndex,
 				direction: PositionDirection.LONG,
@@ -211,7 +209,7 @@ describe('serum spot market', () => {
 			})
 		);
 
-		const spotOrder = takerClearingHouse.getOrderByUserId(1);
+		const spotOrder = takerDriftClient.getOrderByUserId(1);
 
 		assert(isVariant(spotOrder.marketType, 'spot'));
 		assert(spotOrder.baseAssetAmount.eq(baseAssetAmount));
@@ -245,26 +243,24 @@ describe('serum spot market', () => {
 		await provider.sendAndConfirm(transaction, signers);
 
 		const serumFulfillmentConfigAccount =
-			await makerClearingHouse.getSerumV3FulfillmentConfig(
-				serumMarketPublicKey
-			);
-		const txSig = await makerClearingHouse.fillSpotOrder(
-			await takerClearingHouse.getUserAccountPublicKey(),
-			takerClearingHouse.getUserAccount(),
-			takerClearingHouse.getOrderByUserId(1),
+			await makerDriftClient.getSerumV3FulfillmentConfig(serumMarketPublicKey);
+		const txSig = await makerDriftClient.fillSpotOrder(
+			await takerDriftClient.getUserAccountPublicKey(),
+			takerDriftClient.getUserAccount(),
+			takerDriftClient.getOrderByUserId(1),
 			serumFulfillmentConfigAccount
 		);
 
 		await printTxLogs(connection, txSig);
 
-		await takerClearingHouse.fetchAccounts();
+		await takerDriftClient.fetchAccounts();
 
-		const takerQuoteSpotBalance = takerClearingHouse.getSpotPosition(0);
-		const takerBaseSpotBalance = takerClearingHouse.getSpotPosition(1);
+		const takerQuoteSpotBalance = takerDriftClient.getSpotPosition(0);
+		const takerBaseSpotBalance = takerDriftClient.getSpotPosition(1);
 
 		const quoteTokenAmount = getTokenAmount(
 			takerQuoteSpotBalance.balance,
-			takerClearingHouse.getQuoteSpotMarketAccount(),
+			takerDriftClient.getQuoteSpotMarketAccount(),
 			takerQuoteSpotBalance.balanceType
 		);
 		console.log(quoteTokenAmount.toString());
@@ -272,12 +268,12 @@ describe('serum spot market', () => {
 
 		const baseTokenAmount = getTokenAmount(
 			takerBaseSpotBalance.balance,
-			takerClearingHouse.getSpotMarketAccount(1),
+			takerDriftClient.getSpotMarketAccount(1),
 			takerBaseSpotBalance.balanceType
 		);
 		assert(baseTokenAmount.eq(new BN(1000000000)));
 
-		const takerOrder = takerClearingHouse.getUserAccount().orders[0];
+		const takerOrder = takerDriftClient.getUserAccount().orders[0];
 		assert(isVariant(takerOrder.status, 'init'));
 
 		const orderActionRecord =
@@ -288,14 +284,14 @@ describe('serum spot market', () => {
 		assert(orderActionRecord.takerFee.eq(new BN(100000)));
 		assert(orderActionRecord.takerOrderFee.eq(new BN(100000)));
 
-		assert(makerClearingHouse.getQuoteAssetTokenAmount().eq(new BN(10000)));
+		assert(makerDriftClient.getQuoteAssetTokenAmount().eq(new BN(10000)));
 
 		const solSpotMarket =
-			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
+			takerDriftClient.getSpotMarketAccount(solSpotMarketIndex);
 		assert(solSpotMarket.totalSpotFee.eq(new BN(58000)));
 		const spotFeePoolAmount = getTokenAmount(
 			solSpotMarket.spotFeePool.balance,
-			takerClearingHouse.getQuoteSpotMarketAccount(),
+			takerDriftClient.getQuoteSpotMarketAccount(),
 			SpotBalanceType.DEPOSIT
 		);
 		assert(spotFeePoolAmount.eq(new BN(50000)));
@@ -306,10 +302,10 @@ describe('serum spot market', () => {
 	it('Fill ask', async () => {
 		const baseAssetAmount = castNumberToSpotPrecision(
 			1,
-			makerClearingHouse.getSpotMarketAccount(solSpotMarketIndex)
+			makerDriftClient.getSpotMarketAccount(solSpotMarketIndex)
 		);
 
-		await takerClearingHouse.placeSpotOrder(
+		await takerDriftClient.placeSpotOrder(
 			getLimitOrderParams({
 				marketIndex: solSpotMarketIndex,
 				direction: PositionDirection.SHORT,
@@ -319,7 +315,7 @@ describe('serum spot market', () => {
 			})
 		);
 
-		const spotOrder = takerClearingHouse.getOrderByUserId(1);
+		const spotOrder = takerDriftClient.getOrderByUserId(1);
 
 		assert(isVariant(spotOrder.marketType, 'spot'));
 		assert(spotOrder.baseAssetAmount.eq(baseAssetAmount));
@@ -353,26 +349,24 @@ describe('serum spot market', () => {
 		await provider.sendAndConfirm(transaction, signers);
 
 		const serumFulfillmentConfigAccount =
-			await makerClearingHouse.getSerumV3FulfillmentConfig(
-				serumMarketPublicKey
-			);
-		const txSig = await makerClearingHouse.fillSpotOrder(
-			await takerClearingHouse.getUserAccountPublicKey(),
-			takerClearingHouse.getUserAccount(),
-			takerClearingHouse.getOrderByUserId(1),
+			await makerDriftClient.getSerumV3FulfillmentConfig(serumMarketPublicKey);
+		const txSig = await makerDriftClient.fillSpotOrder(
+			await takerDriftClient.getUserAccountPublicKey(),
+			takerDriftClient.getUserAccount(),
+			takerDriftClient.getOrderByUserId(1),
 			serumFulfillmentConfigAccount
 		);
 
 		await printTxLogs(connection, txSig);
 
-		await takerClearingHouse.fetchAccounts();
+		await takerDriftClient.fetchAccounts();
 
-		const takerQuoteSpotBalance = takerClearingHouse.getSpotPosition(0);
-		const takerBaseSpotBalance = takerClearingHouse.getSpotPosition(1);
+		const takerQuoteSpotBalance = takerDriftClient.getSpotPosition(0);
+		const takerBaseSpotBalance = takerDriftClient.getSpotPosition(1);
 
 		const quoteTokenAmount = getTokenAmount(
 			takerQuoteSpotBalance.balance,
-			takerClearingHouse.getQuoteSpotMarketAccount(),
+			takerDriftClient.getQuoteSpotMarketAccount(),
 			takerQuoteSpotBalance.balanceType
 		);
 		console.log(quoteTokenAmount.toString());
@@ -380,12 +374,12 @@ describe('serum spot market', () => {
 
 		const baseTokenAmount = getTokenAmount(
 			takerBaseSpotBalance.balance,
-			takerClearingHouse.getSpotMarketAccount(1),
+			takerDriftClient.getSpotMarketAccount(1),
 			takerBaseSpotBalance.balanceType
 		);
 		assert(baseTokenAmount.eq(new BN(0)));
 
-		const takerOrder = takerClearingHouse.getUserAccount().orders[0];
+		const takerOrder = takerDriftClient.getUserAccount().orders[0];
 		assert(isVariant(takerOrder.status, 'init'));
 
 		const orderActionRecord =
@@ -396,14 +390,14 @@ describe('serum spot market', () => {
 		assert(orderActionRecord.takerOrderFee.eq(new BN(100000)));
 		assert(orderActionRecord.takerFee.eq(new BN(100000)));
 
-		assert(makerClearingHouse.getQuoteAssetTokenAmount().eq(new BN(20000)));
+		assert(makerDriftClient.getQuoteAssetTokenAmount().eq(new BN(20000)));
 
 		const solSpotMarket =
-			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
+			takerDriftClient.getSpotMarketAccount(solSpotMarketIndex);
 		assert(solSpotMarket.totalSpotFee.eq(new BN(116000)));
 		const spotFeePoolAmount = getTokenAmount(
 			solSpotMarket.spotFeePool.balance,
-			takerClearingHouse.getQuoteSpotMarketAccount(),
+			takerDriftClient.getQuoteSpotMarketAccount(),
 			SpotBalanceType.DEPOSIT
 		);
 		console.log(spotFeePoolAmount.toString());
@@ -416,10 +410,10 @@ describe('serum spot market', () => {
 	it('Fill bid second time', async () => {
 		const baseAssetAmount = castNumberToSpotPrecision(
 			1,
-			makerClearingHouse.getSpotMarketAccount(solSpotMarketIndex)
+			makerDriftClient.getSpotMarketAccount(solSpotMarketIndex)
 		);
 
-		await takerClearingHouse.placeSpotOrder(
+		await takerDriftClient.placeSpotOrder(
 			getLimitOrderParams({
 				marketIndex: solSpotMarketIndex,
 				direction: PositionDirection.LONG,
@@ -429,7 +423,7 @@ describe('serum spot market', () => {
 			})
 		);
 
-		const spotOrder = takerClearingHouse.getOrderByUserId(1);
+		const spotOrder = takerDriftClient.getOrderByUserId(1);
 
 		assert(isVariant(spotOrder.marketType, 'spot'));
 		assert(spotOrder.baseAssetAmount.eq(baseAssetAmount));
@@ -463,27 +457,25 @@ describe('serum spot market', () => {
 		await provider.sendAndConfirm(transaction, signers);
 
 		const serumFulfillmentConfigAccount =
-			await makerClearingHouse.getSerumV3FulfillmentConfig(
-				serumMarketPublicKey
-			);
+			await makerDriftClient.getSerumV3FulfillmentConfig(serumMarketPublicKey);
 
-		const txSig = await makerClearingHouse.fillSpotOrder(
-			await takerClearingHouse.getUserAccountPublicKey(),
-			takerClearingHouse.getUserAccount(),
-			takerClearingHouse.getOrderByUserId(1),
+		const txSig = await makerDriftClient.fillSpotOrder(
+			await takerDriftClient.getUserAccountPublicKey(),
+			takerDriftClient.getUserAccount(),
+			takerDriftClient.getOrderByUserId(1),
 			serumFulfillmentConfigAccount
 		);
 
 		await printTxLogs(connection, txSig);
 
-		await takerClearingHouse.fetchAccounts();
+		await takerDriftClient.fetchAccounts();
 
-		const takerQuoteSpotBalance = takerClearingHouse.getSpotPosition(0);
-		const takerBaseSpotBalance = takerClearingHouse.getSpotPosition(1);
+		const takerQuoteSpotBalance = takerDriftClient.getSpotPosition(0);
+		const takerBaseSpotBalance = takerDriftClient.getSpotPosition(1);
 
 		const quoteTokenAmount = getTokenAmount(
 			takerQuoteSpotBalance.balance,
-			takerClearingHouse.getQuoteSpotMarketAccount(),
+			takerDriftClient.getQuoteSpotMarketAccount(),
 			takerQuoteSpotBalance.balanceType
 		);
 		console.log(quoteTokenAmount.toString());
@@ -491,12 +483,12 @@ describe('serum spot market', () => {
 
 		const baseTokenAmount = getTokenAmount(
 			takerBaseSpotBalance.balance,
-			takerClearingHouse.getSpotMarketAccount(1),
+			takerDriftClient.getSpotMarketAccount(1),
 			takerBaseSpotBalance.balanceType
 		);
 		assert(baseTokenAmount.eq(new BN(1000000000)));
 
-		const takerOrder = takerClearingHouse.getUserAccount().orders[0];
+		const takerOrder = takerDriftClient.getUserAccount().orders[0];
 		assert(isVariant(takerOrder.status, 'init'));
 
 		const orderActionRecord =
@@ -508,11 +500,11 @@ describe('serum spot market', () => {
 		assert(orderActionRecord.takerOrderFee.eq(new BN(100000)));
 
 		const solSpotMarket =
-			takerClearingHouse.getSpotMarketAccount(solSpotMarketIndex);
+			takerDriftClient.getSpotMarketAccount(solSpotMarketIndex);
 		assert(solSpotMarket.totalSpotFee.eq(new BN(174000)));
 		const spotFeePoolAmount = getTokenAmount(
 			solSpotMarket.spotFeePool.balance,
-			takerClearingHouse.getQuoteSpotMarketAccount(),
+			takerDriftClient.getQuoteSpotMarketAccount(),
 			SpotBalanceType.DEPOSIT
 		);
 		console.log(spotFeePoolAmount.toString());

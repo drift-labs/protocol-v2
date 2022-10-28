@@ -11,14 +11,14 @@ import {
 	BN,
 	OracleSource,
 	ZERO,
-	Admin,
-	ClearingHouse,
+	AdminClient,
+	DriftClient,
 	convertToNumber,
 	PRICE_PRECISION,
 	PositionDirection,
 	EventSubscriber,
 	QUOTE_PRECISION,
-	ClearingHouseUser,
+	DriftUser,
 	AMM_RESERVE_PRECISION,
 	isVariant,
 	MARGIN_PRECISION,
@@ -41,13 +41,13 @@ import { Keypair } from '@solana/web3.js';
 
 async function depositToFeePoolFromIF(
 	amount: number,
-	clearingHouse: Admin,
+	driftClient: AdminClient,
 	userUSDCAccount: Keypair
 ) {
 	const ifAmount = new BN(amount * QUOTE_PRECISION.toNumber());
 
 	// // send $50 to market from IF
-	const txSig00 = await clearingHouse.depositIntoMarketFeePool(
+	const txSig00 = await driftClient.depositIntoMarketFeePool(
 		0,
 		ifAmount,
 		userUSDCAccount.publicKey
@@ -62,22 +62,22 @@ describe('delist market, liquidation of expired position', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const driftProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let driftClient: AdminClient;
+	const eventSubscriber = new EventSubscriber(connection, driftProgram);
 	eventSubscriber.subscribe();
 
 	let usdcMint;
 	let userUSDCAccount;
 	let userUSDCAccount2;
 
-	let clearingHouseLoser: ClearingHouse;
-	let clearingHouseLoserUser: ClearingHouseUser;
+	let driftClientLoser: DriftClient;
+	let driftClientLoserUser: DriftUser;
 
-	let liquidatorClearingHouse: ClearingHouse;
-	let liquidatorClearingHouseWSOLAccount: PublicKey;
-	let liquidatorClearingHouseWUSDCAccount: PublicKey;
+	let liquidatorDriftClient: DriftClient;
+	let liquidatorDriftClientWSOLAccount: PublicKey;
+	let liquidatorDriftClientWUSDCAccount: PublicKey;
 
 	let solOracle: PublicKey;
 
@@ -103,10 +103,10 @@ describe('delist market, liquidation of expired position', () => {
 
 		solOracle = await mockOracle(43.1337);
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
-			programID: chProgram.programId,
+			programID: driftProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
@@ -121,16 +121,16 @@ describe('delist market, liquidation of expired position', () => {
 			],
 		});
 
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
 
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await initializeSolSpotMarket(clearingHouse, solOracle);
-		await clearingHouse.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(driftClient, solOracle);
+		await driftClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(0);
 
-		await clearingHouse.initializeMarket(
+		await driftClient.initializeMarket(
 			solOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -141,10 +141,10 @@ describe('delist market, liquidation of expired position', () => {
 			900 // easy to liq
 		);
 
-		// await clearingHouse.updateMarketBaseSpread(new BN(0), 2000);
-		// await clearingHouse.updateCurveUpdateIntensity(new BN(0), 100);
+		// await driftClient.updateMarketBaseSpread(new BN(0), 2000);
+		// await driftClient.updateCurveUpdateIntensity(new BN(0), 100);
 
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
@@ -156,10 +156,10 @@ describe('delist market, liquidation of expired position', () => {
 			provider,
 			userKeypair.publicKey
 		);
-		clearingHouseLoser = new Admin({
+		driftClientLoser = new AdminClient({
 			connection,
 			wallet: new Wallet(userKeypair),
-			programID: chProgram.programId,
+			programID: driftProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
@@ -173,44 +173,44 @@ describe('delist market, liquidation of expired position', () => {
 				},
 			],
 		});
-		await clearingHouseLoser.subscribe();
-		await clearingHouseLoser.initializeUserAccountAndDepositCollateral(
+		await driftClientLoser.subscribe();
+		await driftClientLoser.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount2.publicKey
 		);
 
-		clearingHouseLoserUser = new ClearingHouseUser({
-			clearingHouse: clearingHouseLoser,
-			userAccountPublicKey: await clearingHouseLoser.getUserAccountPublicKey(),
+		driftClientLoserUser = new DriftUser({
+			driftClient: driftClientLoser,
+			userAccountPublicKey: await driftClientLoser.getUserAccountPublicKey(),
 		});
-		await clearingHouseLoserUser.subscribe();
+		await driftClientLoserUser.subscribe();
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
-		await clearingHouseLoser.unsubscribe();
-		await clearingHouseLoserUser.unsubscribe();
-		await liquidatorClearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
+		await driftClientLoser.unsubscribe();
+		await driftClientLoserUser.unsubscribe();
+		await liquidatorDriftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('put market in big drawdown and net user negative pnl', async () => {
-		await depositToFeePoolFromIF(1000, clearingHouse, userUSDCAccount);
+		await depositToFeePoolFromIF(1000, driftClient, userUSDCAccount);
 
 		try {
-			await clearingHouse.openPosition(
+			await driftClient.openPosition(
 				PositionDirection.SHORT,
 				BASE_PRECISION,
 				0,
 				new BN(0)
 			);
 		} catch (e) {
-			console.log('clearingHouse.openPosition');
+			console.log('driftClient.openPosition');
 
 			console.error(e);
 		}
 
-		const uL = clearingHouseLoserUser.getUserAccount();
+		const uL = driftClientLoserUser.getUserAccount();
 		console.log(
 			'uL.spotPositions[0].balance:',
 			uL.spotPositions[0].balance.toString()
@@ -221,21 +221,21 @@ describe('delist market, liquidation of expired position', () => {
 			)
 		);
 
-		const bank0Value = clearingHouseLoserUser.getSpotMarketAssetValue(0);
+		const bank0Value = driftClientLoserUser.getSpotMarketAssetValue(0);
 		console.log('uL.bank0Value:', bank0Value.toString());
 		assert(bank0Value.eq(new BN(1000 * 1e6)));
 
-		const clearingHouseLoserUserValue = convertToNumber(
-			clearingHouseLoserUser.getTotalCollateral(),
+		const driftClientLoserUserValue = convertToNumber(
+			driftClientLoserUser.getTotalCollateral(),
 			QUOTE_PRECISION
 		);
 
-		console.log('clearingHouseLoserUserValue:', clearingHouseLoserUserValue);
-		assert(clearingHouseLoserUserValue == 1000); // ??
+		console.log('driftClientLoserUserValue:', driftClientLoserUserValue);
+		assert(driftClientLoserUserValue == 1000); // ??
 
 		// todo
 		try {
-			const txSig = await clearingHouseLoser.openPosition(
+			const txSig = await driftClientLoser.openPosition(
 				PositionDirection.LONG,
 				BASE_PRECISION.mul(new BN(205)),
 				0,
@@ -243,110 +243,107 @@ describe('delist market, liquidation of expired position', () => {
 			);
 			await printTxLogs(connection, txSig);
 		} catch (e) {
-			console.log('failed clearingHouseLoserc.openPosition');
+			console.log('failed driftClientLoserc.openPosition');
 
 			console.error(e);
 		}
 
-		await clearingHouseLoser.fetchAccounts();
-		await clearingHouseLoserUser.fetchAccounts();
-		const userPos = clearingHouseLoser.getUserAccount().perpPositions[0];
+		await driftClientLoser.fetchAccounts();
+		await driftClientLoserUser.fetchAccounts();
+		const userPos = driftClientLoser.getUserAccount().perpPositions[0];
 		console.log(userPos.baseAssetAmount.toString());
 		console.log(userPos.quoteAssetAmount.toString());
 		assert(userPos.baseAssetAmount.eq(new BN(205).mul(BASE_PRECISION)));
 		-8721212699;
 		assert(userPos.quoteAssetAmount.eq(new BN(-8721212699)));
 
-		const clearingHouseLoserUserLeverage = convertToNumber(
-			clearingHouseLoserUser.getLeverage(),
+		const driftClientLoserUserLeverage = convertToNumber(
+			driftClientLoserUser.getLeverage(),
 			MARGIN_PRECISION
 		);
-		const clearingHouseLoserUserLiqPrice = convertToNumber(
-			clearingHouseLoserUser.liquidationPrice({
+		const driftClientLoserUserLiqPrice = convertToNumber(
+			driftClientLoserUser.liquidationPrice({
 				marketIndex: 0,
 			}),
 			PRICE_PRECISION
 		);
 
 		console.log(
-			'clearingHouseLoserUser.getLeverage:',
-			clearingHouseLoserUserLeverage,
-			'clearingHouseLoserUserLiqPrice:',
-			clearingHouseLoserUserLiqPrice
+			'driftClientLoserUser.getLeverage:',
+			driftClientLoserUserLeverage,
+			'driftClientLoserUserLiqPrice:',
+			driftClientLoserUserLiqPrice
 		);
 
-		assert(clearingHouseLoserUserLeverage == 7.8486);
-		assert(clearingHouseLoserUserLiqPrice < 41);
-		assert(clearingHouseLoserUserLiqPrice > 40.5);
+		assert(driftClientLoserUserLeverage == 7.8486);
+		assert(driftClientLoserUserLiqPrice < 41);
+		assert(driftClientLoserUserLiqPrice > 40.5);
 
-		const market00 = clearingHouse.getPerpMarketAccount(0);
+		const market00 = driftClient.getPerpMarketAccount(0);
 		assert(market00.amm.feePool.balance.eq(new BN(1000000000000)));
 
-		const bank0Value1p5 = clearingHouseLoserUser.getSpotMarketAssetValue(0);
+		const bank0Value1p5 = driftClientLoserUser.getSpotMarketAssetValue(0);
 		console.log('uL.bank0Value1p5:', bank0Value1p5.toString());
 
-		const clearingHouseLoserUserValue1p5 = convertToNumber(
-			clearingHouseLoserUser.getTotalCollateral(),
+		const driftClientLoserUserValue1p5 = convertToNumber(
+			driftClientLoserUser.getTotalCollateral(),
 			QUOTE_PRECISION
 		);
 
-		console.log(
-			'clearingHouseLoserUserValue1p5:',
-			clearingHouseLoserUserValue1p5
-		);
+		console.log('driftClientLoserUserValue1p5:', driftClientLoserUserValue1p5);
 
 		// sol tanks 90%
-		await clearingHouse.moveAmmToPrice(
+		await driftClient.moveAmmToPrice(
 			0,
 			new BN(40.5 * PRICE_PRECISION.toNumber())
 		);
 		await setFeedPrice(anchor.workspace.Pyth, 40.5, solOracle);
 		console.log('price move to $40.5');
 
-		await clearingHouseLoser.fetchAccounts();
-		await clearingHouseLoserUser.fetchAccounts();
+		await driftClientLoser.fetchAccounts();
+		await driftClientLoserUser.fetchAccounts();
 
-		const clearingHouseLoserUserLeverage2 = convertToNumber(
-			clearingHouseLoserUser.getLeverage(),
+		const driftClientLoserUserLeverage2 = convertToNumber(
+			driftClientLoserUser.getLeverage(),
 			MARGIN_PRECISION
 		);
-		const clearingHouseLoserUserLiqPrice2 = convertToNumber(
-			clearingHouseLoserUser.liquidationPrice({
+		const driftClientLoserUserLiqPrice2 = convertToNumber(
+			driftClientLoserUser.liquidationPrice({
 				marketIndex: 0,
 			}),
 			PRICE_PRECISION
 		);
 
-		const bank0Value2 = clearingHouseLoserUser.getSpotMarketAssetValue(0);
+		const bank0Value2 = driftClientLoserUser.getSpotMarketAssetValue(0);
 		console.log('uL.bank0Value2:', bank0Value2.toString());
 
-		const clearingHouseLoserUserValue2 = convertToNumber(
-			clearingHouseLoserUser.getTotalCollateral(),
+		const driftClientLoserUserValue2 = convertToNumber(
+			driftClientLoserUser.getTotalCollateral(),
 			QUOTE_PRECISION
 		);
 
-		console.log('clearingHouseLoserUserValue2:', clearingHouseLoserUserValue2);
+		console.log('driftClientLoserUserValue2:', driftClientLoserUserValue2);
 
 		console.log(
-			'clearingHouseLoserUser.getLeverage2:',
-			clearingHouseLoserUserLeverage2,
-			'clearingHouseLoserUserLiqPrice2:',
-			clearingHouseLoserUserLiqPrice2,
+			'driftClientLoserUser.getLeverage2:',
+			driftClientLoserUserLeverage2,
+			'driftClientLoserUserLiqPrice2:',
+			driftClientLoserUserLiqPrice2,
 			'bank0Value2:',
 			bank0Value2.toString(),
-			'clearingHouseLoserUserValue2:',
-			clearingHouseLoserUserValue2.toString()
+			'driftClientLoserUserValue2:',
+			driftClientLoserUserValue2.toString()
 		);
 
 		const solAmount = new BN(1 * 10 ** 9);
 		[
-			liquidatorClearingHouse,
-			liquidatorClearingHouseWSOLAccount,
-			liquidatorClearingHouseWUSDCAccount,
+			liquidatorDriftClient,
+			liquidatorDriftClientWSOLAccount,
+			liquidatorDriftClientWUSDCAccount,
 		] = await createUserWithUSDCAndWSOLAccount(
 			provider,
 			usdcMint,
-			chProgram,
+			driftProgram,
 			solAmount,
 			usdcAmount.mul(new BN(100)),
 			[0],
@@ -358,23 +355,23 @@ describe('delist market, liquidation of expired position', () => {
 				},
 			]
 		);
-		await liquidatorClearingHouse.subscribe();
+		await liquidatorDriftClient.subscribe();
 
 		const bankIndex = 1;
-		await liquidatorClearingHouse.deposit(
+		await liquidatorDriftClient.deposit(
 			solAmount,
 			bankIndex,
-			liquidatorClearingHouseWSOLAccount
+			liquidatorDriftClientWSOLAccount
 		);
-		await liquidatorClearingHouse.deposit(
+		await liquidatorDriftClient.deposit(
 			usdcAmount.mul(new BN(100)),
 			0,
-			liquidatorClearingHouseWUSDCAccount
+			liquidatorDriftClientWUSDCAccount
 		);
 
-		const market0 = clearingHouse.getPerpMarketAccount(0);
-		const winnerUser = clearingHouse.getUserAccount();
-		const loserUser = clearingHouseLoser.getUserAccount();
+		const market0 = driftClient.getPerpMarketAccount(0);
+		const winnerUser = driftClient.getUserAccount();
+		const loserUser = driftClientLoser.getUserAccount();
 		console.log(winnerUser.perpPositions[0].quoteAssetAmount.toString());
 		console.log(loserUser.perpPositions[0].quoteAssetAmount.toString());
 
@@ -398,19 +395,19 @@ describe('delist market, liquidation of expired position', () => {
 		const now = await connection.getBlockTime(slot);
 		const expiryTs = new BN(now + 3);
 
-		// await clearingHouse.moveAmmToPrice(
+		// await driftClient.moveAmmToPrice(
 		// 	new BN(0),
 		// 	new BN(43.1337 * PRICE_PRECISION.toNumber())
 		// );
 
-		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
+		const market0 = driftClient.getPerpMarketAccount(marketIndex);
 		assert(market0.expiryTs.eq(ZERO));
 
-		await clearingHouse.updateMarketExpiry(marketIndex, expiryTs);
+		await driftClient.updateMarketExpiry(marketIndex, expiryTs);
 		await sleep(1000);
-		clearingHouse.fetchAccounts();
+		driftClient.fetchAccounts();
 
-		const market = clearingHouse.getPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		console.log(market.status);
 		assert(isVariant(market.status, 'reduceOnly'));
 		console.log(
@@ -432,7 +429,7 @@ describe('delist market, liquidation of expired position', () => {
 
 		// should fail
 		// try {
-		// 	await clearingHouseLoser.openPosition(
+		// 	await driftClientLoser.openPosition(
 		// 		PositionDirection.LONG,
 		// 		new BN(10000000),
 		// 		new BN(0),
@@ -449,7 +446,7 @@ describe('delist market, liquidation of expired position', () => {
 		// }
 
 		// should succeed
-		// await clearingHouseLoser.openPosition(
+		// await driftClientLoser.openPosition(
 		// 	PositionDirection.SHORT,
 		// 	new BN(10000000),
 		// 	new BN(0),
@@ -462,7 +459,7 @@ describe('delist market, liquidation of expired position', () => {
 		let slot = await connection.getSlot();
 		let now = await connection.getBlockTime(slot);
 
-		const market0 = clearingHouse.getPerpMarketAccount(marketIndex);
+		const market0 = driftClient.getPerpMarketAccount(marketIndex);
 		console.log('market0.status:', market0.status);
 		while (market0.expiryTs.gte(new BN(now))) {
 			console.log(market0.expiryTs.toString(), '>', now);
@@ -472,15 +469,15 @@ describe('delist market, liquidation of expired position', () => {
 		}
 
 		// try {
-		const txSig = await clearingHouse.settleExpiredMarket(marketIndex);
+		const txSig = await driftClient.settleExpiredMarket(marketIndex);
 		// } catch (e) {
 		// 	console.error(e);
 		// }
 		await printTxLogs(connection, txSig);
 
-		clearingHouse.fetchAccounts();
+		driftClient.fetchAccounts();
 
-		const market = clearingHouse.getPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		console.log(market.status);
 		assert(isVariant(market.status, 'settlement'));
 		console.log(
@@ -498,51 +495,51 @@ describe('delist market, liquidation of expired position', () => {
 
 	it('liq and settle expired market position', async () => {
 		const marketIndex = 0;
-		const loserUser0 = clearingHouseLoser.getUserAccount();
+		const loserUser0 = driftClientLoser.getUserAccount();
 		assert(loserUser0.perpPositions[0].baseAssetAmount.gt(new BN(0)));
 		assert(loserUser0.perpPositions[0].quoteAssetAmount.lt(new BN(0)));
 		// console.log(loserUser0.perpPositions[0]);
 
-		const liquidatorClearingHouseUser = new ClearingHouseUser({
-			clearingHouse: liquidatorClearingHouse,
+		const liquidatorDriftUser = new DriftUser({
+			driftClient: liquidatorDriftClient,
 			userAccountPublicKey:
-				await liquidatorClearingHouse.getUserAccountPublicKey(),
+				await liquidatorDriftClient.getUserAccountPublicKey(),
 		});
-		await liquidatorClearingHouseUser.subscribe();
+		await liquidatorDriftUser.subscribe();
 
-		await liquidatorClearingHouse.fetchAccounts();
-		await liquidatorClearingHouseUser.fetchAccounts();
-		await clearingHouseLoser.fetchAccounts();
-		await clearingHouseLoserUser.fetchAccounts();
+		await liquidatorDriftClient.fetchAccounts();
+		await liquidatorDriftUser.fetchAccounts();
+		await driftClientLoser.fetchAccounts();
+		await driftClientLoserUser.fetchAccounts();
 
-		const liquidatorClearingHouseValue = convertToNumber(
-			liquidatorClearingHouseUser.getTotalCollateral(),
+		const liquidatorDriftClientValue = convertToNumber(
+			liquidatorDriftUser.getTotalCollateral(),
 			QUOTE_PRECISION
 		);
 		console.log(
-			'liquidatorClearingHouseValue:',
-			liquidatorClearingHouseValue.toString()
+			'liquidatorDriftClientValue:',
+			liquidatorDriftClientValue.toString()
 		);
 
-		const clearingHouseLoserUserValue = convertToNumber(
-			clearingHouseLoserUser.getTotalCollateral(),
+		const driftClientLoserUserValue = convertToNumber(
+			driftClientLoserUser.getTotalCollateral(),
 			QUOTE_PRECISION
 		);
 		console.log(
-			'clearingHouseLoserUserValue:',
-			clearingHouseLoserUserValue.toString()
+			'driftClientLoserUserValue:',
+			driftClientLoserUserValue.toString()
 		);
 		console.log(
-			'clearingHouseLoser.baseamount',
-			clearingHouseLoser
+			'driftClientLoser.baseamount',
+			driftClientLoser
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.toString()
 		);
 
 		try {
-			const txSigLiq = await liquidatorClearingHouse.liquidatePerp(
-				await clearingHouseLoser.getUserAccountPublicKey(),
-				clearingHouseLoser.getUserAccount(),
+			const txSigLiq = await liquidatorDriftClient.liquidatePerp(
+				await driftClientLoser.getUserAccountPublicKey(),
+				driftClientLoser.getUserAccount(),
 				marketIndex,
 				BASE_PRECISION.mul(new BN(290))
 			);
@@ -551,64 +548,64 @@ describe('delist market, liquidation of expired position', () => {
 		} catch (e) {
 			console.error(e);
 		}
-		await liquidatorClearingHouse.fetchAccounts();
-		await liquidatorClearingHouseUser.fetchAccounts();
-		await clearingHouseLoser.fetchAccounts();
-		await clearingHouseLoserUser.fetchAccounts();
+		await liquidatorDriftClient.fetchAccounts();
+		await liquidatorDriftUser.fetchAccounts();
+		await driftClientLoser.fetchAccounts();
+		await driftClientLoserUser.fetchAccounts();
 
-		const clearingHouseLoserUserValueAfter = convertToNumber(
-			clearingHouseLoserUser.getTotalCollateral(),
+		const driftClientLoserUserValueAfter = convertToNumber(
+			driftClientLoserUser.getTotalCollateral(),
 			QUOTE_PRECISION
 		);
 		console.log(
-			'clearingHouseLoserUserValueAfter:',
-			clearingHouseLoserUserValueAfter.toString()
+			'driftClientLoserUserValueAfter:',
+			driftClientLoserUserValueAfter.toString()
 		);
 		console.log(
-			'clearingHouseLoser.baseamount',
-			clearingHouseLoser
+			'driftClientLoser.baseamount',
+			driftClientLoser
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.toString()
 		);
 
-		const liquidatorClearingHouseValueAfter = convertToNumber(
-			liquidatorClearingHouseUser.getTotalCollateral(),
+		const liquidatorDriftClientValueAfter = convertToNumber(
+			liquidatorDriftUser.getTotalCollateral(),
 			QUOTE_PRECISION
 		);
 		console.log(
-			'liquidatorClearingHouseValueAfter:',
-			liquidatorClearingHouseValueAfter.toString()
+			'liquidatorDriftClientValueAfter:',
+			liquidatorDriftClientValueAfter.toString()
 		);
 		const loserMaintMarginReq =
-			clearingHouseLoserUser.getMaintenanceMarginRequirement();
+			driftClientLoserUser.getMaintenanceMarginRequirement();
 		console.log('loserMaintMarginReq:', loserMaintMarginReq.toNumber());
 
 		const liqBuf =
-			clearingHouseLoser.getStateAccount().liquidationMarginBufferRatio;
+			driftClientLoser.getStateAccount().liquidationMarginBufferRatio;
 		console.log('liqBuf:', liqBuf);
 
 		const loserMaintMarginReqWBuf =
-			clearingHouseLoserUser.getMaintenanceMarginRequirement(new BN(liqBuf));
+			driftClientLoserUser.getMaintenanceMarginRequirement(new BN(liqBuf));
 		console.log('loserMaintMarginReqWBuf:', loserMaintMarginReqWBuf.toNumber());
 
 		assert(loserMaintMarginReq.sub(new BN(453307643)).abs().lt(new BN(27403)));
 
-		assert(!clearingHouseLoser.getUserAccount().bankrupt);
+		assert(!driftClientLoser.getUserAccount().bankrupt);
 
-		console.log('settle position clearingHouseLoser');
-		const txSig = await clearingHouseLoser.settleExpiredPosition(
-			await clearingHouseLoser.getUserAccountPublicKey(),
-			clearingHouseLoser.getUserAccount(),
+		console.log('settle position driftClientLoser');
+		const txSig = await driftClientLoser.settleExpiredPosition(
+			await driftClientLoser.getUserAccountPublicKey(),
+			driftClientLoser.getUserAccount(),
 			marketIndex
 		);
 		await printTxLogs(connection, txSig);
 
-		console.log('settle pnl clearingHouseLoser');
+		console.log('settle pnl driftClientLoser');
 
 		try {
-			await clearingHouse.settlePNL(
-				await clearingHouse.getUserAccountPublicKey(),
-				clearingHouse.getUserAccount(),
+			await driftClient.settlePNL(
+				await driftClient.getUserAccountPublicKey(),
+				driftClient.getUserAccount(),
 				marketIndex
 			);
 		} catch (e) {
@@ -621,12 +618,12 @@ describe('delist market, liquidation of expired position', () => {
 		// const settleRecord = eventSubscriber.getEventsArray('SettlePnlRecord')[0];
 		// console.log(settleRecord);
 
-		await clearingHouseLoser.fetchAccounts();
-		const loserUser = clearingHouseLoser.getUserAccount();
+		await driftClientLoser.fetchAccounts();
+		const loserUser = driftClientLoser.getUserAccount();
 		// console.log(loserUser.perpPositions[0]);
 		assert(loserUser.perpPositions[0].baseAssetAmount.eq(new BN(0)));
 		assert(loserUser.perpPositions[0].quoteAssetAmount.eq(new BN(0)));
-		const marketAfter0 = clearingHouse.getPerpMarketAccount(marketIndex);
+		const marketAfter0 = driftClient.getPerpMarketAccount(marketIndex);
 
 		// old 1415296436
 		const finalPnlResultMin0 = new BN(1446637831000 - 11090000);
@@ -643,6 +640,6 @@ describe('delist market, liquidation of expired position', () => {
 			marketAfter0.amm.totalExchangeFee.toString()
 		);
 		assert(marketAfter0.amm.feePool.balance.eq(new BN(4356250000)));
-		await liquidatorClearingHouseUser.unsubscribe();
+		await liquidatorDriftUser.unsubscribe();
 	});
 });

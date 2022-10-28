@@ -4,8 +4,8 @@ import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
 	calculateReservePrice,
-	ClearingHouse,
-	ClearingHouseUser,
+	DriftClient,
+	DriftUser,
 	initialize,
 	PositionDirection,
 	convertToNumber,
@@ -64,7 +64,7 @@ const main = async () => {
 	);
 
 	// Set up the Drift Clearing House
-	const clearingHousePublicKey = new PublicKey(
+	const driftClientPublicKey = new PublicKey(
 		sdkConfig.CLEARING_HOUSE_PROGRAM_ID
 	);
 	const bulkAccountLoader = new BulkAccountLoader(
@@ -72,10 +72,10 @@ const main = async () => {
 		'confirmed',
 		1000
 	);
-	const clearingHouse = new ClearingHouse({
+	const driftClient = new DriftClient({
 		connection,
 		wallet: provider.wallet,
-		programID: clearingHousePublicKey,
+		programID: driftClientPublicKey,
 		perpMarketIndexes: PerpMarkets[cluster].map((market) => market.marketIndex),
 		spotMarketIndexes: SpotMarkets[cluster].map(
 			(spotMarket) => spotMarket.marketIndex
@@ -85,25 +85,25 @@ const main = async () => {
 			accountLoader: bulkAccountLoader,
 		},
 	});
-	await clearingHouse.subscribe();
+	await driftClient.subscribe();
 
 	// Set up Clearing House user client
-	const user = new ClearingHouseUser({
-		clearingHouse,
-		userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+	const user = new DriftUser({
+		driftClient: driftClient,
+		userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		accountSubscription: {
 			type: 'polling',
 			accountLoader: bulkAccountLoader,
 		},
 	});
 
-	//// Check if clearing house account exists for the current wallet
+	//// Check if drift user account exists for the current wallet
 	const userAccountExists = await user.exists();
 
 	if (!userAccountExists) {
 		//// Create a Clearing House account by Depositing some USDC ($10,000 in this case)
 		const depositAmount = new BN(10000).mul(QUOTE_PRECISION);
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			depositAmount,
 			await getTokenAddress(
 				usdcTokenAddress.toString(),
@@ -121,7 +121,7 @@ const main = async () => {
 	);
 
 	const currentMarketPrice = calculateReservePrice(
-		clearingHouse.getPerpMarketAccount(solMarketInfo.marketIndex),
+		driftClient.getPerpMarketAccount(solMarketInfo.marketIndex),
 		undefined
 	);
 
@@ -130,7 +130,7 @@ const main = async () => {
 	console.log(`Current Market Price is $${formattedPrice}`);
 
 	// Estimate the slippage for a $5000 LONG trade
-	const solMarketAccount = clearingHouse.getPerpMarketAccount(
+	const solMarketAccount = driftClient.getPerpMarketAccount(
 		solMarketInfo.marketIndex
 	);
 
@@ -151,7 +151,7 @@ const main = async () => {
 	);
 
 	// Make a $5000 LONG trade
-	await clearingHouse.openPosition(
+	await driftClient.openPosition(
 		PositionDirection.LONG,
 		longAmount,
 		solMarketInfo.marketIndex
@@ -160,14 +160,14 @@ const main = async () => {
 
 	// Reduce the position by $2000
 	const reduceAmount = new BN(2000).mul(QUOTE_PRECISION);
-	await clearingHouse.openPosition(
+	await driftClient.openPosition(
 		PositionDirection.SHORT,
 		reduceAmount,
 		solMarketInfo.marketIndex
 	);
 
 	// Close the rest of the position
-	await clearingHouse.closePosition(solMarketInfo.marketIndex);
+	await driftClient.closePosition(solMarketInfo.marketIndex);
 };
 
 main();

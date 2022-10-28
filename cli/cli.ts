@@ -5,13 +5,7 @@ const colors = require('colors');
 import os from 'os';
 import fs from 'fs';
 import log from 'loglevel';
-import {
-	Admin,
-	ClearingHouseUser,
-	initialize,
-	Markets,
-	Wallet,
-} from '@drift-labs/sdk';
+import { Admin, DriftUser, initialize, Markets, Wallet } from '@drift-labs/sdk';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { BN } from '@drift-labs/sdk';
 import {
@@ -90,16 +84,13 @@ async function wrapActionInAdminSubscribeUnsubscribe(
 
 async function wrapActionInUserSubscribeUnsubscribe(
 	options: OptionValues,
-	action: (user: ClearingHouseUser) => Promise<void>
+	action: (user: DriftUser) => Promise<void>
 ): Promise<void> {
 	const admin = adminFromOptions(options);
 	log.info(`ClearingHouse subscribing`);
 	await admin.subscribe();
 	log.info(`ClearingHouse subscribed`);
-	const clearingHouseUser = ClearingHouseUser.from(
-		admin,
-		admin.wallet.publicKey
-	);
+	const clearingHouseUser = DriftUser.from(admin, admin.wallet.publicKey);
 	log.info(`User subscribing`);
 	await clearingHouseUser.subscribe();
 	log.info(`User subscribed`);

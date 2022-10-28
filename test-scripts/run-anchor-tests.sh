@@ -2,15 +2,10 @@ if [ "$1" != "--skip-build" ]
   then
     cd sdk && yarn && yarn build && cd ..
     anchor build &&
-    cp target/idl/clearing_house.json sdk/src/idl/  
+    cp target/idl/drift.json sdk/src/idl/
 fi
 
 test_files=(
-  imbalancePerpPnl.ts
-   delistMarket.ts delistMarketLiq.ts
-   triggerSpotOrder.ts
-   serumTest.ts
-   liquidityProvider.ts
    insuranceFundStake.ts
    liquidateSpot.ts
    liquidateSpotSocialLoss.ts

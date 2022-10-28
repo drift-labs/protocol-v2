@@ -2,7 +2,7 @@ import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { Keypair } from '@solana/web3.js';
 import {
-	Admin,
+	AdminClient,
 	PRICE_PRECISION,
 	PEG_PRECISION,
 	QUOTE_PRECISION,
@@ -10,7 +10,7 @@ import {
 	BN,
 	calculateReservePrice,
 	calculateTargetPriceTrade,
-	ClearingHouseUser,
+	DriftUser,
 	PositionDirection,
 	convertToNumber,
 	calculateBudgetedPeg,
@@ -32,12 +32,12 @@ describe('AMM Curve', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const driftProgram = anchor.workspace.Drift as Program;
 
-	const clearingHouse = new Admin({
+	const driftClient = new AdminClient({
 		connection,
 		wallet: provider.wallet,
-		programID: chProgram.programId,
+		programID: driftProgram.programId,
 		opts: {
 			commitment: 'confirmed',
 		},
@@ -61,17 +61,17 @@ describe('AMM Curve', () => {
 		662251.6556291390728 * BASE_PRECISION.toNumber()
 	);
 
-	let userAccount: ClearingHouseUser;
+	let userAccount: DriftUser;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
 
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await driftClient.updatePerpAuctionDuration(new BN(0));
 
 		solUsdOracle = await createPriceFeed({
 			oracleProgram: anchor.workspace.Pyth,
@@ -79,7 +79,7 @@ describe('AMM Curve', () => {
 		});
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
-		await clearingHouse.initializeMarket(
+		await driftClient.initializeMarket(
 			solUsdOracle,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -87,21 +87,21 @@ describe('AMM Curve', () => {
 			PEG_PRECISION.mul(new BN(initialSOLPrice))
 		);
 
-		await clearingHouse.initializeUserAccount();
-		userAccount = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		await driftClient.initializeUserAccount();
+		userAccount = new DriftUser({
+			driftClient: driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
 		await userAccount.subscribe();
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 		await userAccount.unsubscribe();
 	});
 
 	const showCurve = (marketIndex) => {
-		const marketData = clearingHouse.getPerpMarketAccount(marketIndex);
+		const marketData = driftClient.getPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
 
 		console.log(
@@ -130,7 +130,7 @@ describe('AMM Curve', () => {
 	};
 
 	const showBook = (marketIndex) => {
-		const market = clearingHouse.getPerpMarketAccount(marketIndex);
+		const market = driftClient.getPerpMarketAccount(marketIndex);
 		const currentMark = calculateReservePrice(market);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
@@ -164,7 +164,7 @@ describe('AMM Curve', () => {
 	};
 
 	it('After Deposit', async () => {
-		await clearingHouse.deposit(
+		await driftClient.deposit(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
@@ -174,7 +174,7 @@ describe('AMM Curve', () => {
 	});
 
 	it('After Position Taken', async () => {
-		await clearingHouse.openPosition(
+		await driftClient.openPosition(
 			PositionDirection.LONG,
 			initialBaseAssetAmount,
 			marketIndex
@@ -185,7 +185,7 @@ describe('AMM Curve', () => {
 
 	it('After Position Price Moves', async () => {
 		// const _priceIncreaseFactor = new BN(2);
-		await clearingHouse.moveAmmToPrice(
+		await driftClient.moveAmmToPrice(
 			marketIndex,
 			new BN(initialSOLPrice * PRICE_PRECISION.toNumber() * 1.0001)
 		);
@@ -194,20 +194,20 @@ describe('AMM Curve', () => {
 	});
 	it('Arb back to Oracle Price Moves', async () => {
 		const [direction, basesize] = calculateTargetPriceTrade(
-			clearingHouse.getPerpMarketAccount(marketIndex),
+			driftClient.getPerpMarketAccount(marketIndex),
 			new BN(initialSOLPrice).mul(PRICE_PRECISION),
 			undefined,
 			'base'
 		);
 
 		console.log('arbing', direction, basesize.toString());
-		await clearingHouse.openPosition(direction, basesize, marketIndex);
+		await driftClient.openPosition(direction, basesize, marketIndex);
 
 		showBook(marketIndex);
 	});
 
 	it('Repeg Curve LONG', async () => {
-		let marketData = clearingHouse.getPerpMarketAccount(marketIndex);
+		let marketData = driftClient.getPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;
 		assert(ammAccountState.totalFee.eq(ammAccountState.totalFee));
 
@@ -220,7 +220,7 @@ describe('AMM Curve', () => {
 		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsdOracle);
 		// showCurve(marketIndex);
 
-		await clearingHouse.openPosition(
+		await driftClient.openPosition(
 			PositionDirection.LONG,
 			BASE_PRECISION.div(new BN(10)),
 			marketIndex
@@ -228,14 +228,14 @@ describe('AMM Curve', () => {
 		// showBook(marketIndex);
 
 		const priceBefore = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			driftClient.getPerpMarketAccount(marketIndex)
 		);
-		await clearingHouse.repegAmmCurve(
+		await driftClient.repegAmmCurve(
 			new BN(150.001 * PEG_PRECISION.toNumber()),
 			marketIndex
 		);
 		const priceAfter = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			driftClient.getPerpMarketAccount(marketIndex)
 		);
 
 		assert(newOraclePriceWithMantissa.gt(priceBefore));
@@ -246,7 +246,7 @@ describe('AMM Curve', () => {
 		showCurve(marketIndex);
 		// showBook(marketIndex);
 
-		marketData = clearingHouse.getPerpMarketAccount(marketIndex);
+		marketData = driftClient.getPerpMarketAccount(marketIndex);
 		console.log(marketData.amm);
 		console.log();
 		assert(
@@ -273,7 +273,7 @@ describe('AMM Curve', () => {
 
 		// const feeDist1h = calculateFeeDist(marketIndex);
 
-		await clearingHouse.closePosition(marketIndex);
+		await driftClient.closePosition(marketIndex);
 
 		// showCurve(marketIndex);
 		// const feeDist2 = calculateFeeDist(marketIndex);
@@ -287,33 +287,33 @@ describe('AMM Curve', () => {
 	// 	await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsdOracle);
 	// 	showCurve(marketIndex);
 
-	// 	await clearingHouse.openPosition(
+	// 	await driftClient.openPosition(
 	// 		PositionDirection.SHORT,
 	// 		BASE_PRECISION.div(new BN(1000)),
 	// 		marketIndex
 	// 	);
-	// 	const marketData1 = clearingHouse.getPerpMarketAccount(marketIndex);
+	// 	const marketData1 = driftClient.getPerpMarketAccount(marketIndex);
 	// 	const ammAccountState = marketData1.amm;
 	// 	const oldPeg = ammAccountState.pegMultiplier;
 
 	// 	const priceBefore = calculateMarkPrice(
-	// 		clearingHouse.getPerpMarketAccount(marketIndex)
+	// 		driftClient.getPerpMarketAccount(marketIndex)
 	// 	);
 
-	// 	await clearingHouse.repegAmmCurve(
+	// 	await driftClient.repegAmmCurve(
 	// 		new BN(148 * PEG_PRECISION.toNumber()),
 	// 		marketIndex
 	// 	);
 
 	// 	const priceAfter = calculateMarkPrice(
-	// 		clearingHouse.getPerpMarketAccount(marketIndex)
+	// 		driftClient.getPerpMarketAccount(marketIndex)
 	// 	);
 
 	// 	assert(newOraclePriceWithMantissa.lt(priceBefore));
 	// 	assert(priceAfter.lt(priceBefore));
 	// 	assert(newOraclePriceWithMantissa.lt(priceAfter));
 
-	// 	const marketData = clearingHouse.getPerpMarketAccount(marketIndex);
+	// 	const marketData = driftClient.getPerpMarketAccount(marketIndex);
 	// 	const newPeg = marketData.amm.pegMultiplier;
 
 	// 	const userPerpPosition = userAccount.getUserAccount().perpPositions[0];
@@ -339,11 +339,11 @@ describe('AMM Curve', () => {
 	// 	assert(linearApproxCostToAMM > totalCostToAMMChain);
 	// 	assert(linearApproxCostToAMM / totalCostToAMMChain < 1.02);
 
-	// 	await clearingHouse.closePosition(marketIndex);
+	// 	await driftClient.closePosition(marketIndex);
 	// });
 
 	it('calculateBudgetedPeg (sdk tests)', async () => {
-		const marketData1 = clearingHouse.getPerpMarketAccount(marketIndex);
+		const marketData1 = driftClient.getPerpMarketAccount(marketIndex);
 
 		let amm = marketData1.amm;
 
@@ -370,13 +370,13 @@ describe('AMM Curve', () => {
 		assert(candidatePegDown0.eq(new BN(10131882)));
 
 		// check if short
-		await clearingHouse.openPosition(
+		await driftClient.openPosition(
 			PositionDirection.SHORT,
 			BASE_PRECISION,
 			marketIndex
 		);
 
-		amm = clearingHouse.getPerpMarketAccount(marketIndex).amm;
+		amm = driftClient.getPerpMarketAccount(marketIndex).amm;
 
 		const candidatePegUp = calculateBudgetedPeg(
 			amm,
@@ -398,15 +398,15 @@ describe('AMM Curve', () => {
 		);
 		assert(candidatePegDown.eq(new BN(148987812)));
 
-		await clearingHouse.closePosition(marketIndex);
+		await driftClient.closePosition(marketIndex);
 
 		// check if long
-		await clearingHouse.openPosition(
+		await driftClient.openPosition(
 			PositionDirection.LONG,
 			BASE_PRECISION,
 			marketIndex
 		);
-		amm = clearingHouse.getPerpMarketAccount(marketIndex).amm;
+		amm = driftClient.getPerpMarketAccount(marketIndex).amm;
 
 		const candidatePegUp2 = calculateBudgetedPeg(
 			amm,
@@ -434,6 +434,6 @@ describe('AMM Curve', () => {
 		);
 		assert(candidatePegDown2.eq(new BN(10131882)));
 
-		await clearingHouse.closePosition(marketIndex);
+		await driftClient.closePosition(marketIndex);
 	});
 });

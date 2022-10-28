@@ -4,7 +4,7 @@ import { Program } from '@project-serum/anchor';
 
 import {
 	QUOTE_SPOT_MARKET_INDEX,
-	Admin,
+	AdminClient,
 	BN,
 	EventSubscriber,
 	PRICE_PRECISION,
@@ -18,17 +18,17 @@ import {
 	mockUserUSDCAccount,
 } from './testHelpers';
 import { assert } from 'chai';
-import { ClearingHouse, OracleSource, PositionDirection, Wallet } from '../sdk';
+import { DriftClient, OracleSource, PositionDirection, Wallet } from '../sdk';
 import { Keypair } from '@solana/web3.js';
 
 describe('user delegate', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const driftProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let driftClient: AdminClient;
+	const eventSubscriber = new EventSubscriber(connection, driftProgram);
 	eventSubscriber.subscribe();
 
 	let usdcMint;
@@ -36,7 +36,7 @@ describe('user delegate', () => {
 	const usdcAmount = new BN(10 * 10 ** 6);
 
 	let delegateKeyPair: Keypair;
-	let delegateClearingHouse: ClearingHouse;
+	let delegateDriftClient: DriftClient;
 	let delegateUsdcAccount: Keypair;
 
 	const marketIndexes = [0];
@@ -57,10 +57,10 @@ describe('user delegate', () => {
 		usdcMint = await mockUSDCMint(provider);
 
 		solUsd = await mockOracle(1);
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
-			programID: chProgram.programId,
+			programID: driftProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
@@ -76,13 +76,13 @@ describe('user delegate', () => {
 			userStats: true,
 		});
 
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updatePerpAuctionDuration(new BN(0));
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await driftClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
-		await clearingHouse.initializeMarket(
+		await driftClient.initializeMarket(
 			solUsd,
 			ammInitialBaseAssetAmount,
 			ammInitialQuoteAssetAmount,
@@ -91,34 +91,34 @@ describe('user delegate', () => {
 
 		const userId = 0;
 		const name = 'CRISP';
-		await clearingHouse.initializeUserAccount(userId, name);
+		await driftClient.initializeUserAccount(userId, name);
 
 		delegateKeyPair = await createFundedKeyPair(connection);
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
-		await delegateClearingHouse.unsubscribe();
+		await delegateDriftClient.unsubscribe();
 	});
 
 	it('Update delegate', async () => {
-		await clearingHouse.updateUserDelegate(delegateKeyPair.publicKey);
+		await driftClient.updateUserDelegate(delegateKeyPair.publicKey);
 
-		await clearingHouse.fetchAccounts();
+		await driftClient.fetchAccounts();
 		assert(
-			clearingHouse.getUserAccount().delegate.equals(delegateKeyPair.publicKey)
+			driftClient.getUserAccount().delegate.equals(delegateKeyPair.publicKey)
 		);
 
 		const delegateUserAccount = (
-			await clearingHouse.getUserAccountsForDelegate(delegateKeyPair.publicKey)
+			await driftClient.getUserAccountsForDelegate(delegateKeyPair.publicKey)
 		)[0];
 		assert(delegateUserAccount.delegate.equals(delegateKeyPair.publicKey));
 
-		delegateClearingHouse = new ClearingHouse({
+		delegateDriftClient = new DriftClient({
 			connection,
 			wallet: new Wallet(delegateKeyPair),
-			programID: chProgram.programId,
+			programID: driftProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
@@ -133,7 +133,7 @@ describe('user delegate', () => {
 			],
 			authority: provider.wallet.publicKey,
 		});
-		await delegateClearingHouse.subscribe();
+		await delegateDriftClient.subscribe();
 	});
 
 	it('Deposit', async () => {
@@ -144,19 +144,19 @@ describe('user delegate', () => {
 			delegateKeyPair.publicKey
 		);
 
-		await delegateClearingHouse.deposit(
+		await delegateDriftClient.deposit(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			delegateUsdcAccount.publicKey
 		);
 
-		assert(delegateClearingHouse.getQuoteAssetTokenAmount().eq(usdcAmount));
+		assert(delegateDriftClient.getQuoteAssetTokenAmount().eq(usdcAmount));
 	});
 
 	it('Withdraw', async () => {
 		let caughtError = false;
 		try {
-			await delegateClearingHouse.withdraw(
+			await delegateDriftClient.withdraw(
 				usdcAmount,
 				QUOTE_SPOT_MARKET_INDEX,
 				delegateUsdcAccount.publicKey
@@ -168,7 +168,7 @@ describe('user delegate', () => {
 	});
 
 	it('Open position', async () => {
-		await delegateClearingHouse.openPosition(
+		await delegateDriftClient.openPosition(
 			PositionDirection.LONG,
 			usdcAmount,
 			0

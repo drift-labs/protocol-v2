@@ -6,9 +6,9 @@ import { Program } from '@project-serum/anchor';
 import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 
 import {
-	Admin,
+	AdminClient,
 	BN,
-	ClearingHouse,
+	DriftClient,
 	EventSubscriber,
 	SPOT_MARKET_RATE_PRECISION,
 	SpotBalanceType,
@@ -47,22 +47,22 @@ describe('spot deposit and withdraw', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const driftProgram = anchor.workspace.Drift as Program;
 
-	let admin: Admin;
-	const eventSubscriber = new EventSubscriber(connection, chProgram);
+	let admin: AdminClient;
+	const eventSubscriber = new EventSubscriber(connection, driftProgram);
 	eventSubscriber.subscribe();
 
 	let solOracle: PublicKey;
 
 	let usdcMint;
 
-	let firstUserClearingHouse: ClearingHouse;
-	let firstUserClearingHouseUSDCAccount: PublicKey;
+	let firstUserDriftClient: DriftClient;
+	let firstUserDriftClientUSDCAccount: PublicKey;
 
-	let secondUserClearingHouse: ClearingHouse;
-	let secondUserClearingHouseWSOLAccount: PublicKey;
-	let secondUserClearingHouseUSDCAccount: PublicKey;
+	let secondUserDriftClient: DriftClient;
+	let secondUserDriftClientWSOLAccount: PublicKey;
+	let secondUserDriftClientUSDCAccount: PublicKey;
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 	const largeUsdcAmount = new BN(10_000 * 10 ** 6);
@@ -83,10 +83,10 @@ describe('spot deposit and withdraw', () => {
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
 
-		admin = new Admin({
+		admin = new AdminClient({
 			connection,
 			wallet: provider.wallet,
-			programID: chProgram.programId,
+			programID: driftProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
@@ -103,8 +103,8 @@ describe('spot deposit and withdraw', () => {
 	after(async () => {
 		await admin.unsubscribe();
 		await eventSubscriber.unsubscribe();
-		await firstUserClearingHouse.unsubscribe();
-		await secondUserClearingHouse.unsubscribe();
+		await firstUserDriftClient.unsubscribe();
+		await secondUserDriftClient.unsubscribe();
 	});
 
 	it('Initialize USDC Market', async () => {
@@ -216,11 +216,11 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('First User Deposit USDC', async () => {
-		[firstUserClearingHouse, firstUserClearingHouseUSDCAccount] =
+		[firstUserDriftClient, firstUserDriftClientUSDCAccount] =
 			await createUserWithUSDCAccount(
 				provider,
 				usdcMint,
-				chProgram,
+				driftProgram,
 				usdcAmount,
 				marketIndexes,
 				spotMarketIndexes,
@@ -228,10 +228,10 @@ describe('spot deposit and withdraw', () => {
 			);
 
 		const marketIndex = 0;
-		const txSig = await firstUserClearingHouse.deposit(
+		const txSig = await firstUserDriftClient.deposit(
 			usdcAmount,
 			marketIndex,
-			firstUserClearingHouseUSDCAccount
+			firstUserDriftClientUSDCAccount
 		);
 		await printTxLogs(connection, txSig);
 
@@ -254,21 +254,20 @@ describe('spot deposit and withdraw', () => {
 			spotMarket,
 			SpotBalanceType.DEPOSIT
 		);
-		const spotPosition =
-			firstUserClearingHouse.getUserAccount().spotPositions[0];
+		const spotPosition = firstUserDriftClient.getUserAccount().spotPositions[0];
 		assert(isVariant(spotPosition.balanceType, 'deposit'));
 		assert(spotPosition.balance.eq(expectedBalance));
 	});
 
 	it('Second User Deposit SOL', async () => {
 		[
-			secondUserClearingHouse,
-			secondUserClearingHouseWSOLAccount,
-			secondUserClearingHouseUSDCAccount,
+			secondUserDriftClient,
+			secondUserDriftClientWSOLAccount,
+			secondUserDriftClientUSDCAccount,
 		] = await createUserWithUSDCAndWSOLAccount(
 			provider,
 			usdcMint,
-			chProgram,
+			driftProgram,
 			solAmount,
 			ZERO,
 			marketIndexes,
@@ -277,10 +276,10 @@ describe('spot deposit and withdraw', () => {
 		);
 
 		const marketIndex = 1;
-		const txSig = await secondUserClearingHouse.deposit(
+		const txSig = await secondUserDriftClient.deposit(
 			solAmount,
 			marketIndex,
-			secondUserClearingHouseWSOLAccount
+			secondUserDriftClientWSOLAccount
 		);
 		await printTxLogs(connection, txSig);
 
@@ -300,7 +299,7 @@ describe('spot deposit and withdraw', () => {
 			SpotBalanceType.DEPOSIT
 		);
 		const spotPosition =
-			secondUserClearingHouse.getUserAccount().spotPositions[1];
+			secondUserDriftClient.getUserAccount().spotPositions[1];
 		assert(isVariant(spotPosition.balanceType, 'deposit'));
 		assert(spotPosition.balance.eq(expectedBalance));
 	});
@@ -308,10 +307,10 @@ describe('spot deposit and withdraw', () => {
 	it('Second User Withdraw First half USDC', async () => {
 		const marketIndex = 0;
 		const withdrawAmount = usdcAmount.div(new BN(2));
-		const txSig = await secondUserClearingHouse.withdraw(
+		const txSig = await secondUserDriftClient.withdraw(
 			withdrawAmount,
 			marketIndex,
-			secondUserClearingHouseUSDCAccount
+			secondUserDriftClientUSDCAccount
 		);
 		await printTxLogs(connection, txSig);
 
@@ -334,14 +333,14 @@ describe('spot deposit and withdraw', () => {
 		);
 
 		const spotPosition =
-			secondUserClearingHouse.getUserAccount().spotPositions[0];
+			secondUserDriftClient.getUserAccount().spotPositions[0];
 		assert(isVariant(spotPosition.balanceType, 'borrow'));
 		assert(spotPosition.balance.eq(expectedBalance));
 
 		const actualAmountWithdrawn = new BN(
 			(
 				await provider.connection.getTokenAccountBalance(
-					secondUserClearingHouseUSDCAccount
+					secondUserDriftClientUSDCAccount
 				)
 			).value.amount
 		);
@@ -352,19 +351,18 @@ describe('spot deposit and withdraw', () => {
 	it('Update Cumulative Interest with 50% utilization', async () => {
 		const usdcmarketIndex = 0;
 		const oldSpotMarketAccount =
-			firstUserClearingHouse.getSpotMarketAccount(usdcmarketIndex);
+			firstUserDriftClient.getSpotMarketAccount(usdcmarketIndex);
 
 		await sleep(5000);
 
-		const txSig =
-			await firstUserClearingHouse.updateSpotMarketCumulativeInterest(
-				usdcmarketIndex
-			);
+		const txSig = await firstUserDriftClient.updateSpotMarketCumulativeInterest(
+			usdcmarketIndex
+		);
 		await printTxLogs(connection, txSig);
 
-		await firstUserClearingHouse.fetchAccounts();
+		await firstUserDriftClient.fetchAccounts();
 		const newSpotMarketAccount =
-			firstUserClearingHouse.getSpotMarketAccount(usdcmarketIndex);
+			firstUserDriftClient.getSpotMarketAccount(usdcmarketIndex);
 
 		const expectedInterestAccumulated = calculateInterestAccumulated(
 			oldSpotMarketAccount,
@@ -394,7 +392,7 @@ describe('spot deposit and withdraw', () => {
 	it('Second User Withdraw second half USDC', async () => {
 		const marketIndex = 0;
 		let spotMarketAccount =
-			secondUserClearingHouse.getSpotMarketAccount(marketIndex);
+			secondUserDriftClient.getSpotMarketAccount(marketIndex);
 		const spotMarketDepositTokenAmountBefore = getTokenAmount(
 			spotMarketAccount.depositBalance,
 			spotMarketAccount,
@@ -410,27 +408,26 @@ describe('spot deposit and withdraw', () => {
 		const userUSDCAmountBefore = new BN(
 			(
 				await provider.connection.getTokenAccountBalance(
-					secondUserClearingHouseUSDCAccount
+					secondUserDriftClientUSDCAccount
 				)
 			).value.amount
 		);
 
 		const spotPositionBefore =
-			secondUserClearingHouse.getSpotPosition(marketIndex).balance;
+			secondUserDriftClient.getSpotPosition(marketIndex).balance;
 
 		const withdrawAmount = spotMarketDepositTokenAmountBefore
 			.sub(spotMarketBorrowTokenAmountBefore)
 			.sub(ONE);
 
-		const txSig = await secondUserClearingHouse.withdraw(
+		const txSig = await secondUserDriftClient.withdraw(
 			withdrawAmount,
 			marketIndex,
-			secondUserClearingHouseUSDCAccount
+			secondUserDriftClientUSDCAccount
 		);
 		await printTxLogs(connection, txSig);
 
-		spotMarketAccount =
-			secondUserClearingHouse.getSpotMarketAccount(marketIndex);
+		spotMarketAccount = secondUserDriftClient.getSpotMarketAccount(marketIndex);
 		const increaseInspotPosition = getBalance(
 			withdrawAmount,
 			spotMarketAccount,
@@ -440,7 +437,7 @@ describe('spot deposit and withdraw', () => {
 		console.log('withdrawAmount:', withdrawAmount.toString());
 
 		assert(
-			secondUserClearingHouse
+			secondUserDriftClient
 				.getSpotPosition(marketIndex)
 				.balance.eq(expectedspotPosition)
 		);
@@ -449,7 +446,7 @@ describe('spot deposit and withdraw', () => {
 		const userUSDCAmountAfter = new BN(
 			(
 				await provider.connection.getTokenAccountBalance(
-					secondUserClearingHouseUSDCAccount
+					secondUserDriftClientUSDCAccount
 				)
 			).value.amount
 		);
@@ -499,19 +496,18 @@ describe('spot deposit and withdraw', () => {
 	it('Update Cumulative Interest with 100% utilization', async () => {
 		const usdcmarketIndex = 0;
 		const oldSpotMarketAccount =
-			firstUserClearingHouse.getSpotMarketAccount(usdcmarketIndex);
+			firstUserDriftClient.getSpotMarketAccount(usdcmarketIndex);
 
 		await sleep(5000);
 
-		const txSig =
-			await firstUserClearingHouse.updateSpotMarketCumulativeInterest(
-				usdcmarketIndex
-			);
+		const txSig = await firstUserDriftClient.updateSpotMarketCumulativeInterest(
+			usdcmarketIndex
+		);
 		await printTxLogs(connection, txSig);
 
-		await firstUserClearingHouse.fetchAccounts();
+		await firstUserDriftClient.fetchAccounts();
 		const newSpotMarketAccount =
-			firstUserClearingHouse.getSpotMarketAccount(usdcmarketIndex);
+			firstUserDriftClient.getSpotMarketAccount(usdcmarketIndex);
 
 		const expectedInterestAccumulated = calculateInterestAccumulated(
 			oldSpotMarketAccount,
@@ -543,31 +539,31 @@ describe('spot deposit and withdraw', () => {
 		const mintAmount = new BN(2 * 10 ** 6); // $2
 		const userUSDCAmountBefore = await getTokenAmountAsBN(
 			connection,
-			secondUserClearingHouseUSDCAccount
+			secondUserDriftClientUSDCAccount
 		);
 		await mintUSDCToUser(
 			usdcMint,
-			secondUserClearingHouseUSDCAccount,
+			secondUserDriftClientUSDCAccount,
 			mintAmount,
 			provider
 		);
 
 		const userBorrowBalanceBefore =
-			secondUserClearingHouse.getSpotPosition(marketIndex).balance;
+			secondUserDriftClient.getSpotPosition(marketIndex).balance;
 		const spotMarketDepositBalanceBefore =
-			secondUserClearingHouse.getSpotMarketAccount(marketIndex).depositBalance;
+			secondUserDriftClient.getSpotMarketAccount(marketIndex).depositBalance;
 
 		const depositAmount = userUSDCAmountBefore.add(mintAmount.div(new BN(2)));
-		const txSig = await secondUserClearingHouse.deposit(
+		const txSig = await secondUserDriftClient.deposit(
 			depositAmount,
 			marketIndex,
-			secondUserClearingHouseUSDCAccount
+			secondUserDriftClientUSDCAccount
 		);
 		await printTxLogs(connection, txSig);
 
-		await secondUserClearingHouse.fetchAccounts();
+		await secondUserDriftClient.fetchAccounts();
 		const spotMarketAccount =
-			secondUserClearingHouse.getSpotMarketAccount(marketIndex);
+			secondUserDriftClient.getSpotMarketAccount(marketIndex);
 		const borrowToPayOff = getTokenAmount(
 			userBorrowBalanceBefore,
 			spotMarketAccount,
@@ -580,8 +576,7 @@ describe('spot deposit and withdraw', () => {
 			spotMarketAccount,
 			SpotBalanceType.DEPOSIT
 		);
-		const userBalanceAfter =
-			secondUserClearingHouse.getSpotPosition(marketIndex);
+		const userBalanceAfter = secondUserDriftClient.getSpotPosition(marketIndex);
 
 		assert(expectedUserBalance.eq(userBalanceAfter.balance));
 		assert(isVariant(userBalanceAfter.balanceType, 'deposit'));
@@ -598,11 +593,11 @@ describe('spot deposit and withdraw', () => {
 		const marketIndex = 0;
 
 		const spotMarketAccountBefore =
-			secondUserClearingHouse.getSpotMarketAccount(marketIndex);
+			secondUserDriftClient.getSpotMarketAccount(marketIndex);
 		const userDepositBalanceBefore =
-			secondUserClearingHouse.getSpotPosition(marketIndex).balance;
+			secondUserDriftClient.getSpotPosition(marketIndex).balance;
 		const spotMarketDepositBalanceBefore =
-			secondUserClearingHouse.getSpotMarketAccount(marketIndex).depositBalance;
+			secondUserDriftClient.getSpotMarketAccount(marketIndex).depositBalance;
 		const userDepositokenAmountBefore = getTokenAmount(
 			userDepositBalanceBefore,
 			spotMarketAccountBefore,
@@ -610,16 +605,16 @@ describe('spot deposit and withdraw', () => {
 		);
 
 		const borrowAmount = userDepositokenAmountBefore.add(new BN(1 * 10 ** 6));
-		const txSig = await secondUserClearingHouse.withdraw(
+		const txSig = await secondUserDriftClient.withdraw(
 			borrowAmount,
 			marketIndex,
-			secondUserClearingHouseUSDCAccount
+			secondUserDriftClientUSDCAccount
 		);
 		await printTxLogs(connection, txSig);
 
-		await secondUserClearingHouse.fetchAccounts();
+		await secondUserDriftClient.fetchAccounts();
 		const spotMarketAccount =
-			secondUserClearingHouse.getSpotMarketAccount(marketIndex);
+			secondUserDriftClient.getSpotMarketAccount(marketIndex);
 		const depositToWithdrawAgainst = getTokenAmount(
 			userDepositBalanceBefore,
 			spotMarketAccount,
@@ -632,8 +627,7 @@ describe('spot deposit and withdraw', () => {
 			spotMarketAccount,
 			SpotBalanceType.BORROW
 		);
-		const userBalanceAfter =
-			secondUserClearingHouse.getSpotPosition(marketIndex);
+		const userBalanceAfter = secondUserDriftClient.getSpotPosition(marketIndex);
 
 		assert(expectedUserBalance.eq(userBalanceAfter.balance));
 		assert(isVariant(userBalanceAfter.balanceType, 'borrow'));
@@ -651,25 +645,25 @@ describe('spot deposit and withdraw', () => {
 		const marketIndex = 0;
 		const userUSDCAmountBefore = await getTokenAmountAsBN(
 			connection,
-			secondUserClearingHouseUSDCAccount
+			secondUserDriftClientUSDCAccount
 		);
 		const currentUserBorrowBalance =
-			secondUserClearingHouse.getSpotPosition(marketIndex).balance;
+			secondUserDriftClient.getSpotPosition(marketIndex).balance;
 		const spotMarketDepositBalanceBefore =
-			secondUserClearingHouse.getSpotMarketAccount(marketIndex).depositBalance;
+			secondUserDriftClient.getSpotMarketAccount(marketIndex).depositBalance;
 
 		const depositAmount = userUSDCAmountBefore.mul(new BN(100000)); // huge number
-		const txSig = await secondUserClearingHouse.deposit(
+		const txSig = await secondUserDriftClient.deposit(
 			depositAmount,
 			marketIndex,
-			secondUserClearingHouseUSDCAccount,
+			secondUserDriftClientUSDCAccount,
 			undefined,
 			true
 		);
 		await printTxLogs(connection, txSig);
 
 		const spotMarketAccountAfter =
-			secondUserClearingHouse.getSpotMarketAccount(marketIndex);
+			secondUserDriftClient.getSpotMarketAccount(marketIndex);
 		const borrowToPayBack = getTokenAmount(
 			currentUserBorrowBalance,
 			spotMarketAccountAfter,
@@ -678,13 +672,12 @@ describe('spot deposit and withdraw', () => {
 
 		const userUSDCAmountAfter = await getTokenAmountAsBN(
 			connection,
-			secondUserClearingHouseUSDCAccount
+			secondUserDriftClientUSDCAccount
 		);
 		const expectedUserUSDCAmount = userUSDCAmountBefore.sub(borrowToPayBack);
 		assert(expectedUserUSDCAmount.eq(userUSDCAmountAfter));
 
-		const userBalanceAfter =
-			secondUserClearingHouse.getSpotPosition(marketIndex);
+		const userBalanceAfter = secondUserDriftClient.getSpotPosition(marketIndex);
 		assert(userBalanceAfter.balance.eq(ZERO));
 
 		assert(spotMarketAccountAfter.borrowBalance.eq(ZERO));
@@ -697,23 +690,23 @@ describe('spot deposit and withdraw', () => {
 		const marketIndex = 1;
 		const userWSOLAmountBefore = await getTokenAmountAsBN(
 			connection,
-			secondUserClearingHouseWSOLAccount
+			secondUserDriftClientWSOLAccount
 		);
 
 		const currentUserDepositBalance =
-			secondUserClearingHouse.getSpotPosition(marketIndex).balance;
+			secondUserDriftClient.getSpotPosition(marketIndex).balance;
 
 		const withdrawAmount = new BN(LAMPORTS_PER_SOL * 100);
-		const txSig = await secondUserClearingHouse.withdraw(
+		const txSig = await secondUserDriftClient.withdraw(
 			withdrawAmount,
 			marketIndex,
-			secondUserClearingHouseWSOLAccount,
+			secondUserDriftClientWSOLAccount,
 			true
 		);
 		await printTxLogs(connection, txSig);
 
 		const spotMarketAccountAfter =
-			secondUserClearingHouse.getSpotMarketAccount(marketIndex);
+			secondUserDriftClient.getSpotMarketAccount(marketIndex);
 		const amountAbleToWithdraw = getTokenAmount(
 			currentUserDepositBalance,
 			spotMarketAccountAfter,
@@ -722,7 +715,7 @@ describe('spot deposit and withdraw', () => {
 
 		const userWSOLAmountAfter = await getTokenAmountAsBN(
 			connection,
-			secondUserClearingHouseWSOLAccount
+			secondUserDriftClientWSOLAccount
 		);
 		const expectedUserWSOLAmount =
 			amountAbleToWithdraw.sub(userWSOLAmountBefore);
@@ -730,8 +723,7 @@ describe('spot deposit and withdraw', () => {
 		console.log(userWSOLAmountAfter.toString());
 		assert(expectedUserWSOLAmount.eq(userWSOLAmountAfter));
 
-		const userBalanceAfter =
-			secondUserClearingHouse.getSpotPosition(marketIndex);
+		const userBalanceAfter = secondUserDriftClient.getSpotPosition(marketIndex);
 		assert(userBalanceAfter.balance.eq(ZERO));
 	});
 
@@ -739,13 +731,13 @@ describe('spot deposit and withdraw', () => {
 		// rounding on bank balance <-> token conversions can lead to tiny epislon of loss on deposits
 
 		const [
-			thirdUserClearingHouse,
-			_thirdUserClearingHouseWSOLAccount,
-			thirdUserClearingHouseUSDCAccount,
+			thirdUserDriftClient,
+			_thirdUserDriftClientWSOLAccount,
+			thirdUserDriftClientUSDCAccount,
 		] = await createUserWithUSDCAndWSOLAccount(
 			provider,
 			usdcMint,
-			chProgram,
+			driftProgram,
 			solAmount,
 			largeUsdcAmount,
 			marketIndexes,
@@ -755,11 +747,11 @@ describe('spot deposit and withdraw', () => {
 
 		const marketIndex = 0;
 
-		const spotPosition = thirdUserClearingHouse.getSpotPosition(marketIndex);
+		const spotPosition = thirdUserDriftClient.getSpotPosition(marketIndex);
 		console.log(spotPosition);
 		assert(spotPosition.balance.eq(ZERO));
 
-		const spotMarket = thirdUserClearingHouse.getSpotMarketAccount(marketIndex);
+		const spotMarket = thirdUserDriftClient.getSpotMarketAccount(marketIndex);
 
 		console.log(spotMarket.cumulativeDepositInterest.toString());
 		console.log(spotMarket.cumulativeBorrowInterest.toString());
@@ -776,15 +768,14 @@ describe('spot deposit and withdraw', () => {
 		);
 
 		console.log('usdcAmount:', largeUsdcAmount.toString(), 'user deposits');
-		const txSig = await thirdUserClearingHouse.deposit(
+		const txSig = await thirdUserDriftClient.deposit(
 			largeUsdcAmount,
 			marketIndex,
-			thirdUserClearingHouseUSDCAccount
+			thirdUserDriftClientUSDCAccount
 		);
 		await printTxLogs(connection, txSig);
 
-		const spotPositionAfter =
-			thirdUserClearingHouse.getSpotPosition(marketIndex);
+		const spotPositionAfter = thirdUserDriftClient.getSpotPosition(marketIndex);
 		const tokenAmount = getTokenAmount(
 			spotPositionAfter.balance,
 			spotMarket,
@@ -796,6 +787,6 @@ describe('spot deposit and withdraw', () => {
 		); // didnt lose more than a penny
 		assert(tokenAmount.lt(largeUsdcAmount)); // lose a lil bit
 
-		await thirdUserClearingHouse.unsubscribe();
+		await thirdUserDriftClient.unsubscribe();
 	});
 });

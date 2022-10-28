@@ -10,10 +10,10 @@ import {
 import { Keypair } from '@solana/web3.js';
 import { Program } from '@project-serum/anchor';
 import {
-	Admin,
+	AdminClient,
 	PRICE_PRECISION,
 	calculateReservePrice,
-	ClearingHouseUser,
+	DriftUser,
 	PEG_PRECISION,
 	PositionDirection,
 	convertToNumber,
@@ -36,9 +36,9 @@ describe('update k', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const driftProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
+	let driftClient: AdminClient;
 
 	let usdcMint: Keypair;
 	let userUSDCAccount: Keypair;
@@ -54,16 +54,16 @@ describe('update k', () => {
 	);
 	const usdcAmount = new BN(1e9 * 10 ** 6);
 
-	let userAccount: ClearingHouseUser;
+	let userAccount: DriftUser;
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
-			programID: chProgram.programId,
+			programID: driftProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
@@ -71,11 +71,11 @@ describe('update k', () => {
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
 		});
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
 
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await clearingHouse.updatePerpAuctionDuration(new BN(0));
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await driftClient.updatePerpAuctionDuration(new BN(0));
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -84,7 +84,7 @@ describe('update k', () => {
 			initPrice: initialSOLPrice,
 		});
 
-		await clearingHouse.initializeMarket(
+		await driftClient.initializeMarket(
 			solUsdOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -92,16 +92,16 @@ describe('update k', () => {
 			new BN(initialSOLPrice * PEG_PRECISION.toNumber())
 		);
 
-		await clearingHouse.initializeUserAccount();
-		userAccount = new ClearingHouseUser({
-			clearingHouse,
-			userAccountPublicKey: await clearingHouse.getUserAccountPublicKey(),
+		await driftClient.initializeUserAccount();
+		userAccount = new DriftUser({
+			driftClient: driftClient,
+			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
 		});
 		await userAccount.subscribe();
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 		await userAccount.unsubscribe();
 	});
 
@@ -109,18 +109,18 @@ describe('update k', () => {
 		const marketIndex = 0;
 
 		const oldKPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			driftClient.getPerpMarketAccount(marketIndex)
 		);
-		const ammOld = clearingHouse.getPerpMarketAccount(0).amm;
+		const ammOld = driftClient.getPerpMarketAccount(0).amm;
 		const newSqrtK = ammInitialBaseAssetReserve.mul(new BN(10));
-		await clearingHouse.updateK(newSqrtK, marketIndex);
+		await driftClient.updateK(newSqrtK, marketIndex);
 
-		await clearingHouse.fetchAccounts();
+		await driftClient.fetchAccounts();
 		const newKPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			driftClient.getPerpMarketAccount(marketIndex)
 		);
 
-		const amm = clearingHouse.getPerpMarketAccount(0).amm;
+		const amm = driftClient.getPerpMarketAccount(0).amm;
 
 		const marginOfError = new BN(100);
 
@@ -143,7 +143,7 @@ describe('update k', () => {
 	});
 
 	it('increase k base/quote imbalance (FREE)', async () => {
-		await clearingHouse.deposit(
+		await driftClient.deposit(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
@@ -154,13 +154,13 @@ describe('update k', () => {
 		const targetPriceUp = new BN(
 			initialSOLPrice * PRICE_PRECISION.toNumber() * 44.1
 		);
-		await clearingHouse.moveAmmToPrice(marketIndex, targetPriceUp);
-		await clearingHouse.fetchAccounts();
+		await driftClient.moveAmmToPrice(marketIndex, targetPriceUp);
+		await driftClient.fetchAccounts();
 
-		const marketOld = clearingHouse.getPerpMarketAccount(0);
+		const marketOld = driftClient.getPerpMarketAccount(0);
 
 		const oldKPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			driftClient.getPerpMarketAccount(marketIndex)
 		);
 		const ammOld = marketOld.amm;
 
@@ -168,14 +168,14 @@ describe('update k', () => {
 			.mul(new BN(1.000132325235 * PRICE_PRECISION.toNumber()))
 			.div(PRICE_PRECISION);
 
-		await clearingHouse.updateK(newSqrtK, marketIndex);
+		await driftClient.updateK(newSqrtK, marketIndex);
 
-		await clearingHouse.fetchAccounts();
+		await driftClient.fetchAccounts();
 		const newKPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			driftClient.getPerpMarketAccount(marketIndex)
 		);
 
-		const amm = clearingHouse.getPerpMarketAccount(0).amm;
+		const amm = driftClient.getPerpMarketAccount(0).amm;
 
 		const marginOfError = new BN(PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
@@ -212,25 +212,25 @@ describe('update k', () => {
 			initialSOLPrice * PRICE_PRECISION.toNumber()
 		);
 
-		// const [direction, tradeSize, _] = clearingHouse.calculateTargetPriceTrade(
+		// const [direction, tradeSize, _] = driftClient.calculateTargetPriceTrade(
 		// 	marketIndex,
 		// 	targetPriceUp
 		// );
-		await clearingHouse.moveAmmToPrice(marketIndex, targetPriceBack);
+		await driftClient.moveAmmToPrice(marketIndex, targetPriceBack);
 
 		console.log('taking position');
-		await clearingHouse.openPosition(
+		await driftClient.openPosition(
 			PositionDirection.LONG,
 			BASE_PRECISION.div(new BN(initialSOLPrice)),
 			marketIndex
 		);
 		console.log('$1 position taken');
-		await clearingHouse.fetchAccounts();
-		const marketOld = clearingHouse.getPerpMarketAccount(0);
+		await driftClient.fetchAccounts();
+		const marketOld = driftClient.getPerpMarketAccount(0);
 		assert(!marketOld.amm.netBaseAssetAmount.eq(ZERO));
 
 		const oldKPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			driftClient.getPerpMarketAccount(marketIndex)
 		);
 		const ammOld = marketOld.amm;
 		console.log(
@@ -243,23 +243,23 @@ describe('update k', () => {
 			.div(PRICE_PRECISION);
 
 		try {
-			await clearingHouse.updateK(newSqrtK, marketIndex);
+			await driftClient.updateK(newSqrtK, marketIndex);
 			assert(false);
 		} catch {
-			await clearingHouse.fetchAccounts();
-			const marketKChange = await clearingHouse.getPerpMarketAccount(0);
+			await driftClient.fetchAccounts();
+			const marketKChange = await driftClient.getPerpMarketAccount(0);
 			const ammKChange = marketKChange.amm;
 
 			const newKPrice = calculateReservePrice(
-				clearingHouse.getPerpMarketAccount(marketIndex)
+				driftClient.getPerpMarketAccount(marketIndex)
 			);
 
 			console.log('$1 position closing');
 
-			await clearingHouse.closePosition(marketIndex);
+			await driftClient.closePosition(marketIndex);
 			console.log('$1 position closed');
 
-			const amm = clearingHouse.getPerpMarketAccount(0).amm;
+			const amm = driftClient.getPerpMarketAccount(0).amm;
 
 			const marginOfError = new BN(PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
@@ -310,25 +310,25 @@ describe('update k', () => {
 			initialSOLPrice * PRICE_PRECISION.toNumber()
 		);
 
-		// const [direction, tradeSize, _] = clearingHouse.calculateTargetPriceTrade(
+		// const [direction, tradeSize, _] = driftClient.calculateTargetPriceTrade(
 		// 	marketIndex,
 		// 	targetPriceUp
 		// );
-		await clearingHouse.moveAmmToPrice(marketIndex, targetPriceBack);
+		await driftClient.moveAmmToPrice(marketIndex, targetPriceBack);
 
 		console.log('taking position');
-		await clearingHouse.openPosition(
+		await driftClient.openPosition(
 			PositionDirection.LONG,
 			BASE_PRECISION.div(new BN(initialSOLPrice)).mul(new BN(1000)),
 			marketIndex
 		);
 		console.log('$1000 position taken');
-		await clearingHouse.fetchAccounts();
-		const marketOld = await clearingHouse.getPerpMarketAccount(0);
+		await driftClient.fetchAccounts();
+		const marketOld = await driftClient.getPerpMarketAccount(0);
 		assert(!marketOld.amm.netBaseAssetAmount.eq(ZERO));
 
 		const oldKPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			driftClient.getPerpMarketAccount(marketIndex)
 		);
 		const ammOld = marketOld.amm;
 		console.log(
@@ -346,18 +346,18 @@ describe('update k', () => {
 		)[0];
 
 		try {
-			await clearingHouse.updateK(newSqrtK, marketIndex);
+			await driftClient.updateK(newSqrtK, marketIndex);
 		} catch (e) {
 			console.error(e);
 			assert(false);
 		}
 
-		await clearingHouse.fetchAccounts();
-		const marketKChange = await clearingHouse.getPerpMarketAccount(0);
+		await driftClient.fetchAccounts();
+		const marketKChange = await driftClient.getPerpMarketAccount(0);
 		const ammKChange = marketKChange.amm;
 
 		const newKPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			driftClient.getPerpMarketAccount(marketIndex)
 		);
 
 		const smallTradeSlip = calculateTradeSlippage(
@@ -376,10 +376,10 @@ describe('update k', () => {
 
 		console.log('$1000 position closing');
 
-		await clearingHouse.closePosition(marketIndex);
+		await driftClient.closePosition(marketIndex);
 		console.log('$1 position closed');
 
-		const amm = clearingHouse.getPerpMarketAccount(0).amm;
+		const amm = driftClient.getPerpMarketAccount(0).amm;
 
 		const marginOfError = new BN(PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
 
@@ -423,25 +423,25 @@ describe('update k', () => {
 			initialSOLPrice * PRICE_PRECISION.toNumber()
 		);
 
-		// const [direction, tradeSize, _] = clearingHouse.calculateTargetPriceTrade(
+		// const [direction, tradeSize, _] = driftClient.calculateTargetPriceTrade(
 		// 	marketIndex,
 		// 	targetPriceUp
 		// );
-		await clearingHouse.moveAmmToPrice(marketIndex, targetPriceBack);
+		await driftClient.moveAmmToPrice(marketIndex, targetPriceBack);
 
 		console.log('taking position');
-		await clearingHouse.openPosition(
+		await driftClient.openPosition(
 			PositionDirection.LONG,
 			new BN(QUOTE_PRECISION).mul(new BN(30000)),
 			marketIndex
 		);
 		console.log('$1 position taken');
-		await clearingHouse.fetchAccounts();
-		const marketOld = await clearingHouse.getPerpMarketAccount(0);
+		await driftClient.fetchAccounts();
+		const marketOld = await driftClient.getPerpMarketAccount(0);
 		assert(!marketOld.amm.netBaseAssetAmount.eq(ZERO));
 
 		const oldKPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			driftClient.getPerpMarketAccount(marketIndex)
 		);
 		const ammOld = marketOld.amm;
 		console.log(
@@ -458,13 +458,13 @@ describe('update k', () => {
 		const newSqrtK = ammOld.sqrtK
 			.mul(new BN(1.02 * PRICE_PRECISION.toNumber()))
 			.div(PRICE_PRECISION);
-		await clearingHouse.updateK(newSqrtK, marketIndex);
+		await driftClient.updateK(newSqrtK, marketIndex);
 
-		await clearingHouse.fetchAccounts();
-		const marketKChange = await clearingHouse.getPerpMarketAccount(0);
+		await driftClient.fetchAccounts();
+		const marketKChange = await driftClient.getPerpMarketAccount(0);
 		const ammKChange = marketKChange.amm;
 		const newKPrice = calculateReservePrice(
-			clearingHouse.getPerpMarketAccount(marketIndex)
+			driftClient.getPerpMarketAccount(marketIndex)
 		);
 
 		const smallTradeSlip = calculateTradeSlippage(
@@ -483,11 +483,11 @@ describe('update k', () => {
 
 		console.log('$1 position closing');
 
-		await clearingHouse.closePosition(marketIndex);
+		await driftClient.closePosition(marketIndex);
 		console.log('$1 position closed');
 
-		await clearingHouse.fetchAccounts();
-		const markets = clearingHouse.getPerpMarketAccount(0);
+		await driftClient.fetchAccounts();
+		const markets = driftClient.getPerpMarketAccount(0);
 		const amm = markets.amm;
 
 		const marginOfError = new BN(PRICE_PRECISION.div(new BN(1000))); // price change less than 3 decimal places
