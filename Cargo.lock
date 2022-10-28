@@ -406,29 +406,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "clearing-house"
-version = "1.0.0"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
- "arrayref",
- "base64 0.13.0",
- "borsh",
- "bytemuck",
- "bytes",
- "num-derive",
- "num-integer",
- "num-traits",
- "pyth",
- "pyth-client",
- "serum_dex",
- "solana-program",
- "switchboard-v2",
- "thiserror",
- "uint",
-]
-
-[[package]]
 name = "console_error_panic_hook"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -565,6 +542,29 @@ dependencies = [
  "block-buffer 0.10.2",
  "crypto-common",
  "subtle",
+]
+
+[[package]]
+name = "drift"
+version = "2.0.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "arrayref",
+ "base64 0.13.0",
+ "borsh",
+ "bytemuck",
+ "bytes",
+ "num-derive",
+ "num-integer",
+ "num-traits",
+ "pyth",
+ "pyth-client",
+ "serum_dex",
+ "solana-program",
+ "switchboard-v2",
+ "thiserror",
+ "uint",
 ]
 
 [[package]]

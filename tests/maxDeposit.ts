@@ -3,7 +3,7 @@ import { assert } from 'chai';
 
 import { Program } from '@project-serum/anchor';
 
-import { Admin, QUOTE_PRECISION, BN, OracleSource } from '../sdk/src';
+import { AdminClient, QUOTE_PRECISION, BN, OracleSource } from '../sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
@@ -16,9 +16,9 @@ describe('max deposit', () => {
 	const provider = anchor.AnchorProvider.local();
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
+	let driftClient: AdminClient;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -31,7 +31,7 @@ describe('max deposit', () => {
 
 		const solUsd = await mockOracle(1);
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -44,24 +44,24 @@ describe('max deposit', () => {
 			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
 			userStats: true,
 		});
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
 	});
 
 	it('update max deposit', async () => {
-		await clearingHouse.updateSpotMarketMaxTokenDeposits(0, QUOTE_PRECISION);
-		const market = clearingHouse.getSpotMarketAccount(0);
+		await driftClient.updateSpotMarketMaxTokenDeposits(0, QUOTE_PRECISION);
+		const market = driftClient.getSpotMarketAccount(0);
 		console.assert(market.maxTokenDeposits.eq(QUOTE_PRECISION));
 	});
 
 	it('block deposit', async () => {
 		try {
-			await clearingHouse.initializeUserAccountAndDepositCollateral(
+			await driftClient.initializeUserAccountAndDepositCollateral(
 				usdcAmount,
 				userUSDCAccount.publicKey
 			);

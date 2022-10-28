@@ -1,4 +1,4 @@
-import { ClearingHouseUser } from '../clearingHouseUser';
+import { User } from '../user';
 import {
 	isOneOfVariant,
 	isVariant,
@@ -15,10 +15,7 @@ import {
 	calculateMaxBaseAssetAmountToTrade,
 } from './amm';
 
-export function isOrderRiskIncreasing(
-	user: ClearingHouseUser,
-	order: Order
-): boolean {
+export function isOrderRiskIncreasing(user: User, order: Order): boolean {
 	if (isVariant(order.status, 'init')) {
 		return false;
 	}
@@ -57,7 +54,7 @@ export function isOrderRiskIncreasing(
 }
 
 export function isOrderRiskIncreasingInSameDirection(
-	user: ClearingHouseUser,
+	user: User,
 	order: Order
 ): boolean {
 	if (isVariant(order.status, 'init')) {
@@ -89,10 +86,7 @@ export function isOrderRiskIncreasingInSameDirection(
 	return false;
 }
 
-export function isOrderReduceOnly(
-	user: ClearingHouseUser,
-	order: Order
-): boolean {
+export function isOrderReduceOnly(user: User, order: Order): boolean {
 	if (isVariant(order.status, 'init')) {
 		return false;
 	}

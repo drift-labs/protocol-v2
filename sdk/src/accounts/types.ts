@@ -23,7 +23,7 @@ export class NotSubscribedError extends Error {
 	name = 'NotSubscribedError';
 }
 
-export interface ClearingHouseAccountEvents {
+export interface DriftClientAccountEvents {
 	stateAccountUpdate: (payload: StateAccount) => void;
 	perpMarketAccountUpdate: (payload: PerpMarketAccount) => void;
 	spotMarketAccountUpdate: (payload: SpotMarketAccount) => void;
@@ -33,8 +33,8 @@ export interface ClearingHouseAccountEvents {
 	error: (e: Error) => void;
 }
 
-export interface ClearingHouseAccountSubscriber {
-	eventEmitter: StrictEventEmitter<EventEmitter, ClearingHouseAccountEvents>;
+export interface DriftClientAccountSubscriber {
+	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
 	isSubscribed: boolean;
 
 	subscribe(): Promise<boolean>;
@@ -99,7 +99,7 @@ export interface OracleEvents {
 	error: (e: Error) => void;
 }
 
-export interface OracleSubscriber {
+export interface OracleAccountSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, OracleEvents>;
 	isSubscribed: boolean;
 

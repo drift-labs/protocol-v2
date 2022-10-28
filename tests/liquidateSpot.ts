@@ -6,8 +6,8 @@ import { Program } from '@project-serum/anchor';
 import { PublicKey } from '@solana/web3.js';
 
 import {
-	Admin,
-	ClearingHouse,
+	AdminClient,
+	DriftClient,
 	findComputeUnitConsumption,
 	BN,
 	OracleSource,
@@ -37,9 +37,9 @@ describe('liquidate spot', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.ClearingHouse as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
-	let clearingHouse: Admin;
+	let driftClient: AdminClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram);
 	eventSubscriber.subscribe();
 
@@ -47,8 +47,8 @@ describe('liquidate spot', () => {
 	let userUSDCAccount;
 	let userWSOLAccount;
 
-	let liquidatorClearingHouse: ClearingHouse;
-	let liquidatorClearingHouseWSOLAccount: PublicKey;
+	let liquidatorDriftClient: DriftClient;
+	let liquidatorDriftClientWSOLAccount: PublicKey;
 
 	let solOracle: PublicKey;
 
@@ -66,7 +66,7 @@ describe('liquidate spot', () => {
 
 		solOracle = await mockOracle(100);
 
-		clearingHouse = new Admin({
+		driftClient = new AdminClient({
 			connection,
 			wallet: provider.wallet,
 			programID: chProgram.programId,
@@ -84,19 +84,19 @@ describe('liquidate spot', () => {
 			],
 		});
 
-		await clearingHouse.initialize(usdcMint.publicKey, true);
-		await clearingHouse.subscribe();
+		await driftClient.initialize(usdcMint.publicKey, true);
+		await driftClient.subscribe();
 
-		await initializeQuoteSpotMarket(clearingHouse, usdcMint.publicKey);
-		await initializeSolSpotMarket(clearingHouse, solOracle);
+		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await initializeSolSpotMarket(driftClient, solOracle);
 
-		await clearingHouse.initializeUserAccountAndDepositCollateral(
+		await driftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
 
 		const solAmount = new BN(1 * 10 ** 9);
-		[liquidatorClearingHouse, liquidatorClearingHouseWSOLAccount] =
+		[liquidatorDriftClient, liquidatorDriftClientWSOLAccount] =
 			await createUserWithUSDCAndWSOLAccount(
 				provider,
 				usdcMint,
@@ -114,36 +114,36 @@ describe('liquidate spot', () => {
 			);
 
 		const marketIndex = 1;
-		await liquidatorClearingHouse.deposit(
+		await liquidatorDriftClient.deposit(
 			solAmount,
 			marketIndex,
-			liquidatorClearingHouseWSOLAccount
+			liquidatorDriftClientWSOLAccount
 		);
 		const solBorrow = new BN(5 * 10 ** 8);
-		await clearingHouse.withdraw(solBorrow, 1, userWSOLAccount);
+		await driftClient.withdraw(solBorrow, 1, userWSOLAccount);
 	});
 
 	after(async () => {
-		await clearingHouse.unsubscribe();
-		await liquidatorClearingHouse.unsubscribe();
+		await driftClient.unsubscribe();
+		await liquidatorDriftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
 
 	it('liquidate', async () => {
 		await setFeedPrice(anchor.workspace.Pyth, 190, solOracle);
-		const spotMarketBefore = clearingHouse.getSpotMarketAccount(0);
-		const spotMarket1Before = clearingHouse.getSpotMarketAccount(1);
+		const spotMarketBefore = driftClient.getSpotMarketAccount(0);
+		const spotMarket1Before = driftClient.getSpotMarketAccount(1);
 
-		const txSig = await liquidatorClearingHouse.liquidateSpot(
-			await clearingHouse.getUserAccountPublicKey(),
-			clearingHouse.getUserAccount(),
+		const txSig = await liquidatorDriftClient.liquidateSpot(
+			await driftClient.getUserAccountPublicKey(),
+			driftClient.getUserAccount(),
 			0,
 			1,
 			new BN(6 * 10 ** 8)
 		);
 
 		const computeUnits = await findComputeUnitConsumption(
-			clearingHouse.program.programId,
+			driftClient.program.programId,
 			connection,
 			txSig,
 			'confirmed'
@@ -155,28 +155,28 @@ describe('liquidate spot', () => {
 				.logMessages
 		);
 
-		assert(!clearingHouse.getUserAccount().isBeingLiquidated); // out of liq territory
-		assert(clearingHouse.getUserAccount().nextLiquidationId === 2);
+		assert(!driftClient.getUserAccount().isBeingLiquidated); // out of liq territory
+		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 		assert(
 			isVariant(
-				clearingHouse.getUserAccount().spotPositions[0].balanceType,
+				driftClient.getUserAccount().spotPositions[0].balanceType,
 				'deposit'
 			)
 		);
 		assert(
-			clearingHouse.getUserAccount().spotPositions[0].scaledBalance.gt(ZERO)
+			driftClient.getUserAccount().spotPositions[0].scaledBalance.gt(ZERO)
 		);
 		// assert(
-		// 	clearingHouse.getUserAccount().spotPositions[1].scaledBalance.gt(new BN(2))
+		// 	driftClient.getUserAccount().spotPositions[1].scaledBalance.gt(new BN(2))
 		// );
 		// assert(
 		// 	isVariant(
-		// 		clearingHouse.getUserAccount().spotPositions[0].balanceType,
+		// 		driftClient.getUserAccount().spotPositions[0].balanceType,
 		// 		'borrow'
 		// 	)
 		// );
 		console.log(
-			clearingHouse.getUserAccount().spotPositions[0].scaledBalance.toString()
+			driftClient.getUserAccount().spotPositions[0].scaledBalance.toString()
 		);
 
 		const liquidationRecord =
@@ -217,9 +217,9 @@ describe('liquidate spot', () => {
 				liquidationRecord.liquidateSpot.liabilityTransfer.div(new BN(100))
 			)
 		);
-		await clearingHouse.fetchAccounts();
-		const spotMarket = clearingHouse.getSpotMarketAccount(0);
-		const spotMarket1 = clearingHouse.getSpotMarketAccount(1);
+		await driftClient.fetchAccounts();
+		const spotMarket = driftClient.getSpotMarketAccount(0);
+		const spotMarket1 = driftClient.getSpotMarketAccount(1);
 
 		console.log(
 			'usdc borrows in spotMarket:',

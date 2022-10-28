@@ -4,8 +4,8 @@ import {
 	AssetTier,
 	PerpPosition,
 	BN,
-	ClearingHouse,
-	ClearingHouseUser,
+	DriftClient,
+	User,
 	PerpMarketAccount,
 	SpotMarketAccount,
 	MarketStatus,
@@ -508,14 +508,14 @@ export const mockStateAccount: StateAccount = {
 };
 
 export class MockUserMap implements UserMapInterface {
-	private userMap = new Map<string, ClearingHouseUser>();
+	private userMap = new Map<string, User>();
 	private userAccountToAuthority = new Map<string, string>();
-	private clearingHouse: ClearingHouse;
+	private driftClient: DriftClient;
 
 	constructor() {
 		this.userMap = new Map();
 		this.userAccountToAuthority = new Map();
-		this.clearingHouse = new ClearingHouse({
+		this.driftClient = new DriftClient({
 			connection: new Connection('http://localhost:8899'),
 			wallet: new Wallet(new Keypair()),
 			programID: PublicKey.default,
@@ -525,8 +525,8 @@ export class MockUserMap implements UserMapInterface {
 	public async fetchAllUsers(): Promise<void> {}
 
 	public async addPubkey(userAccountPublicKey: PublicKey): Promise<void> {
-		const user = new ClearingHouseUser({
-			clearingHouse: this.clearingHouse,
+		const user = new User({
+			driftClient: this.driftClient,
 			userAccountPublicKey: userAccountPublicKey,
 		});
 		this.userMap.set(userAccountPublicKey.toBase58(), user);
@@ -550,13 +550,13 @@ export class MockUserMap implements UserMapInterface {
 		return this.userMap.has(key);
 	}
 
-	public get(_key: string): ClearingHouseUser | undefined {
+	public get(_key: string): User | undefined {
 		return undefined;
 	}
 
-	public async mustGet(_key: string): Promise<ClearingHouseUser> {
-		return new ClearingHouseUser({
-			clearingHouse: this.clearingHouse,
+	public async mustGet(_key: string): Promise<User> {
+		return new User({
+			driftClient: this.driftClient,
 			userAccountPublicKey: PublicKey.default,
 		});
 	}
@@ -569,7 +569,7 @@ export class MockUserMap implements UserMapInterface {
 
 	public async updateWithOrderRecord(_record: OrderRecord): Promise<void> {}
 
-	public values(): IterableIterator<ClearingHouseUser> {
+	public values(): IterableIterator<User> {
 		return this.userMap.values();
 	}
 }

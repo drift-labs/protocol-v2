@@ -2,19 +2,19 @@ import { PublicKey } from '@solana/web3.js';
 import * as anchor from '@project-serum/anchor';
 import { BN } from '@project-serum/anchor';
 
-export async function getClearingHouseStateAccountPublicKeyAndNonce(
+export async function getDriftStateAccountPublicKeyAndNonce(
 	programId: PublicKey
 ): Promise<[PublicKey, number]> {
 	return PublicKey.findProgramAddress(
-		[Buffer.from(anchor.utils.bytes.utf8.encode('clearing_house'))],
+		[Buffer.from(anchor.utils.bytes.utf8.encode('drift_state'))],
 		programId
 	);
 }
 
-export async function getClearingHouseStateAccountPublicKey(
+export async function getDriftStateAccountPublicKey(
 	programId: PublicKey
 ): Promise<PublicKey> {
-	return (await getClearingHouseStateAccountPublicKeyAndNonce(programId))[0];
+	return (await getDriftStateAccountPublicKeyAndNonce(programId))[0];
 }
 
 export async function getUserAccountPublicKeyAndNonce(
@@ -145,11 +145,9 @@ export function getInsuranceFundStakeAccountPublicKey(
 	)[0];
 }
 
-export function getClearingHouseSignerPublicKey(
-	programId: PublicKey
-): PublicKey {
+export function getDriftSignerPublicKey(programId: PublicKey): PublicKey {
 	return PublicKey.findProgramAddressSync(
-		[Buffer.from(anchor.utils.bytes.utf8.encode('clearing_house_signer'))],
+		[Buffer.from(anchor.utils.bytes.utf8.encode('drift_signer'))],
 		programId
 	)[0];
 }

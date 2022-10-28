@@ -1,7 +1,7 @@
 if [ "$1" != "--skip-build" ]
   then
     anchor build &&
-    cp target/idl/clearing_house.json sdk/src/idl/ 
+    cp target/idl/drift.json sdk/src/idl/
 fi
 
 test_files=(liquidityProvider.ts)
