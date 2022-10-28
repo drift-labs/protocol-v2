@@ -384,7 +384,11 @@ pub fn calculate_perp_market_deleverage_payment(
             0
         }
     } else if user_pnl_per_base > mean_pnl_per_base && user_pnl_per_base > 0 {
-        msg!("user pays profit surplus");
+        msg!(
+            "user pays profit surplus, {} > {}",
+            user_pnl_per_base,
+            mean_pnl_per_base,
+        );
 
         user_entry_basis
             .safe_sub(mean_entry_basis)?

@@ -2866,6 +2866,32 @@
       ]
     },
     {
+      "name": "updateSpotMarketOrdersEnabled",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "ordersEnabled",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketStatus",
       "accounts": [
         {
@@ -3967,6 +3993,10 @@
             "type": "u16"
           },
           {
+            "name": "ordersEnabled",
+            "type": "bool"
+          },
+          {
             "name": "oracleSource",
             "type": {
               "defined": "OracleSource"
@@ -3989,7 +4019,7 @@
             "type": {
               "array": [
                 "u8",
-                7
+                6
               ]
             }
           }
@@ -7887,15 +7917,7 @@
       "msg": "Liquidation Doesnt Satisfy Limit Price"
     },
     {
-<<<<<<< HEAD
-<<<<<<< HEAD
-      "code": 6138,
-=======
-      "code": 6139,
->>>>>>> master
-=======
       "code": 6157,
->>>>>>> master
       "name": "MarginTradingDisabled",
       "msg": "Margin Trading Disabled"
     },
@@ -8168,6 +8190,11 @@
       "code": 6211,
       "name": "UnsupportedSpotMarket",
       "msg": "UnsupportedSpotMarket"
+    },
+    {
+      "code": 6212,
+      "name": "SpotOrdersDisabled",
+      "msg": "SpotOrdersDisabled"
     }
   ]
 }
