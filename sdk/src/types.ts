@@ -189,6 +189,7 @@ export type DepositRecord = {
 	marketWithdrawBalance: BN;
 	marketCumulativeDepositInterest: BN;
 	marketCumulativeBorrowInterest: BN;
+	depositRecordId: BN;
 	transferUser?: PublicKey;
 };
 
