@@ -456,7 +456,7 @@ mod auto_deleveraging {
         };
 
         // user has no position / funds
-        let mut dus  = DeleverageUserStats {
+        let mut dus = DeleverageUserStats {
             base_asset_amount: 0,
             quote_asset_amount: 0,
             quote_break_even_amount: 0,
@@ -502,7 +502,7 @@ mod auto_deleveraging {
         };
 
         // user has positive upnl
-        let mut dus  = DeleverageUserStats {
+        let mut dus = DeleverageUserStats {
             base_asset_amount: 0,
             quote_asset_amount: QUOTE_PRECISION_I64,
             quote_break_even_amount: 0,
@@ -511,7 +511,7 @@ mod auto_deleveraging {
         };
 
         // user has negative upnl
-        let mut dus _neg = DeleverageUserStats {
+        let mut dus_neg = DeleverageUserStats {
             base_asset_amount: 0,
             quote_asset_amount: -QUOTE_PRECISION_I64,
             quote_break_even_amount: 0,
@@ -584,7 +584,7 @@ mod auto_deleveraging {
         };
 
         // user has positive upnl but 0 lifetime pnl
-        let mut dus  = DeleverageUserStats {
+        let mut dus = DeleverageUserStats {
             base_asset_amount: BASE_PRECISION_I64,
             quote_asset_amount: -QUOTE_PRECISION_I64 * 95,
             quote_break_even_amount: -QUOTE_PRECISION_I64 * 100,
@@ -602,7 +602,7 @@ mod auto_deleveraging {
         assert_eq!(delev_payment, 0);
 
         // user has positive lifetime upnl but below mean
-        let mut dus  = DeleverageUserStats {
+        let mut dus = DeleverageUserStats {
             base_asset_amount: BASE_PRECISION_I64,
             quote_asset_amount: -QUOTE_PRECISION_I64 * 95,
             quote_break_even_amount: -QUOTE_PRECISION_I64 * 99,
@@ -619,7 +619,7 @@ mod auto_deleveraging {
         assert_eq!(delev_payment, 1_000_000);
 
         // user has positive lifetime upnl but above mean
-        let mut dus  = DeleverageUserStats {
+        let mut dus = DeleverageUserStats {
             base_asset_amount: BASE_PRECISION_I64,
             quote_asset_amount: -QUOTE_PRECISION_I64 * 95,
             quote_break_even_amount: -QUOTE_PRECISION_I64 * 90,
@@ -636,7 +636,7 @@ mod auto_deleveraging {
         assert_eq!(delev_payment, 10_000_000);
 
         // user has odd-lot base and positive lifetime upnl but above mean ex-loss_to_socialize
-        let mut dus  = DeleverageUserStats {
+        let mut dus = DeleverageUserStats {
             base_asset_amount: BASE_PRECISION_I64 * 25 / 23,
             quote_asset_amount: (-QUOTE_PRECISION_I64 * 95 + 908324) * 25 / 23,
             quote_break_even_amount: (-QUOTE_PRECISION_I64 * 90 - 43634) * 25 / 23,
@@ -653,7 +653,7 @@ mod auto_deleveraging {
         assert_eq!(delev_payment, 10822138);
 
         // user has odd-lot base and positive lifetime upnl but above mean ex-loss_to_socialize and near liq
-        let mut dus  = DeleverageUserStats {
+        let mut dus = DeleverageUserStats {
             base_asset_amount: BASE_PRECISION_I64 * 25 / 23,
             quote_asset_amount: (-QUOTE_PRECISION_I64 * 95 + 908324) * 25 / 23,
             quote_break_even_amount: (-QUOTE_PRECISION_I64 * 90 - 43634) * 25 / 23,
@@ -688,7 +688,7 @@ mod auto_deleveraging {
         };
 
         // user has positive upnl
-        let mut dus  = DeleverageUserStats {
+        let mut dus = DeleverageUserStats {
             base_asset_amount: -BASE_PRECISION_I64,
             quote_asset_amount: QUOTE_PRECISION_I64 * 105,
             quote_break_even_amount: QUOTE_PRECISION_I64 * 100,
@@ -706,7 +706,7 @@ mod auto_deleveraging {
         assert_eq!(delev_payment, 0);
 
         // user has positive lifetime upnl but below  mean ex-loss_to_socialize
-        let mut dus  = DeleverageUserStats {
+        let mut dus = DeleverageUserStats {
             base_asset_amount: -BASE_PRECISION_I64,
             quote_asset_amount: QUOTE_PRECISION_I64 * 105,
             quote_break_even_amount: QUOTE_PRECISION_I64 * 101,
@@ -723,7 +723,7 @@ mod auto_deleveraging {
         assert_eq!(delev_payment, 0);
 
         // user has positive lifetime upnl but above mean ex-loss_to_socialize
-        let mut dus  = DeleverageUserStats {
+        let mut dus = DeleverageUserStats {
             base_asset_amount: -BASE_PRECISION_I64,
             quote_asset_amount: QUOTE_PRECISION_I64 * 105,
             quote_break_even_amount: QUOTE_PRECISION_I64 * 110,
@@ -740,7 +740,7 @@ mod auto_deleveraging {
         assert_eq!(delev_payment, 0); // todo: 1 more than long version?
 
         // user has odd-lot base and positive lifetime upnl but above mean ex-loss_to_socialize
-        let mut dus  = DeleverageUserStats {
+        let mut dus = DeleverageUserStats {
             base_asset_amount: -BASE_PRECISION_I64 * 25 / 23,
             quote_asset_amount: (QUOTE_PRECISION_I64 * 105 - 908324) * 25 / 23,
             quote_break_even_amount: (QUOTE_PRECISION_I64 * 110 + 43634) * 25 / 23,
@@ -757,7 +757,7 @@ mod auto_deleveraging {
         assert_eq!(delev_payment, 0);
 
         // user has odd-lot base and positive lifetime upnl but above mean ex-loss_to_socialize and near liq
-        let mut dus  = DeleverageUserStats {
+        let mut dus = DeleverageUserStats {
             base_asset_amount: -BASE_PRECISION_I64 * 25 / 23,
             quote_asset_amount: (QUOTE_PRECISION_I64 * 105 - 908324) * 25 / 23,
             quote_break_even_amount: (QUOTE_PRECISION_I64 * 110 + 43634) * 25 / 23,
@@ -776,13 +776,12 @@ mod auto_deleveraging {
 
     #[test]
     fn multiple_users_first_to_adl_test() {
-
         let quote_asset_amount_long = -QUOTE_PRECISION_I128 * 30 * 9 / 10 * 102
             + QUOTE_PRECISION_I128 * 5
             + (200 * QUOTE_PRECISION_I128);
         let quote_asset_amount_short = QUOTE_PRECISION_I128 * 30 * 11 / 10;
 
-        let mut market =  PerpMarket {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_amount_long: BASE_PRECISION_I128 * 102,
                 base_asset_amount_short: -BASE_PRECISION_I128 * 54,
@@ -798,7 +797,7 @@ mod auto_deleveraging {
             ..PerpMarket::default()
         };
 
-        let mut dus 1 = DeleverageUserStats {
+        let mut dus1 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long * 30 / 100) as i64,
             quote_asset_amount: (quote_asset_amount_long * 29 / 100) as i64,
             quote_break_even_amount: (market.amm.quote_break_even_amount_long * 29 / 100) as i64,
@@ -806,42 +805,38 @@ mod auto_deleveraging {
         };
 
         // tiny
-        let mut dus 2 = DeleverageUserStats {
+        let mut dus2 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long / 100) as i64,
             quote_asset_amount: (quote_asset_amount_long / 100) as i64,
             quote_break_even_amount: (market.amm.quote_break_even_amount_long / 100) as i64,
             free_collateral: 100 * QUOTE_PRECISION_I128,
         };
 
-        let mut dus 3 = DeleverageUserStats {
+        let mut dus3 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long * 69 / 100) as i64,
             quote_asset_amount: (quote_asset_amount_long * 70 / 100) as i64 - 100,
             quote_break_even_amount: (market.amm.quote_break_even_amount_long * 70 / 100) as i64,
             free_collateral: 5000 * QUOTE_PRECISION_I128,
         };
 
-        let mut dus 4 = DeleverageUserStats {
+        let mut dus4 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_short * 50 / 100) as i64,
-            quote_asset_amount: ((quote_asset_amount_short
-                + 200 * QUOTE_PRECISION_I128)
-                * 49
-                / 100) as i64,
+            quote_asset_amount: ((quote_asset_amount_short + 200 * QUOTE_PRECISION_I128) * 49 / 100)
+                as i64,
             quote_break_even_amount: (market.amm.quote_break_even_amount_short * 49 / 100) as i64,
             free_collateral: 1000 * QUOTE_PRECISION_I128,
         };
 
-        let mut dus 5 = DeleverageUserStats {
+        let mut dus5 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_short * 50 / 100) as i64,
-            quote_asset_amount: ((quote_asset_amount_short
-                + 200 * QUOTE_PRECISION_I128)
-                * 51
-                / 100) as i64,
+            quote_asset_amount: ((quote_asset_amount_short + 200 * QUOTE_PRECISION_I128) * 51 / 100)
+                as i64,
             quote_break_even_amount: (market.amm.quote_break_even_amount_short * 51 / 100) as i64,
             free_collateral: 1000 * QUOTE_PRECISION_I128,
         };
 
         // levered loss
-        let mut dus 6 = DeleverageUserStats {
+        let mut dus6 = DeleverageUserStats {
             base_asset_amount: 0,
             quote_asset_amount: -(200 * QUOTE_PRECISION_I128) as i64,
             quote_break_even_amount: 0,
@@ -849,7 +844,7 @@ mod auto_deleveraging {
         };
 
         // filler
-        let mut dus 7 = DeleverageUserStats {
+        let mut dus7 = DeleverageUserStats {
             base_asset_amount: 0,
             quote_asset_amount: 100_i64,
             quote_break_even_amount: 0,
@@ -957,7 +952,7 @@ mod auto_deleveraging {
         assert_eq!(delev_payment, 0);
 
         // rich filler
-        let mut dus 8 = DeleverageUserStats {
+        let mut dus8 = DeleverageUserStats {
             base_asset_amount: 0,
             quote_asset_amount: QUOTE_PRECISION_I64 * 2000,
             quote_break_even_amount: 0,
@@ -976,13 +971,12 @@ mod auto_deleveraging {
 
     #[test]
     fn multiple_users_adl_sequence_test() {
-        
         let quote_asset_amount_long = -QUOTE_PRECISION_I128 * 30 * 9 / 10 * 102
             + QUOTE_PRECISION_I128 * 5
             + (200 * QUOTE_PRECISION_I128);
         let quote_asset_amount_short = QUOTE_PRECISION_I128 * 30 * 11 / 10;
 
-        let mut market =  PerpMarket {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_amount_long: BASE_PRECISION_I128 * 102,
                 base_asset_amount_short: -BASE_PRECISION_I128 * 54,
@@ -998,7 +992,7 @@ mod auto_deleveraging {
             ..PerpMarket::default()
         };
 
-        let mut dus 1 = DeleverageUserStats {
+        let mut dus1 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long * 30 / 100) as i64,
             quote_asset_amount: (quote_asset_amount_long * 29 / 100) as i64,
             quote_break_even_amount: (market.amm.quote_break_even_amount_long * 29 / 100) as i64,
@@ -1006,42 +1000,38 @@ mod auto_deleveraging {
         };
 
         // tiny
-        let mut dus 2 = DeleverageUserStats {
+        let mut dus2 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long / 100) as i64,
             quote_asset_amount: (quote_asset_amount_long / 100) as i64,
             quote_break_even_amount: (market.amm.quote_break_even_amount_long / 100) as i64,
             free_collateral: 100 * QUOTE_PRECISION_I128,
         };
 
-        let mut dus 3 = DeleverageUserStats {
+        let mut dus3 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long * 69 / 100) as i64,
             quote_asset_amount: (quote_asset_amount_long * 70 / 100) as i64 - 100,
             quote_break_even_amount: (market.amm.quote_break_even_amount_long * 70 / 100) as i64,
             free_collateral: 5000 * QUOTE_PRECISION_I128,
         };
 
-        let mut dus 4 = DeleverageUserStats {
+        let mut dus4 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_short * 50 / 100) as i64,
-            quote_asset_amount: ((quote_asset_amount_short
-                + 200 * QUOTE_PRECISION_I128)
-                * 49
-                / 100) as i64,
+            quote_asset_amount: ((quote_asset_amount_short + 200 * QUOTE_PRECISION_I128) * 49 / 100)
+                as i64,
             quote_break_even_amount: (market.amm.quote_break_even_amount_short * 49 / 100) as i64,
             free_collateral: 1000 * QUOTE_PRECISION_I128,
         };
 
-        let mut dus 5 = DeleverageUserStats {
+        let mut dus5 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_short * 50 / 100) as i64,
-            quote_asset_amount: ((quote_asset_amount_short
-                + 200 * QUOTE_PRECISION_I128)
-                * 51
-                / 100) as i64,
+            quote_asset_amount: ((quote_asset_amount_short + 200 * QUOTE_PRECISION_I128) * 51 / 100)
+                as i64,
             quote_break_even_amount: (market.amm.quote_break_even_amount_short * 51 / 100) as i64,
             free_collateral: 1000 * QUOTE_PRECISION_I128,
         };
 
         // levered loss
-        let mut dus 6 = DeleverageUserStats {
+        let mut dus6 = DeleverageUserStats {
             base_asset_amount: 0,
             quote_asset_amount: -(200 * QUOTE_PRECISION_I128) as i64,
             quote_break_even_amount: 0,
@@ -1049,7 +1039,7 @@ mod auto_deleveraging {
         };
 
         // filler
-        let mut dus 7 = DeleverageUserStats {
+        let mut dus7 = DeleverageUserStats {
             base_asset_amount: 0,
             quote_asset_amount: 100_i64,
             quote_break_even_amount: 0,
@@ -1227,13 +1217,12 @@ mod auto_deleveraging {
 
     #[test]
     fn multiple_users_adl_automated_sequence_test() {
-        
         let quote_asset_amount_long = -QUOTE_PRECISION_I128 * 30 * 9 / 10 * 102
             + QUOTE_PRECISION_I128 * 5
             + (200 * QUOTE_PRECISION_I128);
         let quote_asset_amount_short = QUOTE_PRECISION_I128 * 30 * 11 / 10;
 
-        let mut market =  PerpMarket {
+        let mut market = PerpMarket {
             amm: AMM {
                 base_asset_amount_long: BASE_PRECISION_I128 * 102,
                 base_asset_amount_short: -BASE_PRECISION_I128 * 54,
@@ -1249,7 +1238,7 @@ mod auto_deleveraging {
             ..PerpMarket::default()
         };
 
-        let mut dus 1 = DeleverageUserStats {
+        let mut dus1 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long * 30 / 100) as i64,
             quote_asset_amount: (quote_asset_amount_long * 29 / 100) as i64,
             quote_break_even_amount: (market.amm.quote_break_even_amount_long * 29 / 100) as i64,
@@ -1257,42 +1246,38 @@ mod auto_deleveraging {
         };
 
         // tiny
-        let mut dus 2 = DeleverageUserStats {
+        let mut dus2 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long / 100) as i64,
             quote_asset_amount: (quote_asset_amount_long / 100) as i64,
             quote_break_even_amount: (market.amm.quote_break_even_amount_long / 100) as i64,
             free_collateral: 100 * QUOTE_PRECISION_I128,
         };
 
-        let mut dus 3 = DeleverageUserStats {
+        let mut dus3 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long * 69 / 100) as i64,
             quote_asset_amount: (quote_asset_amount_long * 70 / 100) as i64 - 100,
             quote_break_even_amount: (market.amm.quote_break_even_amount_long * 70 / 100) as i64,
             free_collateral: 5000 * QUOTE_PRECISION_I128,
         };
 
-        let mut dus 4 = DeleverageUserStats {
+        let mut dus4 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_short * 50 / 100) as i64,
-            quote_asset_amount: ((quote_asset_amount_short
-                + 200 * QUOTE_PRECISION_I128)
-                * 49
-                / 100) as i64,
+            quote_asset_amount: ((quote_asset_amount_short + 200 * QUOTE_PRECISION_I128) * 49 / 100)
+                as i64,
             quote_break_even_amount: (market.amm.quote_break_even_amount_short * 49 / 100) as i64,
             free_collateral: 1000 * QUOTE_PRECISION_I128,
         };
 
-        let mut dus 5 = DeleverageUserStats {
+        let mut dus5 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_short * 50 / 100) as i64,
-            quote_asset_amount: ((quote_asset_amount_short
-                + 200 * QUOTE_PRECISION_I128)
-                * 51
-                / 100) as i64,
+            quote_asset_amount: ((quote_asset_amount_short + 200 * QUOTE_PRECISION_I128) * 51 / 100)
+                as i64,
             quote_break_even_amount: (market.amm.quote_break_even_amount_short * 51 / 100) as i64,
             free_collateral: 1000 * QUOTE_PRECISION_I128,
         };
 
         // levered loss
-        let mut dus 6 = DeleverageUserStats {
+        let mut dus6 = DeleverageUserStats {
             base_asset_amount: 0,
             quote_asset_amount: -(200 * QUOTE_PRECISION_I128) as i64,
             quote_break_even_amount: 0,
@@ -1300,7 +1285,7 @@ mod auto_deleveraging {
         };
 
         // filler
-        let mut dus 7 = DeleverageUserStats {
+        let mut dus7 = DeleverageUserStats {
             base_asset_amount: 0,
             quote_asset_amount: 100_i64,
             quote_break_even_amount: 0,
@@ -1395,7 +1380,6 @@ mod auto_deleveraging {
 
     #[test]
     fn bully_one_users_adl_automated_sequence_test() {
-        
         let quote_asset_amount_long = -QUOTE_PRECISION_I128 * 30 * 9 / 10 * 102
             + QUOTE_PRECISION_I128 * 5
             + (200 * QUOTE_PRECISION_I128);
@@ -1425,42 +1409,38 @@ mod auto_deleveraging {
         };
 
         // tiny
-        let mut dus 2 = DeleverageUserStats {
+        let mut dus2 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long / 100) as i64,
             quote_asset_amount: (quote_asset_amount_long / 100) as i64,
             quote_break_even_amount: (market.amm.quote_break_even_amount_long / 100) as i64,
             free_collateral: 100 * QUOTE_PRECISION_I128,
         };
 
-        let mut dus 3 = DeleverageUserStats {
+        let mut dus3 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_long * 69 / 100) as i64,
             quote_asset_amount: (quote_asset_amount_long * 70 / 100) as i64 - 100,
             quote_break_even_amount: (market.amm.quote_break_even_amount_long * 70 / 100) as i64,
             free_collateral: 5000 * QUOTE_PRECISION_I128,
         };
 
-        let mut dus 4 = DeleverageUserStats {
+        let mut dus4 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_short * 50 / 100) as i64,
-            quote_asset_amount: ((quote_asset_amount_short
-                + 200 * QUOTE_PRECISION_I128)
-                * 49
-                / 100) as i64,
+            quote_asset_amount: ((quote_asset_amount_short + 200 * QUOTE_PRECISION_I128) * 49 / 100)
+                as i64,
             quote_break_even_amount: (market.amm.quote_break_even_amount_short * 49 / 100) as i64,
             free_collateral: 1000 * QUOTE_PRECISION_I128,
         };
 
-        let mut dus 5 = DeleverageUserStats {
+        let mut dus5 = DeleverageUserStats {
             base_asset_amount: (market.amm.base_asset_amount_short * 50 / 100) as i64,
-            quote_asset_amount: ((quote_asset_amount_short
-                + 200 * QUOTE_PRECISION_I128)
-                * 51
-                / 100) as i64,
+            quote_asset_amount: ((quote_asset_amount_short + 200 * QUOTE_PRECISION_I128) * 51 / 100)
+                as i64,
             quote_break_even_amount: (market.amm.quote_break_even_amount_short * 51 / 100) as i64,
             free_collateral: 1000 * QUOTE_PRECISION_I128,
         };
 
         // levered loss
-        let mut dus 6 = DeleverageUserStats {
+        let mut dus6 = DeleverageUserStats {
             base_asset_amount: 0,
             quote_asset_amount: -(200 * QUOTE_PRECISION_I128) as i64,
             quote_break_even_amount: 0,
@@ -1468,7 +1448,7 @@ mod auto_deleveraging {
         };
 
         // filler
-        let mut dus 7 = DeleverageUserStats {
+        let mut dus7 = DeleverageUserStats {
             base_asset_amount: 0,
             quote_asset_amount: 100_i64,
             quote_break_even_amount: 0,
