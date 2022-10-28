@@ -1334,13 +1334,6 @@ mod auto_deleveraging {
         let mut dus_list: Vec<&mut DeleverageUserStats> = vec![
             &mut dus1, &mut dus2, &mut dus3, &mut dus4, &mut dus5, &mut dus6, &mut dus7,
         ];
-        // dus_list.push(&mut dus1);
-        // dus_list.push(&mut dus2);
-        // dus_list.push(&mut dus3);
-        // dus_list.push(&mut dus4);
-        // dus_list.push(&mut dus5);
-        // dus_list.push(&mut dus6);
-        // dus_list.push(&mut dus7);
 
         let mut v = Vec::new();
         let l = 7;

@@ -23,7 +23,10 @@ use crate::error::{ClearingHouseResult, ErrorCode};
 use crate::get_then_update_id;
 use crate::math::bankruptcy::is_user_bankrupt;
 use crate::math::casting::Cast;
-use crate::math::constants::{LIQUIDATION_FEE_PRECISION_U128, SPOT_WEIGHT_PRECISION};
+use crate::math::constants::{
+    BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION_U128, MAX_FUNDING_SOCIAL_LOSS_MULT,
+    SPOT_WEIGHT_PRECISION,
+};
 use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
     calculate_base_asset_amount_to_cover_margin_shortage,
@@ -1598,76 +1601,121 @@ pub fn resolve_perp_bankruptcy(
         if_payment
     };
 
-    let mut loss_to_socialize = loss.safe_add(if_payment.cast::<i128>()?)?;
+    let loss_to_socialize = loss.safe_add(if_payment.cast::<i128>()?)?;
 
-    let delever_user_payment = if let Some(delever_user) = delever_user {
-        let market = perp_market_map.get_ref(&market_index)?;
-        let free_collateral = calculate_free_collateral(
-            delever_user,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            MarginRequirementType::Maintenance,
-        )?;
-
-        if free_collateral > 0 {
-            let deleverage_user_position =
-                delever_user.get_perp_position_mut(market_index).unwrap();
-            let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
-
-            let deleverage_user_stats = DeleverageUserStats {
-                base_asset_amount: deleverage_user_position.base_asset_amount,
-                quote_asset_amount: deleverage_user_position.quote_asset_amount,
-                quote_break_even_amount: deleverage_user_position.quote_break_even_amount,
-                free_collateral,
-            };
-
-            let deleverage_user_payment = calculate_perp_market_deleverage_payment(
-                loss_to_socialize,
-                deleverage_user_stats,
-                &market,
-                oracle_price_data.price,
-            )?;
-
-            loss_to_socialize = loss_to_socialize.safe_add(deleverage_user_payment)?;
-            deleverage_user_payment
-        } else {
-            0
-        }
-    } else {
-        0
-    };
-
-    let cumulative_funding_rate_delta = calculate_funding_rate_deltas_to_resolve_bankruptcy(
-        loss_to_socialize,
-        perp_market_map.get_ref(&market_index)?.deref(),
+    validate!(
+        loss_to_socialize <= 0,
+        ErrorCode::DefaultError,
+        "IF Payment to resolve bankruptcy exceeded bankrupcy loss"
     )?;
 
+    // must socialise losses among users in market
+    let mut cumulative_funding_rate_delta: i128 = 0;
+    let mut delever_user_payment: i128 = 0;
     // socialize loss
     if loss_to_socialize < 0 {
         {
             let mut market = perp_market_map.get_ref_mut(&market_index)?;
-            let perp_position = bankrupt_user.force_get_perp_position_mut(market_index)?;
-            update_quote_asset_amount(
-                perp_position,
-                &mut market,
-                -perp_position.quote_asset_amount,
-            )?;
 
-            market.amm.cumulative_social_loss = market
-                .amm
-                .cumulative_social_loss
-                .safe_add(loss_to_socialize)?;
+            let cost_per_base = loss_to_socialize
+                .abs()
+                .safe_mul(BASE_PRECISION_I128)?
+                .safe_div(
+                    market
+                        .amm
+                        .base_asset_amount_long
+                        .safe_add(market.amm.base_asset_amount_short.abs())?,
+                )?;
 
-            market.amm.cumulative_funding_rate_long = market
-                .amm
-                .cumulative_funding_rate_long
-                .safe_add(cumulative_funding_rate_delta)?;
+            if cost_per_base
+                <= market
+                    .amm
+                    .order_tick_size
+                    .cast::<i128>()?
+                    .safe_mul(MAX_FUNDING_SOCIAL_LOSS_MULT)?
+                || market.amm.order_tick_size == 0
+            {
+                cumulative_funding_rate_delta =
+                    calculate_funding_rate_deltas_to_resolve_bankruptcy(
+                        loss_to_socialize,
+                        &market,
+                    )?;
 
-            market.amm.cumulative_funding_rate_short = market
-                .amm
-                .cumulative_funding_rate_short
-                .safe_sub(cumulative_funding_rate_delta)?;
+                let perp_position = bankrupt_user.force_get_perp_position_mut(market_index)?;
+                update_quote_asset_amount(
+                    perp_position,
+                    &mut market,
+                    -perp_position.quote_asset_amount,
+                )?;
+
+                market.amm.cumulative_social_loss = market
+                    .amm
+                    .cumulative_social_loss
+                    .safe_add(loss_to_socialize)?;
+
+                market.amm.cumulative_funding_rate_long =
+                    market
+                        .amm
+                        .cumulative_funding_rate_long
+                        .safe_add(cumulative_funding_rate_delta)?;
+
+                market.amm.cumulative_funding_rate_short = market
+                    .amm
+                    .cumulative_funding_rate_short
+                    .safe_sub(cumulative_funding_rate_delta)?;
+            } else {
+                delever_user_payment = if let Some(delever_user) = delever_user {
+                    let mut market = perp_market_map.get_ref_mut(&market_index)?;
+                    let free_collateral = calculate_free_collateral(
+                        delever_user,
+                        perp_market_map,
+                        spot_market_map,
+                        oracle_map,
+                        MarginRequirementType::Maintenance,
+                    )?;
+
+                    if free_collateral > 0 {
+                        let deleverage_user_position =
+                            delever_user.get_perp_position_mut(market_index).unwrap();
+                        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+
+                        let deleverage_user_stats = DeleverageUserStats {
+                            base_asset_amount: deleverage_user_position.base_asset_amount,
+                            quote_asset_amount: deleverage_user_position.quote_asset_amount,
+                            quote_break_even_amount: deleverage_user_position
+                                .quote_break_even_amount,
+                            free_collateral,
+                        };
+
+                        let deleverage_user_payment = calculate_perp_market_deleverage_payment(
+                            loss_to_socialize,
+                            deleverage_user_stats,
+                            &market,
+                            oracle_price_data.price,
+                        )?;
+                        let perp_position =
+                            bankrupt_user.force_get_perp_position_mut(market_index)?;
+
+                        validate!(
+                            deleverage_user_payment >= 0 && perp_position.quote_asset_amount < 0,
+                            ErrorCode::DefaultError,
+                            "Deleverage User Payment to resolve bankruptcy mismatched"
+                        )?;
+
+                        update_quote_asset_amount(
+                            perp_position,
+                            &mut market,
+                            deleverage_user_payment.cast()?,
+                        )?;
+
+                        deleverage_user_payment
+                    } else {
+                        0
+                    }
+                } else {
+                    0
+                };
+            }
         }
     }
 
