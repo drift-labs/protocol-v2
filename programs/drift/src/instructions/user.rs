@@ -14,6 +14,7 @@ use crate::instructions::SpotFulfillmentType;
 use crate::load;
 use crate::load_mut;
 use crate::math::casting::Cast;
+use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::{
     calculate_max_withdrawable_amount, meets_initial_margin_requirement,
     meets_withdraw_margin_requirement, validate_spot_margin_trading,
@@ -146,7 +147,7 @@ pub fn handle_deposit(
     let now = clock.unix_timestamp;
 
     let AccountMaps {
-        perp_market_map: _,
+        perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
@@ -164,7 +165,7 @@ pub fn handle_deposit(
     validate!(!user.is_bankrupt, ErrorCode::UserBankrupt)?;
 
     let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
-    let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+    let oracle_price_data = &oracle_map.get_price_data(&spot_market.oracle)?.clone();
 
     controller::spot_balance::update_spot_market_cumulative_interest(
         spot_market,
@@ -219,6 +220,17 @@ pub fn handle_deposit(
             ),
             ErrorCode::MarketActionPaused,
             "spot_market in reduce only mode",
+        )?;
+    }
+
+    if user.is_being_liquidated {
+        // try to update liquidation status if user is was already being liq'd
+        user.is_being_liquidated = is_user_being_liquidated(
+            user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            state.liquidation_margin_buffer_ratio,
         )?;
     }
 
