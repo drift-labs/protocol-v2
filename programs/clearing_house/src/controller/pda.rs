@@ -15,7 +15,7 @@ pub fn seed_and_create_pda<'a>(
     seeds: &[&[u8]],
 ) -> ClearingHouseResult {
     let (pda_address, bump) = Pubkey::find_program_address(seeds, program_id);
-    validate!(&pda_address == pda_account.key, ErrorCode::DefaultError)?;
+    validate!(&pda_address == pda_account.key, ErrorCode::InvalidPDA)?;
 
     let bump_seed = [bump];
     let pda_signer_seeds: &[&[&[u8]]] = &[&[seeds, &[&bump_seed]].concat()];
@@ -33,7 +33,7 @@ pub fn seed_and_create_pda<'a>(
     )
     .map_err(|e| {
         msg!("{:?}", e);
-        ErrorCode::DefaultError
+        ErrorCode::InvalidPDASigner
     })?;
 
     Ok(())

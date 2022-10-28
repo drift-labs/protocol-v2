@@ -130,7 +130,7 @@ pub fn update_spot_balances_and_cumulative_deposits_with_limits(
                 | MarketStatus::ReduceOnly
                 | MarketStatus::Settlement
         ),
-        ErrorCode::MarketActionPaused,
+        ErrorCode::MarketWithdrawPaused,
         "Spot Market {} withdraws are currently paused",
         spot_market.market_index
     )?;
@@ -138,7 +138,7 @@ pub fn update_spot_balances_and_cumulative_deposits_with_limits(
     validate!(
         !(spot_market.asset_tier == AssetTier::Protected
             && spot_position.balance_type() == &SpotBalanceType::Borrow),
-        ErrorCode::AssetTierViolation,
+        ErrorCode::ProtectedAssetTierViolation,
         "Spot Market {} has Protected status and cannot be borrowed",
         spot_market.market_index
     )?;
@@ -154,7 +154,7 @@ pub fn transfer_spot_position_deposit(
 ) -> ClearingHouseResult {
     validate!(
         from_spot_position.market_index == to_spot_position.market_index,
-        ErrorCode::DefaultError,
+        ErrorCode::UnequalMarketIndexForSpotTransfer,
         "transfer market indexes arent equal",
     )?;
 

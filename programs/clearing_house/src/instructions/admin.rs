@@ -249,9 +249,11 @@ pub fn handle_initialize_spot_market(
         min_order_size: order_step_size,
         max_position_size: 0,
         next_fill_record_id: 1,
+        next_deposit_record_id: 1,
         spot_fee_pool: PoolBalance::default(), // in quote asset
         total_spot_fee: 0,
-        padding: [0; 7],
+        orders_enabled: spot_market_index != 0,
+        padding: [0; 6],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             ..InsuranceFund::default()
@@ -266,8 +268,8 @@ pub fn handle_initialize_serum_fulfillment_config(
     market_index: u16,
 ) -> Result<()> {
     validate!(
-        market_index != 0,
-        ErrorCode::DefaultError,
+        market_index != QUOTE_SPOT_MARKET_INDEX,
+        ErrorCode::InvalidSpotMarketAccount,
         "Cant add serum market to quote asset"
     )?;
 
@@ -405,13 +407,13 @@ pub fn handle_update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
     let vault = &ctx.accounts.srm_vault;
     validate!(
         vault.mint == crate::ids::srm_mint::id() || vault.mint == crate::ids::msrm_mint::id(),
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidSrmVault,
         "vault did not hav srm or msrm mint"
     )?;
 
     validate!(
         vault.owner == ctx.accounts.state.signer,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidVaultOwner,
         "vault owner was not program signer"
     )?;
 
@@ -1506,6 +1508,15 @@ pub fn handle_update_spot_market_max_token_deposits(
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     spot_market.max_token_deposits = max_token_deposits;
+    Ok(())
+}
+
+pub fn handle_update_spot_market_orders_enabled(
+    ctx: Context<AdminUpdateSpotMarket>,
+    orders_enabled: bool,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    spot_market.orders_enabled = orders_enabled;
     Ok(())
 }
 

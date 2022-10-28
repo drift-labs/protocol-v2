@@ -37,7 +37,7 @@ pub fn calculate_base_asset_amount_for_amm_to_fulfill(
                 (limit_price >= override_limit_price && order.direction == PositionDirection::Long)
                     || (limit_price <= override_limit_price
                         && order.direction == PositionDirection::Short),
-                ErrorCode::DefaultError,
+                ErrorCode::InvalidAmmLimitPriceOverride,
                 "override_limit_price={} not better than order_limit_price={}",
                 override_limit_price,
                 limit_price
@@ -145,7 +145,7 @@ pub fn calculate_base_asset_amount_for_reduce_only_order(
         || (order_direction == PositionDirection::Short && existing_position <= 0)
     {
         msg!("Reduce Only Order must decrease existing position size");
-        Err(ErrorCode::InvalidOrder)
+        Err(ErrorCode::InvalidOrderNotRiskReducing)
     } else {
         Ok(min(
             proposed_base_asset_amount,
@@ -212,6 +212,10 @@ pub fn standardize_price(
     tick_size: u64,
     direction: PositionDirection,
 ) -> ClearingHouseResult<u64> {
+    if price == 0 {
+        return Ok(0);
+    }
+
     let remainder = price
         .checked_rem_euclid(tick_size)
         .ok_or_else(math_error!())?;
@@ -223,6 +227,44 @@ pub fn standardize_price(
     match direction {
         PositionDirection::Long => price.safe_sub(remainder),
         PositionDirection::Short => price.safe_add(tick_size)?.safe_sub(remainder),
+    }
+}
+
+pub fn standardize_price_i64(
+    price: i64,
+    tick_size: i64,
+    direction: PositionDirection,
+) -> ClearingHouseResult<i64> {
+    if price == 0 {
+        return Ok(0);
+    }
+
+    let remainder = price
+        .checked_rem_euclid(tick_size)
+        .ok_or_else(math_error!())?;
+
+    if remainder == 0 {
+        return Ok(price);
+    }
+
+    match direction {
+        PositionDirection::Long => price.safe_sub(remainder),
+        PositionDirection::Short => price.safe_add(tick_size)?.safe_sub(remainder),
+    }
+}
+
+#[cfg(test)]
+mod test2 {
+    use crate::controller::position::PositionDirection;
+    use crate::math::orders::standardize_price_i64;
+
+    #[test]
+    fn test() {
+        let price = -1001_i64;
+
+        let result = standardize_price_i64(price, 100, PositionDirection::Long).unwrap();
+
+        println!("result {}", result);
     }
 }
 
@@ -435,7 +477,7 @@ pub fn validate_fill_price(
             order_limit_price,
             is_taker
         );
-        return Err(ErrorCode::DefaultError);
+        return Err(ErrorCode::InvalidOrderFillPrice);
     }
 
     if order_direction == PositionDirection::Short && fill_price < order_limit_price {
@@ -447,7 +489,7 @@ pub fn validate_fill_price(
             order_limit_price,
             is_taker
         );
-        return Err(ErrorCode::DefaultError);
+        return Err(ErrorCode::InvalidOrderFillPrice);
     }
 
     Ok(())

@@ -47,14 +47,14 @@ pub fn handle_add_insurance_fund_stake(
 
     validate!(
         insurance_fund_stake.market_index == market_index,
-        ErrorCode::DefaultError,
+        ErrorCode::IncorrectSpotMarketAccountPassed,
         "insurance_fund_stake does not match market_index"
     )?;
 
     validate!(
         insurance_fund_stake.last_withdraw_request_shares == 0
             && insurance_fund_stake.last_withdraw_request_value == 0,
-        ErrorCode::DefaultError,
+        ErrorCode::IFWithdrawRequestInProgress,
         "withdraw request in progress"
     )?;
 
@@ -109,13 +109,13 @@ pub fn handle_request_remove_insurance_fund_stake(
 
     validate!(
         insurance_fund_stake.market_index == market_index,
-        ErrorCode::DefaultError,
+        ErrorCode::IncorrectSpotMarketAccountPassed,
         "insurance_fund_stake does not match market_index"
     )?;
 
     validate!(
         insurance_fund_stake.last_withdraw_request_shares == 0,
-        ErrorCode::DefaultError,
+        ErrorCode::IFWithdrawRequestInProgress,
         "Withdraw request is already in progress"
     )?;
 
@@ -127,7 +127,7 @@ pub fn handle_request_remove_insurance_fund_stake(
 
     validate!(
         n_shares > 0,
-        ErrorCode::DefaultError,
+        ErrorCode::IFWithdrawRequestTooSmall,
         "Requested lp_shares = 0"
     )?;
 
@@ -158,13 +158,13 @@ pub fn handle_cancel_request_remove_insurance_fund_stake(
 
     validate!(
         insurance_fund_stake.market_index == market_index,
-        ErrorCode::DefaultError,
+        ErrorCode::IncorrectSpotMarketAccountPassed,
         "insurance_fund_stake does not match market_index"
     )?;
 
     validate!(
         insurance_fund_stake.last_withdraw_request_shares != 0,
-        ErrorCode::DefaultError,
+        ErrorCode::NoIFWithdrawRequestInProgress,
         "No withdraw request in progress"
     )?;
 
@@ -195,7 +195,7 @@ pub fn handle_remove_insurance_fund_stake(
 
     validate!(
         insurance_fund_stake.market_index == market_index,
-        ErrorCode::DefaultError,
+        ErrorCode::IncorrectSpotMarketAccountPassed,
         "insurance_fund_stake does not match market_index"
     )?;
 
@@ -218,7 +218,7 @@ pub fn handle_remove_insurance_fund_stake(
 
     validate!(
         ctx.accounts.insurance_fund_vault.amount > 0,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidIFDetected,
         "insurance_fund_vault.amount must remain > 0"
     )?;
 

@@ -538,12 +538,15 @@ export type SpotMarketAccount = {
 	depositTokenTwap: BN;
 	borrowTokenTwap: BN;
 	utilizationTwap: BN;
+	nextDepositRecordId: BN;
 
 	orderStepSize: BN;
 	orderTickSize: BN;
 	nextFillRecordId: BN;
 	spotFeePool: PoolBalance;
 	totalSpotFee: BN;
+
+	ordersEnabled: boolean;
 };
 
 export type PoolBalance = {
@@ -669,6 +672,7 @@ export type UserAccount = {
 	settledPerpPnl: BN;
 	totalDeposits: BN;
 	totalWithdraws: BN;
+	cumulativePerpFunding: BN;
 };
 
 export type SpotPosition = {

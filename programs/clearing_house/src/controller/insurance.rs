@@ -45,8 +45,8 @@ pub fn add_insurance_fund_stake(
 ) -> ClearingHouseResult {
     validate!(
         !(insurance_vault_amount == 0 && spot_market.insurance_fund.total_shares != 0),
-        ErrorCode::DefaultError,
-        "Insurance Fund balance should be non-zero for new LPs to enter"
+        ErrorCode::InvalidIFForNewStakes,
+        "Insurance Fund balance should be non-zero for new stakers to enter"
     )?;
 
     apply_rebase_to_insurance_fund(insurance_vault_amount, spot_market)?;
@@ -147,7 +147,7 @@ pub fn apply_rebase_to_insurance_fund_stake(
     if spot_market.insurance_fund.shares_base != insurance_fund_stake.if_base {
         validate!(
             spot_market.insurance_fund.shares_base > insurance_fund_stake.if_base,
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidIFRebase,
             "Rebase expo out of bounds"
         )?;
 
@@ -203,7 +203,7 @@ pub fn request_remove_insurance_fund_stake(
     validate!(
         insurance_fund_stake.last_withdraw_request_shares
             <= insurance_fund_stake.checked_if_shares(spot_market)?,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidInsuranceUnstakeSize,
         "last_withdraw_request_shares exceeds if_shares {} > {}",
         insurance_fund_stake.last_withdraw_request_shares,
         insurance_fund_stake.checked_if_shares(spot_market)?
@@ -211,7 +211,7 @@ pub fn request_remove_insurance_fund_stake(
 
     validate!(
         insurance_fund_stake.if_base == spot_market.insurance_fund.shares_base,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidIFRebase,
         "if stake base != spot market base"
     )?;
 
@@ -225,7 +225,7 @@ pub fn request_remove_insurance_fund_stake(
     validate!(
         insurance_fund_stake.last_withdraw_request_value == 0
             || insurance_fund_stake.last_withdraw_request_value < insurance_vault_amount,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidIFUnstakeSize,
         "Requested withdraw value is not below Insurance Fund balance"
     )?;
 
@@ -275,13 +275,13 @@ pub fn cancel_request_remove_insurance_fund_stake(
 
     validate!(
         insurance_fund_stake.if_base == spot_market.insurance_fund.shares_base,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidIFRebase,
         "if stake base != spot market base"
     )?;
 
     validate!(
         insurance_fund_stake.last_withdraw_request_shares != 0,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidIFUnstakeCancel,
         "No withdraw request in progress"
     )?;
 
@@ -358,7 +358,7 @@ pub fn remove_insurance_fund_stake(
 
     validate!(
         n_shares > 0,
-        ErrorCode::DefaultError,
+        ErrorCode::InvalidIFUnstake,
         "Must submit withdraw request and wait the escrow period"
     )?;
 
@@ -544,13 +544,13 @@ pub fn settle_revenue_to_insurance_fund(
 
     validate!(
         spot_market.insurance_fund.revenue_settle_period > 0,
-        ErrorCode::DefaultError,
+        ErrorCode::RevenueSettingsCannotSettleToIF,
         "invalid revenue_settle_period settings on spot market"
     )?;
 
     validate!(
         spot_market.insurance_fund.user_factor <= spot_market.insurance_fund.total_factor,
-        ErrorCode::DefaultError,
+        ErrorCode::RevenueSettingsCannotSettleToIF,
         "invalid if_factor settings on spot market"
     )?;
 
@@ -591,7 +591,7 @@ pub fn settle_revenue_to_insurance_fund(
 
     validate!(
         insurance_fund_token_amount != 0,
-        ErrorCode::DefaultError,
+        ErrorCode::NoRevenueToSettleToIF,
         "no amount to settle to insurance fund"
     )?;
 
@@ -648,7 +648,7 @@ pub fn resolve_perp_pnl_deficit(
 ) -> ClearingHouseResult<u64> {
     validate!(
         market.amm.total_fee_minus_distributions < 0,
-        ErrorCode::DefaultError,
+        ErrorCode::NoAmmPerpPnlDeficit,
         "market.amm.total_fee_minus_distributions={} must be negative",
         market.amm.total_fee_minus_distributions
     )?;
@@ -661,7 +661,7 @@ pub fn resolve_perp_pnl_deficit(
 
     validate!(
         pnl_pool_token_amount == 0,
-        ErrorCode::DefaultError,
+        ErrorCode::SufficientPerpPnlPool,
         "pnl_pool_token_amount > 0 (={})",
         pnl_pool_token_amount
     )?;
@@ -683,7 +683,7 @@ pub fn resolve_perp_pnl_deficit(
 
     validate!(
         excess_user_pnl_imbalance > 0,
-        ErrorCode::DefaultError,
+        ErrorCode::PerpPnlDeficitBelowThreshold,
         "No excess_user_pnl_imbalance({}) to settle",
         excess_user_pnl_imbalance
     )?;
@@ -695,7 +695,7 @@ pub fn resolve_perp_pnl_deficit(
         .cast::<i128>()?;
     validate!(
         max_revenue_withdraw_per_period > 0,
-        ErrorCode::DefaultError,
+        ErrorCode::MaxRevenueWithdrawPerPeriodReached,
         "max_revenue_withdraw_per_period={} as already been reached",
         max_revenue_withdraw_per_period
     )?;
@@ -708,7 +708,7 @@ pub fn resolve_perp_pnl_deficit(
 
     validate!(
         max_insurance_withdraw > 0,
-        ErrorCode::DefaultError,
+        ErrorCode::MaxIFWithdrawReached,
         "max_insurance_withdraw={}/{} as already been reached",
         market.insurance_claim.quote_settled_insurance,
         market.insurance_claim.quote_max_insurance,
@@ -721,7 +721,7 @@ pub fn resolve_perp_pnl_deficit(
 
     validate!(
         insurance_withdraw > 0,
-        ErrorCode::DefaultError,
+        ErrorCode::NoIFWithdrawAvailable,
         "No available funds for insurance_withdraw({}) for user_pnl_imbalance={}",
         insurance_withdraw,
         excess_user_pnl_imbalance
@@ -745,7 +745,7 @@ pub fn resolve_perp_pnl_deficit(
     validate!(
         market.insurance_claim.quote_settled_insurance
             <= market.insurance_claim.quote_max_insurance,
-        ErrorCode::DefaultError,
+        ErrorCode::MaxIFWithdrawReached,
         "quote_settled_insurance breached its max {}/{}",
         market.insurance_claim.quote_settled_insurance,
         market.insurance_claim.quote_max_insurance,

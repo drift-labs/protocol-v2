@@ -37,23 +37,31 @@ pub fn settle_funding_payment(
         Err(_) => return Ok(()),
     };
 
-    let mut market_position = &mut user.perp_positions[position_index];
-
-    if market_position.base_asset_amount == 0 {
+    if user.perp_positions[position_index].base_asset_amount == 0 {
         return Ok(());
     }
 
     let amm: &AMM = &market.amm;
 
-    let amm_cumulative_funding_rate = if market_position.base_asset_amount > 0 {
+    let amm_cumulative_funding_rate = if user.perp_positions[position_index].base_asset_amount > 0 {
         amm.cumulative_funding_rate_long
     } else {
         amm.cumulative_funding_rate_short
     };
 
-    if amm_cumulative_funding_rate != market_position.last_cumulative_funding_rate.cast()? {
-        let market_funding_payment =
-            calculate_funding_payment(amm_cumulative_funding_rate, market_position)?;
+    if amm_cumulative_funding_rate
+        != user.perp_positions[position_index]
+            .last_cumulative_funding_rate
+            .cast()?
+    {
+        let market_funding_payment = calculate_funding_payment(
+            amm_cumulative_funding_rate,
+            &user.perp_positions[position_index],
+        )?;
+
+        user.update_cumulative_perp_funding(market_funding_payment)?;
+
+        let market_position = &mut user.perp_positions[position_index];
 
         emit!(FundingPaymentRecord {
             ts: now,
@@ -80,23 +88,35 @@ pub fn settle_funding_payments(
     perp_market_map: &PerpMarketMap,
     now: UnixTimestamp,
 ) -> ClearingHouseResult {
-    for market_position in user.perp_positions.iter_mut() {
-        if market_position.base_asset_amount == 0 {
+    for position_index in 0..user.perp_positions.len() {
+        if user.perp_positions[position_index].base_asset_amount == 0 {
             continue;
         }
 
-        let market = &mut perp_market_map.get_ref_mut(&market_position.market_index)?;
+        let market =
+            &mut perp_market_map.get_ref_mut(&user.perp_positions[position_index].market_index)?;
         let amm: &AMM = &market.amm;
 
-        let amm_cumulative_funding_rate = if market_position.base_asset_amount > 0 {
-            amm.cumulative_funding_rate_long
-        } else {
-            amm.cumulative_funding_rate_short
-        };
+        let amm_cumulative_funding_rate =
+            if user.perp_positions[position_index].base_asset_amount > 0 {
+                amm.cumulative_funding_rate_long
+            } else {
+                amm.cumulative_funding_rate_short
+            };
 
-        if amm_cumulative_funding_rate != market_position.last_cumulative_funding_rate.cast()? {
-            let market_funding_payment =
-                calculate_funding_payment(amm_cumulative_funding_rate, market_position)?;
+        if amm_cumulative_funding_rate
+            != user.perp_positions[position_index]
+                .last_cumulative_funding_rate
+                .cast()?
+        {
+            let market_funding_payment = calculate_funding_payment(
+                amm_cumulative_funding_rate,
+                &user.perp_positions[position_index],
+            )?;
+
+            user.update_cumulative_perp_funding(market_funding_payment)?;
+
+            let market_position = &mut user.perp_positions[position_index];
 
             emit!(FundingPaymentRecord {
                 ts: now,

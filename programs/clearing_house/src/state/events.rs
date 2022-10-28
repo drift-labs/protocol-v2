@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::controller::position::PositionDirection;
-use crate::error::{ClearingHouseResult, ErrorCode::DefaultError};
+use crate::error::{ClearingHouseResult, ErrorCode::InvalidOrder};
 use crate::math::casting::Cast;
 use crate::state::user::{MarketType, Order};
 use anchor_lang::Discriminator;
@@ -24,6 +24,7 @@ pub struct DepositRecord {
     pub user_authority: Pubkey,
     pub user: Pubkey,
     pub direction: DepositDirection,
+    pub deposit_record_id: u64,
     pub amount: u64,
     pub market_index: u16,
     pub oracle_price: i64,
@@ -191,7 +192,7 @@ pub fn get_order_action_record(
         } else if let Some(maker_order) = maker_order {
             maker_order.market_type
         } else {
-            return Err(DefaultError);
+            return Err(InvalidOrder);
         },
         filler,
         filler_reward,
@@ -251,6 +252,7 @@ pub enum OrderActionExplanation {
     OrderFilledWithAMMJit,
     OrderFilledWithMatch,
     MarketExpired,
+    RiskingIncreasingOrder,
 }
 
 impl Default for OrderAction {

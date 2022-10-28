@@ -290,13 +290,13 @@ pub fn settle_expired_market(
 
     validate!(
         market.expiry_ts != 0,
-        ErrorCode::DefaultError,
+        ErrorCode::MarketSettlementAttemptOnActiveMarket,
         "Market isn't set to expire"
     )?;
 
     validate!(
         market.expiry_ts <= now,
-        ErrorCode::DefaultError,
+        ErrorCode::MarketSettlementAttemptTooEarly,
         "Market hasn't expired yet (expiry={} > now{})",
         market.expiry_ts,
         now
@@ -304,7 +304,7 @@ pub fn settle_expired_market(
 
     validate!(
         market.amm.base_asset_amount_with_unsettled_lp == 0 && market.amm.user_lp_shares == 0,
-        ErrorCode::DefaultError,
+        ErrorCode::MarketSettlementRequiresSettledLP,
         "Outstanding LP in market"
     )?;
 
@@ -362,7 +362,7 @@ pub fn settle_expired_market(
 
         validate!(
             cost_applied,
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidUpdateK,
             "Issue applying k increase on market"
         )?;
 
@@ -379,14 +379,14 @@ pub fn settle_expired_market(
 
     validate!(
         10_u128.pow(spot_market.decimals) == QUOTE_PRECISION,
-        ErrorCode::DefaultError,
+        ErrorCode::UnsupportedSpotMarket,
         "Only support bank.decimals == QUOTE_PRECISION"
     )?;
 
     let target_expiry_price = market.amm.historical_oracle_data.last_oracle_price_twap;
     validate!(
         target_expiry_price > 0,
-        ErrorCode::DefaultError,
+        ErrorCode::MarketSettlementTargetPriceInvalid,
         "target_expiry_price <= 0 {}",
         target_expiry_price
     )?;

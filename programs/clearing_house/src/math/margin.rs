@@ -527,7 +527,7 @@ pub fn meets_withdraw_margin_requirement(
     if num_of_liabilities > 1 {
         validate!(
             !includes_isolated_liability,
-            ErrorCode::DefaultError,
+            ErrorCode::IsolatedAssetTierViolation,
             "User attempting to increase number of liabilities above 1 with a isolated tier liability"
         )?;
     }
@@ -584,7 +584,7 @@ pub fn meets_place_order_margin_requirement(
     if num_of_liabilities > 1 {
         validate!(
             !includes_isolated_liability,
-            ErrorCode::DefaultError,
+            ErrorCode::IsolatedAssetTierViolation,
             "User attempting to increase number of liabilities above 1 with a isolated tier liability"
         )?;
     }

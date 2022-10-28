@@ -50,6 +50,7 @@ pub struct SpotMarket {
     pub min_order_size: u64,
     pub max_position_size: u64,
     pub next_fill_record_id: u64,
+    pub next_deposit_record_id: u64,
     pub initial_asset_weight: u32,
     pub maintenance_asset_weight: u32,
     pub initial_liability_weight: u32,
@@ -62,10 +63,11 @@ pub struct SpotMarket {
     pub max_borrow_rate: u32,
     pub decimals: u32,
     pub market_index: u16,
+    pub orders_enabled: bool,
     pub oracle_source: OracleSource,
     pub status: MarketStatus,
     pub asset_tier: AssetTier,
-    pub padding: [u8; 7],
+    pub padding: [u8; 6],
 }
 
 impl SpotMarket {

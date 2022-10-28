@@ -4,6 +4,7 @@ use anchor_spl::token::{Token, TokenAccount};
 use crate::controller::orders::cancel_orders;
 use crate::controller::position::PositionDirection;
 use crate::error::ErrorCode;
+use crate::get_then_update_id;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
     get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_serum_fulfillment_accounts,
@@ -230,9 +231,11 @@ pub fn handle_deposit(
     )?;
     ctx.accounts.spot_market_vault.reload()?;
 
+    let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
     let oracle_price = oracle_price_data.price;
     let deposit_record = DepositRecord {
         ts: now,
+        deposit_record_id,
         user_authority: user.authority,
         user: user_key,
         direction: DepositDirection::DEPOSIT,
@@ -360,7 +363,7 @@ pub fn handle_withdraw(
 
     user.is_being_liquidated = false;
 
-    let spot_market = spot_market_map.get_ref(&market_index)?;
+    let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
     let oracle_price = oracle_price_data.price;
 
@@ -370,8 +373,10 @@ pub fn handle_withdraw(
         spot_market.get_precision().cast()?,
     )?;
 
+    let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
     let deposit_record = DepositRecord {
         ts: now,
+        deposit_record_id,
         user_authority: user.authority,
         user: user_key,
         direction: DepositDirection::WITHDRAW,
@@ -461,8 +466,18 @@ pub fn handle_transfer_deposit(
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         validate!(
-            spot_market.status != MarketStatus::WithdrawPaused,
-            ErrorCode::DailyWithdrawLimit
+            matches!(
+                spot_market.status,
+                MarketStatus::Active
+                    | MarketStatus::AmmPaused
+                    | MarketStatus::FundingPaused
+                    | MarketStatus::FillPaused
+                    | MarketStatus::ReduceOnly
+                    | MarketStatus::Settlement
+            ),
+            ErrorCode::MarketWithdrawPaused,
+            "Spot Market {} withdraws are currently paused",
+            spot_market.market_index
         )?;
 
         let from_spot_position = from_user.force_get_spot_position_mut(spot_market.market_index)?;
@@ -505,8 +520,10 @@ pub fn handle_transfer_deposit(
             spot_market.get_precision().cast()?,
         )?;
 
+        let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
         let deposit_record = DepositRecord {
             ts: clock.unix_timestamp,
+            deposit_record_id,
             user_authority: *authority_key,
             user: from_user_key,
             direction: DepositDirection::WITHDRAW,
@@ -547,8 +564,10 @@ pub fn handle_transfer_deposit(
             None,
         )?;
 
+        let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
         let deposit_record = DepositRecord {
             ts: clock.unix_timestamp,
+            deposit_record_id,
             user_authority: *authority_key,
             user: to_user_key,
             direction: DepositDirection::DEPOSIT,
@@ -617,7 +636,7 @@ pub fn handle_place_perp_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
 
     if params.immediate_or_cancel {
         msg!("immediate_or_cancel order must be in place_and_make or place_and_take");
-        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        return Err(print_error!(ErrorCode::InvalidOrderIOC)().into());
     }
 
     controller::orders::place_perp_order(
@@ -771,7 +790,7 @@ pub fn handle_place_and_take_perp_order<'info>(
 
     if params.post_only {
         msg!("post_only cant be used in place_and_take");
-        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
     }
 
     let (maker, maker_stats) = match maker_order_id {
@@ -872,7 +891,7 @@ pub fn handle_place_and_make_perp_order<'info>(
 
     if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit {
         msg!("place_and_make must use IOC post only limit order");
-        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
     }
 
     controller::repeg::update_amm(
@@ -947,7 +966,7 @@ pub fn handle_place_spot_order(ctx: Context<PlaceOrder>, params: OrderParams) ->
 
     if params.immediate_or_cancel {
         msg!("immediate_or_cancel order must be in place_and_make or place_and_take");
-        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        return Err(print_error!(ErrorCode::InvalidOrderIOC)().into());
     }
 
     controller::orders::place_spot_order(
@@ -990,7 +1009,7 @@ pub fn handle_place_and_take_spot_order<'info>(
 
     if params.post_only {
         msg!("post_only cant be used in place_and_take");
-        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
     }
 
     let (maker, maker_stats) = match maker_order_id {
@@ -1120,7 +1139,7 @@ pub fn handle_place_and_make_spot_order<'info>(
 
     if !params.immediate_or_cancel || !params.post_only || params.order_type != OrderType::Limit {
         msg!("place_and_make must use IOC post only limit order");
-        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+        return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
     }
 
     let market_index = params.market_index;
@@ -1255,13 +1274,13 @@ pub fn handle_add_perp_lp_shares<'info>(
                     | MarketStatus::FillPaused
                     | MarketStatus::WithdrawPaused
             ),
-            ErrorCode::DefaultError,
+            ErrorCode::MarketStatusInvalidForNewLP,
             "Market Status doesn't allow for new LP liquidity"
         )?;
 
         validate!(
             n_shares >= market.amm.order_step_size,
-            ErrorCode::DefaultError,
+            ErrorCode::NewLPSizeTooSmall,
             "minting {} shares is less than step size {}",
             n_shares,
             market.amm.order_step_size,
@@ -1338,7 +1357,7 @@ pub fn handle_remove_perp_lp_shares_in_expiring_market(
         let market = perp_market_map.get_ref(&market_index)?;
         validate!(
             market.is_reduce_only()?,
-            ErrorCode::DefaultError,
+            ErrorCode::PerpMarketNotInReduceOnly,
             "Can only permissionless burn when market is in reduce only"
         )?;
     }
